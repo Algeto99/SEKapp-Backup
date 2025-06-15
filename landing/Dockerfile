@@ -1,4 +1,3 @@
-```dockerfile
 # landing_page_service/Dockerfile
 # Use the official Python image as a base
 FROM python:3.9-slim-buster
