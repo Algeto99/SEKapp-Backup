@@ -1,4 +1,4 @@
-# form_service/Dockerfile
+# forms/Dockerfile
 
 # Use a slim Python base image for smaller deployments
 FROM python:3.9-slim-buster

@@ -1,4 +1,4 @@
-# landing_page_service/app.py
+# landing/app.py
 from flask import Flask, render_template
 
 app = Flask(__name__)

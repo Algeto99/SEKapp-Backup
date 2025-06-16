@@ -1,4 +1,4 @@
-# dashboard_service/app.py
+# dashboard/app.py
 import os
 from flask import Flask, render_template
 import psycopg2
