@@ -55,7 +55,7 @@ def show_report_form():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         # Fetch incident types
-        cur.execute("SELECT id_tipo_incidencia AS id, nombre FROM tipo_incidencia ORDER BY nombre;")
+        cur.execute("SELECT nombre FROM tipo_incidencia ORDER BY nombre;")
         tipos_incidencia = cur.fetchall()
 
         # Fetch client types
