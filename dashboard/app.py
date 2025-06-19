@@ -31,6 +31,11 @@ def get_db_connection():
         print(f"Error connecting to database: {e}")
         return None
 
+@app.route('/')
+def index():
+    return redirect(url_for('show_dashboard'))
+
+
 @app.route('/dashboard', methods=['GET'])
 def show_dashboard():
     """
