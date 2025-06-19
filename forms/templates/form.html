@@ -22,7 +22,7 @@
                 <select id="tipo_incidencia" name="tipo_incidencia" required
                         class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     <option value="">Seleccione un tipo</option>
-                    {% for tipo in tipos_incidencia %}
+                    {% for tipo in tipo_incidencia %}
                         <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
                     {% endfor %}
                 </select>
@@ -33,7 +33,7 @@
                 <select id="tipo_cliente" name="tipo_cliente" required
                         class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     <option value="">Seleccione un tipo</option>
-                    {% for tipo in tipos_cliente %}
+                    {% for tipo in tipo_cliente %}
                         <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
                     {% endfor %}
                 </select>
@@ -44,7 +44,7 @@
                 <select id="lugar_incidente" name="lugar_incidente" required
                         class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     <option value="">Seleccione un lugar</option>
-                    {% for lugar in lugares_incidente %}
+                    {% for lugar in lugar_incidente %}
                         <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
                     {% endfor %}
                 </select>
@@ -127,7 +127,7 @@
                 <select id="supervisor" name="supervisor" required
                         class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     <option value="">Seleccione un supervisor</option>
-                    {% for sup in supervisores %}
+                    {% for sup in supervisor %}
                         <option value="{{ sup.id }}">{{ sup.nombre }}</option>
                     {% endfor %}
                 </select>
