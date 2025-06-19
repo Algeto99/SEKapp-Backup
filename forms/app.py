@@ -56,15 +56,18 @@ def show_report_form():
 
         # Fetch incident types
         cur.execute("SELECT id_tipo_incidencia AS id, nombre FROM tipo_incidencia ORDER BY nombre;")
-        tipo_incidencia = cur.fetchall()
+        # FIX: Changed variable name from tipo_incidencia to tipos_incidencia to match the template variable
+        tipos_incidencia = cur.fetchall()
 
         # Fetch client types
         cur.execute("SELECT id_tipo_cliente AS id, nombre FROM tipo_cliente ORDER BY nombre;")
-        tipo_cliente = cur.fetchall()
+        # FIX: Changed variable name from tipo_cliente to tipos_cliente to match the template variable
+        tipos_cliente = cur.fetchall()
 
         # Fetch incident locations
         cur.execute("SELECT id_lugar_incidente AS id, nombre FROM lugar_incidente ORDER BY nombre;")
-        lugar_incidente = cur.fetchall()
+        # FIX: Changed variable name from lugar_incidente to lugares_incidente to match the template variable
+        lugares_incidente = cur.fetchall()
 
         # Fetch supervisors
         cur.execute("SELECT id_supervisor AS id, nombre FROM supervisor ORDER BY nombre;")
@@ -73,9 +76,9 @@ def show_report_form():
         cur.close()
         return render_template(
             'form.html',
-            tipos_incidencia=tipos_incidencia,
-            tipos_cliente=tipos_cliente,
-            lugares_incidente=lugar_incidente,
+            tipos_incidencia=tipos_incidencia, # This is now correctly defined
+            tipos_cliente=tipos_cliente,       # This is now correctly defined
+            lugares_incidente=lugares_incidente, # This is now correctly defined
             supervisores=supervisores
         )
     except psycopg2.Error as e:
