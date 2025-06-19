@@ -35,6 +35,11 @@ def get_db_connection():
         # In a real application, you might implement retry logic or circuit breakers here.
         return None
 
+@app.route('/')
+def index():
+    return redirect(url_for('show_form'))
+
+
 @app.route('/form', methods=['GET'])
 def show_form():
     """
