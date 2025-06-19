@@ -56,11 +56,11 @@ def show_report_form():
 
         # Fetch incident types
         cur.execute("SELECT nombre FROM tipo_incidencia ORDER BY nombre;")
-        tipos_incidencia = cur.fetchall()
+        tipo_incidencia = cur.fetchall()
 
         # Fetch client types
-        cur.execute("SELECT id_tipo_cliente AS id, nombre FROM tipo_cliente ORDER BY nombre;")
-        tipos_cliente = cur.fetchall()
+        cur.execute("SELECT nombre FROM tipo_cliente ORDER BY nombre;")
+        tipo_cliente = cur.fetchall()
 
         # Fetch incident locations
         cur.execute("SELECT id_lugar_incidente AS id, nombre FROM lugar_incidente ORDER BY nombre;")
