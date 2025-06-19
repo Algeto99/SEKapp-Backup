@@ -1,6 +1,6 @@
 # dashboard/app.py
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect, url_for
 import psycopg2
 
 app = Flask(__name__)
