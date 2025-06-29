@@ -15,10 +15,14 @@
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif;
-            color: #212529;
+            color: #212529; /* Default for dark text on light backgrounds */
+        }
+        /* Specific heading color for the dark section */
+        .dark-section-heading {
+            color: #ffffff; /* White for headings in dark section */
         }
         .container-wrapper {
-            background-color: #ffffff;
+            background-color: #ffffff; /* Default background for wrapper, will be overridden by sections */
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
@@ -32,34 +36,32 @@
         .btn-secondary-professional {
             @apply border border-blue-700 text-blue-700 hover:bg-blue-50 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
         }
-        /* Custom styles for the logo within the dark section */
+        /* Custom styles for the logo within the white section */
         .logo-img {
             max-width: 150px; /* Adjust as needed */
             height: auto; /* Maintain aspect ratio */
-            /* REMOVED: filter: brightness(0) invert(1) drop-shadow(0 0 5px rgba(255,255,255,0.3)); */
-            /* You can still adjust opacity if needed for subtle effect */
-            /* opacity: 0.9; // Already on the img tag, can be kept or removed */
+            /* filter was removed in previous step, assuming logo is now in original colors */
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
     <div class="container-wrapper max-w-4xl w-full flex flex-col md:flex-row overflow-hidden">
-        <div class="md:w-1/2 p-8 md:p-12 bg-gray-900 text-white flex flex-col justify-center items-start text-left">
+        <div class="md:w-1/2 p-8 md:p-12 bg-white flex flex-col justify-center items-start text-left">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mb-6 opacity-90 logo-img">
-            <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
-                Empowering Your Security with <span class="text-blue-400">Advanced Solutions</span>
+            <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight text-gray-800">
+                Empowering Your Security with <span class="text-blue-700">Advanced Solutions</span>
             </h1>
-            <p class="text-lg text-gray-300 mb-6 max-w-prose">
+            <p class="text-lg text-gray-600 mb-6 max-w-prose">
                 At Tzolkin Tech SecApp, we deliver cutting-edge security and data management platforms designed for robust protection and seamless accessibility.
             </p>
-            <p class="text-md text-gray-400">
+            <p class="text-md text-gray-700">
                 Partner with us for unparalleled digital integrity.
             </p>
         </div>
 
-        <div class="md:w-1/2 p-8 md:p-12 flex flex-col justify-center items-center text-center">
-            <h2 class="text-3xl font-semibold mb-6 text-gray-800">Access Our Services</h2>
-            <p class="text-md text-gray-600 mb-8 max-w-md">
+        <div class="md:w-1/2 p-8 md:p-12 bg-gray-900 flex flex-col justify-center items-center text-center">
+            <h2 class="text-3xl font-semibold mb-6 dark-section-heading">Access Our Services</h2>
+            <p class="text-md text-gray-300 mb-8 max-w-md">
                 Choose an option below to securely interact with our platform and manage your essential data.
             </p>
 
@@ -70,12 +72,12 @@
                 <button onclick="window.location.href='https://dashboard-ir5ib344aa-uc.a.run.app'" class="base-button-style btn-secondary-professional">
                     Access Data Dashboard
                 </button>
-                </div>
+            </div>
 
-            <p class="mt-12 text-sm text-gray-500">
+            <p class="mt-12 text-sm text-gray-400">
                 Your privacy and data security are our top priorities.
             </p>
-            <p class="mt-2 text-xs text-gray-400">
+            <p class="mt-2 text-xs text-gray-500">
                 &copy; 2025 Tzolkin Tech. All rights reserved.
             </p>
         </div>
