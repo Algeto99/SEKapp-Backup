@@ -1,177 +1,121 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="transition duration-300 ease-in-out">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Reporte de Incidencia</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet" />
+
+  <script>
+    // Tailwind dark mode config
+    tailwind.config = {
+      darkMode: 'class'
+    };
+  </script>
+
   <style>
     body {
       font-family: 'Roboto', sans-serif;
-      background-color: #1a202c;
-      color: #e2e8f0;
-      line-height: 1.6;
     }
     h1, h2, h3, h4, h5, h6 {
       font-family: 'Merriweather', serif;
-      color: #ffffff;
-    }
-    .form-card {
-      background-color: #2d3748;
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .ts-control {
-      background-color: white;
-      color: #1a202c !important;
-      padding: 0.5rem 1rem;
-      min-height: 42px;
-      border: 1px solid #d1d5db;
-      border-radius: 0.5rem;
-    }
-    .ts-control input {
-      color: #1a202c !important;
-    }
-    .ts-placeholder {
-      color: #718096 !important;
-    }
-    .ts-dropdown {
-      background-color: #4a5568;
-      color: white;
-      border: 1px solid #4b5563;
-      border-radius: 0.5rem;
-    }
-    .ts-dropdown .option {
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-    }
-    .ts-dropdown .option:hover {
-      background-color: #2b6cb0;
-    }
-    .ts-dropdown .option.active {
-      background-color: #3182ce;
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
-  <div class="form-card p-8 rounded-xl shadow-2xl max-w-2xl w-full">
-    <h1 class="text-3xl font-bold text-white mb-6 text-center">Reporte de Incidencia</h1>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
+  <div class="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8">
+    <!-- Theme Toggle -->
+    <div class="flex justify-end mb-4">
+      <label class="flex items-center space-x-2 cursor-pointer">
+        <input type="checkbox" id="theme-toggle" class="hidden">
+        <div class="w-10 h-5 bg-gray-300 dark:bg-gray-700 rounded-full relative transition duration-300 ease-in-out">
+          <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition duration-300 ease-in-out" id="theme-toggle-thumb"></div>
+        </div>
+        <span class="text-sm text-gray-600 dark:text-gray-300">Dark Mode</span>
+      </label>
+    </div>
+
+    <h1 class="text-3xl font-bold text-center mb-6">Reporte de Incidencia</h1>
+
     <form action="/submit_report" method="POST" class="space-y-6">
-      
-      <!-- Use this consistent input style for all -->
-      {% macro input_classes() -%}
-      mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm
-      {%- endmacro %}
-
-      {% macro textarea_classes(rows=4) -%}
-      mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm min-h-[150px]
-      {%- endmacro %}
-
-      {% set field_class = "mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" %}
-
+      <!-- Input/Select Template -->
+      {% macro field(label, id, html) -%}
       <div>
-        <label for="tipo_incidencia" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Incidencia:</label>
-        <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable {{ field_class }}">
-          <option value="">Seleccione un tipo</option>
+        <label for="{{ id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ label }}</label>
+        {{ html | safe }}
+      </div>
+      {%- endmacro %}
+
+      {{ field('Tipo de Incidencia', 'tipo_incidencia',
+        '<select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          <option value=\'\'>Seleccione un tipo</option>
           {% for tipo in tipo_incidencia %}
             <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
           {% endfor %}
-        </select>
-      </div>
+        </select>') }}
 
-      <div>
-        <label for="tipo_cliente" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Cliente:</label>
-        <select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable {{ field_class }}">
-          <option value="">Seleccione un tipo</option>
+      {{ field('Tipo de Cliente', 'tipo_cliente',
+        '<select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          <option value=\'\'>Seleccione un tipo</option>
           {% for tipo in tipo_cliente %}
             <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
           {% endfor %}
-        </select>
-      </div>
+        </select>') }}
 
-      <div>
-        <label for="lugar_incidente" class="block text-sm font-medium text-gray-200 mb-1">Lugar del Incidente:</label>
-        <select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable {{ field_class }}">
-          <option value="">Seleccione un lugar</option>
+      {{ field('Lugar del Incidente', 'lugar_incidente',
+        '<select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          <option value=\'\'>Seleccione un lugar</option>
           {% for lugar in lugar_incidente %}
             <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
           {% endfor %}
-        </select>
-      </div>
+        </select>') }}
 
-      <div>
-        <label for="descripcion_zona_comun" class="block text-sm font-medium text-gray-200 mb-1">Zona común:</label>
-        <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3" class="{{ textarea_classes(3) }}"></textarea>
-      </div>
+      {{ field('Zona común', 'descripcion_zona_comun',
+        '<textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>') }}
 
-      <div>
-        <label for="fecha_incidente" class="block text-sm font-medium text-gray-200 mb-1">Fecha:</label>
-        <input type="date" id="fecha_incidente" name="fecha_incidente" required class="{{ field_class }}">
-      </div>
+      {{ field('Fecha', 'fecha_incidente',
+        '<input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="hora_incidente" class="block text-sm font-medium text-gray-200 mb-1">Hora:</label>
-        <input type="time" id="hora_incidente" name="hora_incidente" required class="{{ field_class }}">
-      </div>
+      {{ field('Hora', 'hora_incidente',
+        '<input type="time" id="hora_incidente" name="hora_incidente" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="descripcion_incidente" class="block text-sm font-medium text-gray-200 mb-1">Descripción del Incidente:</label>
-        <textarea id="descripcion_incidente" name="descripcion_incidente" required class="{{ textarea_classes(6) }}"></textarea>
-      </div>
+      {{ field('Descripción del Incidente', 'descripcion_incidente',
+        '<textarea id="descripcion_incidente" name="descripcion_incidente" rows="5" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>') }}
 
-      <div>
-        <label for="valor_aproximado" class="block text-sm font-medium text-gray-200 mb-1">Valor Aproximado:</label>
-        <input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado" class="{{ field_class }}">
-      </div>
+      {{ field('Valor Aproximado', 'valor_aproximado',
+        '<input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="pertenencias_sustraidas" class="block text-sm font-medium text-gray-200 mb-1">Pertenencias Sustraídas:</label>
-        <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3" class="{{ textarea_classes(3) }}"></textarea>
-      </div>
+      {{ field('Pertenencias Sustraídas', 'pertenencias_sustraidas',
+        '<textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>') }}
 
-      <div>
-        <label for="nombre_persona" class="block text-sm font-medium text-gray-200 mb-1">Nombre:</label>
-        <input type="text" id="nombre_persona" name="nombre_persona" required class="{{ field_class }}">
-      </div>
+      {{ field('Nombre de la Persona', 'nombre_persona',
+        '<input type="text" id="nombre_persona" name="nombre_persona" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="telefono_persona" class="block text-sm font-medium text-gray-200 mb-1">Teléfono:</label>
-        <input type="tel" id="telefono_persona" name="telefono_persona" class="{{ field_class }}">
-      </div>
+      {{ field('Teléfono', 'telefono_persona',
+        '<input type="tel" id="telefono_persona" name="telefono_persona" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="numero_identidad_persona" class="block text-sm font-medium text-gray-200 mb-1">Número de Identidad:</label>
-        <input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="{{ field_class }}">
-      </div>
+      {{ field('Número de Identidad', 'numero_identidad_persona',
+        '<input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="numero_local" class="block text-sm font-medium text-gray-200 mb-1">Número de Local:</label>
-        <input type="text" id="numero_local" name="numero_local" class="{{ field_class }}">
-      </div>
+      {{ field('Número de Local', 'numero_local',
+        '<input type="text" id="numero_local" name="numero_local" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="direccion" class="block text-sm font-medium text-gray-200 mb-1">Dirección:</label>
-        <input type="text" id="direccion" name="direccion" class="{{ field_class }}">
-      </div>
+      {{ field('Dirección', 'direccion',
+        '<input type="text" id="direccion" name="direccion" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="imagenes_pdfs" class="block text-sm font-medium text-gray-200 mb-1">Imágenes o PDFs (URLs):</label>
-        <input type="text" id="imagenes_pdfs" name="imagenes_pdfs" class="{{ field_class }}">
-      </div>
+      {{ field('Imágenes y PDFs (URLs)', 'imagenes_pdfs',
+        '<input type="text" id="imagenes_pdfs" name="imagenes_pdfs" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
 
-      <div>
-        <label for="supervisor" class="block text-sm font-medium text-gray-200 mb-1">Supervisor:</label>
-        <select id="supervisor" name="supervisor" required class="tom-select-searchable {{ field_class }}">
+      {{ field('Supervisor', 'supervisor',
+        '<select id="supervisor" name="supervisor" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
           <option value="">Seleccione un supervisor</option>
           {% for sup in supervisor %}
             <option value="{{ sup.id }}">{{ sup.nombre }}</option>
           {% endfor %}
-        </select>
-      </div>
+        </select>') }}
 
       <button type="submit"
         class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
@@ -180,21 +124,44 @@
     </form>
 
     <div class="mt-6 text-center">
-      <a href="/" class="text-blue-400 hover:underline text-sm">Volver al Inicio</a>
+      <a href="/" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Volver al Inicio</a>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const selectElements = document.querySelectorAll('.tom-select-searchable');
-      selectElements.forEach(el => {
-        new TomSelect(el, {
-          create: false,
-          sortField: { field: "text", direction: "asc" }
-        });
-      });
+    // Init Tom Select
+    document.querySelectorAll('.tom-select-searchable').forEach(el => {
+      new TomSelect(el, { create: false });
     });
+
+    // Theme toggle logic
+    const toggle = document.getElementById('theme-toggle');
+    const html = document.documentElement;
+    const thumb = document.getElementById('theme-toggle-thumb');
+
+    function setTheme(mode) {
+      if (mode === 'dark') {
+        html.classList.add('dark');
+        toggle.checked = true;
+      } else {
+        html.classList.remove('dark');
+        toggle.checked = false;
+      }
+      localStorage.setItem('theme', mode);
+    }
+
+    toggle.addEventListener('change', () => {
+      setTheme(toggle.checked ? 'dark' : 'light');
+    });
+
+    // Load stored theme
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setTheme('dark');
+    } else {
+      setTheme('light');
+    }
   </script>
 </body>
 </html>
