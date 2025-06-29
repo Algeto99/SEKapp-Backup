@@ -26,21 +26,18 @@
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
-        /* Base button styles */
+        /* Base button styles - Enhanced for visibility */
         .base-button-style {
-            @apply w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer;
+            /* Added shadow-xl and hover:scale-105 */
+            @apply w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105;
         }
         .btn-primary-professional {
             @apply bg-blue-700 text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
         }
+        /* Secondary button - Adjusted for better visibility on dark background */
         .btn-secondary-professional {
-            @apply border border-blue-700 text-blue-700 hover:bg-blue-50 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
-        }
-        /* Custom styles for the logo within the white section */
-        .logo-img {
-            max-width: 150px; /* Adjust as needed */
-            height: auto; /* Maintain aspect ratio */
-            /* filter was removed in previous step, assuming logo is now in original colors */
+            /* Changed border and text color for better contrast on dark bg */
+            @apply border border-blue-500 text-blue-500 hover:bg-blue-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
         }
     </style>
 </head>
@@ -52,7 +49,7 @@
                 Plataforma de reportes de <span class="text-blue-700">Incidentes de Seguridad</span>
             </h1>
             <p class="text-lg text-gray-600 mb-6 max-w-prose">
-                SecApp de SMT, está diseñada para el reporte de incidentes de seguridad en diferente propiedades.
+                SecApp de SMT, está diseñada para el reporte de incidentes de seguridad en diferentes propiedades.
             </p>
             <p class="text-md text-gray-700">
                 Le ayudamos a mantener seguridad no sólo física sino también digital.
