@@ -26,18 +26,20 @@
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
-        /* Base button styles - Enhanced for visibility */
+        /* Base button styles - Enhanced for visibility and hover */
         .base-button-style {
-            /* Added shadow-xl and hover:scale-105 */
+            /* Added shadow-xl and hover:scale-105 for depth and interactivity */
             @apply w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105;
         }
         .btn-primary-professional {
             @apply bg-blue-700 text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
         }
-        /* Secondary button - Adjusted for better visibility on dark background */
+        /* Secondary button - Drastically adjusted for maximum visibility on dark background */
         .btn-secondary-professional {
-            /* Changed border and text color for better contrast on dark bg */
-            @apply border border-blue-500 text-blue-500 hover:bg-blue-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+            /* Changed border and text color to WHITE for strong contrast on dark background */
+            @apply border border-white text-white hover:bg-blue-600 hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+            /* Ensured smooth transition for all relevant properties */
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
         }
     </style>
 </head>
