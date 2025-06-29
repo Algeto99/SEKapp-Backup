@@ -32,15 +32,13 @@
         <div class="w-10 h-5 bg-gray-300 dark:bg-gray-700 rounded-full relative transition duration-300 ease-in-out">
           <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition duration-300 ease-in-out" id="theme-toggle-thumb"></div>
         </div>
-        <span class="text-sm text-gray-600 dark:text-gray-300">Dark Mode</span>
+        <span id="theme-label" class="text-sm text-gray-600 dark:text-gray-300">Dark Mode</span>
       </label>
     </div>
 
     <h1 class="text-3xl font-bold text-center mb-6">Reporte de Incidencia</h1>
 
     <form action="/submit_report" method="POST" class="space-y-6">
-
-      <!-- Tipo de Incidencia -->
       <div>
         <label for="tipo_incidencia" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Incidencia:</label>
         <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -51,7 +49,6 @@
         </select>
       </div>
 
-      <!-- Tipo de Cliente -->
       <div>
         <label for="tipo_cliente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Cliente:</label>
         <select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -62,7 +59,6 @@
         </select>
       </div>
 
-      <!-- Lugar del Incidente -->
       <div>
         <label for="lugar_incidente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lugar del Incidente:</label>
         <select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -73,20 +69,16 @@
         </select>
       </div>
 
-      <!-- Remaining fields (input, textarea) -->
       <div>
         <label for="descripcion_incidente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción del Incidente:</label>
         <textarea id="descripcion_incidente" name="descripcion_incidente" rows="4" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
       </div>
 
-      <!-- Repeat the above pattern for other fields like fecha, hora, nombre_persona, etc. -->
-      <!-- Example: Fecha -->
       <div>
         <label for="fecha_incidente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha:</label>
         <input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
       </div>
 
-      <!-- Supervisor -->
       <div>
         <label for="supervisor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supervisor:</label>
         <select id="supervisor" name="supervisor" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
@@ -97,7 +89,6 @@
         </select>
       </div>
 
-      <!-- Submit Button -->
       <button type="submit" class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
         Enviar Reporte
       </button>
@@ -114,17 +105,19 @@
       new TomSelect(el, { create: false });
     });
 
-    // Theme toggle logic
     const toggle = document.getElementById('theme-toggle');
     const html = document.documentElement;
+    const label = document.getElementById('theme-label');
 
     function setTheme(mode) {
       if (mode === 'dark') {
         html.classList.add('dark');
         toggle.checked = true;
+        label.textContent = 'Light Mode';
       } else {
         html.classList.remove('dark');
         toggle.checked = false;
+        label.textContent = 'Dark Mode';
       }
       localStorage.setItem('theme', mode);
     }
