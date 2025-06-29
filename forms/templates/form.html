@@ -21,12 +21,12 @@
             font-family: 'Merriweather', serif; /* Consistent with professional landing page */
             color: #212529;
         }
-        .form-card { /* Renamed for clarity for form */
+        .form-card {
             background-color: #ffffff;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
-        /* Tailwind overridables for Tom Select if needed, but Tom Select's defaults are usually good */
+        /* Tailwind overridables for Tom Select - ensure these match your input styles */
         .ts-control {
             @apply border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
             padding: 0.5rem 1rem; /* Adjust padding to match other inputs */
@@ -36,7 +36,7 @@
             @apply ring-2 ring-blue-500 ring-opacity-50 border-blue-500;
         }
         .ts-dropdown {
-            @apply rounded-lg shadow-lg border border-gray-200;
+            @apply rounded-lg shadow-lg border border-gray-200 z-10; /* Added z-10 to ensure it appears above other elements */
         }
         .ts-dropdown .option {
             @apply py-2 px-3 hover:bg-blue-50 cursor-pointer;
@@ -184,15 +184,39 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize Tom Select for all elements with the class 'tom-select-searchable'
+            console.log("DOM fully loaded and parsed. Attempting to initialize Tom Select.");
+
+            // Check if TomSelect library is available
+            if (typeof TomSelect === 'undefined') {
+                console.error("ERROR: TomSelect library is not loaded. Check script tag URL or network issues.");
+                return; // Stop execution if TomSelect is not found
+            }
+
             var selectElements = document.querySelectorAll('.tom-select-searchable');
-            selectElements.forEach(function(el) {
-                new TomSelect(el, {
-                    // You can customize options here
-                    // e.g., create: false // to prevent users from adding new options
-                    //       sortField: { field: "text", direction: "asc" } // to sort options
-                });
+            console.log("Found " + selectElements.length + " elements with class 'tom-select-searchable'.");
+
+            if (selectElements.length === 0) {
+                console.warn("WARNING: No elements with class 'tom-select-searchable' found. Ensure your select tags have this class.");
+            }
+
+            selectElements.forEach(function(el, index) {
+                try {
+                    console.log("Initializing Tom Select for element:", el.id || el.name || 'Unnamed select', '(' + (index + 1) + '/' + selectElements.length + ')');
+                    new TomSelect(el, {
+                        // Explicitly set `sortField` to ensure options are sorted for better search
+                        // and `create: false` if you don't want users to add new options.
+                        create: false, // Prevents users from adding new options
+                        sortField: {
+                            field: "text", // Sort by the option's text content
+                            direction: "asc" // Ascending order
+                        }
+                    });
+                    console.log("Successfully initialized Tom Select for element:", el.id || el.name);
+                } catch (e) {
+                    console.error("ERROR: Failed to initialize Tom Select for element:", el.id || el.name, e);
+                }
             });
+            console.log("Tom Select initialization process complete.");
         });
     </script>
 </body>
