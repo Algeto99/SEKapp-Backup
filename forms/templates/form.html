@@ -1,247 +1,200 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte de Incidencia</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
-
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
-
-    <style>
-        /* --- General Body and Typography --- */
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #1a202c; /* bg-gray-900 from Tailwind */
-            color: #e2e8f0; /* Light gray text for general content on dark background */
-            line-height: 1.6;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Merriweather', serif;
-            color: #ffffff; /* White for headings on dark background */
-        }
-
-        /* --- Form Card Styling --- */
-        .form-card {
-            background-color: #2d3748; /* Slightly lighter dark gray for the card itself (bg-gray-800) */
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); /* Stronger, darker shadow for depth */
-            border: 1px solid rgba(255, 255, 255, 0.08); /* Subtle light border */
-        }
-
-        /* --- Input Fields (Textareas, Inputs, Tom Select) --- */
-        .form-input-field {
-            /* >>> IMPORTANT CHANGES FOR DARKER TEXT WITHIN FIELDS <<< */
-            @apply mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm
-                   bg-white text-gray-900 placeholder-gray-500 /* Changed background to white, text to dark gray, placeholder to darker gray */
-                   focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
-        }
-
-        /* Tom Select Overrides (adjusted for light input fields) */
-        .ts-control {
-            /* >>> IMPORTANT CHANGES FOR DARKER TEXT WITHIN TOM SELECT <<< */
-            @apply border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm
-                   bg-white text-gray-900 placeholder-gray-500; /* Changed background to white, text to dark gray, placeholder to darker gray */
-            padding: 0.5rem 1rem;
-            min-height: 42px;
-        }
-        .ts-control.focus, .ts-wrapper.focus .ts-control {
-            @apply ring-2 ring-blue-500 ring-opacity-50 border-blue-500;
-        }
-        .ts-dropdown {
-            /* Keep dropdown dark, but ensure text and hover are clear */
-            @apply rounded-lg shadow-lg border border-gray-700 z-10 bg-gray-700 text-white;
-        }
-        .ts-dropdown .option {
-            @apply py-2 px-3 hover:bg-blue-700 hover:text-white cursor-pointer;
-        }
-        .ts-dropdown .option.active {
-            @apply bg-blue-600 text-white;
-        }
-        /* Crucial for ensuring typed text is dark in Tom Select */
-        .ts-input, .ts-control input {
-            color: #1a202c !important; /* Ensure input text is dark gray (gray-900) */
-        }
-        .ts-placeholder {
-            color: #718096 !important; /* Placeholder text color (gray-500) */
-        }
-
-        /* --- Submit Button --- */
-        .form-submit-button {
-            @apply w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg
-                   hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75
-                   transition duration-200 ease-in-out transform hover:scale-105;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte de Incidencia</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #1a202c;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: 'Merriweather', serif;
+      color: #ffffff;
+    }
+    .form-card {
+      background-color: #2d3748;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ts-control {
+      background-color: white;
+      color: #1a202c !important;
+      padding: 0.5rem 1rem;
+      min-height: 42px;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+    }
+    .ts-control input {
+      color: #1a202c !important;
+    }
+    .ts-placeholder {
+      color: #718096 !important;
+    }
+    .ts-dropdown {
+      background-color: #4a5568;
+      color: white;
+      border: 1px solid #4b5563;
+      border-radius: 0.5rem;
+    }
+    .ts-dropdown .option {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+    .ts-dropdown .option:hover {
+      background-color: #2b6cb0;
+    }
+    .ts-dropdown .option.active {
+      background-color: #3182ce;
+    }
+  </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
-    <div class="form-card p-8 rounded-xl shadow-2xl max-w-2xl w-full">
-        <h1 class="text-3xl font-bold text-white mb-6 text-center">Reporte de Incidencia</h1>
+  <div class="form-card p-8 rounded-xl shadow-2xl max-w-2xl w-full">
+    <h1 class="text-3xl font-bold text-white mb-6 text-center">Reporte de Incidencia</h1>
+    <form action="/submit_report" method="POST" class="space-y-6">
+      
+      <!-- Use this consistent input style for all -->
+      {% macro input_classes() -%}
+      mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm
+      {%- endmacro %}
 
-        <form action="/submit_report" method="POST" class="space-y-6">
-            <div>
-                <label for="tipo_incidencia" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Incidencia:</label>
-                <select id="tipo_incidencia" name="tipo_incidencia" required
-                        class="tom-select-searchable form-input-field">
-                    <option value="">Seleccione un tipo</option>
-                    {% for tipo in tipo_incidencia %}
-                        <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+      {% macro textarea_classes(rows=4) -%}
+      mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm min-h-[150px]
+      {%- endmacro %}
 
-            <div>
-                <label for="tipo_cliente" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Cliente:</label>
-                <select id="tipo_cliente" name="tipo_cliente" required
-                        class="tom-select-searchable form-input-field">
-                    <option value="">Seleccione un tipo</option>
-                    {% for tipo in tipo_cliente %}
-                        <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+      {% set field_class = "mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" %}
 
-            <div>
-                <label for="lugar_incidente" class="block text-sm font-medium text-gray-200 mb-1">Lugar del Incidente:</label>
-                <select id="lugar_incidente" name="lugar_incidente" required
-                        class="tom-select-searchable form-input-field">
-                    <option value="">Seleccione un lugar</option>
-                    {% for lugar in lugar_incidente %}
-                        <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+      <div>
+        <label for="tipo_incidencia" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Incidencia:</label>
+        <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable {{ field_class }}">
+          <option value="">Seleccione un tipo</option>
+          {% for tipo in tipo_incidencia %}
+            <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-            <div>
-                <label for="descripcion_zona_comun" class="block text-sm font-medium text-gray-200 mb-1">Si la incidencia fue en una zona común del C.C. descríbala aquí:</label>
-                <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3"
-                          class="form-input-field"></textarea>
-            </div>
+      <div>
+        <label for="tipo_cliente" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Cliente:</label>
+        <select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable {{ field_class }}">
+          <option value="">Seleccione un tipo</option>
+          {% for tipo in tipo_cliente %}
+            <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-            <div>
-                <label for="fecha_incidente" class="block text-sm font-medium text-gray-200 mb-1">Fecha:</label>
-                <input type="date" id="fecha_incidente" name="fecha_incidente" required
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="lugar_incidente" class="block text-sm font-medium text-gray-200 mb-1">Lugar del Incidente:</label>
+        <select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable {{ field_class }}">
+          <option value="">Seleccione un lugar</option>
+          {% for lugar in lugar_incidente %}
+            <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-            <div>
-                <label for="hora_incidente" class="block text-sm font-medium text-gray-200 mb-1">Hora:</label>
-                <input type="time" id="hora_incidente" name="hora_incidente" required
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="descripcion_zona_comun" class="block text-sm font-medium text-gray-200 mb-1">Zona común:</label>
+        <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3" class="{{ textarea_classes(3) }}"></textarea>
+      </div>
 
-            <div>
-                <label for="descripcion_incidente" class="block text-sm font-medium text-gray-200 mb-1">Descripción del Incidente:</label>
-                <textarea id="descripcion_incidente" name="descripcion_incidente" rows="4" required
-                          class="form-input-field"></textarea>
-            </div>
+      <div>
+        <label for="fecha_incidente" class="block text-sm font-medium text-gray-200 mb-1">Fecha:</label>
+        <input type="date" id="fecha_incidente" name="fecha_incidente" required class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="valor_aproximado" class="block text-sm font-medium text-gray-200 mb-1">Valor Aproximado:</label>
-                <input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado"
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="hora_incidente" class="block text-sm font-medium text-gray-200 mb-1">Hora:</label>
+        <input type="time" id="hora_incidente" name="hora_incidente" required class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="pertenencias_sustraidas" class="block text-sm font-medium text-gray-200 mb-1">Pertenencias Sustraídas:</label>
-                <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3"
-                          class="form-input-field"></textarea>
-            </div>
+      <div>
+        <label for="descripcion_incidente" class="block text-sm font-medium text-gray-200 mb-1">Descripción del Incidente:</label>
+        <textarea id="descripcion_incidente" name="descripcion_incidente" required class="{{ textarea_classes(6) }}"></textarea>
+      </div>
 
-            <div>
-                <label for="nombre_persona" class="block text-sm font-medium text-gray-200 mb-1">Nombre de la Persona:</label>
-                <input type="text" id="nombre_persona" name="nombre_persona" required
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="valor_aproximado" class="block text-sm font-medium text-gray-200 mb-1">Valor Aproximado:</label>
+        <input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado" class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="telefono_persona" class="block text-sm font-medium text-gray-200 mb-1">Teléfono:</label>
-                <input type="tel" id="telefono_persona" name="telefono_persona"
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="pertenencias_sustraidas" class="block text-sm font-medium text-gray-200 mb-1">Pertenencias Sustraídas:</label>
+        <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3" class="{{ textarea_classes(3) }}"></textarea>
+      </div>
 
-            <div>
-                <label for="numero_identidad_persona" class="block text-sm font-medium text-gray-200 mb-1">Número de Identidad:</label>
-                <input type="text" id="numero_identidad_persona" name="numero_identidad_persona"
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="nombre_persona" class="block text-sm font-medium text-gray-200 mb-1">Nombre:</label>
+        <input type="text" id="nombre_persona" name="nombre_persona" required class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="numero_local" class="block text-sm font-medium text-gray-200 mb-1">Número de Local:</label>
-                <input type="text" id="numero_local" name="numero_local"
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="telefono_persona" class="block text-sm font-medium text-gray-200 mb-1">Teléfono:</label>
+        <input type="tel" id="telefono_persona" name="telefono_persona" class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="direccion" class="block text-sm font-medium text-gray-200 mb-1">Dirección:</label>
-                <input type="text" id="direccion" name="direccion"
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="numero_identidad_persona" class="block text-sm font-medium text-gray-200 mb-1">Número de Identidad:</label>
+        <input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="imagenes_pdfs" class="block text-sm font-medium text-gray-200 mb-1">Imágenes y PDFs (Rutas de archivos o URLs):</label>
-                <input type="text" id="imagenes_pdfs" name="imagenes_pdfs"
-                       class="form-input-field">
-            </div>
+      <div>
+        <label for="numero_local" class="block text-sm font-medium text-gray-200 mb-1">Número de Local:</label>
+        <input type="text" id="numero_local" name="numero_local" class="{{ field_class }}">
+      </div>
 
-            <div>
-                <label for="supervisor" class="block text-sm font-medium text-gray-200 mb-1">Supervisor:</label>
-                <select id="supervisor" name="supervisor" required
-                        class="tom-select-searchable form-input-field">
-                    <option value="">Seleccione un supervisor</option>
-                    {% for sup in supervisor %}
-                        <option value="{{ sup.id }}">{{ sup.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+      <div>
+        <label for="direccion" class="block text-sm font-medium text-gray-200 mb-1">Dirección:</label>
+        <input type="text" id="direccion" name="direccion" class="{{ field_class }}">
+      </div>
 
-            <button type="submit" class="form-submit-button">
-                Enviar Reporte
-            </button>
-        </form>
+      <div>
+        <label for="imagenes_pdfs" class="block text-sm font-medium text-gray-200 mb-1">Imágenes o PDFs (URLs):</label>
+        <input type="text" id="imagenes_pdfs" name="imagenes_pdfs" class="{{ field_class }}">
+      </div>
 
-        <div class="mt-6 text-center">
-            <a href="/" class="text-blue-400 hover:underline text-sm">Volver al Inicio</a>
-        </div>
+      <div>
+        <label for="supervisor" class="block text-sm font-medium text-gray-200 mb-1">Supervisor:</label>
+        <select id="supervisor" name="supervisor" required class="tom-select-searchable {{ field_class }}">
+          <option value="">Seleccione un supervisor</option>
+          {% for sup in supervisor %}
+            <option value="{{ sup.id }}">{{ sup.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <button type="submit"
+        class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
+        Enviar Reporte
+      </button>
+    </form>
+
+    <div class="mt-6 text-center">
+      <a href="/" class="text-blue-400 hover:underline text-sm">Volver al Inicio</a>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM fully loaded and parsed. Attempting to initialize Tom Select.");
-
-            if (typeof TomSelect === 'undefined') {
-                console.error("ERROR: TomSelect library is not loaded. Check script tag URL or network issues.");
-                return;
-            }
-
-            var selectElements = document.querySelectorAll('.tom-select-searchable');
-            console.log("Found " + selectElements.length + " elements with class 'tom-select-searchable'.");
-
-            if (selectElements.length === 0) {
-                console.warn("WARNING: No elements with class 'tom-select-searchable' found. Ensure your select tags have this class.");
-            }
-
-            selectElements.forEach(function(el, index) {
-                try {
-                    console.log("Initializing Tom Select for element:", el.id || el.name || 'Unnamed select', '(' + (index + 1) + '/' + selectElements.length + ')');
-                    new TomSelect(el, {
-                        create: false,
-                        sortField: {
-                            field: "text",
-                            direction: "asc"
-                        }
-                    });
-                    console.log("Successfully initialized Tom Select for element:", el.id || el.name);
-                } catch (e) {
-                    console.error("ERROR: Failed to initialize Tom Select for element:", el.id || el.name, e);
-                }
-            });
-            console.log("Tom Select initialization process complete.");
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const selectElements = document.querySelectorAll('.tom-select-searchable');
+      selectElements.forEach(el => {
+        new TomSelect(el, {
+          create: false,
+          sortField: { field: "text", direction: "asc" }
         });
-    </script>
+      });
+    });
+  </script>
 </body>
 </html>
