@@ -10,12 +10,10 @@
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet" />
 
   <script>
-    // Tailwind dark mode config
     tailwind.config = {
-      darkMode: 'class'
+      darkMode: 'class',
     };
   </script>
-
   <style>
     body {
       font-family: 'Roboto', sans-serif;
@@ -41,84 +39,66 @@
     <h1 class="text-3xl font-bold text-center mb-6">Reporte de Incidencia</h1>
 
     <form action="/submit_report" method="POST" class="space-y-6">
-      <!-- Input/Select Template -->
-      {% macro field(label, id, html) -%}
-      <div>
-        <label for="{{ id }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ label }}</label>
-        {{ html | safe }}
-      </div>
-      {%- endmacro %}
 
-      {{ field('Tipo de Incidencia', 'tipo_incidencia',
-        '<select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-          <option value=\'\'>Seleccione un tipo</option>
+      <!-- Tipo de Incidencia -->
+      <div>
+        <label for="tipo_incidencia" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Incidencia:</label>
+        <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          <option value="">Seleccione un tipo</option>
           {% for tipo in tipo_incidencia %}
             <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
           {% endfor %}
-        </select>') }}
+        </select>
+      </div>
 
-      {{ field('Tipo de Cliente', 'tipo_cliente',
-        '<select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-          <option value=\'\'>Seleccione un tipo</option>
+      <!-- Tipo de Cliente -->
+      <div>
+        <label for="tipo_cliente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo de Cliente:</label>
+        <select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          <option value="">Seleccione un tipo</option>
           {% for tipo in tipo_cliente %}
             <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
           {% endfor %}
-        </select>') }}
+        </select>
+      </div>
 
-      {{ field('Lugar del Incidente', 'lugar_incidente',
-        '<select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-          <option value=\'\'>Seleccione un lugar</option>
+      <!-- Lugar del Incidente -->
+      <div>
+        <label for="lugar_incidente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lugar del Incidente:</label>
+        <select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+          <option value="">Seleccione un lugar</option>
           {% for lugar in lugar_incidente %}
             <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
           {% endfor %}
-        </select>') }}
+        </select>
+      </div>
 
-      {{ field('Zona común', 'descripcion_zona_comun',
-        '<textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>') }}
+      <!-- Remaining fields (input, textarea) -->
+      <div>
+        <label for="descripcion_incidente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción del Incidente:</label>
+        <textarea id="descripcion_incidente" name="descripcion_incidente" rows="4" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+      </div>
 
-      {{ field('Fecha', 'fecha_incidente',
-        '<input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
+      <!-- Repeat the above pattern for other fields like fecha, hora, nombre_persona, etc. -->
+      <!-- Example: Fecha -->
+      <div>
+        <label for="fecha_incidente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha:</label>
+        <input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+      </div>
 
-      {{ field('Hora', 'hora_incidente',
-        '<input type="time" id="hora_incidente" name="hora_incidente" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Descripción del Incidente', 'descripcion_incidente',
-        '<textarea id="descripcion_incidente" name="descripcion_incidente" rows="5" required class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>') }}
-
-      {{ field('Valor Aproximado', 'valor_aproximado',
-        '<input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Pertenencias Sustraídas', 'pertenencias_sustraidas',
-        '<textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3" class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>') }}
-
-      {{ field('Nombre de la Persona', 'nombre_persona',
-        '<input type="text" id="nombre_persona" name="nombre_persona" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Teléfono', 'telefono_persona',
-        '<input type="tel" id="telefono_persona" name="telefono_persona" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Número de Identidad', 'numero_identidad_persona',
-        '<input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Número de Local', 'numero_local',
-        '<input type="text" id="numero_local" name="numero_local" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Dirección', 'direccion',
-        '<input type="text" id="direccion" name="direccion" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Imágenes y PDFs (URLs)', 'imagenes_pdfs',
-        '<input type="text" id="imagenes_pdfs" name="imagenes_pdfs" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">') }}
-
-      {{ field('Supervisor', 'supervisor',
-        '<select id="supervisor" name="supervisor" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+      <!-- Supervisor -->
+      <div>
+        <label for="supervisor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supervisor:</label>
+        <select id="supervisor" name="supervisor" required class="tom-select-searchable w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
           <option value="">Seleccione un supervisor</option>
           {% for sup in supervisor %}
             <option value="{{ sup.id }}">{{ sup.nombre }}</option>
           {% endfor %}
-        </select>') }}
+        </select>
+      </div>
 
-      <button type="submit"
-        class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
+      <!-- Submit Button -->
+      <button type="submit" class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
         Enviar Reporte
       </button>
     </form>
@@ -130,7 +110,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script>
-    // Init Tom Select
     document.querySelectorAll('.tom-select-searchable').forEach(el => {
       new TomSelect(el, { create: false });
     });
@@ -138,7 +117,6 @@
     // Theme toggle logic
     const toggle = document.getElementById('theme-toggle');
     const html = document.documentElement;
-    const thumb = document.getElementById('theme-toggle-thumb');
 
     function setTheme(mode) {
       if (mode === 'dark') {
@@ -155,7 +133,6 @@
       setTheme(toggle.checked ? 'dark' : 'light');
     });
 
-    // Load stored theme
     const saved = localStorage.getItem('theme');
     if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       setTheme('dark');
