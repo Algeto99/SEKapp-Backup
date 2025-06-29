@@ -1,54 +1,96 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es" class="transition duration-300 ease-in-out">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Dashboard</title>
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap)" rel="stylesheet">
+    <title>Dashboard de Reportes de Incidentes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
         }
+        /* Flashed message styling */
+        .flash-message {
+            @apply p-3 mb-4 rounded-lg text-sm font-medium;
+        }
+        .flash-success { @apply bg-green-500 text-white; }
+        .flash-error { @apply bg-red-500 text-white; }
+        .flash-warning { @apply bg-yellow-500 text-gray-900; }
+        .flash-info { @apply bg-blue-500 text-white; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-purple-100 to-pink-100 min-h-screen p-4">
     <div class="container mx-auto bg-white p-8 rounded-xl shadow-2xl transform transition-all duration-300 hover:scale-[1.01]">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Submitted Data Dashboard</h1>
+
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+            <h1 class="text-3xl font-bold text-gray-800">Dashboard de Reportes</h1>
+            <div class="flex items-center space-x-4">
+                {% if username %}
+                    <span class="text-gray-600">Bienvenido, <strong class="font-semibold">{{ username }}</strong></span>
+                    <a href="{{ forms_service_url }}" class="text-blue-600 hover:underline">Reportar Incidencia</a>
+                    <a href="{{ login_service_url }}/logout" class="text-blue-600 hover:underline">Cerrar Sesión</a>
+                {% else %}
+                    {# This block should ideally not be reached if @jwt_required() works #}
+                    <a href="{{ login_service_url }}" class="text-blue-600 hover:underline">Iniciar Sesión</a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Datos de Incidentes Recientes</h2>
 
         {% if submissions %}
             <div class="overflow-x-auto">
                 <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
                     <thead>
                         <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                            <th class="py-3 px-6 text-left">ID</th>
-                            <th class="py-3 px-6 text-left">Name</th>
-                            <th class="py-3 px-6 text-left">Email</th>
-                            <th class="py-3 px-6 text-left">Message</th>
-                            <th class="py-3 px-6 text-left">Submission Time</th>
+                            <th class="py-3 px-6 text-left">ID Reporte</th>
+                            <th class="py-3 px-6 text-left">Tipo Incidencia</th>
+                            <th class="py-3 px-6 text-left">Tipo Cliente</th>
+                            <th class="py-3 px-6 text-left">Lugar Incidente</th>
+                            <th class="py-3 px-6 text-left">Fecha</th>
+                            <th class="py-3 px-6 text-left">Hora</th>
+                            <th class="py-3 px-6 text-left">Descripción</th>
+                            <th class="py-3 px-6 text-left">Supervisor</th>
+                            <th class="py-3 px-6 text-left">Creado En</th>
                         </tr>
                     </thead>
                     <tbody class="text-gray-700 text-sm font-light">
                         {% for submission in submissions %}
                         <tr class="border-b border-gray-200 hover:bg-gray-50">
-                            <td class="py-3 px-6 text-left whitespace-nowrap">{{ submission[0] }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission[1] }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission[2] }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission[3] }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission[4].strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td class="py-3 px-6 text-left whitespace-nowrap">{{ submission.id_reporte }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.tipo_incidencia }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.tipo_cliente }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.lugar_incidente }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.fecha_incidente }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.hora_incidente }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.descripcion_incidente }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.supervisor_nombre }}</td>
+                            <td class="py-3 px-6 text-left whitespace-nowrap">{{ submission.created_at.strftime('%Y-%m-%d %H:%M:%S') if submission.created_at else 'N/A' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         {% else %}
-            <p class="text-center text-gray-600 text-lg mt-8">No data has been submitted yet.</p>
+            <p class="text-center text-gray-600 text-lg mt-8">No hay datos de reportes para mostrar.</p>
         {% endif %}
 
         <div class="mt-8 text-center">
-            <a href="/" class="inline-block py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:-translate-y-1">
-                Back to Home
-            </a>
+            <p class="text-sm text-gray-500">
+                Data actualizada al: {{ "now" | to_datetime("%Y-%m-%d %H:%M:%S") | strftime("%Y-%m-%d %H:%M:%S") }} </p>
         </div>
     </div>
 </body>

@@ -14,11 +14,9 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your application code and templates into the working directory.
-# This assumes app.py and the 'templates' folder are in the same directory as this Dockerfile
-# or in the build context provided to 'docker build'.
-COPY app.py .
-COPY templates/ templates/
+# Copy the rest of your application code (including app.py and the 'templates' folder)
+# into the working directory. This assumes all necessary files are in the build context.
+COPY . .
 
 # Cloud Run services listen for requests on the port defined by the PORT environment variable.
 # The default is 8080, which your Gunicorn command uses.
