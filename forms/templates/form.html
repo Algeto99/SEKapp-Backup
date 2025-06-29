@@ -11,53 +11,78 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
 
     <style>
+        /* --- General Body and Typography --- */
         body {
             font-family: 'Roboto', sans-serif;
-            background-color: #f8f9fa; /* Consistent with professional landing page */
-            color: #343a40;
+            /* Dark background, consistent with index.html's dark section */
+            background-color: #1a202c; /* bg-gray-900 from Tailwind */
+            color: #e2e8f0; /* Light gray text for general content on dark background */
             line-height: 1.6;
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif; /* Consistent with professional landing page */
-            color: #212529;
+            color: #ffffff; /* White for headings on dark background */
         }
+
+        /* --- Form Card Styling --- */
         .form-card {
-            background-color: #ffffff;
+            background-color: #2d3748; /* Slightly lighter dark gray for the card itself (bg-gray-800) */
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); /* Stronger, darker shadow for depth */
+            border: 1px solid rgba(255, 255, 255, 0.08); /* Subtle light border */
         }
-        /* Tailwind overridables for Tom Select - ensure these match your input styles */
+
+        /* --- Input Fields (Textareas, Inputs, Tom Select) --- */
+        .form-input-field {
+            @apply mt-1 block w-full px-4 py-2 border border-gray-600 rounded-lg shadow-sm
+                   bg-gray-700 text-white placeholder-gray-400
+                   focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
+        }
+
+        /* Tom Select Overrides (adjusted for dark theme) */
         .ts-control {
-            @apply border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
-            padding: 0.5rem 1rem; /* Adjust padding to match other inputs */
-            min-height: 42px; /* Ensure consistent height with other inputs */
+            @apply border border-gray-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm
+                   bg-gray-700 text-white placeholder-gray-400;
+            padding: 0.5rem 1rem;
+            min-height: 42px;
         }
-        .ts-wrapper.focus .ts-control {
+        .ts-control.focus, .ts-wrapper.focus .ts-control {
             @apply ring-2 ring-blue-500 ring-opacity-50 border-blue-500;
         }
         .ts-dropdown {
-            @apply rounded-lg shadow-lg border border-gray-200 z-10; /* Added z-10 to ensure it appears above other elements */
+            @apply rounded-lg shadow-lg border border-gray-700 z-10 bg-gray-700 text-white; /* Dark dropdown background */
         }
         .ts-dropdown .option {
-            @apply py-2 px-3 hover:bg-blue-50 cursor-pointer;
+            @apply py-2 px-3 hover:bg-blue-700 hover:text-white cursor-pointer; /* Darker hover for options */
         }
         .ts-dropdown .option.active {
-            @apply bg-blue-100 text-blue-700;
+            @apply bg-blue-600 text-white; /* Active option color */
         }
+        .ts-input, .ts-control input {
+            color: #ffffff !important; /* Ensure input text is white */
+        }
+        .ts-placeholder {
+            color: #a0aec0 !important; /* Placeholder text color (gray-400) */
+        }
+
+
+        /* --- Submit Button --- */
         .form-submit-button {
-            @apply w-full py-3 px-6 bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out;
+            @apply w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg
+                   hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75
+                   transition duration-200 ease-in-out transform hover:scale-105; /* Added hover scale */
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
     <div class="form-card p-8 rounded-xl shadow-2xl max-w-2xl w-full">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">Reporte de Incidencia</h1>
+        <h1 class="text-3xl font-bold text-white mb-6 text-center">Reporte de Incidencia</h1>
 
         <form action="/submit_report" method="POST" class="space-y-6">
             <div>
-                <label for="tipo_incidencia" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Incidencia:</label>
+                <label for="tipo_incidencia" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Incidencia:</label>
                 <select id="tipo_incidencia" name="tipo_incidencia" required
-                        class="tom-select-searchable mt-1 block w-full">
+                        class="tom-select-searchable form-input-field">
                     <option value="">Seleccione un tipo</option>
                     {% for tipo in tipo_incidencia %}
                         <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
@@ -66,9 +91,9 @@
             </div>
 
             <div>
-                <label for="tipo_cliente" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cliente:</label>
+                <label for="tipo_cliente" class="block text-sm font-medium text-gray-200 mb-1">Tipo de Cliente:</label>
                 <select id="tipo_cliente" name="tipo_cliente" required
-                        class="tom-select-searchable mt-1 block w-full">
+                        class="tom-select-searchable form-input-field">
                     <option value="">Seleccione un tipo</option>
                     {% for tipo in tipo_cliente %}
                         <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
@@ -77,9 +102,9 @@
             </div>
 
             <div>
-                <label for="lugar_incidente" class="block text-sm font-medium text-gray-700 mb-1">Lugar del Incidente:</label>
+                <label for="lugar_incidente" class="block text-sm font-medium text-gray-200 mb-1">Lugar del Incidente:</label>
                 <select id="lugar_incidente" name="lugar_incidente" required
-                        class="tom-select-searchable mt-1 block w-full">
+                        class="tom-select-searchable form-input-field">
                     <option value="">Seleccione un lugar</option>
                     {% for lugar in lugar_incidente %}
                         <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
@@ -88,81 +113,81 @@
             </div>
 
             <div>
-                <label for="descripcion_zona_comun" class="block text-sm font-medium text-gray-700 mb-1">Si la incidencia fue en una zona común del C.C. descríbala aquí:</label>
+                <label for="descripcion_zona_comun" class="block text-sm font-medium text-gray-200 mb-1">Si la incidencia fue en una zona común del C.C. descríbala aquí:</label>
                 <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3"
-                          class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                          class="form-input-field"></textarea>
             </div>
 
             <div>
-                <label for="fecha_incidente" class="block text-sm font-medium text-gray-700 mb-1">Fecha:</label>
+                <label for="fecha_incidente" class="block text-sm font-medium text-gray-200 mb-1">Fecha:</label>
                 <input type="date" id="fecha_incidente" name="fecha_incidente" required
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="hora_incidente" class="block text-sm font-medium text-gray-700 mb-1">Hora:</label>
+                <label for="hora_incidente" class="block text-sm font-medium text-gray-200 mb-1">Hora:</label>
                 <input type="time" id="hora_incidente" name="hora_incidente" required
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="descripcion_incidente" class="block text-sm font-medium text-gray-700 mb-1">Descripción del Incidente:</label>
+                <label for="descripcion_incidente" class="block text-sm font-medium text-gray-200 mb-1">Descripción del Incidente:</label>
                 <textarea id="descripcion_incidente" name="descripcion_incidente" rows="4" required
-                          class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                          class="form-input-field"></textarea>
             </div>
 
             <div>
-                <label for="valor_aproximado" class="block text-sm font-medium text-gray-700 mb-1">Valor Aproximado:</label>
+                <label for="valor_aproximado" class="block text-sm font-medium text-gray-200 mb-1">Valor Aproximado:</label>
                 <input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="pertenencias_sustraidas" class="block text-sm font-medium text-gray-700 mb-1">Pertenencias Sustraídas:</label>
+                <label for="pertenencias_sustraidas" class="block text-sm font-medium text-gray-200 mb-1">Pertenencias Sustraídas:</label>
                 <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3"
-                          class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                          class="form-input-field"></textarea>
             </div>
 
             <div>
-                <label for="nombre_persona" class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Persona:</label>
+                <label for="nombre_persona" class="block text-sm font-medium text-gray-200 mb-1">Nombre de la Persona:</label>
                 <input type="text" id="nombre_persona" name="nombre_persona" required
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="telefono_persona" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+                <label for="telefono_persona" class="block text-sm font-medium text-gray-200 mb-1">Teléfono:</label>
                 <input type="tel" id="telefono_persona" name="telefono_persona"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="numero_identidad_persona" class="block text-sm font-medium text-gray-700 mb-1">Número de Identidad:</label>
+                <label for="numero_identidad_persona" class="block text-sm font-medium text-gray-200 mb-1">Número de Identidad:</label>
                 <input type="text" id="numero_identidad_persona" name="numero_identidad_persona"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="numero_local" class="block text-sm font-medium text-gray-700 mb-1">Número de Local:</label>
+                <label for="numero_local" class="block text-sm font-medium text-gray-200 mb-1">Número de Local:</label>
                 <input type="text" id="numero_local" name="numero_local"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="direccion" class="block text-sm font-medium text-gray-700 mb-1">Dirección:</label>
+                <label for="direccion" class="block text-sm font-medium text-gray-200 mb-1">Dirección:</label>
                 <input type="text" id="direccion" name="direccion"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="imagenes_pdfs" class="block text-sm font-medium text-gray-700 mb-1">Imágenes y PDFs (Rutas de archivos o URLs):</label>
+                <label for="imagenes_pdfs" class="block text-sm font-medium text-gray-200 mb-1">Imágenes y PDFs (Rutas de archivos o URLs):</label>
                 <input type="text" id="imagenes_pdfs" name="imagenes_pdfs"
-                       class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                       class="form-input-field">
             </div>
 
             <div>
-                <label for="supervisor" class="block text-sm font-medium text-gray-700 mb-1">Supervisor:</label>
+                <label for="supervisor" class="block text-sm font-medium text-gray-200 mb-1">Supervisor:</label>
                 <select id="supervisor" name="supervisor" required
-                        class="tom-select-searchable mt-1 block w-full">
+                        class="tom-select-searchable form-input-field">
                     <option value="">Seleccione un supervisor</option>
                     {% for sup in supervisor %}
                         <option value="{{ sup.id }}">{{ sup.nombre }}</option>
@@ -176,7 +201,7 @@
         </form>
 
         <div class="mt-6 text-center">
-            <a href="/" class="text-blue-600 hover:underline text-sm">Volver al Inicio</a>
+            <a href="/" class="text-blue-400 hover:underline text-sm">Volver al Inicio</a>
         </div>
     </div>
 
@@ -203,12 +228,10 @@
                 try {
                     console.log("Initializing Tom Select for element:", el.id || el.name || 'Unnamed select', '(' + (index + 1) + '/' + selectElements.length + ')');
                     new TomSelect(el, {
-                        // Explicitly set `sortField` to ensure options are sorted for better search
-                        // and `create: false` if you don't want users to add new options.
-                        create: false, // Prevents users from adding new options
+                        create: false,
                         sortField: {
-                            field: "text", // Sort by the option's text content
-                            direction: "asc" // Ascending order
+                            field: "text",
+                            direction: "asc"
                         }
                     });
                     console.log("Successfully initialized Tom Select for element:", el.id || el.name);
