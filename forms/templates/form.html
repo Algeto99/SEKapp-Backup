@@ -14,13 +14,12 @@
         /* --- General Body and Typography --- */
         body {
             font-family: 'Roboto', sans-serif;
-            /* Dark background, consistent with index.html's dark section */
             background-color: #1a202c; /* bg-gray-900 from Tailwind */
             color: #e2e8f0; /* Light gray text for general content on dark background */
             line-height: 1.6;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Merriweather', serif; /* Consistent with professional landing page */
+            font-family: 'Merriweather', serif;
             color: #ffffff; /* White for headings on dark background */
         }
 
@@ -34,15 +33,17 @@
 
         /* --- Input Fields (Textareas, Inputs, Tom Select) --- */
         .form-input-field {
-            @apply mt-1 block w-full px-4 py-2 border border-gray-600 rounded-lg shadow-sm
-                   bg-gray-700 text-white placeholder-gray-400
+            /* >>> IMPORTANT CHANGES FOR DARKER TEXT WITHIN FIELDS <<< */
+            @apply mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm
+                   bg-white text-gray-900 placeholder-gray-500 /* Changed background to white, text to dark gray, placeholder to darker gray */
                    focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
         }
 
-        /* Tom Select Overrides (adjusted for dark theme) */
+        /* Tom Select Overrides (adjusted for light input fields) */
         .ts-control {
-            @apply border border-gray-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm
-                   bg-gray-700 text-white placeholder-gray-400;
+            /* >>> IMPORTANT CHANGES FOR DARKER TEXT WITHIN TOM SELECT <<< */
+            @apply border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm
+                   bg-white text-gray-900 placeholder-gray-500; /* Changed background to white, text to dark gray, placeholder to darker gray */
             padding: 0.5rem 1rem;
             min-height: 42px;
         }
@@ -50,27 +51,28 @@
             @apply ring-2 ring-blue-500 ring-opacity-50 border-blue-500;
         }
         .ts-dropdown {
-            @apply rounded-lg shadow-lg border border-gray-700 z-10 bg-gray-700 text-white; /* Dark dropdown background */
+            /* Keep dropdown dark, but ensure text and hover are clear */
+            @apply rounded-lg shadow-lg border border-gray-700 z-10 bg-gray-700 text-white;
         }
         .ts-dropdown .option {
-            @apply py-2 px-3 hover:bg-blue-700 hover:text-white cursor-pointer; /* Darker hover for options */
+            @apply py-2 px-3 hover:bg-blue-700 hover:text-white cursor-pointer;
         }
         .ts-dropdown .option.active {
-            @apply bg-blue-600 text-white; /* Active option color */
+            @apply bg-blue-600 text-white;
         }
+        /* Crucial for ensuring typed text is dark in Tom Select */
         .ts-input, .ts-control input {
-            color: #ffffff !important; /* Ensure input text is white */
+            color: #1a202c !important; /* Ensure input text is dark gray (gray-900) */
         }
         .ts-placeholder {
-            color: #a0aec0 !important; /* Placeholder text color (gray-400) */
+            color: #718096 !important; /* Placeholder text color (gray-500) */
         }
-
 
         /* --- Submit Button --- */
         .form-submit-button {
             @apply w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg
                    hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75
-                   transition duration-200 ease-in-out transform hover:scale-105; /* Added hover scale */
+                   transition duration-200 ease-in-out transform hover:scale-105;
         }
     </style>
 </head>
@@ -211,10 +213,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log("DOM fully loaded and parsed. Attempting to initialize Tom Select.");
 
-            // Check if TomSelect library is available
             if (typeof TomSelect === 'undefined') {
                 console.error("ERROR: TomSelect library is not loaded. Check script tag URL or network issues.");
-                return; // Stop execution if TomSelect is not found
+                return;
             }
 
             var selectElements = document.querySelectorAll('.tom-select-searchable');
