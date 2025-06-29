@@ -8,22 +8,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Roboto', sans-serif; /* Clean, modern sans-serif for body text */
-            background-color: #f8f9fa; /* Light, almost white background */
-            color: #343a40; /* Dark gray for body text */
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8f9fa;
+            color: #343a40;
             line-height: 1.6;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Merriweather', serif; /* Elegant serif for headings */
-            color: #212529; /* Even darker gray for headings */
+            font-family: 'Merriweather', serif;
+            color: #212529;
         }
         .container-wrapper {
-            background-color: #ffffff; /* Crisp white for the main content block */
-            border-radius: 12px; /* Slightly rounded corners */
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Soft, professional shadow */
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
-        .button-group a {
-            @apply flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out;
+        /* Base button styles */
+        .base-button-style {
+            @apply w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer;
         }
         .btn-primary-professional {
             @apply bg-blue-700 text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
@@ -55,12 +56,12 @@
             </p>
 
             <div class="button-group w-full space-y-4 max-w-xs">
-                <a href="https://forms-ir5ib344aa-uc.a.run.app" class="btn-primary-professional">
+                <button onclick="window.location.href='https://forms-ir5ib344aa-uc.a.run.app'" class="base-button-style btn-primary-professional">
                     Submit a Secure Form
-                </a>
-                <a href="https://dashboard-ir5ib344aa-uc.a.run.app" class="btn-secondary-professional">
+                </button>
+                <button onclick="window.location.href='https://dashboard-ir5ib344aa-uc.a.run.app'" class="base-button-style btn-secondary-professional">
                     Access Data Dashboard
-                </a>
+                </button>
                 </div>
 
             <p class="mt-12 text-sm text-gray-500">
