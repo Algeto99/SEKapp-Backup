@@ -3,51 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tzolkin Tech SecApp</title>
+    <title>Tzolkin Tech SecApp - Professional Services</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #a7bfe8 0%, #619afc 100%); /* More vibrant, modern gradient */
-            background-attachment: fixed; /* Ensures gradient covers full viewport */
+            font-family: 'Roboto', sans-serif; /* Clean, modern sans-serif for body text */
+            background-color: #f8f9fa; /* Light, almost white background */
+            color: #343a40; /* Dark gray for body text */
+            line-height: 1.6;
         }
-        .card-container {
-            backdrop-filter: blur(10px); /* Glassmorphism effect */
-            background-color: rgba(255, 255, 255, 0.85); /* Slightly transparent white */
-            border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border for definition */
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* Softer, larger shadow */
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif; /* Elegant serif for headings */
+            color: #212529; /* Even darker gray for headings */
         }
-        .btn-primary {
-            @apply bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-75 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105;
+        .container-wrapper {
+            background-color: #ffffff; /* Crisp white for the main content block */
+            border-radius: 12px; /* Slightly rounded corners */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Soft, professional shadow */
         }
-        .btn-secondary {
-            @apply bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-purple-300 focus:ring-opacity-75 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105;
+        .button-group a {
+            @apply flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out;
         }
-        /* Add more button styles as needed, e.g., btn-tertiary */
+        .btn-primary-professional {
+            @apply bg-blue-700 text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+        }
+        .btn-secondary-professional {
+            @apply border border-blue-700 text-blue-700 hover:bg-blue-50 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+        }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
-    <div class="card-container p-10 rounded-3xl max-w-lg w-full text-center relative z-10 transition-all duration-500 ease-in-out">
-        <h1 class="text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
-            Tzolkin Tech <span class="text-indigo-600">SecApp</span>
-        </h1>
-        <p class="text-xl text-gray-700 mb-10 opacity-90">
-            Securely manage your data with ease. Select an option to continue.
-        </p>
+<body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
+    <div class="container-wrapper max-w-4xl w-full flex flex-col md:flex-row overflow-hidden">
+        <div class="md:w-1/2 p-8 md:p-12 bg-gray-900 text-white flex flex-col justify-center items-start text-left">
+            <img src="https://placehold.co/120x40/white/gray?text=Tzolkin+Logo" alt="Tzolkin Tech Logo" class="mb-6 opacity-80">
+            <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight">
+                Empowering Your Security with <span class="text-blue-400">Advanced Solutions</span>
+            </h1>
+            <p class="text-lg text-gray-300 mb-6 max-w-prose">
+                At Tzolkin Tech SecApp, we deliver cutting-edge security and data management platforms designed for robust protection and seamless accessibility.
+            </p>
+            <p class="text-md text-gray-400">
+                Partner with us for unparalleled digital integrity.
+            </p>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-            <a href="https://forms-ir5ib344aa-uc.a.run.app" class="btn-primary">
-                <span class="block py-3">Fill Out Basic Form</span>
-            </a>
-            <a href="https://dashboard-ir5ib344aa-uc.a.run.app" class="btn-secondary">
-                <span class="block py-3">View Data Dashboard</span>
-            </a>
-            </div>
+        <div class="md:w-1/2 p-8 md:p-12 flex flex-col justify-center items-center text-center">
+            <h2 class="text-3xl font-semibold mb-6 text-gray-800">Access Our Services</h2>
+            <p class="text-md text-gray-600 mb-8 max-w-md">
+                Choose an option below to securely interact with our platform and manage your essential data.
+            </p>
 
-        <p class="text-sm text-gray-600 mt-8 opacity-80">
-            Your data, securely stored and easily accessible. © 2025 Tzolkin Tech.
-        </p>
+            <div class="button-group w-full space-y-4 max-w-xs">
+                <a href="https://forms-ir5ib344aa-uc.a.run.app" class="btn-primary-professional">
+                    Submit a Secure Form
+                </a>
+                <a href="https://dashboard-ir5ib344aa-uc.a.run.app" class="btn-secondary-professional">
+                    Access Data Dashboard
+                </a>
+                </div>
+
+            <p class="mt-12 text-sm text-gray-500">
+                Your privacy and data security are our top priorities.
+            </p>
+            <p class="mt-2 text-xs text-gray-400">
+                &copy; 2025 Tzolkin Tech. All rights reserved.
+            </p>
+        </div>
     </div>
 </body>
 </html>
