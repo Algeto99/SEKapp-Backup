@@ -1,15 +1,20 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, session # Make sure 'session' is imported
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, create_refresh_token, set_access_cookies, set_refresh_cookies, unset_jwt_cookies, JWTManager, jwt_required, get_jwt_identity
 import os
 import psycopg2
 from datetime import timedelta
+from psycopg2 import extras # Needed for DictCursor if you want it (recommended for clarity)
 
 app = Flask(__name__)
 
 # --- Flask App Configuration ---
-# IMPORTANT: Set this environment variable in Cloud Run with a strong, random key!
+# IMPORTANT: Set these environment variables in Cloud Run with strong, random keys!
 # Generate with: python -c "import os; print(os.urandom(32).hex())"
+
+# THIS IS THE MISSING/CRITICAL LINE THAT CAUSED THE SESSION ERROR
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY') # <--- ADDED THIS LINE
+
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-super-secret-jwt-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # Access token validity
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30) # Refresh token validity
@@ -22,6 +27,13 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax' # Helps with CSRF protection. Can be '
 # Example: export JWT_COOKIE_DOMAIN=".yourdomain.com"
 # If NOT using custom domains (i.e., using *.a.run.app), remove this or set to None
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', None)
+
+# Add checks for crucial environment variables on startup for clarity
+if not app.config.get('SECRET_KEY'):
+    # This will prevent the app from even starting if FLASK_SECRET_KEY is truly missing
+    raise RuntimeError("FLASK_SECRET_KEY environment variable is not set. Flask sessions require a secret key.")
+if not app.config.get('JWT_SECRET_KEY'):
+    app.logger.warning("JWT_SECRET_KEY environment variable is not set. JWT operations might fail.")
 
 # Initialize Flask extensions
 jwt = JWTManager(app)
@@ -36,7 +48,8 @@ def get_db_connection():
         return conn
     except Exception as e:
         print(f"Error connecting to database: {e}")
-        # In production, you might log this error and show a generic message
+        # Flash message here might not appear if connection fails on first request,
+        # but it's good practice.
         flash('Error de conexión a la base de datos.', 'danger')
         return None
 
@@ -45,6 +58,7 @@ def get_db_connection():
 @jwt.unauthorized_loader
 def unauthorized_response(callback):
     flash('Por favor, inicie sesión para acceder a esta página.', 'warning')
+    # Make sure 'login' is the endpoint name for your login page route
     return redirect(url_for('login'))
 
 @jwt.invalid_token_loader
@@ -63,47 +77,57 @@ def expired_token_response(callback):
 @app.route('/')
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Pass landing_service_url to the template for the 'Volver al Inicio' link
+    landing_service_url = os.environ.get('LANDING_SERVICE_URL', url_for('login')) # Fallback to login if not set
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
 
         conn = get_db_connection()
         if not conn:
-            return render_template('login.html') # Render login template with generic error via flash
+            # If DB connection fails, render the login page with the flash message
+            return render_template('login.html', landing_service_url=landing_service_url)
 
         try:
-            cur = conn.cursor()
+            # Use DictCursor for easier column access
+            cur = conn.cursor(cursor_factory=extras.DictCursor)
             cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (username,))
             user = cur.fetchone()
             cur.close()
             conn.close()
 
-            if user and bcrypt.check_password_hash(user[2], password): # user[2] is password_hash
-                access_token = create_access_token(identity=user[1]) # Use username as JWT identity
-                refresh_token = create_refresh_token(identity=user[1])
+            # Ensure user exists AND password matches
+            if user and bcrypt.check_password_hash(user['password_hash'], password): # Access by key for DictCursor
+                access_token = create_access_token(identity=user['username']) # Use username as JWT identity
+                # Refresh token is optional, but good for longer sessions
+                refresh_token = create_refresh_token(identity=user['username'])
 
-                # IMPORTANT: In a multi-service app, you'd redirect to the *actual* dashboard URL here.
-                # This should be the external URL of your dashboards service.
+                # Redirect to the actual dashboard URL
                 dashboard_url = os.environ.get('DASHBOARD_SERVICE_URL', '/dashboard_placeholder')
                 response = redirect(dashboard_url)
 
                 set_access_cookies(response, access_token)
-                set_refresh_cookies(response, refresh_token)
+                set_refresh_cookies(response, refresh_token) # Set refresh cookie
                 flash('¡Inicio de sesión exitoso!', 'success')
                 return response
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
         except Exception as e:
             print(f"Login error: {e}")
+            app.logger.error(f"Login error: {e}") # Use app.logger for Cloud Run logs
             flash('Ocurrió un error durante el inicio de sesión.', 'danger')
         finally:
             if conn:
                 conn.close()
 
-    return render_template('login.html')
+    return render_template('login.html', landing_service_url=landing_service_url)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # Pass landing_service_url to the template
+    landing_service_url = os.environ.get('LANDING_SERVICE_URL', url_for('login'))
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -111,17 +135,17 @@ def register():
 
         if not username or not password or not confirm_password:
             flash('Por favor, rellene todos los campos.', 'warning')
-            return render_template('register.html')
+            return render_template('register.html', landing_service_url=landing_service_url)
 
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
-            return render_template('register.html', username=username)
+            return render_template('register.html', username=username, landing_service_url=landing_service_url)
 
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
         conn = get_db_connection()
         if not conn:
-            return render_template('register.html')
+            return render_template('register.html', landing_service_url=landing_service_url)
 
         try:
             cur = conn.cursor()
@@ -138,12 +162,13 @@ def register():
             conn.rollback() # Rollback transaction on unique violation
         except Exception as e:
             print(f"Registration error: {e}")
+            app.logger.error(f"Registration error: {e}") # Use app.logger
             flash('Ocurrió un error durante el registro.', 'danger')
         finally:
             if conn:
                 conn.close()
 
-    return render_template('register.html')
+    return render_template('register.html', landing_service_url=landing_service_url) # Pass URL to template
 
 @app.route('/logout')
 def logout():
@@ -184,12 +209,15 @@ def forms_placeholder():
 # --- Main Runner for Local Development ---
 if __name__ == '__main__':
     # Set dummy environment variables for local testing
+    if 'FLASK_SECRET_KEY' not in os.environ:
+        os.environ['FLASK_SECRET_KEY'] = 'a_very_secret_key_for_local_dev'
+        print("WARNING: FLASK_SECRET_KEY not set. Using a default for local development. Set a strong key in production!")
     if 'JWT_SECRET_KEY' not in os.environ:
         os.environ['JWT_SECRET_KEY'] = 'dev-secret-key-for-local-testing'
         print("WARNING: JWT_SECRET_KEY not set. Using a default for local development. Set a strong key in production!")
 
     if 'DATABASE_URL' not in os.environ:
-        os.environ['DATABASE_URL'] = 'postgresql://your_local_user:your_local_password@localhost:5432/your_local_database'
+        os.environ['DATABASE_URL'] = 'postgresql://tz-dev-secapp-user:Tzolkin1!@localhost:5432/tz-dev-secapp-database'
         print("WARNING: DATABASE_URL not set. Using a default for local development. Update for your local DB!")
 
     if 'DASHBOARD_SERVICE_URL' not in os.environ:
