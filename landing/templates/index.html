@@ -64,10 +64,6 @@
             </p>
 
             <div class="button-group w-full space-y-4 max-w-xs">
-                <button id="login-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-                    Iniciar Sesión
-                </button>
-
                 <button id="forms-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
                     Reporte de Incidencia
                 </button>
@@ -97,7 +93,9 @@
         const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app";
         const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
 
-        const loginButton = document.getElementById('login-button');
+        // IMPORTANT: Re-adjust button references since 'login-button' is removed
+        // We will make the forms/dashboard buttons act as login prompts if not authenticated
+        // const loginButton = document.getElementById('login-button'); // This will now be null or undefined, remove it
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
         const logoutButton = document.getElementById('logout-button');
@@ -112,44 +110,42 @@
             
             if (accessTokenCookie) {
                 // User is likely logged in (cookie exists)
-                loginButton.classList.add('hidden'); // Hide login button
+                // We no longer have a loginButton to hide, so we only need to show logout
                 logoutButton.classList.remove('hidden'); // Show logout button
-                // We cannot display the username here directly from an HttpOnly cookie.
-                // To display a username, you would need to:
-                // 1. Have an API endpoint on a protected service (e.g., /user_info)
-                // 2. Make an AJAX call to that endpoint (which the browser sends the cookie to)
-                // 3. The endpoint returns the username, which you then update `welcomeMessageElement` with.
-                // For now, a generic welcome message is fine.
                 welcomeMessageElement.textContent = `Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
             } else {
                 // User is not logged in (no cookie found or already cleared)
-                loginButton.classList.remove('hidden'); // Show login button
                 logoutButton.classList.add('hidden'); // Hide logout button
-                welcomeMessageElement.textContent = "Escoja una opción para interactuar de manera segura con nuestra plataforma.";
+                welcomeMessageElement.textContent = "Para acceder a los servicios, por favor <a href='" + LOGIN_SERVICE_URL + "/login' class='text-blue-400 hover:underline'>inicie sesión</a>.";
             }
         }
 
         // --- Event Listeners for Buttons ---
-
-        loginButton.addEventListener('click', () => {
-            // Simply redirect to the login service's login page
-            window.location.href = LOGIN_SERVICE_URL + '/login';
-        });
+        // The Forms and Dashboard buttons will now check for cookie presence as a hint
+        // If no cookie, they'll prompt login. Otherwise, they'll navigate directly.
 
         formsButton.addEventListener('click', () => {
-            // Directly navigate to the Forms service.
-            // The browser will automatically send the HttpOnly JWT cookies.
-            // If authentication fails on the Forms service, its Flask-JWT-Extended
-            // setup will redirect the browser to the LOGIN_SERVICE_URL/login.
-            window.location.href = FORMS_SERVICE_URL + '/report_form';
+            const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
+            if (!accessTokenCookie) {
+                alert("Please log in to access the Forms service.");
+                window.location.href = LOGIN_SERVICE_URL + '/login'; // Redirect to login page
+            } else {
+                // Directly navigate to the Forms service.
+                // The browser will automatically send the HttpOnly JWT cookies.
+                // If authentication fails on the Forms service, its Flask-JWT-Extended
+                // setup will still redirect the browser to the LOGIN_SERVICE_URL/login.
+                window.location.href = FORMS_SERVICE_URL + '/report_form';
+            }
         });
 
         dashboardButton.addEventListener('click', () => {
-            // Directly navigate to the Dashboard service.
-            // The browser will automatically send the HttpOnly JWT cookies.
-            // If authentication fails on the Dashboard service, its Flask-JWT-Extended
-            // setup will redirect the browser to the LOGIN_SERVICE_URL/login.
-            window.location.href = DASHBOARD_SERVICE_URL + '/';
+            const accessTokenCookie = document.cookie.split('; '). ').find(row => row.startsWith('access_token_cookie='));
+            if (!accessTokenCookie) {
+                alert("Please log in to access the Dashboard service.");
+                window.location.href = LOGIN_SERVICE_URL + '/login'; // Redirect to login page
+            } else {
+                window.location.href = DASHBOARD_SERVICE_URL + '/';
+            }
         });
 
         logoutButton.addEventListener('click', () => {
@@ -162,13 +158,6 @@
         // --- Initial UI setup on page load ---
         document.addEventListener('DOMContentLoaded', updateUIForAuthStatus);
 
-        // Optional: Periodically check auth status or set up a more robust check
-        // if your application has dynamic elements that depend on auth.
-        // For simple full-page navigation, DOMContentLoaded is often sufficient.
-        // If your login service redirected back to landing, and you wanted to
-        // confirm the cookie here, you might fetch a small, protected API endpoint
-        // on one of your services that just returns "authenticated: true" or something.
-        // But for this simple navigation, the cookie presence heuristic is enough.
     </script>
 </body>
 </html>
