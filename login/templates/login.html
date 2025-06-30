@@ -11,7 +11,7 @@
   <style>
     body {
       font-family: 'Roboto', sans-serif;
-      background-color: #1a202c; /* dark background */
+      background-color: #1a202c;
       color: #e2e8f0;
       display: flex;
       justify-content: center;
@@ -30,21 +30,21 @@
       border-radius: 12px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      max-width: 400px;
+      max-width: 460px;
       width: 100%;
       padding: 2rem;
     }
 
     .form-input {
-      @apply block w-full px-4 py-2 border border-gray-600 rounded-lg shadow-sm
+      @apply block w-full px-5 py-3 border border-gray-600 rounded-lg shadow-sm
               bg-white text-gray-900 placeholder-gray-500
-              focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
+              focus:ring-blue-600 focus:border-blue-600 text-base;
     }
 
     .login-button {
-      @apply w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-md
-              hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75
-              transition duration-200 ease-in-out transform hover:scale-105;
+      @apply w-full py-3 px-6 bg-blue-500 text-white font-semibold rounded-lg shadow-md
+              hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75
+              transition duration-200 ease-in-out transform hover:scale-105 text-base;
     }
 
     .flash-message {
