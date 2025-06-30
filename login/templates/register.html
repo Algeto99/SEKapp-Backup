@@ -75,13 +75,12 @@
       {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('register') }}" method="POST" class="space-y-6 text-left">
-      <div>
-        <label for="username" class="block text-sm font-medium mb-1">Usuario (Email):</label>
-        <input type="email" id="username" name="username" required value="{{ username if username else '' }}"
-               class="form-input" placeholder="tu@ejemplo.com" />
-      </div>
-
+    <form action="{{ url_for('login') }}" method="POST" class="space-y-6 text-left">
+        <div>
+          <label for="username" class="block text-sm font-medium mb-1">Usuario (Email):</label>
+          <input type="email" id="username" name="username" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="tu@ejemplo.com" />
+        </div>
+    
       <div>
         <label for="password" class="block text-sm font-medium mb-1">Contraseña:</label>
         <input type="password" id="password" name="password" required
