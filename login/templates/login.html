@@ -35,10 +35,11 @@
       padding: 2.5rem;
     }
 
-    .form-input {
-      @apply w-full px-5 py-3 border border-gray-600 rounded-lg shadow-sm
-              bg-white text-gray-900 placeholder-gray-500
-              focus:ring-blue-600 focus:border-blue-600 text-base;
+    /* Combined styles for form inputs */
+    .form-input-combined {
+        @apply w-full px-5 py-3 border border-gray-600 rounded-lg shadow-sm
+               bg-white text-gray-900 placeholder-gray-500
+               focus:ring-blue-600 focus:border-blue-600 text-base;
     }
 
     .login-button {
@@ -73,18 +74,22 @@
       {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('login') }}" method="POST" class="space-y-6 text-left">
+    <div id="js-alert-message" class="flash-message hidden"></div>
+
+    <form id="login-form" class="space-y-6 text-left">
       <div>
         <label for="username" class="block text-sm font-medium mb-1">Usuario (Email):</label>
-        <input type="email" id="username" name="username" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="tu@ejemplo.com" />
+        <input type="email" id="username" name="username" required 
+               class="form-input-combined" placeholder="tu@ejemplo.com" />
       </div>
 
       <div>
         <label for="password" class="block text-sm font-medium mb-1">Contraseña:</label>
-        <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="Tu contraseña" />
+        <input type="password" id="password" name="password" required 
+               class="form-input-combined" placeholder="Tu contraseña" />
       </div>
 
-      <button type="submit" class="login-button w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+      <button type="submit" class="login-button">
         Entrar
       </button>
     </form>
@@ -94,5 +99,71 @@
       <a href="#" class="text-blue-400 hover:underline block">¿Olvidaste tu contraseña?</a>
     </div>
   </div>
+
+  <script>
+    // This URL will be provided by your Flask Login Service when it renders this template
+    // For local development, you might default it.
+    const LOGIN_SERVICE_URL = "{{ login_service_url | default('http://localhost:8080') }}";
+
+    const loginForm = document.getElementById('login-form');
+    const jsAlertMessage = document.getElementById('js-alert-message');
+
+    // Function to display messages (either from Flask flashes or JS)
+    function displayMessage(message, type = 'info') {
+        jsAlertMessage.textContent = message;
+        jsAlertMessage.className = `flash-message flash-${type}`; // Apply Tailwind classes
+        jsAlertMessage.classList.remove('hidden');
+        // Hide after some time if it's not an error that needs to persist
+        if (type !== 'danger' && type !== 'error') {
+            setTimeout(() => {
+                jsAlertMessage.classList.add('hidden');
+            }, 5000); // Hide after 5 seconds
+        }
+    }
+
+    loginForm.addEventListener('submit', async function(event) {
+        event.preventDefault(); // Stop the default form submission
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        // Hide any previous messages
+        jsAlertMessage.classList.add('hidden');
+
+        try {
+            const response = await fetch(LOGIN_SERVICE_URL + '/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json' // Crucial: tell server we're sending JSON
+                },
+                body: JSON.stringify({ username: username, password: password }) // Send data as JSON
+            });
+
+            const data = await response.json(); // Parse the JSON response from the server
+
+            if (response.ok) { // HTTP status is 200-299
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('refresh_token', data.refresh_token); // Store refresh token
+
+                displayMessage(data.message, 'success'); // Display success message
+                
+                // Redirect after a short delay to allow message to be seen
+                setTimeout(() => {
+                    window.location.href = data.landing_url; // Redirect to the landing page
+                }, 1500); // 1.5 second delay
+                
+            } else {
+                // Server returned an error (e.g., 401, 400, 500)
+                const errorMessage = data.message || 'Error desconocido. Por favor, intente de nuevo.';
+                displayMessage(`Fallo en el inicio de sesión: ${errorMessage}`, 'danger');
+                console.error('Login error:', data);
+            }
+        } catch (error) {
+            // Network error (e.g., server not reachable)
+            console.error('Error de red o del servidor durante el inicio de sesión:', error);
+            displayMessage('No se pudo conectar con el servidor. Por favor, verifique su conexión e intente de nuevo.', 'danger');
+        }
+    });
+  </script>
 </body>
 </html>
