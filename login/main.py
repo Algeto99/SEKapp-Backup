@@ -22,10 +22,20 @@ app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-super-secr
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-app.config['JWT_COOKIE_SECURE'] = True
-app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
+app.config['JWT_COOKIE_SECURE'] = True # Only send cookies over HTTPS
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax' # Helps with CSRF protection. Can be 'Strict' or 'None' (needs secure=True)
 
-app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', None)
+# --- CRITICAL CHANGE FOR CROSS-SERVICE COOKIE SHARING ---
+# This tells Flask-JWT-Extended to set the cookie for the top-level domain (.run.app).
+# This allows all services under that domain (*.run.app) to read the cookie.
+# If you are using a custom domain (e.g., app.yourdomain.com), you would set this to '.yourdomain.com'.
+# For standard Cloud Run URLs (e.g., service-xyz.a.run.app), use ".run.app".
+app.config['JWT_COOKIE_DOMAIN'] = ".run.app" # <--- MODIFIED THIS LINE
+# The environment variable 'JWT_COOKIE_DOMAIN' passed via gcloud deploy will override this if provided.
+# If you are using a custom domain, ensure your gcloud deploy command explicitly sets JWT_COOKIE_DOMAIN
+# like: --set-env-vars='JWT_COOKIE_DOMAIN=.yourdomain.com'
+# If not using a custom domain, the hardcoded ".run.app" is the correct default here.
+# --------------------------------------------------------
 
 if not app.config.get('SECRET_KEY'):
     raise RuntimeError("FLASK_SECRET_KEY environment variable is not set. Flask sessions require a secret key.")
@@ -88,9 +98,7 @@ def login():
                 access_token = create_access_token(identity=user['username'])
                 refresh_token = create_refresh_token(identity=user['username'])
 
-                # --- MODIFIED LINE HERE ---
                 response = redirect(landing_service_url) # Redirect to the Landing Service URL
-                # --------------------------
 
                 set_access_cookies(response, access_token)
                 set_refresh_cookies(response, refresh_token)
@@ -162,9 +170,6 @@ def logout():
     return response
 
 # --- Placeholder Routes for Testing Redirection ---
-# These are just to demonstrate the protected redirection.
-# In production, these would be the actual external URLs of your dashboard and forms services.
-
 @app.route('/dashboard_placeholder')
 @jwt_required()
 def dashboard_placeholder():
