@@ -95,27 +95,20 @@
             const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
             if (accessTokenCookie) {
                 logoutButton.classList.remove('hidden');
-                welcomeMessageElement.textContent = `Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
+                welcomeMessageElement.textContent = "Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.";
             } else {
                 logoutButton.classList.add('hidden');
-                welcomeMessageElement.innerHTML = "Para acceder a los servicios, por favor <a href='" + LOGIN_SERVICE_URL + "/login' class='text-blue-400 hover:underline'>inicie sesión</a>.";
+                welcomeMessageElement.textContent = ""; // Removed login prompt
             }
         }
 
         formsButton.addEventListener('click', () => {
-            const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
-            if (!accessTokenCookie) {
-                alert("Por favor inicie sesión para acceder al servicio de Reporte.");
-                window.location.href = LOGIN_SERVICE_URL + '/login';
-            } else {
-                window.location.href = FORMS_SERVICE_URL + '/report_form';
-            }
+            window.location.href = FORMS_SERVICE_URL + '/report_form';
         });
 
         dashboardButton.addEventListener('click', () => {
             const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
             if (!accessTokenCookie) {
-                alert("Por favor inicie sesión para acceder al Dashboard.");
                 window.location.href = LOGIN_SERVICE_URL + '/login';
             } else {
                 window.location.href = DASHBOARD_SERVICE_URL + '/';
