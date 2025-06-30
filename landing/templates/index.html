@@ -59,20 +59,25 @@
 
         <div class="md:w-1/2 p-8 md:p-12 bg-gray-900 flex flex-col justify-center items-center text-center">
             <h2 class="text-3xl font-semibold mb-6 dark-section-heading">Acceda a nuestros servicios</h2>
-            <p class="text-md text-white mb-8 max-w-md">
+            <p class="text-md text-white mb-8 max-w-md" id="welcome-message">
                 Escoga una opción para interactuar de manera segura con nuestra plataforma.
             </p>
 
             <div class="button-group w-full space-y-4 max-w-xs">
-                <button onclick="window.location.href='https://login-24309643178.us-central1.run.app'" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                <button id="login-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
                     Iniciar Sesión
                 </button>
 
-                <button onclick="window.location.href='https://forms-ir5ib344aa-uc.a.run.app'" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                <button id="forms-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
                     Reporte de Incidencia
                 </button>
-                <button onclick="window.location.href='https://dashboard-ir5ib344aa-uc.a.run.app'" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+
+                <button id="dashboard-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
                     Reportes y Dashboard
+                </button>
+
+                <button id="logout-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 hidden">
+                    Cerrar Sesión
                 </button>
             </div>
 
@@ -84,5 +89,195 @@
             </p>
         </div>
     </div>
+
+    <script>
+        // These URLs should be passed by your Flask Landing service for dynamic deployment
+        // In a production Flask app, you'd use Jinja2 to render these from env vars:
+        // const LOGIN_SERVICE_URL = "{{ login_service_url }}";
+        // const FORMS_SERVICE_URL = "{{ forms_service_url }}";
+        // const DASHBOARD_SERVICE_URL = "{{ dashboard_service_url }}";
+
+        // For direct static file serving or local testing, you might hardcode them or use placeholders
+        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app";
+        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app"; // Corrected Forms URL
+        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
+
+        const loginButton = document.getElementById('login-button');
+        const formsButton = document.getElementById('forms-button');
+        const dashboardButton = document.getElementById('dashboard-button');
+        const logoutButton = document.getElementById('logout-button');
+        const welcomeMessageElement = document.getElementById('welcome-message');
+
+        // --- Helper function to make authenticated requests ---
+        async function fetchWithAuth(url, options = {}) {
+            const token = localStorage.getItem('access_token');
+            const headers = options.headers || {};
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            options.headers = headers;
+
+            try {
+                const response = await fetch(url, options);
+
+                // If token is expired or invalid (401 response)
+                if (response.status === 401) {
+                    const errorData = await response.json().catch(() => ({})); // Try to parse JSON error
+                    // If the server explicitly tells us to re-login or it's a generic 401 for auth
+                    if (errorData.redirect_to_login || response.status === 401) {
+                        console.warn("Authentication failed, redirecting to login.");
+                        alert("Your session has expired or is invalid. Please log in again.");
+                        localStorage.removeItem('access_token'); // Clear potentially invalid tokens
+                        localStorage.removeItem('refresh_token');
+                        window.location.href = LOGIN_SERVICE_URL + '/login'; // Redirect to login
+                        return; // Prevent further processing
+                    }
+                }
+                return response;
+            } catch (error) {
+                console.error("Network or fetch error:", error);
+                alert("Could not connect to the service. Please try again later. (Check console for details)");
+                throw error; // Re-throw to propagate the error
+            }
+        }
+
+        // --- UI Update Function ---
+        function updateUIForAuthStatus() {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                // User is logged in
+                loginButton.classList.add('hidden'); // Hide login button
+                logoutButton.classList.remove('hidden'); // Show logout button
+
+                try {
+                    // Decode JWT to get username for welcome message
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    welcomeMessageElement.textContent = `Bienvenido, ${payload.sub}! Escoga una opción para interactuar de manera segura con nuestra plataforma.`;
+                } catch (e) {
+                    console.error("Failed to decode token payload:", e);
+                    welcomeMessageElement.textContent = "Bienvenido, usuario! Escoga una opción para interactuar de manera segura con nuestra plataforma.";
+                }
+            } else {
+                // User is not logged in
+                loginButton.classList.remove('hidden'); // Show login button
+                logoutButton.classList.add('hidden'); // Hide logout button
+                welcomeMessageElement.textContent = "Escoga una opción para interactuar de manera segura con nuestra plataforma.";
+            }
+        }
+
+        // --- Event Listeners for Buttons ---
+
+        loginButton.addEventListener('click', () => {
+            window.location.href = LOGIN_SERVICE_URL + '/login';
+        });
+
+        formsButton.addEventListener('click', async () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert("Please log in to access the Forms service.");
+                window.location.href = LOGIN_SERVICE_URL + '/login';
+                return;
+            }
+
+            try {
+                // Make a request to the Forms service.
+                // The Forms service will receive the Authorization header and render the HTML.
+                // Because we're expecting a full page render, we navigate directly after checks.
+                // The fetchWithAuth handles the 401 redirect logic.
+                const response = await fetchWithAuth(FORMS_SERVICE_URL + '/report_form', {
+                    method: 'GET'
+                });
+
+                if (response && response.ok) {
+                    // If the Forms service returns OK, it means the token was valid,
+                    // so we can now navigate the browser to that URL.
+                    window.location.href = FORMS_SERVICE_URL + '/report_form';
+                } else if (response) {
+                    // If response is not OK (e.g., 500 internal server error from forms)
+                    const errorData = await response.json().catch(() => ({ message: 'Unknown API error' }));
+                    alert(`Error accessing Forms service: ${errorData.message || response.statusText}`);
+                }
+                // fetchWithAuth already handles 401 redirection, so no explicit else if for 401 needed here
+            } catch (error) {
+                console.error('Error navigating to Forms:', error);
+                // The alert in fetchWithAuth might have already fired.
+            }
+        });
+
+        dashboardButton.addEventListener('click', async () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert("Please log in to access the Dashboard service.");
+                window.location.href = LOGIN_SERVICE_URL + '/login';
+                return;
+            }
+
+            try {
+                const response = await fetchWithAuth(DASHBOARD_SERVICE_URL + '/', {
+                    method: 'GET'
+                });
+
+                if (response && response.ok) {
+                    window.location.href = DASHBOARD_SERVICE_URL + '/';
+                } else if (response) {
+                    const errorData = await response.json().catch(() => ({ message: 'Unknown API error' }));
+                    alert(`Error accessing Dashboard service: ${errorData.message || response.statusText}`);
+                }
+            } catch (error) {
+                console.error('Error navigating to Dashboard:', error);
+            }
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            // Clear tokens from client-side storage
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token'); // Clear refresh token if stored
+
+            // Optional: Call logout endpoint on login service to clear any server-side sessions
+            // (e.g., if you still use HttpOnly cookies for refresh tokens or Flask sessions)
+            try {
+                // This request won't have an Authorization header unless you want it to.
+                // The backend logout endpoint should not require it to clear server-side state.
+                await fetch(LOGIN_SERVICE_URL + '/logout', { method: 'GET' });
+                console.log('Server-side logout initiated.');
+            } catch (error) {
+                console.error('Error during server-side logout call:', error);
+            }
+
+            alert('You have been logged out.');
+            window.location.href = LOGIN_SERVICE_URL + '/login'; // Redirect to login page
+            updateUIForAuthStatus(); // Update UI immediately
+        });
+
+        // --- Initial UI setup on page load ---
+        document.addEventListener('DOMContentLoaded', updateUIForAuthStatus);
+
+        // --- Handle tokens in URL after login redirect (e.g., if login service redirects with tokens as hash/query) ---
+        // This part is crucial if your login service redirects to the landing page
+        // and appends the tokens to the URL (e.g., #access_token=...).
+        // However, given the previous Flask login service change, it now returns JSON,
+        // so the actual login form submission needs to happen client-side (Landing service makes POST to Login service).
+        // If your Login Service still does a *redirect* after login, it would need to redirect
+        // with the token in a fragment identifier (`#access_token=...`) or query param,
+        // which then your JS picks up here.
+        // For now, let's assume the Login form is *on the Login service URL itself*
+        // and after successful login, it just redirects the browser to the Landing page.
+        // The *actual* login (username/password POST) would then need to be an AJAX call
+        // from the Login service's `login.html` to its own `/login` endpoint.
+
+        // If the login process involves a redirect from the login service to the landing page,
+        // and tokens were somehow passed via URL (less secure for JWTs), you'd parse them here.
+        // Example: If login page redirects to landing.html#token=XYZ
+        // const urlParams = new URLSearchParams(window.location.hash.substring(1)); // for #hash
+        // const urlParams = new URLSearchParams(window.location.search); // for ?query
+        // const tokenFromUrl = urlParams.get('access_token');
+        // if (tokenFromUrl) {
+        //     localStorage.setItem('access_token', tokenFromUrl);
+        //     window.history.replaceState({}, document.title, window.location.pathname); // Clean up URL
+        //     updateUIForAuthStatus();
+        // }
+
+    </script>
 </body>
 </html>
