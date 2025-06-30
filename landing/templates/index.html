@@ -1,163 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMT SecApp</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f8f9fa;
-            color: #343a40;
-            line-height: 1.6;
+<script>
+    const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app";
+    const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app";
+    const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
+
+    const formsButton = document.getElementById('forms-button');
+    const dashboardButton = document.getElementById('dashboard-button');
+    const logoutButton = document.getElementById('logout-button');
+    const welcomeMessageElement = document.getElementById('welcome-message');
+
+    function updateUIForAuthStatus() {
+        const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
+        if (accessTokenCookie) {
+            logoutButton.classList.remove('hidden');
+            welcomeMessageElement.textContent = `Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
+        } else {
+            logoutButton.classList.add('hidden');
+            welcomeMessageElement.innerHTML = "Para acceder a los servicios, por favor <a href='" + LOGIN_SERVICE_URL + "/login' class='text-blue-400 hover:underline'>inicie sesión</a>.";
         }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Merriweather', serif;
-            color: #212529; /* Default for dark text on light backgrounds */
+    }
+
+    formsButton.addEventListener('click', () => {
+        const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
+        if (!accessTokenCookie) {
+            alert("Por favor inicie sesión para acceder al servicio de Reporte.");
+            window.location.href = LOGIN_SERVICE_URL + '/login';
+        } else {
+            window.location.href = FORMS_SERVICE_URL + '/report_form';
         }
-        /* Specific heading color for the dark section */
-        .dark-section-heading {
-            color: #ffffff; /* White for headings in dark section */
+    });
+
+    dashboardButton.addEventListener('click', () => {
+        const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
+        if (!accessTokenCookie) {
+            alert("Por favor inicie sesión para acceder al Dashboard.");
+            window.location.href = LOGIN_SERVICE_URL + '/login';
+        } else {
+            window.location.href = DASHBOARD_SERVICE_URL + '/';
         }
-        .container-wrapper {
-            background-color: #ffffff; /* Default background for wrapper, will be overridden by sections */
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        /* Base button styles - Enhanced for visibility and hover */
-        .base-button-style {
-            /* Added shadow-xl and hover:scale-105 for depth and interactivity */
-            @apply w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105;
-        }
-        /* Primary button - Now light background with dark text */
-        .btn-primary-professional {
-            @apply bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
-        }
-        /* Secondary button - Now also a light background button, with a distinct hover */
-        .btn-secondary-professional {
-            @apply bg-gray-100 text-blue-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
-            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
-    <div class="container-wrapper max-w-4xl w-full flex flex-col md:flex-row overflow-hidden">
-        <div class="md:w-1/2 p-8 md:p-12 bg-white flex flex-col justify-center items-start text-left">
-            <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mb-6 opacity-90 logo-img">
-            <h1 class="text-4xl sm:text-5xl font-bold mb-4 leading-tight text-gray-800">
-                Plataforma de reportes de <span class="text-blue-700">Incidentes de Seguridad</span>
-            </h1>
-            <p class="text-lg text-gray-600 mb-6 max-w-prose">
-                SecApp de SMT, está diseñada para el reporte de incidentes de seguridad en diferentes propiedades.
-            </p>
-            <p class="text-md text-gray-700">
-                Le ayudamos a mantener seguridad no sólo física sino también digital.
-            </p>
-        </div>
+    });
 
-        <div class="md:w-1/2 p-8 md:p-12 bg-gray-900 flex flex-col justify-center items-center text-center">
-            <h2 class="text-3xl font-semibold mb-6 dark-section-heading">Acceda a nuestros servicios</h2>
-            <p class="text-md text-white mb-8 max-w-md" id="welcome-message">
-                Escoga una opción para interactuar de manera segura con nuestra plataforma.
-            </p>
+    logoutButton.addEventListener('click', () => {
+        window.location.href = LOGIN_SERVICE_URL + '/logout';
+    });
 
-            <div class="button-group w-full space-y-4 max-w-xs">
-                <button id="forms-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-                    Reporte de Incidencia
-                </button>
-                
-                <button id="dashboard-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
-                    Reportes y Dashboard
-                </button>
-
-                <button id="logout-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 hidden">
-                    Cerrar Sesión
-                </button>
-            </div>
-
-            <p class="mt-12 text-sm text-white">
-                Su privacidad y seguridad de datos son nuestras principales prioridades.
-            </p>
-            <p class="mt-2 text-xs text-white">
-                &copy; 2025 SMT, Inc. Derechos Reservados.
-            </p>
-        </div>
-    </div>
-
-    <script>
-        // These URLs should correspond to your deployed Cloud Run services
-        // IMPORTANT: Ensure these URLs are correct for your Cloud Run deployments!
-        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app";
-        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app";
-        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
-
-        // IMPORTANT: Re-adjust button references since 'login-button' is removed
-        // We will make the forms/dashboard buttons act as login prompts if not authenticated
-        // const loginButton = document.getElementById('login-button'); // This will now be null or undefined, remove it
-        const formsButton = document.getElementById('forms-button');
-        const dashboardButton = document.getElementById('dashboard-button');
-        const logoutButton = document.getElementById('logout-button');
-        const welcomeMessageElement = document.getElementById('welcome-message');
-
-        // Function to update UI based on authentication status (indirectly via cookie presence)
-        function updateUIForAuthStatus() {
-            // Check if JWT access token cookie exists.
-            // We can't read its value (because HttpOnly), but its *presence* indicates potential login.
-            // This is a client-side heuristic. The server will ultimately validate.
-            const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
-            
-            if (accessTokenCookie) {
-                // User is likely logged in (cookie exists)
-                // We no longer have a loginButton to hide, so we only need to show logout
-                logoutButton.classList.remove('hidden'); // Show logout button
-                welcomeMessageElement.textContent = `Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
-            } else {
-                // User is not logged in (no cookie found or already cleared)
-                logoutButton.classList.add('hidden'); // Hide logout button
-                welcomeMessageElement.textContent = "Para acceder a los servicios, por favor <a href='" + LOGIN_SERVICE_URL + "/login' class='text-blue-400 hover:underline'>inicie sesión</a>.";
-            }
-        }
-
-        // --- Event Listeners for Buttons ---
-        // The Forms and Dashboard buttons will now check for cookie presence as a hint
-        // If no cookie, they'll prompt login. Otherwise, they'll navigate directly.
-
-        formsButton.addEventListener('click', () => {
-            const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
-            if (!accessTokenCookie) {
-                alert("Please log in to access the Forms service.");
-                window.location.href = LOGIN_SERVICE_URL + '/login'; // Redirect to login page
-            } else {
-                // Directly navigate to the Forms service.
-                // The browser will automatically send the HttpOnly JWT cookies.
-                // If authentication fails on the Forms service, its Flask-JWT-Extended
-                // setup will still redirect the browser to the LOGIN_SERVICE_URL/login.
-                window.location.href = FORMS_SERVICE_URL + '/report_form';
-            }
-        });
-
-        dashboardButton.addEventListener('click', () => {
-            const accessTokenCookie = document.cookie.split('; '). ').find(row => row.startsWith('access_token_cookie='));
-            if (!accessTokenCookie) {
-                alert("Please log in to access the Dashboard service.");
-                window.location.href = LOGIN_SERVICE_URL + '/login'; // Redirect to login page
-            } else {
-                window.location.href = DASHBOARD_SERVICE_URL + '/';
-            }
-        });
-
-        logoutButton.addEventListener('click', () => {
-            // Initiate logout sequence by redirecting to the login service's logout endpoint.
-            // This endpoint will unset the HttpOnly JWT cookies and then redirect
-            // the user's browser back to the login page.
-            window.location.href = LOGIN_SERVICE_URL + '/logout';
-        });
-
-        // --- Initial UI setup on page load ---
-        document.addEventListener('DOMContentLoaded', updateUIForAuthStatus);
-
-    </script>
-</body>
-</html>
+    document.addEventListener('DOMContentLoaded', updateUIForAuthStatus);
+</script>
