@@ -3,8 +3,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, unset_jwt_cookies,
-    set_access_cookies, set_refresh_cookies,
-    jwt_required, get_jwt_identity, JWTManager
+    set_access_cookies, set_refresh_cookies, jwt_required,
+    get_jwt_identity, JWTManager
 )
 import psycopg2
 from psycopg2 import extras
@@ -13,17 +13,14 @@ from datetime import timedelta
 app = Flask(__name__)
 
 # --- Flask Config ---
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-super-secret-jwt-key')
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-secret')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-jwt')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 app.config['JWT_COOKIE_SECURE'] = True
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
-
-if not app.config['SECRET_KEY']:
-    raise RuntimeError("FLASK_SECRET_KEY is required.")
 
 # --- Extensions ---
 bcrypt = Bcrypt(app)
@@ -34,7 +31,7 @@ def get_db_connection():
     try:
         return psycopg2.connect(os.environ.get('DATABASE_URL'))
     except Exception as e:
-        print(f"DB connection error: {e}")
+        app.logger.error(f"DB connection error: {e}")
         flash('Error de conexión a la base de datos.', 'danger')
         return None
 
@@ -44,9 +41,9 @@ def get_db_connection():
 @jwt.expired_token_loader
 def token_error_response(callback):
     flash('Su sesión ha caducado o es inválida. Por favor, inicie sesión de nuevo.', 'danger')
-    return redirect(os.environ.get('LOGIN_SERVICE_URL', '/') + '/login')
+    return redirect(url_for('login'))
 
-# --- CORS (Optional for cookie mode) ---
+# --- CORS (optional for cookie mode) ---
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = os.environ.get('LANDING_SERVICE_URL', '*')
@@ -77,19 +74,15 @@ def login():
                 access_token = create_access_token(identity=user['username'])
                 refresh_token = create_refresh_token(identity=user['username'])
 
-                shared_domain = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
-                landing_service_url = os.environ.get('LANDING_SERVICE_URL')
-
-                response = redirect(landing_service_url or '/')
-                set_access_cookies(response, access_token, max_age=3600, domain=shared_domain)
-                set_refresh_cookies(response, refresh_token, max_age=30 * 24 * 3600, domain=shared_domain)
-
+                response = redirect(os.environ.get('LANDING_SERVICE_URL', '/'))
+                set_access_cookies(response, access_token)
+                set_refresh_cookies(response, refresh_token)
                 return response
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
                 return render_template('login.html')
         except Exception as e:
-            print(f"Login error: {e}")
+            app.logger.error(f"Login error: {e}")
             flash('Error durante el inicio de sesión.', 'danger')
             return render_template('login.html')
         finally:
@@ -106,7 +99,7 @@ def register():
 
         if not all([username, password, confirm_password]):
             flash('Rellene todos los campos.', 'warning')
-            return render_template('register.html')
+            return render_template('register.html', username=username)
 
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
@@ -115,20 +108,20 @@ def register():
         hashed = bcrypt.generate_password_hash(password).decode('utf-8')
         conn = get_db_connection()
         if not conn:
-            return render_template('register.html')
+            return render_template('register.html', username=username)
 
         try:
             cur = conn.cursor()
             cur.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)", (username, hashed))
             conn.commit()
             cur.close()
-            flash('¡Registro exitoso!', 'success')
+            flash('¡Registro exitoso! Ahora puede iniciar sesión.', 'success')
             return redirect(url_for('login'))
         except psycopg2.errors.UniqueViolation:
             flash('El usuario ya existe.', 'danger')
             conn.rollback()
         except Exception as e:
-            print(f"Registration error: {e}")
+            app.logger.error(f"Registration error: {e}")
             flash('Error durante el registro.', 'danger')
         finally:
             conn.close()
@@ -142,7 +135,7 @@ def logout():
     flash('Sesión cerrada.', 'info')
     return response
 
-# --- Placeholder routes for testing ---
+# --- Placeholder Routes ---
 @app.route('/dashboard_placeholder')
 @jwt_required()
 def dashboard_placeholder():
@@ -157,8 +150,6 @@ def forms_placeholder():
 
 # --- Run App ---
 if __name__ == '__main__':
-    os.environ.setdefault('FLASK_SECRET_KEY', 'dev-secret')
-    os.environ.setdefault('JWT_SECRET_KEY', 'dev-jwt')
     os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db')
     os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000')
     os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
