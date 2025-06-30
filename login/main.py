@@ -1,13 +1,14 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify # Added jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
-    create_access_token, create_refresh_token, unset_jwt_cookies, JWTManager, # Removed set_access_cookies, set_refresh_cookies
+    create_access_token, create_refresh_token, unset_jwt_cookies, JWTManager,
+    set_access_cookies, set_refresh_cookies,
     jwt_required, get_jwt_identity
 )
 import psycopg2
 from datetime import timedelta
-from psycopg2 import extras # Needed for DictCursor
+from psycopg2 import extras
 
 app = Flask(__name__)
 
@@ -17,16 +18,14 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-super-secret-jwt-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
-# Configure Flask-JWT-Extended to expect tokens primarily in headers
-# We can still keep cookies enabled for flexibility or for refresh tokens if desired,
-# but we'll explicitly send access token via header from frontend.
-app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies'] # IMPORTANT: Now looks in headers first
-app.config['JWT_COOKIE_SECURE'] = True # Only send cookies over HTTPS (still good practice for refresh tokens if used)
-app.config['JWT_COOKIE_SAMESITE'] = 'Lax' # Helps with CSRF protection.
+app.config['JWT_TOKEN_LOCATION'] = ['cookies'] # ONLY look for tokens in cookies for auth
+app.config['JWT_COOKIE_SECURE'] = True # Only send cookies over HTTPS (CRUCIAL for Cloud Run)
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax' # Helps with CSRF protection
 
-# Removed JWT_COOKIE_DOMAIN as we are not relying on it for access token now.
-# If you decide to use HttpOnly cookies for refresh tokens only, you might
-# re-add this and adjust refresh token handling.
+# --- Set JWT_COOKIE_DOMAIN for cross-subdomain cookie sharing ---
+# This is fundamental. It tells the browser to send these cookies to *.run.app
+# so all your Cloud Run services can receive them.
+app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', ".run.app")
 
 if not app.config.get('SECRET_KEY'):
     raise RuntimeError("FLASK_SECRET_KEY environment variable is not set. Flask sessions require a secret key.")
@@ -48,26 +47,29 @@ def get_db_connection():
         return None
 
 # --- JWT Callbacks for Error Handling and Redirection ---
-# These now assume the frontend will handle redirection based on API response
+# These handlers will redirect to the login page on token issues across ALL services.
 @jwt.unauthorized_loader
 @jwt.invalid_token_loader
 @jwt.expired_token_loader
 def token_error_response(callback):
-    # For API authentication, we often return JSON errors for token issues.
-    # The frontend is then responsible for redirecting to login.
-    # For a direct browser navigation, it might still trigger a redirect on a full page load.
-    return jsonify(message='Token missing, invalid, or expired. Please log in again.', redirect_to_login=True), 401
+    flash('Su sesión ha caducado o es inválida. Por favor, inicie sesión de nuevo.', 'danger')
+    login_url = os.environ.get('LOGIN_SERVICE_URL', '/')
+    return redirect(login_url + '/login') # Ensure it redirects to the login form
 
-# --- CORS Headers (Crucial for JavaScript Fetch requests from different origins) ---
+# --- CORS Headers (Simplified) ---
+# For cookie-based authentication with redirects, CORS headers are often less complex
+# on the login route itself, as the browser handles the redirect.
+# They are more critical for AJAX calls between services if those are implemented.
 @app.after_request
 def add_cors_headers(response):
-    # Replace with the actual origin of your Landing service in production
-    # Or use Flask-CORS extension for more robust CORS handling
-    allowed_origin = os.environ.get('LANDING_SERVICE_URL', 'http://localhost:5000')
-    response.headers['Access-Control-Allow-Origin'] = allowed_origin
+    # This ensures that if the login service itself is accessed directly (e.g. for /login HTML)
+    # or if any other AJAX calls are made to it (e.g. a future /refresh endpoint),
+    # it can respond correctly.
+    # For microservices, consider explicit origins or using Flask-CORS.
+    response.headers['Access-Control-Allow-Origin'] = os.environ.get('LANDING_SERVICE_URL', '*') # Allow the Landing Service to access if needed (e.g., for direct image links)
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Credentials'] = 'true' # If you ever send cookies with CORS
+    response.headers['Access-Control-Allow-Credentials'] = 'true' # Essential if cookies are involved in CORS
     return response
 
 # --- Routes ---
@@ -75,21 +77,15 @@ def add_cors_headers(response):
 @app.route('/')
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Frontend will handle redirection based on JSON response, so this render_template
-    # is only for the initial GET request to display the login form.
-    # The actual POST for login will return JSON.
     if request.method == 'POST':
-        username = request.form.get('username') # Assuming form submission
+        # Form submission is traditional, so use request.form
+        username = request.form.get('username')
         password = request.form.get('password')
-
-        # If using JSON for login, switch to:
-        # data = request.get_json()
-        # username = data.get('username')
-        # password = data.get('password')
 
         conn = get_db_connection()
         if not conn:
-            return jsonify(message='Error de conexión a la base de datos.'), 500
+            flash('Error de conexión a la base de datos.', 'danger')
+            return render_template('login.html')
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
@@ -99,38 +95,40 @@ def login():
 
             if user and bcrypt.check_password_hash(user['password_hash'], password):
                 access_token = create_access_token(identity=user['username'])
-                # Refresh token can still be set as HttpOnly cookie if preferred,
-                # to keep it secure from XSS for long-lived sessions.
-                # However, for simplicity here, we're returning it in JSON too.
                 refresh_token = create_refresh_token(identity=user['username'])
 
-                # Return tokens in JSON response
-                return jsonify(
-                    access_token=access_token,
-                    refresh_token=refresh_token,
-                    message='¡Inicio de sesión exitoso!',
-                    landing_url=os.environ.get('LANDING_SERVICE_URL', '/') # Tell frontend where to go
-                ), 200
+                landing_service_url = os.environ.get('LANDING_SERVICE_URL')
+                if not landing_service_url:
+                    app.logger.error("LANDING_SERVICE_URL environment variable is not set!")
+                    flash('Error de configuración del servicio de aterrizaje.', 'danger')
+                    return render_template('login.html')
+
+                # --- CRITICAL: Create a redirect response and set HttpOnly cookies on it ---
+                response = redirect(landing_service_url)
+                set_access_cookies(response, access_token)
+                set_refresh_cookies(response, refresh_token)
+
+                flash('¡Inicio de sesión exitoso!', 'success') # Flash message for the redirect
+                return response # This redirects the browser and sends the cookies
             else:
-                return jsonify(message='Usuario o contraseña incorrectos.', status='error'), 401
+                flash('Usuario o contraseña incorrectos.', 'danger')
+                return render_template('login.html')
         except Exception as e:
             print(f"Login error: {e}")
             app.logger.error(f"Login error: {e}")
-            return jsonify(message='Ocurrió un error durante el inicio de sesión.', status='error'), 500
+            flash('Ocurrió un error durante el inicio de sesión.', 'danger')
+            return render_template('login.html')
         finally:
             if conn:
                 conn.close()
-    
+
     # For GET requests to /login, render the template
     return render_template('login.html',
                            landing_service_url=os.environ.get('LANDING_SERVICE_URL', '/'),
                            login_service_url=os.environ.get('LOGIN_SERVICE_URL', '/'))
 
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # Registration can largely remain the same as it doesn't involve JWTs directly initially.
-    # It might redirect to the login page as before.
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -157,7 +155,7 @@ def register():
             conn.commit()
             cur.close()
             flash('¡Registro exitoso! Ahora puede iniciar sesión.', 'success')
-            return redirect(os.environ.get('LOGIN_SERVICE_URL', '/login')) # Redirect to the login page directly
+            return redirect(os.environ.get('LOGIN_SERVICE_URL', '/login'))
         except psycopg2.errors.UniqueViolation:
             flash('Ese nombre de usuario ya está registrado. Por favor, elija otro.', 'danger')
             conn.rollback()
@@ -171,20 +169,14 @@ def register():
 
     return render_template('register.html')
 
-
 @app.route('/logout')
 def logout():
-    # This endpoint is now more about clearing the client-side tokens.
-    # It will also unset any remaining HttpOnly cookies if you chose to use them for refresh tokens.
-    response = redirect(os.environ.get('LOGIN_SERVICE_URL', '/login'))
-    unset_jwt_cookies(response) # Clears any HttpOnly JWT cookies
+    response = redirect(os.environ.get('LOGIN_SERVICE_URL', '/login')) # Redirect to login page after logout
+    unset_jwt_cookies(response) # Clears all JWT cookies
     flash('Has cerrado sesión.', 'info')
     return response
 
-# --- Placeholder Routes for Testing Redirection ---
-# These would ideally be removed in a true microservices setup,
-# where the login service doesn't host protected content.
-# They are kept for demonstration of jwt_required working here.
+# Placeholder routes for local testing of protected content, not part of microservice structure
 @app.route('/dashboard_placeholder')
 @jwt_required()
 def dashboard_placeholder():
@@ -209,16 +201,14 @@ def forms_placeholder():
     <p><a href="{os.environ.get('LOGIN_SERVICE_URL', '/')}/logout" style="color: red;">Cerrar Sesión</a></p>
     """
 
-
-# --- Main Runner for Local Development ---
 if __name__ == '__main__':
+    # Local Development Environment Variables
     if 'FLASK_SECRET_KEY' not in os.environ:
         os.environ['FLASK_SECRET_KEY'] = 'a_very_secret_key_for_local_dev'
         print("WARNING: FLASK_SECRET_KEY not set. Using a default for local development. Set a strong key in production!")
     if 'JWT_SECRET_KEY' not in os.environ:
         os.environ['JWT_SECRET_KEY'] = 'dev-secret-key-for-local-testing'
         print("WARNING: JWT_SECRET_KEY not set. Using a default for local development. Set a strong key in production!")
-
     if 'DATABASE_URL' not in os.environ:
         os.environ['DATABASE_URL'] = 'postgresql://tz-dev-secapp-user:Tzolkin1!@localhost:5432/tz-dev-secapp-database'
         print("WARNING: DATABASE_URL not set. Using a default for local development. Update for your local DB!")
@@ -230,5 +220,9 @@ if __name__ == '__main__':
         os.environ['FORMS_SERVICE_URL'] = 'http://localhost:8081' # Forms service runs on 8081
     if 'LANDING_SERVICE_URL' not in os.environ:
         os.environ['LANDING_SERVICE_URL'] = 'http://localhost:5000' # Assuming 5000 for landing
+    if 'LOGIN_SERVICE_URL' not in os.environ:
+        os.environ['LOGIN_SERVICE_URL'] = 'http://localhost:8080' # Login service runs on 8080
+    if 'JWT_COOKIE_DOMAIN' not in os.environ:
+        os.environ['JWT_COOKIE_DOMAIN'] = ".run.app" # For Cloud Run deployments
 
     app.run(debug=True, host='0.0.0.0', port=os.environ.get('PORT', 8080))
