@@ -13,14 +13,14 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'a_very_secret_key
 
 # --- JWT Configuration (MUST match login service) ---
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-super-secret-jwt-key')
-# IMPORTANT: Configure Flask-JWT-Extended to expect tokens only in headers
-app.config['JWT_TOKEN_LOCATION'] = ['headers']
-# These cookie settings are no longer relevant if JWT_TOKEN_LOCATION is 'headers' only,
-# but can be kept if you intend to use other cookies for other purposes.
-app.config['JWT_COOKIE_SECURE'] = True
-app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
+# IMPORTANT: Configure Flask-JWT-Extended to expect tokens in cookies
+app.config['JWT_TOKEN_LOCATION'] = ['cookies'] # Changed back to primarily 'cookies'
+app.config['JWT_COOKIE_SECURE'] = True # Only send cookies over HTTPS (CRUCIAL for Cloud Run)
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax' # Helps with CSRF protection
 
-# Removed JWT_COOKIE_DOMAIN as we are not relying on it for authentication now.
+# --- RE-ENABLED JWT_COOKIE_DOMAIN for cross-subdomain cookie sharing ---
+# This is CRITICAL for cookies to be sent from one .run.app subdomain to another.
+app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', ".run.app")
 
 if not app.config.get('SECRET_KEY'):
     raise RuntimeError("FLASK_SECRET_KEY environment variable is not set. Flask sessions for Forms service require a secret key.")
@@ -37,7 +37,9 @@ def get_db_connection():
         db_url = os.environ.get('DATABASE_URL')
         if not db_url:
             app.logger.error("DATABASE_URL environment variable not set.")
-            flash('Error de configuración de la base de datos.', 'error') # Flash messages won't show on API call, logs are better
+            # Flash messages won't show on API call, logs are better.
+            # But for full page loads, a flash message is still useful before redirect.
+            flash('Error de configuración de la base de datos.', 'error')
             return None
 
         conn = psycopg2.connect(db_url)
@@ -45,29 +47,35 @@ def get_db_connection():
         return conn
     except Exception as e:
         app.logger.error(f"Error connecting to database: {e}")
-        flash('Error de conexión a la base de datos.', 'error')
+        flash('Error de conexión a la base de datos.', 'error') # Also flash for full page renders
         return None
 
 # --- JWT Callbacks for Error Handling and Redirection ---
-# These functions now return JSON responses for API-driven authentication.
-# The frontend will then handle the redirection.
+# These functions will now perform an HTTP redirect.
 @jwt.unauthorized_loader
 @jwt.invalid_token_loader
 @jwt.expired_token_loader
 def token_error_response(callback):
-    # Return a JSON response for API clients to handle
-    return jsonify(message='Token missing, invalid, or expired. Please log in again.', redirect_to_login=True), 401
+    # This will flash a message and redirect to the login page.
+    flash('Su sesión ha caducada o es inválida. Por favor, inicie sesión de nuevo.', 'danger')
+    login_url = os.environ.get('LOGIN_SERVICE_URL')
+    if login_url:
+        return redirect(login_url + '/login')
+    else:
+        # Fallback if LOGIN_SERVICE_URL is not set
+        return "Login service URL not configured.", 500
 
-# --- CORS Headers (Crucial for JavaScript Fetch requests from different origins) ---
+# --- CORS Headers (Less critical for full page navigations with cookies) ---
 @app.after_request
 def add_cors_headers(response):
-    # Replace with the actual origin of your Landing service in production
-    # Or use Flask-CORS extension for more robust CORS handling
-    allowed_origin = os.environ.get('LANDING_SERVICE_URL', 'http://localhost:5000')
+    # For full page navigations, the browser automatically sends cookies based on domain.
+    # CORS is primarily for AJAX requests. However, it's good practice if any cross-origin
+    # JavaScript fetches might occur.
+    allowed_origin = os.environ.get('LANDING_SERVICE_URL', '*') # Use '*' for development, be specific in production
     response.headers['Access-Control-Allow-Origin'] = allowed_origin
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization' # Keep Authorization for safety
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
-    response.headers['Access-Control-Allow-Credentials'] = 'true' # If you ever send cookies with CORS
+    response.headers['Access-Control-Allow-Credentials'] = 'true' # Essential if cookies are involved in CORS
     return response
 
 @app.route('/')
@@ -85,8 +93,13 @@ def show_report_form():
 
     conn = get_db_connection()
     if conn is None:
-        # Flash message already handled by get_db_connection, but return error for API context
-        return jsonify(message="Fallo al conectar con la base de datos.", status='error'), 500
+        # If DB connection fails, flash message handled by get_db_connection,
+        # and we should redirect to login as there's no page to render.
+        # This will be caught by the general token_error_response if no token,
+        # or result in a blank page if not caught. Let's redirect explicitly.
+        flash('Fallo al conectar con la base de datos, por favor intente de nuevo.', 'danger')
+        return redirect(os.environ.get('LOGIN_SERVICE_URL', '/') + '/login')
+
 
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -121,7 +134,9 @@ def show_report_form():
         )
     except psycopg2.Error as e:
         app.logger.error(f"Database error fetching lookup data: {e}")
-        return jsonify(message=f"Error al cargar opciones del formulario: {e}", status='error'), 500
+        flash(f"Error al cargar opciones del formulario: {e}", 'error')
+        # If DB error, redirect to login as well, or a specific error page
+        return redirect(os.environ.get('LOGIN_SERVICE_URL', '/') + '/login')
     finally:
         if conn:
             conn.close()
@@ -132,11 +147,17 @@ def submit_report():
     current_user_identity = get_jwt_identity()
     app.logger.info(f"User {current_user_identity} submitting report.")
 
-    # Extract form data (assuming JSON data from frontend, not form-urlencoded)
-    data = request.get_json() # IMPORTANT: Frontend must send JSON body
-    if not data:
-        return jsonify(message="Invalid request: JSON data expected.", status='error'), 400
+    # --- IMPORTANT: Revert to request.form for traditional form submission ---
+    # If your form.html submits traditionally (method="POST"), use request.form.
+    # If it submits via JavaScript fetch with JSON, then use request.get_json().
+    # Based on the original form.html, it's a traditional POST.
+    data = request.form # Assuming form.html now uses traditional POST
 
+    if not data:
+        flash("Invalid request: No form data received.", 'error')
+        return redirect(url_for('show_report_form'))
+
+    # Retrieve data using .get() to avoid KeyError if field is missing
     id_tipo_incidencia = data.get('tipo_incidencia')
     id_tipo_cliente = data.get('tipo_cliente')
     id_lugar_incidente = data.get('lugar_incidente')
@@ -168,17 +189,21 @@ def submit_report():
 
     for field_name, value in required_fields.items():
         if not value:
-            return jsonify(message=f"El campo '{field_name.replace('_', ' ').capitalize()}' es requerido.", status='error'), 400
+            flash(f"El campo '{field_name.replace('_', ' ').capitalize()}' es requerido.", 'error')
+            return redirect(url_for('show_report_form')) # Redirect back with flash
 
     conn = None
     try:
         conn = get_db_connection()
         if conn is None:
-            return jsonify(message="Fallo al conectar con la base de datos.", status='error'), 500
+            flash("Fallo al conectar con la base de datos.", 'error')
+            return redirect(url_for('show_report_form'))
 
         cur = conn.cursor()
 
+        # Handle potential None values for optional fields
         descripcion_zona_comun = descripcion_zona_comun if descripcion_zona_comun else None
+        # Convert to float if not None, else None
         valor_aproximado = float(valor_aproximado) if valor_aproximado else None
         pertenencias_sustraidas = pertenencias_sustraidas if pertenencias_sustraidas else None
         telefono_persona = telefono_persona if telefono_persona else None
@@ -207,15 +232,18 @@ def submit_report():
         )
         conn.commit()
         cur.close()
-        return jsonify(message='Reporte de incidencia enviado exitosamente!', status='success'), 200
+        flash('Reporte de incidencia enviado exitosamente!', 'success')
+        return redirect(url_for('show_report_form')) # Redirect back to form on success
     except psycopg2.Error as e:
         app.logger.error(f"Database error: {e}")
         if conn:
             conn.rollback()
-        return jsonify(message=f"Ocurrió un error en la base de datos al enviar el reporte: {e}", status='error'), 500
+        flash(f"Ocurrió un error en la base de datos al enviar el reporte: {e}", 'error')
+        return redirect(url_for('show_report_form'))
     except Exception as e:
         app.logger.error(f"An unexpected error occurred: {e}")
-        return jsonify(message=f"Ocurrió un error inesperado: {e}", status='error'), 500
+        flash(f"Ocurrió un error inesperado: {e}", 'error')
+        return redirect(url_for('show_report_form'))
     finally:
         if conn:
             conn.close()
@@ -245,5 +273,11 @@ if __name__ == '__main__':
 
     if 'LANDING_SERVICE_URL' not in os.environ: # Added for CORS
         os.environ['LANDING_SERVICE_URL'] = 'http://localhost:5000' # Assuming 5000 for landing
+
+    # IMPORTANT: JWT_COOKIE_DOMAIN will default to ".run.app" if not explicitly set
+    if 'JWT_COOKIE_DOMAIN' not in os.environ:
+        os.environ['JWT_COOKIE_DOMAIN'] = ".run.app" # Or ".us-central1.run.app"
+        app.logger.warning("WARNING: JWT_COOKIE_DOMAIN not set. Using default for forms service.")
+
 
     app.run(host='0.0.0.0', port=os.environ.get('PORT', 8081), debug=True)
