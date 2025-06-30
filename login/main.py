@@ -30,11 +30,10 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax' # Helps with CSRF protection. Can be '
 # This allows all services under that domain (*.run.app) to read the cookie.
 # If you are using a custom domain (e.g., app.yourdomain.com), you would set this to '.yourdomain.com'.
 # For standard Cloud Run URLs (e.g., service-xyz.a.run.app), use ".run.app".
-app.config['JWT_COOKIE_DOMAIN'] = ".run.app" # <--- MODIFIED THIS LINE
-# The environment variable 'JWT_COOKIE_DOMAIN' passed via gcloud deploy will override this if provided.
-# If you are using a custom domain, ensure your gcloud deploy command explicitly sets JWT_COOKIE_DOMAIN
-# like: --set-env-vars='JWT_COOKIE_DOMAIN=.yourdomain.com'
-# If not using a custom domain, the hardcoded ".run.app" is the correct default here.
+# MODIFIED: Changed from hardcoded ".run.app" to use os.environ.get with a default
+app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', ".run.app") # <--- THIS IS THE UPDATED LINE
+# If you intend to use a custom domain later, you would set JWT_COOKIE_DOMAIN env var in gcloud deploy.
+# For now, let the code default to ".run.app" for Cloud Run's default URLs.
 # --------------------------------------------------------
 
 if not app.config.get('SECRET_KEY'):
