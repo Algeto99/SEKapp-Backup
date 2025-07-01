@@ -30,12 +30,13 @@
       border-radius: 12px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      max-width: 500px;
+      max-width: 500px; /* Adjusted max-width for more fields */
       width: 100%;
       padding: 2.5rem;
     }
 
     .form-input {
+      /* Combined and cleaned up classes */
       @apply w-full px-5 py-3 border border-gray-600 rounded-lg shadow-sm
               bg-white text-gray-900 placeholder-gray-500
               focus:ring-blue-600 focus:border-blue-600 text-base;
@@ -60,7 +61,6 @@
 </head>
 <body>
   <div class="register-card text-center">
-    <!-- Logo (Same as login) -->
     <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto mb-6 w-28 opacity-90" />
 
     <h1 class="text-3xl font-bold mb-6">Registrarse</h1>
@@ -75,30 +75,59 @@
       {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('login') }}" method="POST" class="space-y-6 text-left">
+    <form action="{{ url_for('register_user') }}" method="POST" class="space-y-6 text-left">
         <div>
-          <label for="username" class="block text-sm font-medium mb-1">Usuario (Email):</label>
-          <input type="email" id="username" name="username" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="tu@ejemplo.com" />
+          <label for="username" class="block text-sm font-medium mb-1">Nombre de Usuario:</label>
+          <input type="text" id="username" name="username" required class="form-input" placeholder="Tu nombre de usuario" autocomplete="username" />
+        </div>
+
+        <div>
+            <label for="email" class="block text-sm font-medium mb-1">Correo Electrónico:</label>
+            <input type="email" id="email" name="email" required class="form-input" placeholder="tu@ejemplo.com" autocomplete="email" />
+        </div>
+
+        <div>
+            <label for="name" class="block text-sm font-medium mb-1">Nombre Completo:</label>
+            <input type="text" id="name" name="name" required class="form-input" placeholder="Tu nombre completo" autocomplete="name" />
+        </div>
+        
+        <div>
+            <label for="phone_number" class="block text-sm font-medium mb-1">Número de Teléfono (Opcional):</label>
+            <input type="tel" id="phone_number" name="phone_number" class="form-input" placeholder="Ej: 123-456-7890" autocomplete="tel" />
         </div>
     
         <div>
             <label for="password" class="block text-sm font-medium mb-1">Contraseña:</label>
-            <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="Tu contraseña" />
-          </div>
+            <input type="password" id="password" name="password" required class="form-input" placeholder="Tu contraseña" autocomplete="new-password" />
+        </div>
       
-          <div>
-            <label for="password" class="block text-sm font-medium mb-1">Confirmar Contraseña:</label>
-            <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="Tu contraseña" />
-          </div>
+        <div>
+            <label for="confirm_password" class="block text-sm font-medium mb-1">Confirmar Contraseña:</label>
+            <input type="password" id="confirm_password" name="confirm_password" required class="form-input" placeholder="Repite tu contraseña" autocomplete="new-password" />
+        </div>
       
-          <button type="submit" class="login-button w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+        <button type="submit" class="register-button">
             Registrarme
-          </button>
-        </form>
+        </button>
+    </form>
 
     <div class="mt-6 text-sm space-y-2 text-center">
-      <a href="{{ url_for('login') }}" class="text-blue-400 hover:underline block">¿Ya tienes cuenta? Iniciar Sesión.</a>
+      <a href="{{ url_for('login_page') }}" class="text-blue-400 hover:underline block">¿Ya tienes cuenta? Iniciar Sesión.</a>
     </div>
   </div>
+
+  <script>
+    // Simple client-side password validation (optional but good practice)
+    document.querySelector('form').addEventListener('submit', function(event) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+
+        if (password !== confirmPassword) {
+            alert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
+            event.preventDefault(); // Prevent form submission
+        }
+        // You might add other password strength checks here (min length, complexity, etc.)
+    });
+  </script>
 </body>
 </html>
