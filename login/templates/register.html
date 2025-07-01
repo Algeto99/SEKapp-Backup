@@ -97,7 +97,7 @@
       
         <div>
             <label for="confirm_password" class="block text-sm font-medium mb-1">Confirmar Contraseña:</label>
-            <input type="confirm_password" id="confirm_password" name="confirm_password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="Repite tu contraseña" />
+            <input type="password" id="confirm_password" name="confirm_password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="Repite tu contraseña" />
 
         </div>
       
@@ -112,20 +112,9 @@
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const form = document.querySelector('form');
-      if (!form) return;
-  
-      form.addEventListener('submit', function(event) {
-        const password = document.getElementById('password')?.value || '';
-        const confirmPassword = document.getElementById('confirm_password')?.value || '';
-  
-        if (password !== confirmPassword) {
-          alert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
-          event.preventDefault(); // Prevent form submission
-        }
-      });
-    });
+    // No client-side password comparison here. 
+    // All validation will be handled by the Flask backend for consistency and security.
+    // The browser's native HTML5 validation (for 'required' fields and 'type="email"') will still work.
   </script>
 </body>
 </html>
