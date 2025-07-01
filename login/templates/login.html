@@ -71,14 +71,16 @@
 
         <form action="{{ url_for('login') }}" method="POST" class="space-y-6 text-left">
             <div>
-                <label for="username" class="block text-sm font-medium mb-1">Usuario:</label>
-                <input type="text" id="username" name="username" required class="form-input" placeholder="Tu nombre de usuario" autocomplete="username">
+                <label for="username" class="block text-sm font-medium mb-1">Usuario (Email):</label>
+                <input type="email" id="username" name="username" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="tu@ejemplo.com" />
             </div>
             <div>
                 <label for="password" class="block text-sm font-medium mb-1">Contraseña:</label>
-                <input type="password" id="password" name="password" required class="form-input" placeholder="Tu contraseña" autocomplete="current-password">
+                <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" class="form-input" placeholder="Tu contraseña" />
             </div>
-            <button type="submit" class="login-button">Iniciar Sesión</button>
+            <button type="submit" class="login-button w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+              Entrar
+            </button>
         </form>
 
         <div class="mt-6 text-sm space-y-2 text-center">
