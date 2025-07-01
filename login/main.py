@@ -1,3 +1,4 @@
+# Secapp/login/main.py
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_bcrypt import Bcrypt
@@ -29,7 +30,12 @@ jwt = JWTManager(app)
 # --- DB Connection ---
 def get_db_connection():
     try:
-        return psycopg2.connect(os.environ.get('DATABASE_URL'))
+        db_url = os.environ.get('DATABASE_URL')
+        if not db_url:
+            app.logger.error("DATABASE_URL environment variable not set.")
+            raise ValueError("DATABASE_URL environment variable not set.")
+        conn = psycopg2.connect(db_url)
+        return conn
     except Exception as e:
         app.logger.error(f"DB connection error: {e}")
         flash('Error de conexión a la base de datos.', 'danger')
@@ -41,12 +47,14 @@ def get_db_connection():
 @jwt.expired_token_loader
 def token_error_response(callback):
     flash('Su sesión ha caducado o es inválida. Por favor, inicie sesión de nuevo.', 'danger')
-    return redirect(url_for('login'))
+    return redirect(url_for('login')) # Changed from login_page to login to match your route
 
 # --- CORS (optional for cookie mode) ---
 @app.after_request
 def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = os.environ.get('LANDING_SERVICE_URL', '*')
+    # Ensure LANDING_SERVICE_URL is properly set in Cloud Run
+    allowed_origin = os.environ.get('LANDING_SERVICE_URL', '*')
+    response.headers['Access-Control-Allow-Origin'] = allowed_origin
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
@@ -62,10 +70,11 @@ def login():
 
         conn = get_db_connection()
         if not conn:
-            return render_template('login.html')
+            return render_template('login.html', username=username) # Pass username back for persistence
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
+            # Assuming 'username' is what the user logs in with (could be email or a distinct username)
             cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (username,))
             user = cur.fetchone()
             cur.close()
@@ -77,60 +86,118 @@ def login():
                 response = redirect(os.environ.get('LANDING_SERVICE_URL', '/'))
                 set_access_cookies(response, access_token)
                 set_refresh_cookies(response, refresh_token)
+                flash('Inicio de sesión exitoso.', 'success') # Flash message for login success
                 return response
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
-                return render_template('login.html')
+                return render_template('login.html', username=username) # Pass username back
         except Exception as e:
             app.logger.error(f"Login error: {e}")
             flash('Error durante el inicio de sesión.', 'danger')
-            return render_template('login.html')
+            return render_template('login.html', username=username) # Pass username back
         finally:
-            conn.close()
+            if conn: # Ensure conn is not None before closing
+                conn.close()
 
-    return render_template('login.html')
+    return render_template('login.html') # For GET request
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # Capture form data if it's a POST request, to pre-fill form on error
+    username = request.form.get('username', '')
+    email = request.form.get('email', '')
+    name = request.form.get('name', '')
+    phone_number = request.form.get('phone_number', '')
+
     if request.method == 'POST':
-        username = request.form.get('username')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not all([username, password, confirm_password]):
-            flash('Rellene todos los campos.', 'warning')
-            return render_template('register.html', username=username)
+        # Basic validation for required fields
+        if not all([username, email, name, password, confirm_password]):
+            flash('Todos los campos obligatorios son requeridos.', 'warning')
+            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
 
+        # Password confirmation check
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
-            return render_template('register.html', username=username)
+            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
 
-        hashed = bcrypt.generate_password_hash(password).decode('utf-8')
         conn = get_db_connection()
         if not conn:
-            return render_template('register.html', username=username)
+            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
 
         try:
-            cur = conn.cursor()
-            cur.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)", (username, hashed))
+            cur = conn.cursor(cursor_factory=extras.DictCursor)
+
+            # --- 1. Check if email is authorized ---
+            cur.execute("SELECT id FROM authorized_emails WHERE email = %s AND is_active = TRUE", (email,))
+            authorized_email_entry = cur.fetchone()
+
+            if not authorized_email_entry:
+                flash('No estás autorizado para registrarte. Por favor, contacta a tu administrador.', 'danger')
+                app.logger.warning(f"Registration attempt by unauthorized email: {email}")
+                return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+
+            # --- 2. Check if username already exists ---
+            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
+            existing_user_username = cur.fetchone()
+            if existing_user_username:
+                flash('El nombre de usuario ya está en uso. Por favor, elige otro.', 'danger')
+                return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+
+            # --- 3. Check if email already exists in users table (important for UNIQUE constraint) ---
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            existing_user_email = cur.fetchone()
+            if existing_user_email:
+                flash('Este correo electrónico ya está registrado. Por favor, inicia sesión o utiliza otro correo.', 'danger')
+                return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+
+
+            # --- 4. Hash the password ---
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+            # --- 5. Insert new user into the database with all fields ---
+            # Ensure your users table columns match this order or explicitly name them
+            cur.execute(
+                "INSERT INTO users (username, email, name, phone_number, password_hash) VALUES (%s, %s, %s, %s, %s)",
+                (username, email, name, phone_number if phone_number else None, hashed_password) # Pass None for empty phone_number if DB column is NULLABLE
+            )
             conn.commit()
             cur.close()
-            flash('¡Registro exitoso! Ahora puede iniciar sesión.', 'success')
-            return redirect(url_for('login'))
-        except psycopg2.errors.UniqueViolation:
-            flash('El usuario ya existe.', 'danger')
-            conn.rollback()
-        except Exception as e:
-            app.logger.error(f"Registration error: {e}")
-            flash('Error durante el registro.', 'danger')
-        finally:
-            conn.close()
 
+            flash('¡Registro exitoso! Ahora puedes iniciar sesión.', 'success')
+            app.logger.info(f"User {username} ({email}) registered successfully.")
+            return redirect(url_for('login')) # Redirect to login page after successful registration
+
+        except psycopg2.errors.UniqueViolation as e:
+            # This catch handles unique violations for username or email
+            conn.rollback()
+            if "users_username_key" in str(e): # Check for username unique constraint violation
+                 flash('El nombre de usuario ya está en uso. Por favor, elige otro.', 'danger')
+            elif "users_email_key" in str(e): # Check for email unique constraint violation
+                flash('Este correo electrónico ya está registrado. Por favor, inicia sesión o utiliza otro correo.', 'danger')
+            else:
+                flash('Error de registro: un valor duplicado ya existe.', 'danger')
+            app.logger.error(f"Unique violation during registration: {e}")
+            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+
+        except Exception as e:
+            conn.rollback()
+            app.logger.error(f"Error during registration: {e}")
+            flash('Ocurrió un error inesperado durante el registro. Por favor, inténtalo de nuevo.', 'danger')
+            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+        finally:
+            if conn:
+                conn.close()
+
+    # For GET request, just render the empty form
     return render_template('register.html')
+
 
 @app.route('/logout')
 def logout():
-    response = redirect(url_for('login'))
+    response = redirect(url_for('login')) # Changed from login_page to login
     unset_jwt_cookies(response)
     flash('Sesión cerrada.', 'info')
     return response
@@ -150,9 +217,11 @@ def forms_placeholder():
 
 # --- Run App ---
 if __name__ == '__main__':
-    os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db')
-    os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000')
-    os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
-    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app')
+    # Ensure these are set in your Cloud Run environment variables for deployment
+    # For local testing, these provide defaults
+    os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db') # REPLACE WITH YOUR LOCAL DB
+    os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000') # REPLACE IF DIFFERENT
+    os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080') # REPLACE IF DIFFERENT
+    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app') # USE YOUR ACTUAL .run.app domain or '.run.app' for subdomains
 
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

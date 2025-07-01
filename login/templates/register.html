@@ -36,7 +36,6 @@
     }
 
     .form-input {
-      /* Combined and cleaned up classes */
       @apply w-full px-5 py-3 border border-gray-600 rounded-lg shadow-sm
               bg-white text-gray-900 placeholder-gray-500
               focus:ring-blue-600 focus:border-blue-600 text-base;
@@ -75,25 +74,25 @@
       {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('register_user') }}" method="POST" class="space-y-6 text-left">
+    <form action="{{ url_for('register') }}" method="POST" class="space-y-6 text-left">
         <div>
           <label for="username" class="block text-sm font-medium mb-1">Nombre de Usuario:</label>
-          <input type="text" id="username" name="username" required class="form-input" placeholder="Tu nombre de usuario" autocomplete="username" />
+          <input type="text" id="username" name="username" required class="form-input" placeholder="Tu nombre de usuario" autocomplete="username" value="{{ username if username else '' }}" />
         </div>
 
         <div>
             <label for="email" class="block text-sm font-medium mb-1">Correo Electrónico:</label>
-            <input type="email" id="email" name="email" required class="form-input" placeholder="tu@ejemplo.com" autocomplete="email" />
+            <input type="email" id="email" name="email" required class="form-input" placeholder="tu@ejemplo.com" autocomplete="email" value="{{ email if email else '' }}" />
         </div>
 
         <div>
             <label for="name" class="block text-sm font-medium mb-1">Nombre Completo:</label>
-            <input type="text" id="name" name="name" required class="form-input" placeholder="Tu nombre completo" autocomplete="name" />
+            <input type="text" id="name" name="name" required class="form-input" placeholder="Tu nombre completo" autocomplete="name" value="{{ name if name else '' }}" />
         </div>
         
         <div>
             <label for="phone_number" class="block text-sm font-medium mb-1">Número de Teléfono (Opcional):</label>
-            <input type="tel" id="phone_number" name="phone_number" class="form-input" placeholder="Ej: 123-456-7890" autocomplete="tel" />
+            <input type="tel" id="phone_number" name="phone_number" class="form-input" placeholder="Ej: 123-456-7890" autocomplete="tel" value="{{ phone_number if phone_number else '' }}" />
         </div>
     
         <div>
@@ -112,12 +111,11 @@
     </form>
 
     <div class="mt-6 text-sm space-y-2 text-center">
-      <a href="{{ url_for('login_page') }}" class="text-blue-400 hover:underline block">¿Ya tienes cuenta? Iniciar Sesión.</a>
+      <a href="{{ url_for('login') }}" class="text-blue-400 hover:underline block">¿Ya tienes cuenta? Iniciar Sesión.</a>
     </div>
   </div>
 
   <script>
-    // Simple client-side password validation (optional but good practice)
     document.querySelector('form').addEventListener('submit', function(event) {
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirm_password').value;
@@ -126,7 +124,6 @@
             alert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
             event.preventDefault(); // Prevent form submission
         }
-        // You might add other password strength checks here (min length, complexity, etc.)
     });
   </script>
 </body>
