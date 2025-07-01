@@ -112,14 +112,19 @@
   </div>
 
   <script>
-    document.querySelector('form').addEventListener('submit', function(event) {
-        const password = document.getElementById('password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
-
+    document.addEventListener('DOMContentLoaded', function () {
+      const form = document.querySelector('form');
+      if (!form) return;
+  
+      form.addEventListener('submit', function(event) {
+        const password = document.getElementById('password')?.value || '';
+        const confirmPassword = document.getElementById('confirm_password')?.value || '';
+  
         if (password !== confirmPassword) {
-            alert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
-            event.preventDefault(); // Prevent form submission
+          alert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
+          event.preventDefault(); // Prevent form submission
         }
+      });
     });
   </script>
 </body>
