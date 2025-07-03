@@ -1,5 +1,8 @@
 # Secapp/login/main.py
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
@@ -9,7 +12,7 @@ from flask_jwt_extended import (
 )
 import psycopg2
 from psycopg2 import extras
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 app = Flask(__name__)
 
@@ -23,9 +26,160 @@ app.config['JWT_COOKIE_SECURE'] = True
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
 
+# --- Email Config ---
+app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
+app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME')
+app.config['EMAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD')
+app.config['NOTIFICATION_EMAIL'] = os.environ.get('NOTIFICATION_EMAIL')  # Email to receive notifications
+
 # --- Extensions ---
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
+
+# --- Email Functions ---
+def send_email(to_email, subject, body, is_html=False):
+    """Send email notification"""
+    try:
+        # Skip email sending if not configured
+        if not all([app.config['EMAIL_USERNAME'], app.config['EMAIL_PASSWORD'], 
+                   app.config['NOTIFICATION_EMAIL']]):
+            app.logger.warning("Email configuration incomplete. Skipping email notification.")
+            return False
+
+        msg = MIMEMultipart()
+        msg['From'] = app.config['EMAIL_USERNAME']
+        msg['To'] = to_email
+        msg['Subject'] = subject
+
+        if is_html:
+            msg.attach(MIMEText(body, 'html'))
+        else:
+            msg.attach(MIMEText(body, 'plain'))
+
+        # Create SMTP session
+        server = smtplib.SMTP(app.config['SMTP_SERVER'], app.config['SMTP_PORT'])
+        server.starttls()  # Enable TLS encryption
+        server.login(app.config['EMAIL_USERNAME'], app.config['EMAIL_PASSWORD'])
+        
+        # Send email
+        text = msg.as_string()
+        server.sendmail(app.config['EMAIL_USERNAME'], to_email, text)
+        server.quit()
+        
+        app.logger.info(f"Email sent successfully to {to_email}")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"Error sending email: {e}")
+        return False
+
+def send_registration_notification(user_email, user_name, phone_number=None):
+    """Send notification email when a new user registers"""
+    # Use the hardcoded admin email as primary, fallback to config
+    admin_email = "rcanton@tzolkintech.com"
+    
+    if not app.config.get('EMAIL_USERNAME') or not app.config.get('EMAIL_PASSWORD'):
+        app.logger.warning("Email credentials not configured. Skipping notification.")
+        return False
+    
+    subject = f"Nuevo Usuario Registrado - {user_name}"
+    
+    # Create HTML email body
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
+                    Nuevo Usuario Registrado
+                </h2>
+                
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #1e40af; margin-top: 0;">Detalles del Usuario:</h3>
+                    <p><strong>Nombre:</strong> {user_name}</p>
+                    <p><strong>Email:</strong> {user_email}</p>
+                    <p><strong>Teléfono:</strong> {phone_number or 'No proporcionado'}</p>
+                    <p><strong>Fecha de Registro:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                </div>
+                
+                <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; border-left: 4px solid #2563eb;">
+                    <p style="margin: 0;"><strong>Nota:</strong> Este usuario se ha registrado exitosamente en el sistema SMT SecApp.</p>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #6b7280; font-size: 14px;">
+                        Este es un mensaje automático del sistema de registro de SMT SecApp.
+                    </p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    
+    # Create plain text version as fallback
+    plain_body = f"""
+    Nuevo Usuario Registrado - SMT SecApp
+    
+    Detalles del Usuario:
+    - Nombre: {user_name}
+    - Email: {user_email}
+    - Teléfono: {phone_number or 'No proporcionado'}
+    - Fecha de Registro: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    Este usuario se ha registrado exitosamente en el sistema SMT SecApp.
+    
+    Este es un mensaje automático del sistema de registro.
+    """
+    
+    return send_email(admin_email, subject, html_body, is_html=True)
+
+def send_welcome_email(user_email, user_name):
+    """Send welcome email to the newly registered user"""
+    subject = "¡Bienvenido a SMT SecApp!"
+    
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" style="width: 80px; opacity: 0.9;">
+                </div>
+                
+                <h2 style="color: #2563eb; text-align: center;">¡Bienvenido a SMT SecApp!</h2>
+                
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p>Hola <strong>{user_name}</strong>,</p>
+                    <p>¡Tu cuenta ha sido creada exitosamente! Ahora puedes acceder a todas las funcionalidades de SMT SecApp.</p>
+                </div>
+                
+                <div style="background-color: #dbeafe; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #1e40af; margin-top: 0;">Próximos Pasos:</h3>
+                    <ul style="margin: 10px 0;">
+                        <li>Inicia sesión con tu email: <strong>{user_email}</strong></li>
+                        <li>Explora las funcionalidades del sistema</li>
+                        <li>Contacta al administrador si tienes alguna pregunta</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{os.environ.get('LOGIN_SERVICE_URL', '#')}" 
+                       style="background-color: #2563eb; color: white; padding: 12px 30px; 
+                              text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        Iniciar Sesión
+                    </a>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                    <p style="color: #6b7280; font-size: 14px; text-align: center;">
+                        Gracias por unirte a SMT SecApp.
+                    </p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    
+    return send_email(user_email, subject, html_body, is_html=True)
 
 # --- DB Connection ---
 def get_db_connection():
@@ -156,6 +310,21 @@ def register():
             )
             conn.commit()
             cur.close()
+
+            # --- 5. Send Email Notifications ---
+            # Send notification to admin
+            notification_sent = send_registration_notification(email, name, phone_number)
+            if notification_sent:
+                app.logger.info(f"Registration notification sent for user: {email}")
+            else:
+                app.logger.warning(f"Failed to send registration notification for user: {email}")
+            
+            # Send welcome email to user
+            welcome_sent = send_welcome_email(email, name)
+            if welcome_sent:
+                app.logger.info(f"Welcome email sent to user: {email}")
+            else:
+                app.logger.warning(f"Failed to send welcome email to user: {email}")
 
             flash('¡Registro exitoso! Ahora puedes iniciar sesión.', 'success')
             app.logger.info(f"User {email} registered successfully.")
