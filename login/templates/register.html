@@ -36,9 +36,7 @@
     }
 
     .form-input {
-      @apply w-full px-5 py-3 border border-gray-600 rounded-lg shadow-sm
-              bg-white text-gray-900 placeholder-gray-500
-              focus:ring-blue-600 focus:border-blue-600 text-base;
+      @apply w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900;
     }
 
     .register-button {
@@ -76,36 +74,31 @@
 
     <form action="{{ url_for('register') }}" method="POST" class="space-y-6 text-left">
         <div>
-          <label for="username" class="block text-sm font-medium mb-1">Nombre de Usuario:</label>
-          <input type="text" id="username" name="username" required class="form-input" placeholder="Nombre del Usuario" value="{{ username or '' }}" />
-        </div>
-
-        <div>
           <label for="name" class="block text-sm font-medium mb-1">Nombre Completo:</label>
-          <input type="text" id="name" name="name" required class="form-input" placeholder="Tu nombre completo" value="{{ name or '' }}" />
+          <input type="text" id="name" name="name" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Tu nombre completo" value="{{ name or '' }}" />
         </div>
 
         <div>
             <label for="email" class="block text-sm font-medium mb-1">Correo Electrónico:</label>
-            <input type="email" id="email" name="email" required class="form-input" placeholder="tu@ejemplo.com" value="{{ email or '' }}" />
+            <input type="email" id="email" name="email" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="tu@ejemplo.com" value="{{ email or '' }}" />
         </div>
         
         <div>
             <label for="phone_number" class="block text-sm font-medium mb-1">Número de Teléfono (Opcional):</label>
-            <input type="tel" id="phone_number" name="phone_number" class="form-input" placeholder="Ej: 123-456-7890" value="{{ phone_number or '' }}" />
+            <input type="tel" id="phone_number" name="phone_number" class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Ej: 123-456-7890" value="{{ phone_number or '' }}" />
         </div>
     
         <div>
             <label for="password" class="block text-sm font-medium mb-1">Contraseña:</label>
-            <input type="password" id="password" name="password" required class="form-input" placeholder="Tu contraseña" />
+            <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Tu contraseña" />
         </div>
       
         <div>
             <label for="confirm_password" class="block text-sm font-medium mb-1">Confirmar Contraseña:</label>
-            <input type="password" id="confirm_password" name="confirm_password" required class="form-input" placeholder="Repite tu contraseña" />
+            <input type="password" id="confirm_password" name="confirm_password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Repite tu contraseña" />
         </div>
       
-        <button type="submit" class="register-button">
+        <button type="submit" class="login-button w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
           Registrarme
         </button>
     </form>

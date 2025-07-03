@@ -47,7 +47,7 @@ def get_db_connection():
 @jwt.expired_token_loader
 def token_error_response(callback):
     flash('Su sesión ha caducado o es inválida. Por favor, inicie sesión de nuevo.', 'danger')
-    return redirect(url_for('login')) # Changed from login_page to login to match your route
+    return redirect(url_for('login'))
 
 # --- CORS (optional for cookie mode) ---
 @app.after_request
@@ -65,46 +65,45 @@ def add_cors_headers(response):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('username')
+        username = request.form.get('username')  # This is actually the email
         password = request.form.get('password')
 
         conn = get_db_connection()
         if not conn:
-            return render_template('login.html', username=username) # Pass username back for persistence
+            return render_template('login.html', username=username)
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
-            # Assuming 'username' is what the user logs in with (could be email or a distinct username)
-            cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (username,))
+            # Since username is now email, we search by email (which is the username)
+            cur.execute("SELECT id, email, password_hash FROM users WHERE email = %s", (username,))
             user = cur.fetchone()
             cur.close()
 
             if user and bcrypt.check_password_hash(user['password_hash'], password):
-                access_token = create_access_token(identity=user['username'])
-                refresh_token = create_refresh_token(identity=user['username'])
+                access_token = create_access_token(identity=user['email'])
+                refresh_token = create_refresh_token(identity=user['email'])
 
                 response = redirect(os.environ.get('LANDING_SERVICE_URL', '/'))
                 set_access_cookies(response, access_token)
                 set_refresh_cookies(response, refresh_token)
-                flash('Inicio de sesión exitoso.', 'success') # Flash message for login success
+                flash('Inicio de sesión exitoso.', 'success')
                 return response
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
-                return render_template('login.html', username=username) # Pass username back
+                return render_template('login.html', username=username)
         except Exception as e:
             app.logger.error(f"Login error: {e}")
             flash('Error durante el inicio de sesión.', 'danger')
-            return render_template('login.html', username=username) # Pass username back
+            return render_template('login.html', username=username)
         finally:
-            if conn: # Ensure conn is not None before closing
+            if conn:
                 conn.close()
 
-    return render_template('login.html') # For GET request
+    return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     # Capture form data if it's a POST request, to pre-fill form on error
-    username = request.form.get('username', '')
     email = request.form.get('email', '')
     name = request.form.get('name', '')
     phone_number = request.form.get('phone_number', '')
@@ -113,19 +112,19 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        # Basic validation for required fields
-        if not all([username, email, name, password, confirm_password]):
+        # Basic validation for required fields (removed username from validation)
+        if not all([email, name, password, confirm_password]):
             flash('Todos los campos obligatorios son requeridos.', 'warning')
-            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         # Password confirmation check
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
-            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         conn = get_db_connection()
         if not conn:
-            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
@@ -137,56 +136,46 @@ def register():
             if not authorized_email_entry:
                 flash('No estás autorizado para registrarte. Por favor, contacta a tu administrador.', 'danger')
                 app.logger.warning(f"Registration attempt by unauthorized email: {email}")
-                return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+                return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
-            # --- 2. Check if username already exists ---
-            cur.execute("SELECT id FROM users WHERE username = %s", (username,))
-            existing_user_username = cur.fetchone()
-            if existing_user_username:
-                flash('El nombre de usuario ya está en uso. Por favor, elige otro.', 'danger')
-                return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
-
-            # --- 3. Check if email already exists in users table (important for UNIQUE constraint) ---
+            # --- 2. Check if email already exists in users table ---
             cur.execute("SELECT id FROM users WHERE email = %s", (email,))
             existing_user_email = cur.fetchone()
             if existing_user_email:
-                flash('Este correo electrónico ya está registrado. Por favor, inicia sesión o utiliza otro correo.', 'danger')
-                return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+                flash('Este correo electrónico ya está registrado. Por favor, inicia sesión.', 'danger')
+                return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
-
-            # --- 4. Hash the password ---
+            # --- 3. Hash the password ---
             hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
-            # --- 5. Insert new user into the database with all fields ---
-            # Ensure your users table columns match this order or explicitly name them
+            # --- 4. Insert new user into the database (removed username field) ---
+            # Since username = email, we store email in both username and email fields for compatibility
             cur.execute(
                 "INSERT INTO users (username, email, name, phone_number, password_hash) VALUES (%s, %s, %s, %s, %s)",
-                (username, email, name, phone_number if phone_number else None, hashed_password) # Pass None for empty phone_number if DB column is NULLABLE
+                (email, email, name, phone_number if phone_number else None, hashed_password)
             )
             conn.commit()
             cur.close()
 
             flash('¡Registro exitoso! Ahora puedes iniciar sesión.', 'success')
-            app.logger.info(f"User {username} ({email}) registered successfully.")
-            return redirect(url_for('login')) # Redirect to login page after successful registration
+            app.logger.info(f"User {email} registered successfully.")
+            return redirect(url_for('login'))
 
         except psycopg2.errors.UniqueViolation as e:
             # This catch handles unique violations for username or email
             conn.rollback()
-            if "users_username_key" in str(e): # Check for username unique constraint violation
-                 flash('El nombre de usuario ya está en uso. Por favor, elige otro.', 'danger')
-            elif "users_email_key" in str(e): # Check for email unique constraint violation
-                flash('Este correo electrónico ya está registrado. Por favor, inicia sesión o utiliza otro correo.', 'danger')
+            if "users_username_key" in str(e) or "users_email_key" in str(e):
+                flash('Este correo electrónico ya está registrado. Por favor, inicia sesión.', 'danger')
             else:
                 flash('Error de registro: un valor duplicado ya existe.', 'danger')
             app.logger.error(f"Unique violation during registration: {e}")
-            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         except Exception as e:
             conn.rollback()
             app.logger.error(f"Error during registration: {e}")
             flash('Ocurrió un error inesperado durante el registro. Por favor, inténtalo de nuevo.', 'danger')
-            return render_template('register.html', username=username, email=email, name=name, phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
         finally:
             if conn:
                 conn.close()
@@ -197,7 +186,7 @@ def register():
 
 @app.route('/logout')
 def logout():
-    response = redirect(url_for('login')) # Changed from login_page to login
+    response = redirect(url_for('login'))
     unset_jwt_cookies(response)
     flash('Sesión cerrada.', 'info')
     return response
@@ -219,9 +208,9 @@ def forms_placeholder():
 if __name__ == '__main__':
     # Ensure these are set in your Cloud Run environment variables for deployment
     # For local testing, these provide defaults
-    os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db') # REPLACE WITH YOUR LOCAL DB
-    os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000') # REPLACE IF DIFFERENT
-    os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080') # REPLACE IF DIFFERENT
-    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app') # USE YOUR ACTUAL .run.app domain or '.run.app' for subdomains
+    os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db')
+    os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000')
+    os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
+    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app')
 
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
