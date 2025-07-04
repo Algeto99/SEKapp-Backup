@@ -385,6 +385,12 @@ def logout():
     flash('Sesión cerrada.', 'info')
     return response
 
+# --- Health Check Route ---
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Cloud Run"""
+    return {'status': 'healthy', 'service': 'login-service'}, 200
+
 # --- Test Route for Email ---
 @app.route('/test-email')
 def test_email():
@@ -420,11 +426,22 @@ def forms_placeholder():
 
 # --- Run App ---
 if __name__ == '__main__':
+    # Get port from environment variable or default to 8080
+    port = int(os.environ.get('PORT', 8080))
+    
     # Ensure these are set in your Cloud Run environment variables for deployment
     # For local testing, these provide defaults
     os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db')
     os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000')
     os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
     os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app')
-
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    
+    print(f"Starting Flask app on port {port}")
+    print(f"Database URL configured: {'Yes' if os.environ.get('DATABASE_URL') else 'No'}")
+    print(f"Email configured: {'Yes' if os.environ.get('EMAIL_USERNAME') else 'No'}")
+    
+    try:
+        app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
+    except Exception as e:
+        print(f"Error starting Flask app: {e}")
+        raise
