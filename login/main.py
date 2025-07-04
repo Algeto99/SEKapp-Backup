@@ -14,6 +14,7 @@ import psycopg2
 from psycopg2 import extras
 from datetime import timedelta, datetime
 from google.cloud import secretmanager
+import traceback
 
 app = Flask(__name__)
 
@@ -436,7 +437,38 @@ def logout():
 @app.route('/health')
 def health_check():
     """Health check endpoint for Cloud Run"""
-    return {'status': 'healthy', 'service': 'login-service'}, 200
+    health_status = {
+        'status': 'healthy',
+        'service': 'login-service',
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    # Optional: Add database connectivity check
+    try:
+        conn = get_db_connection()
+        if conn:
+            health_status['database'] = 'connected'
+            conn.close()
+        else:
+            health_status['database'] = 'disconnected'
+            health_status['status'] = 'unhealthy'
+    except Exception as e:
+        health_status['database'] = f'error: {str(e)}'
+        health_status['status'] = 'unhealthy'
+    
+    status_code = 200 if health_status['status'] == 'healthy' else 503
+    return health_status, status_code
+
+# Add a startup check route
+@app.route('/startup')
+def startup_check():
+    """Startup check endpoint"""
+    return {
+        'status': 'ready',
+        'service': 'login-service',
+        'port': os.environ.get('PORT', '8080'),
+        'timestamp': datetime.now().isoformat()
+    }, 200
 
 # --- Test Route for Email ---
 @app.route('/test-email')
@@ -509,20 +541,47 @@ if __name__ == '__main__':
     # Get port from environment variable or default to 8080
     port = int(os.environ.get('PORT', 8080))
     
-    # Ensure these are set in your Cloud Run environment variables for deployment
-    # For local testing, these provide defaults
-    os.environ.setdefault('DATABASE_URL', 'postgresql://user:password@localhost:5432/db')
-    os.environ.setdefault('LANDING_SERVICE_URL', 'http://localhost:5000')
-    os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
-    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app')
+    # Set debug mode based on environment
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
     
     print(f"Starting Flask app on port {port}")
+    print(f"Debug mode: {debug_mode}")
     print(f"Database URL configured: {'Yes' if os.environ.get('DATABASE_URL') else 'No'}")
     print(f"Project ID: {os.environ.get('GOOGLE_CLOUD_PROJECT', 'Not Set')}")
-    print(f"Secret Manager integration: Ready")
+    print(f"Landing Service URL: {os.environ.get('LANDING_SERVICE_URL', 'Not Set')}")
+    print(f"Login Service URL: {os.environ.get('LOGIN_SERVICE_URL', 'Not Set')}")
+    
+    # Test database connection on startup
+    try:
+        conn = get_db_connection()
+        if conn:
+            print("Database connection test: SUCCESS")
+            conn.close()
+        else:
+            print("Database connection test: FAILED")
+    except Exception as e:
+        print(f"Database connection test error: {e}")
+    
+    # Test Secret Manager access
+    try:
+        email_password = get_email_password()
+        if email_password:
+            print("Secret Manager access: SUCCESS")
+        else:
+            print("Secret Manager access: FAILED (password not retrieved)")
+    except Exception as e:
+        print(f"Secret Manager access error: {e}")
     
     try:
-        app.run(debug=False, host='0.0.0.0', port=port, threaded=True)
+        # Use production-ready settings
+        app.run(
+            debug=debug_mode,
+            host='0.0.0.0',
+            port=port,
+            threaded=True,
+            use_reloader=False  # Important: disable reloader in production
+        )
     except Exception as e:
         print(f"Error starting Flask app: {e}")
+        traceback.print_exc()
         raise
