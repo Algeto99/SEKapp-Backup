@@ -29,7 +29,7 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
 
 # --- Email Config ---
-app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
+app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mx1.privateemail.com')
 app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
 app.config['EMAIL_USERNAME'] = 'rcanton@tzolkintech.com'
 app.config['ADMIN_EMAIL'] = 'rcanton@tzolkintech.com'
