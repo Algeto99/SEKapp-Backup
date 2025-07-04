@@ -41,14 +41,22 @@ jwt = JWTManager(app)
 def send_email(to_email, subject, body, is_html=False):
     """Send email notification"""
     try:
-        # Skip email sending if not configured
-        if not all([app.config['EMAIL_USERNAME'], app.config['EMAIL_PASSWORD'], 
-                   app.config['NOTIFICATION_EMAIL']]):
-            app.logger.warning("Email configuration incomplete. Skipping email notification.")
+        # Check email configuration
+        email_username = app.config.get('EMAIL_USERNAME')
+        email_password = app.config.get('EMAIL_PASSWORD')
+        smtp_server = app.config.get('SMTP_SERVER')
+        smtp_port = app.config.get('SMTP_PORT')
+        
+        app.logger.info(f"Email config check - Username: {email_username}, Server: {smtp_server}, Port: {smtp_port}")
+        
+        if not all([email_username, email_password]):
+            app.logger.warning(f"Email configuration incomplete. Username: {email_username}, Password: {'Set' if email_password else 'Not Set'}")
             return False
 
+        app.logger.info(f"Attempting to send email to {to_email} with subject: {subject}")
+
         msg = MIMEMultipart()
-        msg['From'] = app.config['EMAIL_USERNAME']
+        msg['From'] = email_username
         msg['To'] = to_email
         msg['Subject'] = subject
 
@@ -57,21 +65,34 @@ def send_email(to_email, subject, body, is_html=False):
         else:
             msg.attach(MIMEText(body, 'plain'))
 
-        # Create SMTP session
-        server = smtplib.SMTP(app.config['SMTP_SERVER'], app.config['SMTP_PORT'])
+        # Create SMTP session with detailed logging
+        app.logger.info(f"Connecting to SMTP server: {smtp_server}:{smtp_port}")
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.set_debuglevel(1)  # Enable SMTP debugging
+        
+        app.logger.info("Starting TLS...")
         server.starttls()  # Enable TLS encryption
-        server.login(app.config['EMAIL_USERNAME'], app.config['EMAIL_PASSWORD'])
+        
+        app.logger.info("Attempting login...")
+        server.login(email_username, email_password)
         
         # Send email
+        app.logger.info("Sending email...")
         text = msg.as_string()
-        server.sendmail(app.config['EMAIL_USERNAME'], to_email, text)
+        server.sendmail(email_username, to_email, text)
         server.quit()
         
         app.logger.info(f"Email sent successfully to {to_email}")
         return True
         
+    except smtplib.SMTPAuthenticationError as e:
+        app.logger.error(f"SMTP Authentication Error: {e}")
+        return False
+    except smtplib.SMTPException as e:
+        app.logger.error(f"SMTP Error: {e}")
+        return False
     except Exception as e:
-        app.logger.error(f"Error sending email: {e}")
+        app.logger.error(f"General error sending email: {e}")
         return False
 
 def send_registration_notification(user_email, user_name, phone_number=None):
@@ -312,19 +333,23 @@ def register():
             cur.close()
 
             # --- 5. Send Email Notifications ---
+            app.logger.info(f"Starting email notifications for user: {email}")
+            
             # Send notification to admin
+            app.logger.info("Sending registration notification to admin...")
             notification_sent = send_registration_notification(email, name, phone_number)
             if notification_sent:
-                app.logger.info(f"Registration notification sent for user: {email}")
+                app.logger.info(f"Registration notification sent successfully for user: {email}")
             else:
-                app.logger.warning(f"Failed to send registration notification for user: {email}")
+                app.logger.error(f"Failed to send registration notification for user: {email}")
             
             # Send welcome email to user
+            app.logger.info("Sending welcome email to user...")
             welcome_sent = send_welcome_email(email, name)
             if welcome_sent:
-                app.logger.info(f"Welcome email sent to user: {email}")
+                app.logger.info(f"Welcome email sent successfully to user: {email}")
             else:
-                app.logger.warning(f"Failed to send welcome email to user: {email}")
+                app.logger.error(f"Failed to send welcome email to user: {email}")
 
             flash('¡Registro exitoso! Ahora puedes iniciar sesión.', 'success')
             app.logger.info(f"User {email} registered successfully.")
@@ -359,6 +384,26 @@ def logout():
     unset_jwt_cookies(response)
     flash('Sesión cerrada.', 'info')
     return response
+
+# --- Test Route for Email ---
+@app.route('/test-email')
+def test_email():
+    """Test route to check email configuration"""
+    if not app.config.get('EMAIL_USERNAME'):
+        return "Email not configured. Please set EMAIL_USERNAME environment variable."
+    
+    # Test sending email to admin
+    test_result = send_email(
+        "rcanton@tzolkintech.com",
+        "Test Email - SMT SecApp",
+        "This is a test email to verify email configuration is working.",
+        is_html=False
+    )
+    
+    if test_result:
+        return "Test email sent successfully! Check rcanton@tzolkintech.com"
+    else:
+        return "Test email failed. Check logs for details."
 
 # --- Placeholder Routes ---
 @app.route('/dashboard_placeholder')
