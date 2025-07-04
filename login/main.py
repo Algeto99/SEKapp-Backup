@@ -30,11 +30,11 @@ app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app'
 # --- Email Config ---
 # --- CHANGES START HERE ---
 app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
-app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 465))
-app.config['EMAIL_USERNAME'] = 'no-reply@tzolkintech.com'   # Your Gmail address
-app.config['ADMIN_EMAIL'] = 'no-reply@tzolkintech.com'     # Your Gmail address for admin notifications
+app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
+app.config['EMAIL_USERNAME'] = 'no-reply@tzolkintech.com'
+app.config['ADMIN_EMAIL'] = 'no-reply@tzolkintech.com'
 app.config['PROJECT_ID'] = 'tz-dev-secapp'
-app.config['SECRET_NAME'] = 'admin-email-pass'               # Reusing your existing secret name
+app.config['SECRET_NAME'] = 'admin-email-pass'
 # --- CHANGES END HERE ---
 
 # --- Extensions ---
@@ -87,10 +87,10 @@ def send_email(to_email, subject, body, is_html=False):
     """Send email notification"""
     try:
         # Get email configuration
-        email_username = app.config.get('EMAIL_USERNAME') # roberto.j.canton@gmail.com
-        email_password = get_email_password()             # The Gmail App Password
-        smtp_server = app.config.get('SMTP_SERVER')       # smtp.gmail.com
-        smtp_port = app.config.get('SMTP_PORT')           # 587
+        email_username = app.config.get('EMAIL_USERNAME')
+        email_password = get_email_password()
+        smtp_server = app.config.get('SMTP_SERVER')
+        smtp_port = app.config.get('SMTP_PORT')
         
         app.logger.info(f"Email config check - Username: {email_username}, Server: {smtp_server}, Port: {smtp_port}")
         
