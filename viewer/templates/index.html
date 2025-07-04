@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecApp Form Viewer</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font for Inter, consistent with your application's design -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles specifically for print view to ensure clean output */
+        @media print {
+            body {
+                /* Ensures background colors and images are printed */
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            /* Hide elements not needed for printing (e.g., navigation, controls) */
+            .no-print {
+                display: none !important;
+            }
+            /* Ensure the printed content takes full page width */
+            .print-container {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            /* Styling for form detail items in print */
+            .form-detail-item {
+                display: flex;
+                margin-bottom: 8px;
+            }
+            .form-detail-label {
+                font-weight: 600;
+                width: 150px; /* Adjust label width as needed for print layout */
+                flex-shrink: 0; /* Prevent label from shrinking */
+            }
+            .form-detail-value {
+                flex-grow: 1; /* Allow value to take remaining space */
+            }
+        }
+        /* Base font family for the entire application */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #333; /* Default text color */
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100 flex flex-col font-sans text-gray-800">
+    <!-- Header Section: Consistent branding and navigation -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 shadow-lg rounded-b-xl no-print">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-3xl font-bold">SecApp Form Viewer</h1>
+            <nav class="flex items-center space-x-6">
+                <!-- Displays the current authenticated user's identity -->
+                <span class="text-lg font-medium">Bienvenido, {{ current_user }}</span>
+                <!-- Logout button, redirects to the login service's logout endpoint -->
+                <a href="{{ url_for('logout') }}" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full shadow-md transition-all duration-200 transform hover:scale-105">
+                    Cerrar Sesión
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Area: Divided into a left panel (form list) and a right panel (form details) -->
+    <main class="container mx-auto p-6 flex-grow grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+        <!-- Left Panel: List of available forms -->
+        <div class="md:col-span-1 bg-white p-6 rounded-xl shadow-md border border-gray-200 no-print">
+            <h2 class="text-2xl font-semibold text-gray-900 mb-6 border-b pb-4">Formularios Disponibles</h2>
+            <ul class="space-y-4">
+                {% if forms %}
+                    <!-- Loop through the forms data passed from Flask -->
+                    {% for form in forms %}
+                        <li>
+                            <!-- Button to select a form and display its details -->
+                            <button
+                                onclick="showFormDetails('{{ form.id }}')"
+                                id="form-button-{{ form.id }}"
+                                class="w-full text-left p-4 rounded-lg transition-all duration-200 bg-gray-50 hover:bg-blue-100 hover:shadow-md text-gray-800"
+                            >
+                                <h3 class="text-lg font-medium">{{ form.title }}</h3>
+                                <p class="text-sm text-gray-600">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}</p>
+                            </button>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-600 text-center py-8">No se encontraron formularios.</p>
+                {% endif %}
+            </ul>
+        </div>
+
+        <!-- Right Panel: Displays details of the selected form -->
+        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md border border-gray-200">
+            <div class="flex justify-between items-center mb-6 border-b pb-4 no-print">
+                <h2 class="text-2xl font-semibold text-gray-900">Seleccione un Formulario para Ver</h2>
+                <!-- Print button, initially hidden, shown when a form is selected -->
+                <button
+                    onclick="window.print()"
+                    id="print-button"
+                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 hidden"
+                >
+                    <!-- SVG icon for print -->
+                    <svg class="inline-block w-5 h-5 mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m0 0v1a2 2 0 002 2h4a2 2 0 002-2v-1m-4-8a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V7z"></path></svg>
+                    Imprimir Formulario
+                </button>
+            </div>
+
+            <div id="form-details-content" class="form-details-container p-4">
+                <!-- Initial placeholder message when no form is selected -->
+                <div class="text-center py-20 text-gray-500">
+                    <!-- SVG icon for document -->
+                    <svg class="mx-auto h-20 w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <p class="mt-4 text-lg">Elija un formulario del panel izquierdo para ver sus detalles aquí.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white p-4 mt-8 rounded-t-xl shadow-inner no-print">
+        <div class="container mx-auto text-center text-sm">
+            &copy; {{ 2025 }} SecApp. Todos los derechos reservados.
+        </div>
+    </footer>
+
+    <script>
+        // Forms data passed from Flask (Jinja2 to JSON conversion).
+        // This makes the Python data available directly in JavaScript.
+        const forms = {{ forms | tojson }};
+
+        /**
+         * Dynamically updates the form details panel based on the selected form.
+         * @param {string} formId - The ID of the form to display.
+         */
+        function showFormDetails(formId) {
+            const selectedForm = forms.find(form => form.id === formId);
+            const detailsContainer = document.getElementById('form-details-content');
+            const printButton = document.getElementById('print-button');
+            // Select the H2 element in the right panel to update its title
+            const formTitleHeader = document.querySelector('.md\\:col-span-2 h2');
+
+            if (selectedForm) {
+                // Update the main title in the right panel to the selected form's title
+                formTitleHeader.textContent = selectedForm.title;
+
+                // Construct the HTML content for the form details
+                let htmlContent = `
+                    <h3 class="text-xl font-bold mb-4 text-center">${selectedForm.title}</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-6">
+                        <div class="form-detail-item">
+                            <span class="form-detail-label text-gray-600">ID del Formulario:</span>
+                            <span class="form-detail-value font-medium">${selectedForm.id}</span>
+                        </div>
+                        <div class="form-detail-item">
+                            <span class="form-detail-label text-gray-600">Enviado Por:</span>
+                            <span class="form-detail-value font-medium">${selectedForm.submittedBy}</span>
+                        </div>
+                        <div class="form-detail-item">
+                            <span class="form-detail-label text-gray-600">Fecha de Envío:</span>
+                            <span class="form-detail-value font-medium">${selectedForm.dateSubmitted}</span>
+                        </div>
+                    </div>
+
+                    <h4 class="text-lg font-semibold mt-6 mb-4 border-b pb-2">Datos del Formulario</h4>
+                    <div class="space-y-3">
+                `;
+
+                // Iterate over the form's data object and create detail rows
+                for (const key in selectedForm.data) {
+                    htmlContent += `
+                        <div class="form-detail-item bg-gray-50 p-3 rounded-md border border-gray-200">
+                            <span class="form-detail-label font-semibold text-gray-700">${key}:</span>
+                            <span class="form-detail-value text-gray-900">${selectedForm.data[key]}</span>
+                        </div>
+                    `;
+                }
+                htmlContent += `</div>`;
+
+                // Insert the generated HTML into the details container
+                detailsContainer.innerHTML = htmlContent;
+                // Show the print button once a form is selected
+                printButton.classList.remove('hidden');
+
+                // Update active button styling in the left panel
+                // Remove active styles from all buttons
+                document.querySelectorAll('.md\\:col-span-1 button').forEach(button => {
+                    button.classList.remove('bg-blue-500', 'text-white', 'shadow-lg', 'transform', 'scale-105');
+                    button.classList.add('bg-gray-50', 'hover:bg-blue-100', 'hover:shadow-md', 'text-gray-800');
+                    button.querySelector('p').classList.remove('text-blue-200'); // Reset text color for sub-text
+                    button.querySelector('p').classList.add('text-gray-600');
+                });
+                // Add active styles to the currently selected button
+                const activeButton = document.getElementById(`form-button-${formId}`);
+                if (activeButton) {
+                    activeButton.classList.add('bg-blue-500', 'text-white', 'shadow-lg', 'transform', 'scale-105');
+                    activeButton.classList.remove('bg-gray-50', 'hover:bg-blue-100', 'hover:shadow-md', 'text-gray-800');
+                    activeButton.querySelector('p').classList.add('text-blue-200'); // Set text color for sub-text
+                    activeButton.querySelector('p').classList.remove('text-gray-600');
+                }
+
+            } else {
+                // If form not found, display an error message and hide the print button
+                detailsContainer.innerHTML = `
+                    <div class="text-center py-20 text-gray-500">
+                        <svg class="mx-auto h-20 w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <p class="mt-4 text-lg">Formulario no encontrado.</p>
+                    </div>
+                `;
+                formTitleHeader.textContent = 'Seleccione un Formulario para Ver'; // Reset title
+                printButton.classList.add('hidden'); // Ensure print button is hidden
+            }
+        }
+    </script>
+</body>
+</html>
