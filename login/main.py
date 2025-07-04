@@ -1,4 +1,3 @@
-# Secapp/login/main.py
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -29,12 +28,14 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
 
 # --- Email Config ---
-app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mx1.privateemail.com')
+# --- CHANGES START HERE ---
+app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
 app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
-app.config['EMAIL_USERNAME'] = 'rcanton@tzolkintech.com'
-app.config['ADMIN_EMAIL'] = 'rcanton@tzolkintech.com'
+app.config['EMAIL_USERNAME'] = 'roberto.j.canton@gmail.com'   # Your Gmail address
+app.config['ADMIN_EMAIL'] = 'roberto.j.canton@gmail.com'     # Your Gmail address for admin notifications
 app.config['PROJECT_ID'] = 'tz-dev-secapp'
-app.config['SECRET_NAME'] = 'admin-email-pass'
+app.config['SECRET_NAME'] = 'admin-email-pass'               # Reusing your existing secret name
+# --- CHANGES END HERE ---
 
 # --- Extensions ---
 bcrypt = Bcrypt(app)
@@ -86,10 +87,10 @@ def send_email(to_email, subject, body, is_html=False):
     """Send email notification"""
     try:
         # Get email configuration
-        email_username = app.config.get('EMAIL_USERNAME')
-        email_password = get_email_password()
-        smtp_server = app.config.get('SMTP_SERVER')
-        smtp_port = app.config.get('SMTP_PORT')
+        email_username = app.config.get('EMAIL_USERNAME') # roberto.j.canton@gmail.com
+        email_password = get_email_password()             # The Gmail App Password
+        smtp_server = app.config.get('SMTP_SERVER')       # smtp.gmail.com
+        smtp_port = app.config.get('SMTP_PORT')           # 587
         
         app.logger.info(f"Email config check - Username: {email_username}, Server: {smtp_server}, Port: {smtp_port}")
         
@@ -100,7 +101,7 @@ def send_email(to_email, subject, body, is_html=False):
         app.logger.info(f"Attempting to send email to {to_email} with subject: {subject}")
 
         msg = MIMEMultipart()
-        msg['From'] = email_username
+        msg['From'] = email_username # This sets the 'From' header to your Gmail address
         msg['To'] = to_email
         msg['Subject'] = subject
 
@@ -131,17 +132,19 @@ def send_email(to_email, subject, body, is_html=False):
         
     except smtplib.SMTPAuthenticationError as e:
         app.logger.error(f"SMTP Authentication Error: {e}")
+        app.logger.error("Possible causes: Incorrect Gmail App Password, 2-Step Verification not set up, or Less Secure App Access not enabled (if 2SV is off).")
         return False
     except smtplib.SMTPException as e:
         app.logger.error(f"SMTP Error: {e}")
         return False
     except Exception as e:
         app.logger.error(f"General error sending email: {e}")
+        traceback.print_exc()
         return False
 
 def send_registration_notification(user_email, user_name, phone_number=None):
     """Send notification email to both admin and the new user"""
-    admin_email = app.config['ADMIN_EMAIL']
+    admin_email = app.config['ADMIN_EMAIL'] # This is now roberto.j.canton@gmail.com
     
     email_password = get_email_password()
     if not email_password:
@@ -480,14 +483,14 @@ def test_email():
     
     # Test sending email to admin
     test_result = send_email(
-        "rcanton@tzolkintech.com",
-        "Test Email - SMT SecApp",
-        "This is a test email to verify email configuration with Secret Manager is working.",
+        "roberto.j.canton@gmail.com", # Sending test email to your Gmail
+        "Test Email - SMT SecApp (via Gmail)",
+        "This is a test email to verify Gmail configuration with Secret Manager is working.",
         is_html=False
     )
     
     if test_result:
-        return "Test email sent successfully! Check rcanton@tzolkintech.com"
+        return "Test email sent successfully! Check roberto.j.canton@gmail.com"
     else:
         return "Test email failed. Check logs for details."
 
@@ -511,8 +514,8 @@ def debug_email():
     test_result = None
     if debug_info['email_username'] and debug_info['email_password_set']:
         test_result = send_email(
-            "rcanton@tzolkintech.com",
-            "Debug Test Email - SMT SecApp",
+            "roberto.j.canton@gmail.com", # Sending debug email to your Gmail
+            "Debug Test Email - SMT SecApp (via Gmail)",
             "This is a test email from the debug route to verify Secret Manager integration is working.",
             is_html=False
         )
