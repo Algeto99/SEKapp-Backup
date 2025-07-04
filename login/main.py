@@ -29,11 +29,11 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
 
 # --- Email Config ---
-app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
 app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
 app.config['EMAIL_USERNAME'] = 'rcanton@tzolkintech.com'
 app.config['ADMIN_EMAIL'] = 'rcanton@tzolkintech.com'
-app.config['PROJECT_ID'] = os.environ.get('GOOGLE_CLOUD_PROJECT')
+app.config['PROJECT_ID'] = 'tz-dev-secapp'
 app.config['SECRET_NAME'] = 'admin-email-pass'
 
 # --- Extensions ---
