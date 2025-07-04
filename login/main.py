@@ -32,7 +32,7 @@ app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app'
 app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
 app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
 app.config['EMAIL_USERNAME'] = 'no-reply@tzolkintech.com'
-app.config['ADMIN_EMAIL'] = 'no-reply@tzolkintech.com'
+app.config['ADMIN_EMAIL'] = 'rcanton@tzolkintech.com'
 app.config['PROJECT_ID'] = 'tz-dev-secapp'
 app.config['SECRET_NAME'] = 'admin-email-pass'
 # --- CHANGES END HERE ---
@@ -142,9 +142,9 @@ def send_email(to_email, subject, body, is_html=False):
         traceback.print_exc()
         return False
 
-def send_registration_notification(user_email, user_name, phone_number=None):
+def send_registration_notification(user_email, user_name, phone_number):
     """Send notification email to both admin and the new user"""
-    admin_email = app.config['ADMIN_EMAIL'] # This is now roberto.j.canton@gmail.com
+    admin_email = app.config['ADMIN_EMAIL']
     
     email_password = get_email_password()
     if not email_password:
