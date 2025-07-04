@@ -29,10 +29,10 @@ app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app'
 
 # --- Email Config ---
 # --- CHANGES START HERE ---
-app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
-app.config['EMAIL_USERNAME'] = 'roberto.j.canton@gmail.com'   # Your Gmail address
-app.config['ADMIN_EMAIL'] = 'roberto.j.canton@gmail.com'     # Your Gmail address for admin notifications
+app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
+app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 465))
+app.config['EMAIL_USERNAME'] = 'no-reply@tzolkintech.com'   # Your Gmail address
+app.config['ADMIN_EMAIL'] = 'no-reply@tzolkintech.com'     # Your Gmail address for admin notifications
 app.config['PROJECT_ID'] = 'tz-dev-secapp'
 app.config['SECRET_NAME'] = 'admin-email-pass'               # Reusing your existing secret name
 # --- CHANGES END HERE ---
