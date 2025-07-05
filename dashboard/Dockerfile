@@ -11,6 +11,8 @@ WORKDIR /app
 # This ensures that if only your Python code changes (but not dependencies),
 # this layer won't be rebuilt.
 COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of your application code (including app.py and the 'templates' folder)

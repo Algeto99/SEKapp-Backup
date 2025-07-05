@@ -18,12 +18,44 @@
         .flash-error { @apply bg-red-500 text-white; }
         .flash-warning { @apply bg-yellow-500 text-gray-900; }
         .flash-info { @apply bg-blue-500 text-white; }
+
+        /* Print-specific styles */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                background-color: #fff !important; /* Ensure white background for printing */
+            }
+            .no-print {
+                display: none !important; /* Hide elements not needed for print */
+            }
+            .container {
+                box-shadow: none !important; /* Remove shadows in print */
+                border: none !important; /* Remove borders in print */
+                padding: 0 !important; /* Remove padding in print */
+                margin: 0 !important; /* Remove margin in print */
+                width: 100% !important; /* Ensure full width */
+                max-width: none !important;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                border: 1px solid #ccc;
+                padding: 8px;
+                text-align: left;
+            }
+            thead tr {
+                background-color: #f2f2f2;
+            }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-purple-100 to-pink-100 min-h-screen p-4">
     <div class="container mx-auto bg-white p-8 rounded-xl shadow-2xl transform transition-all duration-300 hover:scale-[1.01]">
 
-        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 no-print">
             <h1 class="text-3xl font-bold text-gray-800">Dashboard de Reportes</h1>
             <div class="flex items-center space-x-4">
                 {% if username %}
@@ -31,7 +63,6 @@
                     <a href="{{ forms_service_url }}" class="text-blue-600 hover:underline">Reportar Incidencia</a>
                     <a href="{{ login_service_url }}/logout" class="text-blue-600 hover:underline">Cerrar Sesión</a>
                 {% else %}
-                    {# This block should ideally not be reached if @jwt_required() works #}
                     <a href="{{ login_service_url }}" class="text-blue-600 hover:underline">Iniciar Sesión</a>
                 {% endif %}
             </div>
@@ -49,7 +80,23 @@
             {% endif %}
         {% endwith %}
 
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Datos de Incidentes Recientes</h2>
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Sus Reportes de Incidentes</h2>
+
+        <!-- Action Buttons -->
+        <div class="flex justify-center space-x-4 mb-6 no-print">
+            <button id="emailReportsBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-2 4v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m14 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v3m14 0l-2.293 2.293a1 1 0 01-1.414 0L10 12"></path></svg>
+                Enviar por Correo
+            </button>
+            <button id="exportCsvBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Exportar CSV
+            </button>
+            <button id="printReportsBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m0 0v1a2 2 0 002 2h4a2 2 0 002-2v-1m-4-8a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V7z"></path></svg>
+                Imprimir
+            </button>
+        </div>
 
         {% if submissions %}
             <div class="overflow-x-auto">
@@ -63,6 +110,11 @@
                             <th class="py-3 px-6 text-left">Fecha</th>
                             <th class="py-3 px-6 text-left">Hora</th>
                             <th class="py-3 px-6 text-left">Descripción</th>
+                            <th class="py-3 px-6 text-left">Persona Involucrada</th>
+                            <th class="py-3 px-6 text-left">Teléfono</th>
+                            <th class="py-3 px-6 text-left">Identidad</th>
+                            <th class="py-3 px-6 text-left">Valor Aprox.</th>
+                            <th class="py-3 px-6 text-left">Pertenencias</th>
                             <th class="py-3 px-6 text-left">Supervisor</th>
                             <th class="py-3 px-6 text-left">Creado En</th>
                         </tr>
@@ -77,6 +129,11 @@
                             <td class="py-3 px-6 text-left">{{ submission.fecha_incidente }}</td>
                             <td class="py-3 px-6 text-left">{{ submission.hora_incidente }}</td>
                             <td class="py-3 px-6 text-left">{{ submission.descripcion_incidente }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.nombre_persona }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.telefono_persona if submission.telefono_persona else 'N/A' }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.numero_identidad_persona if submission.numero_identidad_persona else 'N/A' }}</td>
+                            <td class="py-3 px-6 text-left">{{ "$%.2f" % submission.valor_aproximado if submission.valor_aproximado is not none else 'N/A' }}</td>
+                            <td class="py-3 px-6 text-left">{{ submission.pertenencias_sustraidas if submission.pertenencias_sustraidas else 'N/A' }}</td>
                             <td class="py-3 px-6 text-left">{{ submission.supervisor_nombre }}</td>
                             <td class="py-3 px-6 text-left whitespace-nowrap">{{ submission.created_at.strftime('%Y-%m-%d %H:%M:%S') if submission.created_at else 'N/A' }}</td>
                         </tr>
@@ -88,10 +145,83 @@
             <p class="text-center text-gray-600 text-lg mt-8">No hay datos de reportes para mostrar.</p>
         {% endif %}
 
-        <div class="mt-8 text-center">
+        <div class="mt-8 text-center no-print">
             <p class="text-sm text-gray-500">
-                Data actualizada al: {{ "now" | to_datetime("%Y-%m-%d %H:%M:%S") | strftime("%Y-%m-%d %H:%M:%S") }} </p>
+                Datos actualizados al: {{ moment(current_datetime).format('YYYY-MM-DD HH:mm:ss') }}
+            </p>
         </div>
     </div>
+
+    <script>
+        document.getElementById('printReportsBtn').addEventListener('click', () => {
+            window.print();
+        });
+
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            window.location.href = '/export_csv';
+        });
+
+        document.getElementById('emailReportsBtn').addEventListener('click', async () => {
+            // You can prompt for an email address here if you want to send to a different one
+            // const recipientEmail = prompt("Enter recipient email (leave blank to send to your registered email):");
+            const recipientEmail = "{{ username }}"; // Default to current user's email
+
+            try {
+                const response = await fetch('/email_reports', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ recipient_email: recipientEmail })
+                });
+
+                const result = await response.json();
+                const flashContainer = document.querySelector('.container.mx-auto .mb-4');
+                let messageDiv = document.createElement('div');
+                messageDiv.classList.add('flash-message');
+
+                if (result.success) {
+                    messageDiv.classList.add('flash-success');
+                    messageDiv.textContent = result.message;
+                } else {
+                    messageDiv.classList.add('flash-error');
+                    messageDiv.textContent = result.message || 'Error desconocido al enviar correo.';
+                }
+
+                // Clear existing flash messages before adding new one
+                if (flashContainer) {
+                    flashContainer.innerHTML = '';
+                    flashContainer.appendChild(messageDiv);
+                } else {
+                    // If flash container doesn't exist, create one at the top of the main container
+                    const mainContainer = document.querySelector('.container.mx-auto');
+                    if (mainContainer) {
+                        const newFlashContainer = document.createElement('div');
+                        newFlashContainer.classList.add('mb-4');
+                        newFlashContainer.appendChild(messageDiv);
+                        mainContainer.insertBefore(newFlashContainer, mainContainer.firstChild);
+                    }
+                }
+
+                // Auto-remove flash message after a few seconds
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 5000);
+
+            } catch (error) {
+                console.error('Error sending email:', error);
+                const flashContainer = document.querySelector('.container.mx-auto .mb-4') || document.createElement('div');
+                let messageDiv = document.createElement('div');
+                messageDiv.classList.add('flash-message', 'flash-error');
+                messageDiv.textContent = 'Error de red o del servidor al intentar enviar el correo.';
+                if (flashContainer.innerHTML === '') { // Only append if no existing flash container or it's empty
+                    flashContainer.appendChild(messageDiv);
+                }
+                setTimeout(() => {
+                    messageDiv.remove();
+                }, 5000);
+            }
+        });
+    </script>
 </body>
 </html>
