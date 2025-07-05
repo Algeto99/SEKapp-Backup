@@ -82,11 +82,10 @@
     </div>
 
     <script>
-        // IMPORTANT: These URLs MUST be the *HTTPS* URLs of your deployed Cloud Run services.
-        // For local testing, you might use HTTP, but ensure JWT_COOKIE_SECURE is handled.
-        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app"; // Replace with your actual login service URL
-        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app"; // Replace with your actual forms service URL
-        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app"; // Replace with your actual dashboard service URL
+        // FIXED: Updated service URLs to match your Cloud Run deployment
+        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app";
+        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app";
+        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
 
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
@@ -103,26 +102,30 @@
         function updateUIForAuthStatus() {
             // Check for the presence of the access token cookie
             const accessTokenCookie = getCookie('access_token_cookie');
+            console.log('Access token cookie:', accessTokenCookie ? 'Found' : 'Not found');
+            
             if (accessTokenCookie) {
                 logoutButton.classList.remove('hidden');
                 welcomeMessageElement.textContent = "Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.";
             } else {
                 logoutButton.classList.add('hidden');
-                welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades."; // Re-added prompt
+                welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades.";
             }
         }
 
+        // Add debug logging to see what's happening
         formsButton.addEventListener('click', () => {
-            // Always redirect to the forms service. JWT protection will handle authentication.
+            console.log('Forms button clicked, redirecting to:', FORMS_SERVICE_URL + '/report_form');
             window.location.href = FORMS_SERVICE_URL + '/report_form';
         });
 
         dashboardButton.addEventListener('click', () => {
-            // Always redirect to the dashboard service. JWT protection will handle authentication.
+            console.log('Dashboard button clicked, redirecting to:', DASHBOARD_SERVICE_URL + '/dashboard');
             window.location.href = DASHBOARD_SERVICE_URL + '/dashboard';
         });
 
         logoutButton.addEventListener('click', () => {
+            console.log('Logout button clicked, redirecting to:', LOGIN_SERVICE_URL + '/logout');
             window.location.href = LOGIN_SERVICE_URL + '/logout';
         });
 
