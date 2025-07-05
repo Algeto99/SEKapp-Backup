@@ -10,12 +10,11 @@ from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from google.cloud import secretmanager
 import traceback
-import io # For CSV export
-import csv # For CSV export
-import logging # For better logging
+import io
+import csv
+import logging
 
-# Configure logging for better visibility in Cloud Run logs
-logging.basicConfig(level=logging.INFO) # Set default logging level to INFO
+logging.basicConfig(level=logging.INFO)
 app_logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -26,24 +25,27 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'a_very_secret_key_for_dashb
 # --- JWT Configuration (MUST match login and forms services) ---
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-super-secret-jwt-key')
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-app.config['JWT_COOKIE_SECURE'] = True # Only send cookies over HTTPS in production
+app.config['JWT_COOKIE_SECURE'] = True # Set to True in production over HTTPS
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
-app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', None) # Set to .run.app or .yourdomain.com
 
-# --- Email Config (Copied from Login Service and adapted) ---
+# CRITICAL for cross-service cookie sharing:
+# For Cloud Run default URLs (e.g., service-name.run.app), this should be '.run.app'.
+# For custom domains (e.g., dashboard.yourdomain.com), this should be '.yourdomain.com'.
+# For local testing, 'localhost' is appropriate.
+app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', 'localhost') # Changed default to 'localhost'
+
+# --- Email Config ---
 app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
 app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
-app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME', 'no-reply@tzolkintech.com') # Should be an env var
-app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'rcanton@tzolkintech.com') # Should be an env var
-app.config['PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID', 'tz-dev-secapp') # Use a more generic name for project ID env var
-app.config['SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass') # Secret name for email password
+app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME', 'no-reply@tzolkintech.com')
+app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'rcanton@tzolkintech.com')
+app.config['PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID', 'tz-dev-secapp')
+app.config['SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
 
-# --- Initialize Flask extensions ---
 jwt = JWTManager(app)
 
-# --- Secret Manager Functions (Copied from Login Service) ---
+# --- Secret Manager Functions ---
 def get_secret_value(secret_name, project_id=None):
-    """Retrieve secret value from GCP Secret Manager"""
     try:
         if not project_id:
             project_id = app.config.get('PROJECT_ID')
@@ -64,8 +66,7 @@ def get_secret_value(secret_name, project_id=None):
         return None
 
 def get_email_password():
-    """Get email password from Secret Manager or environment variable"""
-    password = os.environ.get('EMAIL_PASSWORD') # Try environment variable first (e.g., if mounted)
+    password = os.environ.get('EMAIL_PASSWORD')
     if password:
         app_logger.info("Using email password from environment variable.")
         return password
@@ -73,9 +74,8 @@ def get_email_password():
     app_logger.info("Attempting to retrieve email password from Secret Manager.")
     return get_secret_value(app.config['SECRET_NAME'])
 
-# --- Email Functions (Copied from Login Service) ---
+# --- Email Functions ---
 def send_email(to_email, subject, body, is_html=False):
-    """Send email notification"""
     try:
         email_username = app.config.get('EMAIL_USERNAME')
         email_password = get_email_password()
@@ -101,7 +101,6 @@ def send_email(to_email, subject, body, is_html=False):
             msg.attach(MIMEText(body, 'plain'))
 
         server = smtplib.SMTP(smtp_server, smtp_port)
-        # server.set_debuglevel(1) # Uncomment for detailed SMTP debugging in logs
         server.starttls()
         server.login(email_username, email_password)
         
@@ -125,9 +124,6 @@ def send_email(to_email, subject, body, is_html=False):
 
 # --- Database Connection (PostgreSQL) ---
 def get_db_connection():
-    """
-    Establishes and returns a connection to the PostgreSQL database using DATABASE_URL.
-    """
     conn = None
     try:
         db_url = os.environ.get('DATABASE_URL')
@@ -182,11 +178,7 @@ def index():
 @app.route('/dashboard', methods=['GET'])
 @jwt_required()
 def show_dashboard():
-    """
-    Renders the dashboard page, fetching submitted data from the database
-    filtered by the current user's email.
-    """
-    current_user_identity = get_jwt_identity() # Get the logged-in user's identity (email)
+    current_user_identity = get_jwt_identity()
     app_logger.info(f"User {current_user_identity} accessing dashboard.")
 
     conn = None
@@ -199,12 +191,11 @@ def show_dashboard():
                                    username=current_user_identity,
                                    login_service_url=os.environ.get('LOGIN_SERVICE_URL', '#'),
                                    forms_service_url=os.environ.get('FORMS_SERVICE_URL', '#'),
-                                   current_datetime=datetime.now()) # Pass current datetime
+                                   current_datetime=datetime.now())
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        # Query updated to use 'creado_en' and filter by 'user_email'
         cur.execute("""
             SELECT
-                ri.id_reporte_incidente AS id_reporte, -- Corrected column name
+                ri.id_reporte_incidente AS id_reporte,
                 ti.nombre AS tipo_incidencia,
                 tc.nombre AS tipo_cliente,
                 li.nombre AS lugar_incidente,
@@ -217,7 +208,7 @@ def show_dashboard():
                 ri.valor_aproximado,
                 ri.pertenencias_sustraidas,
                 s.nombre AS supervisor_nombre,
-                ri.creado_en -- Corrected column name
+                ri.creado_en
             FROM
                 reportes_incidentes ri
             JOIN
@@ -229,9 +220,9 @@ def show_dashboard():
             JOIN
                 supervisor s ON ri.id_supervisor = s.id_supervisor
             WHERE
-                ri.user_email = %s -- Filter by current user's email
+                ri.user_email = %s
             ORDER BY
-                ri.creado_en DESC; -- Corrected column name
+                ri.creado_en DESC;
         """, (current_user_identity,))
         
         submissions = cur.fetchall()
@@ -253,15 +244,12 @@ def show_dashboard():
                            username=current_user_identity,
                            login_service_url=os.environ.get('LOGIN_SERVICE_URL', '#'),
                            forms_service_url=os.environ.get('FORMS_SERVICE_URL', '#'),
-                           current_datetime=datetime.now()) # Pass current datetime
+                           current_datetime=datetime.now())
 
 
 @app.route('/export_csv', methods=['GET'])
 @jwt_required()
 def export_csv():
-    """
-    Exports the current user's reports to a CSV file.
-    """
     current_user_identity = get_jwt_identity()
     app_logger.info(f"User {current_user_identity} requesting CSV export.")
 
@@ -272,10 +260,9 @@ def export_csv():
             return "Error de conexión a la base de datos.", 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        # Query updated to use 'creado_en' and filter by 'user_email'
         cur.execute("""
             SELECT
-                ri.id_reporte_incidente AS id_reporte, -- Corrected column name
+                ri.id_reporte_incidente AS id_reporte,
                 ti.nombre AS tipo_incidencia,
                 tc.nombre AS tipo_cliente,
                 li.nombre AS lugar_incidente,
@@ -292,7 +279,7 @@ def export_csv():
                 ri.direccion,
                 ri.imagenes_pdfs,
                 s.nombre AS supervisor_nombre,
-                ri.creado_en -- Corrected column name
+                ri.creado_en
             FROM
                 reportes_incidentes ri
             JOIN
@@ -306,7 +293,7 @@ def export_csv():
             WHERE
                 ri.user_email = %s
             ORDER BY
-                ri.creado_en DESC; -- Corrected column name
+                ri.creado_en DESC;
         """, (current_user_identity,))
         
         reports = cur.fetchall()
@@ -315,16 +302,12 @@ def export_csv():
         if not reports:
             return "No hay reportes para exportar para este usuario.", 404
 
-        # Create a CSV in memory
         si = io.StringIO()
         cw = csv.writer(si)
 
-        # Write header
-        # Get column names from the first row's keys
         headers = reports[0].keys() if reports else []
         cw.writerow(headers)
 
-        # Write data rows
         for row in reports:
             cw.writerow([row[col] for col in headers])
 
@@ -348,11 +331,8 @@ def export_csv():
 @app.route('/email_reports', methods=['POST'])
 @jwt_required()
 def email_reports():
-    """
-    Sends the current user's reports via email.
-    """
     current_user_identity = get_jwt_identity()
-    recipient_email = request.json.get('recipient_email', current_user_identity) # Allow specifying recipient or default to user's email
+    recipient_email = request.json.get('recipient_email', current_user_identity)
     app_logger.info(f"User {current_user_identity} requesting email of reports to {recipient_email}.")
 
     conn = None
@@ -362,17 +342,16 @@ def email_reports():
             return jsonify({'success': False, 'message': 'Error de conexión a la base de datos.'}), 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        # Query updated to use 'creado_en' and filter by 'user_email'
         cur.execute("""
             SELECT
-                ri.id_reporte_incidente AS id_reporte, -- Corrected column name
+                ri.id_reporte_incidente AS id_reporte,
                 ti.nombre AS tipo_incidencia,
                 li.nombre AS lugar_incidente,
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 ri.descripcion_incidente,
                 s.nombre AS supervisor_nombre,
-                ri.creado_en -- Corrected column name
+                ri.creado_en
             FROM
                 reportes_incidentes ri
             JOIN
@@ -384,7 +363,7 @@ def email_reports():
             WHERE
                 ri.user_email = %s
             ORDER BY
-                ri.creado_en DESC; -- Corrected column name
+                ri.creado_en DESC;
         """, (current_user_identity,))
         
         reports = cur.fetchall()
@@ -393,7 +372,6 @@ def email_reports():
         if not reports:
             return jsonify({'success': False, 'message': 'No hay reportes para enviar por correo para este usuario.'}), 404
 
-        # Construct HTML email body
         email_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; color: #333;">
@@ -461,14 +439,12 @@ def email_reports():
 # --- Health Check Route ---
 @app.route('/health')
 def health_check():
-    """Health check endpoint for Cloud Run"""
     health_status = {
         'status': 'healthy',
         'service': 'dashboard-service',
         'timestamp': datetime.now().isoformat()
     }
     status_code = 200
-    # Optional: Add database connectivity check
     try:
         conn = get_db_connection()
         if conn:
@@ -489,7 +465,6 @@ def health_check():
 # Add a startup check route
 @app.route('/startup')
 def startup_check():
-    """Startup check endpoint for Cloud Run"""
     app_logger.info("Startup check requested.")
     return {
         'status': 'ready',
@@ -501,10 +476,9 @@ def startup_check():
 
 # --- Run App (for local development only) ---
 if __name__ == '__main__':
-    # These environment variables are typically set by Cloud Run or your local shell
-    # but are provided here as fallbacks for direct script execution.
     os.environ.setdefault('FLASK_SECRET_KEY', 'dev_flask_secret_key_for_dashboard')
     os.environ.setdefault('JWT_SECRET_KEY', 'dev-secret-key-for-local-testing')
+    os.environ.setdefault('JWT_COOKIE_DOMAIN', 'localhost') # Explicitly set for local testing
     os.environ.setdefault('DATABASE_URL', 'postgresql://user:pass@localhost:5432/your_local_database')
     os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
     os.environ.setdefault('FORMS_SERVICE_URL', 'http://localhost:8081')
@@ -512,9 +486,6 @@ if __name__ == '__main__':
     os.environ.setdefault('ADMIN_EMAIL', 'rcanton@tzolkintech.com')
     os.environ.setdefault('GCP_PROJECT_ID', 'tz-dev-secapp')
     os.environ.setdefault('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
-    # For local testing, you might need to set EMAIL_PASSWORD directly if not using Secret Manager locally
-    # os.environ.setdefault('EMAIL_PASSWORD', 'YOUR_SMTP_PASSWORD')
-
 
     port = int(os.environ.get('PORT', 8082))
     debug_mode = os.environ.get('FLASK_ENV') == 'development'

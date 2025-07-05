@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -82,37 +82,44 @@
     </div>
 
     <script>
-        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app";
-        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app";
-        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
+        // IMPORTANT: These URLs MUST be the *HTTPS* URLs of your deployed Cloud Run services.
+        // For local testing, you might use HTTP, but ensure JWT_COOKIE_SECURE is handled.
+        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app"; // Replace with your actual login service URL
+        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app"; // Replace with your actual forms service URL
+        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app"; // Replace with your actual dashboard service URL
 
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
         const logoutButton = document.getElementById('logout-button');
         const welcomeMessageElement = document.getElementById('welcome-message');
 
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
         function updateUIForAuthStatus() {
-            const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
+            // Check for the presence of the access token cookie
+            const accessTokenCookie = getCookie('access_token_cookie');
             if (accessTokenCookie) {
                 logoutButton.classList.remove('hidden');
                 welcomeMessageElement.textContent = "Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.";
             } else {
                 logoutButton.classList.add('hidden');
-                welcomeMessageElement.textContent = ""; // Removed login prompt
+                welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades."; // Re-added prompt
             }
         }
 
         formsButton.addEventListener('click', () => {
+            // Always redirect to the forms service. JWT protection will handle authentication.
             window.location.href = FORMS_SERVICE_URL + '/report_form';
         });
 
         dashboardButton.addEventListener('click', () => {
-            const accessTokenCookie = document.cookie.split('; ').find(row => row.startsWith('access_token_cookie='));
-            if (!accessTokenCookie) {
-                window.location.href = LOGIN_SERVICE_URL + '/login';
-            } else {
-                window.location.href = DASHBOARD_SERVICE_URL + '/';
-            }
+            // Always redirect to the dashboard service. JWT protection will handle authentication.
+            window.location.href = DASHBOARD_SERVICE_URL + '/dashboard';
         });
 
         logoutButton.addEventListener('click', () => {
