@@ -32,7 +32,7 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 # For Cloud Run default URLs (e.g., service-name.run.app), this should be '.run.app'.
 # For custom domains (e.g., dashboard.yourdomain.com), this should be '.yourdomain.com'.
 # For local testing, 'localhost' is appropriate.
-app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', 'localhost') # Changed default to 'localhost'
+app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app') # Changed default to 'localhost'
 
 # --- Email Config ---
 app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
@@ -478,7 +478,7 @@ def startup_check():
 if __name__ == '__main__':
     os.environ.setdefault('FLASK_SECRET_KEY', 'dev_flask_secret_key_for_dashboard')
     os.environ.setdefault('JWT_SECRET_KEY', 'dev-secret-key-for-local-testing')
-    os.environ.setdefault('JWT_COOKIE_DOMAIN', 'localhost') # Explicitly set for local testing
+    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app') # Explicitly set for local testing
     os.environ.setdefault('DATABASE_URL', 'postgresql://user:pass@localhost:5432/your_local_database')
     os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
     os.environ.setdefault('FORMS_SERVICE_URL', 'http://localhost:8081')

@@ -24,12 +24,16 @@ app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 # For Cloud Run default URLs (e.g., service-name.run.app), this should be '.run.app'.
 # For custom domains (e.g., forms.yourdomain.com), this should be '.yourdomain.com'.
 # For local testing, 'localhost' is appropriate.
-app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', 'localhost') # Changed default to 'localhost'
+app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app') # Changed default to 'localhost'
 
 app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'http://localhost:8080')
 app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', 'http://localhost:8082')
 app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', 'http://localhost:8081')
 
+from datetime import timedelta
+
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
 jwt = JWTManager(app)
 
@@ -249,7 +253,7 @@ def startup_check():
 if __name__ == '__main__':
     os.environ.setdefault('FLASK_SECRET_KEY', 'dev_forms_secret')
     os.environ.setdefault('JWT_SECRET_KEY', 'dev-secret-key-for-local-testing')
-    os.environ.setdefault('JWT_COOKIE_DOMAIN', 'localhost') # Explicitly set for local testing
+    os.environ.setdefault('JWT_COOKIE_DOMAIN', '.run.app') # Explicitly set for local testing
     os.environ.setdefault('DATABASE_URL', 'postgresql://user:pass@localhost/db')
     os.environ.setdefault('LOGIN_SERVICE_URL', 'http://localhost:8080')
     os.environ.setdefault('DASHBOARD_SERVICE_URL', 'http://localhost:8082')
