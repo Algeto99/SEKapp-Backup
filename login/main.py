@@ -14,32 +14,47 @@ from psycopg2 import extras
 from datetime import timedelta, datetime
 from google.cloud import secretmanager
 import traceback
+import logging
+
+loggin.basicConfig(level=logging.INFO)
+app_logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 # --- Flask Config ---
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev-secret')
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'dev-jwt')
+# FLASK_SECRET_KEY MUST be set as an environment variable in production
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'jwt-secret-key')
+if not app.config['SECRET_KEY']:
+    app_logger.error("FATAL: FLASK_SECRET_KEY environment variable not set. App cannot start securely.")
+    raise ValueError("FLASK_SECRET_KEY environment variable not set.")
+
+# Dynamic JWT_COOKIE_SECURE based on environment (Cloud Run uses K_SERVICE)
+is_production = os.environ.get('K_SERVICE') is not None # K_SERVICE is set in Cloud Run
+app.config['JWT_COOKIE_SECURE'] = is_production
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-app.config['JWT_COOKIE_SECURE'] = True
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
+# JWT_COOKIE_DOMAIN MUST be set to '.run.app' in production
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
 
 # --- Email Config ---
-# --- CHANGES START HERE ---
 app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
 app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
-app.config['EMAIL_USERNAME'] = 'no-reply@tzolkintech.com'
-app.config['ADMIN_EMAIL'] = 'rcanton@tzolkintech.com'
-app.config['PROJECT_ID'] = 'tz-dev-secapp'
-app.config['SECRET_NAME'] = 'admin-email-pass'
-# --- CHANGES END HERE ---
+app.config['EMAIL_USERNAME'] = os.environment.get('EMAIL_USERNAME', 'no-reply@tzolkintech.com')
+app.config['ADMIN_EMAIL'] = os.environment.get(ADMIN_EMAIL, 'rcanton@tzolkintech.com')
+app.config['PROJECT_ID'] = os.environment.get('PROJECT_ID', 'tz-dev-secapp')
+app.config['SECRET_NAME'] = os.environment.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
+
+# Ensure critical email configs are set
+if not all([app.config['SMTP_SERVER'], app.config['EMAIL_USERNAME'], app.config['ADMIN_EMAIL'], app.config['PROJECT_ID']]):
+    app_logger.error("FATAL: Incomplete Email or GCP PROJECT_ID configuration. Check environment variables.")
+    # In production, you might raise an error here to prevent startup
+    if is_production:
+        raise ValueError("Email or GCP PROJECT_ID configuration missing for production.")
 
 # --- Extensions ---
 bcrypt = Bcrypt(app)
-jwt = JWTManager(app)
 
 # --- Secret Manager Functions ---
 def get_secret_value(secret_name, project_id=None):
@@ -49,25 +64,18 @@ def get_secret_value(secret_name, project_id=None):
             project_id = app.config.get('PROJECT_ID')
 
         if not project_id:
-            app.logger.error("PROJECT_ID not found in environment variables")
+            app_logger.error("PROJECT_ID not found in environment variables or app config for Secret Manager access.")
             return None
 
-        # Create the Secret Manager client
         client = secretmanager.SecretManagerServiceClient()
-
-        # Build the resource name of the secret version
         name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
-
-        # Access the secret version
         response = client.access_secret_version(request={"name": name})
-
-        # Return the decoded payload
         secret_value = response.payload.data.decode("UTF-8")
-        app.logger.info(f"Successfully retrieved secret: {secret_name}")
+        app_logger.info(f"Login service: Successfully retrieved secret: {secret_name}")
         return secret_value
 
     except Exception as e:
-        app.logger.error(f"Error retrieving secret {secret_name}: {e}")
+        app_logger.error(f"Login service: Error retrieving secret {secret_name}: {e}", exc_info=True)
         return None
 
 def get_email_password():
@@ -81,6 +89,32 @@ def get_email_password():
     # If not found, try Secret Manager API
     app.logger.info("Attempting to retrieve email password from Secret Manager")
     return get_secret_value(app.config['SECRET_NAME'])
+
+# NEW: Function to get JWT Secret
+def get_jwt_secret():
+    """Get JWT secret key from environment or Secret Manager."""
+    # First, try environment variable (e.g., if mounted as a secret directly)
+    secret_key = os.environ.get('JWT_SECRET_KEY')
+    if secret_key:
+        app_logger.info("Login service: Using JWT_SECRET_KEY from environment variable.")
+        return secret_key
+
+    # If not found, try Secret Manager API
+    app_logger.info("Login service: Attempting to retrieve JWT_SECRET_KEY from Secret Manager.")
+    # 'jwt-secret-key' is the name of your secret in Secret Manager
+    return get_secret_value('jwt-secret-key', app.config.get('PROJECT_ID'))
+
+
+# Set JWT Secret Key from Secret Manager or environment
+jwt_secret = get_jwt_secret()
+if not jwt_secret:
+    app_logger.error("FATAL: JWT_SECRET_KEY not found for Login service. App cannot start securely.")
+    # In production, this should cause a hard failure if the secret is missing
+    raise ValueError("JWT_SECRET_KEY not set in production for Login service!")
+else:
+    app.config['JWT_SECRET_KEY'] = jwt_secret
+
+jwt = JWTManager(app) # Initialize JWTManager after the secret is set
 
 # --- Email Functions ---
 def send_email(to_email, subject, body, is_html=False):
@@ -588,3 +622,15 @@ if __name__ == '__main__':
         print(f"Error starting Flask app: {e}")
         traceback.print_exc()
         raise
+
+# --- Main App Entry Point (for Cloud Run) ---
+if __name__ == '__main__':
+    # When deployed to Cloud Run, the PORT environment variable is automatically set.
+    # We explicitly listen on 0.0.0.0 to bind to all available network interfaces.
+    port = int(os.environ.get('PORT', 8080)) # Cloud Run sets PORT
+
+    # No debug mode in production unless explicitly needed for advanced debugging.
+    # FLASK_ENV is not typically 'development' in Cloud Run.
+    # The 'is_production' flag already handles JWT_COOKIE_SECURE based on K_SERVICE.
+    app_logger.info(f"Starting Flask app on port {port}")
+    app.run(host='0.0.0.0', port=port, threaded=True)
