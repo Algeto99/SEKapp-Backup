@@ -3,4 +3,4 @@ Flask-Bcrypt==1.0.1
 Flask-JWT-Extended==4.5.3
 psycopg2-binary==2.9.7
 google-cloud-secret-manager==2.16.4
-Werkzeug==2.3.7
+gunicorn==21.2.0
