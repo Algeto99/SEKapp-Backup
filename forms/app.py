@@ -38,7 +38,7 @@ def configure_app():
         app.config['JWT_TOKEN_LOCATION'] = ['cookies']
         app.config['JWT_COOKIE_SECURE'] = is_production
         app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
-        app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', 'localhost')
+        app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.run.app')
         app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
         app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
         
@@ -195,8 +195,10 @@ def show_report_form():
             tipo_cliente=tipo_cliente_data,
             lugar_incidente=lugar_incidente_data,
             supervisor=supervisor_data,
-            # Removed username, login_service_url, and dashboard_service_url
-            # to eliminate the welcome message and navigation links
+            username=current_user_identity,
+            login_service_url=app.config['LOGIN_SERVICE_URL'],
+            dashboard_service_url=app.config['DASHBOARD_SERVICE_URL'],
+            landing_service_url=app.config['LANDING_SERVICE_URL'],
         )
     except Exception as e:
         app_logger.error(f"Error loading form: {e}")

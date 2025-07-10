@@ -26,18 +26,79 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
         }
         .base-button-style {
-            @apply w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 2rem;
+            font-size: 1.125rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .base-button-style:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
         .btn-primary-professional {
-            @apply bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+            background-color: #ffffff;
+            color: #1d4ed8;
+            border: 2px solid #1d4ed8;
+        }
+        .btn-primary-professional:hover {
+            background-color: #eff6ff;
         }
         .btn-secondary-professional {
-            @apply bg-gray-100 text-blue-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
-            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            background-color: #f3f4f6;
+            color: #1d4ed8;
+            border: 2px solid #e5e7eb;
+        }
+        .btn-secondary-professional:hover {
+            background-color: #e5e7eb;
+        }
+        .btn-logout {
+            background-color: #dc2626;
+            color: #ffffff;
+            border: 2px solid #dc2626;
+        }
+        .btn-logout:hover {
+            background-color: #b91c1c;
+        }
+        .top-bar {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 1.5rem;
+            z-index: 10;
+        }
+        .top-bar-link {
+            color: #212529;
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s ease-in-out;
+        }
+        .top-bar-link:hover {
+            color: #007bff;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .logo-img {
+            max-width: 200px;
+            height: auto;
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
+
+    <header id="topBar" class="top-bar hidden">
+        <nav>
+            <a href="#" id="topBarLogoutLink" class="top-bar-link">Cerrar Sesión</a>
+        </nav>
+    </header>
+
     <div class="container-wrapper max-w-4xl w-full flex flex-col md:flex-row overflow-hidden">
         <div class="md:w-1/2 p-8 md:p-12 bg-white flex flex-col justify-center items-start text-left">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mb-6 opacity-90 logo-img">
@@ -55,19 +116,19 @@
         <div class="md:w-1/2 p-8 md:p-12 bg-gray-900 flex flex-col justify-center items-center text-center">
             <h2 class="text-3xl font-semibold mb-6 dark-section-heading">Acceda a nuestros servicios</h2>
             <p class="text-md text-white mb-8 max-w-md" id="welcome-message">
-                Escoga una opción para interactuar de manera segura con nuestra plataforma.
+                Cargando...
             </p>
 
             <div class="button-group w-full space-y-4 max-w-xs">
-                <button id="forms-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                <button id="forms-button" class="base-button-style btn-primary-professional">
                     Reporte de Incidencia
                 </button>
 
-                <button id="dashboard-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-white text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
+                <button id="dashboard-button" class="base-button-style btn-primary-professional">
                     Reportes y Dashboard
                 </button>
 
-                <button id="logout-button" class="w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 hidden">
+                <button id="logout-button" class="base-button-style btn-logout hidden">
                     Cerrar Sesión
                 </button>
             </div>
@@ -82,54 +143,98 @@
     </div>
 
     <script>
-        // FIXED: Updated service URLs to match your Cloud Run deployment
-        const LOGIN_SERVICE_URL = "https://login-24309643178.us-central1.run.app";
-        const FORMS_SERVICE_URL = "https://forms-24309643178.us-central1.run.app";
-        const DASHBOARD_SERVICE_URL = "https://dashboard-24309643178.us-central1.run.app";
+        // Service URLs populated by Flask
+        const LOGIN_SERVICE_URL = "{{ LOGIN_SERVICE_URL }}";
+        const FORMS_SERVICE_URL = "{{ FORMS_SERVICE_URL }}";
+        const DASHBOARD_SERVICE_URL = "{{ DASHBOARD_SERVICE_URL }}";
 
+        // User data populated by Flask
+        const currentUserEmail = "{{ user_email if user_email else '' }}";
+        const currentUserName = "{{ user_name if user_name else '' }}";
+
+        // Get references to HTML elements
+        const welcomeMessageElement = document.getElementById('welcome-message');
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
         const logoutButton = document.getElementById('logout-button');
-        const welcomeMessageElement = document.getElementById('welcome-message');
-
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
-            return null;
-        }
+        const topBar = document.getElementById('topBar');
+        const topBarLogoutLink = document.getElementById('topBarLogoutLink');
 
         function updateUIForAuthStatus() {
-            // Check for the presence of the access token cookie
-            const accessTokenCookie = getCookie('access_token_cookie');
-            console.log('Access token cookie:', accessTokenCookie ? 'Found' : 'Not found');
+            console.log('Updating UI for auth status...');
             
-            if (accessTokenCookie) {
+            if (currentUserEmail) {
+                console.log('User is authenticated:', currentUserEmail);
+                // Display personalized welcome
+                welcomeMessageElement.textContent = `¡Bienvenido, ${currentUserName || currentUserEmail}! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
+
+                // Show logout elements
                 logoutButton.classList.remove('hidden');
-                welcomeMessageElement.textContent = "Bienvenido! Escoja una opción para interactuar de manera segura con nuestra plataforma.";
+                topBar.classList.remove('hidden');
             } else {
-                logoutButton.classList.add('hidden');
+                console.log('User is not authenticated');
+                // Display generic message
                 welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades.";
+
+                // Hide logout elements
+                logoutButton.classList.add('hidden');
+                topBar.classList.add('hidden');
             }
         }
 
-        // Add debug logging to see what's happening
-        formsButton.addEventListener('click', () => {
-            console.log('Forms button clicked, redirecting to:', FORMS_SERVICE_URL + '/report_form');
-            window.location.href = FORMS_SERVICE_URL + '/report_form';
-        });
+        // Logout logic
+        function handleLogout(e) {
+            e.preventDefault();
+            console.log('Logging out...');
+            if (LOGIN_SERVICE_URL) {
+                window.location.href = LOGIN_SERVICE_URL + '/logout';
+            } else {
+                console.error('LOGIN_SERVICE_URL not configured');
+                alert('Error: No se pudo cerrar sesión. URL de servicio no configurada.');
+            }
+        }
 
-        dashboardButton.addEventListener('click', () => {
-            console.log('Dashboard button clicked, redirecting to:', DASHBOARD_SERVICE_URL + '/dashboard');
-            window.location.href = DASHBOARD_SERVICE_URL + '/dashboard';
-        });
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+            
+            // Update UI based on authentication status
+            updateUIForAuthStatus();
 
-        logoutButton.addEventListener('click', () => {
-            console.log('Logout button clicked, redirecting to:', LOGIN_SERVICE_URL + '/logout');
-            window.location.href = LOGIN_SERVICE_URL + '/logout';
-        });
+            // Forms button
+            if (formsButton) {
+                formsButton.addEventListener('click', function() {
+                    console.log('Forms button clicked');
+                    if (FORMS_SERVICE_URL) {
+                        window.location.href = FORMS_SERVICE_URL + '/report_form';
+                    } else {
+                        console.error('FORMS_SERVICE_URL not configured');
+                        alert('Error: URL del servicio de formularios no configurada.');
+                    }
+                });
+            }
 
-        document.addEventListener('DOMContentLoaded', updateUIForAuthStatus);
+            // Dashboard button
+            if (dashboardButton) {
+                dashboardButton.addEventListener('click', function() {
+                    console.log('Dashboard button clicked');
+                    if (DASHBOARD_SERVICE_URL) {
+                        window.location.href = DASHBOARD_SERVICE_URL + '/dashboard';
+                    } else {
+                        console.error('DASHBOARD_SERVICE_URL not configured');
+                        alert('Error: URL del servicio de dashboard no configurada.');
+                    }
+                });
+            }
+
+            // Logout buttons
+            if (logoutButton) {
+                logoutButton.addEventListener('click', handleLogout);
+            }
+            if (topBarLogoutLink) {
+                topBarLogoutLink.addEventListener('click', handleLogout);
+            }
+        });
     </script>
 </body>
 </html>
