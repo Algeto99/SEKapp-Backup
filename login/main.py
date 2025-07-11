@@ -93,25 +93,6 @@ class CloudRunServiceClient:
 
 landing_service_client = None
 
-def verify_landing_service_connection():
-    global landing_service_client
-    if not landing_service_client:
-        app_logger.error("Landing service client not initialized during verification.")
-        return False
-    try:
-        app_logger.info("Verifying landing service connection...")
-        response = landing_service_client.call_service('/health', method='GET')
-        is_healthy = response is not None and response.status_code == 200
-        if is_healthy:
-            app_logger.info("Landing service connection successful.")
-        else:
-            app_logger.warning(f"Landing service connection failed. Status: {response.status_code if response else 'No Response'}")
-        return is_healthy
-    except Exception as e:
-        app_logger.error(f"Failed to verify landing service connection: {e}", exc_info=True)
-        return False
-
-# --- Configuration Helper ---
 def configure_app():
     try:
         app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL')
@@ -125,6 +106,7 @@ def configure_app():
         app.config['JWT_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'
         app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
         app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+        app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.tzolkintech.com')
 
         app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
         app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
@@ -148,9 +130,9 @@ def setup_cors():
             "http://localhost:5001", "http://localhost:3000", "http://localhost:8081",
             "http://127.0.0.1:5001", "http://127.0.0.1:3000", "http://127.0.0.1:8081"
         ])
-    
-    CORS(app, 
-         supports_credentials=True, 
+
+    CORS(app,
+         supports_credentials=True,
          origins=allowed_origins,
          allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -192,7 +174,6 @@ def setup_jwt_secret():
             current_app.config['JWT_SECRET_MANAGER_NAME'],
             current_app.config['GCP_PROJECT_ID']
         )
-        app_logger.info("JWT_SECRET_KEY configured from Secret Manager.")
     except Exception as e:
         app_logger.critical(f"FATAL: Failed to retrieve JWT_SECRET_KEY: {e}. Exiting.")
         sys.exit(1)
@@ -387,41 +368,58 @@ def login():
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
+            # REVERTED: Removed 'is_admin' from the SELECT query based on user's request
             cur.execute("SELECT id, email, password_hash, name FROM users WHERE email = %s", (username,))
             user = cur.fetchone()
             cur.close()
 
-            if user and bcrypt.check_password_hash(user['password_hash'], password):
-                additional_claims = {
-                    "user_id": user['id'],
-                    "name": user['name'],
-                    "email": user['email']
-                }
-                
-                access_token = create_access_token(
-                    identity=user['email'],
-                    additional_claims=additional_claims
-                )
-                refresh_token = create_refresh_token(identity=user['email'])
+            # Added comprehensive logging around password check
+            app_logger.info(f"Attempting login for email: {username}")
+            if user:
+                app_logger.info(f"User found in DB: {user.get('email')}, Hashed Pass (snippet): {user.get('password_hash', '')[:10]}...")
+                # WARNING: DO NOT LOG PLAIN TEXT PASSWORDS IN PRODUCTION
+                # app_logger.info(f"User entered password (DEBUG ONLY): {password}")
 
-                if landing_service_client and not verify_landing_service_connection():
-                    app_logger.error("Landing service is not accessible.")
-                    flash('Servicio de destino no disponible temporalmente.', 'danger')
+                is_password_correct = bcrypt.check_password_hash(user.get('password_hash'), password)
+                app_logger.info(f"Bcrypt password check result: {is_password_correct}")
+
+                if is_password_correct:
+                    # MODIFIED: Updated additional_claims for consistency and Landing Service needs
+                    # is_admin is now retrieved safely with .get() since it's not selected
+                    additional_claims = {
+                        "user_id": user['id'],
+                        "user_name": user['name'], # Using 'name' from DB for 'user_name' claim
+                        "email": user['email'],
+                        "is_admin": user.get('is_admin', False) # Safely get 'is_admin', defaulting to False
+                    }
+
+                    access_token = create_access_token(
+                        identity=user['email'],
+                        additional_claims=additional_claims
+                    )
+                    refresh_token = create_refresh_token(
+                        identity=user['email'],
+                        additional_claims=additional_claims # Also add claims to refresh token for consistency
+                    )
+
+                    landing_url = app.config.get('LANDING_SERVICE_URL', '/')
+
+                    # Redirect directly to the landing URL without appending the token.
+                    # The tokens are already set in HTTP-only cookies in the response.
+                    response = redirect(landing_url)
+
+                    set_access_cookies(response, access_token)
+                    set_refresh_cookies(response, refresh_token)
+
+                    flash('Inicio de sesión exitoso.', 'success')
+                    app_logger.info(f"User {username} logged in successfully, redirecting to {landing_url}.")
+                    return response
+                else:
+                    app_logger.warning(f"Login failed for {username}: Incorrect password.")
+                    flash('Usuario o contraseña incorrectos.', 'danger')
                     return render_template('login.html', username=username)
-
-                landing_url = app.config.get('LANDING_SERVICE_URL', '/')
-                
-                # Redirect directly to the landing URL without appending the token.
-                # The tokens are already set in HTTP-only cookies in the response.
-                response = redirect(landing_url)
-                
-                set_access_cookies(response, access_token)
-                set_refresh_cookies(response, refresh_token)
-
-                flash('Inicio de sesión exitoso.', 'success')
-                app_logger.info(f"User {username} logged in successfully, redirecting to {landing_url}.")
-                return response
             else:
+                app_logger.warning(f"Login failed: User {username} not found in DB.")
                 flash('Usuario o contraseña incorrectos.', 'danger')
                 return render_template('login.html', username=username)
 
@@ -432,7 +430,7 @@ def login():
         finally:
             if conn:
                 conn.close()
-    
+
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -544,7 +542,7 @@ def logout():
 @jwt_required()
 def get_user_info():
     app_logger.info("GET /get_user_info called")
-    
+
     current_user_email = get_jwt_identity()
     if not current_user_email:
         app_logger.warning("JWT is valid but no identity found.")
@@ -572,7 +570,7 @@ def get_user_info():
         cur.execute("SELECT id, email, name FROM users WHERE email = %s", (current_user_email,))
         user_data = cur.fetchone()
         cur.close()
-        
+
         if user_data:
             app_logger.info(f"User info retrieved from database for {current_user_email}")
             return jsonify({
@@ -583,7 +581,7 @@ def get_user_info():
         else:
             app_logger.warning(f"User data not found in DB for email: {current_user_email}")
             return jsonify({"error": "User not found"}), 404
-            
+
     except Exception as e:
         app_logger.error(f"Error fetching user info for {current_user_email} from DB: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
@@ -596,17 +594,17 @@ def get_user_info():
 def refresh_access():
     current_user = get_jwt_identity()
     app_logger.info(f"Attempting to refresh access token for {current_user}.")
-    
+
     conn = get_db_connection()
     additional_claims = {}
-    
+
     if conn:
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
             cur.execute("SELECT id, email, name FROM users WHERE email = %s", (current_user,))
             user_data = cur.fetchone()
             cur.close()
-            
+
             if user_data:
                 additional_claims = {
                     "user_id": user_data['id'],
@@ -617,12 +615,12 @@ def refresh_access():
             app_logger.error(f"Error fetching user data for token refresh: {e}")
         finally:
             conn.close()
-    
+
     new_access_token = create_access_token(
         identity=current_user,
         additional_claims=additional_claims
     )
-    
+
     response = jsonify({
         "message": "Token refreshed successfully",
         "access_token": new_access_token
@@ -631,42 +629,6 @@ def refresh_access():
     app_logger.info(f"Access token refreshed for {current_user}.")
     return response
 
-@app.route('/health')
-def health_check():
-    health_status = {
-        'status': 'healthy',
-        'service': 'login-service',
-        'timestamp': datetime.now(timezone.utc).isoformat()
-    }
-    status_code = 200
-
-    try:
-        conn = get_db_connection()
-        if conn:
-            cur = conn.cursor()
-            cur.execute("SELECT 1")
-            cur.close()
-            conn.close()
-            health_status['database'] = 'connected'
-        else:
-            health_status['database'] = 'disconnected'
-            status_code = 500
-    except Exception as e:
-        health_status['database'] = f'error: {str(e)}'
-        app_logger.error(f"Health check: Database error: {e}", exc_info=True)
-        status_code = 500
-
-    try:
-        get_secret_value(app.config['JWT_SECRET_MANAGER_NAME'],
-                         app.config['GCP_PROJECT_ID'])
-        health_status['jwt_secret_manager'] = 'accessible'
-    except Exception:
-        health_status['jwt_secret_manager'] = 'unreachable or secret missing'
-        status_code = 500
-
-    return health_status, status_code
-
-@app.route('/startup')
 def startup_check():
     db_connected = False
     try:
@@ -819,6 +781,157 @@ with app.app_context():
     setup_jwt_secret() # Ensure JWT_SECRET_KEY is loaded before JWTManager initialization
     jwt.init_app(app) # Initialize JWTManager with the app after config is loaded
 
+# Step 1: Add debug logging to both services
+
+# LOGIN SERVICE (main.py) - Add this after setup_jwt_secret()
+def debug_jwt_secret():
+    secret = app.config.get('JWT_SECRET_KEY', 'NOT SET')
+    app_logger.info(f"LOGIN SERVICE JWT Secret length: {len(secret)}")
+    app_logger.info(f"LOGIN SERVICE JWT Secret hash: {hash(secret)}")
+    app_logger.info(f"LOGIN SERVICE JWT Secret first 10 chars: {secret[:10]}...")
+    
+# Call this in your with app.app_context() block in main.py
+debug_jwt_secret()
+
+# LANDING SERVICE (app.py) - Add this after setup_jwt_secret()
+def debug_jwt_secret():
+    secret = app.config.get('JWT_SECRET_KEY', 'NOT SET')
+    app_logger.info(f"LANDING SERVICE JWT Secret length: {len(secret)}")
+    app_logger.info(f"LANDING SERVICE JWT Secret hash: {hash(secret)}")
+    app_logger.info(f"LANDING SERVICE JWT Secret first 10 chars: {secret[:10]}...")
+
+# Call this in your with app.app_context() block in app.py
+debug_jwt_secret()
+
+# Step 2: Enhanced JWT secret setup for both services
+def setup_jwt_secret_enhanced():
+    """Enhanced JWT secret setup with detailed logging"""
+    app_logger.info("=== JWT SECRET SETUP START ===")
+    
+    # Method 1: Environment variable
+    jwt_secret_key = os.environ.get('JWT_SECRET_KEY')
+    if jwt_secret_key:
+        app.config['JWT_SECRET_KEY'] = jwt_secret_key
+        app_logger.info(f"✓ Using JWT_SECRET_KEY from environment variable (length: {len(jwt_secret_key)})")
+        return
+    
+    # Method 2: Secret Manager
+    secret_name = app.config.get('JWT_SECRET_MANAGER_NAME', 'jwt-secret-key')
+    project_id = app.config.get('GCP_PROJECT_ID')
+    
+    app_logger.info(f"Attempting to retrieve secret: {secret_name} from project: {project_id}")
+    
+    if not project_id:
+        app_logger.critical("❌ GCP_PROJECT_ID not set and JWT_SECRET_KEY not provided")
+        sys.exit(1)
+    
+    try:
+        retrieved_secret = get_secret_value(secret_name, project_id)
+        app.config['JWT_SECRET_KEY'] = retrieved_secret
+        app_logger.info(f"✓ JWT_SECRET_KEY from Secret Manager (length: {len(retrieved_secret)})")
+        app_logger.info(f"✓ Secret name: {secret_name}, Project: {project_id}")
+        app_logger.info("=== JWT SECRET SETUP COMPLETE ===")
+    except Exception as e:
+        app_logger.critical(f"❌ Failed to retrieve JWT_SECRET_KEY: {e}")
+        sys.exit(1)
+
+# Step 3: Create a test endpoint to verify JWT secrets match
+@app.route('/debug/jwt-secret-info')
+def debug_jwt_secret_info():
+    """Debug endpoint to check JWT secret configuration"""
+    if is_production:
+        return "Debug endpoint disabled in production", 403
+    
+    secret = app.config.get('JWT_SECRET_KEY', 'NOT SET')
+    return jsonify({
+        'service': 'LOGIN_SERVICE',  # Change this to 'LANDING_SERVICE' in app.py
+        'secret_length': len(secret),
+        'secret_hash': hash(secret),
+        'secret_preview': secret[:10] + '...' if len(secret) > 10 else secret,
+        'secret_source': 'env_var' if os.environ.get('JWT_SECRET_KEY') else 'secret_manager',
+        'secret_manager_name': app.config.get('JWT_SECRET_MANAGER_NAME'),
+        'project_id': app.config.get('GCP_PROJECT_ID')
+    })
+
+# Step 4: Enhanced token creation logging in LOGIN SERVICE
+def create_token_with_debug(user_email, additional_claims):
+    """Create token with debug logging"""
+    app_logger.info(f"=== TOKEN CREATION START ===")
+    app_logger.info(f"Creating token for user: {user_email}")
+    app_logger.info(f"Additional claims: {additional_claims}")
+    
+    secret = app.config.get('JWT_SECRET_KEY')
+    app_logger.info(f"Using secret (hash): {hash(secret)}")
+    
+    access_token = create_access_token(
+        identity=user_email,
+        additional_claims=additional_claims
+    )
+    
+    app_logger.info(f"Created token preview: {access_token[:50]}...")
+    app_logger.info(f"=== TOKEN CREATION COMPLETE ===")
+    return access_token
+
+# Step 5: Enhanced token verification logging in LANDING SERVICE
+@app.route('/debug/token-verify')
+@jwt_required()
+def debug_token_verify():
+    """Debug token verification"""
+    if is_production:
+        return "Debug endpoint disabled in production", 403
+    
+    try:
+        identity = get_jwt_identity()
+        claims = get_jwt()
+        secret = app.config.get('JWT_SECRET_KEY')
+        
+        return jsonify({
+            'verification_status': 'SUCCESS',
+            'identity': identity,
+            'claims': claims,
+            'secret_hash': hash(secret),
+            'service': 'LANDING_SERVICE'
+        })
+    except Exception as e:
+        return jsonify({
+            'verification_status': 'FAILED',
+            'error': str(e),
+            'service': 'LANDING_SERVICE'
+        })
+
+# Step 6: Temporary hardcoded secret for testing
+# Add this to BOTH services for immediate testing
+def set_temporary_shared_secret():
+    """TEMPORARY: Set the same hardcoded secret for both services"""
+    TEMP_SECRET = "shared-secret-for-testing-12345"
+    app.config['JWT_SECRET_KEY'] = TEMP_SECRET
+    app_logger.warning(f"⚠️ USING TEMPORARY HARDCODED SECRET: {TEMP_SECRET}")
+    app_logger.warning("⚠️ REMOVE THIS BEFORE PRODUCTION DEPLOYMENT")
+
+# Step 7: Environment variable verification
+def verify_environment():
+    """Verify critical environment variables"""
+    required_vars = ['GCP_PROJECT_ID', 'JWT_SECRET_MANAGER_NAME']
+    optional_vars = ['JWT_SECRET_KEY']
+    
+    app_logger.info("=== ENVIRONMENT VERIFICATION ===")
+    
+    for var in required_vars:
+        value = os.environ.get(var)
+        if value:
+            app_logger.info(f"✓ {var}: {value}")
+        else:
+            app_logger.error(f"❌ {var}: NOT SET")
+    
+    for var in optional_vars:
+        value = os.environ.get(var)
+        if value:
+            app_logger.info(f"✓ {var}: SET (length: {len(value)})")
+        else:
+            app_logger.info(f"○ {var}: NOT SET (will use Secret Manager)")
+    
+    app_logger.info("=== ENVIRONMENT VERIFICATION COMPLETE ===")
+
 # Initialize CloudRunServiceClient for landing service globally after app config
 landing_service_url = app.config.get('LANDING_SERVICE_URL')
 if landing_service_url:
@@ -836,3 +949,32 @@ if __name__ == '__main__':
     debug_mode = not is_production
     app_logger.info(f"Starting Flask app on port {port}, debug={debug_mode}, Production: {is_production}")
     app.run(host='0.0.0.0', port=port, debug=debug_mode, threaded=True)
+# --- Server-to-Server Communication Helper ---
+def call_landing_service(endpoint, method='GET', data=None, access_token=None):
+    """
+    Make authenticated requests to the landing service
+    """
+    landing_url = current_app.config.get('LANDING_SERVICE_URL')
+    if not landing_url:
+        app_logger.error("LANDING_SERVICE_URL not configured.")
+        return None
+
+    if not endpoint.startswith('/'):
+        endpoint = '/' + endpoint
+    full_url = landing_url.rstrip('/') + endpoint
+
+    headers = {
+        'Content-Type': 'application/json',
+        'User-Agent': 'LoginService/1.0'
+    }
+
+    if access_token:
+        headers['Authorization'] = f'Bearer {access_token}'
+
+    try:
+        response = requests.request(method.upper(), full_url, headers=headers, json=data, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        app_logger.error(f"Failed to call landing service at {full_url}: {e}")
+        return None
