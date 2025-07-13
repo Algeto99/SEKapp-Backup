@@ -121,6 +121,9 @@ def configure_app():
     app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL')
     app_logger.info(f"Raw LOGIN_SERVICE_URL env: {os.environ.get('LOGIN_SERVICE_URL')}")
 
+    app.config['FORMS_SERVICE_URL'] = os.environ.get('FORMS_SERVICE_URL')
+    app_logger.info(f"Raw FORMS_SERVICE_URL env: {os.environ.get('FORMS_SERVICE_URL')}")
+
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_COOKIE_SECURE'] = is_production
     app.config['JWT_COOKIE_CSRF_PROTECT'] = True
@@ -226,8 +229,15 @@ def index():
             app_logger.info("No valid JWT claims found; user not logged in.")
     except Exception as e:
         app_logger.warning(f"Could not get JWT identity: {e}")
-    # Always pass user_name to the template, even if None
-    return render_template('index.html', user_email=user_email, user_name=user_name)
+    # Always pass user_name and service URLs to the template, even if None
+    return render_template(
+        'index.html',
+        user_email=user_email,
+        user_name=user_name,
+        FORMS_SERVICE_URL=app.config.get('FORMS_SERVICE_URL'),
+        LOGIN_SERVICE_URL=app.config.get('LOGIN_SERVICE_URL'),
+        DASHBOARD_SERVICE_URL=app.config.get('DASHBOARD_SERVICE_URL')
+    )
 
 @app.route('/user_info', methods=['GET'])
 @jwt_required()

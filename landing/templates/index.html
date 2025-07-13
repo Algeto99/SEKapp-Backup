@@ -145,7 +145,7 @@
     <script>
         // Service URLs populated by Flask
         const LOGIN_SERVICE_URL = "{{ LOGIN_SERVICE_URL }}";
-        const FORMS_SERVICE_URL = "{{ FORMS_SERVICE_URL }}";
+        const FORMS_SERVICE_URL = "{{ FORMS_SERVICE_URL if FORMS_SERVICE_URL else '' }}";
         const DASHBOARD_SERVICE_URL = "{{ DASHBOARD_SERVICE_URL }}";
 
         // User data populated by Flask
@@ -187,7 +187,7 @@
             e.preventDefault();
             console.log('Logging out...');
             if (LOGIN_SERVICE_URL) {
-                window.location.href = LOGIN_SERVICE_URL + '/logout';
+                window.location.href = LOGIN_SERVICE_URL;
             } else {
                 console.error('LOGIN_SERVICE_URL not configured');
                 alert('Error: No se pudo cerrar sesión. URL de servicio no configurada.');
@@ -206,7 +206,7 @@
                 formsButton.addEventListener('click', function() {
                     console.log('Forms button clicked');
                     if (FORMS_SERVICE_URL) {
-                        window.location.href = FORMS_SERVICE_URL + '/report_form';
+                        window.location.href = FORMS_SERVICE_URL;
                     } else {
                         console.error('FORMS_SERVICE_URL not configured');
                         alert('Error: URL del servicio de formularios no configurada.');
