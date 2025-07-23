@@ -73,6 +73,7 @@
     {% endwith %}
 
     <form action="{{ url_for('register') }}" method="POST" class="space-y-6 text-left">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
           <label for="name" class="block text-sm font-medium mb-1">Nombre Completo:</label>
           <input type="text" id="name" name="name" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Tu nombre completo" value="{{ name or '' }}" />

@@ -124,6 +124,10 @@
                     Reporte de Incidencia
                 </button>
 
+                <button id="reports-button" class="base-button-style btn-primary-professional">
+                    Reportes
+                </button>
+
                 <button id="dashboard-button" class="base-button-style btn-primary-professional">
                     Reportes y Dashboard
                 </button>
@@ -147,6 +151,8 @@
         const LOGIN_SERVICE_URL = "{{ LOGIN_SERVICE_URL }}";
         const FORMS_SERVICE_URL = "{{ FORMS_SERVICE_URL if FORMS_SERVICE_URL else '' }}";
         const DASHBOARD_SERVICE_URL = "{{ DASHBOARD_SERVICE_URL }}";
+        // New: Viewer Service URL
+        const VIEWER_SERVICE_URL = "{{ VIEWER_SERVICE_URL if VIEWER_SERVICE_URL else '' }}"; //
 
         // User data populated by Flask
         const currentUserEmail = "{{ user_email if user_email else '' }}";
@@ -156,6 +162,7 @@
         const welcomeMessageElement = document.getElementById('welcome-message');
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
+        const reportsButton = document.getElementById('reports-button'); // Get reference to new button
         const logoutButton = document.getElementById('logout-button');
         const topBar = document.getElementById('topBar');
         const topBarLogoutLink = document.getElementById('topBarLogoutLink');
@@ -223,6 +230,19 @@
                     } else {
                         console.error('DASHBOARD_SERVICE_URL not configured');
                         alert('Error: URL del servicio de dashboard no configurada.');
+                    }
+                });
+            }
+
+            // New: Reports button
+            if (reportsButton) { //
+                reportsButton.addEventListener('click', function() { //
+                    console.log('Reports button clicked'); //
+                    if (VIEWER_SERVICE_URL) { //
+                        window.location.href = VIEWER_SERVICE_URL; //
+                    } else { //
+                        console.error('VIEWER_SERVICE_URL not configured'); //
+                        alert('Error: URL del servicio de reportes no configurada.'); //
                     }
                 });
             }

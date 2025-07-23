@@ -36,7 +36,8 @@
       {% if name %}
         <div class="flex items-center space-x-4">
           <span class="text-sm text-gray-600 dark:text-gray-300">Bienvenido, <strong class="font-medium">{{ name }}</strong></span>
-<!--      <a href="{{ dashboard_service_url }}" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Dashboard</a> -->
+          <a href="{{ dashboard_service_url }}" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Dashboard</a>
+          <a href="{{ viewer_service_url }}" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Reportes</a>
           <a href="{{ login_service_url }}/logout" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Cerrar Sesión</a>
         </div>
       {% endif %}
@@ -64,7 +65,7 @@
         {% endif %}
     {% endwith %}
 
-    <form action="/submit_report" method="POST" class="space-y-6">
+  <form action="/submit_report" method="POST" class="space-y-6" enctype="multipart/form-data">
       <div>
         <label for="tipo_incidencia" class="block text-sm font-medium mb-1">Tipo de Incidencia:</label>
         <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
@@ -151,8 +152,12 @@
       </div>
 
       <div>
-        <label for="imagenes_pdfs" class="block text-sm font-medium mb-1">Imágenes y PDFs (Rutas de archivos o URLs):</label>
-        <input type="text" id="imagenes_pdfs" name="imagenes_pdfs" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="imagenes_pdfs" class="block text-sm font-medium mb-1">Imágenes y PDFs:</label>
+        <label for="imagenes_pdfs" class="cursor-pointer inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-200 ease-in-out">
+          Seleccionar archivos
+        </label>
+        <input type="file" id="imagenes_pdfs" name="imagenes_pdfs" accept=".jpg,.jpeg,.png,.pdf" class="hidden" multiple onchange="document.getElementById('file-count').innerText = this.files.length + ' archivo(s) seleccionado(s)'">
+        <span id="file-count" class="ml-2 text-sm text-gray-600 dark:text-gray-300">Ningún archivo seleccionado</span>
       </div>
 
       <div>

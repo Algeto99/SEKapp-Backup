@@ -1,5 +1,7 @@
 import os
 import smtplib
+import socket
+import ssl # Keep this import, smtplib might implicitly use it
 import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -127,11 +129,16 @@ def configure_app():
         app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
         app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 
-        app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'mail.tzolkintech.com')
+        app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'tzolkintech.com')
         app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
-        app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME')
-        app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'no-reply@tzolkintech.com')
+        app.config['SENDER_EMAIL'] = os.environ.get('SENDER_EMAIL', 'no-reply@tzolkintech.com')
+        app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'rcanton@tzolkintech.com')
+        
+        # Ensure GCP_PROJECT_ID is loaded correctly
         app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT', os.environ.get('GOOGLE_CLOUD_PROJECT'))
+        if not app.config['GCP_PROJECT_ID']:
+            app_logger.warning("GCP_PROJECT_ID is not set. Secret Manager access may fail.")
+
         app.config['EMAIL_PASSWORD_SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
         app.config['JWT_SECRET_MANAGER_NAME'] = 'jwt-secret-key'
 
@@ -214,51 +221,112 @@ def get_db_connection():
 
 # --- Email Functions ---
 def get_email_password():
+    """
+    Retrieves the email password, prioritizing environment variable, then Secret Manager.
+    Logs errors if retrieval fails.
+    """
     password = os.environ.get('EMAIL_PASSWORD')
     if password:
         app_logger.info("Using email password from environment variable.")
+        # --- TEMPORARY DEBUGGING LINE ---
+        app_logger.info(f"DEBUG: Email password from env: {password[:2]}****{password[-2:]}") # Mask most of it
+        # --- END TEMPORARY DEBUGGING LINE ---
         return password
+    
+    # If not in env, try Secret Manager
+    project_id = app.config.get('GCP_PROJECT_ID')
+    secret_name = app.config.get('EMAIL_PASSWORD_SECRET_NAME')
+    
+    if not project_id:
+        app_logger.error("GCP_PROJECT_ID is not configured. Cannot retrieve email password from Secret Manager.")
+        return None
+    if not secret_name:
+        app_logger.error("EMAIL_PASSWORD_SECRET_NAME is not configured. Cannot retrieve email password from Secret Manager.")
+        return None
+
     try:
-        return get_secret_value(app.config['EMAIL_PASSWORD_SECRET_NAME'],
-                                app.config['GCP_PROJECT_ID'])
+        # Use app.app_context() to ensure app.config is available when called from outside request context
+        with app.app_context(): 
+            secret_value = get_secret_value(secret_name, project_id)
+        app_logger.info("Successfully retrieved email password from Secret Manager.")
+        # --- TEMPORARY DEBUGGING LINE ---
+        if secret_value:
+            app_logger.info(f"DEBUG: Email password from Secret Manager: {secret_value[:2]}****{secret_value[-2:]}") # Mask most of it
+        # --- END TEMPORARY DEBUGGING LINE ---
+        return secret_value
     except Exception as e:
-        app_logger.warning(f"Could not retrieve email password: {e}")
+        app_logger.warning(f"Could not retrieve email password from Secret Manager: {e}", exc_info=True)
         return None
 
 def send_email(to_email, subject, body, is_html=False):
-    email_username = app.config.get('EMAIL_USERNAME')
-    email_password = get_email_password()
+    """
+    Sends an email via SMTP.
+    Includes robust error handling and logs.
+    """
+    email_username = app.config.get('SENDER_EMAIL')
     smtp_server = app.config.get('SMTP_SERVER')
     smtp_port = app.config.get('SMTP_PORT')
-    if not all([email_username, email_password, smtp_server, smtp_port]):
-        app_logger.warning("Email configuration incomplete - skipping email send.")
-        return False
-    app_logger.info(f"Attempting to send email to {to_email}.")
-    msg = MIMEMultipart()
-    msg['From'] = email_username
-    msg['To'] = to_email
-    msg['Subject'] = subject
+    
+    # Get password directly before sending the email to ensure it's available
+    email_password = get_email_password() 
 
-    if is_html:
-        msg.attach(MIMEText(body, 'html'))
-    else:
-        msg.attach(MIMEText(body, 'plain'))
+    if not all([email_username, email_password, smtp_server, smtp_port]):
+        app_logger.error(f"Email configuration incomplete. Missing: "
+                         f"sender_email={bool(email_username)}, "
+                         f"password={bool(email_password)}, "
+                         f"smtp_server={bool(smtp_server)}, "
+                         f"smtp_port={bool(smtp_port)}. Skipping email send to {to_email}.")
+        # Use flash to notify the user if this is a web request
+        if request:
+            flash("Error en la configuración de envío de email. Contacte al administrador.", "danger")
+        return False
+    
+    app_logger.info(f"Attempting to send email to {to_email} via {smtp_server}:{smtp_port} from {email_username}.")
     try:
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
-            server.starttls()
-            server.login(email_username, email_password)
-            server.sendmail(email_username, to_email, msg.as_string())
-        app_logger.info(f"Email sent successfully to {to_email}.")
+        msg = MIMEMultipart()
+        msg['From'] = email_username
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
+
+        # --- RESTORED PART (NO EXPLICIT SSL CONTEXT) ---
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10) 
+        server.starttls()
+        # --- END RESTORED PART ---
+
+        server.login(email_username, email_password)
+        server.send_message(msg)
+        server.quit()
+        app_logger.info(f"Email sent successfully to {to_email}.") # Use app_logger here
         return True
+
+    except smtplib.SMTPAuthenticationError:
+        app_logger.error(f"SMTP Authentication Error: Check sender email/password for {email_username}.", exc_info=True)
+        if request:
+            flash("Error de autenticación de email. Contacte al administrador.", "danger")
+        return False
+    except smtplib.SMTPServerDisconnected:
+        app_logger.error(f"SMTP Server Disconnected: Server {smtp_server}:{smtp_port} disconnected unexpectedly.", exc_info=True)
+        if request:
+            flash("El servidor de email no está disponible. Intente de nuevo más tarde.", "danger")
+        return False
+    except socket.timeout:
+        app_logger.error(f"SMTP Connection Timeout: Could not connect to {smtp_server}:{smtp_port}.", exc_info=True)
+        if request:
+            flash("Tiempo de espera agotado al conectar con el servidor de email.", "danger")
+        return False
     except Exception as e:
-        app_logger.error(f"Email send error to {to_email}: {e}", exc_info=True)
+        app_logger.error(f"An unexpected error occurred while sending email to {to_email}: {e}", exc_info=True)
+        if request:
+            flash(f"Error al enviar email: {e}", "danger")
         return False
 
 def send_registration_notification(user_email, user_name, phone_number):
     admin_email = app.config.get('ADMIN_EMAIL')
     if not admin_email:
         app_logger.warning("ADMIN_EMAIL not configured - skipping admin notification.")
-        return True
+        # Even if admin email is not configured, we should still try to send user welcome email
+        return send_welcome_email(user_email, user_name)
 
     subject = f"Nuevo Usuario Registrado - {user_name}"
     html_body = f"""
@@ -277,14 +345,19 @@ def send_registration_notification(user_email, user_name, phone_number):
     </html>
     """
     admin_result = send_email(admin_email, subject, html_body, is_html=True)
-    user_result = send_email(user_email, f"Confirmación de Registro - {user_name}", html_body, is_html=True)
+    user_result = send_welcome_email(user_email, user_name) # Call welcome email separately
     return admin_result and user_result
 
 def send_welcome_email(user_email, user_name):
     subject = "¡Bienvenido a SMT SecApp!"
-    login_url = app.config.get('LOGIN_SERVICE_URL', url_for('login', _external=True))
-    if not login_url.startswith('http'):
-        login_url = url_for('login', _external=True)
+    # Ensure login_url is always absolute for external email links
+    login_url = app.config.get('LOGIN_SERVICE_URL') 
+    if not login_url:
+        # Fallback to current app's login URL if LOGIN_SERVICE_URL isn't explicitly set
+        with app.app_context(): # Ensure we are in an app context for url_for
+            login_url = url_for('login', _external=True)
+        app_logger.warning(f"LOGIN_SERVICE_URL not set, falling back to {login_url} for welcome email.")
+
     html_body = f"""
     <html>
     <body style="font-family: Arial, sans-serif; color: #333;">
@@ -424,7 +497,7 @@ def login():
                 cookie_value = response.headers.get('Set-Cookie', None)
                 app_logger.info(f"Set-Cookie header after login: {cookie_value}")
 
-                flash('Inicio de sesión exitoso.', 'success')
+                flash('Bienvenido Cliente.', 'success')
                 app_logger.info(f"User {username} logged in successfully, redirecting to {landing_url}.")
                 return response
             else:
@@ -442,35 +515,33 @@ def login():
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
-@csrf.exempt  # Exempt to support original register.html without CSRF token
 def register():
-    email = request.form.get('email', '')
-    name = request.form.get('name', '')
-    phone_number = request.form.get('phone_number', '')
-
     if request.method == 'POST':
+        email = request.form.get('email', '')
+        name = request.form.get('name', '')
+        phone_number = request.form.get('phone_number', '')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not all([email, name, password, confirm_password]):
-            flash('Todos los campos obligatorios son requeridos.', 'warning')
+        if not all([email, name, password, confirm_password]): # phone_number is optional
+            flash('Los campos de Email, Nombre y Contraseña son requeridos.', 'warning')
             return render_template('register.html', email=email, name=name,
-                                   phone_number=phone_number)
+                                    phone_number=phone_number)
 
         if not validate_email(email):
             flash('Correo electrónico inválido.', 'warning')
             return render_template('register.html', email=email, name=name,
-                                   phone_number=phone_number)
+                                    phone_number=phone_number)
 
         if not validate_password(password):
             flash('La contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas y números.', 'warning')
             return render_template('register.html', email=email, name=name,
-                                   phone_number=phone_number)
+                                    phone_number=phone_number)
 
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
             return render_template('register.html', email=email, name=name,
-                                   phone_number=phone_number)
+                                    phone_number=phone_number)
 
         name = sanitize_input(name)
         phone_number = sanitize_input(phone_number) if phone_number else None
@@ -479,31 +550,37 @@ def register():
         if not conn:
             flash('Error de conexión a la base de datos.', 'danger')
             return render_template('register.html', email=email, name=name,
-                                   phone_number=phone_number)
+                                    phone_number=phone_number)
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
             try:
-                cur.execute("SELECT id FROM authorized_emails WHERE email = %s AND is_active = TRUE", (email,))
-                authorized_email_entry = cur.fetchone()
-                if not authorized_email_entry:
-                    flash('No estás autorizado para registrarte. Contacta al administrador.', 'danger')
-                    return render_template('register.html', email=email, name=name,
-                                           phone_number=phone_number)
-            except psycopg2.Error as e:
-                if "does not exist" in str(e).lower():
-                    app_logger.warning("authorized_emails table does not exist - skipping authorization check.")
-                    conn.rollback()
+                # Check for authorized email if table exists
+                cur.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'authorized_emails'")
+                if cur.fetchone(): # Table exists
+                    cur.execute("SELECT id FROM authorized_emails WHERE email = %s AND is_active = TRUE", (email,))
+                    authorized_email_entry = cur.fetchone()
+                    if not authorized_email_entry:
+                        flash('No estás autorizado para registrarte. Contacta al administrador.', 'danger')
+                        return render_template('register.html', email=email, name=name,
+                                                phone_number=phone_number)
                 else:
-                    app_logger.error(f"Database error during authorization check: {e}", exc_info=True)
-                    raise e
+                    app_logger.warning("authorized_emails table does not exist - skipping authorization check for registration.")
+            except psycopg2.Error as e:
+                app_logger.error(f"Database error during authorization table check: {e}", exc_info=True)
+                # Don't fail registration just for table check failure if it's not critical
+                # However, if the intent is strict authorization, you might want to re-raise or handle differently.
+                conn.rollback() # Rollback any potential partial operations
+                flash('Error de base de datos al verificar autorización.', 'danger')
+                return render_template('register.html', email=email, name=name, phone_number=phone_number)
+
 
             cur.execute("SELECT id FROM users WHERE email = %s", (email,))
             existing_user = cur.fetchone()
             if existing_user:
                 flash('Este correo electrónico ya está registrado.', 'danger')
                 return render_template('register.html', email=email, name=name,
-                                       phone_number=phone_number)
+                                        phone_number=phone_number)
 
             hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             cur.execute(
@@ -514,14 +591,42 @@ def register():
             conn.commit()
             cur.close()
 
-            email_issues = []
-            if not send_registration_notification(email, name, phone_number):
-                email_issues.append("notification")
-            if not send_welcome_email(email, name):
-                email_issues.append("welcome email")
+            # Separate flags for email sending results
+            admin_email_sent = True
+            welcome_email_sent = True
 
-            if email_issues:
-                flash(f'Registro exitoso! Nota: Algunos emails no se pudieron enviar.', 'warning')
+            # Send admin notification email
+            admin_email = app.config.get('ADMIN_EMAIL')
+            if admin_email:
+                admin_subject = f"Nuevo Usuario Registrado - {name}"
+                admin_html_body = f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2563eb;">Nuevo Usuario Registrado - SMT SecApp</h2>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p><strong>Nombre:</strong> {name}</p>
+                <p><strong>Email:</strong> {email}</p>
+                <p><strong>Teléfono:</strong> {phone_number or 'No proporcionado'}</p>
+                <p><strong>Fecha de Registro:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')}</p>
+                </div>
+                </div>
+                </body>
+                </html>
+                """
+                admin_email_sent = send_email(admin_email, admin_subject, admin_html_body, is_html=True)
+                if not admin_email_sent:
+                    app_logger.error("Failed to send admin registration notification email.")
+            else:
+                app_logger.warning("ADMIN_EMAIL not configured, skipping admin registration notification.")
+
+            # Send welcome email to the user
+            welcome_email_sent = send_welcome_email(email, name)
+            if not welcome_email_sent:
+                app_logger.error("Failed to send welcome email to registered user.")
+
+            if not admin_email_sent or not welcome_email_sent:
+                flash('Registro exitoso! Nota: Hubo problemas al enviar algunas notificaciones por correo electrónico.', 'warning')
             else:
                 flash('Registro exitoso! Ahora puedes iniciar sesión.', 'success')
 
@@ -532,7 +637,7 @@ def register():
             app_logger.error(f"Registration error: {e}", exc_info=True)
             flash('Error durante el registro.', 'danger')
             return render_template('register.html', email=email, name=name,
-                                   phone_number=phone_number)
+                                phone_number=phone_number)
         finally:
             if conn:
                 conn.close()
@@ -725,8 +830,46 @@ def debug_config():
         'landing_service_url': app.config.get('LANDING_SERVICE_URL'),
         'jwt_cookie_secure': app.config.get('JWT_COOKIE_SECURE'),
         'jwt_cookie_samesite': app.config.get('JWT_COOKIE_SAMESITE'),
-        'cors_configured': 'CORS configured' if app.config.get('LANDING_SERVICE_URL') else 'CORS not configured'
+        'cors_configured': 'CORS configured' if app.config.get('LANDING_SERVICE_URL') else 'CORS not configured',
+        'sender_email': app.config.get('SENDER_EMAIL'),
+        'smtp_server': app.config.get('SMTP_SERVER'),
+        'smtp_port': app.config.get('SMTP_PORT'),
+        'admin_email': app.config.get('ADMIN_EMAIL'),
+        'gcp_project_id': app.config.get('GCP_PROJECT_ID'),
+        'email_password_secret_name': app.config.get('EMAIL_PASSWORD_SECRET_NAME'),
+        'jwt_secret_manager_name': app.config.get('JWT_SECRET_MANAGER_NAME'),
+        'flask_secret_key_set': bool(app.config.get('SECRET_KEY'))
     })
+
+# Add this temporary route for debugging SMTP connectivity
+@app.route('/debug/smtp_connectivity')
+def debug_smtp_connectivity():
+    if is_production:
+        return "Debug endpoint disabled in production", 403
+
+    smtp_server = app.config.get('SMTP_SERVER')
+    smtp_port = app.config.get('SMTP_PORT')
+    timeout_seconds = 5 # Shorter timeout for quick test
+
+    if not smtp_server or not smtp_port:
+        return jsonify({"status": "error", "message": "SMTP server or port not configured."}), 500
+
+    try:
+        app_logger.info(f"Attempting raw TCP connection to {smtp_server}:{smtp_port} with timeout {timeout_seconds}s...")
+        sock = socket.create_connection((smtp_server, smtp_port), timeout=timeout_seconds)
+        sock.close()
+        app_logger.info(f"Successfully established TCP connection to {smtp_server}:{smtp_port}.")
+        return jsonify({"status": "success", "message": f"Successfully connected to {smtp_server}:{smtp_port}."}), 200
+    except socket.timeout:
+        app_logger.error(f"TCP connection to {smtp_server}:{smtp_port} timed out after {timeout_seconds}s.")
+        return jsonify({"status": "error", "message": f"Connection to {smtp_server}:{smtp_port} timed out."}), 500
+    except ConnectionRefusedError:
+        app_logger.error(f"TCP connection to {smtp_server}:{smtp_port} refused. Firewall/Service not running?")
+        return jsonify({"status": "error", "message": f"Connection to {smtp_server}:{smtp_port} refused. Check firewall or if SMTP service is running."}), 500
+    except Exception as e:
+        app_logger.error(f"Error connecting to {smtp_server}:{smtp_port}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": f"Unexpected error: {str(e)}."}), 500
+
 
 @app.route('/debug/token-validate')
 def debug_token_validate():
@@ -793,7 +936,7 @@ def debug_jwt():
         'current_user': current_user,
         'jwt_claims': jwt_data,
         'token_type': jwt_data.get('type'),
-        'expires_at': jwt_data.get('exp')
+        'expires_at': datetime.fromtimestamp(jwt_data.get('exp'), tz=timezone.utc).isoformat() if jwt_data.get('exp') else None
     })
 
 @app.before_request

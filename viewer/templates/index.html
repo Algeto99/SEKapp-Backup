@@ -3,214 +3,532 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecApp Form Viewer</title>
-    <!-- Tailwind CSS CDN for styling -->
+    <title>Visor de Reportes</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Font for Inter, consistent with your application's design -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Custom styles specifically for print view to ensure clean output */
+        .report-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .report-content.expanded {
+            max-height: 1000px; /* Adjust as needed to accommodate content */
+            transition: max-height 0.5s ease-in;
+        }
+
+        /* Print-specific styles for better isolation */
         @media print {
-            body {
-                /* Ensures background colors and images are printed */
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            /* Hide elements not needed for printing (e.g., navigation, controls) */
-            .no-print {
+            /* Hide sidebar, header, flash messages, and load more button */
+            aside,
+            h1,
+            .flash-message,
+            #load-more-container,
+            #multi-select-controls { /* Hide multi-select controls */
                 display: none !important;
             }
-            /* Ensure the printed content takes full page width */
-            .print-container {
-                width: 100%;
-                margin: 0;
-                padding: 0;
+
+            /* Ensure the main content area is visible */
+            main {
+                visibility: visible !important;
+                position: static !important;
+                width: auto !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-sizing: border-box;
             }
-            /* Styling for form detail items in print */
-            .form-detail-item {
-                display: flex;
-                margin-bottom: 8px;
+
+            /* Hide all report blocks by default for printing */
+            .report-block {
+                display: none !important;
+                visibility: hidden !important; /* Ensure it's hidden */
             }
-            .form-detail-label {
-                font-weight: 600;
-                width: 150px; /* Adjust label width as needed for print layout */
-                flex-shrink: 0; /* Prevent label from shrinking */
+
+            /* Only show the report-details-for-print when printing */
+            .report-details-for-print {
+                display: block !important;
+                visibility: visible !important;
+                page-break-after: always; /* Ensure each report prints on a new page */
             }
-            .form-detail-value {
-                flex-grow: 1; /* Allow value to take remaining space */
-            }
-        }
-        /* Base font family for the entire application */
-        body {
-            font-family: 'Inter', sans-serif;
-            color: #333; /* Default text color */
         }
     </style>
 </head>
-<body class="min-h-screen bg-gray-100 flex flex-col font-sans text-gray-800">
-    <!-- Header Section: Consistent branding and navigation -->
-    <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 shadow-lg rounded-b-xl no-print">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-3xl font-bold">SecApp Form Viewer</h1>
-            <nav class="flex items-center space-x-6">
-                <!-- Displays the current authenticated user's identity -->
-                <span class="text-lg font-medium">Bienvenido, {{ current_user }}</span>
-                <!-- Logout button, redirects to the login service's logout endpoint -->
-                <a href="{{ url_for('logout') }}" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full shadow-md transition-all duration-200 transform hover:scale-105">
-                    Cerrar Sesión
-                </a>
+<body class="bg-gray-100 flex min-h-screen">
+    <aside class="w-64 bg-blue-900 shadow-md p-6 flex flex-col justify-between">
+        <div>
+            <div class="text-xl font-semibold text-white mb-6">SMT SecApp</div>
+            <nav>
+                <ul>
+                    <li class="mb-4">
+                        <a href="#" class="flex items-center text-blue-100 hover:text-white">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 0 001 1h3m10-11l2 2m0 0l7 7m-11 7v-3m0 0a2 2 0 100-4 2 2 0 000 4zm0 0h.01"></path></svg>
+                            Inicio
+                        </a>
+                    </li>
+                    <li class="mb-4">
+                        <a href="#" class="flex items-center text-blue-100 hover:text-white">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0h7m-7 0h2m-7 0z"></path></svg>
+                            Reportes
+                        </a>
+                    </li>
+                    <li class="mt-8 mb-4 border-t border-blue-700 pt-4">
+                        <div class="text-blue-100 font-medium mb-2">Bienvenido, {{ user_name }}</div>
+                    </li>
+                    <li class="mb-4">
+                        <a href="/logout" class="flex items-center text-red-300 hover:text-red-100">
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            Cerrar Sesión
+                        </a>
+                    </li>
+                    </ul>
             </nav>
         </div>
-    </header>
+        <div></div>
+    </aside>
 
-    <!-- Main Content Area: Divided into a left panel (form list) and a right panel (form details) -->
-    <main class="container mx-auto p-6 flex-grow grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
-        <!-- Left Panel: List of available forms -->
-        <div class="md:col-span-1 bg-white p-6 rounded-xl shadow-md border border-gray-200 no-print">
-            <h2 class="text-2xl font-semibold text-gray-900 mb-6 border-b pb-4">Formularios Disponibles</h2>
-            <ul class="space-y-4">
-                {% if forms %}
-                    <!-- Loop through the forms data passed from Flask -->
-                    {% for form in forms %}
-                        <li>
-                            <!-- Button to select a form and display its details -->
-                            <button
-                                onclick="showFormDetails('{{ form.id }}')"
-                                id="form-button-{{ form.id }}"
-                                class="w-full text-left p-4 rounded-lg transition-all duration-200 bg-gray-50 hover:bg-blue-100 hover:shadow-md text-gray-800"
-                            >
-                                <h3 class="text-lg font-medium">{{ form.title }}</h3>
-                                <p class="text-sm text-gray-600">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}</p>
-                            </button>
-                        </li>
+    <main class="flex-1 p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Visor de Reportes de Incidencias</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4 flash-message">
+                    {% for category, message in messages %}
+                        <div class="p-3 rounded-md {% if category == 'success' %}bg-green-100 text-green-800{% elif category == 'error' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                            {{ message }}
+                        </div>
                     {% endfor %}
-                {% else %}
-                    <p class="text-gray-600 text-center py-8">No se encontraron formularios.</p>
-                {% endif %}
-            </ul>
-        </div>
+                </div>
+            {% endif %}
+        {% endwith %}
 
-        <!-- Right Panel: Displays details of the selected form -->
-        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md border border-gray-200">
-            <div class="flex justify-between items-center mb-6 border-b pb-4 no-print">
-                <h2 class="text-2xl font-semibold text-gray-900">Seleccione un Formulario para Ver</h2>
-                <!-- Print button, initially hidden, shown when a form is selected -->
-                <button
-                    onclick="window.print()"
-                    id="print-button"
-                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 hidden"
-                >
-                    <!-- SVG icon for print -->
-                    <svg class="inline-block w-5 h-5 mr-2 -mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m0 0v1a2 2 0 002 2h4a2 2 0 002-2v-1m-4-8a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V7z"></path></svg>
-                    Imprimir Formulario
+        <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex items-center justify-between">
+            <div>
+                <input type="checkbox" id="select-all-checkbox" class="mr-2 h-4 w-4 text-blue-600 rounded">
+                <label for="select-all-checkbox" class="text-gray-700 font-medium">Seleccionar Todos</label>
+            </div>
+            <div class="space-x-4">
+                <button id="print-selected-button" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Imprimir Seleccionados
+                </button>
+                <button id="save-pdf-button" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Guardar Seleccionados como PDF
+                </button>
+                <button id="email-selected-button" class="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Enviar por Correo Electrónico
                 </button>
             </div>
+        </div>
 
-            <div id="form-details-content" class="form-details-container p-4">
-                <!-- Initial placeholder message when no form is selected -->
-                <div class="text-center py-20 text-gray-500">
-                    <!-- SVG icon for document -->
-                    <svg class="mx-auto h-20 w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    <p class="mt-4 text-lg">Elija un formulario del panel izquierdo para ver sus detalles aquí.</p>
+        <div id="reports-container" class="space-y-6">
+            {% for form in forms %}
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="{{ form.id }}">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> {{ form.data['Título de Incidencia'] if form.data['Título de Incidencia'] else 'No especificado' }}</p>
+                        <p><strong>Lugar del Incidente:</strong> {{ form.data['Lugar del Incidente'] if form.data['Lugar del Incidente'] else 'No especificado' }}</p>
+                        <p><strong>Fecha del Incidente:</strong> {{ form.data['Fecha del Incidente'] if form.data['Fecha del Incidente'] else 'No especificado' }}</p>
+                    </div>
+                    
+                    <button class="toggle-details-button px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none" data-report-id="{{ form.id }}">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-{{ form.id }}" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
                 </div>
-            </div>
+            {% endfor %}
+        </div>
+
+        <div id="load-more-container" class="text-center mt-8 {% if total_reports <= forms|length %}hidden{% endif %}">
+            <button id="load-more-button" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none">
+                Cargar Más Reportes ({{ total_reports - forms|length }} restantes)
+            </button>
         </div>
     </main>
 
-    <!-- Footer Section -->
-    <footer class="bg-gray-800 text-white p-4 mt-8 rounded-t-xl shadow-inner no-print">
-        <div class="container mx-auto text-center text-sm">
-            &copy; {{ 2025 }} SecApp. Todos los derechos reservados.
+    <div id="email-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold mb-4">Enviar Reportes por Correo Electrónico</h2>
+            <form id="email-form">
+                <div class="mb-4">
+                    <label for="recipient-email" class="block text-gray-700 text-sm font-bold mb-2">Correo Electrónico del Destinatario:</label>
+                    <input type="email" id="recipient-email" name="recipient_email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="cancel-email-button" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Enviar</button>
+                </div>
+            </form>
+            <div id="email-status" class="mt-4 text-center hidden"></div>
         </div>
-    </footer>
+    </div>
+
 
     <script>
-        // Forms data passed from Flask (Jinja2 to JSON conversion).
-        // This makes the Python data available directly in JavaScript.
-        const forms = {{ forms | tojson }};
+        let offset = {{ forms|length }};
+        let limit = 10;
+        let totalReports = {{ total_reports }};
 
-        /**
-         * Dynamically updates the form details panel based on the selected form.
-         * @param {string} formId - The ID of the form to display.
-         */
-        function showFormDetails(formId) {
-            const selectedForm = forms.find(form => form.id === formId);
-            const detailsContainer = document.getElementById('form-details-content');
-            const printButton = document.getElementById('print-button');
-            // Select the H2 element in the right panel to update its title
-            const formTitleHeader = document.querySelector('.md\\:col-span-2 h2');
-
-            if (selectedForm) {
-                // Update the main title in the right panel to the selected form's title
-                formTitleHeader.textContent = selectedForm.title;
-
-                // Construct the HTML content for the form details
-                let htmlContent = `
-                    <h3 class="text-xl font-bold mb-4 text-center">${selectedForm.title}</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-6">
-                        <div class="form-detail-item">
-                            <span class="form-detail-label text-gray-600">ID del Formulario:</span>
-                            <span class="form-detail-value font-medium">${selectedForm.id}</span>
-                        </div>
-                        <div class="form-detail-item">
-                            <span class="form-detail-label text-gray-600">Enviado Por:</span>
-                            <span class="form-detail-value font-medium">${selectedForm.submittedBy}</span>
-                        </div>
-                        <div class="form-detail-item">
-                            <span class="form-detail-label text-gray-600">Fecha de Envío:</span>
-                            <span class="form-detail-value font-medium">${selectedForm.dateSubmitted}</span>
-                        </div>
-                    </div>
-
-                    <h4 class="text-lg font-semibold mt-6 mb-4 border-b pb-2">Datos del Formulario</h4>
-                    <div class="space-y-3">
-                `;
-
-                // Iterate over the form's data object and create detail rows
-                for (const key in selectedForm.data) {
-                    htmlContent += `
-                        <div class="form-detail-item bg-gray-50 p-3 rounded-md border border-gray-200">
-                            <span class="form-detail-label font-semibold text-gray-700">${key}:</span>
-                            <span class="form-detail-value text-gray-900">${selectedForm.data[key]}</span>
-                        </div>
-                    `;
-                }
-                htmlContent += `</div>`;
-
-                // Insert the generated HTML into the details container
-                detailsContainer.innerHTML = htmlContent;
-                // Show the print button once a form is selected
-                printButton.classList.remove('hidden');
-
-                // Update active button styling in the left panel
-                // Remove active styles from all buttons
-                document.querySelectorAll('.md\\:col-span-1 button').forEach(button => {
-                    button.classList.remove('bg-blue-500', 'text-white', 'shadow-lg', 'transform', 'scale-105');
-                    button.classList.add('bg-gray-50', 'hover:bg-blue-100', 'hover:shadow-md', 'text-gray-800');
-                    button.querySelector('p').classList.remove('text-blue-200'); // Reset text color for sub-text
-                    button.querySelector('p').classList.add('text-gray-600');
-                });
-                // Add active styles to the currently selected button
-                const activeButton = document.getElementById(`form-button-${formId}`);
-                if (activeButton) {
-                    activeButton.classList.add('bg-blue-500', 'text-white', 'shadow-lg', 'transform', 'scale-105');
-                    activeButton.classList.remove('bg-gray-50', 'hover:bg-blue-100', 'hover:shadow-md', 'text-gray-800');
-                    activeButton.querySelector('p').classList.add('text-blue-200'); // Set text color for sub-text
-                    activeButton.querySelector('p').classList.remove('text-gray-600');
-                }
-
-            } else {
-                // If form not found, display an error message and hide the print button
-                detailsContainer.innerHTML = `
-                    <div class="text-center py-20 text-gray-500">
-                        <svg class="mx-auto h-20 w-20 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <p class="mt-4 text-lg">Formulario no encontrado.</p>
+        // --- Utility Functions ---
+        function showFlashMessage(message, category) {
+            const flashContainer = document.querySelector('.flash-message');
+            if (flashContainer) {
+                flashContainer.innerHTML = `
+                    <div class="p-3 rounded-md ${category === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${message}
                     </div>
                 `;
-                formTitleHeader.textContent = 'Seleccione un Formulario para Ver'; // Reset title
-                printButton.classList.add('hidden'); // Ensure print button is hidden
+                flashContainer.style.display = 'block';
+                setTimeout(() => {
+                    flashContainer.style.display = 'none';
+                    flashContainer.innerHTML = ''; // Clear message
+                }, 5000); // Hide after 5 seconds
             }
         }
+
+        // --- Report Loading Functionality ---
+        async function loadMoreReports() {
+            const loadMoreButton = document.getElementById('load-more-button');
+            loadMoreButton.disabled = true;
+            loadMoreButton.textContent = 'Cargando...';
+
+            try {
+                const response = await fetch(`/api/reports?offset=${offset}&limit=${limit}`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout'; // Redirect to login if unauthorized
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                const reportsContainer = document.getElementById('reports-container');
+
+                data.reports.forEach(form => {
+                    const reportBlock = document.createElement('div');
+                    reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                    reportBlock.setAttribute('data-report-id', form.id);
+                    reportBlock.innerHTML = `
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                            </div>
+                            <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                        </div>
+                        <div class="text-gray-700 mb-4">
+                            <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                            <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                            <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                        </div>
+                        <button class="toggle-details-button px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none" data-report-id="${form.id}">
+                            Ver Detalles
+                        </button>
+                        <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                            <div id="details-${form.id}" class="text-gray-700">
+                                Cargando detalles...
+                            </div>
+                        </div>
+                    `;
+                    reportsContainer.appendChild(reportBlock);
+                });
+
+                offset += data.reports.length;
+                totalReports = data.total_count; // Update total reports count
+                checkLoadMoreButtonVisibility(); // Re-check visibility after new reports are loaded
+                attachEventListenersToNewReports(); // Attach listeners to new buttons
+                updateActionButtonsState(); // Update action buttons for new checkboxes
+                
+            } catch (error) {
+                console.error('Error loading more reports:', error);
+                showFlashMessage('Error al cargar más reportes. Intente de nuevo.', 'error');
+            } finally {
+                loadMoreButton.disabled = false;
+                loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
+            }
+        }
+
+        function checkLoadMoreButtonVisibility() {
+            const loadMoreContainer = document.getElementById('load-more-container');
+            if (loadMoreContainer) {
+                const currentDisplayedReports = document.querySelectorAll('.report-block').length;
+                if (currentDisplayedReports >= totalReports) {
+                    loadMoreContainer.style.display = 'none';
+                } else {
+                    loadMoreContainer.style.display = 'block';
+                    document.getElementById('load-more-button').textContent = `Cargar Más Reportes (${totalReports - currentDisplayedReports} restantes)`;
+                }
+            }
+        }
+
+        // --- Multi-select and Action Buttons Functionality ---
+        const selectAllCheckbox = document.getElementById('select-all-checkbox');
+        const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+        const printSelectedButton = document.getElementById('print-selected-button');
+        const savePdfButton = document.getElementById('save-pdf-button');
+        const emailSelectedButton = document.getElementById('email-selected-button');
+
+        function updateActionButtonsState() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            const isDisabled = checkedCheckboxes.length === 0;
+
+            printSelectedButton.disabled = isDisabled;
+            savePdfButton.disabled = isDisabled;
+            emailSelectedButton.disabled = isDisabled;
+
+            // Update "Select All" checkbox state
+            selectAllCheckbox.checked = checkedCheckboxes.length === document.querySelectorAll('.report-checkbox').length && document.querySelectorAll('.report-checkbox').length > 0;
+            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < document.querySelectorAll('.report-checkbox').length;
+        }
+
+        // Attach event listeners for existing checkboxes on initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateActionButtonsState);
+            });
+        });
+
+        // Function to attach event listeners to newly loaded reports (including initial load)
+        function attachEventListenersToNewReports() {
+            // Attach change listener to new checkboxes
+            document.querySelectorAll('.report-checkbox:not([data-listener-attached])').forEach(checkbox => {
+                checkbox.addEventListener('change', updateActionButtonsState);
+                checkbox.setAttribute('data-listener-attached', 'true'); // Mark as attached
+            });
+
+            // Attach click listener to new "Ver Detalles" buttons
+            document.querySelectorAll('.toggle-details-button:not([data-listener-attached])').forEach(button => {
+                button.addEventListener('click', toggleReportDetails);
+                button.setAttribute('data-listener-attached', 'true'); // Mark as attached
+            });
+        }
+
+        // Select All Checkbox
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', () => {
+                document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+                updateActionButtonsState();
+            });
+        }
+        
+        // --- "Ver Detalles" Functionality (Issue 1 Fix) ---
+        async function toggleReportDetails(event) {
+            const button = event.target;
+            const reportBlock = button.closest('.report-block');
+            const reportContent = reportBlock.querySelector('.report-content');
+            const detailsDiv = reportBlock.querySelector(`#details-${button.dataset.reportId}`);
+            const reportId = button.dataset.reportId;
+
+            if (reportContent.classList.contains('expanded')) {
+                reportContent.classList.remove('expanded');
+                button.textContent = 'Ver Detalles';
+                // Optionally clear content or reset to 'Cargando detalles...' if collapsing
+                detailsDiv.innerHTML = 'Cargando detalles...'; 
+            } else {
+                button.textContent = 'Cargando...';
+                try {
+                    const response = await fetch(`/api/report/${reportId}`);
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/logout';
+                            return;
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const reportDetails = await response.json();
+                    
+                    // Populate the detailsDiv with the fetched data
+                    let htmlContent = '';
+                    for (const [key, value] of Object.entries(reportDetails.data)) {
+                        const displayValue = value ? String(value).replace(/\n/g, '<br>') : 'No especificado';
+                        
+                        if (key === 'URLs de Imágenes o PDFs' && displayValue !== 'No especificado') {
+                            const urls = displayValue.split('<br>').map(url => url.trim()).filter(url => url); // Filter out empty strings
+                            htmlContent += `<p><strong>${key}:</strong></p><div class="flex flex-wrap gap-4 mt-2">`; // Container for multiple media
+
+                            urls.forEach(url => {
+                                const lowerUrl = url.toLowerCase();
+                                if (lowerUrl.match(/\.(jpeg|jpg|png|gif|webp)$/)) {
+                                    // It's an image
+                                    htmlContent += `<div class="w-full md:w-1/2 lg:w-1/3 mb-4">
+                                                        <a href="${url}" target="_blank">
+                                                            <img src="${url}" alt="Imagen del reporte" class="max-w-full h-auto rounded-lg shadow-md border border-gray-200">
+                                                        </a>
+                                                    </div>`;
+                                } else if (lowerUrl.endsWith('.pdf')) {
+                                    // It's a PDF
+                                    htmlContent += `<div class="w-full h-80 mb-4 border border-gray-300 rounded-lg overflow-hidden shadow-md">
+                                                        <p class="text-sm p-2 bg-gray-100 text-gray-600">Ver PDF: <a href="${url}" target="_blank" class="text-blue-600 hover:underline">${url.split('/').pop()}</a></p>
+                                                        <iframe src="${url}" class="w-full h-full border-0"></iframe>
+                                                    </div>`;
+                                } else {
+                                    // Default to a clickable link
+                                    htmlContent += `<div class="w-full mb-2">
+                                                        <p><strong>Archivo:</strong> <a href="${url}" target="_blank" class="text-blue-600 hover:underline">${url.split('/').pop()}</a></p>
+                                                    </div>`;
+                                }
+                            });
+                            htmlContent += `</div>`; // Close flex container
+                        } else {
+                            htmlContent += `<p><strong>${key}:</strong> ${displayValue}</p>`;
+                        }
+                    }
+                    detailsDiv.innerHTML = htmlContent;
+                    reportContent.classList.add('expanded');
+                    button.textContent = 'Ocultar Detalles';
+
+                } catch (error) {
+                    console.error('Error fetching report details:', error);
+                    detailsDiv.innerHTML = '<p class="text-red-500">Error al cargar los detalles del reporte.</p>';
+                    button.textContent = 'Error al Cargar';
+                }
+            }
+        }
+
+
+        // --- Email Modal Functionality ---
+        const emailModal = document.getElementById('email-modal');
+        const emailForm = document.getElementById('email-form');
+        const cancelEmailButton = document.getElementById('cancel-email-button');
+        const emailStatusDiv = document.getElementById('email-status');
+
+        if (emailSelectedButton) {
+            emailSelectedButton.addEventListener('click', () => {
+                emailModal.classList.remove('hidden');
+                emailStatusDiv.classList.add('hidden'); // Hide status message initially
+                emailStatusDiv.textContent = '';
+            });
+        }
+        if (cancelEmailButton) {
+            cancelEmailButton.addEventListener('click', () => {
+                emailModal.classList.add('hidden');
+                emailForm.reset(); // Clear the form
+            });
+        }
+
+        if (emailForm) {
+            emailForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const recipientEmail = document.getElementById('recipient-email').value;
+                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
+                                            .map(cb => cb.dataset.reportId);
+                
+                emailStatusDiv.classList.remove('hidden');
+                emailStatusDiv.textContent = 'Enviando correo...';
+                emailStatusDiv.className = 'mt-4 text-center text-gray-700'; // Reset styling
+
+                try {
+                    const response = await fetch('/api/email-reports', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            report_ids: checkedReportIds,
+                            recipient_email: recipientEmail
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        emailStatusDiv.textContent = result.message;
+                        emailStatusDiv.className = 'mt-4 text-center text-green-600';
+                        showFlashMessage(result.message, 'success');
+                        setTimeout(() => {
+                            emailModal.classList.add('hidden');
+                            emailForm.reset();
+                        }, 3000);
+                    } else {
+                        emailStatusDiv.textContent = result.message || 'Error al enviar el correo.';
+                        emailStatusDiv.className = 'mt-4 text-center text-red-600';
+                        showFlashMessage(result.message || 'Error al enviar el correo.', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error sending email:', error);
+                    emailStatusDiv.textContent = 'Error de conexión al servidor.';
+                    emailStatusDiv.className = 'mt-4 text-center text-red-600';
+                    showFlashMessage('Error de conexión al servidor al enviar el correo.', 'error');
+                }
+            });
+        }
+        
+        // --- Print/PDF Functionality ---
+        if (printSelectedButton) {
+            printSelectedButton.addEventListener('click', () => {
+                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
+                                            .map(cb => cb.dataset.reportId);
+                if (checkedReportIds.length === 0) {
+                    showFlashMessage('Por favor, selecciona al menos un reporte para imprimir.', 'error');
+                    return;
+                }
+
+                // Prepare reports for printing
+                const reportsToPrint = document.querySelectorAll('.report-block');
+                reportsToPrint.forEach(block => {
+                    const reportId = block.dataset.reportId;
+                    const contentDiv = block.querySelector('.report-content');
+                    
+                    if (checkedReportIds.includes(reportId)) {
+                        block.classList.add('report-details-for-print'); // Marks for printing
+                        contentDiv.classList.add('expanded'); // Ensure details are visible for print CSS
+                    } else {
+                        block.classList.remove('report-details-for-print');
+                        contentDiv.classList.remove('expanded');
+                    }
+                });
+
+                window.print();
+
+                // Clean up after printing
+                reportsToPrint.forEach(block => {
+                    block.classList.remove('report-details-for-print');
+                    // Reset expansion state if needed
+                    block.querySelector('.report-content').classList.remove('expanded');
+                });
+            });
+        }
+
+        if (savePdfButton) {
+            savePdfButton.addEventListener('click', () => {
+                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
+                                            .map(cb => cb.dataset.reportId);
+                if (checkedReportIds.length === 0) {
+                    showFlashMessage('Por favor, selecciona al menos un reporte para guardar como PDF.', 'error');
+                    return;
+                }
+                showFlashMessage('La funcionalidad de Guardar como PDF aún no está implementada completamente. Se enviarán los reportes por correo electrónico.', 'info');
+                // Trigger the email modal as a fallback for "Save as PDF"
+                emailSelectedButton.click(); 
+            });
+        }
+
+
+        // --- Initial Setup on DOM Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadMoreButton = document.getElementById('load-more-button');
+            if (loadMoreButton) {
+                loadMoreButton.addEventListener('click', loadMoreReports);
+            }
+            checkLoadMoreButtonVisibility();
+            attachEventListenersToNewReports(); // Attach listeners to initial reports
+            updateActionButtonsState(); // Initial state check for ALL action buttons
+        });
     </script>
 </body>
 </html>

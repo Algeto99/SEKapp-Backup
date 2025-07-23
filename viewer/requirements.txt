@@ -1,2 +1,11 @@
 Flask==2.3.2
+Flask-SQLAlchemy
+Flask-Bcrypt
+Flask-Login
 Flask-JWT-Extended==4.5.3
+psycopg2-binary==2.9.9
+google-cloud-secret-manager
+google-api-core
+gunicorn
+setuptools
+Flask-Cors

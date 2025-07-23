@@ -95,7 +95,7 @@ def get_secret_value(secret_identifier, project_id):
 # --- Configuration Functions ---
 def configure_app():
     app_logger.info("Configuring Flask application...")
-    app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID')
+    app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID', 'tz-dev-secapp')
     app_logger.info(f"Raw GCP_PROJECT_ID env: {os.environ.get('GCP_PROJECT_ID')}")
     if not app.config['GCP_PROJECT_ID']:
         app_logger.critical("GCP_PROJECT_ID not set.")
@@ -110,7 +110,7 @@ def configure_app():
     )
     app.config['FLASK_SECRET_KEY_IDENTIFIER'] = os.environ.get(
         'FLASK_SECRET_KEY',
-        'landing-flask-secret-key' # Default to just the name if env var is not set
+        'forms-flask-secret-key' # Default to just the name if env var is not set
     )
 
     app_logger.info(f"Raw JWT_SECRET_KEY env: {os.environ.get('JWT_SECRET_KEY')}")
@@ -118,11 +118,19 @@ def configure_app():
     app_logger.info(f"JWT_SECRET_KEY_IDENTIFIER (after config): {app.config['JWT_SECRET_KEY_IDENTIFIER']}")
     app_logger.info(f"FLASK_SECRET_KEY_IDENTIFIER (after config): {app.config['FLASK_SECRET_KEY_IDENTIFIER']}")
 
-    app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL')
+    app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
     app_logger.info(f"Raw LOGIN_SERVICE_URL env: {os.environ.get('LOGIN_SERVICE_URL')}")
 
-    app.config['FORMS_SERVICE_URL'] = os.environ.get('FORMS_SERVICE_URL')
+    app.config['FORMS_SERVICE_URL'] = os.environ.get('FORMS_SERVICE_URL', 'https://form1.secapp.tzolkintech.com')
     app_logger.info(f"Raw FORMS_SERVICE_URL env: {os.environ.get('FORMS_SERVICE_URL')}")
+
+    app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL')
+    app_logger.info(f"Raw DASHBOARD_SERVICE_URL env: {os.environ.get('DASHBOARD_SERVICE_URL')}")
+
+    # Add the VIEWER_SERVICE_URL configuration
+    app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', 'https://viewer.secapp.tzolkintech.com')
+    app_logger.info(f"Raw VIEWER_SERVICE_URL env: {os.environ.get('VIEWER_SERVICE_URL')}")
+
 
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_COOKIE_SECURE'] = is_production
@@ -236,7 +244,8 @@ def index():
         user_name=user_name,
         FORMS_SERVICE_URL=app.config.get('FORMS_SERVICE_URL'),
         LOGIN_SERVICE_URL=app.config.get('LOGIN_SERVICE_URL'),
-        DASHBOARD_SERVICE_URL=app.config.get('DASHBOARD_SERVICE_URL')
+        DASHBOARD_SERVICE_URL=app.config.get('DASHBOARD_SERVICE_URL'),
+        VIEWER_SERVICE_URL=app.config.get('VIEWER_SERVICE_URL')
     )
 
 @app.route('/user_info', methods=['GET'])

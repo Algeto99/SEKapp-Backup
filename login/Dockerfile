@@ -1,7 +1,7 @@
 # Use an official Python runtime as a parent image
 # python:3.9-slim-buster is a good choice for smaller image size.
 # Choose a Python version that matches your development and deployment environment.
-FROM python:3.9-slim-buster
+FROM python:3.11-slim-bookworm
 
 # Set the working directory in the container
 WORKDIR /app
