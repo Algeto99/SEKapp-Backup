@@ -152,7 +152,7 @@ def fetch_reports(offset, limit):
                 ri.numero_local,
                 ri.direccion,
                 ri.imagenes_pdfs,
-                ri.id_supervisor,
+                s.nombre AS supervisor_name, -- Added supervisor name
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
@@ -166,6 +166,8 @@ def fetch_reports(offset, limit):
                 "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
             LEFT JOIN
                 "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN
+                supervisor s ON ri.id_supervisor = s.id_supervisor -- Join with supervisor table
             ORDER BY
                 ri.fecha_incidente DESC, ri.hora_incidente DESC
             OFFSET %s LIMIT %s;
@@ -197,7 +199,7 @@ def fetch_reports(offset, limit):
                     "Número de Local": str(row_dict.get("numero_local")),
                     "Dirección": str(row_dict.get("direccion")),
                     "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "ID del Supervisor": str(row_dict.get("id_supervisor"))
+                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A" # Display supervisor name
                 }
             }
             reports.append(forms_data)
@@ -262,7 +264,7 @@ def fetch_reports_by_ids(report_ids):
                 ri.numero_local,
                 ri.direccion,
                 ri.imagenes_pdfs,
-                ri.id_supervisor,
+                s.nombre AS supervisor_name, -- Added supervisor name
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
@@ -276,6 +278,8 @@ def fetch_reports_by_ids(report_ids):
                 "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
             LEFT JOIN
                 "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN
+                supervisor s ON ri.id_supervisor = s.id_supervisor -- Join with supervisor table
             WHERE
                 ri.id_reporte_incidente IN ({placeholders})
             ORDER BY
@@ -308,7 +312,7 @@ def fetch_reports_by_ids(report_ids):
                     "Número de Local": str(row_dict.get("numero_local")),
                     "Dirección": str(row_dict.get("direccion")),
                     "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "ID del Supervisor": str(row_dict.get("id_supervisor"))
+                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A" # Display supervisor name
                 }
             }
             reports.append(reports_data)
@@ -489,15 +493,37 @@ def email_selected_reports_api():
         
         for key, value in report['data'].items():
             display_value = value if value and str(value).strip() != 'N/A' else 'No especificado'
-            html_body_parts.append(f"<p><strong>{key}:</strong> {display_value}</p>")
-        
-        if report['data'].get('URLs de Imágenes o PDFs'):
-            urls = report['data']['URLs de Imágenes o PDFs'].split('\n')
-            html_body_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><ul>")
-            for url in urls:
-                if url.strip():
-                    html_body_parts.append(f"<li><a href='{url.strip()}'>{url.strip()}</a></li>")
-            html_body_parts.append(f"</ul>")
+            # Modified section for handling URLs de Imágenes o PDFs
+            if key == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
+                urls = display_value.split('\n')
+                html_body_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;'>")
+                for url in urls:
+                    url = url.strip()
+                    if url:
+                        lower_url = url.lower()
+                        if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
+                            html_body_parts.append(f"""
+                                <div style='margin-bottom: 10px;'>
+                                    <a href="{url}" target="_blank" style="text-decoration: none;">
+                                        <img src="{url}" alt="Imagen del reporte" style="max-width: 200px; height: auto; border-radius: 4px; border: 1px solid #ccc;">
+                                    </a>
+                                </div>
+                            """)
+                        elif lower_url.endswith('.pdf'):
+                            html_body_parts.append(f"""
+                                <div style='margin-bottom: 10px;'>
+                                    <p style="margin: 0;">PDF: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{os.path.basename(url)}</a></p>
+                                </div>
+                            """)
+                        else:
+                            html_body_parts.append(f"""
+                                <div style='margin-bottom: 10px;'>
+                                    <p style="margin: 0;">Archivo: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{os.path.basename(url)}</a></p>
+                                </div>
+                            """)
+                html_body_parts.append(f"</div>") # Close flex container
+            else:
+                html_body_parts.append(f"<p><strong>{key}:</strong> {display_value}</p>")
         
         html_body_parts.append(f"</div>")
 
