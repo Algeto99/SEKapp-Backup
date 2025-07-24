@@ -22,6 +22,9 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+# NEW IMPORT for PDF generation
+from weasyprint import HTML
+
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -538,6 +541,118 @@ def email_selected_reports_api():
     else:
         app_logger.error(f"Failed to send email: {message}")
         return jsonify({"success": False, "message": f"Error al enviar correo electrónico: {message}"}), 500
+
+
+# NEW ROUTE: PDF Generation
+@app.route('/api/generate-pdf', methods=['POST'])
+@jwt_required()
+def generate_pdf_api():
+    user_email = get_jwt_identity()
+    data = request.get_json()
+    report_ids = data.get('report_ids')
+
+    if not report_ids or not isinstance(report_ids, list):
+        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
+
+    app_logger.info(f"User {user_email} requested to generate PDF for reports {report_ids}")
+
+    reports_to_pdf = fetch_reports_by_ids(report_ids)
+
+    if not reports_to_pdf:
+        app_logger.warning(f"No reports found for the provided IDs during PDF generation request: {report_ids}")
+        return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
+
+    # Build HTML content for the PDF
+    html_content_parts = [
+        "<!DOCTYPE html>",
+        "<html lang='es'>",
+        "<head>",
+        "<meta charset='UTF-8'>",
+        "<title>Reportes de Incidencias</title>",
+        "<style>",
+        "body { font-family: Arial, sans-serif; margin: 20px; color: #333; }",
+        ".report-container { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #f8fafc; page-break-inside: avoid; }",
+        "h1 { color: #1e3a8a; text-align: center; margin-bottom: 30px; }",
+        "h3 { color: #4a5568; margin-top: 0; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px; margin-bottom: 15px; }",
+        "p { margin: 5px 0; line-height: 1.5; }",
+        "strong { color: #555; }",
+        ".attachment-section { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }",
+        ".attachment-item { margin-bottom: 10px; text-align: center; }",
+        ".attachment-item img { max-width: 150px; height: auto; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; }",
+        ".attachment-item a { text-decoration: none; color: #2563eb; }",
+        "@page { size: A4; margin: 2cm; }", # Define A4 size and margins for PDF
+        "</style>",
+        "</head>",
+        "<body>",
+        "<h1>Reportes de Incidencias Seleccionados</h1>"
+    ]
+
+    for i, report in enumerate(reports_to_pdf):
+        html_content_parts.append(f"<div class='report-container'>")
+        html_content_parts.append(f"<h3>Reporte {i+1} (ID: {report['id']})</h3>")
+        html_content_parts.append(f"<p><strong>Título:</strong> {report['title']}</p>")
+        html_content_parts.append(f"<p><strong>Enviado por:</strong> {report['submittedBy']} el {report['dateSubmitted']}</p>")
+        
+        for key, value in report['data'].items():
+            display_value = value if value and str(value).strip() != 'N/A' and str(value).strip() != 'None' else 'No especificado'
+            
+            if key == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
+                # Split URLs by newline, comma, or space, similar to frontend, and filter out empty strings
+                urls = re.split(r'[\n, ]+', display_value)
+                urls = [url.strip() for url in urls if url.strip()]
+
+                if urls:
+                    html_content_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div class='attachment-section'>")
+                    for url in urls:
+                        lower_url = url.lower()
+                        if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
+                            html_content_parts.append(f"""
+                                <div class='attachment-item'>
+                                    <img src="{url}" alt="Imagen del reporte">
+                                    <p style="font-size: 0.8em; color: #555; margin-top: 5px;">{os.path.basename(url)}</p>
+                                </div>
+                            """)
+                        elif lower_url.endswith('.pdf'):
+                            html_content_parts.append(f"""
+                                <div class='attachment-item'>
+                                    <p>PDF: <a href="{url}" target="_blank">{os.path.basename(url)}</a></p>
+                                </div>
+                            """)
+                        else:
+                            html_content_parts.append(f"""
+                                <div class='attachment-item'>
+                                    <p>Archivo: <a href="{url}" target="_blank">{os.path.basename(url)}</a></p>
+                                </div>
+                            """)
+                    html_content_parts.append(f"</div>") # Close attachment-section
+            else:
+                # Replace newlines with <br> for multi-line text
+                cleaned_value = str(display_value).replace('\n', '<br>')
+                html_content_parts.append(f"<p><strong>{key}:</strong> {cleaned_value}</p>")
+        
+        html_content_parts.append(f"</div>") # Close report-container
+
+    html_content_parts.append("</body></html>")
+    full_html_content = "\n".join(html_content_parts)
+
+    try:
+        pdf_bytes = HTML(string=full_html_content).write_pdf()
+        app_logger.info(f"Successfully generated PDF for {len(reports_to_pdf)} reports.")
+        
+        # Determine filename based on number of reports
+        if len(reports_to_pdf) == 1:
+            filename = f"reporte_{reports_to_pdf[0]['id']}.pdf"
+        else:
+            filename = f"reportes_seleccionados.pdf"
+
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment;filename={filename}'}
+        )
+    except Exception as e:
+        app_logger.error(f"Error generating PDF: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Error al generar el PDF: {e}"}), 500
 
 
 @app.route('/logout')
