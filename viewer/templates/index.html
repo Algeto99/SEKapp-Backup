@@ -18,12 +18,15 @@
 
         /* Print-specific styles for better isolation */
         @media print {
-            /* Hide sidebar, header, flash messages, and load more button */
+            /* Hide the sidebar, main title, flash messages, load more button, and multi-select controls */
             aside,
             h1,
             .flash-message,
             #load-more-container,
-            #multi-select-controls { /* Hide multi-select controls */
+            #multi-select-controls,
+            .toggle-details-button, /* Hide the toggle button itself when printing */
+            .report-checkbox /* Hide the checkboxes when printing */
+            {
                 display: none !important;
             }
 
@@ -37,17 +40,27 @@
                 box-sizing: border-box;
             }
 
-            /* Hide all report blocks by default for printing */
-            .report-block {
+            /* Hide all report blocks by default for printing, unless they have the 'print-me' class */
+            .report-block:not(.print-me) {
                 display: none !important;
-                visibility: hidden !important; /* Ensure it's hidden */
             }
 
-            /* Only show the report-details-for-print when printing */
-            .report-details-for-print {
+            /* Styles for report blocks explicitly marked for printing */
+            .report-block.print-me {
                 display: block !important;
                 visibility: visible !important;
-                page-break-after: always; /* Ensure each report prints on a new page */
+                page-break-after: always; /* Ensure each selected report prints on a new page */
+                width: 100%; /* Ensure full width in print */
+                margin: 0; /* Remove margins */
+                box-shadow: none; /* Remove shadows */
+                border: 1px solid #eee; /* Add a subtle border */
+                padding: 1rem; /* Adjust padding */
+            }
+
+            /* Ensure content inside selected reports is fully visible for printing */
+            .report-block.print-me .report-content {
+                max-height: fit-content !important; /* Ensure details are fully visible */
+                overflow: visible !important; /* Allow content to flow */
             }
         }
     </style>
@@ -479,31 +492,36 @@
                     return;
                 }
 
-                // Hide all report blocks that are not selected for printing
+                // Apply print-specific classes and expand details for selected reports
                 document.querySelectorAll('.report-block').forEach(block => {
-                    if (!checkedReportIds.includes(block.dataset.reportId)) {
-                        block.style.display = 'none';
-                    } else {
-                        // Ensure selected reports are visible and expanded for printing
-                        block.style.display = 'block';
-                        const reportContent = block.querySelector('.report-content');
-                        if (reportContent && !reportContent.classList.contains('expanded')) {
-                            // Expand details if not already expanded, to ensure full content prints
-                            // Note: This relies on details being loaded; for print-only, consider pre-loading or simpler render
-                            toggleReportDetails({ target: block.querySelector('.toggle-details-button') });
+                    // Always collapse details and reset button text before processing for print
+                    // This ensures a clean state regardless of prior user interaction
+                    block.querySelector('.report-content').classList.remove('expanded');
+                    block.querySelector('.toggle-details-button').textContent = 'Ver Detalles';
+
+                    if (checkedReportIds.includes(block.dataset.reportId)) {
+                        block.classList.add('print-me'); // Mark this block for printing via CSS
+                        // Trigger toggleReportDetails to load and expand details if not already
+                        const button = block.querySelector('.toggle-details-button');
+                        if (button && !block.querySelector('.report-content').classList.contains('expanded')) {
+                            toggleReportDetails({ target: button }); // This is an async call
                         }
+                    } else {
+                        block.classList.remove('print-me'); // Ensure unselected blocks are not marked
                     }
                 });
 
-                // Trigger print
-                window.print();
-
-                // Restore visibility after printing
-                document.querySelectorAll('.report-block').forEach(block => {
-                    block.style.display = 'block';
-                    // Optionally collapse details again if they were expanded for print
-                    block.querySelector('.report-content').classList.remove('expanded');
-                });
+                // Small delay to allow async content loading (if any) before printing, adjust as needed
+                setTimeout(() => {
+                    window.print();
+                    // Restore original state after print dialog is closed
+                    document.querySelectorAll('.report-block').forEach(block => {
+                        block.classList.remove('print-me'); // Remove print marker
+                        // Reset content and button text if they were modified for printing
+                        block.querySelector('.report-content').classList.remove('expanded');
+                        block.querySelector('.toggle-details-button').textContent = 'Ver Detalles';
+                    });
+                }, 500); // 500ms delay, increase if details loading is slow
             });
         }
 
