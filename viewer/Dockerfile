@@ -6,13 +6,27 @@ WORKDIR /app
 
 # Install system dependencies.
 # gcc is needed for building some Python packages.
-# libpq-dev is for PostgreSQL client libraries.
+# libpq-dev is for PostgreSQL client client libraries.
+# WeasyPrint dependencies (libcairo2, libpango-1.0-0, libpangocairo-1.0-0, libglib2.0-0,
+# libgdk-pixbuf2.0-0, libxml2-dev, libxslt1-dev, zlib1g-dev, libjpeg-dev, libpng-dev,
+# libopenjp2-7, libpoppler-glib8, fontconfig, fonts-dejavu-core) are included.
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
-    # Added for Gunicorn in some environments, though might not be strictly needed for slim
-    # libffi-dev \
-    # libssl-dev \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libglib2.0-0 \
+    libgdk-pixbuf2.0-0 \
+    libxml2-dev \
+    libxslt1-dev \
+    zlib1g-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libopenjp2-7 \
+    libpoppler-glib8 \
+    fontconfig \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements.txt file into the container first.

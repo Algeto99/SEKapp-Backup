@@ -8,4 +8,6 @@ google-cloud-secret-manager
 google-api-core
 gunicorn
 setuptools
-Flask-Cors
+Flask-Cors==3.0.3
+WeasyPrint==60.2
+pydyf==0.10.0

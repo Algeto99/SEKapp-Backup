@@ -60,7 +60,7 @@
                 <ul>
                     <li class="mb-4">
                         <a href="#" class="flex items-center text-blue-100 hover:text-white">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 0 001 1h3m10-11l2 2m0 0l7 7m-11 7v-3m0 0a2 2 0 100-4 2 2 0 000 4zm0 0h.01"></path></svg>
+                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m0 0l7 7m-11 7v-3m0 0a2 2 0 100-4 2 2 0 000 4zm0 0h.01"></path></svg>
                             Inicio
                         </a>
                     </li>
@@ -203,10 +203,9 @@
 
             try {
                 const response = await fetch(`/api/reports?offset=${offset}&limit=${limit}`, {
-                    headers: {
-                        'Accept': 'application/json'
-                    }
+                    headers: { 'Accept': 'application/json' }
                 });
+
                 if (!response.ok) {
                     if (response.status === 401) {
                         window.location.href = '/logout'; // Redirect to login if unauthorized
@@ -214,9 +213,9 @@
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+
                 const data = await response.json();
                 const reportsContainer = document.getElementById('reports-container');
-
                 data.reports.forEach(form => {
                     const reportBlock = document.createElement('div');
                     reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
@@ -229,14 +228,17 @@
                             </div>
                             <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
                         </div>
+
                         <div class="text-gray-700 mb-4">
                             <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
                             <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
                             <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
                         </div>
+                        
                         <button class="toggle-details-button px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none" data-report-id="${form.id}">
                             Ver Detalles
                         </button>
+
                         <div class="report-content mt-4 border-t border-gray-200 pt-4">
                             <div id="details-${form.id}" class="text-gray-700">
                                 Cargando detalles...
@@ -245,192 +247,190 @@
                     `;
                     reportsContainer.appendChild(reportBlock);
                 });
-
                 offset += data.reports.length;
-                totalReports = data.total_count; // Update total reports count
-                checkLoadMoreButtonVisibility(); // Re-check visibility after new reports are loaded
-                attachEventListenersToNewReports(); // Attach listeners to new buttons
-                updateActionButtonsState(); // Update action buttons for new checkboxes
-                
+                totalReports = data.total_count;
+                checkLoadMoreButtonVisibility();
+                attachEventListenersToNewReports();
+                updateActionButtonsState();
+
             } catch (error) {
                 console.error('Error loading more reports:', error);
-                showFlashMessage('Error al cargar más reportes. Intente de nuevo.', 'error');
+                showFlashMessage('Error al cargar más reportes.', 'error');
             } finally {
                 loadMoreButton.disabled = false;
                 loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
             }
         }
 
+        // --- Event Listeners and State Management ---
         function checkLoadMoreButtonVisibility() {
             const loadMoreContainer = document.getElementById('load-more-container');
             if (loadMoreContainer) {
-                const currentDisplayedReports = document.querySelectorAll('.report-block').length;
-                if (currentDisplayedReports >= totalReports) {
-                    loadMoreContainer.style.display = 'none';
+                if (offset >= totalReports) {
+                    loadMoreContainer.classList.add('hidden');
                 } else {
-                    loadMoreContainer.style.display = 'block';
-                    document.getElementById('load-more-button').textContent = `Cargar Más Reportes (${totalReports - currentDisplayedReports} restantes)`;
+                    loadMoreContainer.classList.remove('hidden');
+                    const loadMoreButton = document.getElementById('load-more-button');
+                    loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
                 }
             }
         }
 
-        // --- Multi-select and Action Buttons Functionality ---
-        const selectAllCheckbox = document.getElementById('select-all-checkbox');
-        const reportCheckboxes = document.querySelectorAll('.report-checkbox');
-        const printSelectedButton = document.getElementById('print-selected-button');
-        const savePdfButton = document.getElementById('save-pdf-button');
-        const emailSelectedButton = document.getElementById('email-selected-button');
-
         function updateActionButtonsState() {
             const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
             const isDisabled = checkedCheckboxes.length === 0;
-
-            printSelectedButton.disabled = isDisabled;
-            savePdfButton.disabled = isDisabled;
-            emailSelectedButton.disabled = isDisabled;
-
-            // Update "Select All" checkbox state
-            selectAllCheckbox.checked = checkedCheckboxes.length === document.querySelectorAll('.report-checkbox').length && document.querySelectorAll('.report-checkbox').length > 0;
-            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < document.querySelectorAll('.report-checkbox').length;
+            document.getElementById('print-selected-button').disabled = isDisabled;
+            document.getElementById('save-pdf-button').disabled = isDisabled;
+            document.getElementById('email-selected-button').disabled = isDisabled;
         }
 
-        // Attach event listeners for existing checkboxes on initial load
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.report-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', updateActionButtonsState);
-            });
-        });
-
-        // Function to attach event listeners to newly loaded reports (including initial load)
         function attachEventListenersToNewReports() {
-            // Attach change listener to new checkboxes
-            document.querySelectorAll('.report-checkbox:not([data-listener-attached])').forEach(checkbox => {
-                checkbox.addEventListener('change', updateActionButtonsState);
-                checkbox.setAttribute('data-listener-attached', 'true'); // Mark as attached
-            });
-
-            // Attach click listener to new "Ver Detalles" buttons
-            document.querySelectorAll('.toggle-details-button:not([data-listener-attached])').forEach(button => {
+            // Attach toggle details button listeners
+            document.querySelectorAll('.toggle-details-button').forEach(button => {
+                // Remove existing listener to prevent duplicates
+                button.removeEventListener('click', toggleReportDetails);
                 button.addEventListener('click', toggleReportDetails);
-                button.setAttribute('data-listener-attached', 'true'); // Mark as attached
+            });
+
+            // Attach checkbox listeners
+            document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                checkbox.removeEventListener('change', updateActionButtonsState);
+                checkbox.addEventListener('change', updateActionButtonsState);
             });
         }
 
-        // Select All Checkbox
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', () => {
-                document.querySelectorAll('.report-checkbox').forEach(checkbox => {
-                    checkbox.checked = selectAllCheckbox.checked;
-                });
-                updateActionButtonsState();
-            });
-        }
-        
-        // --- "Ver Detalles" Functionality (Issue 1 Fix) ---
         async function toggleReportDetails(event) {
             const button = event.target;
             const reportBlock = button.closest('.report-block');
+            const reportId = reportBlock.dataset.reportId;
             const reportContent = reportBlock.querySelector('.report-content');
-            const detailsDiv = reportBlock.querySelector(`#details-${button.dataset.reportId}`);
-            const reportId = button.dataset.reportId;
+            const detailsDiv = reportBlock.querySelector(`#details-${reportId}`);
 
             if (reportContent.classList.contains('expanded')) {
                 reportContent.classList.remove('expanded');
                 button.textContent = 'Ver Detalles';
-                // Optionally clear content or reset to 'Cargando detalles...' if collapsing
-                detailsDiv.innerHTML = 'Cargando detalles...'; 
             } else {
-                button.textContent = 'Cargando...';
+                button.textContent = 'Cargando Detalles...';
                 try {
-                    const response = await fetch(`/api/report/${reportId}`);
+                    const response = await fetch(`/api/report/${reportId}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
                     if (!response.ok) {
                         if (response.status === 401) {
-                            window.location.href = '/logout';
+                            window.location.href = '/logout'; // Redirect to login if unauthorized
                             return;
                         }
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     const reportDetails = await response.json();
                     
-                    // Populate the detailsDiv with the fetched data
-                    let htmlContent = '';
-                    for (const [key, value] of Object.entries(reportDetails.data)) {
-                        const displayValue = value ? String(value).replace(/\n/g, '<br>') : 'No especificado';
-                        
-                        if (key === 'URLs de Imágenes o PDFs' && displayValue !== 'No especificado') {
-                            const urls = displayValue.split('<br>').map(url => url.trim()).filter(url => url); // Filter out empty strings
-                            htmlContent += `<p><strong>${key}:</strong></p><div class="flex flex-wrap gap-4 mt-2">`; // Container for multiple media
-
-                            urls.forEach(url => {
-                                const lowerUrl = url.toLowerCase();
-                                if (lowerUrl.match(/\.(jpeg|jpg|png|gif|webp)$/)) {
-                                    // It's an image
-                                    htmlContent += `<div class="w-full md:w-1/2 lg:w-1/3 mb-4">
-                                                        <a href="${url}" target="_blank">
-                                                            <img src="${url}" alt="Imagen del reporte" class="max-w-full h-auto rounded-lg shadow-md border border-gray-200">
+                    let detailsHtml = '<ul style="list-style-type: none; padding: 0;">';
+                    for (const key in reportDetails.data) {
+                        if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
+                            // Check if the current key is 'URLs de Imágenes o PDFs'
+                            if (key === 'URLs de Imágenes o PDFs') {
+                                // Robustly split URLs by newline, comma, or space, and filter out empty strings
+                                const urls = String(reportDetails.data[key]).split(/[\n, ]+/).filter(url => url.trim() !== '');
+                                if (urls.some(url => url.trim() !== '')) {
+                                    detailsHtml += `<li><strong>Archivos Adjuntos:</strong><div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">`;
+                                    urls.forEach(url => {
+                                        url = url.trim();
+                                        if (url) {
+                                            const lowerUrl = url.toLowerCase();
+                                            if (lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp')) {
+                                                detailsHtml += `
+                                                    <div style='margin-bottom: 10px; text-align: center;'>
+                                                        <a href="${url}" target="_blank" style="text-decoration: none;">
+                                                            <img src="${url}" alt="Imagen del reporte" style="max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc;">
                                                         </a>
-                                                    </div>`;
-                                } else if (lowerUrl.endsWith('.pdf')) {
-                                    // It's a PDF
-                                    htmlContent += `<div class="w-full h-80 mb-4 border border-gray-300 rounded-lg overflow-hidden shadow-md">
-                                                        <p class="text-sm p-2 bg-gray-100 text-gray-600">Ver PDF: <a href="${url}" target="_blank" class="text-blue-600 hover:underline">${url.split('/').pop()}</a></p>
-                                                        <iframe src="${url}" class="w-full h-full border-0"></iframe>
-                                                    </div>`;
-                                } else {
-                                    // Default to a clickable link
-                                    htmlContent += `<div class="w-full mb-2">
-                                                        <p><strong>Archivo:</strong> <a href="${url}" target="_blank" class="text-blue-600 hover:underline">${url.split('/').pop()}</a></p>
-                                                    </div>`;
+                                                        <p style="font-size: 0.8em; color: #555; margin-top: 5px;">${url.substring(url.lastIndexOf('/') + 1)}</p>
+                                                    </div>
+                                                `;
+                                            } else if (lowerUrl.endsWith('.pdf')) {
+                                                detailsHtml += `
+                                                    <div style='margin-bottom: 10px;'>
+                                                        <p style="margin: 0;">PDF: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${url.substring(url.lastIndexOf('/') + 1)}</a></p>
+                                                    </div>
+                                                `;
+                                            } else {
+                                                // For other file types, just show a link
+                                                detailsHtml += `
+                                                    <div style='margin-bottom: 10px;'>
+                                                        <p style="margin: 0;">Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${url.substring(url.lastIndexOf('/') + 1)}</a></p>
+                                                    </div>
+                                                `;
+                                            }
+                                        }
+                                    });
+                                    detailsHtml += `</div></li>`;
                                 }
-                            });
-                            htmlContent += `</div>`; // Close flex container
-                        } else {
-                            htmlContent += `<p><strong>${key}:</strong> ${displayValue}</p>`;
+                            } else {
+                                // Basic sanitation for HTML output, replace newlines with <br>
+                                const cleanedValue = String(reportDetails.data[key]).replace(/\n/g, '<br>');
+                                detailsHtml += `<li><strong>${key}:</strong> ${cleanedValue}</li>`;
+                            }
                         }
                     }
-                    detailsDiv.innerHTML = htmlContent;
+                    detailsHtml += '</ul>';
+                    detailsDiv.innerHTML = detailsHtml;
+
                     reportContent.classList.add('expanded');
                     button.textContent = 'Ocultar Detalles';
-
                 } catch (error) {
                     console.error('Error fetching report details:', error);
-                    detailsDiv.innerHTML = '<p class="text-red-500">Error al cargar los detalles del reporte.</p>';
-                    button.textContent = 'Error al Cargar';
+                    detailsDiv.innerHTML = 'Error al cargar los detalles.';
+                    button.textContent = 'Ver Detalles';
                 }
             }
         }
 
+        // --- Multi-Select and Action Buttons ---
+        const selectAllCheckbox = document.getElementById('select-all-checkbox');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (event) => {
+                document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                    checkbox.checked = event.target.checked;
+                });
+                updateActionButtonsState();
+            });
+        }
 
-        // --- Email Modal Functionality ---
         const emailModal = document.getElementById('email-modal');
-        const emailForm = document.getElementById('email-form');
+        const emailSelectedButton = document.getElementById('email-selected-button');
         const cancelEmailButton = document.getElementById('cancel-email-button');
-        const emailStatusDiv = document.getElementById('email-status');
+        const emailForm = document.getElementById('email-form');
+        const emailStatus = document.getElementById('email-status');
 
         if (emailSelectedButton) {
             emailSelectedButton.addEventListener('click', () => {
+                const checkedReportIds = document.querySelectorAll('.report-checkbox:checked').length;
+                if (checkedReportIds === 0) {
+                    showFlashMessage('Por favor, selecciona al menos un reporte para enviar por correo electrónico.', 'error');
+                    return;
+                }
+                emailStatus.classList.add('hidden'); // Hide previous status
                 emailModal.classList.remove('hidden');
-                emailStatusDiv.classList.add('hidden'); // Hide status message initially
-                emailStatusDiv.textContent = '';
             });
         }
+
         if (cancelEmailButton) {
             cancelEmailButton.addEventListener('click', () => {
                 emailModal.classList.add('hidden');
+                emailStatus.classList.add('hidden'); // Hide status when closing
                 emailForm.reset(); // Clear the form
             });
         }
 
         if (emailForm) {
-            emailForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
+            emailForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
                 const recipientEmail = document.getElementById('recipient-email').value;
                 const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
                                             .map(cb => cb.dataset.reportId);
                 
-                emailStatusDiv.classList.remove('hidden');
-                emailStatusDiv.textContent = 'Enviando correo...';
-                emailStatusDiv.className = 'mt-4 text-center text-gray-700'; // Reset styling
+                emailStatus.classList.remove('hidden');
+                emailStatus.className = 'mt-4 text-center text-blue-700';
+                emailStatus.textContent = 'Enviando correo electrónico...';
 
                 try {
                     const response = await fetch('/api/email-reports', {
@@ -439,36 +439,37 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            report_ids: checkedReportIds,
-                            recipient_email: recipientEmail
+                            recipient_email: recipientEmail,
+                            report_ids: checkedReportIds
                         })
                     });
 
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        emailStatusDiv.textContent = result.message;
-                        emailStatusDiv.className = 'mt-4 text-center text-green-600';
-                        showFlashMessage(result.message, 'success');
+                    const data = await response.json();
+                    if (data.success) {
+                        emailStatus.className = 'mt-4 text-center text-green-700';
+                        emailStatus.textContent = 'Correo electrónico enviado exitosamente!';
+                        showFlashMessage('Reportes enviados por correo electrónico exitosamente!', 'success');
+                        // Optionally close modal after a short delay
                         setTimeout(() => {
                             emailModal.classList.add('hidden');
-                            emailForm.reset();
-                        }, 3000);
+                            emailForm.reset(); // Clear form on success
+                            emailStatus.classList.add('hidden'); // Hide status
+                        }, 2000);
                     } else {
-                        emailStatusDiv.textContent = result.message || 'Error al enviar el correo.';
-                        emailStatusDiv.className = 'mt-4 text-center text-red-600';
-                        showFlashMessage(result.message || 'Error al enviar el correo.', 'error');
+                        emailStatus.className = 'mt-4 text-center text-red-700';
+                        emailStatus.textContent = `Error: ${data.message}`;
+                        showFlashMessage(`Error al enviar correo electrónico: ${data.message}`, 'error');
                     }
                 } catch (error) {
                     console.error('Error sending email:', error);
-                    emailStatusDiv.textContent = 'Error de conexión al servidor.';
-                    emailStatusDiv.className = 'mt-4 text-center text-red-600';
-                    showFlashMessage('Error de conexión al servidor al enviar el correo.', 'error');
+                    emailStatus.className = 'mt-4 text-center text-red-700';
+                    emailStatus.textContent = 'Error al enviar correo electrónico.';
+                    showFlashMessage('Error al enviar correo electrónico.', 'error');
                 }
             });
         }
-        
-        // --- Print/PDF Functionality ---
+
+        const printSelectedButton = document.getElementById('print-selected-button');
         if (printSelectedButton) {
             printSelectedButton.addEventListener('click', () => {
                 const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
@@ -478,43 +479,87 @@
                     return;
                 }
 
-                // Prepare reports for printing
-                const reportsToPrint = document.querySelectorAll('.report-block');
-                reportsToPrint.forEach(block => {
-                    const reportId = block.dataset.reportId;
-                    const contentDiv = block.querySelector('.report-content');
-                    
-                    if (checkedReportIds.includes(reportId)) {
-                        block.classList.add('report-details-for-print'); // Marks for printing
-                        contentDiv.classList.add('expanded'); // Ensure details are visible for print CSS
+                // Hide all report blocks that are not selected for printing
+                document.querySelectorAll('.report-block').forEach(block => {
+                    if (!checkedReportIds.includes(block.dataset.reportId)) {
+                        block.style.display = 'none';
                     } else {
-                        block.classList.remove('report-details-for-print');
-                        contentDiv.classList.remove('expanded');
+                        // Ensure selected reports are visible and expanded for printing
+                        block.style.display = 'block';
+                        const reportContent = block.querySelector('.report-content');
+                        if (reportContent && !reportContent.classList.contains('expanded')) {
+                            // Expand details if not already expanded, to ensure full content prints
+                            // Note: This relies on details being loaded; for print-only, consider pre-loading or simpler render
+                            toggleReportDetails({ target: block.querySelector('.toggle-details-button') });
+                        }
                     }
                 });
 
+                // Trigger print
                 window.print();
 
-                // Clean up after printing
-                reportsToPrint.forEach(block => {
-                    block.classList.remove('report-details-for-print');
-                    // Reset expansion state if needed
+                // Restore visibility after printing
+                document.querySelectorAll('.report-block').forEach(block => {
+                    block.style.display = 'block';
+                    // Optionally collapse details again if they were expanded for print
                     block.querySelector('.report-content').classList.remove('expanded');
                 });
             });
         }
 
+        const savePdfButton = document.getElementById('save-pdf-button');
         if (savePdfButton) {
-            savePdfButton.addEventListener('click', () => {
+            savePdfButton.addEventListener('click', async () => {
                 const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
                                             .map(cb => cb.dataset.reportId);
                 if (checkedReportIds.length === 0) {
                     showFlashMessage('Por favor, selecciona al menos un reporte para guardar como PDF.', 'error');
                     return;
                 }
-                showFlashMessage('La funcionalidad de Guardar como PDF aún no está implementada completamente. Se enviarán los reportes por correo electrónico.', 'info');
-                // Trigger the email modal as a fallback for "Save as PDF"
-                emailSelectedButton.click(); 
+
+                showFlashMessage('Generando PDF(s)...', 'info');
+
+                try {
+                    const response = await fetch('/api/generate-pdf', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/pdf'
+                        },
+                        body: JSON.stringify({
+                            report_ids: checkedReportIds
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: 'Error desconocido al generar PDF.' }));
+                        throw new Error(errorData.message || 'Error al generar PDF');
+                    }
+
+                    const blob = await response.blob();
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'reportes.pdf';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url); // Clean up the URL object
+                    showFlashMessage('PDF(s) generados y descargados exitosamente.', 'success');
+
+                } catch (error) {
+                    console.error('Error generating PDF:', error);
+                    showFlashMessage(`Error al generar PDF: ${error.message}`, 'error');
+                }
             });
         }
 
