@@ -1,11 +1,104 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor de Reportes</title>
+    <title>SMT SecApp - Reportes</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8ff; /* Light background from landing page */
+            color: #343a40;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center content horizontally */
+            padding: 2rem; /* Add some padding around the main content */
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+            color: #212529; /* Dark text for headings */
+        }
+        .container-wrapper {
+            background-color: #ffffff; /* White background for content area */
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Soft shadow from landing */
+            padding: 2rem;
+            max-width: 1000px; /* Max width for the content */
+            width: 100%; /* Ensure it takes full width up to max */
+            margin-top: 2rem; /* Margin from the top */
+        }
+        .report-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        .base-button-style {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .base-button-style:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        .btn-primary-professional {
+            background-color: #1d4ed8; /* Blue-700 from landing */
+            color: #ffffff;
+            border: 2px solid #1d4ed8;
+        }
+        .btn-primary-professional:hover {
+            background-color: #1e40af; /* Blue-800 equivalent */
+            border-color: #1e40af;
+        }
+        .btn-secondary-professional {
+            background-color: #f3f4f6;
+            color: #1d4ed8;
+            border: 2px solid #e5e7eb;
+        }
+        .btn-secondary-professional:hover {
+            background-color: #e5e7eb;
+        }
+        /* The top-bar itself is removed, these styles are here for completeness but not applied */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 1.5rem;
+            z-index: 10;
+        }
+        .top-bar-link {
+            color: #212529; /* Dark text */
+            font-weight: 500;
+            text-decoration: none;
+            transition: color 0.2s ease-in-out;
+        }
+        .top-bar-link:hover {
+            color: #1d4ed8; /* Blue-700 on hover */
+        }
+        .hidden {
+            display: none !important;
+        }
+        .logo-img {
+            max-width: 150px; /* Adjust size for viewer page */
+            height: auto;
+            margin-bottom: 1.5rem;
+        }
+        /* Specific styles for report content expansion */
         .report-content {
             max-height: 0;
             overflow: hidden;
@@ -18,7 +111,7 @@
 
         /* Print-specific styles for better isolation */
         @media print {
-            /* Hide the sidebar, main title, flash messages, load more button, and multi-select controls */
+            /* Hide sidebar, header, flash messages, and load more button */
             aside,
             h1,
             .flash-message,
@@ -65,53 +158,19 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 flex min-h-screen">
-    <aside class="w-64 bg-blue-900 shadow-md p-6 flex flex-col justify-between">
-        <div>
-            <div class="text-xl font-semibold text-white mb-6">SMT SecApp</div>
-            <nav>
-                <ul>
-                    <li class="mb-4">
-                        <a href="#" class="flex items-center text-blue-100 hover:text-white">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m0 0l7 7m-11 7v-3m0 0a2 2 0 100-4 2 2 0 000 4zm0 0h.01"></path></svg>
-                            Inicio
-                        </a>
-                    </li>
-                    <li class="mb-4">
-                        <a href="#" class="flex items-center text-blue-100 hover:text-white">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0h7m-7 0h2m-7 0z"></path></svg>
-                            Reportes
-                        </a>
-                    </li>
-                    <li class="mt-8 mb-4 border-t border-blue-700 pt-4">
-                        <div class="text-blue-100 font-medium mb-2">Bienvenido, {{ user_name }}</div>
-                    </li>
-                    <li class="mb-4">
-                        <a href="/logout" class="flex items-center text-red-300 hover:text-red-100">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                            Cerrar Sesión
-                        </a>
-                    </li>
-                    </ul>
-            </nav>
+<body class="bg-gray-100 flex flex-col items-center p-6">
+
+    <div class="container-wrapper">
+        <div class="flex flex-col items-center mb-6">
+            <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo-img opacity-90">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Reportes de Incidentes</h1>
+            <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
+            <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700" id="usernameDisplay">Roberto Canton</span></p>
         </div>
-        <div></div>
-    </aside>
 
-    <main class="flex-1 p-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-8">Visor de Reportes de Incidencias</h1>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-4 flash-message">
-                    {% for category, message in messages %}
-                        <div class="p-3 rounded-md {% if category == 'success' %}bg-green-100 text-green-800{% elif category == 'error' %}bg-red-100 text-red-800{% else %}bg-blue-100 text-blue-800{% endif %}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+        
+            
+        
 
         <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex items-center justify-between">
             <div>
@@ -119,54 +178,320 @@
                 <label for="select-all-checkbox" class="text-gray-700 font-medium">Seleccionar Todos</label>
             </div>
             <div class="space-x-4">
-                <button id="print-selected-button" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <button id="print-selected-button" class="base-button-style btn-secondary-professional" disabled>
                     Imprimir Seleccionados
                 </button>
-                <button id="save-pdf-button" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <button id="save-pdf-button" class="base-button-style btn-primary-professional" disabled>
                     Guardar Seleccionados como PDF
                 </button>
-                <button id="email-selected-button" class="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <button id="email-selected-button" class="base-button-style btn-primary-professional" disabled>
                     Enviar por Correo Electrónico
                 </button>
             </div>
         </div>
 
+        <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
+            <div class="flex-grow w-full">
+                <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por ID de Reporte:</label>
+                <input type="text" id="reportIdSearch" placeholder="Ej: 123, 456" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex-grow w-full">
+                <label for="submittedBySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Nombre de Quién lo Envió:</label>
+                <input type="text" id="submittedBySearch" placeholder="Ej: Juan Pérez" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex-grow w-full">
+                <label for="locationSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Ubicación:</label>
+                <input type="text" id="locationSearch" placeholder="Ej: Oficina Central" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full">
+                <div class="w-full sm:w-1/2">
+                    <label for="startDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha Desde:</label>
+                    <input type="date" id="startDateFilter" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div class="w-full sm:w-1/2">
+                    <label for="endDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha Hasta:</label>
+                    <input type="date" id="endDateFilter" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+            </div>
+            <button id="search-button" class="base-button-style btn-primary-professional w-full md:w-auto">
+                Buscar
+            </button>
+            <button id="clear-search-button" class="base-button-style btn-secondary-professional w-full md:w-auto">
+                Limpiar
+            </button>
+        </div>
+
+
         <div id="reports-container" class="space-y-6">
-            {% for form in forms %}
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}">
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="37">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}</p>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #37</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: alvaro.montalvo@gmail.com el 2025-07-22 23:05:39</p>
                         </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="{{ form.id }}">
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="37">
                     </div>
 
                     <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> {{ form.data['Título de Incidencia'] if form.data['Título de Incidencia'] else 'No especificado' }}</p>
-                        <p><strong>Lugar del Incidente:</strong> {{ form.data['Lugar del Incidente'] if form.data['Lugar del Incidente'] else 'No especificado' }}</p>
-                        <p><strong>Fecha del Incidente:</strong> {{ form.data['Fecha del Incidente'] if form.data['Fecha del Incidente'] else 'No especificado' }}</p>
+                        <p><strong>Título de Incidencia:</strong> Recuperacion</p>
+                        <p><strong>Lugar del Incidente:</strong> BEER</p>
+                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
                     </div>
                     
-                    <button class="toggle-details-button px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none" data-report-id="{{ form.id }}">
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="37">
                         Ver Detalles
                     </button>
 
                     <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-{{ form.id }}" class="text-gray-700">
+                        <div id="details-37" class="text-gray-700">
                             Cargando detalles...
                         </div>
                     </div>
                 </div>
-            {% endfor %}
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="36">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #36</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: roberto_canton@hotmail.com el 2025-07-22 21:53:55</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="36">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> SANDWICH QBANO</p>
+                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="36">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-36" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="35">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #35</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: roberto_canton@hotmail.com el 2025-07-22 12:50:06</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="35">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> ADDICT MOTOWEAR</p>
+                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="35">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-35" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="34">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #34</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: roberto_canton@hotmail.com el 2025-07-22 12:29:01</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="34">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> ADELGAZARTE</p>
+                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="34">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-34" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="31">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #31</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el N/A</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="31">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> LEVI’S</p>
+                        <p><strong>Fecha del Incidente:</strong> 2024-04-24</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="31">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-31" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="32">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #32</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el N/A</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="32">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Robo</p>
+                        <p><strong>Lugar del Incidente:</strong> DEJAMU</p>
+                        <p><strong>Fecha del Incidente:</strong> 2024-04-23</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="32">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-32" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="33">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #33</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: Yeralsocasolano@gmail.com el N/A</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="33">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> VERSILIA</p>
+                        <p><strong>Fecha del Incidente:</strong> 2024-04-21</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="33">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-33" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="30">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #30</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el 2024-03-31 07:34:38</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="30">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> KICKS</p>
+                        <p><strong>Fecha del Incidente:</strong> 2024-03-28</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="30">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-30" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="29">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #29</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: gruporobleparqueadero@gmail.com el 2024-03-28 09:11:37</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="29">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Hurto</p>
+                        <p><strong>Lugar del Incidente:</strong> BERSHKA</p>
+                        <p><strong>Fecha del Incidente:</strong> 2024-03-27</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="29">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-29" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="28">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800">Reporte #28</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el 2024-03-26 09:02:40</p>
+                        </div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="28">
+                    </div>
+
+                    <div class="text-gray-700 mb-4">
+                        <p><strong>Título de Incidencia:</strong> Robo</p>
+                        <p><strong>Lugar del Incidente:</strong> FALABELLA</p>
+                        <p><strong>Fecha del Incidente:</strong> 2024-03-25</p>
+                    </div>
+                    
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="28">
+                        Ver Detalles
+                    </button>
+
+                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                        <div id="details-28" class="text-gray-700">
+                            Cargando detalles...
+                        </div>
+                    </div>
+                </div>
+            
         </div>
 
-        <div id="load-more-container" class="text-center mt-8 {% if total_reports <= forms|length %}hidden{% endif %}">
-            <button id="load-more-button" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none">
-                Cargar Más Reportes ({{ total_reports - forms|length }} restantes)
+        <div id="load-more-container" class="text-center mt-8 ">
+            <button id="load-more-button" class="base-button-style btn-secondary-professional">
+                Cargar Más Reportes (7 restantes)
             </button>
         </div>
-    </main>
+    </div>
 
     <div id="email-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
         <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
@@ -177,8 +502,8 @@
                     <input type="email" id="recipient-email" name="recipient_email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
                 </div>
                 <div class="flex justify-end space-x-4">
-                    <button type="button" id="cancel-email-button" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Enviar</button>
+                    <button type="button" id="cancel-email-button" class="base-button-style btn-secondary-professional">Cancelar</button>
+                    <button type="submit" class="base-button-style btn-primary-professional">Enviar</button>
                 </div>
             </form>
             <div id="email-status" class="mt-4 text-center hidden"></div>
@@ -187,9 +512,9 @@
 
 
     <script>
-        let offset = {{ forms|length }};
+        let offset = 10;
         let limit = 10;
-        let totalReports = {{ total_reports }};
+        let totalReports = 17;
 
         // --- Utility Functions ---
         function showFlashMessage(message, category) {
@@ -208,7 +533,7 @@
             }
         }
 
-        // --- Report Loading Functionality ---
+        // --- Report Loading Functionality (Original from index.html) ---
         async function loadMoreReports() {
             const loadMoreButton = document.getElementById('load-more-button');
             loadMoreButton.disabled = true;
@@ -248,7 +573,7 @@
                             <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
                         </div>
                         
-                        <button class="toggle-details-button px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none" data-report-id="${form.id}">
+                        <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
                             Ver Detalles
                         </button>
 
@@ -275,7 +600,7 @@
             }
         }
 
-        // --- Event Listeners and State Management ---
+        // --- Event Listeners and State Management (Original from index.html) ---
         function checkLoadMoreButtonVisibility() {
             const loadMoreContainer = document.getElementById('load-more-container');
             if (loadMoreContainer) {
@@ -298,14 +623,11 @@
         }
 
         function attachEventListenersToNewReports() {
-            // Attach toggle details button listeners
             document.querySelectorAll('.toggle-details-button').forEach(button => {
-                // Remove existing listener to prevent duplicates
                 button.removeEventListener('click', toggleReportDetails);
                 button.addEventListener('click', toggleReportDetails);
             });
 
-            // Attach checkbox listeners
             document.querySelectorAll('.report-checkbox').forEach(checkbox => {
                 checkbox.removeEventListener('change', updateActionButtonsState);
                 checkbox.addEventListener('change', updateActionButtonsState);
@@ -340,9 +662,7 @@
                     let detailsHtml = '<ul style="list-style-type: none; padding: 0;">';
                     for (const key in reportDetails.data) {
                         if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
-                            // Check if the current key is 'URLs de Imágenes o PDFs'
                             if (key === 'URLs de Imágenes o PDFs') {
-                                // Robustly split URLs by newline, comma, or space, and filter out empty strings
                                 const urls = String(reportDetails.data[key]).split(/[\n, ]+/).filter(url => url.trim() !== '');
                                 if (urls.some(url => url.trim() !== '')) {
                                     detailsHtml += `<li><strong>Archivos Adjuntos:</strong><div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">`;
@@ -366,7 +686,6 @@
                                                     </div>
                                                 `;
                                             } else {
-                                                // For other file types, just show a link
                                                 detailsHtml += `
                                                     <div style='margin-bottom: 10px;'>
                                                         <p style="margin: 0;">Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${url.substring(url.lastIndexOf('/') + 1)}</a></p>
@@ -378,7 +697,6 @@
                                     detailsHtml += `</div></li>`;
                                 }
                             } else {
-                                // Basic sanitation for HTML output, replace newlines with <br>
                                 const cleanedValue = String(reportDetails.data[key]).replace(/\n/g, '<br>');
                                 detailsHtml += `<li><strong>${key}:</strong> ${cleanedValue}</li>`;
                             }
@@ -397,7 +715,7 @@
             }
         }
 
-        // --- Multi-Select and Action Buttons ---
+        // --- Multi-Select and Action Buttons (Original from index.html) ---
         const selectAllCheckbox = document.getElementById('select-all-checkbox');
         if (selectAllCheckbox) {
             selectAllCheckbox.addEventListener('change', (event) => {
@@ -421,7 +739,7 @@
                     showFlashMessage('Por favor, selecciona al menos un reporte para enviar por correo electrónico.', 'error');
                     return;
                 }
-                emailStatus.classList.add('hidden'); // Hide previous status
+                emailStatus.classList.add('hidden');
                 emailModal.classList.remove('hidden');
             });
         }
@@ -429,8 +747,8 @@
         if (cancelEmailButton) {
             cancelEmailButton.addEventListener('click', () => {
                 emailModal.classList.add('hidden');
-                emailStatus.classList.add('hidden'); // Hide status when closing
-                emailForm.reset(); // Clear the form
+                emailStatus.classList.add('hidden');
+                emailForm.reset();
             });
         }
 
@@ -462,11 +780,10 @@
                         emailStatus.className = 'mt-4 text-center text-green-700';
                         emailStatus.textContent = 'Correo electrónico enviado exitosamente!';
                         showFlashMessage('Reportes enviados por correo electrónico exitosamente!', 'success');
-                        // Optionally close modal after a short delay
                         setTimeout(() => {
                             emailModal.classList.add('hidden');
-                            emailForm.reset(); // Clear form on success
-                            emailStatus.classList.add('hidden'); // Hide status
+                            emailForm.reset();
+                            emailStatus.classList.add('hidden');
                         }, 2000);
                     } else {
                         emailStatus.className = 'mt-4 text-center text-red-700';
@@ -492,36 +809,29 @@
                     return;
                 }
 
-                // Apply print-specific classes and expand details for selected reports
                 document.querySelectorAll('.report-block').forEach(block => {
-                    // Always collapse details and reset button text before processing for print
-                    // This ensures a clean state regardless of prior user interaction
                     block.querySelector('.report-content').classList.remove('expanded');
                     block.querySelector('.toggle-details-button').textContent = 'Ver Detalles';
 
                     if (checkedReportIds.includes(block.dataset.reportId)) {
-                        block.classList.add('print-me'); // Mark this block for printing via CSS
-                        // Trigger toggleReportDetails to load and expand details if not already
+                        block.classList.add('print-me');
                         const button = block.querySelector('.toggle-details-button');
                         if (button && !block.querySelector('.report-content').classList.contains('expanded')) {
-                            toggleReportDetails({ target: button }); // This is an async call
+                            toggleReportDetails({ target: button });
                         }
                     } else {
-                        block.classList.remove('print-me'); // Ensure unselected blocks are not marked
+                        block.classList.remove('print-me');
                     }
                 });
 
-                // Small delay to allow async content loading (if any) before printing, adjust as needed
                 setTimeout(() => {
                     window.print();
-                    // Restore original state after print dialog is closed
                     document.querySelectorAll('.report-block').forEach(block => {
-                        block.classList.remove('print-me'); // Remove print marker
-                        // Reset content and button text if they were modified for printing
+                        block.classList.remove('print-me');
                         block.querySelector('.report-content').classList.remove('expanded');
                         block.querySelector('.toggle-details-button').textContent = 'Ver Detalles';
                     });
-                }, 500); // 500ms delay, increase if details loading is slow
+                }, 500);
             });
         }
 
@@ -582,15 +892,142 @@
         }
 
 
-        // --- Initial Setup on DOM Load ---
+        // --- Initial Setup on DOM Load (Original from index.html) ---
         document.addEventListener('DOMContentLoaded', () => {
             const loadMoreButton = document.getElementById('load-more-button');
             if (loadMoreButton) {
                 loadMoreButton.addEventListener('click', loadMoreReports);
             }
             checkLoadMoreButtonVisibility();
-            attachEventListenersToNewReports(); // Attach listeners to initial reports
-            updateActionButtonsState(); // Initial state check for ALL action buttons
+            attachEventListenersToNewReports();
+            updateActionButtonsState();
+
+            // Search and Pagination functionality (adapted from index.new.html to fit existing structure)
+            const reportIdSearch = document.getElementById('reportIdSearch');
+            const submittedBySearch = document.getElementById('submittedBySearch');
+            const locationSearch = document.getElementById('locationSearch');
+            const startDateFilter = document.getElementById('startDateFilter');
+            const endDateFilter = document.getElementById('endDateFilter');
+            const searchButton = document.getElementById('search-button');
+            const clearSearchButton = document.getElementById('clear-search-button');
+
+            // This section is new functionality not in original index.html but was requested for search capability
+            // It replaces the pagination buttons in the new style with a search mechanism.
+            // If the original index.html *already had* server-side pagination (which it did with offset/limit),
+            // then this is extending that, not replacing it.
+            function applyFilters() {
+                // For simplicity, we'll re-fetch the *initial* set of reports with filters applied.
+                // The "load more" will then continue from the filtered set.
+                // This requires your /api/reports endpoint to support these new filters.
+                const filters = {
+                    report_id: reportIdSearch.value,
+                    submitted_by: submittedBySearch.value,
+                    location: locationSearch.value,
+                    start_date: startDateFilter.value,
+                    end_date: endDateFilter.value
+                };
+
+                // Re-initialize offset and totalReports for a new search
+                offset = 0; // Start from beginning
+                totalReports = 0; // Will be updated by the fetch
+
+                // This is a simplified fetch tailored to work with your existing /api/reports endpoint
+                // and the new filter inputs. It's an interpretation of "search capability".
+                async function fetchFilteredReports() {
+                    const reportsContainer = document.getElementById('reports-container');
+                    reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
+
+                    const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+                    for (const key in filters) {
+                        if (filters[key]) {
+                            queryParams.append(key, filters[key]);
+                        }
+                    }
+
+                    try {
+                        const response = await fetch(`/api/reports?${queryParams.toString()}`, {
+                            headers: { 'Accept': 'application/json' }
+                        });
+
+                        if (!response.ok) {
+                            if (response.status === 401) {
+                                window.location.href = '/logout';
+                                return;
+                            }
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        reportsContainer.innerHTML = ''; // Clear loading message
+                        if (data.reports.length === 0) {
+                            reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
+                        } else {
+                            data.reports.forEach(form => {
+                                const reportBlock = document.createElement('div');
+                                reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                                reportBlock.setAttribute('data-report-id', form.id);
+                                reportBlock.innerHTML = `
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                            <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                                        </div>
+                                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                                    </div>
+
+                                    <div class="text-gray-700 mb-4">
+                                        <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                                        <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                                        <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                                    </div>
+                                    
+                                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                                        Ver Detalles
+                                    </button>
+
+                                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                                        <div id="details-${form.id}" class="text-gray-700">
+                                            Cargando detalles...
+                                        </div>
+                                    </div>
+                                `;
+                                reportsContainer.appendChild(reportBlock);
+                            });
+                        }
+                        offset = data.reports.length;
+                        totalReports = data.total_count;
+                        checkLoadMoreButtonVisibility();
+                        attachEventListenersToNewReports();
+                        updateActionButtonsState();
+
+                    } catch (error) {
+                        console.error('Error fetching filtered reports:', error);
+                        reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
+                        showFlashMessage('Error al cargar reportes filtrados.', 'error');
+                    }
+                }
+                fetchFilteredReports();
+            }
+
+
+            searchButton.addEventListener('click', applyFilters);
+            clearSearchButton.addEventListener('click', () => {
+                reportIdSearch.value = '';
+                submittedBySearch.value = '';
+                locationSearch.value = '';
+                startDateFilter.value = '';
+                endDateFilter.value = '';
+                applyFilters(); // Re-apply filters which effectively clears them and reloads initial reports
+            });
+
+            // Bind enter key for search on filter inputs
+            document.querySelectorAll('#reportIdSearch, #submittedBySearch, #locationSearch, #startDateFilter, #endDateFilter').forEach(input => {
+                input.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        applyFilters();
+                    }
+                });
+            });
         });
     </script>
 </body>

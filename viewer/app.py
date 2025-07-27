@@ -22,8 +22,6 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from weasyprint import HTML
-
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -154,13 +152,12 @@ def fetch_reports(offset, limit):
                 ri.numero_local,
                 ri.direccion,
                 ri.imagenes_pdfs,
-                s.nombre AS supervisor_name,
+                s.nombre AS supervisor_name, -- Added supervisor name
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
                 li.nombre AS id_lugar_incidente,
-                ri.descripcion_zona_comun,
-                u.name AS user_name -- New: select user's name
+                ri.descripcion_zona_comun
             FROM
                 reportes_incidentes ri
             LEFT JOIN
@@ -170,9 +167,7 @@ def fetch_reports(offset, limit):
             LEFT JOIN
                 "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             LEFT JOIN
-                supervisor s ON ri.id_supervisor = s.id_supervisor
-            LEFT JOIN
-                "users" u ON ri.user_email = u.email -- New: join with users table
+                supervisor s ON ri.id_supervisor = s.id_supervisor -- Join with supervisor table
             ORDER BY
                 ri.fecha_incidente DESC, ri.hora_incidente DESC
             OFFSET %s LIMIT %s;
@@ -186,7 +181,7 @@ def fetch_reports(offset, limit):
             forms_data = {
                 "id": row_dict["id_reporte_incidente"],
                 "title": f"Reporte #{row_dict['id_reporte_incidente']}",
-                "submittedBy": row_dict.get("user_name", row_dict.get("user_email", "desconocido")), # Prefer name, fallback to email, then 'desconocido'
+                "submittedBy": row_dict.get("user_email", "desconocido"),
                 "dateSubmitted": row_dict.get("creado_en").strftime("%Y-%m-%d %H:%M:%S") if row_dict.get("creado_en") else "N/A",
                 "data": {
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
@@ -204,7 +199,7 @@ def fetch_reports(offset, limit):
                     "Número de Local": str(row_dict.get("numero_local")),
                     "Dirección": str(row_dict.get("direccion")),
                     "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A"
+                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A" # Display supervisor name
                 }
             }
             reports.append(forms_data)
@@ -269,13 +264,12 @@ def fetch_reports_by_ids(report_ids):
                 ri.numero_local,
                 ri.direccion,
                 ri.imagenes_pdfs,
-                s.nombre AS supervisor_name,
+                s.nombre AS supervisor_name, -- Added supervisor name
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
                 li.nombre AS id_lugar_incidente,
-                ri.descripcion_zona_comun,
-                u.name AS user_name -- New: select user's name
+                ri.descripcion_zona_comun
             FROM
                 reportes_incidentes ri
             LEFT JOIN
@@ -285,9 +279,7 @@ def fetch_reports_by_ids(report_ids):
             LEFT JOIN
                 "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             LEFT JOIN
-                supervisor s ON ri.id_supervisor = s.id_supervisor
-            LEFT JOIN
-                "users" u ON ri.user_email = u.email -- New: join with users table
+                supervisor s ON ri.id_supervisor = s.id_supervisor -- Join with supervisor table
             WHERE
                 ri.id_reporte_incidente IN ({placeholders})
             ORDER BY
@@ -302,7 +294,7 @@ def fetch_reports_by_ids(report_ids):
             reports_data = {
                 "id": row_dict["id_reporte_incidente"],
                 "title": f"Reporte #{row_dict['id_reporte_incidente']}",
-                "submittedBy": row_dict.get("user_name", row_dict.get("user_email", "desconocido")),
+                "submittedBy": row_dict.get("user_email", "desconocido"),
                 "dateSubmitted": row_dict.get("creado_en").strftime("%Y-%m-%d %H:%M:%S") if row_dict.get("creado_en") else "N/A",
                 "data": {
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
@@ -320,7 +312,7 @@ def fetch_reports_by_ids(report_ids):
                     "Número de Local": str(row_dict.get("numero_local")),
                     "Dirección": str(row_dict.get("direccion")),
                     "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A"
+                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A" # Display supervisor name
                 }
             }
             reports.append(reports_data)
@@ -340,9 +332,11 @@ def fetch_reports_by_ids(report_ids):
     return reports
 
 def send_reports_email(recipient_email, subject, body, is_html=False):
+    # Retrieve email credentials - using provided values and Secret Manager for password
     _email_username = "no-reply@tzolkintech.com"
     _smtp_server = "tzolkintech.com"
     _smtp_port = 587
+    # FIX: Retrieve password from Secret Manager using the provided secret name
     _email_password = get_secret(project_id, 'admin-email-pass') 
 
     if not all([_email_username, _email_password, _smtp_server, _smtp_port]):
@@ -360,9 +354,9 @@ def send_reports_email(recipient_email, subject, body, is_html=False):
         server = None
         context = ssl.create_default_context()
 
-        if _smtp_port == 465:
+        if _smtp_port == 465: # SMTP_SSL for port 465
             server = smtplib.SMTP_SSL(_smtp_server, _smtp_port, context=context, timeout=10)
-        else:
+        else: # Standard SMTP with STARTTLS for other ports like 587
             server = smtplib.SMTP(_smtp_server, _smtp_port, timeout=10)
             server.starttls(context=context)
 
@@ -393,7 +387,7 @@ def send_reports_email(recipient_email, subject, body, is_html=False):
 @jwt_required()
 def index():
     user_email = get_jwt_identity()
-    user_name = user_email.split('@')[0]
+    user_name = user_email.split('@')[0] # Default fallback to email prefix
 
     conn = None
     cur = None
@@ -404,7 +398,7 @@ def index():
             app_logger.info(f"Attempting to fetch user name for email: {user_email}")
             cur.execute('SELECT "name" FROM "users" WHERE email = %s', (user_email,))
             user_row = cur.fetchone()
-            if user_row and user_row[0]:
+            if user_row and user_row[0]: # Check if user_row exists and name is not empty
                 user_name = user_row[0]
                 app_logger.info(f"User found in DB: {user_name}")
             else:
@@ -414,8 +408,10 @@ def index():
 
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error getting user name: {e}", exc_info=True)
+        # user_name already defaulted to email prefix, no change needed here.
     except Exception as e:
         app_logger.error(f"An unexpected error occurred getting user name: {e}", exc_info=True)
+        # user_name already defaulted to email prefix, no change needed here.
     finally:
         if cur:
             cur.close()
@@ -423,7 +419,7 @@ def index():
             conn.close()
             app_logger.info("Database connection closed after fetching user name.")
 
-    app_logger.info(f"Rendering index.html with user_name: {user_name}")
+    app_logger.info(f"Rendering index.html with user_name: {user_name}") # New log line
     initial_reports, total_reports_count = fetch_reports(offset=0, limit=10)
     return render_template("index.html", current_user=user_email, forms=initial_reports, user_name=user_name, total_reports=total_reports_count)
 
@@ -442,10 +438,12 @@ def get_more_reports():
     reports, total_count = fetch_reports(offset, limit)
     return jsonify({"reports": reports, "total_count": total_count})
 
+# New route to handle fetching a single report by ID, assumed to be used by "Ver Detalles"
 @app.route('/api/report/<int:report_id>', methods=['GET'])
 @jwt_required()
 def get_single_report(report_id):
     app_logger.info(f"Attempting to fetch single report with ID: {report_id} via GET /api/report/<id>")
+    # fetch_reports_by_ids expects a list of IDs
     reports = fetch_reports_by_ids([report_id])
     
     if reports:
@@ -495,6 +493,7 @@ def email_selected_reports_api():
         
         for key, value in report['data'].items():
             display_value = value if value and str(value).strip() != 'N/A' else 'No especificado'
+            # Modified section for handling URLs de Imágenes o PDFs
             if key == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
                 urls = display_value.split('\n')
                 html_body_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;'>")
@@ -522,7 +521,7 @@ def email_selected_reports_api():
                                     <p style="margin: 0;">Archivo: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{os.path.basename(url)}</a></p>
                                 </div>
                             """)
-                html_body_parts.append(f"</div>")
+                html_body_parts.append(f"</div>") # Close flex container
             else:
                 html_body_parts.append(f"<p><strong>{key}:</strong> {display_value}</p>")
         
@@ -539,113 +538,6 @@ def email_selected_reports_api():
     else:
         app_logger.error(f"Failed to send email: {message}")
         return jsonify({"success": False, "message": f"Error al enviar correo electrónico: {message}"}), 500
-
-
-@app.route('/api/generate-pdf', methods=['POST'])
-@jwt_required()
-def generate_pdf_api():
-    user_email = get_jwt_identity()
-    data = request.get_json()
-    report_ids = data.get('report_ids')
-
-    if not report_ids or not isinstance(report_ids, list):
-        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
-
-    app_logger.info(f"User {user_email} requested to generate PDF for reports {report_ids}")
-
-    reports_to_pdf = fetch_reports_by_ids(report_ids)
-
-    if not reports_to_pdf:
-        app_logger.warning(f"No reports found for the provided IDs during PDF generation request: {report_ids}")
-        return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
-
-    html_content_parts = [
-        "<!DOCTYPE html>",
-        "<html lang='es'>",
-        "<head>",
-        "<meta charset='UTF-8'>",
-        "<title>Reportes de Incidencias</title>",
-        "<style>",
-        "body { font-family: Arial, sans-serif; margin: 20px; color: #333; }",
-        ".report-container { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 20px; background-color: #f8fafc; page-break-inside: avoid; }",
-        "h1 { color: #1e3a8a; text-align: center; margin-bottom: 30px; }",
-        "h3 { color: #4a5568; margin-top: 0; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px; margin-bottom: 15px; }",
-        "p { margin: 5px 0; line-height: 1.5; }",
-        "strong { color: #555; }",
-        ".attachment-section { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }",
-        ".attachment-item { margin-bottom: 10px; text-align: center; }",
-        ".attachment-item img { max-width: 150px; height: auto; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; }",
-        ".attachment-item a { text-decoration: none; color: #2563eb; }",
-        "@page { size: A4; margin: 2cm; }",
-        "</style>",
-        "</head>",
-        "<body>",
-        "<h1>Reportes de Incidencias Seleccionados</h1>"
-    ]
-
-    for i, report in enumerate(reports_to_pdf):
-        html_content_parts.append(f"<div class='report-container'>")
-        html_content_parts.append(f"<h3>Reporte {i+1} (ID: {report['id']})</h3>")
-        html_content_parts.append(f"<p><strong>Título:</strong> {report['title']}</p>")
-        html_content_parts.append(f"<p><strong>Enviado por:</strong> {report['submittedBy']} el {report['dateSubmitted']}</p>")
-        
-        for key, value in report['data'].items():
-            display_value = value if value and str(value).strip() != 'N/A' and str(value).strip() != 'None' else 'No especificado'
-            
-            if key == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
-                urls = re.split(r'[\n, ]+', display_value)
-                urls = [url.strip() for url in urls if url.strip()]
-
-                if urls:
-                    html_content_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div class='attachment-section'>")
-                    for url in urls:
-                        lower_url = url.lower()
-                        if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
-                            html_content_parts.append(f"""
-                                <div class='attachment-item'>
-                                    <img src="{url}" alt="Imagen del reporte">
-                                    <p style="font-size: 0.8em; color: #555; margin-top: 5px;">{os.path.basename(url)}</p>
-                                </div>
-                            """)
-                        elif lower_url.endswith('.pdf'):
-                            html_content_parts.append(f"""
-                                <div class='attachment-item'>
-                                    <p>PDF: <a href="{url}" target="_blank">{os.path.basename(url)}</a></p>
-                                </div>
-                            """)
-                        else:
-                            html_content_parts.append(f"""
-                                <div class='attachment-item'>
-                                    <p>Archivo: <a href="{url}" target="_blank">{os.path.basename(url)}</a></p>
-                                </div>
-                            """)
-                    html_content_parts.append(f"</div>")
-            else:
-                cleaned_value = str(display_value).replace('\n', '<br>')
-                html_content_parts.append(f"<p><strong>{key}:</strong> {cleaned_value}</p>")
-        
-        html_content_parts.append(f"</div>")
-
-    html_content_parts.append("</body></html>")
-    full_html_content = "\n".join(html_content_parts)
-
-    try:
-        pdf_bytes = HTML(string=full_html_content).write_pdf()
-        app_logger.info(f"Successfully generated PDF for {len(reports_to_pdf)} reports.")
-        
-        if len(reports_to_pdf) == 1:
-            filename = f"reporte_{reports_to_pdf[0]['id']}.pdf"
-        else:
-            filename = f"reportes_seleccionados.pdf"
-
-        return Response(
-            pdf_bytes,
-            mimetype='application/pdf',
-            headers={'Content-Disposition': f'attachment;filename={filename}'}
-        )
-    except Exception as e:
-        app_logger.error(f"Error generating PDF: {e}", exc_info=True)
-        return jsonify({"success": False, "message": f"Error al generar el PDF: {e}"}), 500
 
 
 @app.route('/logout')

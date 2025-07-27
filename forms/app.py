@@ -215,6 +215,35 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
 def send_report_notification(user_email, user_name, fields):
     subject = f"Nuevo Reporte de Incidencia - {fields.get('fecha_incidente')}"
 
+    # --- Generate HTML for attachments ---
+    attachments_html = ""
+    image_urls_string = fields.get('imagenes_pdfs')
+    if image_urls_string:
+        urls = image_urls_string.strip().split('\n')
+        attachments_html += "<div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;'>"
+        for url in urls:
+            url = url.strip()
+            if url:
+                lower_url = url.lower()
+                filename = os.path.basename(url)
+                if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
+                    attachments_html += f"""
+                        <div style='margin-bottom: 10px; text-align: center;'>
+                            <a href="{url}" target="_blank" style="text-decoration: none;">
+                                <img src="{url}" alt="Imagen del reporte" style="max-width: 200px; height: auto; border-radius: 4px; border: 1px solid #ccc;">
+                            </a>
+                            <p style="font-size: 0.8em; color: #555; margin-top: 5px;">{filename}</p>
+                        </div>
+                    """
+                elif lower_url.endswith('.pdf'):
+                    attachments_html += f'<div style="margin-bottom: 10px;"><p style="margin: 0;">PDF: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{filename}</a></p></div>'
+                else:
+                    attachments_html += f'<div style="margin-bottom: 10px;"><p style="margin: 0;">Archivo: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{filename}</a></p></div>'
+        attachments_html += "</div>"
+    else:
+        attachments_html = "Ninguno"
+    # --- End of attachment HTML generation ---
+
     html_body = f"""
     <html>
     <body style="font-family: Arial, sans-serif; color: #333;">
@@ -228,7 +257,8 @@ def send_report_notification(user_email, user_name, fields):
         <p><strong>Descripción:</strong> {fields.get('descripcion_incidente')}</p>
         <p><strong>Ubicación:</strong> {fields.get('direccion')}</p>
         <p><strong>Valor Aproximado:</strong> {fields.get('valor_aproximado') or 'No especificado'}</p>
-        <p><strong>Archivos Adjuntos:</strong><br>{fields.get('imagenes_pdfs') or 'Ninguno'}</p>
+        <p><strong>Archivos Adjuntos:</strong></p>
+        {attachments_html}
     </div>
     </div>
     </body>

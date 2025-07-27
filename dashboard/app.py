@@ -401,7 +401,7 @@ def email_reports():
                             <td style="padding: 10px; border: 1px solid #ddd;">{report['lugar_incidente']}</td>
                             <td style="padding: 10px; border: 1px solid #ddd;">{report['fecha_incidente']}</td>
                             <td style="padding: 10px; border: 1px solid #ddd;">{report['hora_incidente']}</td>
-                            <td style="padding: 10px; border: 1px solid #ddd;">{report['descripcion_incidente'][:50]}...</td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">{report['descripcion_incidente']}</td>
                             <td style="padding: 10px; border: 1px solid #ddd;">{report['supervisor_nombre']}</td>
                             <td style="padding: 10px; border: 1px solid #ddd;">{report['creado_en'].strftime('%Y-%m-%d %H:%M:%S') if report['creado_en'] else 'N/A'}</td>
                         </tr>
