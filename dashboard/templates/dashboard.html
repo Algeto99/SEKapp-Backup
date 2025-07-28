@@ -1,227 +1,360 @@
 <!DOCTYPE html>
-<html lang="es" class="transition duration-300 ease-in-out">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Reportes de Incidentes</title>
+    <title>SMT SecApp - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8ff;
+            color: #343a40;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
         }
-        /* Flashed message styling */
-        .flash-message {
-            @apply p-3 mb-4 rounded-lg text-sm font-medium;
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+            color: #212529;
         }
-        .flash-success { @apply bg-green-500 text-white; }
-        .flash-error { @apply bg-red-500 text-white; }
-        .flash-warning { @apply bg-yellow-500 text-gray-900; }
-        .flash-info { @apply bg-blue-500 text-white; }
-
-        /* Print-specific styles */
-        @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                background-color: #fff !important; /* Ensure white background for printing */
-            }
-            .no-print {
-                display: none !important; /* Hide elements not needed for print */
-            }
-            .container {
-                box-shadow: none !important; /* Remove shadows in print */
-                border: none !important; /* Remove borders in print */
-                padding: 0 !important; /* Remove padding in print */
-                margin: 0 !important; /* Remove margin in print */
-                width: 100% !important; /* Ensure full width */
-                max-width: none !important;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-            }
-            th, td {
-                border: 1px solid #ccc;
-                padding: 8px;
-                text-align: left;
-            }
-            thead tr {
-                background-color: #f2f2f2;
-            }
+        .container-wrapper {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 2rem;
+            max-width: 1200px;
+            width: 100%;
+            margin-top: 2rem;
+        }
+        .nav-link {
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            display: inline-block;
+        }
+        .nav-link:hover {
+            background-color: #f3f4f6;
+            transform: translateY(-1px);
+        }
+        .logo-img {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 1.5rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 2rem 0;
+        }
+        .chart-section {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e2e8f0;
+        }
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1d4ed8;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .period-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .period-btn {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid #1d4ed8;
+            background-color: white;
+            color: #1d4ed8;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .period-btn:hover {
+            background-color: #1d4ed8;
+            color: white;
+            transform: translateY(-1px);
+        }
+        .period-btn.active {
+            background-color: #1d4ed8;
+            color: white;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1d4ed8;
+            margin-bottom: 0.5rem;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-purple-100 to-pink-100 min-h-screen p-4">
-    <div class="container mx-auto bg-white p-8 rounded-xl shadow-2xl transform transition-all duration-300 hover:scale-[1.01]">
+<body class="bg-gray-100 flex flex-col items-center p-6">
 
-        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 no-print">
-            <h1 class="text-3xl font-bold text-gray-800">Dashboard de Reportes</h1>
-            <div class="flex items-center space-x-4">
-                {% if username %}
-                    <span class="text-gray-600">Bienvenido, <strong class="font-semibold">{{ username }}</strong></span>
-                    <a href="{{ forms_service_url }}" class="text-blue-600 hover:underline">Reportar Incidencia</a>
-                    <a href="{{ login_service_url }}/logout" class="text-blue-600 hover:underline">Cerrar Sesión</a>
-                {% else %}
-                    <a href="{{ login_service_url }}" class="text-blue-600 hover:underline">Iniciar Sesión</a>
-                {% endif %}
+    <div class="container-wrapper">
+        <!-- Navigation Bar -->
+        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-4">
+            <div class="flex justify-center space-x-8">
+                <a href="https://landing.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Inicio
+                </a>
+                <a href="https://form1.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Reporte de Incidencia
+                </a>
+                <a href="https://viewer.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Ver Reportes
+                </a>
+                <a href="/logout" class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
+                    Cerrar Sesión
+                </a>
+            </div>
+        </nav>
+
+        <div class="flex flex-col items-center mb-6">
+            <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo-img opacity-90">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Dashboard de Incidencias</h1>
+            <p class="text-md text-gray-600 mb-4">Análisis y estadísticas de reportes de seguridad.</p>
+            <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700">{{ user_name }}</span></p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalIncidents">-</div>
+                <div class="stat-label">Total de Incidencias</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="thisMonthIncidents">-</div>
+                <div class="stat-label">Este Mes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="thisWeekIncidents">-</div>
+                <div class="stat-label">Esta Semana</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="averagePerMonth">-</div>
+                <div class="stat-label">Promedio Mensual</div>
             </div>
         </div>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-4">
-                    {% for category, message in messages %}
-                        <div class="flash-message flash-{{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Sus Reportes de Incidentes</h2>
-
-        <!-- Action Buttons -->
-        <div class="flex justify-center space-x-4 mb-6 no-print">
-            <button id="emailReportsBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8m-2 4v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m14 0V9a2 2 0 00-2-2H5a2 2 0 00-2 2v3m14 0l-2.293 2.293a1 1 0 01-1.414 0L10 12"></path></svg>
-                Enviar por Correo
-            </button>
-            <button id="exportCsvBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                Exportar CSV
-            </button>
-            <button id="printReportsBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 flex items-center">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m0 0v1a2 2 0 002 2h4a2 2 0 002-2v-1m-4-8a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V7z"></path></svg>
-                Imprimir
-            </button>
+        <!-- Period Selection -->
+        <div class="period-buttons">
+            <button class="period-btn active" onclick="changePeriod('weekly')" id="weeklyBtn">Semanal</button>
+            <button class="period-btn" onclick="changePeriod('monthly')" id="monthlyBtn">Mensual</button>
+            <button class="period-btn" onclick="changePeriod('yearly')" id="yearlyBtn">Anual</button>
         </div>
 
-        {% if submissions %}
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
-                    <thead>
-                        <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
-                            <th class="py-3 px-6 text-left">ID Reporte</th>
-                            <th class="py-3 px-6 text-left">Tipo Incidencia</th>
-                            <th class="py-3 px-6 text-left">Tipo Cliente</th>
-                            <th class="py-3 px-6 text-left">Lugar Incidente</th>
-                            <th class="py-3 px-6 text-left">Fecha</th>
-                            <th class="py-3 px-6 text-left">Hora</th>
-                            <th class="py-3 px-6 text-left">Descripción</th>
-                            <th class="py-3 px-6 text-left">Persona Involucrada</th>
-                            <th class="py-3 px-6 text-left">Teléfono</th>
-                            <th class="py-3 px-6 text-left">Identidad</th>
-                            <th class="py-3 px-6 text-left">Valor Aprox.</th>
-                            <th class="py-3 px-6 text-left">Pertenencias</th>
-                            <th class="py-3 px-6 text-left">Supervisor</th>
-                            <th class="py-3 px-6 text-left">Creado En</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-gray-700 text-sm font-light">
-                        {% for submission in submissions %}
-                        <tr class="border-b border-gray-200 hover:bg-gray-50">
-                            <td class="py-3 px-6 text-left whitespace-nowrap">{{ submission.id_reporte }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.tipo_incidencia }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.tipo_cliente }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.lugar_incidente }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.fecha_incidente }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.hora_incidente }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.descripcion_incidente }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.nombre_persona }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.telefono_persona if submission.telefono_persona else 'N/A' }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.numero_identidad_persona if submission.numero_identidad_persona else 'N/A' }}</td>
-                            <td class="py-3 px-6 text-left">{{ "$%.2f" % submission.valor_aproximado if submission.valor_aproximado is not none else 'N/A' }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.pertenencias_sustraidas if submission.pertenencias_sustraidas else 'N/A' }}</td>
-                            <td class="py-3 px-6 text-left">{{ submission.supervisor_nombre }}</td>
-                            <td class="py-3 px-6 text-left whitespace-nowrap">{{ submission.created_at.strftime('%Y-%m-%d %H:%M:%S') if submission.created_at else 'N/A' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Chart Section -->
+        <div class="chart-section">
+            <h2 class="chart-title" id="chartTitle">Incidencias por Semana</h2>
+            <div class="chart-container">
+                <canvas id="incidentsChart"></canvas>
             </div>
-        {% else %}
-            <p class="text-center text-gray-600 text-lg mt-8">No hay datos de reportes para mostrar.</p>
-        {% endif %}
-
-        <div class="mt-8 text-center no-print">
-            <p class="text-sm text-gray-500">
-                Datos actualizados al: {{ moment(current_datetime).format('YYYY-MM-DD HH:mm:ss') }}
-            </p>
         </div>
     </div>
 
     <script>
-        document.getElementById('printReportsBtn').addEventListener('click', () => {
-            window.print();
+        let incidentsChart;
+        let currentPeriod = 'weekly';
+        let allData = {};
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllData();
         });
 
-        document.getElementById('exportCsvBtn').addEventListener('click', () => {
-            window.location.href = '/export_csv';
-        });
-
-        document.getElementById('emailReportsBtn').addEventListener('click', async () => {
-            // You can prompt for an email address here if you want to send to a different one
-            // const recipientEmail = prompt("Enter recipient email (leave blank to send to your registered email):");
-            const recipientEmail = "{{ username }}"; // Default to current user's email
-
+        async function loadAllData() {
             try {
-                const response = await fetch('/email_reports', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ recipient_email: recipientEmail })
-                });
+                // Load data for all periods
+                const [weeklyData, monthlyData, yearlyData] = await Promise.all([
+                    fetch('/api/incidents/weekly').then(r => r.json()),
+                    fetch('/api/incidents/monthly').then(r => r.json()),
+                    fetch('/api/incidents/yearly').then(r => r.json())
+                ]);
 
-                const result = await response.json();
-                const flashContainer = document.querySelector('.container.mx-auto .mb-4');
-                let messageDiv = document.createElement('div');
-                messageDiv.classList.add('flash-message');
+                allData = {
+                    weekly: weeklyData,
+                    monthly: monthlyData,
+                    yearly: yearlyData
+                };
 
-                if (result.success) {
-                    messageDiv.classList.add('flash-success');
-                    messageDiv.textContent = result.message;
-                } else {
-                    messageDiv.classList.add('flash-error');
-                    messageDiv.textContent = result.message || 'Error desconocido al enviar correo.';
-                }
-
-                // Clear existing flash messages before adding new one
-                if (flashContainer) {
-                    flashContainer.innerHTML = '';
-                    flashContainer.appendChild(messageDiv);
-                } else {
-                    // If flash container doesn't exist, create one at the top of the main container
-                    const mainContainer = document.querySelector('.container.mx-auto');
-                    if (mainContainer) {
-                        const newFlashContainer = document.createElement('div');
-                        newFlashContainer.classList.add('mb-4');
-                        newFlashContainer.appendChild(messageDiv);
-                        mainContainer.insertBefore(newFlashContainer, mainContainer.firstChild);
-                    }
-                }
-
-                // Auto-remove flash message after a few seconds
-                setTimeout(() => {
-                    messageDiv.remove();
-                }, 5000);
+                // Update stats
+                updateStats();
+                
+                // Initialize chart with weekly data
+                updateChart();
 
             } catch (error) {
-                console.error('Error sending email:', error);
-                const flashContainer = document.querySelector('.container.mx-auto .mb-4') || document.createElement('div');
-                let messageDiv = document.createElement('div');
-                messageDiv.classList.add('flash-message', 'flash-error');
-                messageDiv.textContent = 'Error de red o del servidor al intentar enviar el correo.';
-                if (flashContainer.innerHTML === '') { // Only append if no existing flash container or it's empty
-                    flashContainer.appendChild(messageDiv);
-                }
-                setTimeout(() => {
-                    messageDiv.remove();
-                }, 5000);
+                console.error('Error loading dashboard data:', error);
+                showError('Error al cargar los datos del dashboard');
             }
-        });
+        }
+
+        function updateStats() {
+            // Calculate total incidents
+            const totalIncidents = allData.yearly.reduce((sum, item) => sum + item.count, 0);
+            document.getElementById('totalIncidents').textContent = totalIncidents;
+
+            // This month incidents (current month from monthly data)
+            const currentMonth = new Date().getMonth() + 1;
+            const currentYear = new Date().getFullYear();
+            const thisMonthData = allData.monthly.find(item => {
+                const [month, year] = item.period.split(' ');
+                return parseInt(year) === currentYear && getMonthNumber(month) === currentMonth;
+            });
+            document.getElementById('thisMonthIncidents').textContent = thisMonthData ? thisMonthData.count : 0;
+
+            // This week incidents (latest week from weekly data)
+            const thisWeekData = allData.weekly.length > 0 ? allData.weekly[allData.weekly.length - 1] : null;
+            document.getElementById('thisWeekIncidents').textContent = thisWeekData ? thisWeekData.count : 0;
+
+            // Average per month
+            const avgPerMonth = allData.monthly.length > 0 ? 
+                Math.round(allData.monthly.reduce((sum, item) => sum + item.count, 0) / allData.monthly.length) : 0;
+            document.getElementById('averagePerMonth').textContent = avgPerMonth;
+        }
+
+        function getMonthNumber(monthName) {
+            const months = {
+                'Enero': 1, 'Febrero': 2, 'Marzo': 3, 'Abril': 4,
+                'Mayo': 5, 'Junio': 6, 'Julio': 7, 'Agosto': 8,
+                'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
+            };
+            return months[monthName] || 0;
+        }
+
+        function changePeriod(period) {
+            currentPeriod = period;
+            
+            // Update button states
+            document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(period + 'Btn').classList.add('active');
+            
+            // Update chart title
+            const titles = {
+                weekly: 'Incidencias por Semana',
+                monthly: 'Incidencias por Mes',
+                yearly: 'Incidencias por Año'
+            };
+            document.getElementById('chartTitle').textContent = titles[period];
+            
+            // Update chart
+            updateChart();
+        }
+
+        function updateChart() {
+            const data = allData[currentPeriod] || [];
+            
+            if (incidentsChart) {
+                incidentsChart.destroy();
+            }
+
+            const ctx = document.getElementById('incidentsChart').getContext('2d');
+            
+            incidentsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(item => item.period),
+                    datasets: [{
+                        label: 'Número de Incidencias',
+                        data: data.map(item => item.count),
+                        backgroundColor: 'rgba(29, 78, 216, 0.8)',
+                        borderColor: 'rgba(29, 78, 216, 1)',
+                        borderWidth: 2,
+                        borderRadius: 4,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            cornerRadius: 6,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: '#666'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#666',
+                                maxRotation: 45
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    }
+                }
+            });
+        }
+
+        function showError(message) {
+            // Create error message element
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+            errorDiv.textContent = message;
+            
+            // Insert at the top of the container
+            const container = document.querySelector('.container-wrapper');
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
     </script>
 </body>
 </html>

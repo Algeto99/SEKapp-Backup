@@ -616,7 +616,7 @@
             sendEmailButton.disabled = true;
 
             try {
-                const response = await fetch(`${VIEWER_SERVICE_URL}/send_reports_email`, {
+                const response = await fetch(`${VIEWER_SERVICE_URL}/api/email-reports`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -3,8 +3,9 @@ import sys
 import logging
 import re
 from datetime import timedelta, datetime, timezone
+from io import BytesIO
 
-from flask import Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from flask_cors import CORS
 from google.cloud import secretmanager
@@ -21,6 +22,9 @@ import smtplib
 import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+# PDF generation imports
+from weasyprint import HTML, CSS
 
 
 # --- Configure Logging ---
@@ -117,7 +121,7 @@ def get_db_connection():
         return None
 
 
-def fetch_reports(offset, limit):
+def fetch_reports(offset, limit, filters=None):
     conn = None
     cur = None
     reports = []
@@ -130,14 +134,66 @@ def fetch_reports(offset, limit):
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # First, get the total count of reports
-        app_logger.info("Executing COUNT(*) query for reports.")
-        cur.execute("SELECT COUNT(*) FROM reportes_incidentes")
-        total_count = cur.fetchone()[0]
-        app_logger.info(f"Total reports found: {total_count}")
+        # Build WHERE clause based on filters
+        where_conditions = []
+        query_params = []
+        
+        if filters:
+            # Report ID filter
+            if filters.get('report_id'):
+                try:
+                    # Handle multiple report IDs separated by commas
+                    report_ids = [int(id.strip()) for id in filters['report_id'].split(',') if id.strip().isdigit()]
+                    if report_ids:
+                        placeholders = ','.join(['%s'] * len(report_ids))
+                        where_conditions.append(f"ri.id_reporte_incidente IN ({placeholders})")
+                        query_params.extend(report_ids)
+                except (ValueError, AttributeError):
+                    pass
+            
+            # Submitted by filter (searches both name and email)
+            if filters.get('submitted_by'):
+                where_conditions.append("(LOWER(u.name) LIKE LOWER(%s) OR LOWER(ri.user_email) LIKE LOWER(%s))")
+                search_term = f"%{filters['submitted_by']}%"
+                query_params.extend([search_term, search_term])
+            
+            # Location filter
+            if filters.get('location'):
+                where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
+                query_params.append(f"%{filters['location']}%")
+            
+            # Date range filters
+            if filters.get('start_date'):
+                where_conditions.append("ri.fecha_incidente >= %s")
+                query_params.append(filters['start_date'])
+            
+            if filters.get('end_date'):
+                where_conditions.append("ri.fecha_incidente <= %s")
+                query_params.append(filters['end_date'])
 
-        # Then, get the paginated reports
-        query = """
+        where_clause = ""
+        if where_conditions:
+            where_clause = "WHERE " + " AND ".join(where_conditions)
+
+        # First, get the total count of reports with filters
+        count_query = f"""
+            SELECT COUNT(*)
+            FROM reportes_incidentes ri
+            LEFT JOIN "tipo_cliente" tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
+            LEFT JOIN users u ON ri.user_email = u.email
+            {where_clause}
+        """
+        
+        app_logger.info("Executing COUNT(*) query for reports with filters.")
+        cur.execute(count_query, query_params)
+        total_count = cur.fetchone()[0]
+        app_logger.info(f"Total reports found with filters: {total_count}")
+
+        # Then, get the paginated reports with user names and filters
+        query = f"""
             SELECT
                 ri.id_reporte_incidente,
                 ri.user_email,
@@ -152,12 +208,13 @@ def fetch_reports(offset, limit):
                 ri.numero_local,
                 ri.direccion,
                 ri.imagenes_pdfs,
-                s.nombre AS supervisor_name, -- Added supervisor name
+                s.nombre AS supervisor_name,
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
                 li.nombre AS id_lugar_incidente,
-                ri.descripcion_zona_comun
+                ri.descripcion_zona_comun,
+                u.name AS user_name
             FROM
                 reportes_incidentes ri
             LEFT JOIN
@@ -167,21 +224,31 @@ def fetch_reports(offset, limit):
             LEFT JOIN
                 "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             LEFT JOIN
-                supervisor s ON ri.id_supervisor = s.id_supervisor -- Join with supervisor table
+                supervisor s ON ri.id_supervisor = s.id_supervisor
+            LEFT JOIN
+                users u ON ri.user_email = u.email
+            {where_clause}
             ORDER BY
                 ri.fecha_incidente DESC, ri.hora_incidente DESC
             OFFSET %s LIMIT %s;
         """
-        app_logger.info(f"Executing fetch_reports query with offset={offset}, limit={limit}.")
-        cur.execute(query, (offset, limit))
+        
+        # Add pagination parameters
+        final_params = query_params + [offset, limit]
+        
+        app_logger.info(f"Executing fetch_reports query with offset={offset}, limit={limit}, filters={filters}.")
+        cur.execute(query, final_params)
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} reports from the database.")
 
         for row_dict in rows:
+            # Use the full name if available, otherwise fall back to email
+            display_name = row_dict.get("user_name") or row_dict.get("user_email", "desconocido")
+            
             forms_data = {
                 "id": row_dict["id_reporte_incidente"],
                 "title": f"Reporte #{row_dict['id_reporte_incidente']}",
-                "submittedBy": row_dict.get("user_email", "desconocido"),
+                "submittedBy": display_name,
                 "dateSubmitted": row_dict.get("creado_en").strftime("%Y-%m-%d %H:%M:%S") if row_dict.get("creado_en") else "N/A",
                 "data": {
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
@@ -199,7 +266,7 @@ def fetch_reports(offset, limit):
                     "Número de Local": str(row_dict.get("numero_local")),
                     "Dirección": str(row_dict.get("direccion")),
                     "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A" # Display supervisor name
+                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A"
                 }
             }
             reports.append(forms_data)
@@ -264,12 +331,13 @@ def fetch_reports_by_ids(report_ids):
                 ri.numero_local,
                 ri.direccion,
                 ri.imagenes_pdfs,
-                s.nombre AS supervisor_name, -- Added supervisor name
+                s.nombre AS supervisor_name,
                 ri.fecha_incidente,
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
                 li.nombre AS id_lugar_incidente,
-                ri.descripcion_zona_comun
+                ri.descripcion_zona_comun,
+                u.name AS user_name -- Get the user's full name
             FROM
                 reportes_incidentes ri
             LEFT JOIN
@@ -279,7 +347,9 @@ def fetch_reports_by_ids(report_ids):
             LEFT JOIN
                 "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             LEFT JOIN
-                supervisor s ON ri.id_supervisor = s.id_supervisor -- Join with supervisor table
+                supervisor s ON ri.id_supervisor = s.id_supervisor
+            LEFT JOIN
+                users u ON ri.user_email = u.email -- Join with users table to get full name
             WHERE
                 ri.id_reporte_incidente IN ({placeholders})
             ORDER BY
@@ -291,10 +361,13 @@ def fetch_reports_by_ids(report_ids):
         app_logger.info(f"Fetched {len(rows)} specific reports.")
 
         for row_dict in rows:
+            # Use the full name if available, otherwise fall back to email
+            display_name = row_dict.get("user_name") or row_dict.get("user_email", "desconocido")
+            
             reports_data = {
                 "id": row_dict["id_reporte_incidente"],
                 "title": f"Reporte #{row_dict['id_reporte_incidente']}",
-                "submittedBy": row_dict.get("user_email", "desconocido"),
+                "submittedBy": display_name,
                 "dateSubmitted": row_dict.get("creado_en").strftime("%Y-%m-%d %H:%M:%S") if row_dict.get("creado_en") else "N/A",
                 "data": {
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
@@ -312,7 +385,7 @@ def fetch_reports_by_ids(report_ids):
                     "Número de Local": str(row_dict.get("numero_local")),
                     "Dirección": str(row_dict.get("direccion")),
                     "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A" # Display supervisor name
+                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A"
                 }
             }
             reports.append(reports_data)
@@ -435,7 +508,22 @@ def get_more_reports():
     if limit <= 0 or limit > 100:
         limit = 10
 
-    reports, total_count = fetch_reports(offset, limit)
+    # Extract filter parameters
+    filters = {}
+    if request.args.get('report_id'):
+        filters['report_id'] = request.args.get('report_id')
+    if request.args.get('submitted_by'):
+        filters['submitted_by'] = request.args.get('submitted_by')
+    if request.args.get('location'):
+        filters['location'] = request.args.get('location')
+    if request.args.get('start_date'):
+        filters['start_date'] = request.args.get('start_date')
+    if request.args.get('end_date'):
+        filters['end_date'] = request.args.get('end_date')
+
+    app_logger.info(f"API request with filters: {filters}")
+    
+    reports, total_count = fetch_reports(offset, limit, filters if filters else None)
     return jsonify({"reports": reports, "total_count": total_count})
 
 # New route to handle fetching a single report by ID, assumed to be used by "Ver Detalles"
@@ -540,12 +628,300 @@ def email_selected_reports_api():
         return jsonify({"success": False, "message": f"Error al enviar correo electrónico: {message}"}), 500
 
 
+@app.route('/api/generate-pdf', methods=['POST'])
+@jwt_required()
+def generate_pdf():
+    """Generate PDF for selected reports using WeasyPrint"""
+    user_email = get_jwt_identity()
+    data = request.get_json()
+    report_ids = data.get('report_ids')
+
+    if not report_ids or not isinstance(report_ids, list):
+        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
+
+    app_logger.info(f"User {user_email} requested PDF generation for reports {report_ids}")
+
+    try:
+        # Fetch the reports
+        reports_to_pdf = fetch_reports_by_ids(report_ids)
+
+        if not reports_to_pdf:
+            app_logger.warning(f"No reports found for the provided IDs during PDF request: {report_ids}")
+            return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
+
+        # Generate HTML content for PDF
+        html_content = generate_reports_html(reports_to_pdf)
+        
+        # Create PDF using WeasyPrint
+        pdf_buffer = BytesIO()
+        HTML(string=html_content).write_pdf(pdf_buffer)
+        pdf_buffer.seek(0)
+
+        # Create filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"reportes_incidencias_{timestamp}.pdf"
+
+        app_logger.info(f"PDF generated successfully for {len(reports_to_pdf)} reports using WeasyPrint")
+
+        return send_file(
+            pdf_buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+
+    except Exception as e:
+        app_logger.error(f"Error generating PDF: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Error generating PDF: {str(e)}"}), 500
+
+
+def generate_reports_html(reports):
+    """Generate HTML content for PDF generation - matching print layout"""
+    html_parts = ["""
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {
+                font-family: 'Roboto', Arial, sans-serif;
+                margin: 40px;
+                color: #333;
+                line-height: 1.6;
+                font-size: 12pt;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 40px;
+                border-bottom: 2px solid #1d4ed8;
+                padding-bottom: 20px;
+            }
+            .header h1 {
+                color: #1d4ed8;
+                font-size: 24px;
+                margin: 0;
+                font-family: 'Merriweather', serif;
+            }
+            .report-block {
+                page-break-before: always;
+                margin-bottom: 2rem;
+                padding: 1rem;
+                background: white;
+                border: 1px solid #ddd;
+            }
+            .report-block:first-child {
+                page-break-before: avoid;
+            }
+            .report-header {
+                margin-bottom: 1rem;
+            }
+            .report-title {
+                font-size: 16pt;
+                font-weight: bold;
+                color: #212529;
+                margin-bottom: 0.5rem;
+                font-family: 'Merriweather', serif;
+            }
+            .report-meta {
+                color: #666;
+                font-size: 11pt;
+                margin-bottom: 1rem;
+            }
+            .report-summary {
+                margin-bottom: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid #eee;
+            }
+            .report-summary p {
+                margin-bottom: 0.5rem;
+                color: #212529;
+                font-size: 11pt;
+            }
+            .report-details {
+                margin-top: 1rem;
+                padding-top: 1rem;
+                border-top: 1px solid #eee;
+            }
+            .report-details ul {
+                list-style-type: none;
+                padding: 0;
+                margin: 0;
+            }
+            .report-details li {
+                margin-bottom: 0.5rem;
+                padding: 0;
+                font-size: 11pt;
+                color: #212529;
+            }
+            .report-details strong {
+                font-weight: bold;
+                color: #212529;
+            }
+            .attachment-section {
+                margin: 1rem 0;
+            }
+            .attachment-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 10px;
+            }
+            .attachment-item {
+                margin-bottom: 10px;
+                text-align: center;
+            }
+            .attachment-item img {
+                max-width: 200px;
+                max-height: 200px;
+                object-fit: contain;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                page-break-inside: avoid;
+            }
+            .attachment-item p {
+                font-size: 10pt;
+                color: #555;
+                margin-top: 5px;
+                margin-bottom: 0;
+            }
+            .pdf-link {
+                color: #2563eb;
+                text-decoration: none;
+                font-size: 11pt;
+            }
+            .pdf-link:hover {
+                text-decoration: underline;
+            }
+            @page {
+                margin: 2cm;
+                @bottom-center {
+                    content: "Página " counter(page) " - SMT SecApp";
+                    font-size: 10px;
+                    color: #666;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Reportes de Incidencias - SMT SecApp</h1>
+            <p style="margin: 10px 0 0 0; color: #666;">Generado el """ + datetime.now().strftime("%d/%m/%Y a las %H:%M") + """</p>
+        </div>
+    """]
+
+    for i, report in enumerate(reports):
+        html_parts.append(f"""
+        <div class="report-block">
+            <div class="report-header">
+                <h2 class="report-title">{report['title']}</h2>
+                <p class="report-meta">Enviado por: {report['submittedBy']} el {report['dateSubmitted']}</p>
+            </div>
+            
+            <div class="report-summary">
+                <p><strong>Título de Incidencia:</strong> {report['data'].get('Título de Incidencia', 'No especificado')}</p>
+                <p><strong>Lugar del Incidente:</strong> {report['data'].get('Lugar del Incidente', 'No especificado')}</p>
+                <p><strong>Fecha del Incidente:</strong> {report['data'].get('Fecha del Incidente', 'No especificado')}</p>
+            </div>
+            
+            <div class="report-details">
+                <ul>
+        """)
+
+        # Add all report data except URLs (we'll handle those separately)
+        for key, value in report['data'].items():
+            if value and str(value).strip() not in ['N/A', 'None', ''] and key != 'URLs de Imágenes o PDFs':
+                clean_value = str(value).replace('\n', '<br>')
+                html_parts.append(f"""
+                    <li><strong>{key}:</strong> {clean_value}</li>
+                """)
+
+        html_parts.append("""
+                </ul>
+        """)
+
+        # Handle attachments separately
+        if report['data'].get('URLs de Imágenes o PDFs') and str(report['data']['URLs de Imágenes o PDFs']).strip() not in ['N/A', 'None', '']:
+            urls = str(report['data']['URLs de Imágenes o PDFs']).split('\n')
+            image_urls = []
+            pdf_urls = []
+            other_urls = []
+            
+            for url in urls:
+                url = url.strip()
+                if url:
+                    lower_url = url.lower()
+                    if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
+                        image_urls.append(url)
+                    elif lower_url.endswith('.pdf'):
+                        pdf_urls.append(url)
+                    else:
+                        other_urls.append(url)
+            
+            if image_urls or pdf_urls or other_urls:
+                html_parts.append("""
+                <div class="attachment-section">
+                    <strong>Archivos Adjuntos:</strong>
+                    <div class="attachment-grid">
+                """)
+                
+                # Add images
+                for url in image_urls:
+                    filename = url.split('/')[-1] if '/' in url else url
+                    html_parts.append(f"""
+                        <div class="attachment-item">
+                            <img src="{url}" alt="Imagen del reporte">
+                            <p>{filename}</p>
+                        </div>
+                    """)
+                
+                # Add PDF links
+                for url in pdf_urls:
+                    filename = url.split('/')[-1] if '/' in url else url
+                    html_parts.append(f"""
+                        <div class="attachment-item">
+                            <p>PDF: <a href="{url}" class="pdf-link">{filename}</a></p>
+                        </div>
+                    """)
+                
+                # Add other file links
+                for url in other_urls:
+                    filename = url.split('/')[-1] if '/' in url else url
+                    html_parts.append(f"""
+                        <div class="attachment-item">
+                            <p>Archivo: <a href="{url}" class="pdf-link">{filename}</a></p>
+                        </div>
+                    """)
+                
+                html_parts.append("""
+                    </div>
+                </div>
+                """)
+
+        html_parts.append("""
+            </div>
+        </div>
+        """)
+
+    html_parts.append("""
+    </body>
+    </html>
+    """)
+
+    return ''.join(html_parts)
+
+
 @app.route('/logout')
 def logout():
-    response = redirect(os.environ.get('LOGIN_SERVICE_URL', '/'))
-    unset_jwt_cookies(response)
-    flash("Has cerrado sesión exitosamente.", "success")
-    return response
+    try:
+        app_logger.info("User logout requested")
+        response = redirect('https://secapp.tzolkintech.com')
+        unset_jwt_cookies(response)
+        app_logger.info("JWT cookies cleared, redirecting to login service")
+        return response
+    except Exception as e:
+        app_logger.error(f"Error during logout: {e}", exc_info=True)
+        # Fallback: just redirect without cookie clearing if there's an error
+        return redirect('https://secapp.tzolkintech.com')
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 8080))

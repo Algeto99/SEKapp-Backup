@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -52,6 +51,15 @@
             align-items: center;
             justify-content: center;
         }
+        .action-button {
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem; /* Smaller font size */
+            font-weight: 500;
+            min-width: 140px; /* Consistent minimum width */
+            white-space: nowrap; /* Prevent text wrapping */
+            text-align: center;
+            line-height: 1.2;
+        }
         .base-button-style:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
@@ -98,6 +106,18 @@
             height: auto;
             margin-bottom: 1.5rem;
         }
+        /* Navigation styling */
+        .nav-link {
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            display: inline-block;
+        }
+        .nav-link:hover {
+            background-color: #f3f4f6;
+            transform: translateY(-1px);
+        }
         /* Specific styles for report content expansion */
         .report-content {
             max-height: 0;
@@ -111,49 +131,131 @@
 
         /* Print-specific styles for better isolation */
         @media print {
-            /* Hide sidebar, header, flash messages, and load more button */
-            aside,
+            /* Reset body and page styles for clean printing */
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 12pt !important;
+                line-height: 1.4 !important;
+            }
+
+            /* Hide ALL header content including navigation, logo, title, welcome message, controls, and search */
+            nav,
+            .flex.flex-col.items-center.mb-6,
+            .logo-img,
             h1,
-            .flash-message,
-            #load-more-container,
+            p,
             #multi-select-controls,
-            .toggle-details-button, /* Hide the toggle button itself when printing */
-            .report-checkbox /* Hide the checkboxes when printing */
-            {
+            .mb-6.p-4.border,
+            #load-more-container,
+            .flash-message {
                 display: none !important;
             }
 
-            /* Ensure the main content area is visible */
-            main {
-                visibility: visible !important;
-                position: static !important;
-                width: auto !important;
+            /* Clean up the container wrapper for printing */
+            .container-wrapper {
+                max-width: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
                 padding: 0 !important;
                 margin: 0 !important;
-                box-sizing: border-box;
+                background: white !important;
             }
 
-            /* Hide all report blocks by default for printing, unless they have the 'print-me' class */
+            /* Hide the main reports container spacing */
+            #reports-container {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Hide all report blocks by default for printing */
             .report-block:not(.print-me) {
                 display: none !important;
             }
 
-            /* Styles for report blocks explicitly marked for printing */
-            .report-block.print-me {
-                display: block !important;
-                visibility: visible !important;
-                page-break-after: always; /* Ensure each selected report prints on a new page */
-                width: 100%; /* Ensure full width in print */
-                margin: 0; /* Remove margins */
-                box-shadow: none; /* Remove shadows */
-                border: 1px solid #eee; /* Add a subtle border */
-                padding: 1rem; /* Adjust padding */
+            /* Hide non-essential elements within reports */
+            .report-checkbox,
+            .toggle-details-button {
+                display: none !important;
             }
 
-            /* Ensure content inside selected reports is fully visible for printing */
+            /* Show only selected reports with clean styling */
+            .report-block.print-me {
+                display: block !important;
+                page-break-after: always; /* Each report on new page */
+                page-break-inside: avoid; /* Avoid breaking within a report */
+                width: 100% !important;
+                margin: 0 0 2rem 0 !important;
+                padding: 1rem !important;
+                background: white !important;
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+                border-radius: 0 !important;
+            }
+
+            /* Remove the last page break for the final report */
+            .report-block.print-me:last-child {
+                page-break-after: auto !important;
+                margin-bottom: 0 !important;
+            }
+
+            /* Ensure report content is fully expanded and visible */
             .report-block.print-me .report-content {
-                max-height: fit-content !important; /* Ensure details are fully visible */
-                overflow: visible !important; /* Allow content to flow */
+                max-height: none !important;
+                overflow: visible !important;
+                margin-top: 1rem !important;
+                padding-top: 1rem !important;
+                border-top: 1px solid #eee !important;
+            }
+
+            /* Style the report headers for print */
+            .report-block.print-me h2 {
+                font-size: 16pt !important;
+                margin-bottom: 0.5rem !important;
+                color: black !important;
+            }
+
+            /* Clean up text styling for print */
+            .report-block.print-me p {
+                margin-bottom: 0.5rem !important;
+                color: black !important;
+                font-size: 11pt !important;
+            }
+
+            /* Ensure strong tags are visible */
+            .report-block.print-me strong {
+                font-weight: bold !important;
+                color: black !important;
+            }
+
+            /* Ensure lists in details are properly formatted */
+            .report-block.print-me ul {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .report-block.print-me li {
+                margin-bottom: 0.5rem !important;
+                padding: 0 !important;
+                list-style: none !important;
+            }
+
+            /* Handle images and links in print */
+            .report-block.print-me img {
+                max-width: 200px !important;
+                max-height: 200px !important;
+                page-break-inside: avoid !important;
+            }
+
+            .report-block.print-me a {
+                color: black !important;
+                text-decoration: underline !important;
+            }
+
+            /* Ensure divs and content are visible */
+            .report-block.print-me div {
+                display: block !important;
             }
         }
     </style>
@@ -161,30 +263,45 @@
 <body class="bg-gray-100 flex flex-col items-center p-6">
 
     <div class="container-wrapper">
+        <!-- Navigation Bar -->
+        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-4">
+            <div class="flex justify-center space-x-8">
+                <a href="https://landing.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Inicio
+                </a>
+                <a href="https://form1.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Reporte de Incidencia
+                </a>
+                <a href="/logout" class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
+                    Cerrar Sesión
+                </a>
+            </div>
+        </nav>
+
         <div class="flex flex-col items-center mb-6">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo-img opacity-90">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Reportes de Incidentes</h1>
             <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
-            <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700" id="usernameDisplay">Roberto Canton</span></p>
+            <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span></p>
         </div>
 
         
             
         
 
-        <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex items-center justify-between">
-            <div>
+        <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="flex items-center">
                 <input type="checkbox" id="select-all-checkbox" class="mr-2 h-4 w-4 text-blue-600 rounded">
                 <label for="select-all-checkbox" class="text-gray-700 font-medium">Seleccionar Todos</label>
             </div>
-            <div class="space-x-4">
-                <button id="print-selected-button" class="base-button-style btn-secondary-professional" disabled>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                <button id="print-selected-button" class="base-button-style btn-secondary-professional action-button" disabled>
                     Imprimir Seleccionados
                 </button>
-                <button id="save-pdf-button" class="base-button-style btn-primary-professional" disabled>
+                <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button" disabled>
                     Guardar Seleccionados como PDF
                 </button>
-                <button id="email-selected-button" class="base-button-style btn-primary-professional" disabled>
+                <button id="email-selected-button" class="base-button-style btn-primary-professional action-button" disabled>
                     Enviar por Correo Electrónico
                 </button>
             </div>
@@ -223,272 +340,42 @@
 
 
         <div id="reports-container" class="space-y-6">
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="37">
+            {% for form in forms %}
+                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}">
                     <div class="flex justify-between items-start mb-4">
                         <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #37</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: alvaro.montalvo@gmail.com el 2025-07-22 23:05:39</p>
+                            <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
+                            <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}</p>
                         </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="37">
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="{{ form.id }}">
                     </div>
 
                     <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Recuperacion</p>
-                        <p><strong>Lugar del Incidente:</strong> BEER</p>
-                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
+                        <p><strong>Título de Incidencia:</strong> {{ form.data['Título de Incidencia'] or 'No especificado' }}</p>
+                        <p><strong>Lugar del Incidente:</strong> {{ form.data['Lugar del Incidente'] or 'No especificado' }}</p>
+                        <p><strong>Fecha del Incidente:</strong> {{ form.data['Fecha del Incidente'] or 'No especificado' }}</p>
                     </div>
                     
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="37">
+                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="{{ form.id }}">
                         Ver Detalles
                     </button>
 
                     <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-37" class="text-gray-700">
+                        <div id="details-{{ form.id }}" class="text-gray-700">
                             Cargando detalles...
                         </div>
                     </div>
                 </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="36">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #36</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: roberto_canton@hotmail.com el 2025-07-22 21:53:55</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="36">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> SANDWICH QBANO</p>
-                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="36">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-36" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
+            {% else %}
+                <div class="text-center text-gray-500 py-8">
+                    <p>No hay reportes disponibles.</p>
                 </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="35">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #35</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: roberto_canton@hotmail.com el 2025-07-22 12:50:06</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="35">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> ADDICT MOTOWEAR</p>
-                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="35">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-35" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="34">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #34</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: roberto_canton@hotmail.com el 2025-07-22 12:29:01</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="34">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> ADELGAZARTE</p>
-                        <p><strong>Fecha del Incidente:</strong> 2025-07-22</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="34">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-34" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="31">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #31</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el N/A</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="31">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> LEVI’S</p>
-                        <p><strong>Fecha del Incidente:</strong> 2024-04-24</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="31">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-31" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="32">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #32</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el N/A</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="32">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Robo</p>
-                        <p><strong>Lugar del Incidente:</strong> DEJAMU</p>
-                        <p><strong>Fecha del Incidente:</strong> 2024-04-23</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="32">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-32" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="33">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #33</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: Yeralsocasolano@gmail.com el N/A</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="33">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> VERSILIA</p>
-                        <p><strong>Fecha del Incidente:</strong> 2024-04-21</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="33">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-33" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="30">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #30</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el 2024-03-31 07:34:38</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="30">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> KICKS</p>
-                        <p><strong>Fecha del Incidente:</strong> 2024-03-28</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="30">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-30" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="29">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #29</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: gruporobleparqueadero@gmail.com el 2024-03-28 09:11:37</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="29">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Hurto</p>
-                        <p><strong>Lugar del Incidente:</strong> BERSHKA</p>
-                        <p><strong>Fecha del Incidente:</strong> 2024-03-27</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="29">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-29" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="28">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">Reporte #28</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: gruporoblesupervisor@gmail.com el 2024-03-26 09:02:40</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="28">
-                    </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> Robo</p>
-                        <p><strong>Lugar del Incidente:</strong> FALABELLA</p>
-                        <p><strong>Fecha del Incidente:</strong> 2024-03-25</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="28">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-28" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
-                </div>
-            
+            {% endfor %}
         </div>
 
-        <div id="load-more-container" class="text-center mt-8 ">
+        <div id="load-more-container" class="text-center mt-8 {% if total_reports <= 10 %}hidden{% endif %}">
             <button id="load-more-button" class="base-button-style btn-secondary-professional">
-                Cargar Más Reportes (7 restantes)
+                Cargar Más Reportes ({{ total_reports - 10 if total_reports > 10 else 0 }} restantes)
             </button>
         </div>
     </div>
@@ -512,9 +399,9 @@
 
 
     <script>
-        let offset = 10;
+        let offset = {{ forms|length }};
         let limit = 10;
-        let totalReports = 17;
+        let totalReports = {{ total_reports }};
 
         // --- Utility Functions ---
         function showFlashMessage(message, category) {

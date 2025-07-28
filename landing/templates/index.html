@@ -129,7 +129,7 @@
                 </button>
 
                 <button id="dashboard-button" class="base-button-style btn-primary-professional">
-                    Reportes y Dashboard
+                    Dashboards
                 </button>
 
                 <button id="logout-button" class="base-button-style btn-logout hidden">
@@ -226,7 +226,7 @@
                 dashboardButton.addEventListener('click', function() {
                     console.log('Dashboard button clicked');
                     if (DASHBOARD_SERVICE_URL) {
-                        window.location.href = DASHBOARD_SERVICE_URL + '/dashboard';
+                        window.location.href = DASHBOARD_SERVICE_URL + '/';
                     } else {
                         console.error('DASHBOARD_SERVICE_URL not configured');
                         alert('Error: URL del servicio de dashboard no configurada.');
