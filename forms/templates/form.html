@@ -1,61 +1,185 @@
 <!DOCTYPE html>
-<html lang="es" class="transition duration-300 ease-in-out">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Reporte de Incidencia</title>
+  <title>Reporte de Incidencia - SMT SecApp</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet" />
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-    };
-  </script>
   <style>
     body {
       font-family: 'Roboto', sans-serif;
+      background-color: #1a202c;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 1.5rem;
     }
     h1, h2, h3, h4, h5, h6 {
       font-family: 'Merriweather', serif;
+      color: #ffffff;
     }
-    /* Flashed message styling */
+    .form-container {
+      background-color: #2d3748;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      max-width: 800px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2.5rem;
+    }
     .flash-message {
-        @apply p-3 mb-4 rounded-lg text-sm font-medium;
+      @apply p-3 mb-4 rounded-lg text-sm font-medium;
     }
     .flash-success { @apply bg-green-500 text-white; }
     .flash-error { @apply bg-red-500 text-white; }
     .flash-warning { @apply bg-yellow-500 text-gray-900; }
     .flash-info { @apply bg-blue-500 text-white; }
+    .flash-danger { @apply bg-red-500 text-white; }
+    
+    .theme-toggle {
+      position: absolute;
+      top: 1.5rem;
+      left: 1.5rem;
+      z-index: 10;
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      color: #e2e8f0;
+    }
+    .theme-toggle:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+    .theme-toggle svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+
+    .header-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .nav-link {
+      color: #60a5fa;
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    .nav-link:hover {
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
+    /* Light mode styles */
+    body.light-mode {
+      background-color: #f8f9fa;
+      color: #343a40;
+    }
+    
+    body.light-mode h1, 
+    body.light-mode h2, 
+    body.light-mode h3, 
+    body.light-mode h4, 
+    body.light-mode h5, 
+    body.light-mode h6 {
+      color: #212529;
+    }
+    
+    body.light-mode .form-container {
+      background-color: #ffffff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    body.light-mode .text-gray-300 {
+      color: #6b7280 !important;
+    }
+    
+    body.light-mode .text-gray-600 {
+      color: #4b5563 !important;
+    }
+    
+    body.light-mode .theme-toggle {
+      background-color: rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      color: #374151;
+    }
+    
+    body.light-mode .theme-toggle:hover {
+      background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    /* Keep form inputs with proper borders in light mode */
+    body.light-mode .tom-select-searchable,
+    body.light-mode input[type="date"],
+    body.light-mode input[type="time"],
+    body.light-mode input[type="number"],
+    body.light-mode input[type="tel"],
+    body.light-mode input[type="text"],
+    body.light-mode textarea {
+      border-color: #d1d5db !important;
+      background-color: #ffffff !important;
+    }
+
+    body.light-mode .tom-select-searchable:focus,
+    body.light-mode input:focus,
+    body.light-mode textarea:focus {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    }
   </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
-  <div class="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8">
-    <div class="flex justify-between items-center mb-4">
+<body>
+  <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+    <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+    </svg>
+    <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  </button>
+
+  <div class="form-container">
+    <div class="header-nav">
       {% if name %}
-        <div class="flex items-center space-x-4">
-          <span class="text-sm text-gray-600 dark:text-gray-300">Bienvenido, <strong class="font-medium">{{ name }}</strong></span>
-          <a href="{{ dashboard_service_url }}" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Dashboard</a>
-          <a href="{{ viewer_service_url }}" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Reportes</a>
-          <a href="{{ login_service_url }}/logout" class="text-blue-600 dark:text-blue-300 hover:underline text-sm">Cerrar Sesión</a>
+        <div class="nav-links">
+          <span class="text-sm text-gray-300">Bienvenido, <strong class="font-bold text-blue-500">{{ name }}</strong>.</span>
+          <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+          <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+          <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+          <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
         </div>
       {% endif %}
-
-      <label class="flex items-center space-x-2 cursor-pointer ml-auto"> {# ml-auto pushes it to the right #}
-        <input type="checkbox" id="theme-toggle" class="hidden">
-        <div class="w-10 h-5 bg-gray-300 dark:bg-gray-700 rounded-full relative transition duration-300 ease-in-out">
-          <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md transform transition duration-300 ease-in-out" id="theme-toggle-thumb"></div>
-        </div>
-        <span id="theme-label" class="text-sm text-gray-600 dark:text-gray-300">Dark Mode</span>
-      </label>
     </div>
 
-    <h1 class="text-3xl font-bold text-center mb-6">Reporte de Incidencia</h1>
+    <div class="text-center mb-8">
+      <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto mb-6 w-28 opacity-90" />
+      <h1 class="text-3xl font-bold mb-4">Reporte de Incidencia</h1>
+      <p class="text-gray-300 text-sm">Complete el formulario para reportar una incidencia.</p>
+    </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="mb-4">
+            <div class="mb-6">
                 {% for category, message in messages %}
                     <div class="flash-message flash-{{ category }}">
                         {{ message }}
@@ -65,7 +189,7 @@
         {% endif %}
     {% endwith %}
 
-  <form action="/submit_report" method="POST" class="space-y-6" enctype="multipart/form-data">
+    <form action="/submit_report" method="POST" class="space-y-6" enctype="multipart/form-data">
       <div>
         <label for="tipo_incidencia" class="block text-sm font-medium mb-1">Tipo de Incidencia:</label>
         <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
@@ -101,14 +225,16 @@
         <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3" class="w-full px-4 py-3 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900"></textarea>
       </div>
 
-      <div>
-        <label for="fecha_incidente" class="block text-sm font-medium mb-1">Fecha:</label>
-        <input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="fecha_incidente" class="block text-sm font-medium mb-1">Fecha:</label>
+          <input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        </div>
 
-      <div>
-        <label for="hora_incidente" class="block text-sm font-medium mb-1">Hora:</label>
-        <input type="time" id="hora_incidente" name="hora_incidente" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <div>
+          <label for="hora_incidente" class="block text-sm font-medium mb-1">Hora:</label>
+          <input type="time" id="hora_incidente" name="hora_incidente" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        </div>
       </div>
 
       <div>
@@ -126,24 +252,28 @@
         <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3" class="w-full px-4 py-3 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900"></textarea>
       </div>
 
-      <div>
-        <label for="nombre_persona" class="block text-sm font-medium mb-1">Nombre de la Persona:</label>
-        <input type="text" id="nombre_persona" name="nombre_persona" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="nombre_persona" class="block text-sm font-medium mb-1">Nombre de la Persona:</label>
+          <input type="text" id="nombre_persona" name="nombre_persona" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        </div>
+
+        <div>
+          <label for="telefono_persona" class="block text-sm font-medium mb-1">Teléfono:</label>
+          <input type="tel" id="telefono_persona" name="telefono_persona" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        </div>
       </div>
 
-      <div>
-        <label for="telefono_persona" class="block text-sm font-medium mb-1">Teléfono:</label>
-        <input type="tel" id="telefono_persona" name="telefono_persona" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label for="numero_identidad_persona" class="block text-sm font-medium mb-1">Número de Identidad:</label>
+          <input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        </div>
 
-      <div>
-        <label for="numero_identidad_persona" class="block text-sm font-medium mb-1">Número de Identidad:</label>
-        <input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-      </div>
-
-      <div>
-        <label for="numero_local" class="block text-sm font-medium mb-1">Número de Local:</label>
-        <input type="text" id="numero_local" name="numero_local" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <div>
+          <label for="numero_local" class="block text-sm font-medium mb-1">Número de Local:</label>
+          <input type="text" id="numero_local" name="numero_local" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        </div>
       </div>
 
       <div>
@@ -174,44 +304,62 @@
         Enviar Reporte
       </button>
     </form>
-
-    <div class="mt-6 text-center">
-      </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   <script>
+    // Initialize Tom Select dropdowns
     document.querySelectorAll('.tom-select-searchable').forEach(el => {
       new TomSelect(el, { create: false });
     });
 
-    const toggle = document.getElementById('theme-toggle');
-    const html = document.documentElement;
-    const label = document.getElementById('theme-label');
+    // Theme toggle elements
+    const themeToggle = document.getElementById('themeToggle');
+    const darkModeIcon = document.getElementById('darkModeIcon');
+    const lightModeIcon = document.getElementById('lightModeIcon');
 
-    function setTheme(mode) {
-      if (mode === 'dark') {
-        html.classList.add('dark');
-        toggle.checked = true;
-        label.textContent = 'Light Mode';
+    // Theme management
+    function initializeTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+        setLightMode();
       } else {
-        html.classList.remove('dark');
-        toggle.checked = false;
-        label.textContent = 'Dark Mode';
+        setDarkMode();
       }
-      localStorage.setItem('theme', mode);
     }
 
-    toggle.addEventListener('change', () => {
-      setTheme(toggle.checked ? 'dark' : 'light');
+    function setDarkMode() {
+      document.body.classList.remove('light-mode');
+      darkModeIcon.style.display = 'block';
+      lightModeIcon.style.display = 'none';
+      localStorage.setItem('theme', 'dark');
+    }
+
+    function setLightMode() {
+      document.body.classList.add('light-mode');
+      darkModeIcon.style.display = 'none';
+      lightModeIcon.style.display = 'block';
+      localStorage.setItem('theme', 'light');
+    }
+
+    function toggleTheme() {
+      if (document.body.classList.contains('light-mode')) {
+        setDarkMode();
+      } else {
+        setLightMode();
+      }
+    }
+
+    // Initialize theme on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeTheme();
+      
+      if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+      }
     });
-
-    const saved = localStorage.getItem('theme');
-    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setTheme('dark');
-    } else {
-      setTheme('light');
-    }
   </script>
 </body>
 </html>

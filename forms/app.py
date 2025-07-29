@@ -31,6 +31,8 @@ def configure_app(app):
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
     app.config['BASE_URL'] = os.environ.get('BASE_URL', '/')
     app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', '/')
+    app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', '/')
+    app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', '/')
     app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', '/')
 
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
@@ -159,8 +161,6 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
                          f"password={bool(email_password)}, "
                          f"smtp_server={bool(smtp_server)}, "
                          f"smtp_port={bool(smtp_port)}. Skipping email send.")
-        if request:
-            flash("Error en la configuración de envío de email. Contacte al administrador.", "danger")
         return False
     
     if isinstance(to_emails, str):
@@ -193,23 +193,15 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
 
     except smtplib.SMTPAuthenticationError:
         app_logger.error(f"SMTP Authentication Error: Check sender email/password for {email_username}.", exc_info=True)
-        if request:
-            flash("Error de autenticación de email. Contacte al administrador.", "danger")
         return False
     except smtplib.SMTPServerDisconnected:
         app_logger.error(f"SMTP Server Disconnected: Server {smtp_server}:{smtp_port} disconnected unexpectedly.", exc_info=True)
-        if request:
-            flash("El servidor de email no está disponible. Intente de nuevo más tarde.", "danger")
         return False
     except socket.timeout:
         app_logger.error(f"SMTP Connection Timeout: Could not connect to {smtp_server}:{smtp_port}. Check network connectivity and firewall rules.", exc_info=True)
-        if request:
-            flash("Tiempo de espera agotado al conectar con el servidor de email.", "danger")
         return False
     except Exception as e:
         app_logger.error(f"An unexpected error occurred while sending email to {', '.join(to_emails)}: {e}", exc_info=True)
-        if request:
-            flash(f"Error al enviar email: {e}", "danger")
         return False
 
 def send_report_notification(user_email, user_name, fields):
@@ -369,12 +361,15 @@ def index():
             supervisor=supervisor,
             name=name,
             login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
-            viewer_service_url=app.config.get('VIEWER_SERVICE_URL', 'http://viewer.secapp.tzolkintech.com')
+            landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+            dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+            viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
         )
     except Exception as e:
         app_logger.error(f"Error rendering index page for {user_email}: {e}", exc_info=True)
-        flash("Error al cargar el formulario. Por favor, intente de nuevo más tarde.", "danger")
-        return redirect(app.config.get('LOGIN_SERVICE_url', '/login'))
+        return render_template('error.html', 
+                             message="Error al cargar el formulario. Por favor, intente de nuevo más tarde.",
+                             login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
     finally:
         if conn:
             conn.close()
@@ -385,6 +380,21 @@ def logout():
     unset_jwt_cookies(response)
     flash("You have been logged out.", "info")
     return response
+
+@app.route('/success')
+@jwt_required()
+def success():
+    message = request.args.get('message', 'Reporte de incidencia enviado exitosamente!')
+    return render_template('success.html', 
+                         message=message,
+                         login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+
+@app.route('/error')
+def error():
+    message = request.args.get('message', 'Ha ocurrido un error inesperado.')
+    return render_template('error.html', 
+                         message=message,
+                         login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
 
 @app.route('/submit_report', methods=['POST'])
 @jwt_required()
@@ -410,6 +420,12 @@ def submit_report():
         direccion = request.form.get('direccion')
         supervisor = request.form.get('supervisor')
 
+        # Validate required fields
+        if not all([tipo_incidencia, tipo_cliente, lugar_incidente, fecha_incidente, 
+                   hora_incidente, descripcion_incidente, nombre_persona, supervisor]):
+            app_logger.warning("Missing required fields in form submission.")
+            return redirect(url_for('error', message='Por favor, complete todos los campos obligatorios.'))
+
         app_logger.info(f"Form data received: tipo_incidencia={tipo_incidencia}, tipo_cliente={tipo_cliente}, lugar_incidente={lugar_incidente}")
 
         imagenes_pdfs = None
@@ -425,7 +441,7 @@ def submit_report():
                     uploaded_urls.append(public_url)
                 except Exception as e:
                     app_logger.error(f"Error uploading {file.filename}: {str(e)}", exc_info=True)
-                    flash(f"Error al subir archivo {file.filename}: {str(e)}", "danger")
+                    return redirect(url_for('error', message=f'Error al subir archivo {file.filename}: {str(e)}'))
         imagenes_pdfs = "\n".join(uploaded_urls) if uploaded_urls else None
         app_logger.info(f"GCS upload complete. URLs: {imagenes_pdfs}")
 
@@ -473,25 +489,32 @@ def submit_report():
             'imagenes_pdfs': imagenes_pdfs
         }
         app_logger.info("Attempting to send report notification email.")
-        send_report_notification(user_email, user_name, report_fields)
+        email_success = send_report_notification(user_email, user_name, report_fields)
         app_logger.info("Report notification email process initiated.")
 
-        flash('Reporte de incidencia enviado exitosamente!', 'success')
-        app_logger.info("Redirecting to index page after successful report submission.")
-        return redirect(url_for('index'))
+        if email_success:
+            success_message = 'Reporte de incidencia enviado exitosamente. Se ha enviado una confirmación por email.'
+        else:
+            success_message = 'Reporte de incidencia enviado exitosamente. Nota: No se pudo enviar la confirmación por email.'
+
+        app_logger.info("Redirecting to success page after successful report submission.")
+        return redirect(url_for('success', message=success_message))
 
     except psycopg2.errors.UndefinedTable as e:
         app_logger.error(f"Database table 'reportes_incidentes' (or related lookup tables) not found. Please ensure your database schema is initialized. Error: {e}", exc_info=True)
-        flash('Error de base de datos: La tabla de incidentes no existe. Contacte al administrador.', 'danger')
         if conn:
             conn.rollback()
-        return redirect(url_for('index'))
+        return redirect(url_for('error', message='Error de base de datos: La tabla de incidentes no existe. Contacte al administrador.'))
+    except psycopg2.Error as e:
+        app_logger.error(f"Database error submitting report: {e}", exc_info=True)
+        if conn:
+            conn.rollback()
+        return redirect(url_for('error', message='Error de base de datos. Por favor, intente de nuevo más tarde.'))
     except Exception as e:
         app_logger.error(f"Error submitting report: {e}", exc_info=True)
-        flash(f'Error al enviar el reporte: {e}', 'danger')
         if conn:
             conn.rollback()
-        return redirect(url_for('index'))
+        return redirect(url_for('error', message=f'Error inesperado: {str(e)}'))
     finally:
         if conn:
             conn.close()

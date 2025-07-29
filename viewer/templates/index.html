@@ -9,27 +9,29 @@
     <style>
         body {
             font-family: 'Roboto', sans-serif;
-            background-color: #f8ff; /* Light background from landing page */
+            background-color: #f8fafc; /* Light background */
             color: #343a40;
             line-height: 1.6;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center; /* Center content horizontally */
-            padding: 2rem; /* Add some padding around the main content */
+            align-items: center;
+            padding: 2rem;
+            transition: all 0.3s ease;
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif;
-            color: #212529; /* Dark text for headings */
+            color: #212529;
         }
         .container-wrapper {
-            background-color: #ffffff; /* White background for content area */
+            background-color: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Soft shadow from landing */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             padding: 2rem;
-            max-width: 1000px; /* Max width for the content */
-            width: 100%; /* Ensure it takes full width up to max */
-            margin-top: 2rem; /* Margin from the top */
+            max-width: 1000px;
+            width: 100%;
+            margin-top: 2rem;
+            transition: all 0.3s ease;
         }
         .report-card {
             background-color: #ffffff;
@@ -38,6 +40,16 @@
             padding: 1.5rem;
             margin-bottom: 1rem;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .report-block {
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
         }
         .base-button-style {
             padding: 0.75rem 1.5rem;
@@ -53,10 +65,10 @@
         }
         .action-button {
             padding: 0.75rem 1rem;
-            font-size: 0.875rem; /* Smaller font size */
+            font-size: 0.875rem;
             font-weight: 500;
-            min-width: 140px; /* Consistent minimum width */
-            white-space: nowrap; /* Prevent text wrapping */
+            min-width: 140px;
+            white-space: nowrap;
             text-align: center;
             line-height: 1.2;
         }
@@ -65,12 +77,12 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
         .btn-primary-professional {
-            background-color: #1d4ed8; /* Blue-700 from landing */
+            background-color: #1d4ed8;
             color: #ffffff;
             border: 2px solid #1d4ed8;
         }
         .btn-primary-professional:hover {
-            background-color: #1e40af; /* Blue-800 equivalent */
+            background-color: #1e40af;
             border-color: #1e40af;
         }
         .btn-secondary-professional {
@@ -81,7 +93,27 @@
         .btn-secondary-professional:hover {
             background-color: #e5e7eb;
         }
-        /* The top-bar itself is removed, these styles are here for completeness but not applied */
+        .theme-toggle {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #374151;
+        }
+        .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
+        }
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
         .top-bar {
             position: absolute;
             top: 0;
@@ -90,48 +122,178 @@
             z-index: 10;
         }
         .top-bar-link {
-            color: #212529; /* Dark text */
+            color: #212529;
             font-weight: 500;
             text-decoration: none;
             transition: color 0.2s ease-in-out;
         }
         .top-bar-link:hover {
-            color: #1d4ed8; /* Blue-700 on hover */
+            color: #1d4ed8;
         }
         .hidden {
             display: none !important;
         }
         .logo-img {
-            max-width: 150px; /* Adjust size for viewer page */
+            max-width: 150px;
             height: auto;
             margin-bottom: 1.5rem;
         }
-        /* Navigation styling */
         .nav-link {
             text-decoration: none;
             padding: 0.5rem 1rem;
             border-radius: 0.375rem;
             font-size: 1rem;
             display: inline-block;
+            transition: all 0.2s ease;
         }
         .nav-link:hover {
             background-color: #f3f4f6;
             transform: translateY(-1px);
         }
-        /* Specific styles for report content expansion */
         .report-content {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
         }
         .report-content.expanded {
-            max-height: 1000px; /* Adjust as needed to accommodate content */
+            max-height: 1000px;
             transition: max-height 0.5s ease-in;
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        
+        body.dark-mode h1, 
+        body.dark-mode h2, 
+        body.dark-mode h3, 
+        body.dark-mode h4, 
+        body.dark-mode h5, 
+        body.dark-mode h6 {
+            color: #ffffff;
+        }
+        
+        body.dark-mode .container-wrapper {
+            background-color: #2d3748;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        body.dark-mode .report-block {
+            background-color: #2d3748;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        body.dark-mode .nav-link:hover {
+            background-color: #4a5568;
+        }
+        
+        body.dark-mode .theme-toggle {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+        }
+        
+        body.dark-mode .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        body.dark-mode .top-bar-link {
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .top-bar-link:hover {
+            color: #60a5fa;
+        }
+
+        /* Dark mode for navigation bar */
+        body.dark-mode nav {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for navigation links - using dashboard blue */
+        body.dark-mode .nav-link.text-blue-700 {
+            color: #60a5fa !important;
+        }
+
+        body.dark-mode .nav-link.text-blue-700:hover,
+        body.dark-mode .nav-link:hover {
+            color: #93c5fd !important;
+        }
+
+        /* Dark mode for user name and other blue text - using dashboard blue */
+        body.dark-mode .text-blue-700,
+        body.dark-mode span.text-blue-700,
+        body.dark-mode .font-bold.text-blue-700 {
+            color: #60a5fa !important;
+        }
+
+        /* Dark mode for multi-select controls */
+        body.dark-mode #multi-select-controls {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for search controls */
+        body.dark-mode .mb-6.p-4.border {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for form inputs */
+        body.dark-mode input[type="text"],
+        body.dark-mode input[type="email"],
+        body.dark-mode input[type="date"] {
+            background-color: #374151 !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode input[type="text"]:focus,
+        body.dark-mode input[type="email"]:focus,
+        body.dark-mode input[type="date"]:focus {
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+        }
+
+        /* Dark mode for checkboxes */
+        body.dark-mode input[type="checkbox"] {
+            background-color: #374151;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dark mode for labels */
+        body.dark-mode label {
+            color: #e2e8f0 !important;
+        }
+
+        /* Dark mode for modal */
+        body.dark-mode .bg-white {
+            background-color: #2d3748 !important;
+        }
+
+        body.dark-mode .text-gray-700 {
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode .text-gray-600 {
+            color: #cbd5e0 !important;
+        }
+
+        body.dark-mode .text-gray-800 {
+            color: #f7fafc !important;
+        }
+
+        body.dark-mode .text-gray-500 {
+            color: #a0aec0 !important;
         }
 
         /* Print-specific styles for better isolation */
         @media print {
-            /* Reset body and page styles for clean printing */
             body {
                 background: white !important;
                 padding: 0 !important;
@@ -140,7 +302,6 @@
                 line-height: 1.4 !important;
             }
 
-            /* Hide ALL header content including navigation, logo, title, welcome message, controls, and search */
             nav,
             .flex.flex-col.items-center.mb-6,
             .logo-img,
@@ -149,11 +310,11 @@
             #multi-select-controls,
             .mb-6.p-4.border,
             #load-more-container,
-            .flash-message {
+            .flash-message,
+            .theme-toggle {
                 display: none !important;
             }
 
-            /* Clean up the container wrapper for printing */
             .container-wrapper {
                 max-width: none !important;
                 box-shadow: none !important;
@@ -163,28 +324,24 @@
                 background: white !important;
             }
 
-            /* Hide the main reports container spacing */
             #reports-container {
                 margin: 0 !important;
                 padding: 0 !important;
             }
 
-            /* Hide all report blocks by default for printing */
             .report-block:not(.print-me) {
                 display: none !important;
             }
 
-            /* Hide non-essential elements within reports */
             .report-checkbox,
             .toggle-details-button {
                 display: none !important;
             }
 
-            /* Show only selected reports with clean styling */
             .report-block.print-me {
                 display: block !important;
-                page-break-after: always; /* Each report on new page */
-                page-break-inside: avoid; /* Avoid breaking within a report */
+                page-break-after: always;
+                page-break-inside: avoid;
                 width: 100% !important;
                 margin: 0 0 2rem 0 !important;
                 padding: 1rem !important;
@@ -194,13 +351,11 @@
                 border-radius: 0 !important;
             }
 
-            /* Remove the last page break for the final report */
             .report-block.print-me:last-child {
                 page-break-after: auto !important;
                 margin-bottom: 0 !important;
             }
 
-            /* Ensure report content is fully expanded and visible */
             .report-block.print-me .report-content {
                 max-height: none !important;
                 overflow: visible !important;
@@ -209,27 +364,23 @@
                 border-top: 1px solid #eee !important;
             }
 
-            /* Style the report headers for print */
             .report-block.print-me h2 {
                 font-size: 16pt !important;
                 margin-bottom: 0.5rem !important;
                 color: black !important;
             }
 
-            /* Clean up text styling for print */
             .report-block.print-me p {
                 margin-bottom: 0.5rem !important;
                 color: black !important;
                 font-size: 11pt !important;
             }
 
-            /* Ensure strong tags are visible */
             .report-block.print-me strong {
                 font-weight: bold !important;
                 color: black !important;
             }
 
-            /* Ensure lists in details are properly formatted */
             .report-block.print-me ul {
                 margin: 0 !important;
                 padding: 0 !important;
@@ -241,7 +392,6 @@
                 list-style: none !important;
             }
 
-            /* Handle images and links in print */
             .report-block.print-me img {
                 max-width: 200px !important;
                 max-height: 200px !important;
@@ -253,7 +403,6 @@
                 text-decoration: underline !important;
             }
 
-            /* Ensure divs and content are visible */
             .report-block.print-me div {
                 display: block !important;
             }
@@ -261,6 +410,15 @@
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center p-6">
+
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
 
     <div class="container-wrapper">
         <!-- Navigation Bar -->
@@ -271,6 +429,9 @@
                 </a>
                 <a href="https://form1.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Reporte de Incidencia
+                </a>
+                <a href="{{ dashboard_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Dashboard
                 </a>
                 <a href="/logout" class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
                     Cerrar Sesión
@@ -284,10 +445,6 @@
             <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
             <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span></p>
         </div>
-
-        
-            
-        
 
         <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div class="flex items-center">
@@ -337,7 +494,6 @@
                 Limpiar
             </button>
         </div>
-
 
         <div id="reports-container" class="space-y-6">
             {% for form in forms %}
@@ -397,11 +553,49 @@
         </div>
     </div>
 
-
     <script>
         let offset = {{ forms|length }};
         let limit = 10;
         let totalReports = {{ total_reports }};
+
+        // Theme toggle elements
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+
+        // Theme management functions
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                setDarkMode();
+            } else {
+                setLightMode();
+            }
+        }
+
+        function setDarkMode() {
+            document.body.classList.add('dark-mode');
+            darkModeIcon.style.display = 'block';
+            lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        }
+
+        function setLightMode() {
+            document.body.classList.remove('dark-mode');
+            darkModeIcon.style.display = 'none';
+            lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
 
         // --- Utility Functions ---
         function showFlashMessage(message, category) {
@@ -415,12 +609,12 @@
                 flashContainer.style.display = 'block';
                 setTimeout(() => {
                     flashContainer.style.display = 'none';
-                    flashContainer.innerHTML = ''; // Clear message
-                }, 5000); // Hide after 5 seconds
+                    flashContainer.innerHTML = '';
+                }, 5000);
             }
         }
 
-        // --- Report Loading Functionality (Original from index.html) ---
+        // --- Report Loading Functionality ---
         async function loadMoreReports() {
             const loadMoreButton = document.getElementById('load-more-button');
             loadMoreButton.disabled = true;
@@ -433,7 +627,7 @@
 
                 if (!response.ok) {
                     if (response.status === 401) {
-                        window.location.href = '/logout'; // Redirect to login if unauthorized
+                        window.location.href = '/logout';
                         return;
                     }
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -441,37 +635,37 @@
 
                 const data = await response.json();
                 const reportsContainer = document.getElementById('reports-container');
-                data.reports.forEach(form => {
-                    const reportBlock = document.createElement('div');
-                    reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                    reportBlock.setAttribute('data-report-id', form.id);
-                    reportBlock.innerHTML = `
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                            </div>
-                            <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                        </div>
+                        data.reports.forEach(form => {
+                            const reportBlock = document.createElement('div');
+                            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                            reportBlock.setAttribute('data-report-id', form.id);
+                            reportBlock.innerHTML = `
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                                    </div>
+                                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                                </div>
 
-                        <div class="text-gray-700 mb-4">
-                            <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                            <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                            <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                        </div>
-                        
-                        <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                            Ver Detalles
-                        </button>
+                                <div class="text-gray-700 mb-4">
+                                    <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                                    <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                                    <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                                </div>
+                                
+                                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                                    Ver Detalles
+                                </button>
 
-                        <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                            <div id="details-${form.id}" class="text-gray-700">
-                                Cargando detalles...
-                            </div>
-                        </div>
-                    `;
-                    reportsContainer.appendChild(reportBlock);
-                });
+                                <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                                    <div id="details-${form.id}" class="text-gray-700">
+                                        Cargando detalles...
+                                    </div>
+                                </div>
+                            `;
+                            reportsContainer.appendChild(reportBlock);
+                        });
                 offset += data.reports.length;
                 totalReports = data.total_count;
                 checkLoadMoreButtonVisibility();
@@ -487,7 +681,7 @@
             }
         }
 
-        // --- Event Listeners and State Management (Original from index.html) ---
+        // --- Event Listeners and State Management ---
         function checkLoadMoreButtonVisibility() {
             const loadMoreContainer = document.getElementById('load-more-container');
             if (loadMoreContainer) {
@@ -539,7 +733,7 @@
                     });
                     if (!response.ok) {
                         if (response.status === 401) {
-                            window.location.href = '/logout'; // Redirect to login if unauthorized
+                            window.location.href = '/logout';
                             return;
                         }
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -550,32 +744,35 @@
                     for (const key in reportDetails.data) {
                         if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
                             if (key === 'URLs de Imágenes o PDFs') {
-                                const urls = String(reportDetails.data[key]).split(/[\n, ]+/).filter(url => url.trim() !== '');
+                                const urls = String(reportDetails.data[key]).split('\n').filter(url => url.trim() !== '');
                                 if (urls.some(url => url.trim() !== '')) {
                                     detailsHtml += `<li><strong>Archivos Adjuntos:</strong><div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">`;
                                     urls.forEach(url => {
                                         url = url.trim();
                                         if (url) {
                                             const lowerUrl = url.toLowerCase();
+                                            const filename = url.substring(url.lastIndexOf('/') + 1);
                                             if (lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp')) {
                                                 detailsHtml += `
                                                     <div style='margin-bottom: 10px; text-align: center;'>
                                                         <a href="${url}" target="_blank" style="text-decoration: none;">
-                                                            <img src="${url}" alt="Imagen del reporte" style="max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc;">
+                                                            <img src="${url}" alt="Imagen del reporte" style="max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;" 
+                                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                                                         </a>
-                                                        <p style="font-size: 0.8em; color: #555; margin-top: 5px;">${url.substring(url.lastIndexOf('/') + 1)}</p>
+                                                        <p style="font-size: 0.8em; color: #555; margin-top: 5px; display: none;">Error cargando imagen: ${filename}</p>
+                                                        <p style="font-size: 0.8em; color: #555; margin-top: 5px;">${filename}</p>
                                                     </div>
                                                 `;
                                             } else if (lowerUrl.endsWith('.pdf')) {
                                                 detailsHtml += `
                                                     <div style='margin-bottom: 10px;'>
-                                                        <p style="margin: 0;">PDF: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${url.substring(url.lastIndexOf('/') + 1)}</a></p>
+                                                        <p style="margin: 0;">📄 PDF: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${filename}</a></p>
                                                     </div>
                                                 `;
                                             } else {
                                                 detailsHtml += `
                                                     <div style='margin-bottom: 10px;'>
-                                                        <p style="margin: 0;">Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${url.substring(url.lastIndexOf('/') + 1)}</a></p>
+                                                        <p style="margin: 0;">📎 Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${filename}</a></p>
                                                     </div>
                                                 `;
                                             }
@@ -602,7 +799,7 @@
             }
         }
 
-        // --- Multi-Select and Action Buttons (Original from index.html) ---
+        // --- Multi-Select and Action Buttons ---
         const selectAllCheckbox = document.getElementById('select-all-checkbox');
         if (selectAllCheckbox) {
             selectAllCheckbox.addEventListener('change', (event) => {
@@ -768,7 +965,7 @@
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    URL.revokeObjectURL(url); // Clean up the URL object
+                    URL.revokeObjectURL(url);
                     showFlashMessage('PDF(s) generados y descargados exitosamente.', 'success');
 
                 } catch (error) {
@@ -778,9 +975,105 @@
             });
         }
 
+        // --- Search and Filter Functions ---
+        function applyFilters() {
+            const filters = {
+                report_id: document.getElementById('reportIdSearch').value,
+                submitted_by: document.getElementById('submittedBySearch').value,
+                location: document.getElementById('locationSearch').value,
+                start_date: document.getElementById('startDateFilter').value,
+                end_date: document.getElementById('endDateFilter').value
+            };
 
-        // --- Initial Setup on DOM Load (Original from index.html) ---
+            offset = 0;
+            totalReports = 0;
+
+            async function fetchFilteredReports() {
+                const reportsContainer = document.getElementById('reports-container');
+                reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
+
+                const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+                for (const key in filters) {
+                    if (filters[key]) {
+                        queryParams.append(key, filters[key]);
+                    }
+                }
+
+                try {
+                    const response = await fetch(`/api/reports?${queryParams.toString()}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/logout';
+                            return;
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    reportsContainer.innerHTML = '';
+                    if (data.reports.length === 0) {
+                        reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
+                    } else {
+                        data.reports.forEach(form => {
+                            const reportBlock = document.createElement('div');
+                            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                            reportBlock.setAttribute('data-report-id', form.id);
+                            reportBlock.innerHTML = `
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                                    </div>
+                                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                                </div>
+
+                                <div class="text-gray-700 mb-4">
+                                    <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                                    <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                                    <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                                </div>
+                                
+                                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                                    Ver Detalles
+                                </button>
+
+                                <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                                    <div id="details-${form.id}" class="text-gray-700">
+                                        Cargando detalles...
+                                    </div>
+                                </div>
+                            `;
+                            reportsContainer.appendChild(reportBlock);
+                        });
+                    }
+                    offset = data.reports.length;
+                    totalReports = data.total_count;
+                    checkLoadMoreButtonVisibility();
+                    attachEventListenersToNewReports();
+                    updateActionButtonsState();
+
+                } catch (error) {
+                    console.error('Error fetching filtered reports:', error);
+                    reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
+                    showFlashMessage('Error al cargar reportes filtrados.', 'error');
+                }
+            }
+            fetchFilteredReports();
+        }
+
+        // --- Initial Setup on DOM Load ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize theme
+            initializeTheme();
+            
+            // Add theme toggle event listener
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+
             const loadMoreButton = document.getElementById('load-more-button');
             if (loadMoreButton) {
                 loadMoreButton.addEventListener('click', loadMoreReports);
@@ -789,7 +1082,7 @@
             attachEventListenersToNewReports();
             updateActionButtonsState();
 
-            // Search and Pagination functionality (adapted from index.new.html to fit existing structure)
+            // Search functionality
             const reportIdSearch = document.getElementById('reportIdSearch');
             const submittedBySearch = document.getElementById('submittedBySearch');
             const locationSearch = document.getElementById('locationSearch');
@@ -798,105 +1091,6 @@
             const searchButton = document.getElementById('search-button');
             const clearSearchButton = document.getElementById('clear-search-button');
 
-            // This section is new functionality not in original index.html but was requested for search capability
-            // It replaces the pagination buttons in the new style with a search mechanism.
-            // If the original index.html *already had* server-side pagination (which it did with offset/limit),
-            // then this is extending that, not replacing it.
-            function applyFilters() {
-                // For simplicity, we'll re-fetch the *initial* set of reports with filters applied.
-                // The "load more" will then continue from the filtered set.
-                // This requires your /api/reports endpoint to support these new filters.
-                const filters = {
-                    report_id: reportIdSearch.value,
-                    submitted_by: submittedBySearch.value,
-                    location: locationSearch.value,
-                    start_date: startDateFilter.value,
-                    end_date: endDateFilter.value
-                };
-
-                // Re-initialize offset and totalReports for a new search
-                offset = 0; // Start from beginning
-                totalReports = 0; // Will be updated by the fetch
-
-                // This is a simplified fetch tailored to work with your existing /api/reports endpoint
-                // and the new filter inputs. It's an interpretation of "search capability".
-                async function fetchFilteredReports() {
-                    const reportsContainer = document.getElementById('reports-container');
-                    reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
-
-                    const queryParams = new URLSearchParams({ offset: offset, limit: limit });
-                    for (const key in filters) {
-                        if (filters[key]) {
-                            queryParams.append(key, filters[key]);
-                        }
-                    }
-
-                    try {
-                        const response = await fetch(`/api/reports?${queryParams.toString()}`, {
-                            headers: { 'Accept': 'application/json' }
-                        });
-
-                        if (!response.ok) {
-                            if (response.status === 401) {
-                                window.location.href = '/logout';
-                                return;
-                            }
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-
-                        const data = await response.json();
-                        reportsContainer.innerHTML = ''; // Clear loading message
-                        if (data.reports.length === 0) {
-                            reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
-                        } else {
-                            data.reports.forEach(form => {
-                                const reportBlock = document.createElement('div');
-                                reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                                reportBlock.setAttribute('data-report-id', form.id);
-                                reportBlock.innerHTML = `
-                                    <div class="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                            <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                                        </div>
-                                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                                    </div>
-
-                                    <div class="text-gray-700 mb-4">
-                                        <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                                        <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                                        <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                                    </div>
-                                    
-                                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                                        Ver Detalles
-                                    </button>
-
-                                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                                        <div id="details-${form.id}" class="text-gray-700">
-                                            Cargando detalles...
-                                        </div>
-                                    </div>
-                                `;
-                                reportsContainer.appendChild(reportBlock);
-                            });
-                        }
-                        offset = data.reports.length;
-                        totalReports = data.total_count;
-                        checkLoadMoreButtonVisibility();
-                        attachEventListenersToNewReports();
-                        updateActionButtonsState();
-
-                    } catch (error) {
-                        console.error('Error fetching filtered reports:', error);
-                        reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
-                        showFlashMessage('Error al cargar reportes filtrados.', 'error');
-                    }
-                }
-                fetchFilteredReports();
-            }
-
-
             searchButton.addEventListener('click', applyFilters);
             clearSearchButton.addEventListener('click', () => {
                 reportIdSearch.value = '';
@@ -904,7 +1098,7 @@
                 locationSearch.value = '';
                 startDateFilter.value = '';
                 endDateFilter.value = '';
-                applyFilters(); // Re-apply filters which effectively clears them and reloads initial reports
+                applyFilters();
             });
 
             // Bind enter key for search on filter inputs

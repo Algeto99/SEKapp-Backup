@@ -40,6 +40,12 @@ app = Flask(__name__)
 is_production = os.environ.get('K_SERVICE') is not None
 app_logger.info(f"Starting Viewer Service in {'production' if is_production else 'development'} mode")
 
+# --- Service URL Configuration ---
+app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
+app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
+app.config['FORM_SERVICE_URL'] = os.environ.get('FORM_SERVICE_URL', 'https://form1.secapp.tzolkintech.com')
+app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', 'https://dashboard.secapp.tzolkintech.com')
+
 # --- Secret Manager Client ---
 secret_manager_client = secretmanager.SecretManagerServiceClient()
 
@@ -191,8 +197,22 @@ def fetch_reports(offset, limit, filters=None):
         cur.execute(count_query, query_params)
         total_count = cur.fetchone()[0]
         app_logger.info(f"Total reports found with filters: {total_count}")
+        
+        # Debug: Let's also check the sorting with a simple query
+        debug_query = """
+            SELECT id_reporte_incidente, creado_en, fecha_incidente 
+            FROM reportes_incidentes 
+            ORDER BY creado_en DESC NULLS LAST, id_reporte_incidente DESC
+            LIMIT 5
+        """
+        cur.execute(debug_query)
+        debug_rows = cur.fetchall()
+        app_logger.info("DEBUG - Recent reports by creado_en:")
+        for row in debug_rows:
+            app_logger.info(f"  ID: {row[0]}, Created: {row[1]}, Incident Date: {row[2]}")
 
         # Then, get the paginated reports with user names and filters
+        # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
         query = f"""
             SELECT
                 ri.id_reporte_incidente,
@@ -229,7 +249,8 @@ def fetch_reports(offset, limit, filters=None):
                 users u ON ri.user_email = u.email
             {where_clause}
             ORDER BY
-                ri.fecha_incidente DESC, ri.hora_incidente DESC
+                ri.creado_en DESC NULLS LAST,
+                ri.id_reporte_incidente DESC
             OFFSET %s LIMIT %s;
         """
         
@@ -237,9 +258,15 @@ def fetch_reports(offset, limit, filters=None):
         final_params = query_params + [offset, limit]
         
         app_logger.info(f"Executing fetch_reports query with offset={offset}, limit={limit}, filters={filters}.")
+        app_logger.info(f"Query ORDER BY: ri.creado_en DESC (newest submissions first)")
         cur.execute(query, final_params)
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} reports from the database.")
+        
+        # Debug: Log the first few report timestamps to verify sorting
+        if rows:
+            for i, row in enumerate(rows[:3]):  # Log first 3 reports
+                app_logger.info(f"Report {i+1}: ID={row['id_reporte_incidente']}, creado_en={row['creado_en']}")
 
         for row_dict in rows:
             # Use the full name if available, otherwise fall back to email
@@ -316,6 +343,7 @@ def fetch_reports_by_ids(report_ids):
             return []
 
         placeholders = ','.join(['%s'] * len(clean_ids))
+        # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
         query = f"""
             SELECT
                 ri.id_reporte_incidente,
@@ -353,12 +381,19 @@ def fetch_reports_by_ids(report_ids):
             WHERE
                 ri.id_reporte_incidente IN ({placeholders})
             ORDER BY
-                ri.fecha_incidente DESC, ri.hora_incidente DESC;
+                ri.creado_en DESC NULLS LAST,
+                ri.id_reporte_incidente DESC;
         """
         app_logger.info(f"Executing fetch_reports_by_ids query for IDs: {clean_ids}.")
+        app_logger.info(f"Query ORDER BY: ri.creado_en DESC (newest submissions first)")
         cur.execute(query, clean_ids)
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} specific reports.")
+        
+        # Debug: Log the report timestamps to verify sorting
+        if rows:
+            for i, row in enumerate(rows):
+                app_logger.info(f"Specific Report {i+1}: ID={row['id_reporte_incidente']}, creado_en={row['creado_en']}")
 
         for row_dict in rows:
             # Use the full name if available, otherwise fall back to email
@@ -494,7 +529,15 @@ def index():
 
     app_logger.info(f"Rendering index.html with user_name: {user_name}") # New log line
     initial_reports, total_reports_count = fetch_reports(offset=0, limit=10)
-    return render_template("index.html", current_user=user_email, forms=initial_reports, user_name=user_name, total_reports=total_reports_count)
+    return render_template("index.html", 
+                         current_user=user_email, 
+                         forms=initial_reports, 
+                         user_name=user_name, 
+                         total_reports=total_reports_count,
+                         login_service_url=app.config.get('LOGIN_SERVICE_URL'),
+                         landing_service_url=app.config.get('LANDING_SERVICE_URL'),
+                         form_service_url=app.config.get('FORM_SERVICE_URL'),
+                         dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL'))
 
 
 @app.route('/api/reports', methods=['GET'])
@@ -914,14 +957,14 @@ def generate_reports_html(reports):
 def logout():
     try:
         app_logger.info("User logout requested")
-        response = redirect('https://secapp.tzolkintech.com')
+        response = redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
         unset_jwt_cookies(response)
         app_logger.info("JWT cookies cleared, redirecting to login service")
         return response
     except Exception as e:
         app_logger.error(f"Error during logout: {e}", exc_info=True)
         # Fallback: just redirect without cookie clearing if there's an error
-        return redirect('https://secapp.tzolkintech.com')
+        return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 8080))

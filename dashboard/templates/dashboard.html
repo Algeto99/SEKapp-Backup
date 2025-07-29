@@ -10,7 +10,7 @@
     <style>
         body {
             font-family: 'Roboto', sans-serif;
-            background-color: #f8ff;
+            background-color: #f8fafc;
             color: #343a40;
             line-height: 1.6;
             min-height: 100vh;
@@ -18,6 +18,7 @@
             flex-direction: column;
             align-items: center;
             padding: 2rem;
+            transition: all 0.3s ease;
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif;
@@ -31,6 +32,7 @@
             max-width: 1200px;
             width: 100%;
             margin-top: 2rem;
+            transition: all 0.3s ease;
         }
         .nav-link {
             text-decoration: none;
@@ -38,6 +40,7 @@
             border-radius: 0.375rem;
             font-size: 1rem;
             display: inline-block;
+            transition: all 0.2s ease;
         }
         .nav-link:hover {
             background-color: #f3f4f6;
@@ -59,6 +62,7 @@
             padding: 1.5rem;
             margin-bottom: 2rem;
             border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
         }
         .chart-title {
             font-size: 1.25rem;
@@ -105,6 +109,7 @@
             text-align: center;
             border: 1px solid #e2e8f0;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
         }
         .stat-number {
             font-size: 2rem;
@@ -118,9 +123,146 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        .theme-toggle {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #374151;
+        }
+        .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
+        }
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        
+        body.dark-mode h1, 
+        body.dark-mode h2, 
+        body.dark-mode h3, 
+        body.dark-mode h4, 
+        body.dark-mode h5, 
+        body.dark-mode h6 {
+            color: #ffffff;
+        }
+        
+        body.dark-mode .container-wrapper {
+            background-color: #2d3748;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        body.dark-mode .chart-section {
+            background-color: #374151;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        body.dark-mode .stat-card {
+            background-color: #374151;
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        body.dark-mode .stat-label {
+            color: #a0aec0;
+        }
+        
+        body.dark-mode .nav-link:hover {
+            background-color: #4a5568;
+        }
+        
+        body.dark-mode .theme-toggle {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+        }
+        
+        body.dark-mode .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dark mode for navigation bar */
+        body.dark-mode nav {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for period buttons */
+        body.dark-mode .period-btn {
+            background-color: #374151;
+            color: #60a5fa;
+            border-color: #60a5fa;
+        }
+
+        body.dark-mode .period-btn:hover {
+            background-color: #60a5fa;
+            color: #374151;
+        }
+
+        body.dark-mode .period-btn.active {
+            background-color: #60a5fa;
+            color: #374151;
+        }
+
+        /* Dark mode for text colors */
+        body.dark-mode .text-gray-700 {
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode .text-gray-600 {
+            color: #cbd5e0 !important;
+        }
+
+        body.dark-mode .text-gray-800 {
+            color: #f7fafc !important;
+        }
+
+        body.dark-mode .text-blue-700 {
+            color: #93c5fd !important;
+        }
+
+        body.dark-mode .text-blue-900 {
+            color: #dbeafe !important;
+        }
+
+        body.dark-mode .text-red-600 {
+            color: #f87171 !important;
+        }
+
+        body.dark-mode .text-red-800 {
+            color: #fca5a5 !important;
+        }
+
+        /* Dark mode for stat numbers - using brighter blue for better visibility */
+        body.dark-mode .stat-number {
+            color: #60a5fa !important;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center p-6">
+
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
 
     <div class="container-wrapper">
         <!-- Navigation Bar -->
@@ -189,8 +331,84 @@
         let currentPeriod = 'weekly';
         let allData = {};
 
+        // Theme toggle elements
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+
+        // Theme management functions
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                setDarkMode();
+            } else {
+                setLightMode();
+            }
+        }
+
+        function setDarkMode() {
+            document.body.classList.add('dark-mode');
+            darkModeIcon.style.display = 'block';
+            lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+            
+            // Update chart colors for dark mode
+            if (incidentsChart) {
+                updateChartForTheme();
+            }
+        }
+
+        function setLightMode() {
+            document.body.classList.remove('dark-mode');
+            darkModeIcon.style.display = 'none';
+            lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+            
+            // Update chart colors for light mode
+            if (incidentsChart) {
+                updateChartForTheme();
+            }
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
+
+        function updateChartForTheme() {
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            const textColor = isDarkMode ? '#e2e8f0' : '#666';
+            const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            
+            if (incidentsChart && incidentsChart.options) {
+                // Update text colors
+                incidentsChart.options.scales.y.ticks.color = textColor;
+                incidentsChart.options.scales.x.ticks.color = textColor;
+                
+                // Update grid colors
+                incidentsChart.options.scales.y.grid.color = gridColor;
+                
+                // Update the chart
+                incidentsChart.update();
+            }
+        }
+
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize theme first
+            initializeTheme();
+            
+            // Add theme toggle event listener
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+            
+            // Load dashboard data
             loadAllData();
         });
 
@@ -281,6 +499,9 @@
             }
 
             const ctx = document.getElementById('incidentsChart').getContext('2d');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            const textColor = isDarkMode ? '#e2e8f0' : '#666';
+            const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
             
             incidentsChart = new Chart(ctx, {
                 type: 'bar',
@@ -316,15 +537,15 @@
                             beginAtZero: true,
                             ticks: {
                                 stepSize: 1,
-                                color: '#666'
+                                color: textColor
                             },
                             grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
+                                color: gridColor
                             }
                         },
                         x: {
                             ticks: {
-                                color: '#666',
+                                color: textColor,
                                 maxRotation: 45
                             },
                             grid: {

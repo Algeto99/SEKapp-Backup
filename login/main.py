@@ -3,6 +3,8 @@ import smtplib
 import socket
 import ssl # Keep this import, smtplib might implicitly use it
 import re
+import secrets
+import hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
@@ -142,6 +144,9 @@ def configure_app():
         app.config['EMAIL_PASSWORD_SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
         app.config['JWT_SECRET_MANAGER_NAME'] = 'jwt-secret-key'
 
+        # Password reset token expiry (1 hour)
+        app.config['PASSWORD_RESET_TOKEN_EXPIRES'] = timedelta(hours=1)
+
         app_logger.info(f"App configured. Production: {is_production}")
     except Exception as e:
         app_logger.critical(f"Critical error during app configuration: {e}", exc_info=True)
@@ -218,6 +223,112 @@ def get_db_connection():
     except Exception as e:
         app_logger.error(f"Database connection error: {e}", exc_info=True)
         return None
+
+# --- Password Reset Token Functions ---
+def generate_reset_token():
+    """Generate a secure random token for password reset"""
+    return secrets.token_urlsafe(32)
+
+def hash_token(token):
+    """Hash token for secure storage"""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+def create_password_reset_token(email):
+    """Create and store password reset token"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        # Generate token
+        token = generate_reset_token()
+        token_hash = hash_token(token)
+        expires_at = datetime.now(timezone.utc) + app.config['PASSWORD_RESET_TOKEN_EXPIRES']
+        
+        cur = conn.cursor()
+        
+        # Delete any existing tokens for this email
+        cur.execute("DELETE FROM password_reset_tokens WHERE email = %s", (email,))
+        
+        # Insert new token
+        cur.execute(
+            "INSERT INTO password_reset_tokens (email, token_hash, expires_at) VALUES (%s, %s, %s)",
+            (email, token_hash, expires_at)
+        )
+        
+        conn.commit()
+        cur.close()
+        app_logger.info(f"Password reset token created for {email}")
+        return token
+        
+    except Exception as e:
+        conn.rollback()
+        app_logger.error(f"Error creating password reset token for {email}: {e}", exc_info=True)
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def verify_reset_token(token):
+    """Verify password reset token and return email if valid"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        token_hash = hash_token(token)
+        cur = conn.cursor(cursor_factory=extras.DictCursor)
+        
+        cur.execute(
+            "SELECT email, expires_at FROM password_reset_tokens WHERE token_hash = %s",
+            (token_hash,)
+        )
+        
+        result = cur.fetchone()
+        cur.close()
+        
+        if not result:
+            app_logger.info("Invalid password reset token used")
+            return None
+        
+        if datetime.now(timezone.utc) > result['expires_at'].replace(tzinfo=timezone.utc):
+            app_logger.info(f"Expired password reset token used for {result['email']}")
+            # Clean up expired token
+            cur = conn.cursor()
+            cur.execute("DELETE FROM password_reset_tokens WHERE token_hash = %s", (token_hash,))
+            conn.commit()
+            cur.close()
+            return None
+        
+        app_logger.info(f"Valid password reset token verified for {result['email']}")
+        return result['email']
+        
+    except Exception as e:
+        app_logger.error(f"Error verifying password reset token: {e}", exc_info=True)
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def delete_reset_token(token):
+    """Delete used password reset token"""
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    try:
+        token_hash = hash_token(token)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM password_reset_tokens WHERE token_hash = %s", (token_hash,))
+        conn.commit()
+        cur.close()
+        app_logger.info("Password reset token deleted after use")
+        
+    except Exception as e:
+        app_logger.error(f"Error deleting password reset token: {e}", exc_info=True)
+    finally:
+        if conn:
+            conn.close()
 
 # --- Email Functions ---
 def get_email_password():
@@ -320,6 +431,46 @@ def send_email(to_email, subject, body, is_html=False):
         if request:
             flash(f"Error al enviar email: {e}", "danger")
         return False
+
+def send_password_reset_email(email, reset_token):
+    """Send password reset email with reset link"""
+    reset_url = url_for('reset_password', token=reset_token, _external=True)
+    
+    subject = "Restablecer Contraseña - SMT SecApp"
+    html_body = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #2563eb; text-align: center;">Restablecer Contraseña</h2>
+        <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p>Hola,</p>
+            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en SMT SecApp.</p>
+            <p>Si realizaste esta solicitud, haz clic en el siguiente enlace para restablecer tu contraseña:</p>
+        </div>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_url}"
+               style="background-color: #2563eb; color: white; padding: 12px 30px;
+                      text-decoration: none; border-radius: 6px; font-weight: bold;
+                      display: inline-block;">
+                Restablecer Contraseña
+            </a>
+        </div>
+        <div style="background-color: #fef2f2; padding: 15px; border-radius: 6px; border-left: 4px solid #ef4444;">
+            <p style="margin: 0; color: #991b1b; font-size: 14px;">
+                <strong>Importante:</strong> Este enlace expirará en 1 hora por seguridad.
+                Si no solicitaste este cambio, puedes ignorar este correo electrónico.
+            </p>
+        </div>
+        <p style="margin-top: 20px; font-size: 12px; color: #666;">
+            Si tienes problemas al hacer clic en el enlace, copia y pega la siguiente URL en tu navegador:<br>
+            <span style="word-break: break-all;">{reset_url}</span>
+        </p>
+    </div>
+    </body>
+    </html>
+    """
+    
+    return send_email(email, subject, html_body, is_html=True)
 
 def send_registration_notification(user_email, user_name, phone_number):
     admin_email = app.config.get('ADMIN_EMAIL')
@@ -642,6 +793,186 @@ def register():
             if conn:
                 conn.close()
     return render_template('register.html')
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        
+        if not email:
+            flash('Por favor, ingresa tu correo electrónico.', 'warning')
+            return render_template('forgot_password.html', email=email)
+        
+        if not validate_email(email):
+            flash('Correo electrónico inválido.', 'warning')
+            return render_template('forgot_password.html', email=email)
+        
+        conn = get_db_connection()
+        if not conn:
+            flash('Error de conexión a la base de datos.', 'danger')
+            return render_template('forgot_password.html', email=email)
+        
+        try:
+            # Check if user exists
+            cur = conn.cursor(cursor_factory=extras.DictCursor)
+            cur.execute("SELECT id, email, name FROM users WHERE email = %s", (email,))
+            user = cur.fetchone()
+            cur.close()
+            
+            if user:
+                # Generate and send reset token
+                reset_token = create_password_reset_token(email)
+                if reset_token:
+                    if send_password_reset_email(email, reset_token):
+                        flash('Se ha enviado un enlace de restablecimiento de contraseña a tu correo electrónico.', 'success')
+                        app_logger.info(f"Password reset email sent to {email}")
+                    else:
+                        flash('Error al enviar el correo electrónico. Intenta de nuevo más tarde.', 'danger')
+                        app_logger.error(f"Failed to send password reset email to {email}")
+                else:
+                    flash('Error al generar el token de restablecimiento. Intenta de nuevo más tarde.', 'danger')
+                    app_logger.error(f"Failed to create password reset token for {email}")
+            else:
+                # Don't reveal if email exists or not for security
+                flash('Si el correo electrónico está registrado, recibirás un enlace de restablecimiento.', 'info')
+                app_logger.info(f"Password reset requested for non-existent email: {email}")
+            
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            app_logger.error(f"Error in forgot password for {email}: {e}", exc_info=True)
+            flash('Error durante el proceso. Intenta de nuevo más tarde.', 'danger')
+            return render_template('forgot_password.html', email=email)
+        finally:
+            if conn:
+                conn.close()
+    
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    # Verify token
+    email = verify_reset_token(token)
+    if not email:
+        flash('El enlace de restablecimiento es inválido o ha expirado.', 'danger')
+        return redirect(url_for('forgot_password'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not password or not confirm_password:
+            flash('Ambos campos de contraseña son requeridos.', 'warning')
+            return render_template('reset_password.html', token=token, email=email)
+        
+        if not validate_password(password):
+            flash('La contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas y números.', 'warning')
+            return render_template('reset_password.html', token=token, email=email)
+        
+        if password != confirm_password:
+            flash('Las contraseñas no coinciden.', 'danger')
+            return render_template('reset_password.html', token=token, email=email)
+        
+        conn = get_db_connection()
+        if not conn:
+            flash('Error de conexión a la base de datos.', 'danger')
+            return render_template('reset_password.html', token=token, email=email)
+        
+        try:
+            # Update password
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE email = %s",
+                (hashed_password, email)
+            )
+            conn.commit()
+            cur.close()
+            
+            # Delete the used token
+            delete_reset_token(token)
+            
+            flash('Tu contraseña ha sido actualizada exitosamente. Ahora puedes iniciar sesión.', 'success')
+            app_logger.info(f"Password successfully reset for {email}")
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            conn.rollback()
+            app_logger.error(f"Error resetting password for {email}: {e}", exc_info=True)
+            flash('Error al actualizar la contraseña. Intenta de nuevo.', 'danger')
+            return render_template('reset_password.html', token=token, email=email)
+        finally:
+            if conn:
+                conn.close()
+    
+    return render_template('reset_password.html', token=token, email=email)
+
+@app.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if not all([email, current_password, new_password, confirm_password]):
+            flash('Todos los campos son requeridos.', 'warning')
+            return render_template('change_password.html', email=email)
+        
+        if not validate_email(email):
+            flash('Correo electrónico inválido.', 'warning')
+            return render_template('change_password.html', email=email)
+        
+        if not validate_password(new_password):
+            flash('La nueva contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas y números.', 'warning')
+            return render_template('change_password.html', email=email)
+        
+        if new_password != confirm_password:
+            flash('Las contraseñas nuevas no coinciden.', 'danger')
+            return render_template('change_password.html', email=email)
+        
+        conn = get_db_connection()
+        if not conn:
+            flash('Error de conexión a la base de datos.', 'danger')
+            return render_template('change_password.html', email=email)
+        
+        try:
+            # Verify user exists and current password is correct
+            cur = conn.cursor(cursor_factory=extras.DictCursor)
+            cur.execute("SELECT id, password_hash, name FROM users WHERE email = %s", (email,))
+            user = cur.fetchone()
+            
+            if not user:
+                flash('Usuario no encontrado.', 'danger')
+                return render_template('change_password.html', email=email)
+            
+            if not bcrypt.check_password_hash(user['password_hash'], current_password):
+                flash('La contraseña actual es incorrecta.', 'danger')
+                return render_template('change_password.html', email=email)
+            
+            # Update to new password
+            hashed_new_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE email = %s",
+                (hashed_new_password, email)
+            )
+            conn.commit()
+            cur.close()
+            
+            flash('Tu contraseña ha sido cambiada exitosamente. Ahora puedes iniciar sesión.', 'success')
+            app_logger.info(f"Password successfully changed for {email}")
+            return redirect(url_for('login'))
+            
+        except Exception as e:
+            conn.rollback()
+            app_logger.error(f"Error changing password for {email}: {e}", exc_info=True)
+            flash('Error al cambiar la contraseña. Intenta de nuevo.', 'danger')
+            return render_template('change_password.html', email=email)
+        finally:
+            if conn:
+                conn.close()
+    
+    return render_template('change_password.html')
 
 @app.route('/logout', methods=['GET', 'POST'])
 def logout():
