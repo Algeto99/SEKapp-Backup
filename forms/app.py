@@ -30,10 +30,10 @@ def configure_app(app):
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'forms-flask-secret-key')
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
     app.config['BASE_URL'] = os.environ.get('BASE_URL', '/')
-    app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', '/')
-    app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', '/')
-    app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', '/')
-    app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', '/')
+    app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
+    app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
+    app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', 'https://dashboard.secapp.tzolkintech.com')
+    app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', 'https://viewer.secapp.tzolkintech.com')
 
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
@@ -66,6 +66,55 @@ configure_app(app)
 
 jwt = JWTManager(app)
 app_logger.info("JWT configured successfully")
+
+# --- JWT Error Handlers for Automatic Redirect ---
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    """
+    Called when an access token has expired.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"JWT token expired for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error_string):
+    """
+    Called when an invalid token is encountered.
+    Always redirect user to login service for both web and API requests.
+    """
+    app_logger.info(f"Invalid JWT token encountered: {error_string}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.unauthorized_loader
+def unauthorized_callback(error_string):
+    """
+    Called when no JWT token is present in the request.
+    Always redirect user to login service for both web and API requests.
+    """
+    app_logger.info(f"No JWT token found: {error_string}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.revoked_token_loader
+def revoked_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a revoked token is encountered.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Revoked JWT token for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.needs_fresh_token_loader
+def needs_fresh_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a fresh token is required but not provided.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Fresh token required for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 import urllib.parse as urlparse
 

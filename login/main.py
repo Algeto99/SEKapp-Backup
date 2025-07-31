@@ -531,23 +531,61 @@ def send_welcome_email(user_email, user_name):
     """
     return send_email(user_email, subject, html_body, is_html=True)
 
-# --- JWT Error Handling ---
-@jwt.unauthorized_loader
-def handle_unauthorized_loader(callback):
-    app_logger.info(f"Unauthorized access attempt to {request.path}.")
-    flash('Su sesión ha caducado o no ha iniciado sesión. Por favor, inicie sesión de nuevo.', 'danger')
+# --- JWT Error Handlers for Automatic Redirect ---
+# Note: Login service typically doesn't need these since it's the login destination,
+# but including for completeness in case JWT is used for admin functions
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    """
+    Called when an access token has expired.
+    For the login service, redirect to login page (self).
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"JWT token expired for user {user_email}. Redirecting to login.")
+    flash('Su sesión ha caducado. Por favor, inicie sesión de nuevo.', 'danger')
     return redirect(url_for('login'))
 
 @jwt.invalid_token_loader
-def handle_invalid_token_loader(callback):
-    app_logger.info(f"Invalid token access attempt to {request.path}.")
+def invalid_token_callback(error_string):
+    """
+    Called when an invalid token is encountered.
+    For the login service, redirect to login page (self).
+    """
+    app_logger.info(f"Invalid JWT token encountered: {error_string}. Redirecting to login.")
     flash('Su sesión es inválida. Por favor, inicie sesión de nuevo.', 'danger')
     return redirect(url_for('login'))
 
-@jwt.expired_token_loader
-def handle_expired_token_loader(jwt_header, jwt_payload):
-    app_logger.info(f"Expired token access attempt for {jwt_payload.get('sub')} to {request.path}.")
-    flash('Su sesión ha caducado. Por favor, inicie sesión de nuevo.', 'danger')
+@jwt.unauthorized_loader
+def unauthorized_callback(error_string):
+    """
+    Called when no JWT token is present in the request.
+    For the login service, redirect to login page (self).
+    """
+    app_logger.info(f"No JWT token found: {error_string}. Redirecting to login.")
+    flash('Su sesión ha caducado o no ha iniciado sesión. Por favor, inicie sesión de nuevo.', 'danger')
+    return redirect(url_for('login'))
+
+@jwt.revoked_token_loader
+def revoked_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a revoked token is encountered.
+    For the login service, redirect to login page (self).
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Revoked JWT token for user {user_email}. Redirecting to login.")
+    flash('Su sesión ha sido revocada. Por favor, inicie sesión de nuevo.', 'danger')
+    return redirect(url_for('login'))
+
+@jwt.needs_fresh_token_loader
+def needs_fresh_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a fresh token is required but not provided.
+    For the login service, redirect to login page (self).
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Fresh token required for user {user_email}. Redirecting to login.")
+    flash('Se requiere una sesión fresca. Por favor, inicie sesión de nuevo.', 'warning')
     return redirect(url_for('login'))
 
 # --- JWT Token Refreshing ---

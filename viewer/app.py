@@ -43,7 +43,7 @@ app_logger.info(f"Starting Viewer Service in {'production' if is_production else
 # --- Service URL Configuration ---
 app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
 app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
-app.config['FORM_SERVICE_URL'] = os.environ.get('FORM_SERVICE_URL', 'https://form1.secapp.tzolkintech.com')
+app.config['FORMS_SERVICE_URL'] = os.environ.get('FORMS_SERVICE_URL', 'https://form1.secapp.tzolkintech.com')
 app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', 'https://dashboard.secapp.tzolkintech.com')
 
 # --- Secret Manager Client ---
@@ -97,6 +97,55 @@ app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', '.tzolkint
 
 jwt = JWTManager(app)
 CORS(app)
+
+# --- JWT Error Handlers for Automatic Redirect ---
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    """
+    Called when an access token has expired.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"JWT token expired for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error_string):
+    """
+    Called when an invalid token is encountered.
+    Always redirect user to login service for both web and API requests.
+    """
+    app_logger.info(f"Invalid JWT token encountered: {error_string}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.unauthorized_loader
+def unauthorized_callback(error_string):
+    """
+    Called when no JWT token is present in the request.
+    Always redirect user to login service for both web and API requests.
+    """
+    app_logger.info(f"No JWT token found: {error_string}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.revoked_token_loader
+def revoked_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a revoked token is encountered.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Revoked JWT token for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.needs_fresh_token_loader
+def needs_fresh_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a fresh token is required but not provided.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Fresh token required for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 # DB Config
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -536,7 +585,7 @@ def index():
                          total_reports=total_reports_count,
                          login_service_url=app.config.get('LOGIN_SERVICE_URL'),
                          landing_service_url=app.config.get('LANDING_SERVICE_URL'),
-                         form_service_url=app.config.get('FORM_SERVICE_URL'),
+                         forms_service_url=app.config.get('FORMS_SERVICE_URL'),
                          dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL'))
 
 
@@ -623,7 +672,7 @@ def email_selected_reports_api():
         html_body_parts.append(f"<p><strong>Enviado por:</strong> {report['submittedBy']} el {report['dateSubmitted']}</p>")
         
         for key, value in report['data'].items():
-            display_value = value if value and str(value).strip() != 'N/A' else 'No especificado'
+            display_value = value if value and str(value).strip() != 'N/A' and str(value).strip() != 'None' else 'No especificado'
             # Modified section for handling URLs de Imágenes o PDFs
             if key == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
                 urls = display_value.split('\n')
@@ -893,6 +942,7 @@ def generate_reports_html(reports):
                 url = url.strip()
                 if url:
                     lower_url = url.lower()
+                    filename = os.path.basename(url)
                     if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
                         image_urls.append(url)
                     elif lower_url.endswith('.pdf'):

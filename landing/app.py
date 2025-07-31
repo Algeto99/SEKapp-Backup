@@ -1,4 +1,4 @@
-# landing/app.py (REVISED for tz-dev-secapp with enhanced secret validation)
+# landing/app.py (REVISED for tz-dev-secapp with JWT redirect handlers)
 
 import os
 import sys
@@ -6,7 +6,7 @@ import logging
 import re
 from datetime import timedelta, datetime, timezone
 
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, redirect
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt
 from flask_cors import CORS
 from google.cloud import secretmanager
@@ -203,6 +203,55 @@ class CloudRunServiceClient:
 jwt = JWTManager()
 login_service_client = None
 
+# --- JWT Error Handlers for Automatic Redirect ---
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    """
+    Called when an access token has expired.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"JWT token expired for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.invalid_token_loader
+def invalid_token_callback(error_string):
+    """
+    Called when an invalid token is encountered.
+    Always redirect user to login service for both web and API requests.
+    """
+    app_logger.info(f"Invalid JWT token encountered: {error_string}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.unauthorized_loader
+def unauthorized_callback(error_string):
+    """
+    Called when no JWT token is present in the request.
+    Always redirect user to login service for both web and API requests.
+    """
+    app_logger.info(f"No JWT token found: {error_string}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.revoked_token_loader
+def revoked_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a revoked token is encountered.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Revoked JWT token for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
+@jwt.needs_fresh_token_loader
+def needs_fresh_token_callback(jwt_header, jwt_payload):
+    """
+    Called when a fresh token is required but not provided.
+    Always redirect user to login service for both web and API requests.
+    """
+    user_email = jwt_payload.get('sub', 'unknown')
+    app_logger.info(f"Fresh token required for user {user_email}. Redirecting to login.")
+    return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
+
 # --- JWT Callbacks ---
 @jwt.user_identity_loader
 def user_identity_lookup(jwt_payload):
@@ -279,8 +328,6 @@ def health_check():
     except Exception as e:
         health_status['checks']['secret_manager_access'] = f'error: {str(e)}'
         app_logger.error(f"Secret Manager health check failed: {str(e)}")
-
-
 
     if all(check == 'ready' for check in health_status['checks'].values()):
         health_status['status'] = 'ready'

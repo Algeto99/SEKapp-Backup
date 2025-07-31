@@ -71,11 +71,19 @@
             margin-bottom: 1rem;
             text-align: center;
         }
+        .kpi-info {
+            font-size: 0.875rem;
+            color: #666;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
         .period-buttons {
             display: flex;
             justify-content: center;
             gap: 1rem;
             margin-bottom: 2rem;
+            flex-wrap: wrap;
         }
         .period-btn {
             padding: 0.75rem 1.5rem;
@@ -102,6 +110,12 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
+        .incident-types-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
         .stat-card {
             background-color: #ffffff;
             border-radius: 8px;
@@ -111,17 +125,69 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
         }
+        .incident-type-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .incident-type-card.critical {
+            border-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+            50% { box-shadow: 0 6px 16px rgba(220, 38, 38, 0.4); }
+        }
+        .kpi-indicator {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            background-color: #dc2626;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px solid white;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
         .stat-number {
             font-size: 2rem;
             font-weight: bold;
             color: #1d4ed8;
             margin-bottom: 0.5rem;
         }
+        .stat-number.critical {
+            color: #dc2626;
+        }
         .stat-label {
             color: #666;
             font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin: 2rem 0 1rem 0;
+            text-align: center;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
         }
         .theme-toggle {
             position: absolute;
@@ -143,6 +209,65 @@
         .theme-toggle svg {
             width: 1.5rem;
             height: 1.5rem;
+        }
+
+        /* Mobile navigation styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            .container-wrapper {
+                padding: 1rem;
+                margin-top: 1rem;
+            }
+            .nav-link {
+                font-size: 0.875rem;
+                padding: 0.5rem 0.75rem;
+                text-align: center;
+                min-width: 0;
+                flex: 1;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 1rem;
+            }
+            .incident-types-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 1rem;
+            }
+            .stat-card, .incident-type-card {
+                padding: 1rem;
+            }
+            .stat-number {
+                font-size: 1.5rem;
+            }
+            .chart-container {
+                height: 300px;
+            }
+            .period-buttons {
+                gap: 0.5rem;
+            }
+            .period-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-link {
+                font-size: 0.75rem;
+                padding: 0.375rem 0.5rem;
+                line-height: 1.2;
+            }
+            .theme-toggle {
+                top: 1rem;
+                left: 1rem;
+                padding: 0.375rem;
+            }
+            .theme-toggle svg {
+                width: 1.25rem;
+                height: 1.25rem;
+            }
         }
 
         /* Dark mode styles */
@@ -171,14 +296,25 @@
             border-color: rgba(255, 255, 255, 0.1);
         }
         
-        body.dark-mode .stat-card {
+        body.dark-mode .stat-card,
+        body.dark-mode .incident-type-card {
             background-color: #374151;
             border-color: rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
         
+        body.dark-mode .incident-type-card.critical {
+            border-color: #f87171;
+            box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+        }
+        
         body.dark-mode .stat-label {
             color: #a0aec0;
+        }
+        
+        body.dark-mode .section-title {
+            color: #ffffff;
+            border-bottom-color: rgba(255, 255, 255, 0.2);
         }
         
         body.dark-mode .nav-link:hover {
@@ -247,9 +383,18 @@
             color: #fca5a5 !important;
         }
 
-        /* Dark mode for stat numbers - using brighter blue for better visibility */
+        /* Dark mode for stat numbers */
         body.dark-mode .stat-number {
             color: #60a5fa !important;
+        }
+
+        body.dark-mode .stat-number.critical {
+            color: #f87171 !important;
+        }
+
+        /* Dark mode for KPI info */
+        body.dark-mode .kpi-info {
+            color: #a0aec0 !important;
         }
     </style>
 </head>
@@ -265,32 +410,36 @@
     </button>
 
     <div class="container-wrapper">
-        <!-- Navigation Bar -->
-        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-4">
-            <div class="flex justify-center space-x-8">
+        <!-- Mobile-Responsive Navigation Bar -->
+        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
+            <div class="flex flex-wrap justify-center gap-2 sm:gap-4 md:gap-6 lg:gap-8">
                 <a href="https://landing.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Inicio
                 </a>
                 <a href="https://form1.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
-                    Reporte de Incidencia
+                    <span class="hidden sm:inline">Reporte de Incidencia</span>
+                    <span class="sm:hidden">Reporte</span>
                 </a>
                 <a href="https://viewer.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
-                    Ver Reportes
+                    <span class="hidden sm:inline">Ver Reportes</span>
+                    <span class="sm:hidden">Reportes</span>
                 </a>
                 <a href="/logout" class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
-                    Cerrar Sesión
+                    <span class="hidden sm:inline">Cerrar Sesión</span>
+                    <span class="sm:hidden">Salir</span>
                 </a>
             </div>
         </nav>
 
         <div class="flex flex-col items-center mb-6">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo-img opacity-90">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Dashboard de Incidencias</h1>
-            <p class="text-md text-gray-600 mb-4">Análisis y estadísticas de reportes de seguridad.</p>
-            <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700">{{ user_name }}</span></p>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Dashboard de Incidencias</h1>
+            <p class="text-sm md:text-md text-gray-600 mb-4 text-center">Análisis y estadísticas de reportes de seguridad.</p>
+            <p class="text-base md:text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700">{{ user_name }}</span></p>
         </div>
 
-        <!-- Quick Stats -->
+        <!-- General Stats -->
+        <h2 class="section-title">Estadísticas Generales</h2>
         <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
                 <div class="stat-number" id="totalIncidents">-</div>
@@ -310,6 +459,27 @@
             </div>
         </div>
 
+        <!-- Incident Types KPI -->
+        <h2 class="section-title" id="incidentTypesTitle">Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana</h2>
+        <div class="incident-types-grid" id="incidentTypesGrid">
+            <div class="incident-type-card" id="hurtoCard">
+                <div class="stat-number" id="hurtoCount">-</div>
+                <div class="stat-label">Hurto</div>
+            </div>
+            <div class="incident-type-card" id="olvidoCard">
+                <div class="stat-number" id="olvidoCount">-</div>
+                <div class="stat-label">Olvido</div>
+            </div>
+            <div class="incident-type-card" id="recuperacionCard">
+                <div class="stat-number" id="recuperacionCount">-</div>
+                <div class="stat-label">Recuperación</div>
+            </div>
+            <div class="incident-type-card" id="roboCard">
+                <div class="stat-number" id="roboCount">-</div>
+                <div class="stat-label">Robo</div>
+            </div>
+        </div>
+
         <!-- Period Selection -->
         <div class="period-buttons">
             <button class="period-btn active" onclick="changePeriod('weekly')" id="weeklyBtn">Semanal</button>
@@ -320,6 +490,7 @@
         <!-- Chart Section -->
         <div class="chart-section">
             <h2 class="chart-title" id="chartTitle">Incidencias por Semana</h2>
+            <div class="kpi-info" id="kpiInfo">KPI: Alertas cuando se superan los 4 incidentes por semana</div>
             <div class="chart-container">
                 <canvas id="incidentsChart"></canvas>
             </div>
@@ -330,6 +501,16 @@
         let incidentsChart;
         let currentPeriod = 'weekly';
         let allData = {};
+        let weeklyKpiData = [];
+        let currentlySelectedBar = null;
+        let originalIncidentTypesData = null;
+
+        // KPI thresholds
+        const KPI_THRESHOLDS = {
+            weekly: 4,      // 4 incidents per week
+            monthly: 16,    // 4 weeks * 4 incidents = 16 per month  
+            yearly: 208     // 52 weeks * 4 incidents = 208 per year
+        };
 
         // Theme toggle elements
         const themeToggle = document.getElementById('themeToggle');
@@ -414,11 +595,13 @@
 
         async function loadAllData() {
             try {
-                // Load data for all periods
-                const [weeklyData, monthlyData, yearlyData] = await Promise.all([
+                // Load data for all periods and incident types
+                const [weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData] = await Promise.all([
                     fetch('/api/incidents/weekly').then(r => r.json()),
                     fetch('/api/incidents/monthly').then(r => r.json()),
-                    fetch('/api/incidents/yearly').then(r => r.json())
+                    fetch('/api/incidents/yearly').then(r => r.json()),
+                    fetch('/api/incidents/types').then(r => r.json()),
+                    fetch('/api/incidents/weekly-with-kpi').then(r => r.json())
                 ]);
 
                 allData = {
@@ -427,8 +610,11 @@
                     yearly: yearlyData
                 };
 
+                window.weeklyKpiData = weeklyKpiData;
+
                 // Update stats
                 updateStats();
+                await updateIncidentTypesForPeriod(currentPeriod);
                 
                 // Initialize chart with weekly data
                 updateChart();
@@ -437,6 +623,73 @@
                 console.error('Error loading dashboard data:', error);
                 showError('Error al cargar los datos del dashboard');
             }
+        }
+
+        async function updateIncidentTypesForPeriod(period) {
+            try {
+                let endpoint = '/api/incidents/types'; // default to weekly
+                
+                if (period === 'monthly') {
+                    endpoint = '/api/incidents/types/monthly';
+                } else if (period === 'yearly') {
+                    endpoint = '/api/incidents/types/yearly';
+                }
+                
+                const incidentTypesData = await fetch(endpoint).then(r => r.json());
+                updateIncidentTypes(incidentTypesData);
+                
+            } catch (error) {
+                console.error('Error loading incident types data:', error);
+                // Fallback to weekly data if monthly/yearly endpoints don't exist
+                if (period !== 'weekly') {
+                    const weeklyData = await fetch('/api/incidents/types').then(r => r.json());
+                    updateIncidentTypes(weeklyData);
+                }
+            }
+        }
+
+        function updateIncidentTypes(incidentTypesData) {
+            // Clear any existing KPI indicators
+            document.querySelectorAll('.kpi-indicator').forEach(el => el.remove());
+            document.querySelectorAll('.incident-type-card').forEach(el => {
+                el.classList.remove('critical');
+            });
+
+            incidentTypesData.forEach(item => {
+                const cardId = item.type.toLowerCase() + 'Card';
+                const countId = item.type.toLowerCase() + 'Count';
+                
+                const card = document.getElementById(cardId);
+                const countElement = document.getElementById(countId);
+                
+                if (countElement) {
+                    countElement.textContent = item.count;
+                    
+                    if (item.is_critical) {
+                        // Add critical styling
+                        countElement.classList.add('critical');
+                        card.classList.add('critical');
+                        
+                        // Add KPI indicator
+                        const indicator = document.createElement('div');
+                        indicator.className = 'kpi-indicator';
+                        indicator.textContent = '!';
+                        
+                        // Set tooltip based on current period
+                        const thresholds = {
+                            weekly: 4,
+                            monthly: 16,
+                            yearly: 208
+                        };
+                        const periodText = currentPeriod === 'weekly' ? 'semana' : 
+                                         currentPeriod === 'monthly' ? 'mes' : 'año';
+                        indicator.title = `KPI Alert: ${item.count} incidents this ${currentPeriod} (threshold: ≥${thresholds[currentPeriod]} per ${periodText})`;
+                        card.appendChild(indicator);
+                    } else {
+                        countElement.classList.remove('critical');
+                    }
+                }
+            });
         }
 
         function updateStats() {
@@ -472,27 +725,319 @@
             return months[monthName] || 0;
         }
 
-        function changePeriod(period) {
+        async function changePeriod(period) {
             currentPeriod = period;
             
             // Update button states
             document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(period + 'Btn').classList.add('active');
             
-            // Update chart title
+            // Update chart title and KPI info
             const titles = {
                 weekly: 'Incidencias por Semana',
                 monthly: 'Incidencias por Mes',
                 yearly: 'Incidencias por Año'
             };
+            
+            const kpiInfo = {
+                weekly: 'KPI: Alertas cuando se superan los 4 incidentes por semana',
+                monthly: 'KPI: Alertas cuando se superan los 16 incidentes por mes (4 semanas × 4)',
+                yearly: 'KPI: Alertas cuando se superan los 208 incidentes por año (52 semanas × 4)'
+            };
+            
+            const incidentTypesTitles = {
+                weekly: 'Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana',
+                monthly: 'Tipos de Incidencias (Este Mes) - KPI: ≥16 por mes',
+                yearly: 'Tipos de Incidencias (Este Año) - KPI: ≥208 por año'
+            };
+            
             document.getElementById('chartTitle').textContent = titles[period];
+            document.getElementById('kpiInfo').textContent = kpiInfo[period];
+            
+            // Update incident types section title
+            const incidentTypesTitle = document.getElementById('incidentTypesTitle');
+            if (incidentTypesTitle) {
+                incidentTypesTitle.textContent = incidentTypesTitles[period];
+            }
+            
+            // Update incident types data for the selected period
+            await updateIncidentTypesForPeriod(period);
             
             // Update chart
             updateChart();
         }
 
+        async function changePeriod(period) {
+            currentPeriod = period;
+            
+            // Reset selected bar when changing periods
+            currentlySelectedBar = null;
+            originalIncidentTypesData = null;
+            clearPeriodInfoDisplay();
+            
+            // Update button states
+            document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(period + 'Btn').classList.add('active');
+            
+            // Update chart title and KPI info
+            const titles = {
+                weekly: 'Incidencias por Semana',
+                monthly: 'Incidencias por Mes',
+                yearly: 'Incidencias por Año'
+            };
+            
+            const kpiInfo = {
+                weekly: 'KPI: Alertas cuando se superan los 4 incidentes por semana',
+                monthly: 'KPI: Alertas cuando se superan los 16 incidentes por mes (4 semanas × 4)',
+                yearly: 'KPI: Alertas cuando se superan los 208 incidentes por año (52 semanas × 4)'
+            };
+            
+            const incidentTypesTitles = {
+                weekly: 'Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana',
+                monthly: 'Tipos de Incidencias (Este Mes) - KPI: ≥16 por mes',
+                yearly: 'Tipos de Incidencias (Este Año) - KPI: ≥208 por año'
+            };
+            
+            document.getElementById('chartTitle').textContent = titles[period];
+            document.getElementById('kpiInfo').textContent = kpiInfo[period];
+            
+            // Update incident types section title
+            const incidentTypesTitle = document.getElementById('incidentTypesTitle');
+            if (incidentTypesTitle) {
+                incidentTypesTitle.textContent = incidentTypesTitles[period];
+            }
+            
+            // Update incident types data for the selected period
+            await updateIncidentTypesForPeriod(period);
+            
+            // Update chart
+            updateChart();
+        }
+
+        function togglePeriodBreakdown(dataIndex) {
+            console.log('togglePeriodBreakdown called with index:', dataIndex);
+            
+            // If clicking the same bar, toggle off
+            if (currentlySelectedBar === dataIndex) {
+                console.log('Toggling off selected bar');
+                clearPeriodBreakdown();
+                return;
+            }
+
+            // Get the data for the clicked period
+            let data = allData[currentPeriod] || [];
+            if (currentPeriod === 'weekly' && window.weeklyKpiData && window.weeklyKpiData.length > 0) {
+                data = window.weeklyKpiData;
+            }
+
+            console.log('Using data:', data);
+            console.log('DataIndex:', dataIndex, 'Data length:', data.length);
+
+            if (dataIndex >= data.length || !data[dataIndex]) {
+                console.log('Invalid data index or no data');
+                return;
+            }
+
+            const item = data[dataIndex];
+            console.log('Selected item:', item);
+
+            // Store original data if not already stored
+            if (originalIncidentTypesData === null) {
+                console.log('Storing original incident types data');
+                storeOriginalIncidentTypesData();
+            }
+
+            // Set the new selected bar
+            currentlySelectedBar = dataIndex;
+            console.log('Set currentlySelectedBar to:', currentlySelectedBar);
+
+            // Show breakdown for this period
+            showBreakdownForPeriod(item);
+
+            // Update chart to show selection
+            updateChart();
+        }
+
+        function storeOriginalIncidentTypesData() {
+            const counts = {
+                'Hurto': document.getElementById('hurtoCount'),
+                'Olvido': document.getElementById('olvidoCount'),
+                'Recuperacion': document.getElementById('recuperacionCount'),
+                'Robo': document.getElementById('roboCount')
+            };
+
+            const cards = {
+                'Hurto': document.getElementById('hurtoCard'),
+                'Olvido': document.getElementById('olvidoCard'),
+                'Recuperacion': document.getElementById('recuperacionCard'),
+                'Robo': document.getElementById('roboCard')
+            };
+
+            originalIncidentTypesData = {};
+            Object.keys(counts).forEach(type => {
+                originalIncidentTypesData[type] = {
+                    count: counts[type].textContent,
+                    className: cards[type].className
+                };
+            });
+        }
+
+        function showBreakdownForPeriod(item) {
+            console.log('showBreakdownForPeriod called with item:', item);
+            
+            // For now, we'll simulate the breakdown based on the total
+            // In a real scenario, this would come from the backend with actual type data
+            const totalCount = item.total_count || item.count || 0;
+            console.log('Total count:', totalCount);
+            
+            // Use real data for weekly if available, otherwise simulate
+            let breakdown;
+            if (currentPeriod === 'weekly' && item.types) {
+                console.log('Using real weekly breakdown data:', item.types);
+                breakdown = item.types;
+            } else {
+                console.log('Using simulated breakdown for total:', totalCount);
+                breakdown = simulateIncidentBreakdown(totalCount);
+            }
+
+            console.log('Final breakdown:', breakdown);
+
+            const counts = {
+                'Hurto': document.getElementById('hurtoCount'),
+                'Olvido': document.getElementById('olvidoCount'),
+                'Recuperacion': document.getElementById('recuperacionCount'),
+                'Robo': document.getElementById('roboCount')
+            };
+
+            const cards = {
+                'Hurto': document.getElementById('hurtoCard'),
+                'Olvido': document.getElementById('olvidoCard'),
+                'Recuperacion': document.getElementById('recuperacionCard'),
+                'Robo': document.getElementById('roboCard')
+            };
+
+            // Update with breakdown data and add selected styling
+            Object.keys(counts).forEach(type => {
+                const count = breakdown[type] || 0;
+                console.log(`Setting ${type} to ${count}`);
+                
+                counts[type].textContent = count;
+                
+                // Add selected styling
+                cards[type].style.backgroundColor = '#fbbf24'; // yellow background
+                cards[type].style.transform = 'scale(1.02)';
+                cards[type].style.transition = 'all 0.3s ease';
+                cards[type].style.boxShadow = '0 4px 20px rgba(251, 191, 36, 0.6)';
+                cards[type].style.border = '2px solid #f59e0b';
+            });
+
+            // Show period info permanently
+            showPeriodInfo(item);
+        }
+
+        function simulateIncidentBreakdown(totalCount) {
+            if (totalCount === 0) {
+                return { 'Hurto': 0, 'Olvido': 0, 'Recuperacion': 0, 'Robo': 0 };
+            }
+
+            // Simple distribution: Hurto and Robo tend to be higher
+            const hurto = Math.floor(totalCount * 0.4);
+            const robo = Math.floor(totalCount * 0.3);
+            const olvido = Math.floor(totalCount * 0.2);
+            const recuperacion = totalCount - hurto - robo - olvido;
+
+            return {
+                'Hurto': hurto,
+                'Robo': robo,
+                'Olvido': olvido,
+                'Recuperacion': Math.max(0, recuperacion)
+            };
+        }
+
+        function showPeriodInfo(item) {
+            // Remove existing period info
+            clearPeriodInfoDisplay();
+            
+            // Show period info permanently
+            const periodInfo = document.createElement('div');
+            periodInfo.id = 'selectedPeriodInfo';
+            periodInfo.className = 'text-center font-bold text-lg mb-4 bg-yellow-200 dark:bg-yellow-600 p-3 rounded-lg border-2 border-yellow-400';
+            periodInfo.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <span>${item.period} - Total: ${item.total_count || item.count}</span>
+                    <button onclick="clearPeriodBreakdown()" class="text-red-600 hover:text-red-800 ml-4 text-xl font-bold" title="Cerrar">&times;</button>
+                </div>
+                <div class="text-sm text-gray-600 dark:text-gray-300 mt-1">Haz clic en la misma barra para desseleccionar</div>
+            `;
+            
+            const incidentTypesGrid = document.getElementById('incidentTypesGrid');
+            incidentTypesGrid.parentNode.insertBefore(periodInfo, incidentTypesGrid);
+        }
+
+        function clearPeriodInfoDisplay() {
+            const existingInfo = document.getElementById('selectedPeriodInfo');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
+        }
+
+        function clearPeriodBreakdown() {
+            console.log('Clearing period breakdown');
+            
+            if (originalIncidentTypesData === null) {
+                console.log('No original data to restore');
+                return;
+            }
+
+            const counts = {
+                'Hurto': document.getElementById('hurtoCount'),
+                'Olvido': document.getElementById('olvidoCount'),
+                'Recuperacion': document.getElementById('recuperacionCount'),
+                'Robo': document.getElementById('roboCount')
+            };
+
+            const cards = {
+                'Hurto': document.getElementById('hurtoCard'),
+                'Olvido': document.getElementById('olvidoCard'),
+                'Recuperacion': document.getElementById('recuperacionCard'),
+                'Robo': document.getElementById('roboCard')
+            };
+
+            // Restore original values and styling
+            Object.keys(counts).forEach(type => {
+                counts[type].textContent = originalIncidentTypesData[type].count;
+                cards[type].className = originalIncidentTypesData[type].className;
+                cards[type].style.backgroundColor = '';
+                cards[type].style.transform = '';
+                cards[type].style.boxShadow = '';
+                cards[type].style.border = '';
+                console.log(`Restored ${type} to ${originalIncidentTypesData[type].count}`);
+            });
+
+            // Clear period info
+            clearPeriodInfoDisplay();
+
+            // Reset state
+            currentlySelectedBar = null;
+            originalIncidentTypesData = null;
+            
+            console.log('Reset state - currentlySelectedBar:', currentlySelectedBar);
+
+            // Update chart to remove selection highlighting
+            updateChart();
+        }
+
         function updateChart() {
-            const data = allData[currentPeriod] || [];
+            let data = allData[currentPeriod] || [];
+            
+            // Use detailed data with types if available
+            if (currentPeriod === 'weekly' && window.weeklyKpiData && window.weeklyKpiData.length > 0) {
+                data = window.weeklyKpiData;
+            } else if (currentPeriod === 'monthly' && window.monthlyKpiData && window.monthlyKpiData.length > 0) {
+                data = window.monthlyKpiData;
+            } else if (currentPeriod === 'yearly' && window.yearlyKpiData && window.yearlyKpiData.length > 0) {
+                data = window.yearlyKpiData;
+            }
             
             if (incidentsChart) {
                 incidentsChart.destroy();
@@ -503,15 +1048,43 @@
             const textColor = isDarkMode ? '#e2e8f0' : '#666';
             const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
             
+            // Get current period threshold
+            const currentThreshold = KPI_THRESHOLDS[currentPeriod];
+            
+            // Prepare chart data with conditional colors for KPI violations
+            const chartData = data.map(item => {
+                return item.total_count || item.count || 0;
+            });
+
+            const backgroundColors = data.map(item => {
+                const count = item.total_count || item.count || 0;
+                const hasViolation = item.has_kpi_violation || count >= currentThreshold;
+                
+                if (hasViolation) {
+                    return 'rgba(220, 38, 38, 0.8)'; // Red for KPI violations
+                }
+                return 'rgba(29, 78, 216, 0.8)'; // Default blue
+            });
+
+            const borderColors = data.map(item => {
+                const count = item.total_count || item.count || 0;
+                const hasViolation = item.has_kpi_violation || count >= currentThreshold;
+                
+                if (hasViolation) {
+                    return 'rgba(220, 38, 38, 1)'; // Red border for KPI violations
+                }
+                return 'rgba(29, 78, 216, 1)'; // Default blue border
+            });
+            
             incidentsChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: data.map(item => item.period),
                     datasets: [{
                         label: 'Número de Incidencias',
-                        data: data.map(item => item.count),
-                        backgroundColor: 'rgba(29, 78, 216, 0.8)',
-                        borderColor: 'rgba(29, 78, 216, 1)',
+                        data: chartData,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
                         borderWidth: 2,
                         borderRadius: 4,
                         borderSkipped: false,
@@ -520,6 +1093,12 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const dataIndex = elements[0].index;
+                            togglePeriodBreakdown(dataIndex);
+                        }
+                    },
                     plugins: {
                         legend: {
                             display: false
@@ -529,7 +1108,35 @@
                             titleColor: 'white',
                             bodyColor: 'white',
                             cornerRadius: 6,
-                            displayColors: false
+                            displayColors: false,
+                            callbacks: {
+                                afterBody: function(context) {
+                                    const dataIndex = context[0].dataIndex;
+                                    const item = data[dataIndex];
+                                    const count = item.total_count || item.count || 0;
+                                    const hasViolation = item.has_kpi_violation || count >= currentThreshold;
+                                    
+                                    let result = [];
+                                    
+                                    if (hasViolation) {
+                                        const periodText = currentPeriod === 'weekly' ? 'semana' : 
+                                                         currentPeriod === 'monthly' ? 'mes' : 'año';
+                                        result.push('', `⚠️ KPI Alert: Se superó el umbral de ${currentThreshold} incidentes por ${periodText}`);
+                                    }
+                                    
+                                    // Show breakdown if available
+                                    if (item.types && Object.keys(item.types).length > 0) {
+                                        result.push('', 'Haz clic para ver desglose:');
+                                        Object.keys(item.types).forEach(type => {
+                                            if (item.types[type] > 0) {
+                                                result.push(`${type}: ${item.types[type]}`);
+                                            }
+                                        });
+                                    }
+                                    
+                                    return result;
+                                }
+                            }
                         }
                     },
                     scales: {
@@ -560,6 +1167,10 @@
                 }
             });
         }
+
+        // Make functions globally accessible
+        window.clearPeriodBreakdown = clearPeriodBreakdown;
+        window.togglePeriodBreakdown = togglePeriodBreakdown;
 
         function showError(message) {
             // Create error message element

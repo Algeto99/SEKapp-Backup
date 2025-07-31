@@ -9,7 +9,7 @@
     <style>
         body {
             font-family: 'Roboto', sans-serif;
-            background-color: #f8fafc; /* Light background */
+            background-color: #f8fafc;
             color: #343a40;
             line-height: 1.6;
             min-height: 100vh;
@@ -31,15 +31,6 @@
             max-width: 1000px;
             width: 100%;
             margin-top: 2rem;
-            transition: all 0.3s ease;
-        }
-        .report-card {
-            background-color: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
         }
         .report-block {
@@ -64,10 +55,10 @@
             justify-content: center;
         }
         .action-button {
-            padding: 0.75rem 1rem;
-            font-size: 0.875rem;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.75rem;
             font-weight: 500;
-            min-width: 140px;
+            min-width: 100px;
             white-space: nowrap;
             text-align: center;
             line-height: 1.2;
@@ -114,22 +105,6 @@
             width: 1.5rem;
             height: 1.5rem;
         }
-        .top-bar {
-            position: absolute;
-            top: 0;
-            right: 0;
-            padding: 1.5rem;
-            z-index: 10;
-        }
-        .top-bar-link {
-            color: #212529;
-            font-weight: 500;
-            text-decoration: none;
-            transition: color 0.2s ease-in-out;
-        }
-        .top-bar-link:hover {
-            color: #1d4ed8;
-        }
         .hidden {
             display: none !important;
         }
@@ -158,6 +133,41 @@
         .report-content.expanded {
             max-height: 1000px;
             transition: max-height 0.5s ease-in;
+        }
+
+        /* Mobile navigation styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            .container-wrapper {
+                padding: 1rem;
+                margin-top: 1rem;
+            }
+            .nav-link {
+                font-size: 0.875rem;
+                padding: 0.5rem 0.75rem;
+                text-align: center;
+                min-width: 0;
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-link {
+                font-size: 0.75rem;
+                padding: 0.375rem 0.5rem;
+                line-height: 1.2;
+            }
+            .theme-toggle {
+                top: 1rem;
+                left: 1rem;
+                padding: 0.375rem;
+            }
+            .theme-toggle svg {
+                width: 1.25rem;
+                height: 1.25rem;
+            }
         }
 
         /* Dark mode styles */
@@ -201,35 +211,23 @@
             background-color: rgba(255, 255, 255, 0.2);
         }
 
-        body.dark-mode .top-bar-link {
-            color: #e2e8f0;
-        }
-
-        body.dark-mode .top-bar-link:hover {
-            color: #60a5fa;
-        }
-
         /* Dark mode for navigation bar */
         body.dark-mode nav {
             background-color: #2d3748 !important;
             border-color: rgba(255, 255, 255, 0.1) !important;
         }
 
-        /* Dark mode for navigation links - using dashboard blue */
-        body.dark-mode .nav-link.text-blue-700 {
+        /* Dark mode for navigation links and user name */
+        body.dark-mode .nav-link.text-blue-700,
+        body.dark-mode .text-blue-700,
+        body.dark-mode span.text-blue-700,
+        body.dark-mode .font-bold.text-blue-700 {
             color: #60a5fa !important;
         }
 
         body.dark-mode .nav-link.text-blue-700:hover,
         body.dark-mode .nav-link:hover {
             color: #93c5fd !important;
-        }
-
-        /* Dark mode for user name and other blue text - using dashboard blue */
-        body.dark-mode .text-blue-700,
-        body.dark-mode span.text-blue-700,
-        body.dark-mode .font-bold.text-blue-700 {
-            color: #60a5fa !important;
         }
 
         /* Dark mode for multi-select controls */
@@ -292,7 +290,16 @@
             color: #a0aec0 !important;
         }
 
-        /* Print-specific styles for better isolation */
+        /* Dark mode for red/logout links */
+        body.dark-mode .text-red-600 {
+            color: #f87171 !important;
+        }
+
+        body.dark-mode .text-red-800 {
+            color: #fca5a5 !important;
+        }
+
+        /* Print styles */
         @media print {
             body {
                 background: white !important;
@@ -301,20 +308,9 @@
                 font-size: 12pt !important;
                 line-height: 1.4 !important;
             }
-
-            nav,
-            .flex.flex-col.items-center.mb-6,
-            .logo-img,
-            h1,
-            p,
-            #multi-select-controls,
-            .mb-6.p-4.border,
-            #load-more-container,
-            .flash-message,
-            .theme-toggle {
+            nav, .flex.flex-col.items-center.mb-6, .logo-img, h1, p, #multi-select-controls, .mb-6.p-4.border, #load-more-container, .flash-message, .theme-toggle {
                 display: none !important;
             }
-
             .container-wrapper {
                 max-width: none !important;
                 box-shadow: none !important;
@@ -323,21 +319,16 @@
                 margin: 0 !important;
                 background: white !important;
             }
-
             #reports-container {
                 margin: 0 !important;
                 padding: 0 !important;
             }
-
             .report-block:not(.print-me) {
                 display: none !important;
             }
-
-            .report-checkbox,
-            .toggle-details-button {
+            .report-checkbox, .toggle-details-button {
                 display: none !important;
             }
-
             .report-block.print-me {
                 display: block !important;
                 page-break-after: always;
@@ -350,12 +341,10 @@
                 border: 1px solid #ddd !important;
                 border-radius: 0 !important;
             }
-
             .report-block.print-me:last-child {
                 page-break-after: auto !important;
                 margin-bottom: 0 !important;
             }
-
             .report-block.print-me .report-content {
                 max-height: none !important;
                 overflow: visible !important;
@@ -363,46 +352,38 @@
                 padding-top: 1rem !important;
                 border-top: 1px solid #eee !important;
             }
-
             .report-block.print-me h2 {
                 font-size: 16pt !important;
                 margin-bottom: 0.5rem !important;
                 color: black !important;
             }
-
             .report-block.print-me p {
                 margin-bottom: 0.5rem !important;
                 color: black !important;
                 font-size: 11pt !important;
             }
-
             .report-block.print-me strong {
                 font-weight: bold !important;
                 color: black !important;
             }
-
             .report-block.print-me ul {
                 margin: 0 !important;
                 padding: 0 !important;
             }
-
             .report-block.print-me li {
                 margin-bottom: 0.5rem !important;
                 padding: 0 !important;
                 list-style: none !important;
             }
-
             .report-block.print-me img {
                 max-width: 200px !important;
                 max-height: 200px !important;
                 page-break-inside: avoid !important;
             }
-
             .report-block.print-me a {
                 color: black !important;
                 text-decoration: underline !important;
             }
-
             .report-block.print-me div {
                 display: block !important;
             }
@@ -421,13 +402,13 @@
     </button>
 
     <div class="container-wrapper">
-        <!-- Navigation Bar -->
-        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-4">
-            <div class="flex justify-center space-x-8">
-                <a href="https://landing.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+        <!-- Mobile-Responsive Navigation Bar -->
+        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
+            <div class="flex flex-wrap justify-center gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+                <a href="{{ landing_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Inicio
                 </a>
-                <a href="https://form1.secapp.tzolkintech.com" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                <a href="{{ forms_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Reporte de Incidencia
                 </a>
                 <a href="{{ dashboard_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
@@ -451,16 +432,23 @@
                 <input type="checkbox" id="select-all-checkbox" class="mr-2 h-4 w-4 text-blue-600 rounded">
                 <label for="select-all-checkbox" class="text-gray-700 font-medium">Seleccionar Todos</label>
             </div>
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-                <button id="print-selected-button" class="base-button-style btn-secondary-professional action-button" disabled>
-                    Imprimir Seleccionados
-                </button>
-                <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button" disabled>
-                    Guardar Seleccionados como PDF
-                </button>
-                <button id="email-selected-button" class="base-button-style btn-primary-professional action-button" disabled>
-                    Enviar por Correo Electrónico
-                </button>
+            <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 w-full lg:w-auto">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <button id="print-selected-button" class="base-button-style btn-secondary-professional action-button" disabled>
+                        Imprimir
+                    </button>
+                    <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button" disabled>
+                        PDF
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <button id="email-selected-button" class="base-button-style btn-primary-professional action-button" disabled>
+                        Email
+                    </button>
+                    <button id="share-button" class="base-button-style btn-secondary-professional action-button" disabled>
+                        📱 Compartir
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -635,37 +623,35 @@
 
                 const data = await response.json();
                 const reportsContainer = document.getElementById('reports-container');
-                        data.reports.forEach(form => {
-                            const reportBlock = document.createElement('div');
-                            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                            reportBlock.setAttribute('data-report-id', form.id);
-                            reportBlock.innerHTML = `
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                                    </div>
-                                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                                </div>
+                data.reports.forEach(form => {
+                    const reportBlock = document.createElement('div');
+                    reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                    reportBlock.setAttribute('data-report-id', form.id);
+                    reportBlock.innerHTML = `
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                            </div>
+                            <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                        </div>
 
-                                <div class="text-gray-700 mb-4">
-                                    <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                                    <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                                    <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                                </div>
-                                
-                                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                                    Ver Detalles
-                                </button>
+                        <div class="text-gray-700 mb-4">
+                            <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                        </div>
+                        
+                        <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                            Ver Detalles
+                        </button>
 
-                                <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                                    <div id="details-${form.id}" class="text-gray-700">
-                                        Cargando detalles...
-                                    </div>
-                                </div>
-                            `;
-                            reportsContainer.appendChild(reportBlock);
-                        });
+                        <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                            <div id="details-${form.id}" class="text-gray-700">
+                                Cargando detalles...
+                            </div>
+                        </div>
+                    `;
+                    reportsContainer.appendChild(reportBlock);
+                });
                 offset += data.reports.length;
                 totalReports = data.total_count;
                 checkLoadMoreButtonVisibility();
@@ -701,6 +687,7 @@
             document.getElementById('print-selected-button').disabled = isDisabled;
             document.getElementById('save-pdf-button').disabled = isDisabled;
             document.getElementById('email-selected-button').disabled = isDisabled;
+            document.getElementById('share-button').disabled = isDisabled;
         }
 
         function attachEventListenersToNewReports() {
@@ -975,6 +962,111 @@
             });
         }
 
+        // --- Share functionality ---
+        function generateShareText(reports) {
+            let shareText = `📋 Reportes de Incidencias - SMT SecApp\n\n`;
+            
+            reports.forEach((report, index) => {
+                shareText += `🔹 Reporte #${report.id}\n`;
+                shareText += `📅 Enviado: ${report.dateSubmitted}\n`;
+                shareText += `👤 Por: ${report.submittedBy}\n`;
+                shareText += `📍 Lugar: ${report.data['Lugar del Incidente'] || 'No especificado'}\n`;
+                shareText += `📋 Incidencia: ${report.data['Título de Incidencia'] || 'No especificado'}\n`;
+                shareText += `📅 Fecha del Incidente: ${report.data['Fecha del Incidente'] || 'No especificado'}\n`;
+                shareText += `📝 Descripción: ${report.data['Descripción del Incidente'] || 'No especificado'}\n`;
+                if (index < reports.length - 1) shareText += `\n---\n\n`;
+            });
+            
+            shareText += `\n\n📧 Generado desde SMT SecApp`;
+            return shareText;
+        }
+
+        const shareButton = document.getElementById('share-button');
+        if (shareButton) {
+            shareButton.addEventListener('click', async () => {
+                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
+                                            .map(cb => cb.dataset.reportId);
+                if (checkedReportIds.length === 0) {
+                    showFlashMessage('Por favor, selecciona al menos un reporte para compartir.', 'error');
+                    return;
+                }
+
+                try {
+                    const reportsToShare = await Promise.all(
+                        checkedReportIds.map(async (id) => {
+                            const response = await fetch(`/api/report/${id}`);
+                            if (response.ok) {
+                                return await response.json();
+                            }
+                            return null;
+                        })
+                    );
+
+                    const validReports = reportsToShare.filter(report => report !== null);
+                    if (validReports.length === 0) {
+                        showFlashMessage('Error al obtener los reportes seleccionados.', 'error');
+                        return;
+                    }
+
+                    const shareText = generateShareText(validReports);
+                    const shareTitle = `Reportes de Incidencias (${validReports.length} ${validReports.length === 1 ? 'reporte' : 'reportes'})`;
+
+                    // Try native Web Share API first (works on mobile browsers)
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: shareTitle,
+                                text: shareText
+                            });
+                            showFlashMessage('Reportes compartidos exitosamente!', 'success');
+                        } catch (shareError) {
+                            if (shareError.name !== 'AbortError') {
+                                console.error('Error with Web Share API:', shareError);
+                                fallbackShare(shareText);
+                            }
+                        }
+                    } else {
+                        fallbackShare(shareText);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error sharing reports:', error);
+                    showFlashMessage('Error al compartir reportes.', 'error');
+                }
+            });
+        }
+
+        function fallbackShare(shareText) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            if (isMobile) {
+                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                const smsUrl = `sms:?body=${encodeURIComponent(shareText)}`;
+                
+                window.open(whatsappUrl, '_blank');
+                
+                setTimeout(() => {
+                    if (confirm('¿Quieres también compartir por SMS?')) {
+                        window.location.href = smsUrl;
+                    }
+                }, 1000);
+            } else {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        showFlashMessage('Texto copiado al portapapeles!', 'success');
+                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                        window.open(whatsappUrl, '_blank');
+                    }).catch(() => {
+                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                        window.open(whatsappUrl, '_blank');
+                    });
+                } else {
+                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                    window.open(whatsappUrl, '_blank');
+                }
+            }
+        }
+
         // --- Search and Filter Functions ---
         function applyFilters() {
             const filters = {
@@ -1066,10 +1158,8 @@
 
         // --- Initial Setup on DOM Load ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Initialize theme
             initializeTheme();
             
-            // Add theme toggle event listener
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
@@ -1082,7 +1172,6 @@
             attachEventListenersToNewReports();
             updateActionButtonsState();
 
-            // Search functionality
             const reportIdSearch = document.getElementById('reportIdSearch');
             const submittedBySearch = document.getElementById('submittedBySearch');
             const locationSearch = document.getElementById('locationSearch');
@@ -1101,7 +1190,6 @@
                 applyFilters();
             });
 
-            // Bind enter key for search on filter inputs
             document.querySelectorAll('#reportIdSearch, #submittedBySearch, #locationSearch, #startDateFilter, #endDateFilter').forEach(input => {
                 input.addEventListener('keypress', (event) => {
                     if (event.key === 'Enter') {
