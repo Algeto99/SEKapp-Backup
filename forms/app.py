@@ -2,7 +2,7 @@ import os
 import logging
 import traceback
 from flask import Flask, render_template, request, redirect, flash, jsonify, url_for
-from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required, unset_jwt_cookies
+from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
 from google.cloud import storage, secretmanager
 from werkzeug.utils import secure_filename
 from datetime import timedelta, datetime
@@ -58,7 +58,7 @@ def configure_app(app):
     app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'rcanton@tzolkintech.com')
     app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT', os.environ.get('GOOGLE_CLOUD_PROJECT'))
     app.config['EMAIL_PASSWORD_SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
-    app.config['CC_EMAIL'] = os.environ.get('CC_EMAIL', 'rcanton@tzolkintech.com')
+    app.config['CC_EMAIL'] = os.environ.get('CC_EMAIL', 'alvaro.montalvo@gmail.com')
 
     app_logger.info(f"Forms service configured - Production: {is_production}")
 
@@ -256,7 +256,23 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
 def send_report_notification(user_email, user_name, fields):
     subject = f"Nuevo Reporte de Incidencia - {fields.get('fecha_incidente')}"
 
-    # --- Generate HTML for attachments ---
+    # Get propiedad name from database
+    propiedad_name = "No especificado"
+    if fields.get('propiedad'):
+        try:
+            conn = get_db_connection()
+            if conn:
+                cur = conn.cursor()
+                cur.execute("SELECT nombre FROM propiedades WHERE id_propiedad = %s", (fields.get('propiedad'),))
+                result = cur.fetchone()
+                if result:
+                    propiedad_name = result[0]
+                cur.close()
+                conn.close()
+        except Exception as e:
+            app_logger.error(f"Error getting propiedad name for email: {e}")
+
+    # Generate HTML for attachments
     attachments_html = ""
     image_urls_string = fields.get('imagenes_pdfs')
     if image_urls_string:
@@ -283,7 +299,6 @@ def send_report_notification(user_email, user_name, fields):
         attachments_html += "</div>"
     else:
         attachments_html = "Ninguno"
-    # --- End of attachment HTML generation ---
 
     html_body = f"""
     <html>
@@ -293,6 +308,7 @@ def send_report_notification(user_email, user_name, fields):
     <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p><strong>Nombre del Reportante:</strong> {user_name}</p>
         <p><strong>Email:</strong> {user_email}</p>
+        <p><strong>Propiedad:</strong> {propiedad_name}</p>
         <p><strong>Fecha del Incidente:</strong> {fields.get('fecha_incidente')}</p>
         <p><strong>Hora del Incidente:</strong> {fields.get('hora_incidente')}</p>
         <p><strong>Descripción:</strong> {fields.get('descripcion_incidente')}</p>
@@ -307,7 +323,7 @@ def send_report_notification(user_email, user_name, fields):
     """
 
     admin_email = app.config.get('ADMIN_EMAIL', 'no-reply@tzolkintech.com')
-    cc_email = app.config.get('CC_EMAIL', None)
+    cc_email = app.config.get('CC_EMAIL', 'alvaro.montalvo@gmail.com')
 
     admin_send_success = send_email(to_emails=admin_email, subject=subject, body=html_body, is_html=True, cc_emails=cc_email)
     
@@ -338,6 +354,7 @@ def create_tables_if_not_exists():
                 id_tipo_incidencia INT NOT NULL,
                 id_tipo_cliente INT NOT NULL,
                 id_lugar_incidente INT NOT NULL,
+                id_propiedad INT,
                 descripcion_zona_comun TEXT,
                 fecha_incidente DATE NOT NULL,
                 hora_incidente TIME NOT NULL,
@@ -356,6 +373,7 @@ def create_tables_if_not_exists():
                 FOREIGN KEY (id_tipo_incidencia) REFERENCES tipo_incidencia(id_tipo_incidencia),
                 FOREIGN KEY (id_tipo_cliente) REFERENCES tipo_cliente(id_tipo_cliente),
                 FOREIGN KEY (id_lugar_incidente) REFERENCES lugar_incidente(id_lugar_incidente),
+                FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad),
                 FOREIGN KEY (id_supervisor) REFERENCES supervisor(id_supervisor)
             );
         """)
@@ -378,17 +396,30 @@ def health():
 @jwt_required()
 def index():
     user_email = get_jwt_identity()
+    
+    # Get admin status from JWT claims
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"User {user_email} accessing forms (admin: {is_admin})")
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
 
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+        # Get user name from database as fallback
         cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
         result = cur.fetchone()
-        name = result[0] if result else user_email
+        if result and result[0]:
+            user_name = result[0]
 
-        # -- Load dropdown options --
+        # Load dropdown options
         cur.execute("SELECT id_tipo_incidencia AS id, nombre FROM tipo_incidencia ORDER BY nombre ASC")
         tipo_incidencia = cur.fetchall()
 
@@ -401,6 +432,11 @@ def index():
         cur.execute("SELECT id_supervisor AS id, nombre FROM supervisor ORDER BY nombre ASC")
         supervisor = cur.fetchall()
 
+        # Load propiedades
+        cur.execute("SELECT id_propiedad AS id, nombre FROM propiedades WHERE activa = TRUE ORDER BY nombre ASC")
+        propiedades = cur.fetchall()
+        app_logger.info(f"Loaded {len(propiedades)} propiedades for form")
+
         cur.close()
         return render_template(
             'form.html',
@@ -408,7 +444,9 @@ def index():
             tipo_cliente=tipo_cliente,
             lugar_incidente=lugar_incidente,
             supervisor=supervisor,
-            name=name,
+            propiedades=propiedades,
+            name=user_name,
+            is_admin=is_admin,
             login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
             landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
             dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
@@ -422,6 +460,138 @@ def index():
     finally:
         if conn:
             conn.close()
+
+@app.route('/submit_report', methods=['POST'])
+@jwt_required()
+def submit_report():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        app_logger.info("Starting submit_report function.")
+
+        # Get form data including propiedad field
+        tipo_incidencia = request.form.get('tipo_incidencia')
+        tipo_cliente = request.form.get('tipo_cliente')
+        lugar_incidente = request.form.get('lugar_incidente')
+        propiedad = request.form.get('propiedad')
+        descripcion_zona_comun = request.form.get('descripcion_zona_comun')
+        fecha_incidente = request.form.get('fecha_incidente')
+        hora_incidente = request.form.get('hora_incidente')
+        descripcion_incidente = request.form.get('descripcion_incidente')
+        valor_aproximado = request.form.get('valor_aproximado')
+        pertenencias_sustraidas = request.form.get('pertenencias_sustraidas')
+        nombre_persona = request.form.get('nombre_persona')
+        telefono_persona = request.form.get('telefono_persona')
+        numero_identidad_persona = request.form.get('numero_identidad_persona')
+        numero_local = request.form.get('numero_local')
+        direccion = request.form.get('direccion')
+        supervisor = request.form.get('supervisor')
+
+        # Validate required fields (including propiedad field)
+        if not all([tipo_incidencia, tipo_cliente, lugar_incidente, propiedad, fecha_incidente, 
+                   hora_incidente, descripcion_incidente, nombre_persona, supervisor]):
+            app_logger.warning("Missing required fields in form submission.")
+            return redirect(url_for('error', message='Por favor, complete todos los campos obligatorios incluyendo la Propiedad.'))
+
+        app_logger.info(f"Form data received: tipo_incidencia={tipo_incidencia}, tipo_cliente={tipo_cliente}, lugar_incidente={lugar_incidente}, propiedad={propiedad}")
+
+        # Handle file uploads
+        imagenes_pdfs = None
+        uploaded_files = request.files.getlist('imagenes_pdfs')
+        app_logger.info(f"Received {len(uploaded_files)} files from form for upload to GCS.")
+        uploaded_urls = []
+        for file in uploaded_files:
+            if file and file.filename:
+                app_logger.info(f"Attempting to upload file: {file.filename}")
+                try:
+                    public_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                    app_logger.info(f"Uploaded to: {public_url}")
+                    uploaded_urls.append(public_url)
+                except Exception as e:
+                    app_logger.error(f"Error uploading {file.filename}: {str(e)}", exc_info=True)
+                    return redirect(url_for('error', message=f'Error al subir archivo {file.filename}: {str(e)}'))
+        imagenes_pdfs = "\n".join(uploaded_urls) if uploaded_urls else None
+        app_logger.info(f"GCS upload complete. URLs: {imagenes_pdfs}")
+
+        app_logger.info("Attempting to get database connection.")
+        conn = get_db_connection()
+        cur = conn.cursor()
+        app_logger.info("Database connection obtained.")
+
+        # Get user name
+        app_logger.info(f"Fetching user name for email: {user_email}")
+        cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+        user_name_row = cur.fetchone()
+        user_name = user_name_row[0] if user_name_row else user_email
+        app_logger.info(f"User name: {user_name}")
+
+        # Insert report with propiedad field
+        app_logger.info("Preparing to insert report into database.")
+        cur.execute(
+            """
+            INSERT INTO reportes_incidentes (
+                id_tipo_incidencia, id_tipo_cliente, id_lugar_incidente, id_propiedad,
+                descripcion_zona_comun, fecha_incidente, hora_incidente,
+                descripcion_incidente, valor_aproximado, pertenencias_sustraidas,
+                nombre_persona, telefono_persona, numero_identidad_persona,
+                numero_local, direccion, imagenes_pdfs, id_supervisor, user_email
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                tipo_incidencia, tipo_cliente, lugar_incidente, propiedad,
+                descripcion_zona_comun, fecha_incidente, hora_incidente,
+                descripcion_incidente, valor_aproximado, pertenencias_sustraidas,
+                nombre_persona, telefono_persona, numero_identidad_persona,
+                numero_local, direccion, imagenes_pdfs, supervisor, user_email
+            )
+        )
+        app_logger.info("Executing database commit.")
+        conn.commit()
+        cur.close()
+        app_logger.info("Database commit complete and cursor closed.")
+
+        # Prepare report fields for email (including propiedad)
+        report_fields = {
+            'fecha_incidente': fecha_incidente,
+            'hora_incidente': hora_incidente,
+            'descripcion_incidente': descripcion_incidente,
+            'direccion': direccion,
+            'valor_aproximado': valor_aproximado,
+            'imagenes_pdfs': imagenes_pdfs,
+            'propiedad': propiedad
+        }
+        
+        app_logger.info("Attempting to send report notification email.")
+        email_success = send_report_notification(user_email, user_name, report_fields)
+        app_logger.info("Report notification email process initiated.")
+
+        if email_success:
+            success_message = 'Reporte de incidencia enviado exitosamente. Se ha enviado una confirmación por email.'
+        else:
+            success_message = 'Reporte de incidencia enviado exitosamente. Nota: No se pudo enviar la confirmación por email.'
+
+        app_logger.info("Redirecting to success page after successful report submission.")
+        return redirect(url_for('success', message=success_message))
+
+    except psycopg2.errors.UndefinedTable as e:
+        app_logger.error(f"Database table not found. Error: {e}", exc_info=True)
+        if conn:
+            conn.rollback()
+        return redirect(url_for('error', message='Error de base de datos: Tabla no encontrada. Contacte al administrador.'))
+    except psycopg2.Error as e:
+        app_logger.error(f"Database error submitting report: {e}", exc_info=True)
+        if conn:
+            conn.rollback()
+        return redirect(url_for('error', message='Error de base de datos. Por favor, intente de nuevo más tarde.'))
+    except Exception as e:
+        app_logger.error(f"Error submitting report: {e}", exc_info=True)
+        if conn:
+            conn.rollback()
+        return redirect(url_for('error', message=f'Error inesperado: {str(e)}'))
+    finally:
+        if conn:
+            conn.close()
+            app_logger.info("Database connection closed in finally block.")
 
 @app.route('/logout')
 def logout():
@@ -445,132 +615,8 @@ def error():
                          message=message,
                          login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
 
-@app.route('/submit_report', methods=['POST'])
-@jwt_required()
-def submit_report():
-    user_email = get_jwt_identity()
-    conn = None
-    try:
-        app_logger.info("Starting submit_report function.")
-
-        tipo_incidencia = request.form.get('tipo_incidencia')
-        tipo_cliente = request.form.get('tipo_cliente')
-        lugar_incidente = request.form.get('lugar_incidente')
-        descripcion_zona_comun = request.form.get('descripcion_zona_comun')
-        fecha_incidente = request.form.get('fecha_incidente')
-        hora_incidente = request.form.get('hora_incidente')
-        descripcion_incidente = request.form.get('descripcion_incidente')
-        valor_aproximado = request.form.get('valor_aproximado')
-        pertenencias_sustraidas = request.form.get('pertenencias_sustraidas')
-        nombre_persona = request.form.get('nombre_persona')
-        telefono_persona = request.form.get('telefono_persona')
-        numero_identidad_persona = request.form.get('numero_identidad_persona')
-        numero_local = request.form.get('numero_local')
-        direccion = request.form.get('direccion')
-        supervisor = request.form.get('supervisor')
-
-        # Validate required fields
-        if not all([tipo_incidencia, tipo_cliente, lugar_incidente, fecha_incidente, 
-                   hora_incidente, descripcion_incidente, nombre_persona, supervisor]):
-            app_logger.warning("Missing required fields in form submission.")
-            return redirect(url_for('error', message='Por favor, complete todos los campos obligatorios.'))
-
-        app_logger.info(f"Form data received: tipo_incidencia={tipo_incidencia}, tipo_cliente={tipo_cliente}, lugar_incidente={lugar_incidente}")
-
-        imagenes_pdfs = None
-        uploaded_files = request.files.getlist('imagenes_pdfs')
-        app_logger.info(f"Received {len(uploaded_files)} files from form for upload to GCS.")
-        uploaded_urls = []
-        for file in uploaded_files:
-            if file and file.filename:
-                app_logger.info(f"Attempting to upload file: {file.filename}")
-                try:
-                    public_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
-                    app_logger.info(f"Uploaded to: {public_url}")
-                    uploaded_urls.append(public_url)
-                except Exception as e:
-                    app_logger.error(f"Error uploading {file.filename}: {str(e)}", exc_info=True)
-                    return redirect(url_for('error', message=f'Error al subir archivo {file.filename}: {str(e)}'))
-        imagenes_pdfs = "\n".join(uploaded_urls) if uploaded_urls else None
-        app_logger.info(f"GCS upload complete. URLs: {imagenes_pdfs}")
-
-        app_logger.info("Attempting to get database connection.")
-        conn = get_db_connection()
-        cur = conn.cursor()
-        app_logger.info("Database connection obtained.")
-
-        app_logger.info(f"Fetching user name for email: {user_email}")
-        cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
-        user_name_row = cur.fetchone()
-        user_name = user_name_row[0] if user_name_row else user_email
-        app_logger.info(f"User name: {user_name}")
-
-        app_logger.info("Preparing to insert report into database.")
-        cur.execute(
-            """
-            INSERT INTO reportes_incidentes (
-                id_tipo_incidencia, id_tipo_cliente, id_lugar_incidente,
-                descripcion_zona_comun, fecha_incidente, hora_incidente,
-                descripcion_incidente, valor_aproximado, pertenencias_sustraidas,
-                nombre_persona, telefono_persona, numero_identidad_persona,
-                numero_local, direccion, imagenes_pdfs, id_supervisor, user_email
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                tipo_incidencia, tipo_cliente, lugar_incidente,
-                descripcion_zona_comun, fecha_incidente, hora_incidente,
-                descripcion_incidente, valor_aproximado, pertenencias_sustraidas,
-                nombre_persona, telefono_persona, numero_identidad_persona,
-                numero_local, direccion, imagenes_pdfs, supervisor, user_email
-            )
-        )
-        app_logger.info("Executing database commit.")
-        conn.commit()
-        cur.close()
-        app_logger.info("Database commit complete and cursor closed.")
-
-        report_fields = {
-            'fecha_incidente': fecha_incidente,
-            'hora_incidente': hora_incidente,
-            'descripcion_incidente': descripcion_incidente,
-            'direccion': direccion,
-            'valor_aproximado': valor_aproximado,
-            'imagenes_pdfs': imagenes_pdfs
-        }
-        app_logger.info("Attempting to send report notification email.")
-        email_success = send_report_notification(user_email, user_name, report_fields)
-        app_logger.info("Report notification email process initiated.")
-
-        if email_success:
-            success_message = 'Reporte de incidencia enviado exitosamente. Se ha enviado una confirmación por email.'
-        else:
-            success_message = 'Reporte de incidencia enviado exitosamente. Nota: No se pudo enviar la confirmación por email.'
-
-        app_logger.info("Redirecting to success page after successful report submission.")
-        return redirect(url_for('success', message=success_message))
-
-    except psycopg2.errors.UndefinedTable as e:
-        app_logger.error(f"Database table 'reportes_incidentes' (or related lookup tables) not found. Please ensure your database schema is initialized. Error: {e}", exc_info=True)
-        if conn:
-            conn.rollback()
-        return redirect(url_for('error', message='Error de base de datos: La tabla de incidentes no existe. Contacte al administrador.'))
-    except psycopg2.Error as e:
-        app_logger.error(f"Database error submitting report: {e}", exc_info=True)
-        if conn:
-            conn.rollback()
-        return redirect(url_for('error', message='Error de base de datos. Por favor, intente de nuevo más tarde.'))
-    except Exception as e:
-        app_logger.error(f"Error submitting report: {e}", exc_info=True)
-        if conn:
-            conn.rollback()
-        return redirect(url_for('error', message=f'Error inesperado: {str(e)}'))
-    finally:
-        if conn:
-            conn.close()
-            app_logger.info("Database connection closed in finally block.")
-
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in local development mode.")
-    with app.app_context(): # Run this within an app context
+    with app.app_context():
         create_tables_if_not_exists()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

@@ -42,6 +42,7 @@
             transition: all 0.2s ease-in-out;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
         }
         .base-button-style:hover {
             transform: translateY(-2px);
@@ -63,6 +64,25 @@
         }
         .btn-secondary-professional:hover {
             background-color: #e5e7eb;
+        }
+        .btn-admin-special {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            border: 2px solid #667eea;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-admin-special:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            border-color: #5a6fd8;
+        }
+        .btn-admin-special::before {
+            content: '👑';
+            position: absolute;
+            top: 0.25rem;
+            right: 0.5rem;
+            font-size: 0.875rem;
+            opacity: 0.7;
         }
         .btn-logout {
             background-color: #dc2626;
@@ -131,6 +151,31 @@
         .theme-toggle svg {
             width: 1.5rem;
             height: 1.5rem;
+        }
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .admin-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+        .admin-badge::before {
+            content: '👑';
+        }
+        .regular-badge {
+            background-color: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+        }
+        .regular-badge::before {
+            content: '👤';
         }
         
         /* Light mode styles */
@@ -232,17 +277,25 @@
                 Cargando...
             </p>
 
+            <!-- User Badge -->
+            <div id="user-badge" class="user-badge hidden">
+                <span id="user-type-text">Usuario</span>
+            </div>
+
             <div class="button-group w-full space-y-4 max-w-xs">
+                <!-- Forms button - Available to ALL users -->
                 <button id="forms-button" class="base-button-style btn-primary-professional">
-                    Reporte de Incidencia
+                    📝 Reporte de Incidencia
                 </button>
 
-                <button id="reports-button" class="base-button-style btn-primary-professional">
-                    Reportes
+                <!-- Reports button - ADMIN ONLY -->
+                <button id="reports-button" class="base-button-style btn-admin-special hidden">
+                    📊 Reportes (Admin)
                 </button>
 
-                <button id="dashboard-button" class="base-button-style btn-primary-professional">
-                    Dashboards
+                <!-- Dashboard button - ADMIN ONLY -->
+                <button id="dashboard-button" class="base-button-style btn-admin-special hidden">
+                    📈 Dashboards (Admin)
                 </button>
 
                 <button id="logout-button" class="base-button-style btn-logout hidden">
@@ -264,21 +317,23 @@
         const LOGIN_SERVICE_URL = "{{ LOGIN_SERVICE_URL }}";
         const FORMS_SERVICE_URL = "{{ FORMS_SERVICE_URL if FORMS_SERVICE_URL else '' }}";
         const DASHBOARD_SERVICE_URL = "{{ DASHBOARD_SERVICE_URL }}";
-        // New: Viewer Service URL
-        const VIEWER_SERVICE_URL = "{{ VIEWER_SERVICE_URL if VIEWER_SERVICE_URL else '' }}"; //
+        const VIEWER_SERVICE_URL = "{{ VIEWER_SERVICE_URL if VIEWER_SERVICE_URL else '' }}";
 
         // User data populated by Flask
         const currentUserEmail = "{{ user_email if user_email else '' }}";
         const currentUserName = "{{ user_name if user_name else '' }}";
+        const currentUserIsAdmin = {{ 'true' if is_admin else 'false' }};
 
         // Get references to HTML elements
         const welcomeMessageElement = document.getElementById('welcome-message');
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
-        const reportsButton = document.getElementById('reports-button'); // Get reference to new button
+        const reportsButton = document.getElementById('reports-button');
         const logoutButton = document.getElementById('logout-button');
         const topBar = document.getElementById('topBar');
         const topBarLogoutLink = document.getElementById('topBarLogoutLink');
+        const userBadge = document.getElementById('user-badge');
+        const userTypeText = document.getElementById('user-type-text');
         
         // Theme toggle elements
         const themeToggle = document.getElementById('themeToggle');
@@ -287,7 +342,6 @@
 
         // Theme management
         function initializeTheme() {
-            // Check for saved theme preference or default to dark mode
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             
@@ -322,11 +376,38 @@
 
         function updateUIForAuthStatus() {
             console.log('Updating UI for auth status...');
+            console.log('User email:', currentUserEmail);
+            console.log('User is admin:', currentUserIsAdmin);
             
             if (currentUserEmail) {
                 console.log('User is authenticated:', currentUserEmail);
-                // Display personalized welcome
-                welcomeMessageElement.textContent = `¡Bienvenido, ${currentUserName || currentUserEmail}! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
+                
+                // Show user badge with appropriate styling
+                userBadge.classList.remove('hidden');
+                if (currentUserIsAdmin) {
+                    userBadge.className = 'user-badge admin-badge';
+                    userTypeText.textContent = `Administrador: ${currentUserName || currentUserEmail}`;
+                } else {
+                    userBadge.className = 'user-badge regular-badge';
+                    userTypeText.textContent = `Usuario: ${currentUserName || currentUserEmail}`;
+                }
+
+                // Display personalized welcome message
+                const userType = currentUserIsAdmin ? 'Administrador' : 'Usuario';
+                welcomeMessageElement.textContent = `¡Bienvenido, ${userType} ${currentUserName || currentUserEmail}! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
+
+                // Show/hide buttons based on admin status
+                if (currentUserIsAdmin) {
+                    // Admin users see all buttons
+                    reportsButton.classList.remove('hidden');
+                    dashboardButton.classList.remove('hidden');
+                    console.log('Admin user - showing all buttons');
+                } else {
+                    // Regular users only see forms button
+                    reportsButton.classList.add('hidden');
+                    dashboardButton.classList.add('hidden');
+                    console.log('Regular user - hiding admin buttons');
+                }
 
                 // Show logout elements
                 logoutButton.classList.remove('hidden');
@@ -336,9 +417,12 @@
                 // Display generic message
                 welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades.";
 
-                // Hide logout elements
+                // Hide all user-specific elements
+                userBadge.classList.add('hidden');
                 logoutButton.classList.add('hidden');
                 topBar.classList.add('hidden');
+                reportsButton.classList.add('hidden');
+                dashboardButton.classList.add('hidden');
             }
         }
 
@@ -382,10 +466,14 @@
                 });
             }
 
-            // Dashboard button
+            // Dashboard button (admin only)
             if (dashboardButton) {
                 dashboardButton.addEventListener('click', function() {
                     console.log('Dashboard button clicked');
+                    if (!currentUserIsAdmin) {
+                        alert('Acceso denegado: Solo los administradores pueden acceder a los dashboards.');
+                        return;
+                    }
                     if (DASHBOARD_SERVICE_URL) {
                         window.location.href = DASHBOARD_SERVICE_URL + '/';
                     } else {
@@ -395,15 +483,19 @@
                 });
             }
 
-            // New: Reports button
-            if (reportsButton) { //
-                reportsButton.addEventListener('click', function() { //
-                    console.log('Reports button clicked'); //
-                    if (VIEWER_SERVICE_URL) { //
-                        window.location.href = VIEWER_SERVICE_URL; //
-                    } else { //
-                        console.error('VIEWER_SERVICE_URL not configured'); //
-                        alert('Error: URL del servicio de reportes no configurada.'); //
+            // Reports button (admin only)
+            if (reportsButton) {
+                reportsButton.addEventListener('click', function() {
+                    console.log('Reports button clicked');
+                    if (!currentUserIsAdmin) {
+                        alert('Acceso denegado: Solo los administradores pueden acceder a los reportes.');
+                        return;
+                    }
+                    if (VIEWER_SERVICE_URL) {
+                        window.location.href = VIEWER_SERVICE_URL;
+                    } else {
+                        console.error('VIEWER_SERVICE_URL not configured');
+                        alert('Error: URL del servicio de reportes no configurada.');
                     }
                 });
             }

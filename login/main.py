@@ -499,15 +499,35 @@ def send_registration_notification(user_email, user_name, phone_number):
     user_result = send_welcome_email(user_email, user_name) # Call welcome email separately
     return admin_result and user_result
 
-def send_welcome_email(user_email, user_name):
+def send_welcome_email(user_email, user_name, is_admin=False):
     subject = "¡Bienvenido a SMT SecApp!"
-    # Ensure login_url is always absolute for external email links
     login_url = app.config.get('LOGIN_SERVICE_URL') 
     if not login_url:
-        # Fallback to current app's login URL if LOGIN_SERVICE_URL isn't explicitly set
-        with app.app_context(): # Ensure we are in an app context for url_for
+        with app.app_context():
             login_url = url_for('login', _external=True)
         app_logger.warning(f"LOGIN_SERVICE_URL not set, falling back to {login_url} for welcome email.")
+
+    user_type = "Administrador" if is_admin else "Usuario"
+    admin_features = """
+    <div style="background-color: #e0f2fe; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #0288d1;">
+        <h3 style="color: #0277bd; margin-top: 0;">Funciones de Administrador:</h3>
+        <ul style="color: #01579b; margin-bottom: 0;">
+            <li>Crear reportes de incidencias</li>
+            <li>Ver y gestionar todos los reportes</li>
+            <li>Acceder al dashboard con estadísticas</li>
+            <li>Generar reportes en PDF</li>
+            <li>Enviar reportes por correo electrónico</li>
+        </ul>
+    </div>
+    """ if is_admin else """
+    <div style="background-color: #f3e5f5; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #8e24aa;">
+        <h3 style="color: #7b1fa2; margin-top: 0;">Funciones de Usuario:</h3>
+        <ul style="color: #4a148c; margin-bottom: 0;">
+            <li>Crear reportes de incidencias</li>
+            <li>Ver tus propios reportes</li>
+        </ul>
+    </div>
+    """
 
     html_body = f"""
     <html>
@@ -516,8 +536,9 @@ def send_welcome_email(user_email, user_name):
     <h2 style="color: #2563eb; text-align: center;">¡Bienvenido a SMT SecApp!</h2>
     <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
     <p>Hola <strong>{user_name}</strong>,</p>
-    <p>¡Tu cuenta ha sido creada exitosamente!</p>
+    <p>¡Tu cuenta de {user_type} ha sido creada exitosamente!</p>
     </div>
+    {admin_features}
     <div style="text-align: center; margin: 30px 0;">
     <a href="{login_url}"
        style="background-color: #2563eb; color: white; padding: 12px 30px;
@@ -629,7 +650,7 @@ def sanitize_input(value):
 # --- Routes ---
 @app.route('/')
 @app.route('/login', methods=['GET', 'POST'])
-@csrf.exempt  # Exempt to support original login.html without CSRF token
+@csrf.exempt
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -650,44 +671,42 @@ def login():
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
-            cur.execute("SELECT id, email, password_hash, name FROM users WHERE email = %s", (username,))
+            # UPDATED QUERY: Include is_admin in the select
+            cur.execute("SELECT id, email, password_hash, name, is_admin FROM users WHERE email = %s", (username,))
             user = cur.fetchone()
             cur.close()
 
             if user and bcrypt.check_password_hash(user['password_hash'], password):
-                # Always query the database for the latest name
                 user_name = user['name'] if user['name'] else user['email']
+                is_admin = user['is_admin'] if user['is_admin'] is not None else False
+                
+                # UPDATED: Include admin status in JWT claims
                 additional_claims = {
                     "user_id": user['id'],
                     "name": user_name,
-                    "email": user['email']
+                    "email": user['email'],
+                    "is_admin": is_admin  # Add admin status to JWT
                 }
+                
                 access_token = create_access_token(
                     identity=user['email'],
                     additional_claims=additional_claims
                 )
                 refresh_token = create_refresh_token(identity=user['email'])
 
-                app_logger.info(f"Generated access_token: {access_token}")
-                app_logger.info(f"Generated refresh_token: {refresh_token}")
-
+                app_logger.info(f"User {username} logged in successfully as {'admin' if is_admin else 'regular user'}")
+                
                 if landing_service_client and not verify_landing_service_connection():
                     app_logger.error("Landing service is not accessible.")
                     flash('Servicio de destino no disponible temporalmente.', 'danger')
                     return render_template('login.html', username=username)
 
                 landing_url = app.config.get('LANDING_SERVICE_URL', '/')
-
                 response = redirect(landing_url)
                 set_access_cookies(response, access_token)
                 set_refresh_cookies(response, refresh_token)
 
-                # Log the cookie value that will be set
-                cookie_value = response.headers.get('Set-Cookie', None)
-                app_logger.info(f"Set-Cookie header after login: {cookie_value}")
-
-                flash('Bienvenido Cliente.', 'success')
-                app_logger.info(f"User {username} logged in successfully, redirecting to {landing_url}.")
+                flash(f'Bienvenido {"Administrador" if is_admin else "Usuario"}.', 'success')
                 return response
             else:
                 flash('Usuario o contraseña incorrectos.', 'danger')
@@ -712,25 +731,21 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not all([email, name, password, confirm_password]): # phone_number is optional
+        if not all([email, name, password, confirm_password]):
             flash('Los campos de Email, Nombre y Contraseña son requeridos.', 'warning')
-            return render_template('register.html', email=email, name=name,
-                                    phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         if not validate_email(email):
             flash('Correo electrónico inválido.', 'warning')
-            return render_template('register.html', email=email, name=name,
-                                    phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         if not validate_password(password):
             flash('La contraseña debe tener al menos 8 caracteres, con mayúsculas, minúsculas y números.', 'warning')
-            return render_template('register.html', email=email, name=name,
-                                    phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
-            return render_template('register.html', email=email, name=name,
-                                    phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         name = sanitize_input(name)
         phone_number = sanitize_input(phone_number) if phone_number else None
@@ -738,56 +753,57 @@ def register():
         conn = get_db_connection()
         if not conn:
             flash('Error de conexión a la base de datos.', 'danger')
-            return render_template('register.html', email=email, name=name,
-                                    phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
+            
+            # Check authorization and get admin status
+            is_admin = False
             try:
-                # Check for authorized email if table exists
                 cur.execute("SELECT 1 FROM information_schema.tables WHERE table_name = 'authorized_emails'")
-                if cur.fetchone(): # Table exists
-                    cur.execute("SELECT id FROM authorized_emails WHERE email = %s AND is_active = TRUE", (email,))
+                if cur.fetchone():
+                    # UPDATED QUERY: Check admin status in authorized_emails
+                    cur.execute("SELECT id, is_admin FROM authorized_emails WHERE email = %s AND is_active = TRUE", (email,))
                     authorized_email_entry = cur.fetchone()
                     if not authorized_email_entry:
                         flash('No estás autorizado para registrarte. Contacta al administrador.', 'danger')
-                        return render_template('register.html', email=email, name=name,
-                                                phone_number=phone_number)
+                        return render_template('register.html', email=email, name=name, phone_number=phone_number)
+                    
+                    # Get admin status from authorized_emails
+                    is_admin = authorized_email_entry['is_admin'] if authorized_email_entry['is_admin'] is not None else False
                 else:
                     app_logger.warning("authorized_emails table does not exist - skipping authorization check for registration.")
             except psycopg2.Error as e:
                 app_logger.error(f"Database error during authorization table check: {e}", exc_info=True)
-                # Don't fail registration just for table check failure if it's not critical
-                # However, if the intent is strict authorization, you might want to re-raise or handle differently.
-                conn.rollback() # Rollback any potential partial operations
+                conn.rollback()
                 flash('Error de base de datos al verificar autorización.', 'danger')
                 return render_template('register.html', email=email, name=name, phone_number=phone_number)
-
 
             cur.execute("SELECT id FROM users WHERE email = %s", (email,))
             existing_user = cur.fetchone()
             if existing_user:
                 flash('Este correo electrónico ya está registrado.', 'danger')
-                return render_template('register.html', email=email, name=name,
-                                        phone_number=phone_number)
+                return render_template('register.html', email=email, name=name, phone_number=phone_number)
 
             hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+            
+            # UPDATED QUERY: Include is_admin in user creation
             cur.execute(
-                "INSERT INTO users (username, email, name, phone_number, password_hash) "
-                "VALUES (%s, %s, %s, %s, %s)",
-                (email, email, name, phone_number, hashed_password)
+                "INSERT INTO users (username, email, name, phone_number, password_hash, is_admin) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
+                (email, email, name, phone_number, hashed_password, is_admin)
             )
             conn.commit()
             cur.close()
 
-            # Separate flags for email sending results
+            # Send registration notifications
             admin_email_sent = True
             welcome_email_sent = True
 
-            # Send admin notification email
             admin_email = app.config.get('ADMIN_EMAIL')
             if admin_email:
-                admin_subject = f"Nuevo Usuario Registrado - {name}"
+                admin_subject = f"Nuevo Usuario Registrado - {name} ({'Administrador' if is_admin else 'Usuario Regular'})"
                 admin_html_body = f"""
                 <html>
                 <body style="font-family: Arial, sans-serif; color: #333;">
@@ -797,6 +813,7 @@ def register():
                 <p><strong>Nombre:</strong> {name}</p>
                 <p><strong>Email:</strong> {email}</p>
                 <p><strong>Teléfono:</strong> {phone_number or 'No proporcionado'}</p>
+                <p><strong>Tipo de Usuario:</strong> {'Administrador' if is_admin else 'Usuario Regular'}</p>
                 <p><strong>Fecha de Registro:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')}</p>
                 </div>
                 </div>
@@ -804,20 +821,13 @@ def register():
                 </html>
                 """
                 admin_email_sent = send_email(admin_email, admin_subject, admin_html_body, is_html=True)
-                if not admin_email_sent:
-                    app_logger.error("Failed to send admin registration notification email.")
-            else:
-                app_logger.warning("ADMIN_EMAIL not configured, skipping admin registration notification.")
 
-            # Send welcome email to the user
-            welcome_email_sent = send_welcome_email(email, name)
-            if not welcome_email_sent:
-                app_logger.error("Failed to send welcome email to registered user.")
+            welcome_email_sent = send_welcome_email(email, name, is_admin)
 
             if not admin_email_sent or not welcome_email_sent:
                 flash('Registro exitoso! Nota: Hubo problemas al enviar algunas notificaciones por correo electrónico.', 'warning')
             else:
-                flash('Registro exitoso! Ahora puedes iniciar sesión.', 'success')
+                flash(f'Registro exitoso como {"Administrador" if is_admin else "Usuario Regular"}! Ahora puedes iniciar sesión.', 'success')
 
             return redirect(url_for('login'))
 
@@ -825,11 +835,11 @@ def register():
             conn.rollback()
             app_logger.error(f"Registration error: {e}", exc_info=True)
             flash('Error durante el registro.', 'danger')
-            return render_template('register.html', email=email, name=name,
-                                phone_number=phone_number)
+            return render_template('register.html', email=email, name=name, phone_number=phone_number)
         finally:
             if conn:
                 conn.close()
+                
     return render_template('register.html')
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
@@ -1037,7 +1047,8 @@ def get_user_info():
             return jsonify({
                 "email": jwt_claims['email'],
                 "name": jwt_claims['name'],
-                "user_id": jwt_claims.get('user_id')
+                "user_id": jwt_claims.get('user_id'),
+                "is_admin": jwt_claims.get('is_admin', False)  # Include admin status
             }), 200
     except Exception as e:
         app_logger.debug(f"Could not get user info from JWT claims: {e}")
@@ -1049,7 +1060,8 @@ def get_user_info():
 
     try:
         cur = conn.cursor(cursor_factory=extras.DictCursor)
-        cur.execute("SELECT id, email, name FROM users WHERE email = %s", (current_user_email,))
+        # UPDATED QUERY: Include is_admin
+        cur.execute("SELECT id, email, name, is_admin FROM users WHERE email = %s", (current_user_email,))
         user_data = cur.fetchone()
         cur.close()
         
@@ -1058,7 +1070,8 @@ def get_user_info():
             return jsonify({
                 "email": user_data['email'],
                 "name": user_data.get('name', user_data['email']),
-                "user_id": user_data['id']
+                "user_id": user_data['id'],
+                "is_admin": user_data.get('is_admin', False)  # Include admin status
             }), 200
         else:
             app_logger.warning(f"User data not found in DB for email: {current_user_email}")
@@ -1083,7 +1096,8 @@ def refresh_access():
     if conn:
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
-            cur.execute("SELECT id, email, name FROM users WHERE email = %s", (current_user,))
+            # UPDATED QUERY: Include is_admin
+            cur.execute("SELECT id, email, name, is_admin FROM users WHERE email = %s", (current_user,))
             user_data = cur.fetchone()
             cur.close()
             
@@ -1091,7 +1105,8 @@ def refresh_access():
                 additional_claims = {
                     "user_id": user_data['id'],
                     "name": user_data['name'],
-                    "email": user_data['email']
+                    "email": user_data['email'],
+                    "is_admin": user_data.get('is_admin', False)  # Include admin status
                 }
         except Exception as e:
             app_logger.error(f"Error fetching user data for token refresh: {e}")

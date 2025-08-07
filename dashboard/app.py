@@ -16,6 +16,7 @@ import requests
 
 import psycopg2
 from psycopg2 import extras
+from functools import wraps
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -162,8 +163,49 @@ def get_db_connection():
         app_logger.error(f"General Error connecting to database: {e}", exc_info=True)
         return None
 
-def get_incidents_by_week():
-    """Get incident counts grouped by week"""
+def get_properties():
+    """Get all available properties"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_properties.")
+            return []
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        query = """
+            SELECT DISTINCT p.id_propiedad, p.nombre
+            FROM propiedades p
+            INNER JOIN reportes_incidentes ri ON p.id_propiedad = ri.id_propiedad
+            WHERE p.activa = TRUE
+            ORDER BY p.nombre;
+        """
+        
+        cur.execute(query)
+        rows = cur.fetchall()
+        
+        properties = []
+        for row in rows:
+            properties.append({
+                'id': row['id_propiedad'],
+                'name': row['nombre']
+            })
+        
+        return properties
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_properties: {e}", exc_info=True)
+        return []
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+def get_incidents_by_week(property_id=None):
+    """Get incident counts grouped by week, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -174,18 +216,26 @@ def get_incidents_by_week():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
+        # Build query with optional property filter
+        where_clause = "WHERE ri.fecha_incidente IS NOT NULL"
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
-                DATE_TRUNC('week', fecha_incidente) as week_start,
+                DATE_TRUNC('week', ri.fecha_incidente) as week_start,
                 COUNT(*) as incident_count
-            FROM reportes_incidentes 
-            WHERE fecha_incidente IS NOT NULL
-            GROUP BY DATE_TRUNC('week', fecha_incidente)
+            FROM reportes_incidentes ri
+            {where_clause}
+            GROUP BY DATE_TRUNC('week', ri.fecha_incidente)
             ORDER BY week_start DESC
             LIMIT 12;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         data = []
@@ -197,7 +247,7 @@ def get_incidents_by_week():
                 'count': row['incident_count']
             })
         
-        return list(reversed(data))  # Reverse to show chronological order
+        return list(reversed(data))
         
     except Exception as e:
         app_logger.error(f"Error in get_incidents_by_week: {e}", exc_info=True)
@@ -208,8 +258,8 @@ def get_incidents_by_week():
         if conn:
             conn.close()
 
-def get_incidents_by_month():
-    """Get incident counts grouped by month"""
+def get_incidents_by_month(property_id=None):
+    """Get incident counts grouped by month, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -220,18 +270,26 @@ def get_incidents_by_month():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
+        # Build query with optional property filter
+        where_clause = "WHERE ri.fecha_incidente IS NOT NULL"
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
-                DATE_TRUNC('month', fecha_incidente) as month_start,
+                DATE_TRUNC('month', ri.fecha_incidente) as month_start,
                 COUNT(*) as incident_count
-            FROM reportes_incidentes 
-            WHERE fecha_incidente IS NOT NULL
-            GROUP BY DATE_TRUNC('month', fecha_incidente)
+            FROM reportes_incidentes ri
+            {where_clause}
+            GROUP BY DATE_TRUNC('month', ri.fecha_incidente)
             ORDER BY month_start DESC
             LIMIT 12;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # Spanish month names
@@ -256,7 +314,7 @@ def get_incidents_by_month():
                 'has_kpi_violation': incident_count >= monthly_kpi_threshold
             })
         
-        return list(reversed(data))  # Reverse to show chronological order
+        return list(reversed(data))
         
     except Exception as e:
         app_logger.error(f"Error in get_incidents_by_month: {e}", exc_info=True)
@@ -267,8 +325,8 @@ def get_incidents_by_month():
         if conn:
             conn.close()
 
-def get_incidents_by_year():
-    """Get incident counts grouped by year"""
+def get_incidents_by_year(property_id=None):
+    """Get incident counts grouped by year, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -279,17 +337,25 @@ def get_incidents_by_year():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
+        # Build query with optional property filter
+        where_clause = "WHERE ri.fecha_incidente IS NOT NULL"
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
-                EXTRACT(YEAR FROM fecha_incidente) as year,
+                EXTRACT(YEAR FROM ri.fecha_incidente) as year,
                 COUNT(*) as incident_count
-            FROM reportes_incidentes 
-            WHERE fecha_incidente IS NOT NULL
-            GROUP BY EXTRACT(YEAR FROM fecha_incidente)
+            FROM reportes_incidentes ri
+            {where_clause}
+            GROUP BY EXTRACT(YEAR FROM ri.fecha_incidente)
             ORDER BY year;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # KPI threshold for yearly: 52 weeks * 4 incidents = 208 incidents per year
@@ -315,8 +381,8 @@ def get_incidents_by_year():
         if conn:
             conn.close()
 
-def get_incident_types_stats():
-    """Get incident counts by type for the current week"""
+def get_incident_types_stats(property_id=None):
+    """Get incident counts by type for the current week, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -327,21 +393,28 @@ def get_incident_types_stats():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Get current week's data
-        query = """
+        # Build query with optional property filter
+        where_clause = """WHERE ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+              AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+              AND ti.nombre IS NOT NULL"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            WHERE ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
-              AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
-              AND ti.nombre IS NOT NULL
+            {where_clause}
             GROUP BY ti.nombre
             ORDER BY ti.nombre;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # Initialize all incident types with 0 count
@@ -378,8 +451,8 @@ def get_incident_types_stats():
         if conn:
             conn.close()
 
-def get_incident_types_monthly():
-    """Get incident counts by type for the current month"""
+def get_incident_types_monthly(property_id=None):
+    """Get incident counts by type for the current month, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -390,21 +463,28 @@ def get_incident_types_monthly():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Get current month's data
-        query = """
+        # Build query with optional property filter
+        where_clause = """WHERE ri.fecha_incidente >= DATE_TRUNC('month', CURRENT_DATE)
+              AND ri.fecha_incidente < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+              AND ti.nombre IS NOT NULL"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            WHERE ri.fecha_incidente >= DATE_TRUNC('month', CURRENT_DATE)
-              AND ri.fecha_incidente < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
-              AND ti.nombre IS NOT NULL
+            {where_clause}
             GROUP BY ti.nombre
             ORDER BY ti.nombre;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # Initialize all incident types with 0 count
@@ -443,8 +523,8 @@ def get_incident_types_monthly():
         if conn:
             conn.close()
 
-def get_incident_types_yearly():
-    """Get incident counts by type for the current year"""
+def get_incident_types_yearly(property_id=None):
+    """Get incident counts by type for the current year, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -455,20 +535,27 @@ def get_incident_types_yearly():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Get current year's data
-        query = """
+        # Build query with optional property filter
+        where_clause = """WHERE EXTRACT(YEAR FROM ri.fecha_incidente) = EXTRACT(YEAR FROM CURRENT_DATE)
+              AND ti.nombre IS NOT NULL"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            WHERE EXTRACT(YEAR FROM ri.fecha_incidente) = EXTRACT(YEAR FROM CURRENT_DATE)
-              AND ti.nombre IS NOT NULL
+            {where_clause}
             GROUP BY ti.nombre
             ORDER BY ti.nombre;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # Initialize all incident types with 0 count
@@ -507,8 +594,8 @@ def get_incident_types_yearly():
         if conn:
             conn.close()
 
-def get_incidents_by_week_with_types():
-    """Get incident counts grouped by week with type breakdown for KPI alerts"""
+def get_incidents_by_week_with_types(property_id=None):
+    """Get incident counts grouped by week with type breakdown for KPI alerts, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -519,21 +606,29 @@ def get_incidents_by_week_with_types():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
+        # Build query with optional property filter
+        where_clause = """WHERE ri.fecha_incidente IS NOT NULL
+              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
                 DATE_TRUNC('week', ri.fecha_incidente) as week_start,
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            WHERE ri.fecha_incidente IS NOT NULL
-              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')
+            {where_clause}
             GROUP BY DATE_TRUNC('week', ri.fecha_incidente), ti.nombre
             ORDER BY week_start DESC, ti.nombre
             LIMIT 48; -- 12 weeks * 4 types max
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # KPI threshold for weekly: 4 incidents per week
@@ -578,8 +673,8 @@ def get_incidents_by_week_with_types():
         if conn:
             conn.close()
 
-def get_incidents_by_month_with_types():
-    """Get incident counts grouped by month with type breakdown"""
+def get_incidents_by_month_with_types(property_id=None):
+    """Get incident counts grouped by month with type breakdown, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -590,21 +685,29 @@ def get_incidents_by_month_with_types():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
+        # Build query with optional property filter
+        where_clause = """WHERE ri.fecha_incidente IS NOT NULL
+              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
                 DATE_TRUNC('month', ri.fecha_incidente) as month_start,
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            WHERE ri.fecha_incidente IS NOT NULL
-              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')
+            {where_clause}
             GROUP BY DATE_TRUNC('month', ri.fecha_incidente), ti.nombre
             ORDER BY month_start DESC, ti.nombre
             LIMIT 48; -- 12 months * 4 types max
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # Spanish month names
@@ -656,8 +759,8 @@ def get_incidents_by_month_with_types():
         if conn:
             conn.close()
 
-def get_incidents_by_year_with_types():
-    """Get incident counts grouped by year with type breakdown"""
+def get_incidents_by_year_with_types(property_id=None):
+    """Get incident counts grouped by year with type breakdown, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -668,20 +771,28 @@ def get_incidents_by_year_with_types():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
+        # Build query with optional property filter
+        where_clause = """WHERE ri.fecha_incidente IS NOT NULL
+              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
             SELECT 
                 EXTRACT(YEAR FROM ri.fecha_incidente) as year,
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            WHERE ri.fecha_incidente IS NOT NULL
-              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')
+            {where_clause}
             GROUP BY EXTRACT(YEAR FROM ri.fecha_incidente), ti.nombre
             ORDER BY year DESC, ti.nombre;
         """
         
-        cur.execute(query)
+        cur.execute(query, params)
         rows = cur.fetchall()
         
         # KPI threshold for yearly: 208 incidents per year
@@ -725,43 +836,92 @@ def get_incidents_by_year_with_types():
         if conn:
             conn.close()
 
+def admin_required(f):
+    """
+    Decorator that requires the user to be an admin.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            # Get JWT claims
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
+            user_email = claims.get('sub', 'unknown')
+            
+            app_logger.info(f"Admin check: User {user_email}, is_admin={is_admin}")
+            
+            if not is_admin:
+                app_logger.warning(f"Access denied: User {user_email} attempted to access admin-only resource")
+                
+                # Check if this is an API request or web request
+                if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
+                    return jsonify({
+                        "error": "Access denied", 
+                        "message": "Solo los administradores pueden acceder a este recurso."
+                    }), 403
+                else:
+                    # Redirect to landing page
+                    landing_url = app.config.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
+                    app_logger.info(f"Redirecting non-admin user to: {landing_url}")
+                    return redirect(landing_url)
+            
+            app_logger.info(f"Admin access granted to {user_email} for {request.endpoint}")
+            return f(*args, **kwargs)
+            
+        except Exception as e:
+            app_logger.error(f"Error in admin_required decorator: {e}", exc_info=True)
+            
+            # Return error response
+            if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
+                return jsonify({"error": "Authentication error", "details": str(e)}), 500
+            else:
+                login_url = app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
+                return redirect(login_url)
+    
+    return decorated_function
+
 # --- Routes ---
 @app.route('/')
 @jwt_required()
+@admin_required
 def dashboard():
     user_email = get_jwt_identity()
-    user_name = user_email.split('@')[0]  # Default fallback to email prefix
+    
+    # Get JWT claims and admin status
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"Admin user {user_email} (is_admin={is_admin}) accessing dashboard")
+    except Exception as e:
+        app_logger.error(f"Error getting JWT claims: {e}", exc_info=True)
+        user_name = user_email.split('@')[0]
+        is_admin = False
 
+    # Get user name from database as fallback
     conn = None
     cur = None
     try:
         conn = get_db_connection()
         if conn:
             cur = conn.cursor()
-            app_logger.info(f"Attempting to fetch user name for email: {user_email}")
             cur.execute('SELECT "name" FROM "users" WHERE email = %s', (user_email,))
             user_row = cur.fetchone()
             if user_row and user_row[0]:
                 user_name = user_row[0]
                 app_logger.info(f"User found in DB: {user_name}")
-            else:
-                app_logger.warning(f"User {user_email} not found in 'users' table or 'name' field is empty. Displaying email prefix as name: {user_name}")
-        else:
-            app_logger.error("No database connection available for fetching user name.")
-
-    except psycopg2.Error as e:
-        app_logger.error(f"PostgreSQL Error getting user name: {e}", exc_info=True)
     except Exception as e:
-        app_logger.error(f"An unexpected error occurred getting user name: {e}", exc_info=True)
+        app_logger.error(f"Error fetching user name: {e}", exc_info=True)
     finally:
         if cur:
             cur.close()
         if conn:
             conn.close()
-            app_logger.info("Database connection closed after fetching user name.")
 
-    app_logger.info(f"Rendering dashboard.html with user_name: {user_name}")
-    return render_template("dashboard.html", current_user=user_email, user_name=user_name)
+    return render_template("dashboard.html", 
+                         current_user=user_email, 
+                         user_name=user_name,
+                         is_admin=is_admin)  # Pass admin status to template
 
 @app.route('/dashboard')
 @jwt_required()
@@ -769,67 +929,83 @@ def dashboard_redirect():
     """Redirect /dashboard to root for compatibility"""
     return redirect('/')
 
+@app.route('/api/properties')
+@jwt_required()
+def api_properties():
+    """API endpoint to get all available properties"""
+    properties = get_properties()
+    return jsonify(properties)
+
 @app.route('/api/incidents/weekly')
 @jwt_required()
 def api_incidents_weekly():
     """API endpoint for weekly incident data"""
-    data = get_incidents_by_week()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incidents_by_week(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/monthly')
 @jwt_required()
 def api_incidents_monthly():
     """API endpoint for monthly incident data"""
-    data = get_incidents_by_month()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incidents_by_month(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/yearly')
 @jwt_required()
 def api_incidents_yearly():
     """API endpoint for yearly incident data"""
-    data = get_incidents_by_year()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incidents_by_year(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/types')
 @jwt_required()
 def api_incident_types():
     """API endpoint for incident types data (weekly)"""
-    data = get_incident_types_stats()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incident_types_stats(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/types/monthly')
 @jwt_required()
 def api_incident_types_monthly():
     """API endpoint for monthly incident types data"""
-    data = get_incident_types_monthly()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incident_types_monthly(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/types/yearly')
 @jwt_required()
 def api_incident_types_yearly():
     """API endpoint for yearly incident types data"""
-    data = get_incident_types_yearly()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incident_types_yearly(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/weekly-with-kpi')
 @jwt_required()
 def api_incidents_weekly_with_kpi():
     """API endpoint for weekly incident data with KPI indicators"""
-    data = get_incidents_by_week_with_types()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incidents_by_week_with_types(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/monthly-with-types')
 @jwt_required()
 def api_incidents_monthly_with_types():
     """API endpoint for monthly incident data with type breakdown"""
-    data = get_incidents_by_month_with_types()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incidents_by_month_with_types(property_id)
     return jsonify(data)
 
 @app.route('/api/incidents/yearly-with-types')
 @jwt_required()
 def api_incidents_yearly_with_types():
     """API endpoint for yearly incident data with type breakdown"""
-    data = get_incidents_by_year_with_types()
+    property_id = request.args.get('property_id', type=int)
+    data = get_incidents_by_year_with_types(property_id)
     return jsonify(data)
 
 @app.route('/logout')

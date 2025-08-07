@@ -424,7 +424,22 @@
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo-img opacity-90">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Reportes de Incidentes</h1>
             <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
-            <p class="text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span></p>
+            
+            <!-- Admin Badge -->
+            {% if is_admin %}
+            <div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium mb-4 shadow-lg">
+                <span>👑</span>
+                <span>Panel de Administrador</span>
+            </div>
+            {% endif %}
+            
+            <p class="text-lg font-medium text-gray-700">
+                Bienvenido, 
+                <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span>
+                {% if is_admin %}
+                <span class="text-purple-600 font-bold">(Administrador)</span>
+                {% endif %}
+            </p>
         </div>
 
         <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -452,6 +467,7 @@
             </div>
         </div>
 
+        <!-- Replace the search controls section in your HTML with this: -->
         <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
             <div class="flex-grow w-full">
                 <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por ID de Reporte:</label>
@@ -462,8 +478,8 @@
                 <input type="text" id="submittedBySearch" placeholder="Ej: Juan Pérez" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             </div>
             <div class="flex-grow w-full">
-                <label for="locationSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Ubicación:</label>
-                <input type="text" id="locationSearch" placeholder="Ej: Oficina Central" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <label for="propertySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Propiedad:</label>
+                <input type="text" id="propertySearch" placeholder="Ej: Multiplaza BOG" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             </div>
             <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full">
                 <div class="w-full sm:w-1/2">
@@ -497,6 +513,7 @@
                     <div class="text-gray-700 mb-4">
                         <p><strong>Título de Incidencia:</strong> {{ form.data['Título de Incidencia'] or 'No especificado' }}</p>
                         <p><strong>Lugar del Incidente:</strong> {{ form.data['Lugar del Incidente'] or 'No especificado' }}</p>
+                        <p><strong>Propiedad:</strong> {{ form.data['Propiedad'] or 'No especificado' }}</p>
                         <p><strong>Fecha del Incidente:</strong> {{ form.data['Fecha del Incidente'] or 'No especificado' }}</p>
                     </div>
                     
@@ -599,71 +616,6 @@
                     flashContainer.style.display = 'none';
                     flashContainer.innerHTML = '';
                 }, 5000);
-            }
-        }
-
-        // --- Report Loading Functionality ---
-        async function loadMoreReports() {
-            const loadMoreButton = document.getElementById('load-more-button');
-            loadMoreButton.disabled = true;
-            loadMoreButton.textContent = 'Cargando...';
-
-            try {
-                const response = await fetch(`/api/reports?offset=${offset}&limit=${limit}`, {
-                    headers: { 'Accept': 'application/json' }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        window.location.href = '/logout';
-                        return;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                const reportsContainer = document.getElementById('reports-container');
-                data.reports.forEach(form => {
-                    const reportBlock = document.createElement('div');
-                    reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                    reportBlock.setAttribute('data-report-id', form.id);
-                    reportBlock.innerHTML = `
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                            </div>
-                            <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                        </div>
-
-                        <div class="text-gray-700 mb-4">
-                            <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                        </div>
-                        
-                        <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                            Ver Detalles
-                        </button>
-
-                        <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                            <div id="details-${form.id}" class="text-gray-700">
-                                Cargando detalles...
-                            </div>
-                        </div>
-                    `;
-                    reportsContainer.appendChild(reportBlock);
-                });
-                offset += data.reports.length;
-                totalReports = data.total_count;
-                checkLoadMoreButtonVisibility();
-                attachEventListenersToNewReports();
-                updateActionButtonsState();
-
-            } catch (error) {
-                console.error('Error loading more reports:', error);
-                showFlashMessage('Error al cargar más reportes.', 'error');
-            } finally {
-                loadMoreButton.disabled = false;
-                loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
             }
         }
 
@@ -786,418 +738,208 @@
             }
         }
 
-        // --- Multi-Select and Action Buttons ---
-        const selectAllCheckbox = document.getElementById('select-all-checkbox');
-        if (selectAllCheckbox) {
-            selectAllCheckbox.addEventListener('change', (event) => {
-                document.querySelectorAll('.report-checkbox').forEach(checkbox => {
-                    checkbox.checked = event.target.checked;
-                });
-                updateActionButtonsState();
-            });
-        }
+        // --- Report Loading Functionality ---
+        async function loadMoreReports() {
+            const loadMoreButton = document.getElementById('load-more-button');
+            loadMoreButton.disabled = true;
+            loadMoreButton.textContent = 'Cargando...';
 
-        const emailModal = document.getElementById('email-modal');
-        const emailSelectedButton = document.getElementById('email-selected-button');
-        const cancelEmailButton = document.getElementById('cancel-email-button');
-        const emailForm = document.getElementById('email-form');
-        const emailStatus = document.getElementById('email-status');
-
-        if (emailSelectedButton) {
-            emailSelectedButton.addEventListener('click', () => {
-                const checkedReportIds = document.querySelectorAll('.report-checkbox:checked').length;
-                if (checkedReportIds === 0) {
-                    showFlashMessage('Por favor, selecciona al menos un reporte para enviar por correo electrónico.', 'error');
-                    return;
-                }
-                emailStatus.classList.add('hidden');
-                emailModal.classList.remove('hidden');
-            });
-        }
-
-        if (cancelEmailButton) {
-            cancelEmailButton.addEventListener('click', () => {
-                emailModal.classList.add('hidden');
-                emailStatus.classList.add('hidden');
-                emailForm.reset();
-            });
-        }
-
-        if (emailForm) {
-            emailForm.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const recipientEmail = document.getElementById('recipient-email').value;
-                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
-                                            .map(cb => cb.dataset.reportId);
-                
-                emailStatus.classList.remove('hidden');
-                emailStatus.className = 'mt-4 text-center text-blue-700';
-                emailStatus.textContent = 'Enviando correo electrónico...';
-
-                try {
-                    const response = await fetch('/api/email-reports', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            recipient_email: recipientEmail,
-                            report_ids: checkedReportIds
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        emailStatus.className = 'mt-4 text-center text-green-700';
-                        emailStatus.textContent = 'Correo electrónico enviado exitosamente!';
-                        showFlashMessage('Reportes enviados por correo electrónico exitosamente!', 'success');
-                        setTimeout(() => {
-                            emailModal.classList.add('hidden');
-                            emailForm.reset();
-                            emailStatus.classList.add('hidden');
-                        }, 2000);
-                    } else {
-                        emailStatus.className = 'mt-4 text-center text-red-700';
-                        emailStatus.textContent = `Error: ${data.message}`;
-                        showFlashMessage(`Error al enviar correo electrónico: ${data.message}`, 'error');
-                    }
-                } catch (error) {
-                    console.error('Error sending email:', error);
-                    emailStatus.className = 'mt-4 text-center text-red-700';
-                    emailStatus.textContent = 'Error al enviar correo electrónico.';
-                    showFlashMessage('Error al enviar correo electrónico.', 'error');
-                }
-            });
-        }
-
-        const printSelectedButton = document.getElementById('print-selected-button');
-        if (printSelectedButton) {
-            printSelectedButton.addEventListener('click', () => {
-                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
-                                            .map(cb => cb.dataset.reportId);
-                if (checkedReportIds.length === 0) {
-                    showFlashMessage('Por favor, selecciona al menos un reporte para imprimir.', 'error');
-                    return;
-                }
-
-                document.querySelectorAll('.report-block').forEach(block => {
-                    block.querySelector('.report-content').classList.remove('expanded');
-                    block.querySelector('.toggle-details-button').textContent = 'Ver Detalles';
-
-                    if (checkedReportIds.includes(block.dataset.reportId)) {
-                        block.classList.add('print-me');
-                        const button = block.querySelector('.toggle-details-button');
-                        if (button && !block.querySelector('.report-content').classList.contains('expanded')) {
-                            toggleReportDetails({ target: button });
-                        }
-                    } else {
-                        block.classList.remove('print-me');
-                    }
+            try {
+                const response = await fetch(`/api/reports?offset=${offset}&limit=${limit}`, {
+                    headers: { 'Accept': 'application/json' }
                 });
 
-                setTimeout(() => {
-                    window.print();
-                    document.querySelectorAll('.report-block').forEach(block => {
-                        block.classList.remove('print-me');
-                        block.querySelector('.report-content').classList.remove('expanded');
-                        block.querySelector('.toggle-details-button').textContent = 'Ver Detalles';
-                    });
-                }, 500);
-            });
-        }
-
-        const savePdfButton = document.getElementById('save-pdf-button');
-        if (savePdfButton) {
-            savePdfButton.addEventListener('click', async () => {
-                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
-                                            .map(cb => cb.dataset.reportId);
-                if (checkedReportIds.length === 0) {
-                    showFlashMessage('Por favor, selecciona al menos un reporte para guardar como PDF.', 'error');
-                    return;
-                }
-
-                showFlashMessage('Generando PDF(s)...', 'info');
-
-                try {
-                    const response = await fetch('/api/generate-pdf', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/pdf'
-                        },
-                        body: JSON.stringify({
-                            report_ids: checkedReportIds
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ message: 'Error desconocido al generar PDF.' }));
-                        throw new Error(errorData.message || 'Error al generar PDF');
-                    }
-
-                    const blob = await response.blob();
-                    const contentDisposition = response.headers.get('Content-Disposition');
-                    let filename = 'reportes.pdf';
-                    if (contentDisposition) {
-                        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                        if (filenameMatch && filenameMatch[1]) {
-                            filename = filenameMatch[1];
-                        }
-                    }
-
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    showFlashMessage('PDF(s) generados y descargados exitosamente.', 'success');
-
-                } catch (error) {
-                    console.error('Error generating PDF:', error);
-                    showFlashMessage(`Error al generar PDF: ${error.message}`, 'error');
-                }
-            });
-        }
-
-        // --- Share functionality ---
-        function generateShareText(reports) {
-            let shareText = `📋 Reportes de Incidencias - SMT SecApp\n\n`;
-            
-            reports.forEach((report, index) => {
-                shareText += `🔹 Reporte #${report.id}\n`;
-                shareText += `📅 Enviado: ${report.dateSubmitted}\n`;
-                shareText += `👤 Por: ${report.submittedBy}\n`;
-                shareText += `📍 Lugar: ${report.data['Lugar del Incidente'] || 'No especificado'}\n`;
-                shareText += `📋 Incidencia: ${report.data['Título de Incidencia'] || 'No especificado'}\n`;
-                shareText += `📅 Fecha del Incidente: ${report.data['Fecha del Incidente'] || 'No especificado'}\n`;
-                shareText += `📝 Descripción: ${report.data['Descripción del Incidente'] || 'No especificado'}\n`;
-                if (index < reports.length - 1) shareText += `\n---\n\n`;
-            });
-            
-            shareText += `\n\n📧 Generado desde SMT SecApp`;
-            return shareText;
-        }
-
-        const shareButton = document.getElementById('share-button');
-        if (shareButton) {
-            shareButton.addEventListener('click', async () => {
-                const checkedReportIds = Array.from(document.querySelectorAll('.report-checkbox:checked'))
-                                            .map(cb => cb.dataset.reportId);
-                if (checkedReportIds.length === 0) {
-                    showFlashMessage('Por favor, selecciona al menos un reporte para compartir.', 'error');
-                    return;
-                }
-
-                try {
-                    const reportsToShare = await Promise.all(
-                        checkedReportIds.map(async (id) => {
-                            const response = await fetch(`/api/report/${id}`);
-                            if (response.ok) {
-                                return await response.json();
-                            }
-                            return null;
-                        })
-                    );
-
-                    const validReports = reportsToShare.filter(report => report !== null);
-                    if (validReports.length === 0) {
-                        showFlashMessage('Error al obtener los reportes seleccionados.', 'error');
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
                         return;
                     }
-
-                    const shareText = generateShareText(validReports);
-                    const shareTitle = `Reportes de Incidencias (${validReports.length} ${validReports.length === 1 ? 'reporte' : 'reportes'})`;
-
-                    // Try native Web Share API first (works on mobile browsers)
-                    if (navigator.share) {
-                        try {
-                            await navigator.share({
-                                title: shareTitle,
-                                text: shareText
-                            });
-                            showFlashMessage('Reportes compartidos exitosamente!', 'success');
-                        } catch (shareError) {
-                            if (shareError.name !== 'AbortError') {
-                                console.error('Error with Web Share API:', shareError);
-                                fallbackShare(shareText);
-                            }
-                        }
-                    } else {
-                        fallbackShare(shareText);
-                    }
-                    
-                } catch (error) {
-                    console.error('Error sharing reports:', error);
-                    showFlashMessage('Error al compartir reportes.', 'error');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
-        }
 
-        function fallbackShare(shareText) {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-                const smsUrl = `sms:?body=${encodeURIComponent(shareText)}`;
-                
-                window.open(whatsappUrl, '_blank');
-                
-                setTimeout(() => {
-                    if (confirm('¿Quieres también compartir por SMS?')) {
-                        window.location.href = smsUrl;
-                    }
-                }, 1000);
-            } else {
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(shareText).then(() => {
-                        showFlashMessage('Texto copiado al portapapeles!', 'success');
-                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-                        window.open(whatsappUrl, '_blank');
-                    }).catch(() => {
-                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-                        window.open(whatsappUrl, '_blank');
-                    });
-                } else {
-                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-                    window.open(whatsappUrl, '_blank');
-                }
+                const data = await response.json();
+                const reportsContainer = document.getElementById('reports-container');
+                data.reports.forEach(form => {
+                    const reportBlock = document.createElement('div');
+                    reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                    reportBlock.setAttribute('data-report-id', form.id);
+                    reportBlock.innerHTML = `
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                            </div>
+                            <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                        </div>
+
+                        <div class="text-gray-700 mb-4">
+                            <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                            <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                            <p><strong>Propiedad:</strong> ${form.data['Propiedad'] || 'No especificado'}</p>
+                            <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                        </div>
+                        
+                        <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                            Ver Detalles
+                        </button>
+
+                        <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                            <div id="details-${form.id}" class="text-gray-700">
+                                Cargando detalles...
+                            </div>
+                        </div>
+                    `;
+                    reportsContainer.appendChild(reportBlock);
+                });
+                offset += data.reports.length;
+                totalReports = data.total_count;
+                checkLoadMoreButtonVisibility();
+                attachEventListenersToNewReports();
+                updateActionButtonsState();
+
+            } catch (error) {
+                console.error('Error loading more reports:', error);
+                showFlashMessage('Error al cargar más reportes.', 'error');
+            } finally {
+                loadMoreButton.disabled = false;
+                loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
             }
         }
 
         // --- Search and Filter Functions ---
-        function applyFilters() {
-            const filters = {
-                report_id: document.getElementById('reportIdSearch').value,
-                submitted_by: document.getElementById('submittedBySearch').value,
-                location: document.getElementById('locationSearch').value,
-                start_date: document.getElementById('startDateFilter').value,
-                end_date: document.getElementById('endDateFilter').value
-            };
+        // Replace the applyFilters function in your JavaScript with this updated version:
 
-            offset = 0;
-            totalReports = 0;
+    function applyFilters() {
+        const filters = {
+            report_id: document.getElementById('reportIdSearch').value,
+            submitted_by: document.getElementById('submittedBySearch').value,
+            property: document.getElementById('propertySearch').value,  // CHANGED: from 'location' to 'property'
+            start_date: document.getElementById('startDateFilter').value,
+            end_date: document.getElementById('endDateFilter').value
+        };
 
-            async function fetchFilteredReports() {
-                const reportsContainer = document.getElementById('reports-container');
-                reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
+        offset = 0;
+        totalReports = 0;
 
-                const queryParams = new URLSearchParams({ offset: offset, limit: limit });
-                for (const key in filters) {
-                    if (filters[key]) {
-                        queryParams.append(key, filters[key]);
-                    }
-                }
+        async function fetchFilteredReports() {
+            const reportsContainer = document.getElementById('reports-container');
+            reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
 
-                try {
-                    const response = await fetch(`/api/reports?${queryParams.toString()}`, {
-                        headers: { 'Accept': 'application/json' }
-                    });
-
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            window.location.href = '/logout';
-                            return;
-                        }
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    reportsContainer.innerHTML = '';
-                    if (data.reports.length === 0) {
-                        reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
-                    } else {
-                        data.reports.forEach(form => {
-                            const reportBlock = document.createElement('div');
-                            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                            reportBlock.setAttribute('data-report-id', form.id);
-                            reportBlock.innerHTML = `
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                                    </div>
-                                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                                </div>
-
-                                <div class="text-gray-700 mb-4">
-                                    <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                                    <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                                    <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                                </div>
-                                
-                                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                                    Ver Detalles
-                                </button>
-
-                                <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                                    <div id="details-${form.id}" class="text-gray-700">
-                                        Cargando detalles...
-                                    </div>
-                                </div>
-                            `;
-                            reportsContainer.appendChild(reportBlock);
-                        });
-                    }
-                    offset = data.reports.length;
-                    totalReports = data.total_count;
-                    checkLoadMoreButtonVisibility();
-                    attachEventListenersToNewReports();
-                    updateActionButtonsState();
-
-                } catch (error) {
-                    console.error('Error fetching filtered reports:', error);
-                    reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
-                    showFlashMessage('Error al cargar reportes filtrados.', 'error');
+            const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+            for (const key in filters) {
+                if (filters[key]) {
+                    queryParams.append(key, filters[key]);
                 }
             }
-            fetchFilteredReports();
+
+            try {
+                const response = await fetch(`/api/reports?${queryParams.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                reportsContainer.innerHTML = '';
+                if (data.reports.length === 0) {
+                    reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
+                } else {
+                    data.reports.forEach(form => {
+                        const reportBlock = document.createElement('div');
+                        reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                        reportBlock.setAttribute('data-report-id', form.id);
+                        reportBlock.innerHTML = `
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                    <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                                </div>
+                                <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                            </div>
+
+                            <div class="text-gray-700 mb-4">
+                                <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                                <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                                <p><strong>Propiedad:</strong> ${form.data['Propiedad'] || 'No especificado'}</p>
+                                <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                            </div>
+                            
+                            <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                                Ver Detalles
+                            </button>
+
+                            <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                                <div id="details-${form.id}" class="text-gray-700">
+                                    Cargando detalles...
+                                </div>
+                            </div>
+                        `;
+                        reportsContainer.appendChild(reportBlock);
+                    });
+                }
+                offset = data.reports.length;
+                totalReports = data.total_count;
+                checkLoadMoreButtonVisibility();
+                attachEventListenersToNewReports();
+                updateActionButtonsState();
+
+            } catch (error) {
+                console.error('Error fetching filtered reports:', error);
+                reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
+                showFlashMessage('Error al cargar reportes filtrados.', 'error');
+            }
+        }
+        fetchFilteredReports();
+    }
+
+    // Also update the DOMContentLoaded section to reference the new propertySearch element:
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeTheme();
+        
+        if (themeToggle) {
+            themeToggle.addEventListener('click', toggleTheme);
         }
 
-        // --- Initial Setup on DOM Load ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeTheme();
-            
-            if (themeToggle) {
-                themeToggle.addEventListener('click', toggleTheme);
-            }
+        const loadMoreButton = document.getElementById('load-more-button');
+        if (loadMoreButton) {
+            loadMoreButton.addEventListener('click', loadMoreReports);
+        }
+        checkLoadMoreButtonVisibility();
+        attachEventListenersToNewReports();
+        updateActionButtonsState();
 
-            const loadMoreButton = document.getElementById('load-more-button');
-            if (loadMoreButton) {
-                loadMoreButton.addEventListener('click', loadMoreReports);
-            }
-            checkLoadMoreButtonVisibility();
-            attachEventListenersToNewReports();
-            updateActionButtonsState();
+        const reportIdSearch = document.getElementById('reportIdSearch');
+        const submittedBySearch = document.getElementById('submittedBySearch');
+        const propertySearch = document.getElementById('propertySearch');  // CHANGED: from 'locationSearch' to 'propertySearch'
+        const startDateFilter = document.getElementById('startDateFilter');
+        const endDateFilter = document.getElementById('endDateFilter');
+        const searchButton = document.getElementById('search-button');
+        const clearSearchButton = document.getElementById('clear-search-button');
 
-            const reportIdSearch = document.getElementById('reportIdSearch');
-            const submittedBySearch = document.getElementById('submittedBySearch');
-            const locationSearch = document.getElementById('locationSearch');
-            const startDateFilter = document.getElementById('startDateFilter');
-            const endDateFilter = document.getElementById('endDateFilter');
-            const searchButton = document.getElementById('search-button');
-            const clearSearchButton = document.getElementById('clear-search-button');
+        searchButton.addEventListener('click', applyFilters);
+        clearSearchButton.addEventListener('click', () => {
+            reportIdSearch.value = '';
+            submittedBySearch.value = '';
+            propertySearch.value = '';  // CHANGED: from 'locationSearch' to 'propertySearch'
+            startDateFilter.value = '';
+            endDateFilter.value = '';
+            applyFilters();
+        });
 
-            searchButton.addEventListener('click', applyFilters);
-            clearSearchButton.addEventListener('click', () => {
-                reportIdSearch.value = '';
-                submittedBySearch.value = '';
-                locationSearch.value = '';
-                startDateFilter.value = '';
-                endDateFilter.value = '';
-                applyFilters();
-            });
-
-            document.querySelectorAll('#reportIdSearch, #submittedBySearch, #locationSearch, #startDateFilter, #endDateFilter').forEach(input => {
-                input.addEventListener('keypress', (event) => {
-                    if (event.key === 'Enter') {
-                        applyFilters();
-                    }
-                });
+        document.querySelectorAll('#reportIdSearch, #submittedBySearch, #propertySearch, #startDateFilter, #endDateFilter').forEach(input => {  // CHANGED: '#locationSearch' to '#propertySearch'
+            input.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    applyFilters();
+                }
             });
         });
+    });
     </script>
 </body>
 </html>

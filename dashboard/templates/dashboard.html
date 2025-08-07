@@ -211,6 +211,38 @@
             height: 1.5rem;
         }
 
+        /* Property filter styles */
+        .property-filter {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        .property-select {
+            padding: 0.75rem 1rem;
+            border: 2px solid #1d4ed8;
+            border-radius: 0.5rem;
+            background-color: white;
+            color: #1d4ed8;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            min-width: 200px;
+        }
+        .property-select:hover {
+            background-color: #f0f9ff;
+        }
+        .property-select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+        }
+        .filter-label {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
         /* Mobile navigation styles */
         @media (max-width: 768px) {
             body {
@@ -250,6 +282,13 @@
             .period-btn {
                 padding: 0.5rem 1rem;
                 font-size: 0.875rem;
+            }
+            .property-filter {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            .property-select {
+                min-width: 100%;
             }
         }
 
@@ -354,6 +393,21 @@
             color: #374151;
         }
 
+        /* Dark mode for property filter */
+        body.dark-mode .property-select {
+            background-color: #374151;
+            color: #60a5fa;
+            border-color: #60a5fa;
+        }
+
+        body.dark-mode .property-select:hover {
+            background-color: #4a5568;
+        }
+
+        body.dark-mode .filter-label {
+            color: #ffffff;
+        }
+
         /* Dark mode for text colors */
         body.dark-mode .text-gray-700 {
             color: #e2e8f0 !important;
@@ -438,6 +492,14 @@
             <p class="text-base md:text-lg font-medium text-gray-700">Bienvenido, <span class="font-bold text-blue-700">{{ user_name }}</span></p>
         </div>
 
+        <!-- Property Filter -->
+        <div class="property-filter">
+            <label for="propertySelect" class="filter-label">Filtrar por Propiedad:</label>
+            <select id="propertySelect" class="property-select" onchange="changeProperty()">
+                <option value="">Todas las Propiedades</option>
+            </select>
+        </div>
+
         <!-- General Stats -->
         <h2 class="section-title">Estadísticas Generales</h2>
         <div class="stats-grid" id="statsGrid">
@@ -500,10 +562,12 @@
     <script>
         let incidentsChart;
         let currentPeriod = 'weekly';
+        let currentPropertyId = null;
         let allData = {};
         let weeklyKpiData = [];
         let currentlySelectedBar = null;
         let originalIncidentTypesData = null;
+        let properties = [];
 
         // KPI thresholds
         const KPI_THRESHOLDS = {
@@ -589,19 +653,60 @@
                 themeToggle.addEventListener('click', toggleTheme);
             }
             
-            // Load dashboard data
-            loadAllData();
+            // Load properties and dashboard data
+            loadProperties().then(() => {
+                loadAllData();
+            });
         });
+
+        async function loadProperties() {
+            try {
+                const response = await fetch('/api/properties');
+                properties = await response.json();
+                
+                const propertySelect = document.getElementById('propertySelect');
+                propertySelect.innerHTML = '<option value="">Todas las Propiedades</option>';
+                
+                properties.forEach(property => {
+                    const option = document.createElement('option');
+                    option.value = property.id;
+                    option.textContent = property.name;
+                    propertySelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading properties:', error);
+                showError('Error al cargar las propiedades');
+            }
+        }
+
+        async function changeProperty() {
+            const propertySelect = document.getElementById('propertySelect');
+            currentPropertyId = propertySelect.value ? parseInt(propertySelect.value) : null;
+            
+            // Reset selected bar when changing property
+            currentlySelectedBar = null;
+            originalIncidentTypesData = null;
+            clearPeriodInfoDisplay();
+            
+            // Reload all data for the selected property
+            await loadAllData();
+        }
 
         async function loadAllData() {
             try {
+                showLoadingIndicator();
+                
+                // Build query parameter for property filter
+                const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
+                
                 // Load data for all periods and incident types
                 const [weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData] = await Promise.all([
-                    fetch('/api/incidents/weekly').then(r => r.json()),
-                    fetch('/api/incidents/monthly').then(r => r.json()),
-                    fetch('/api/incidents/yearly').then(r => r.json()),
-                    fetch('/api/incidents/types').then(r => r.json()),
-                    fetch('/api/incidents/weekly-with-kpi').then(r => r.json())
+                    fetch(`/api/incidents/weekly${propertyParam}`).then(r => r.json()),
+                    fetch(`/api/incidents/monthly${propertyParam}`).then(r => r.json()),
+                    fetch(`/api/incidents/yearly${propertyParam}`).then(r => r.json()),
+                    fetch(`/api/incidents/types${propertyParam}`).then(r => r.json()),
+                    fetch(`/api/incidents/weekly-with-kpi${propertyParam}`).then(r => r.json())
                 ]);
 
                 allData = {
@@ -616,23 +721,48 @@
                 updateStats();
                 await updateIncidentTypesForPeriod(currentPeriod);
                 
-                // Initialize chart with weekly data
+                // Initialize chart with current period data
                 updateChart();
+
+                hideLoadingIndicator();
 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 showError('Error al cargar los datos del dashboard');
+                hideLoadingIndicator();
+            }
+        }
+
+        function showLoadingIndicator() {
+            // Add loading overlay
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loadingIndicator';
+            loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            loadingDiv.innerHTML = `
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg flex items-center gap-3">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="text-gray-700 dark:text-gray-300">Cargando datos...</span>
+                </div>
+            `;
+            document.body.appendChild(loadingDiv);
+        }
+
+        function hideLoadingIndicator() {
+            const loadingDiv = document.getElementById('loadingIndicator');
+            if (loadingDiv) {
+                loadingDiv.remove();
             }
         }
 
         async function updateIncidentTypesForPeriod(period) {
             try {
-                let endpoint = '/api/incidents/types'; // default to weekly
+                const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
+                let endpoint = `/api/incidents/types${propertyParam}`; // default to weekly
                 
                 if (period === 'monthly') {
-                    endpoint = '/api/incidents/types/monthly';
+                    endpoint = `/api/incidents/types/monthly${propertyParam}`;
                 } else if (period === 'yearly') {
-                    endpoint = '/api/incidents/types/yearly';
+                    endpoint = `/api/incidents/types/yearly${propertyParam}`;
                 }
                 
                 const incidentTypesData = await fetch(endpoint).then(r => r.json());
@@ -642,7 +772,8 @@
                 console.error('Error loading incident types data:', error);
                 // Fallback to weekly data if monthly/yearly endpoints don't exist
                 if (period !== 'weekly') {
-                    const weeklyData = await fetch('/api/incidents/types').then(r => r.json());
+                    const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
+                    const weeklyData = await fetch(`/api/incidents/types${propertyParam}`).then(r => r.json());
                     updateIncidentTypes(weeklyData);
                 }
             }
@@ -723,48 +854,6 @@
                 'Septiembre': 9, 'Octubre': 10, 'Noviembre': 11, 'Diciembre': 12
             };
             return months[monthName] || 0;
-        }
-
-        async function changePeriod(period) {
-            currentPeriod = period;
-            
-            // Update button states
-            document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(period + 'Btn').classList.add('active');
-            
-            // Update chart title and KPI info
-            const titles = {
-                weekly: 'Incidencias por Semana',
-                monthly: 'Incidencias por Mes',
-                yearly: 'Incidencias por Año'
-            };
-            
-            const kpiInfo = {
-                weekly: 'KPI: Alertas cuando se superan los 4 incidentes por semana',
-                monthly: 'KPI: Alertas cuando se superan los 16 incidentes por mes (4 semanas × 4)',
-                yearly: 'KPI: Alertas cuando se superan los 208 incidentes por año (52 semanas × 4)'
-            };
-            
-            const incidentTypesTitles = {
-                weekly: 'Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana',
-                monthly: 'Tipos de Incidencias (Este Mes) - KPI: ≥16 por mes',
-                yearly: 'Tipos de Incidencias (Este Año) - KPI: ≥208 por año'
-            };
-            
-            document.getElementById('chartTitle').textContent = titles[period];
-            document.getElementById('kpiInfo').textContent = kpiInfo[period];
-            
-            // Update incident types section title
-            const incidentTypesTitle = document.getElementById('incidentTypesTitle');
-            if (incidentTypesTitle) {
-                incidentTypesTitle.textContent = incidentTypesTitles[period];
-            }
-            
-            // Update incident types data for the selected period
-            await updateIncidentTypesForPeriod(period);
-            
-            // Update chart
-            updateChart();
         }
 
         async function changePeriod(period) {
@@ -1056,9 +1145,14 @@
                 return item.total_count || item.count || 0;
             });
 
-            const backgroundColors = data.map(item => {
+            const backgroundColors = data.map((item, index) => {
                 const count = item.total_count || item.count || 0;
                 const hasViolation = item.has_kpi_violation || count >= currentThreshold;
+                
+                // Highlight selected bar
+                if (currentlySelectedBar === index) {
+                    return 'rgba(251, 191, 36, 0.9)'; // Yellow for selected
+                }
                 
                 if (hasViolation) {
                     return 'rgba(220, 38, 38, 0.8)'; // Red for KPI violations
@@ -1066,9 +1160,14 @@
                 return 'rgba(29, 78, 216, 0.8)'; // Default blue
             });
 
-            const borderColors = data.map(item => {
+            const borderColors = data.map((item, index) => {
                 const count = item.total_count || item.count || 0;
                 const hasViolation = item.has_kpi_violation || count >= currentThreshold;
+                
+                // Highlight selected bar
+                if (currentlySelectedBar === index) {
+                    return 'rgba(251, 191, 36, 1)'; // Yellow border for selected
+                }
                 
                 if (hasViolation) {
                     return 'rgba(220, 38, 38, 1)'; // Red border for KPI violations
@@ -1171,6 +1270,7 @@
         // Make functions globally accessible
         window.clearPeriodBreakdown = clearPeriodBreakdown;
         window.togglePeriodBreakdown = togglePeriodBreakdown;
+        window.changeProperty = changeProperty;
 
         function showError(message) {
             // Create error message element

@@ -23,6 +23,9 @@ import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from functools import wraps
+from flask_jwt_extended import get_jwt
+
 # PDF generation imports
 from weasyprint import HTML, CSS
 
@@ -212,10 +215,10 @@ def fetch_reports(offset, limit, filters=None):
                 search_term = f"%{filters['submitted_by']}%"
                 query_params.extend([search_term, search_term])
             
-            # Location filter
-            if filters.get('location'):
-                where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
-                query_params.append(f"%{filters['location']}%")
+            # Property filter (changed from location to property)
+            if filters.get('property'):
+                where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
+                query_params.append(f"%{filters['property']}%")
             
             # Date range filters
             if filters.get('start_date'):
@@ -239,6 +242,7 @@ def fetch_reports(offset, limit, filters=None):
             LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
             LEFT JOIN users u ON ri.user_email = u.email
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
             {where_clause}
         """
         
@@ -263,46 +267,49 @@ def fetch_reports(offset, limit, filters=None):
         # Then, get the paginated reports with user names and filters
         # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
         query = f"""
-            SELECT
-                ri.id_reporte_incidente,
-                ri.user_email,
-                ri.creado_en,
-                ti.nombre AS titulo_incidencia,
-                ri.descripcion_incidente,
-                ri.valor_aproximado,
-                ri.pertenencias_sustraidas,
-                ri.nombre_persona,
-                ri.telefono_persona,
-                ri.numero_identidad_persona,
-                ri.numero_local,
-                ri.direccion,
-                ri.imagenes_pdfs,
-                s.nombre AS supervisor_name,
-                ri.fecha_incidente,
-                ri.hora_incidente,
-                tc.nombre AS id_tipo_cliente,
-                li.nombre AS id_lugar_incidente,
-                ri.descripcion_zona_comun,
-                u.name AS user_name
-            FROM
-                reportes_incidentes ri
-            LEFT JOIN
-                "tipo_cliente" tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
-            LEFT JOIN
-                "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
-            LEFT JOIN
-                "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            LEFT JOIN
-                supervisor s ON ri.id_supervisor = s.id_supervisor
-            LEFT JOIN
-                users u ON ri.user_email = u.email
-            {where_clause}
-            ORDER BY
-                ri.creado_en DESC NULLS LAST,
-                ri.id_reporte_incidente DESC
-            OFFSET %s LIMIT %s;
-        """
-        
+                SELECT
+                    ri.id_reporte_incidente,
+                    ri.user_email,
+                    ri.creado_en,
+                    ti.nombre AS titulo_incidencia,
+                    ri.descripcion_incidente,
+                    ri.valor_aproximado,
+                    ri.pertenencias_sustraidas,
+                    ri.nombre_persona,
+                    ri.telefono_persona,
+                    ri.numero_identidad_persona,
+                    ri.numero_local,
+                    ri.direccion,
+                    ri.imagenes_pdfs,
+                    s.nombre AS supervisor_name,
+                    ri.fecha_incidente,
+                    ri.hora_incidente,
+                    tc.nombre AS id_tipo_cliente,
+                    li.nombre AS id_lugar_incidente,
+                    p.nombre AS propiedad_nombre,  -- Include propiedad
+                    ri.descripcion_zona_comun,
+                    u.name AS user_name
+                FROM
+                    reportes_incidentes ri
+                LEFT JOIN
+                    "tipo_cliente" tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
+                LEFT JOIN
+                    "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
+                LEFT JOIN
+                    "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+                LEFT JOIN
+                    supervisor s ON ri.id_supervisor = s.id_supervisor
+                LEFT JOIN
+                    users u ON ri.user_email = u.email
+                LEFT JOIN
+                    propiedades p ON ri.id_propiedad = p.id_propiedad  -- Include JOIN with propiedades
+                {where_clause}
+                ORDER BY
+                    ri.creado_en DESC NULLS LAST,
+                    ri.id_reporte_incidente DESC
+                OFFSET %s LIMIT %s;
+            """
+
         # Add pagination parameters
         final_params = query_params + [offset, limit]
         
@@ -318,7 +325,6 @@ def fetch_reports(offset, limit, filters=None):
                 app_logger.info(f"Report {i+1}: ID={row['id_reporte_incidente']}, creado_en={row['creado_en']}")
 
         for row_dict in rows:
-            # Use the full name if available, otherwise fall back to email
             display_name = row_dict.get("user_name") or row_dict.get("user_email", "desconocido")
             
             forms_data = {
@@ -330,6 +336,7 @@ def fetch_reports(offset, limit, filters=None):
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
                     "Tipo de Cliente": row_dict.get("id_tipo_cliente"),
                     "Lugar del Incidente": row_dict.get("id_lugar_incidente"),
+                    "Propiedad": row_dict.get("propiedad_nombre") or "No especificado",
                     "Zona Común": row_dict.get("descripcion_zona_comun"),
                     "Fecha del Incidente": str(row_dict.get("fecha_incidente")),
                     "Hora del Incidente": str(row_dict.get("hora_incidente")),
@@ -362,7 +369,6 @@ def fetch_reports(offset, limit, filters=None):
             conn.close()
             app_logger.info("Database connection closed in fetch_reports.")
     return reports, total_count
-
 
 def fetch_reports_by_ids(report_ids):
     conn = None
@@ -413,6 +419,7 @@ def fetch_reports_by_ids(report_ids):
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
                 li.nombre AS id_lugar_incidente,
+                p.nombre AS propiedad_nombre,  -- ADD THIS LINE
                 ri.descripcion_zona_comun,
                 u.name AS user_name -- Get the user's full name
             FROM
@@ -427,6 +434,8 @@ def fetch_reports_by_ids(report_ids):
                 supervisor s ON ri.id_supervisor = s.id_supervisor
             LEFT JOIN
                 users u ON ri.user_email = u.email -- Join with users table to get full name
+            LEFT JOIN
+                propiedades p ON ri.id_propiedad = p.id_propiedad  -- ADD THIS JOIN
             WHERE
                 ri.id_reporte_incidente IN ({placeholders})
             ORDER BY
@@ -457,6 +466,7 @@ def fetch_reports_by_ids(report_ids):
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
                     "Tipo de Cliente": row_dict.get("id_tipo_cliente"),
                     "Lugar del Incidente": row_dict.get("id_lugar_incidente"),
+                    "Propiedad": row_dict.get("propiedad_nombre") or "No especificado",  # ADD THIS LINE
                     "Zona Común": row_dict.get("descripcion_zona_comun"),
                     "Fecha del Incidente": str(row_dict.get("fecha_incidente")),
                     "Hora del Incidente": str(row_dict.get("hora_incidente")),
@@ -539,55 +549,99 @@ def send_reports_email(recipient_email, subject, body, is_html=False):
         app_logger.error(f"An unexpected error occurred while sending email to {recipient_email}: {e}", exc_info=True)
         return False, f"An error occurred while sending email: {e}"
 
+def admin_required(f):
+    """
+    Decorator that requires the user to be an admin.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            # Get JWT claims
+            claims = get_jwt()
+            is_admin = claims.get('is_admin', False)
+            user_email = claims.get('sub', 'unknown')
+            
+            app_logger.info(f"Admin check: User {user_email}, is_admin={is_admin}")
+            
+            if not is_admin:
+                app_logger.warning(f"Access denied: User {user_email} attempted to access admin-only resource")
+                
+                # Check if this is an API request or web request
+                if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
+                    return jsonify({
+                        "error": "Access denied", 
+                        "message": "Solo los administradores pueden acceder a este recurso."
+                    }), 403
+                else:
+                    # Redirect to landing page
+                    landing_url = app.config.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
+                    app_logger.info(f"Redirecting non-admin user to: {landing_url}")
+                    return redirect(landing_url)
+            
+            app_logger.info(f"Admin access granted to {user_email} for {request.endpoint}")
+            return f(*args, **kwargs)
+            
+        except Exception as e:
+            app_logger.error(f"Error in admin_required decorator: {e}", exc_info=True)
+            
+            # Return error response
+            if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
+                return jsonify({"error": "Authentication error", "details": str(e)}), 500
+            else:
+                login_url = app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
+                return redirect(login_url)
+    
+    return decorated_function
+
 # --- Routes ---
 @app.route('/')
 @jwt_required()
+@admin_required
 def index():
     user_email = get_jwt_identity()
-    user_name = user_email.split('@')[0] # Default fallback to email prefix
-
+    
+    # Get JWT claims and admin status
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"Admin user {user_email} (is_admin={is_admin}) accessing viewer dashboard")
+    except Exception as e:
+        app_logger.error(f"Error getting JWT claims: {e}", exc_info=True)
+        user_name = user_email.split('@')[0]
+        is_admin = False
+    
+    # Get user name from database as fallback
     conn = None
     cur = None
     try:
         conn = get_db_connection()
         if conn:
             cur = conn.cursor()
-            app_logger.info(f"Attempting to fetch user name for email: {user_email}")
             cur.execute('SELECT "name" FROM "users" WHERE email = %s', (user_email,))
             user_row = cur.fetchone()
-            if user_row and user_row[0]: # Check if user_row exists and name is not empty
+            if user_row and user_row[0]:
                 user_name = user_row[0]
                 app_logger.info(f"User found in DB: {user_name}")
-            else:
-                app_logger.warning(f"User {user_email} not found in 'users' table or 'name' field is empty. Displaying email prefix as name: {user_name}")
-        else:
-            app_logger.error("No database connection available for fetching user name.")
-
-    except psycopg2.Error as e:
-        app_logger.error(f"PostgreSQL Error getting user name: {e}", exc_info=True)
-        # user_name already defaulted to email prefix, no change needed here.
     except Exception as e:
-        app_logger.error(f"An unexpected error occurred getting user name: {e}", exc_info=True)
-        # user_name already defaulted to email prefix, no change needed here.
+        app_logger.error(f"Error fetching user name: {e}", exc_info=True)
     finally:
         if cur:
             cur.close()
         if conn:
             conn.close()
-            app_logger.info("Database connection closed after fetching user name.")
 
-    app_logger.info(f"Rendering index.html with user_name: {user_name}") # New log line
     initial_reports, total_reports_count = fetch_reports(offset=0, limit=10)
     return render_template("index.html", 
                          current_user=user_email, 
                          forms=initial_reports, 
-                         user_name=user_name, 
+                         user_name=user_name,
+                         is_admin=is_admin,  # Pass admin status to template
                          total_reports=total_reports_count,
                          login_service_url=app.config.get('LOGIN_SERVICE_URL'),
                          landing_service_url=app.config.get('LANDING_SERVICE_URL'),
                          forms_service_url=app.config.get('FORMS_SERVICE_URL'),
                          dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL'))
-
 
 @app.route('/api/reports', methods=['GET'])
 @jwt_required()
@@ -606,8 +660,8 @@ def get_more_reports():
         filters['report_id'] = request.args.get('report_id')
     if request.args.get('submitted_by'):
         filters['submitted_by'] = request.args.get('submitted_by')
-    if request.args.get('location'):
-        filters['location'] = request.args.get('location')
+    if request.args.get('property'):  # CHANGED: from 'location' to 'property'
+        filters['property'] = request.args.get('property')
     if request.args.get('start_date'):
         filters['start_date'] = request.args.get('start_date')
     if request.args.get('end_date'):

@@ -161,12 +161,27 @@
   <div class="form-container">
     <div class="header-nav">
       {% if name %}
-        <div class="nav-links">
-          <span class="text-sm text-gray-300">Bienvenido, <strong class="font-bold text-blue-500">{{ name }}</strong>.</span>
-          <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
-          <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
-          <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
-          <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+        <div class="header-nav">
+            {% if name %}
+                <div class="nav-links">
+                    <span class="text-sm text-gray-300">
+                        Bienvenido, <strong class="font-bold text-blue-500">{{ name }}</strong>
+                        {% if is_admin %}
+                        <span class="text-purple-400 font-bold">(Admin)</span>
+                        {% endif %}
+                        .
+                    </span>
+                    <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                    
+                    <!-- Admin-only links - only show if user is admin -->
+                    {% if is_admin %}
+                    <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                    <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                    {% endif %}
+                    
+                    <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+                </div>
+            {% endif %}
         </div>
       {% endif %}
     </div>
@@ -216,6 +231,16 @@
           <option value="">Seleccione un lugar</option>
           {% for lugar in lugar_incidente %}
             <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="propiedad" class="block text-sm font-medium mb-1">Propiedad:</label>
+        <select id="propiedad" name="propiedad" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+          <option value="">Seleccione una propiedad</option>
+          {% for prop in propiedades %}
+            <option value="{{ prop.id }}">{{ prop.nombre }}</option>
           {% endfor %}
         </select>
       </div>

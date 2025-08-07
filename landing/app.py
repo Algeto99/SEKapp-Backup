@@ -268,29 +268,36 @@ def user_lookup_callback(_jwt_header, jwt_data):
 def index():
     user_email = None
     user_name = None
+    is_admin = False
+    
     # Try to get JWT from cookie explicitly if not present in request context
     try:
         claims = get_jwt()
         token = request.cookies.get(app.config.get('JWT_COOKIE_NAME', 'access_token_cookie'))
         app_logger.info(f"access_token_cookie value: {token}")
+        
         if not claims and token:
             from flask_jwt_extended import decode_token
             try:
                 claims = decode_token(token)
             except Exception as e:
                 app_logger.warning(f"Manual decode_token failed: {e}")
+                
         if claims:
             user_email = claims.get('sub')
             user_name = claims.get('name', user_email)
+            is_admin = claims.get('is_admin', False)  # Get admin status from JWT
         else:
             app_logger.info("No valid JWT claims found; user not logged in.")
     except Exception as e:
         app_logger.warning(f"Could not get JWT identity: {e}")
-    # Always pass user_name and service URLs to the template, even if None
+    
+    # Always pass user info and service URLs to the template
     return render_template(
         'index.html',
         user_email=user_email,
         user_name=user_name,
+        is_admin=is_admin,  # Pass admin status to template
         FORMS_SERVICE_URL=app.config.get('FORMS_SERVICE_URL'),
         LOGIN_SERVICE_URL=app.config.get('LOGIN_SERVICE_URL'),
         DASHBOARD_SERVICE_URL=app.config.get('DASHBOARD_SERVICE_URL'),
@@ -304,18 +311,21 @@ def user_info():
         claims = get_jwt()
         user_email = claims.get('sub')
         user_name = claims.get('name', user_email)
+        is_admin = claims.get('is_admin', False)  # Get admin status
+        
         if user_email:
-            app_logger.info(f"User info requested for: {user_email}")
+            app_logger.info(f"User info requested for: {user_email} (admin: {is_admin})")
             return jsonify({
                 "email": user_email,
                 "name": user_name,
-                "roles": ["user"]
+                "is_admin": is_admin,  # Include admin status
+                "roles": ["admin"] if is_admin else ["user"]
             }), 200
         return jsonify({"msg": "Unauthorized: No valid user identity"}), 401
     except Exception as e:
         app_logger.error(f"Error fetching user info: {e}", exc_info=True)
         return jsonify({"msg": "Internal server error"}), 500
-
+    
 @app.route('/health')
 def health_check():
     health_status = {'status': 'not_ready', 'service': 'landing-service', 'checks': {}}
