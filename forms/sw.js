@@ -1,14 +1,15 @@
-// sw.js - Enhanced Service Worker for iOS PWA compatibility with TRUE offline support
-const CACHE_NAME = 'smt-secapp-v5';
+// sw.js - Enhanced Service Worker with Auto-Update Support
+const CACHE_NAME = 'smt-secapp-v6'; // Increment version for updates
 const OFFLINE_URL = '/offline.html';
+const UPDATE_CHECK_INTERVAL = 60000; // Check for updates every minute
+const BACKGROUND_SYNC_TAG = 'background-sync';
 
-// Essential resources to cache (more aggressive for iOS)
+// Essential resources to cache
 const urlsToCache = [
   '/',
   '/manifest.json',
   '/offline.html',
   '/install',
-  // External resources that are critical
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css',
   'https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js',
@@ -17,35 +18,27 @@ const urlsToCache = [
   'https://storage.googleapis.com/smt-misc/SMT-logo.png'
 ];
 
-// Install event - cache resources immediately and skip waiting
+// Install event - improved caching strategy
 self.addEventListener('install', event => {
-  console.log('[SW] Installing service worker v5...');
+  console.log('[SW] Installing service worker v6...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('[SW] Caching app shell and critical resources');
         
-        // Cache the main form page first (most important)
-        return cache.add('/').then(() => {
-          console.log('[SW] Main form page cached successfully');
-          
-          // Then cache offline page
-          return cache.add('/offline.html');
-        }).then(() => {
-          console.log('[SW] Offline page cached successfully');
-          
-          // Then try to cache external resources, but don't fail if they don't work
-          const externalPromises = urlsToCache.slice(2).map(url => 
+        // Cache critical resources with error handling
+        return Promise.allSettled(
+          urlsToCache.map(url => 
             cache.add(url).catch(err => {
               console.warn(`[SW] Failed to cache ${url}:`, err);
               return null;
             })
-          );
-          return Promise.allSettled(externalPromises);
-        });
+          )
+        );
       })
       .then(() => {
         console.log('[SW] Installation complete, skipping waiting');
+        // Force immediate activation of new service worker
         return self.skipWaiting();
       })
       .catch(err => {
@@ -54,9 +47,9 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate event - claim clients immediately and clean old caches
+// Activate event - clean old caches and claim clients immediately
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating service worker v5...');
+  console.log('[SW] Activating service worker v6...');
   event.waitUntil(
     Promise.all([
       // Clean up old caches
@@ -70,78 +63,74 @@ self.addEventListener('activate', event => {
           })
         );
       }),
-      // Claim all clients immediately
-      self.clients.claim()
-    ]).then(() => {
-      console.log('[SW] Service worker v5 activated and ready');
-    })
+      // Claim all clients immediately (forces update)
+      self.clients.claim().then(() => {
+        console.log('[SW] Clients claimed - app will use new version');
+        // Notify all clients about the update
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'SW_UPDATED',
+              message: 'App updated to latest version!'
+            });
+          });
+        });
+      })
+    ])
   );
 });
 
-// Enhanced fetch event with better offline form handling
+// Enhanced fetch handler with better update strategy
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   const request = event.request;
   
-  // Skip non-GET requests for caching - LET FORM SUBMISSIONS GO THROUGH NORMALLY
+  // Skip non-GET requests
   if (request.method !== 'GET') {
-    // Don't intercept POST requests - let the main app handle offline form submissions
     return;
   }
   
-  // Handle the main form page specifically (/ or root)
+  // Handle the main form page with cache-then-network strategy
   if (url.pathname === '/' || url.pathname === '') {
     console.log('[SW] Handling request for main form page');
     event.respondWith(
-      // Try network first for fresh content
-      fetch(request, { cache: 'no-cache' })
-        .then(response => {
-          console.log('[SW] Network response for main page:', response.status);
-          // If we get a good response, cache it and return it
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(request, responseClone);
-                console.log('[SW] Updated cache with fresh main page');
-              })
-              .catch(err => console.warn('[SW] Failed to update cache:', err));
-          }
-          return response;
-        })
-        .catch(() => {
-          console.log('[SW] Network failed for main page, trying cache');
-          // Network failed, try cache
-          return caches.match(request)
-            .then(cachedResponse => {
-              if (cachedResponse) {
-                console.log('[SW] Serving main page from cache');
-                return cachedResponse;
-              }
-              
-              // No cache either, show offline page
-              console.log('[SW] No cache found for main page, showing offline page');
-              return caches.match('/offline.html')
-                .then(offlineResponse => {
-                  if (offlineResponse) {
-                    return offlineResponse;
-                  }
-                  // Fallback offline page if /offline.html isn't cached
-                  return new Response(
-                    createFallbackOfflinePage(),
-                    { 
-                      status: 200,
-                      headers: { 'Content-Type': 'text/html' }
+      // Try cache first for immediate response
+      caches.match(request)
+        .then(cachedResponse => {
+          // Start network request in parallel
+          const networkRequest = fetch(request, { cache: 'no-cache' })
+            .then(response => {
+              if (response.status === 200) {
+                const responseClone = response.clone();
+                caches.open(CACHE_NAME)
+                  .then(cache => {
+                    cache.put(request, responseClone);
+                    console.log('[SW] Updated cache with fresh main page');
+                    
+                    // Notify client if content changed
+                    if (cachedResponse) {
+                      notifyClientOfUpdate();
                     }
-                  );
-                });
-            });
+                  });
+              }
+              return response;
+            })
+            .catch(() => null);
+          
+          // Return cached version immediately, update in background
+          if (cachedResponse) {
+            networkRequest; // Update in background
+            return cachedResponse;
+          }
+          
+          // No cache, wait for network
+          return networkRequest || caches.match('/offline.html');
         })
     );
     return;
   }
   
-  // Handle other HTML pages
+  // Handle other HTML pages with network-first for fresh content
   if (request.destination === 'document' || 
       request.headers.get('accept')?.includes('text/html') ||
       url.pathname.includes('.html')) {
@@ -149,55 +138,29 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(request)
         .then(response => {
-          // If we get a good response, cache it and return it
           if (response.status === 200) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME)
-              .then(cache => cache.put(request, responseClone))
-              .catch(err => console.warn('[SW] Failed to cache response:', err));
+              .then(cache => cache.put(request, responseClone));
           }
           return response;
         })
         .catch(() => {
-          // Network failed, try cache
           return caches.match(request)
             .then(cachedResponse => {
-              if (cachedResponse) {
-                console.log('[SW] Serving from cache:', request.url);
-                return cachedResponse;
-              }
-              
-              // No cache either, show offline page
-              console.log('[SW] No cache found, showing offline page');
-              return caches.match('/offline.html')
-                .then(offlineResponse => {
-                  if (offlineResponse) {
-                    return offlineResponse;
-                  }
-                  // Fallback offline page if /offline.html isn't cached
-                  return new Response(
-                    createFallbackOfflinePage(),
-                    { 
-                      status: 200,
-                      headers: { 'Content-Type': 'text/html' }
-                    }
-                  );
-                });
+              return cachedResponse || caches.match('/offline.html');
             });
         })
     );
   }
   
-  // Handle static assets (CSS, JS, images) - Cache First with Network Fallback
+  // Handle static assets with cache-first strategy
   else {
     event.respondWith(
       caches.match(request)
         .then(cachedResponse => {
           if (cachedResponse) {
-            // Serve from cache immediately
-            console.log('[SW] Cache hit for:', request.url);
-            
-            // Try to update cache in background for next time
+            // Update cache in background
             fetch(request)
               .then(response => {
                 if (response.status === 200) {
@@ -206,50 +169,46 @@ self.addEventListener('fetch', event => {
                     .then(cache => cache.put(request, responseClone));
                 }
               })
-              .catch(() => {
-                // Background update failed, but we already have cached version
-              });
+              .catch(() => {});
             
             return cachedResponse;
           }
           
-          // Not in cache, try network
           return fetch(request)
             .then(response => {
-              // Cache successful responses
               if (response.status === 200) {
                 const responseClone = response.clone();
                 caches.open(CACHE_NAME)
                   .then(cache => cache.put(request, responseClone));
               }
               return response;
-            })
-            .catch(() => {
-              console.log('[SW] Failed to fetch:', request.url);
-              
-              // For critical assets, return a placeholder
-              if (request.url.includes('.css')) {
-                return new Response('/* Offline - CSS not available */', {
-                  status: 200,
-                  headers: { 'Content-Type': 'text/css' }
-                });
-              }
-              if (request.url.includes('.js')) {
-                return new Response('console.log("Offline - JS not available");', {
-                  status: 200,
-                  headers: { 'Content-Type': 'application/javascript' }
-                });
-              }
-              
-              return new Response('Offline - asset not available', {
-                status: 503,
-                statusText: 'Service Unavailable'
-              });
             });
         })
     );
   }
 });
+
+// Auto-update check function
+async function checkForUpdates() {
+  try {
+    const response = await fetch('/sw.js', { cache: 'no-cache' });
+    if (response.ok) {
+      const newSWText = await response.text();
+      const currentSWText = await self.importScripts ? '' : 'different'; // Simple check
+      
+      if (newSWText !== currentSWText) {
+        console.log('[SW] New version detected, updating...');
+        // This will trigger the install event for the new service worker
+        self.registration.update();
+      }
+    }
+  } catch (error) {
+    console.log('[SW] Update check failed:', error);
+  }
+}
+
+// Periodic update checks
+setInterval(checkForUpdates, UPDATE_CHECK_INTERVAL);
 
 // Background sync for offline form submissions
 self.addEventListener('sync', event => {
@@ -258,71 +217,85 @@ self.addEventListener('sync', event => {
   }
 });
 
-// Handle offline form submissions stored in localStorage
 async function submitSavedReports() {
-  console.log('[SW] Attempting to sync saved reports');
+  console.log('[SW] Background sync: submitting saved reports');
   
   try {
-    // Get saved reports from main thread
     const clients = await self.clients.matchAll();
     if (clients.length > 0) {
       clients[0].postMessage({
-        type: 'REQUEST_OFFLINE_REPORTS'
+        type: 'BACKGROUND_SYNC',
+        action: 'SUBMIT_REPORTS'
       });
     }
   } catch (error) {
-    console.log('[SW] Error syncing saved reports:', error);
+    console.log('[SW] Background sync error:', error);
   }
 }
 
-// Message handling for communication with main app
+// Message handling for client communication
 self.addEventListener('message', event => {
+  console.log('[SW] Received message:', event.data);
+  
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
   
-  if (event.data && event.data.type === 'SYNC_REPORTS') {
-    // Handle sync request from main thread
-    const reports = event.data.reports;
-    console.log('[SW] Received reports to sync:', Object.keys(reports).length);
-    // Process reports sync...
+  if (event.data && event.data.type === 'CHECK_UPDATE') {
+    checkForUpdates();
   }
   
-  if (event.data && event.data.type === 'FORCE_UPDATE') {
-    // Force update the service worker
-    self.skipWaiting();
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({
+      type: 'VERSION_INFO',
+      version: CACHE_NAME,
+      updateAvailable: false
+    });
   }
 });
 
-// Enhanced push notification handling (for future use)
+// Notify clients of updates
+async function notifyClientOfUpdate() {
+  const clients = await self.clients.matchAll();
+  clients.forEach(client => {
+    client.postMessage({
+      type: 'CONTENT_UPDATED',
+      message: 'New content available! Refresh to see the latest version.'
+    });
+  });
+}
+
+// Enhanced push notification handling
 self.addEventListener('push', event => {
   if (event.data) {
     const data = event.data.json();
     const options = {
-      body: data.body,
+      body: data.body || 'You have a new notification',
       icon: 'https://storage.googleapis.com/smt-misc/SMT-logo.png',
       badge: 'https://storage.googleapis.com/smt-misc/SMT-logo.png',
       vibrate: [100, 50, 100],
       data: {
         dateOfArrival: Date.now(),
-        primaryKey: data.primaryKey || '1'
+        primaryKey: data.primaryKey || '1',
+        url: data.url || '/'
       },
       actions: [
         {
-          action: 'explore',
+          action: 'open',
           title: 'Abrir App',
           icon: 'https://storage.googleapis.com/smt-misc/SMT-logo.png'
         },
         {
           action: 'close',
-          title: 'Cerrar',
-          icon: 'https://storage.googleapis.com/smt-misc/SMT-logo.png'
+          title: 'Cerrar'
         }
-      ]
+      ],
+      requireInteraction: true,
+      tag: 'smt-notification'
     };
     
     event.waitUntil(
-      self.registration.showNotification('SMT SecApp', options)
+      self.registration.showNotification(data.title || 'SMT SecApp', options)
     );
   }
 });
@@ -331,194 +304,31 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   
-  if (event.action === 'explore') {
-    // Open the app
+  if (event.action === 'open' || !event.action) {
+    const urlToOpen = event.notification.data?.url || '/';
+    
     event.waitUntil(
-      clients.openWindow('/')
+      clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true
+      }).then(clientList => {
+        // Try to focus existing window
+        for (const client of clientList) {
+          if (client.url === urlToOpen && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        
+        // Open new window
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
     );
   }
 });
 
-// Create a comprehensive fallback offline page if the cached one isn't available
-function createFallbackOfflinePage() {
-  return `
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sin Conexión - SMT SecApp</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #1a202c;
-            color: #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            background-color: #2d3748;
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-        }
-        .icon {
-            width: 60px;
-            height: 60px;
-            background-color: #f59e0b;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 24px;
-        }
-        h1 {
-            color: #f59e0b;
-            margin-bottom: 20px;
-        }
-        .status {
-            background-color: #065f46;
-            color: #10b981;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 14px;
-        }
-        .button {
-            background-color: #3b82f6;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            margin: 10px;
-            width: calc(100% - 20px);
-            font-size: 16px;
-        }
-        .button:hover {
-            background-color: #2563eb;
-        }
-        .logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            border-radius: 50%;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%232563eb"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="20" font-family="Arial">SMT</text></svg>') center/cover;
-        }
-        .offline-features {
-            background-color: #374151;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            text-align: left;
-            font-size: 14px;
-        }
-        .offline-features h3 {
-            margin-top: 0;
-            color: #60a5fa;
-        }
-        .offline-features ul {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        .offline-features li {
-            margin: 5px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="logo"></div>
-        <h1>📱 SMT SecApp</h1>
-        <div class="icon">📴</div>
-        <h2>Sin Conexión</h2>
-        <p>No tienes conexión a internet. La aplicación funciona offline pero no se puede acceder al formulario en este momento.</p>
-        
-        <div class="status">
-            ❌ Formulario no disponible offline<br>
-            🔄 Verifica tu conexión para acceder
-        </div>
-        
-        <div class="offline-features">
-            <h3>🚀 Para usar offline:</h3>
-            <ul>
-                <li>📱 Instala la aplicación en tu dispositivo</li>
-                <li>🔄 Conecta a internet una vez para cargar el formulario</li>
-                <li>📝 Luego podrás crear reportes sin conexión</li>
-                <li>💾 Los reportes se guardarán automáticamente</li>
-            </ul>
-        </div>
-        
-        <button class="button" onclick="location.reload()">🔄 Verificar Conexión</button>
-        
-        <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">
-            Estado: <span id="status">Verificando...</span><br>
-            <span id="last-update">Última actualización: ${new Date().toLocaleTimeString()}</span>
-        </p>
-    </div>
-    
-    <script>
-        function updateStatus() {
-            const status = document.getElementById('status');
-            const lastUpdate = document.getElementById('last-update');
-            
-            if (navigator.onLine) {
-                status.textContent = '🟢 En línea';
-                status.style.color = '#10b981';
-                // Auto-redirect when connection is restored
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 2000);
-            } else {
-                status.textContent = '🔴 Sin conexión';
-                status.style.color = '#f59e0b';
-            }
-            
-            lastUpdate.textContent = 'Última actualización: ' + new Date().toLocaleTimeString();
-        }
-
-        // Listen for connection changes
-        window.addEventListener('online', updateStatus);
-        window.addEventListener('offline', updateStatus);
-        
-        // Initial check
-        updateStatus();
-        
-        // Check connection every 5 seconds
-        setInterval(updateStatus, 5000);
-        
-        // iOS specific handling
-        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-            // Add iOS-specific styling or behavior
-            document.body.style.webkitUserSelect = 'none';
-            document.body.style.webkitTouchCallout = 'none';
-        }
-        
-        // Service worker communication
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.addEventListener('message', event => {
-                if (event.data.type === 'CONNECTIVITY_CHANGE') {
-                    updateStatus();
-                }
-            });
-        }
-    </script>
-</body>
-</html>
-  `;
-}
-
-// Periodic cache cleanup and optimization
+// Periodic cache cleanup
 self.addEventListener('periodicsync', event => {
   if (event.tag === 'cache-cleanup') {
     event.waitUntil(performCacheCleanup());
@@ -532,7 +342,6 @@ async function performCacheCleanup() {
     const cache = await caches.open(CACHE_NAME);
     const requests = await cache.keys();
     
-    // Remove old or unused cache entries
     const cleanupPromises = requests.map(async (request) => {
       const response = await cache.match(request);
       if (response) {
@@ -557,3 +366,37 @@ async function performCacheCleanup() {
     console.error('[SW] Cache cleanup failed:', error);
   }
 }
+
+// Force update function for critical updates
+self.addEventListener('fetch', event => {
+  // Check for force update flag in requests
+  if (event.request.url.includes('?force-update=true')) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        // Clear all caches and force reload
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            caches.delete(cacheName);
+          });
+        });
+        
+        return response;
+      })
+    );
+  }
+});
+
+// Version tracking
+const VERSION_INFO = {
+  version: CACHE_NAME,
+  buildDate: new Date().toISOString(),
+  features: [
+    'Auto-update support',
+    'Background sync',
+    'Push notifications',
+    'Improved caching',
+    'Better offline support'
+  ]
+};
+
+console.log('[SW] Service Worker v6 loaded with features:', VERSION_INFO.features);

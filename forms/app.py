@@ -665,6 +665,115 @@ def manifest():
         "prefer_related_applications": False
     })
 
+@app.route('/api/my_reports', methods=['GET'])
+@jwt_required()
+def get_my_reports():
+    """Get user's submitted reports from the last month"""
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get reports from the last month for this user
+        cur.execute("""
+            SELECT r.*, 
+                   ti.nombre as tipo_incidencia_nombre,
+                   tc.nombre as tipo_cliente_nombre,
+                   li.nombre as lugar_incidente_nombre,
+                   p.nombre as propiedad_nombre,
+                   s.nombre as supervisor_nombre
+            FROM reportes_incidentes r
+            LEFT JOIN tipo_incidencia ti ON r.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_cliente tc ON r.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN lugar_incidente li ON r.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN propiedades p ON r.id_propiedad = p.id_propiedad
+            LEFT JOIN supervisor s ON r.id_supervisor = s.id_supervisor
+            WHERE r.user_email = %s 
+            AND r.creado_en >= CURRENT_DATE - INTERVAL '30 days'
+            ORDER BY r.creado_en DESC
+            LIMIT 50
+        """, (user_email,))
+        
+        reports = cur.fetchall()
+        cur.close()
+        
+        # Convert to list of dictionaries
+        reports_list = []
+        for report in reports:
+            report_dict = dict(report)
+            # Convert datetime objects to strings for JSON serialization
+            if report_dict.get('creado_en'):
+                report_dict['creado_en'] = report_dict['creado_en'].isoformat()
+            if report_dict.get('fecha_incidente'):
+                report_dict['fecha_incidente'] = report_dict['fecha_incidente'].isoformat()
+            if report_dict.get('hora_incidente'):
+                report_dict['hora_incidente'] = str(report_dict['hora_incidente'])
+            reports_list.append(report_dict)
+        
+        app_logger.info(f"Retrieved {len(reports_list)} reports for user {user_email}")
+        return jsonify(reports_list)
+        
+    except Exception as e:
+        app_logger.error(f"Error retrieving reports for {user_email}: {e}", exc_info=True)
+        return jsonify({'error': 'Error retrieving reports'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route('/api/my_reports/<int:report_id>', methods=['GET'])
+@jwt_required()
+def get_my_report_details(report_id):
+    """Get detailed information for a specific report (only if it belongs to the user)"""
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get specific report with all details, ensuring it belongs to the user
+        cur.execute("""
+            SELECT r.*, 
+                   ti.nombre as tipo_incidencia_nombre,
+                   tc.nombre as tipo_cliente_nombre,
+                   li.nombre as lugar_incidente_nombre,
+                   p.nombre as propiedad_nombre,
+                   s.nombre as supervisor_nombre
+            FROM reportes_incidentes r
+            LEFT JOIN tipo_incidencia ti ON r.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_cliente tc ON r.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN lugar_incidente li ON r.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN propiedades p ON r.id_propiedad = p.id_propiedad
+            LEFT JOIN supervisor s ON r.id_supervisor = s.id_supervisor
+            WHERE r.id_reporte_incidente = %s AND r.user_email = %s
+        """, (report_id, user_email))
+        
+        report = cur.fetchone()
+        cur.close()
+        
+        if not report:
+            app_logger.warning(f"Report {report_id} not found or doesn't belong to user {user_email}")
+            return jsonify({'error': 'Report not found'}), 404
+        
+        # Convert to dictionary and handle datetime serialization
+        report_dict = dict(report)
+        if report_dict.get('creado_en'):
+            report_dict['creado_en'] = report_dict['creado_en'].isoformat()
+        if report_dict.get('fecha_incidente'):
+            report_dict['fecha_incidente'] = report_dict['fecha_incidente'].isoformat()
+        if report_dict.get('hora_incidente'):
+            report_dict['hora_incidente'] = str(report_dict['hora_incidente'])
+        
+        app_logger.info(f"Retrieved detailed report {report_id} for user {user_email}")
+        return jsonify(report_dict)
+        
+    except Exception as e:
+        app_logger.error(f"Error retrieving report {report_id} for {user_email}: {e}", exc_info=True)
+        return jsonify({'error': 'Error retrieving report details'}), 500
+    finally:
+        if conn:
+            conn.close()
+
 # Add error handler for when app is accessed offline
 @app.errorhandler(503)
 def service_unavailable(error):
