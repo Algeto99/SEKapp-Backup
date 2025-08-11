@@ -258,6 +258,29 @@
             box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
         }
 
+        /* Dark mode for select dropdowns */
+        body.dark-mode select {
+            background-color: #374151 !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode select:focus {
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+        }
+
+        body.dark-mode select:disabled {
+            background-color: #2d3748 !important;
+            color: #718096 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        body.dark-mode select option {
+            background-color: #374151 !important;
+            color: #e2e8f0 !important;
+        }
+
         /* Dark mode for checkboxes */
         body.dark-mode input[type="checkbox"] {
             background-color: #374151;
@@ -450,15 +473,18 @@
             <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 w-full lg:w-auto">
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <button id="print-selected-button" class="base-button-style btn-secondary-professional action-button" disabled>
-                        Imprimir
+                        🖨️ Imprimir
                     </button>
                     <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button" disabled>
-                        PDF
+                        📄 PDF
+                    </button>
+                    <button id="export-excel-button" class="base-button-style btn-secondary-professional action-button" disabled>
+                        📊 Excel
                     </button>
                 </div>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <button id="email-selected-button" class="base-button-style btn-primary-professional action-button" disabled>
-                        Email
+                        📧 Email
                     </button>
                     <button id="share-button" class="base-button-style btn-secondary-professional action-button" disabled>
                         📱 Compartir
@@ -467,19 +493,23 @@
             </div>
         </div>
 
-        <!-- Replace the search controls section in your HTML with this: -->
+        <!-- Updated search controls section -->
         <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
             <div class="flex-grow w-full">
-                <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por ID de Reporte:</label>
-                <input type="text" id="reportIdSearch" placeholder="Ej: 123, 456" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Propiedad:</label>
+                <select id="propertySelect" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
+                    <option value="">Seleccionar propiedad...</option>
+                </select>
+            </div>
+            <div class="flex-grow w-full">
+                <label for="locationSelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Lugar del Incidente:</label>
+                <select id="locationSelect" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white" disabled>
+                    <option value="">Primero seleccione una propiedad...</option>
+                </select>
             </div>
             <div class="flex-grow w-full">
                 <label for="submittedBySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Nombre de Quién lo Envió:</label>
                 <input type="text" id="submittedBySearch" placeholder="Ej: Juan Pérez" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
-            </div>
-            <div class="flex-grow w-full">
-                <label for="propertySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Propiedad:</label>
-                <input type="text" id="propertySearch" placeholder="Ej: Multiplaza BOG" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             </div>
             <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full">
                 <div class="w-full sm:w-1/2">
@@ -638,6 +668,7 @@
             const isDisabled = checkedCheckboxes.length === 0;
             document.getElementById('print-selected-button').disabled = isDisabled;
             document.getElementById('save-pdf-button').disabled = isDisabled;
+            document.getElementById('export-excel-button').disabled = isDisabled;
             document.getElementById('email-selected-button').disabled = isDisabled;
             document.getElementById('share-button').disabled = isDisabled;
         }
@@ -806,35 +837,244 @@
             }
         }
 
-        // --- Search and Filter Functions ---
-        // Replace the applyFilters function in your JavaScript with this updated version:
+        // Load properties from database
+        async function loadProperties() {
+            try {
+                const response = await fetch('/api/properties', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const propertySelect = document.getElementById('propertySelect');
+                
+                // Clear existing options except the first one
+                propertySelect.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+                
+                // Add properties to dropdown
+                data.properties.forEach(property => {
+                    const option = document.createElement('option');
+                    option.value = property.id;
+                    option.textContent = property.name;
+                    propertySelect.appendChild(option);
+                });
+                
+                console.log(`Loaded ${data.properties.length} properties`);
+                
+            } catch (error) {
+                console.error('Error loading properties:', error);
+                showFlashMessage('Error al cargar las propiedades.', 'error');
+            }
+        }
 
-    function applyFilters() {
-        const filters = {
-            report_id: document.getElementById('reportIdSearch').value,
-            submitted_by: document.getElementById('submittedBySearch').value,
-            property: document.getElementById('propertySearch').value,  // CHANGED: from 'location' to 'property'
-            start_date: document.getElementById('startDateFilter').value,
-            end_date: document.getElementById('endDateFilter').value
-        };
+        // Load locations based on selected property
+        async function loadLocations(propertyId = null) {
+            try {
+                const url = propertyId ? `/api/locations?property_id=${propertyId}` : '/api/locations';
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const locationSelect = document.getElementById('locationSelect');
+                
+                // Clear existing options
+                locationSelect.innerHTML = '';
+                
+                if (propertyId) {
+                    locationSelect.disabled = false;
+                    locationSelect.innerHTML = '<option value="">Seleccionar lugar del incidente...</option>';
+                    
+                    // Add locations to dropdown
+                    data.locations.forEach(location => {
+                        const option = document.createElement('option');
+                        option.value = location.id;
+                        option.textContent = location.name;
+                        locationSelect.appendChild(option);
+                    });
+                    
+                    if (data.locations.length === 0) {
+                        locationSelect.innerHTML = '<option value="">No hay lugares disponibles para esta propiedad</option>';
+                    }
+                } else {
+                    locationSelect.disabled = true;
+                    locationSelect.innerHTML = '<option value="">Primero seleccione una propiedad...</option>';
+                }
+                
+                console.log(`Loaded ${data.locations.length} locations for property ${propertyId}`);
+                
+            } catch (error) {
+                console.error('Error loading locations:', error);
+                showFlashMessage('Error al cargar los lugares.', 'error');
+            }
+        }
 
-        offset = 0;
-        totalReports = 0;
+        // Handle property selection change
+        function handlePropertyChange() {
+            const propertySelect = document.getElementById('propertySelect');
+            const selectedPropertyId = propertySelect.value;
+            
+            if (selectedPropertyId) {
+                loadLocations(selectedPropertyId);
+            } else {
+                loadLocations(); // This will disable the location dropdown
+            }
+        }
 
-        async function fetchFilteredReports() {
-            const reportsContainer = document.getElementById('reports-container');
-            reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
+        // Updated applyFilters function
+        function applyFilters() {
+            const filters = {
+                property_id: document.getElementById('propertySelect').value,
+                location_id: document.getElementById('locationSelect').value,
+                submitted_by: document.getElementById('submittedBySearch').value,
+                start_date: document.getElementById('startDateFilter').value,
+                end_date: document.getElementById('endDateFilter').value
+            };
 
-            const queryParams = new URLSearchParams({ offset: offset, limit: limit });
-            for (const key in filters) {
-                if (filters[key]) {
-                    queryParams.append(key, filters[key]);
+            offset = 0;
+            totalReports = 0;
+
+            async function fetchFilteredReports() {
+                const reportsContainer = document.getElementById('reports-container');
+                reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
+
+                const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+                for (const key in filters) {
+                    if (filters[key]) {
+                        queryParams.append(key, filters[key]);
+                    }
+                }
+
+                try {
+                    const response = await fetch(`/api/reports?${queryParams.toString()}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/logout';
+                            return;
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    reportsContainer.innerHTML = '';
+                    if (data.reports.length === 0) {
+                        reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
+                    } else {
+                        data.reports.forEach(form => {
+                            const reportBlock = document.createElement('div');
+                            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+                            reportBlock.setAttribute('data-report-id', form.id);
+                            reportBlock.innerHTML = `
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                                    </div>
+                                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                                </div>
+
+                                <div class="text-gray-700 mb-4">
+                                    <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
+                                    <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
+                                    <p><strong>Propiedad:</strong> ${form.data['Propiedad'] || 'No especificado'}</p>
+                                    <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
+                                </div>
+                                
+                                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                                    Ver Detalles
+                                </button>
+
+                                <div class="report-content mt-4 border-t border-gray-200 pt-4">
+                                    <div id="details-${form.id}" class="text-gray-700">
+                                        Cargando detalles...
+                                    </div>
+                                </div>
+                            `;
+                            reportsContainer.appendChild(reportBlock);
+                        });
+                    }
+                    offset = data.reports.length;
+                    totalReports = data.total_count;
+                    checkLoadMoreButtonVisibility();
+                    attachEventListenersToNewReports();
+                    updateActionButtonsState();
+
+                } catch (error) {
+                    console.error('Error fetching filtered reports:', error);
+                    reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
+                    showFlashMessage('Error al cargar reportes filtrados.', 'error');
                 }
             }
+            fetchFilteredReports();
+        }
 
+        // --- Action Button Functions ---
+        async function printSelectedReports() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            if (checkedCheckboxes.length === 0) {
+                showFlashMessage('Por favor seleccione al menos un reporte para imprimir.', 'error');
+                return;
+            }
+
+            // Mark selected reports for printing
+            document.querySelectorAll('.report-block').forEach(block => {
+                const checkbox = block.querySelector('.report-checkbox');
+                if (checkbox.checked) {
+                    block.classList.add('print-me');
+                    // Expand the report content for printing
+                    const reportContent = block.querySelector('.report-content');
+                    reportContent.classList.add('expanded');
+                } else {
+                    block.classList.remove('print-me');
+                }
+            });
+
+            // Trigger print
+            window.print();
+
+            // Clean up after printing
+            setTimeout(() => {
+                document.querySelectorAll('.report-block').forEach(block => {
+                    block.classList.remove('print-me');
+                });
+            }, 1000);
+        }
+
+        async function generatePDFForSelected() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            if (checkedCheckboxes.length === 0) {
+                showFlashMessage('Por favor seleccione al menos un reporte para generar PDF.', 'error');
+                return;
+            }
+
+            const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
+            
             try {
-                const response = await fetch(`/api/reports?${queryParams.toString()}`, {
-                    headers: { 'Accept': 'application/json' }
+                const response = await fetch('/api/generate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/pdf'
+                    },
+                    body: JSON.stringify({ report_ids: reportIds })
                 });
 
                 if (!response.ok) {
@@ -845,101 +1085,260 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
-                reportsContainer.innerHTML = '';
-                if (data.reports.length === 0) {
-                    reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
-                } else {
-                    data.reports.forEach(form => {
-                        const reportBlock = document.createElement('div');
-                        reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                        reportBlock.setAttribute('data-report-id', form.id);
-                        reportBlock.innerHTML = `
-                            <div class="flex justify-between items-start mb-4">
-                                <div>
-                                    <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                    <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                                </div>
-                                <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                            </div>
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Get filename from response header or create default
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                a.download = `reportes_incidencias_${timestamp}.pdf`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
 
-                            <div class="text-gray-700 mb-4">
-                                <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                                <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                                <p><strong>Propiedad:</strong> ${form.data['Propiedad'] || 'No especificado'}</p>
-                                <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                            </div>
-                            
-                            <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                                Ver Detalles
-                            </button>
-
-                            <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                                <div id="details-${form.id}" class="text-gray-700">
-                                    Cargando detalles...
-                                </div>
-                            </div>
-                        `;
-                        reportsContainer.appendChild(reportBlock);
-                    });
-                }
-                offset = data.reports.length;
-                totalReports = data.total_count;
-                checkLoadMoreButtonVisibility();
-                attachEventListenersToNewReports();
-                updateActionButtonsState();
+                showFlashMessage('PDF generado y descargado exitosamente!', 'success');
 
             } catch (error) {
-                console.error('Error fetching filtered reports:', error);
-                reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
-                showFlashMessage('Error al cargar reportes filtrados.', 'error');
+                console.error('Error generating PDF:', error);
+                showFlashMessage('Error al generar el PDF.', 'error');
             }
         }
-        fetchFilteredReports();
-    }
 
-    // Also update the DOMContentLoaded section to reference the new propertySearch element:
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeTheme();
-        
-        if (themeToggle) {
-            themeToggle.addEventListener('click', toggleTheme);
+        async function exportExcelForSelected() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            if (checkedCheckboxes.length === 0) {
+                showFlashMessage('Por favor seleccione al menos un reporte para exportar a Excel.', 'error');
+                return;
+            }
+
+            const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
+            
+            try {
+                const response = await fetch('/api/export-excel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    },
+                    body: JSON.stringify({ report_ids: reportIds })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Get filename from response header or create default
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                a.download = `reportes_incidencias_${timestamp}.xlsx`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showFlashMessage('Archivo Excel generado y descargado exitosamente!', 'success');
+
+            } catch (error) {
+                console.error('Error generating Excel file:', error);
+                showFlashMessage(`Error al generar el archivo Excel: ${error.message}`, 'error');
+            }
         }
 
-        const loadMoreButton = document.getElementById('load-more-button');
-        if (loadMoreButton) {
-            loadMoreButton.addEventListener('click', loadMoreReports);
+        async function emailSelectedReports() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            if (checkedCheckboxes.length === 0) {
+                showFlashMessage('Por favor seleccione al menos un reporte para enviar por email.', 'error');
+                return;
+            }
+
+            // Show email modal
+            document.getElementById('email-modal').classList.remove('hidden');
         }
-        checkLoadMoreButtonVisibility();
-        attachEventListenersToNewReports();
-        updateActionButtonsState();
 
-        const reportIdSearch = document.getElementById('reportIdSearch');
-        const submittedBySearch = document.getElementById('submittedBySearch');
-        const propertySearch = document.getElementById('propertySearch');  // CHANGED: from 'locationSearch' to 'propertySearch'
-        const startDateFilter = document.getElementById('startDateFilter');
-        const endDateFilter = document.getElementById('endDateFilter');
-        const searchButton = document.getElementById('search-button');
-        const clearSearchButton = document.getElementById('clear-search-button');
+        async function shareSelectedReports() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            if (checkedCheckboxes.length === 0) {
+                showFlashMessage('Por favor seleccione al menos un reporte para compartir.', 'error');
+                return;
+            }
 
-        searchButton.addEventListener('click', applyFilters);
-        clearSearchButton.addEventListener('click', () => {
-            reportIdSearch.value = '';
-            submittedBySearch.value = '';
-            propertySearch.value = '';  // CHANGED: from 'locationSearch' to 'propertySearch'
-            startDateFilter.value = '';
-            endDateFilter.value = '';
-            applyFilters();
-        });
+            if (navigator.share) {
+                const reportIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.dataset.reportId);
+                try {
+                    await navigator.share({
+                        title: 'Reportes de Incidencias - SMT SecApp',
+                        text: `${reportIds.length} reportes seleccionados: ${reportIds.join(', ')}`,
+                        url: window.location.href
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                }
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                showFlashMessage('Función de compartir no disponible en este navegador.', 'error');
+            }
+        }
 
-        document.querySelectorAll('#reportIdSearch, #submittedBySearch, #propertySearch, #startDateFilter, #endDateFilter').forEach(input => {  // CHANGED: '#locationSearch' to '#propertySearch'
-            input.addEventListener('keypress', (event) => {
-                if (event.key === 'Enter') {
+        // --- Email Modal Functions ---
+        async function sendEmailWithReports(recipientEmail, reportIds) {
+            try {
+                const response = await fetch('/api/email-reports', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        report_ids: reportIds,
+                        recipient_email: recipientEmail
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFlashMessage(data.message, 'success');
+                    document.getElementById('email-modal').classList.add('hidden');
+                    document.getElementById('recipient-email').value = '';
+                } else {
+                    showFlashMessage(data.message || 'Error al enviar el email.', 'error');
+                }
+            } catch (error) {
+                console.error('Error sending email:', error);
+                showFlashMessage('Error al enviar el email.', 'error');
+            }
+        }
+
+        // --- Select All Functionality ---
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('select-all-checkbox');
+            const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+            
+            reportCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+            
+            updateActionButtonsState();
+        }
+
+        // --- DOMContentLoaded ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTheme();
+            
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+
+            // Load initial data
+            loadProperties();
+
+            const loadMoreButton = document.getElementById('load-more-button');
+            if (loadMoreButton) {
+                loadMoreButton.addEventListener('click', loadMoreReports);
+            }
+            checkLoadMoreButtonVisibility();
+            attachEventListenersToNewReports();
+            updateActionButtonsState();
+
+            // Get form elements
+            const propertySelect = document.getElementById('propertySelect');
+            const locationSelect = document.getElementById('locationSelect');
+            const submittedBySearch = document.getElementById('submittedBySearch');
+            const startDateFilter = document.getElementById('startDateFilter');
+            const endDateFilter = document.getElementById('endDateFilter');
+            const searchButton = document.getElementById('search-button');
+            const clearSearchButton = document.getElementById('clear-search-button');
+
+            // Add event listeners
+            propertySelect.addEventListener('change', handlePropertyChange);
+            searchButton.addEventListener('click', applyFilters);
+            
+            clearSearchButton.addEventListener('click', () => {
+                propertySelect.value = '';
+                locationSelect.value = '';
+                locationSelect.disabled = true;
+                locationSelect.innerHTML = '<option value="">Primero seleccione una propiedad...</option>';
+                submittedBySearch.value = '';
+                startDateFilter.value = '';
+                endDateFilter.value = '';
+                applyFilters();
+            });
+
+            // Enter key support for text inputs and date inputs
+            [submittedBySearch, startDateFilter, endDateFilter].forEach(input => {
+                input.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        applyFilters();
+                    }
+                });
+            });
+
+            // Auto-search when dropdowns change
+            propertySelect.addEventListener('change', () => {
+                if (propertySelect.value) {
+                    // Small delay to allow location dropdown to populate
+                    setTimeout(() => {
+                        applyFilters();
+                    }, 100);
+                }
+            });
+
+            locationSelect.addEventListener('change', () => {
+                if (locationSelect.value) {
                     applyFilters();
                 }
             });
+
+            // Action button event listeners
+            document.getElementById('print-selected-button').addEventListener('click', printSelectedReports);
+            document.getElementById('save-pdf-button').addEventListener('click', generatePDFForSelected);
+            document.getElementById('export-excel-button').addEventListener('click', exportExcelForSelected);
+            document.getElementById('email-selected-button').addEventListener('click', emailSelectedReports);
+            document.getElementById('share-button').addEventListener('click', shareSelectedReports);
+
+            // Select all functionality
+            document.getElementById('select-all-checkbox').addEventListener('change', toggleSelectAll);
+
+            // Email modal event listeners
+            document.getElementById('cancel-email-button').addEventListener('click', () => {
+                document.getElementById('email-modal').classList.add('hidden');
+                document.getElementById('recipient-email').value = '';
+            });
+
+            document.getElementById('email-form').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const recipientEmail = document.getElementById('recipient-email').value;
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
+                
+                await sendEmailWithReports(recipientEmail, reportIds);
+            });
+
+            // Close modal when clicking outside
+            document.getElementById('email-modal').addEventListener('click', (event) => {
+                if (event.target.id === 'email-modal') {
+                    document.getElementById('email-modal').classList.add('hidden');
+                    document.getElementById('recipient-email').value = '';
+                }
+            });
         });
-    });
     </script>
 </body>
 </html>

@@ -202,28 +202,35 @@ def fetch_reports(offset, limit, filters=None):
         query_params = []
         
         if filters:
-            # Report ID filter
-            if filters.get('report_id'):
+            # Property filter (by ID or name)
+            if filters.get('property_id'):
                 try:
-                    # Handle multiple report IDs separated by commas
-                    report_ids = [int(id.strip()) for id in filters['report_id'].split(',') if id.strip().isdigit()]
-                    if report_ids:
-                        placeholders = ','.join(['%s'] * len(report_ids))
-                        where_conditions.append(f"ri.id_reporte_incidente IN ({placeholders})")
-                        query_params.extend(report_ids)
+                    property_id = int(filters['property_id'])
+                    where_conditions.append("ri.id_propiedad = %s")
+                    query_params.append(property_id)
                 except (ValueError, AttributeError):
                     pass
+            elif filters.get('property'):
+                where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
+                query_params.append(f"%{filters['property']}%")
+            
+            # Location filter (by ID or name)
+            if filters.get('location_id'):
+                try:
+                    location_id = int(filters['location_id'])
+                    where_conditions.append("ri.id_lugar_incidente = %s")
+                    query_params.append(location_id)
+                except (ValueError, AttributeError):
+                    pass
+            elif filters.get('location'):
+                where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
+                query_params.append(f"%{filters['location']}%")
             
             # Submitted by filter (searches both name and email)
             if filters.get('submitted_by'):
                 where_conditions.append("(LOWER(u.name) LIKE LOWER(%s) OR LOWER(ri.user_email) LIKE LOWER(%s))")
                 search_term = f"%{filters['submitted_by']}%"
                 query_params.extend([search_term, search_term])
-            
-            # Property filter (changed from location to property)
-            if filters.get('property'):
-                where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
-                query_params.append(f"%{filters['property']}%")
             
             # Date range filters
             if filters.get('start_date'):
@@ -291,7 +298,7 @@ def fetch_reports(offset, limit, filters=None):
                     ri.hora_incidente,
                     tc.nombre AS id_tipo_cliente,
                     li.nombre AS id_lugar_incidente,
-                    p.nombre AS propiedad_nombre,  -- Include propiedad
+                    p.nombre AS propiedad_nombre,
                     ri.descripcion_zona_comun,
                     u.name AS user_name
                 FROM
@@ -307,7 +314,7 @@ def fetch_reports(offset, limit, filters=None):
                 LEFT JOIN
                     users u ON ri.user_email = u.email
                 LEFT JOIN
-                    propiedades p ON ri.id_propiedad = p.id_propiedad  -- Include JOIN with propiedades
+                    propiedades p ON ri.id_propiedad = p.id_propiedad
                 {where_clause}
                 ORDER BY
                     ri.creado_en DESC NULLS LAST,
@@ -424,7 +431,7 @@ def fetch_reports_by_ids(report_ids):
                 ri.hora_incidente,
                 tc.nombre AS id_tipo_cliente,
                 li.nombre AS id_lugar_incidente,
-                p.nombre AS propiedad_nombre,  -- ADD THIS LINE
+                p.nombre AS propiedad_nombre,
                 ri.descripcion_zona_comun,
                 u.name AS user_name -- Get the user's full name
             FROM
@@ -440,7 +447,7 @@ def fetch_reports_by_ids(report_ids):
             LEFT JOIN
                 users u ON ri.user_email = u.email -- Join with users table to get full name
             LEFT JOIN
-                propiedades p ON ri.id_propiedad = p.id_propiedad  -- ADD THIS JOIN
+                propiedades p ON ri.id_propiedad = p.id_propiedad
             WHERE
                 ri.id_reporte_incidente IN ({placeholders})
             ORDER BY
@@ -471,7 +478,7 @@ def fetch_reports_by_ids(report_ids):
                     "Título de Incidencia": row_dict.get("titulo_incidencia"),
                     "Tipo de Cliente": row_dict.get("id_tipo_cliente"),
                     "Lugar del Incidente": row_dict.get("id_lugar_incidente"),
-                    "Propiedad": row_dict.get("propiedad_nombre") or "No especificado",  # ADD THIS LINE
+                    "Propiedad": row_dict.get("propiedad_nombre") or "No especificado",
                     "Zona Común": row_dict.get("descripcion_zona_comun"),
                     "Fecha del Incidente": str(row_dict.get("fecha_incidente")),
                     "Hora del Incidente": str(row_dict.get("hora_incidente")),
@@ -648,6 +655,113 @@ def index():
                          forms_service_url=app.config.get('FORMS_SERVICE_URL'),
                          dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL'))
 
+@app.route('/api/properties', methods=['GET'])
+@jwt_required()
+def get_properties():
+    """Get all properties from the database"""
+    conn = None
+    cur = None
+    properties = []
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_properties.")
+            return jsonify({"properties": []}), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        query = """
+            SELECT DISTINCT id_propiedad, nombre 
+            FROM propiedades 
+            WHERE nombre IS NOT NULL 
+            ORDER BY nombre
+        """
+        
+        app_logger.info("Fetching properties from database")
+        cur.execute(query)
+        rows = cur.fetchall()
+        
+        for row in rows:
+            properties.append({
+                "id": row["id_propiedad"],
+                "name": row["nombre"]
+            })
+        
+        app_logger.info(f"Retrieved {len(properties)} properties")
+        return jsonify({"properties": properties}), 200
+        
+    except psycopg2.Error as e:
+        app_logger.error(f"PostgreSQL Error in get_properties: {e}", exc_info=True)
+        return jsonify({"properties": []}), 500
+    except Exception as e:
+        app_logger.error(f"Unexpected error in get_properties: {e}", exc_info=True)
+        return jsonify({"properties": []}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/locations', methods=['GET'])
+@jwt_required()
+def get_locations():
+    """Get locations, optionally filtered by property"""
+    property_id = request.args.get('property_id', type=int)
+    
+    conn = None
+    cur = None
+    locations = []
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_locations.")
+            return jsonify({"locations": []}), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        if property_id:
+            # Get locations for specific property by checking reports
+            query = """
+                SELECT DISTINCT li.id_lugar_incidente, li.nombre 
+                FROM lugar_incidente li
+                INNER JOIN reportes_incidentes ri ON li.id_lugar_incidente = ri.id_lugar_incidente
+                WHERE ri.id_propiedad = %s AND li.nombre IS NOT NULL
+                ORDER BY li.nombre
+            """
+            cur.execute(query, (property_id,))
+        else:
+            # Get all locations
+            query = """
+                SELECT DISTINCT id_lugar_incidente, nombre 
+                FROM lugar_incidente 
+                WHERE nombre IS NOT NULL 
+                ORDER BY nombre
+            """
+            cur.execute(query)
+        
+        rows = cur.fetchall()
+        
+        for row in rows:
+            locations.append({
+                "id": row["id_lugar_incidente"],
+                "name": row["nombre"]
+            })
+        
+        app_logger.info(f"Retrieved {len(locations)} locations for property_id: {property_id}")
+        return jsonify({"locations": locations}), 200
+        
+    except psycopg2.Error as e:
+        app_logger.error(f"PostgreSQL Error in get_locations: {e}", exc_info=True)
+        return jsonify({"locations": []}), 500
+    except Exception as e:
+        app_logger.error(f"Unexpected error in get_locations: {e}", exc_info=True)
+        return jsonify({"locations": []}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 @app.route('/api/reports', methods=['GET'])
 @jwt_required()
 def get_more_reports():
@@ -661,12 +775,22 @@ def get_more_reports():
 
     # Extract filter parameters
     filters = {}
-    if request.args.get('report_id'):
-        filters['report_id'] = request.args.get('report_id')
+    
+    # Property filters (ID takes precedence over name)
+    if request.args.get('property_id'):
+        filters['property_id'] = request.args.get('property_id')
+    elif request.args.get('property'):
+        filters['property'] = request.args.get('property')
+    
+    # Location filters (ID takes precedence over name)
+    if request.args.get('location_id'):
+        filters['location_id'] = request.args.get('location_id')
+    elif request.args.get('location'):
+        filters['location'] = request.args.get('location')
+    
+    # Other filters
     if request.args.get('submitted_by'):
         filters['submitted_by'] = request.args.get('submitted_by')
-    if request.args.get('property'):  # CHANGED: from 'location' to 'property'
-        filters['property'] = request.args.get('property')
     if request.args.get('start_date'):
         filters['start_date'] = request.args.get('start_date')
     if request.args.get('end_date'):
@@ -778,6 +902,146 @@ def email_selected_reports_api():
         app_logger.error(f"Failed to send email: {message}")
         return jsonify({"success": False, "message": f"Error al enviar correo electrónico: {message}"}), 500
 
+
+@app.route('/api/export-excel', methods=['POST'])
+@jwt_required()
+def export_excel():
+    """Export selected reports to Excel format"""
+    user_email = get_jwt_identity()
+    data = request.get_json()
+    report_ids = data.get('report_ids')
+
+    if not report_ids or not isinstance(report_ids, list):
+        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
+
+    app_logger.info(f"User {user_email} requested Excel export for reports {report_ids}")
+
+    try:
+        # Import openpyxl for Excel generation
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            app_logger.error("openpyxl not installed. Please install with: pip install openpyxl")
+            return jsonify({"success": False, "message": "Excel export not available. Missing required dependencies."}), 500
+
+        # Fetch the reports
+        reports_to_export = fetch_reports_by_ids(report_ids)
+
+        if not reports_to_export:
+            app_logger.warning(f"No reports found for the provided IDs during Excel export: {report_ids}")
+            return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
+
+        # Create Excel workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Reportes de Incidencias"
+
+        # Define styles
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        header_fill = PatternFill(start_color="1D4ED8", end_color="1D4ED8", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"), 
+            top=Side(style="thin"),
+            bottom=Side(style="thin")
+        )
+
+        # Define column headers
+        headers = [
+            "ID Reporte", "Título", "Enviado Por", "Fecha Envío", "Título de Incidencia",
+            "Tipo de Cliente", "Lugar del Incidente", "Propiedad", "Zona Común",
+            "Fecha del Incidente", "Hora del Incidente", "Descripción del Incidente",
+            "Valor Aproximado", "Pertenencias Sustraídas", "Nombre de la Persona",
+            "Teléfono", "Número de Identidad", "Número de Local", "Dirección",
+            "Nombre del Supervisor", "URLs de Archivos"
+        ]
+
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+
+        # Write data
+        for row, report in enumerate(reports_to_export, 2):
+            data_row = [
+                report['id'],
+                report['title'],
+                report['submittedBy'],
+                report['dateSubmitted'],
+                report['data'].get('Título de Incidencia', ''),
+                report['data'].get('Tipo de Cliente', ''),
+                report['data'].get('Lugar del Incidente', ''),
+                report['data'].get('Propiedad', ''),
+                report['data'].get('Zona Común', ''),
+                report['data'].get('Fecha del Incidente', ''),
+                report['data'].get('Hora del Incidente', ''),
+                report['data'].get('Descripción del Incidente', ''),
+                report['data'].get('Valor Aproximado', ''),
+                report['data'].get('Pertenencias Sustraídas', ''),
+                report['data'].get('Nombre de la Persona', ''),
+                report['data'].get('Teléfono', ''),
+                report['data'].get('Número de Identidad', ''),
+                report['data'].get('Número de Local', ''),
+                report['data'].get('Dirección', ''),
+                report['data'].get('Nombre del Supervisor', ''),
+                report['data'].get('URLs de Imágenes o PDFs', '')
+            ]
+
+            for col, value in enumerate(data_row, 1):
+                cell = ws.cell(row=row, column=col, value=str(value) if value else '')
+                cell.border = border
+                # Add text wrapping for long content
+                if col in [4, 9, 12, 21]:  # Description columns
+                    cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+        # Auto-adjust column widths
+        for col in range(1, len(headers) + 1):
+            column_letter = get_column_letter(col)
+            max_length = 0
+            
+            # Check header length
+            max_length = max(max_length, len(headers[col-1]))
+            
+            # Check data lengths (sample first 100 rows for performance)
+            for row in range(2, min(102, ws.max_row + 1)):
+                cell_value = ws[f"{column_letter}{row}"].value
+                if cell_value:
+                    max_length = max(max_length, len(str(cell_value)))
+            
+            # Set column width (with limits)
+            adjusted_width = min(max(max_length + 2, 10), 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+
+        # Set row height for header
+        ws.row_dimensions[1].height = 25
+
+        # Create filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"reportes_incidencias_{timestamp}.xlsx"
+
+        # Save to BytesIO
+        excel_buffer = BytesIO()
+        wb.save(excel_buffer)
+        excel_buffer.seek(0)
+
+        app_logger.info(f"Excel file generated successfully for {len(reports_to_export)} reports")
+
+        return send_file(
+            excel_buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+
+    except Exception as e:
+        app_logger.error(f"Error generating Excel file: {e}", exc_info=True)
+        return jsonify({"success": False, "message": f"Error generating Excel file: {str(e)}"}), 500
 
 @app.route('/api/generate-pdf', methods=['POST'])
 @jwt_required()
