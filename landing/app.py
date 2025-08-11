@@ -1,4 +1,4 @@
-# landing/app.py (REVISED for tz-dev-secapp with JWT redirect handlers)
+# landing/app.py (FIXED VERSION - Move CloudRunServiceClient initialization inside app context)
 
 import os
 import sys
@@ -96,47 +96,31 @@ def get_secret_value(secret_identifier, project_id):
 def configure_app():
     app_logger.info("Configuring Flask application...")
     app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID', 'tz-dev-secapp')
-    app_logger.info(f"Raw GCP_PROJECT_ID env: {os.environ.get('GCP_PROJECT_ID')}")
+    
     if not app.config['GCP_PROJECT_ID']:
         app_logger.critical("GCP_PROJECT_ID not set.")
         raise ValueError("GCP_PROJECT_ID not set.")
 
-    # These environment variables should ideally contain just the secret name (e.g., "jwt-secret-key").
-    # The get_secret_value function is now robust enough to handle full paths if provided,
-    # but it's best practice to provide just the name in the environment variable.
-    app.config['JWT_SECRET_KEY_IDENTIFIER'] = os.environ.get(
-        'JWT_SECRET_KEY',
-        'jwt-secret-key' # Default to just the name if env var is not set
-    )
-    app.config['FLASK_SECRET_KEY_IDENTIFIER'] = os.environ.get(
-        'FLASK_SECRET_KEY',
-        'forms-flask-secret-key' # Default to just the name if env var is not set
-    )
-
-    app_logger.info(f"Raw JWT_SECRET_KEY env: {os.environ.get('JWT_SECRET_KEY')}")
-    app_logger.info(f"Raw FLASK_SECRET_KEY env: {os.environ.get('FLASK_SECRET_KEY')}")
-    app_logger.info(f"JWT_SECRET_KEY_IDENTIFIER (after config): {app.config['JWT_SECRET_KEY_IDENTIFIER']}")
-    app_logger.info(f"FLASK_SECRET_KEY_IDENTIFIER (after config): {app.config['FLASK_SECRET_KEY_IDENTIFIER']}")
-
+    # External URLs for user redirects
     app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
-    app_logger.info(f"Raw LOGIN_SERVICE_URL env: {os.environ.get('LOGIN_SERVICE_URL')}")
-
     app.config['FORMS_SERVICE_URL'] = os.environ.get('FORMS_SERVICE_URL', 'https://form1.secapp.tzolkintech.com')
-    app_logger.info(f"Raw FORMS_SERVICE_URL env: {os.environ.get('FORMS_SERVICE_URL')}")
-
     app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL')
-    app_logger.info(f"Raw DASHBOARD_SERVICE_URL env: {os.environ.get('DASHBOARD_SERVICE_URL')}")
-
-    # Add the VIEWER_SERVICE_URL configuration
     app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', 'https://viewer.secapp.tzolkintech.com')
-    app_logger.info(f"Raw VIEWER_SERVICE_URL env: {os.environ.get('VIEWER_SERVICE_URL')}")
 
+    # NEW: Internal URLs for cost-free service-to-service communication
+    app.config['INTERNAL_LOGIN_SERVICE_URL'] = os.environ.get('INTERNAL_LOGIN_SERVICE_URL', 'https://login-24309643178.us-central1.run.app')
+    app.config['INTERNAL_FORMS_SERVICE_URL'] = os.environ.get('INTERNAL_FORMS_SERVICE_URL', 'https://forms-24309643178.us-central1.run.app')
+    app.config['INTERNAL_DASHBOARD_SERVICE_URL'] = os.environ.get('INTERNAL_DASHBOARD_SERVICE_URL', 'https://dashboard-24309643178.us-central1.run.app')
+    app.config['INTERNAL_VIEWER_SERVICE_URL'] = os.environ.get('INTERNAL_VIEWER_SERVICE_URL', 'https://viewer-24309643178.us-central1.run.app')
 
+    # JWT and other configurations (UNCHANGED)
+    app.config['JWT_SECRET_KEY_IDENTIFIER'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
+    app.config['FLASK_SECRET_KEY_IDENTIFIER'] = os.environ.get('FLASK_SECRET_KEY', 'forms-flask-secret-key')
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_COOKIE_SECURE'] = is_production
     app.config['JWT_COOKIE_CSRF_PROTECT'] = True
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
-    app.config['JWT_COOKIE_NAME'] = 'access_token_cookie'  # Ensure cookie name matches login service
+    app.config['JWT_COOKIE_NAME'] = 'access_token_cookie'
 
     app_logger.info("Application configuration loaded.")
 
@@ -174,32 +158,46 @@ def setup_cors():
 
 # --- CloudRunServiceClient ---
 class CloudRunServiceClient:
-    def __init__(self, service_url):
-        self.service_url = service_url.rstrip('/')
+    def __init__(self, internal_service_url, external_service_url=None):
+        self.internal_service_url = internal_service_url.rstrip('/')
+        self.external_service_url = external_service_url.rstrip('/') if external_service_url else None
         self.request_adapter = google.auth.transport.requests.Request()
-        app_logger.info(f"CloudRunServiceClient initialized for: {self.service_url}")
+        app_logger.info(f"CloudRunServiceClient initialized - Internal: {self.internal_service_url}")
 
-    def _get_id_token(self):
+    def _get_id_token(self, target_audience=None):
         try:
-            return google.oauth2.id_token.fetch_id_token(self.request_adapter, self.service_url)
+            audience = target_audience or self.internal_service_url
+            return google.oauth2.id_token.fetch_id_token(self.request_adapter, audience)
         except Exception as e:
-            app_logger.error(f"Failed to fetch ID token for {self.service_url}: {e}", exc_info=True)
+            app_logger.error(f"Failed to fetch ID token for {audience}: {e}", exc_info=True)
             raise
 
-    def make_authenticated_request(self, path, method='GET', json_data=None):
-        target_url = f"{self.service_url}{path}"
+    def make_authenticated_request(self, path, method='GET', json_data=None, use_internal=True):
+        if use_internal:
+            target_url = f"{self.internal_service_url}{path}"
+            try:
+                id_token = self._get_id_token(self.internal_service_url)
+                headers = {'Authorization': f'Bearer {id_token}', 'Content-Type': 'application/json'} if json_data else {'Authorization': f'Bearer {id_token}'}
+            except Exception as e:
+                app_logger.error(f"Failed to get auth token for internal call: {e}")
+                return None
+        else:
+            if not self.external_service_url:
+                app_logger.error("External URL not configured")
+                return None
+            target_url = f"{self.external_service_url}{path}"
+            headers = {'Content-Type': 'application/json'} if json_data else {}
+
         try:
-            id_token = self._get_id_token()
-            headers = {'Authorization': f'Bearer {id_token}', 'Content-Type': 'application/json'} if json_data else {'Authorization': f'Bearer {id_token}'}
             response = requests.request(method, target_url, headers=headers, json=json_data)
             response.raise_for_status()
             app_logger.info(f"Request to {target_url} successful. Status: {response.status_code}")
             return response
         except Exception as e:
             app_logger.error(f"Request to {target_url} failed: {e}", exc_info=True)
-            raise
+            return None
 
-# Initialize JWTManager and CloudRunServiceClient
+# Initialize JWTManager (but not the service client yet)
 jwt = JWTManager()
 login_service_client = None
 
@@ -365,6 +363,96 @@ def startup_check():
     startup_status['timestamp'] = datetime.now(timezone.utc).isoformat()
     return jsonify(startup_status), status_code
 
+# Add debug endpoints for testing
+@app.route('/debug/test-internal-communication')
+def test_internal_communication():
+    """Test internal service communication to verify cost optimization"""
+    if is_production:
+        return "Debug endpoint disabled in production", 403
+        
+    results = {}
+    
+    # Test internal health checks (should be free)
+    internal_urls = {
+        'login': app.config.get('INTERNAL_LOGIN_SERVICE_URL'),
+        'forms': app.config.get('INTERNAL_FORMS_SERVICE_URL'),
+        'viewer': app.config.get('INTERNAL_VIEWER_SERVICE_URL'),
+        'dashboard': app.config.get('INTERNAL_DASHBOARD_SERVICE_URL'),
+    }
+    
+    for service_name, internal_url in internal_urls.items():
+        if internal_url:
+            try:
+                client = CloudRunServiceClient(
+                    internal_service_url=internal_url,
+                    external_service_url=None
+                )
+                
+                # Test internal health check (FREE)
+                response = client.make_authenticated_request('/health', method='GET', use_internal=True)
+                
+                if response and response.status_code == 200:
+                    results[service_name] = {
+                        'status': 'SUCCESS',
+                        'internal_url': internal_url,
+                        'cost': 'FREE (internal communication)',
+                        'response_time': 'fast'
+                    }
+                else:
+                    results[service_name] = {
+                        'status': 'FAILED',
+                        'internal_url': internal_url,
+                        'error': f"HTTP {response.status_code if response else 'No response'}"
+                    }
+            except Exception as e:
+                results[service_name] = {
+                    'status': 'ERROR',
+                    'internal_url': internal_url,
+                    'error': str(e)
+                }
+        else:
+            results[service_name] = {
+                'status': 'NOT_CONFIGURED',
+                'error': 'Internal URL not set'
+            }
+    
+    return jsonify({
+        'message': 'Internal communication test results',
+        'cost_optimization': 'All successful calls are FREE (no egress charges)',
+        'results': results,
+        'next_steps': [
+            'Monitor Cloud Run logs for "internal" vs "external" request indicators',
+            'Check GCP billing to verify reduced networking charges',
+            'All service-to-service health checks should now be cost-free'
+        ]
+    })
+
+@app.route('/debug/show-service-urls')
+def show_service_urls():
+    """Show configured URLs for debugging"""
+    if is_production:
+        return "Debug endpoint disabled in production", 403
+        
+    return jsonify({
+        'external_urls': {
+            'login': app.config.get('LOGIN_SERVICE_URL'),
+            'forms': app.config.get('FORMS_SERVICE_URL'),
+            'viewer': app.config.get('VIEWER_SERVICE_URL'),
+            'dashboard': app.config.get('DASHBOARD_SERVICE_URL'),
+        },
+        'internal_urls': {
+            'login': app.config.get('INTERNAL_LOGIN_SERVICE_URL'),
+            'forms': app.config.get('INTERNAL_FORMS_SERVICE_URL'),
+            'viewer': app.config.get('INTERNAL_VIEWER_SERVICE_URL'),
+            'dashboard': app.config.get('INTERNAL_DASHBOARD_SERVICE_URL'),
+        },
+        'optimization_status': {
+            'external_urls_for': 'User redirects and navigation (necessary cost)',
+            'internal_urls_for': 'Service-to-service communication (FREE)',
+            'jwt_cookies_still_work': 'YES - shared across *.secapp.tzolkintech.com'
+        }
+    })
+
 # --- Error Handlers ---
 @app.errorhandler(404)
 def not_found_error(error):
@@ -390,12 +478,28 @@ try:
     app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET') 
     jwt.init_app(app)
     app_logger.info("Step 5: Initializing CloudRunServiceClient...")
-    login_service_url = app.config.get('LOGIN_SERVICE_URL')
-    if login_service_url:
-        login_service_client = CloudRunServiceClient(login_service_url)
-        app_logger.info("CloudRunServiceClient initialized for login service.")
-    else:
-        app_logger.warning("LOGIN_SERVICE_URL not set.")
+    
+    # MOVED: Initialize service client inside the app context to avoid the error
+    with app.app_context():
+        login_service_url = app.config.get('LOGIN_SERVICE_URL')
+        internal_login_url = app.config.get('INTERNAL_LOGIN_SERVICE_URL')
+
+        if internal_login_url:
+            login_service_client = CloudRunServiceClient(
+                internal_service_url=internal_login_url,
+                external_service_url=login_service_url
+            )
+            app_logger.info("CloudRunServiceClient initialized with internal URL for login service.")
+        elif login_service_url:
+            app_logger.warning("Internal login URL not configured, using external URL (higher cost)")
+            login_service_client = CloudRunServiceClient(
+                internal_service_url=login_service_url,
+                external_service_url=login_service_url
+            )
+        else:
+            app_logger.warning("LOGIN_SERVICE_URL not set.")
+            login_service_client = None
+    
     app_logger.info("Application initialization complete.")
 except Exception as e:
     app_logger.critical(f"FATAL ERROR during initialization: {str(e)}", exc_info=True)

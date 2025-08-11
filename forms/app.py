@@ -1,7 +1,7 @@
 import os
 import logging
 import traceback
-from flask import Flask, render_template, request, redirect, flash, jsonify, url_for
+from flask import Flask, render_template, request, redirect, flash, jsonify, url_for, send_from_directory
 from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
 from google.cloud import storage, secretmanager
 from werkzeug.utils import secure_filename
@@ -30,11 +30,20 @@ def configure_app(app):
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'forms-flask-secret-key')
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
     app.config['BASE_URL'] = os.environ.get('BASE_URL', '/')
+    
+    # External URLs for user navigation
     app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com')
     app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
     app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', 'https://dashboard.secapp.tzolkintech.com')
     app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', 'https://viewer.secapp.tzolkintech.com')
 
+    # NEW: Internal URLs for cost-free service communication
+    app.config['INTERNAL_LOGIN_SERVICE_URL'] = os.environ.get('INTERNAL_LOGIN_SERVICE_URL', 'https://login-24309643178.us-central1.run.app')
+    app.config['INTERNAL_LANDING_SERVICE_URL'] = os.environ.get('INTERNAL_LANDING_SERVICE_URL', 'https://landing-24309643178.us-central1.run.app')
+    app.config['INTERNAL_DASHBOARD_SERVICE_URL'] = os.environ.get('INTERNAL_DASHBOARD_SERVICE_URL', 'https://dashboard-24309643178.us-central1.run.app')
+    app.config['INTERNAL_VIEWER_SERVICE_URL'] = os.environ.get('INTERNAL_VIEWER_SERVICE_URL', 'https://viewer-24309643178.us-central1.run.app')
+
+    # JWT settings (UNCHANGED - maintains cookie sharing)
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
     app.config['JWT_COOKIE_SECURE'] = is_production
@@ -43,14 +52,13 @@ def configure_app(app):
     app.config['JWT_COOKIE_CSRF_PROTECT'] = False
     app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', None)
 
-    # Database config (used by get_db_connection via DATABASE_URL)
+    # Database and email config (UNCHANGED)
     app.config['DB_HOST'] = os.environ.get('DB_HOST')
     app.config['DB_NAME'] = os.environ.get('DB_NAME')
     app.config['DB_USER'] = os.environ.get('DB_USER')
     app.config['DB_PASSWORD'] = os.environ.get('DB_PASSWORD')
     app.config['DB_PORT'] = os.environ.get('DB_PORT', '5432')
 
-    # Email configuration
     app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'tzolkintech.com')
     app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
     app.config['SMTP_USE_TLS'] = os.environ.get('SMTP_USE_TLS', 'true').lower() == 'true'
@@ -592,6 +600,75 @@ def submit_report():
         if conn:
             conn.close()
             app_logger.info("Database connection closed in finally block.")
+
+@app.route('/offline.html')
+def offline():
+    """Serve offline page for PWA"""
+    return render_template('offline.html')
+
+@app.route('/sw.js')
+def service_worker():
+    """Serve service worker with proper headers"""
+    response = send_from_directory('.', 'sw.js')
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Service-Worker-Allowed'] = '/'
+    # Don't cache the service worker itself
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+@app.route('/install')
+def install_instructions():
+    """Serve PWA installation instructions"""
+    return render_template('install_prompt.html')
+
+# Modify your existing manifest route to include more PWA features
+@app.route('/manifest.json')
+def manifest():
+    """Serve PWA manifest with enhanced offline capabilities"""
+    return jsonify({
+        "name": "SMT SecApp - Reportes de Incidencias",
+        "short_name": "SMT SecApp",
+        "description": "Aplicación para reportar incidencias de seguridad en propiedades comerciales",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#1a202c",
+        "theme_color": "#2563eb",
+        "orientation": "portrait",
+        "scope": "/",
+        "lang": "es",
+        "icons": [
+            {
+                "src": "https://storage.googleapis.com/smt-misc/SMT-logo.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any maskable"
+            },
+            {
+                "src": "https://storage.googleapis.com/smt-misc/SMT-logo.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any maskable"
+            }
+        ],
+        "shortcuts": [
+            {
+                "name": "Nuevo Reporte",
+                "short_name": "Reporte",
+                "description": "Crear un nuevo reporte de incidencia",
+                "url": "/",
+                "icons": [{"src": "https://storage.googleapis.com/smt-misc/SMT-logo.png", "sizes": "96x96"}]
+            }
+        ],
+        "categories": ["business", "productivity"],
+        "prefer_related_applications": False
+    })
+
+# Add error handler for when app is accessed offline
+@app.errorhandler(503)
+def service_unavailable(error):
+    return render_template('offline.html'), 503
 
 @app.route('/logout')
 def logout():

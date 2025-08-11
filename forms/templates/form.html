@@ -4,22 +4,53 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Reporte de Incidencia - SMT SecApp</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SMT SecApp">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-startup-image" href="https://storage.googleapis.com/smt-misc/SMT-logo.png">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="192x192" href="https://storage.googleapis.com/smt-misc/SMT-logo.png">
+  <link rel="apple-touch-icon" href="https://storage.googleapis.com/smt-misc/SMT-logo.png">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet" />
+  
   <style>
+    /* Inline critical CSS for offline compatibility */
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: 'Roboto', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
       background-color: #1a202c;
       color: #e2e8f0;
       min-height: 100vh;
       padding: 1.5rem;
+      margin: 0;
+      line-height: 1.6;
     }
+    
     h1, h2, h3, h4, h5, h6 {
-      font-family: 'Merriweather', serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', serif;
       color: #ffffff;
+      margin: 0 0 1rem 0;
     }
+    
+    h1 { font-size: 1.875rem; font-weight: 700; }
+    h2 { font-size: 1.5rem; font-weight: 600; }
+    h3 { font-size: 1.25rem; font-weight: 600; }
+    
     .form-container {
       background-color: #2d3748;
       border-radius: 12px;
@@ -30,17 +61,145 @@
       margin: 0 auto;
       padding: 2.5rem;
     }
-    .flash-message {
-      @apply p-3 mb-4 rounded-lg text-sm font-medium;
+    
+    /* Logo sizing fix */
+    .logo {
+      width: 80px !important;
+      height: 80px !important;
+      max-width: 80px !important;
+      max-height: 80px !important;
+      object-fit: contain;
+      opacity: 0.9;
+      margin: 0 auto 1.5rem auto;
+      display: block;
     }
-    .flash-success { @apply bg-green-500 text-white; }
-    .flash-error { @apply bg-red-500 text-white; }
-    .flash-warning { @apply bg-yellow-500 text-gray-900; }
-    .flash-info { @apply bg-blue-500 text-white; }
-    .flash-danger { @apply bg-red-500 text-white; }
+    
+    /* Form styling */
+    .form-grid {
+      display: grid;
+      gap: 1.5rem;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+    
+    @media (min-width: 768px) {
+      .form-row-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+      color: #e2e8f0;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      background-color: #ffffff !important;
+      color: #111827 !important;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    button {
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      background-color: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 1rem;
+    }
+    
+    button:hover {
+      background-color: #2563eb;
+      transform: translateY(-1px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .button-secondary {
+      background-color: #6b7280;
+    }
+    
+    .button-secondary:hover {
+      background-color: #4b5563;
+    }
+    
+    .install-link {
+      background-color: transparent;
+      color: #60a5fa;
+      border: 1px solid #60a5fa;
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+      margin: 0;
+      width: auto;
+      display: inline-block;
+      text-decoration: none;
+    }
+    
+    .install-link:hover {
+      background-color: #60a5fa;
+      color: #1a202c;
+      transform: none;
+    }
+    
+    /* Text alignment */
+    .text-center {
+      text-align: center;
+    }
+    
+    .text-sm {
+      font-size: 0.875rem;
+    }
+    
+    /* Spacing utilities */
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .mb-6 { margin-bottom: 1.5rem; }
+    .mb-8 { margin-bottom: 2rem; }
+    .mt-2 { margin-top: 0.5rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    
+    /* Flash messages */
+    .flash-message {
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+    .flash-success { background-color: #10b981; color: white; }
+    .flash-error { background-color: #ef4444; color: white; }
+    .flash-warning { background-color: #f59e0b; color: #1f2937; }
+    .flash-info { background-color: #3b82f6; color: white; }
+    .flash-danger { background-color: #ef4444; color: white; }
     
     .theme-toggle {
-      position: absolute;
+      position: fixed;
       top: 1.5rem;
       left: 1.5rem;
       z-index: 10;
@@ -51,6 +210,7 @@
       cursor: pointer;
       transition: all 0.2s ease-in-out;
       color: #e2e8f0;
+      width: auto;
     }
     .theme-toggle:hover {
       background-color: rgba(255, 255, 255, 0.2);
@@ -89,6 +249,155 @@
       text-decoration: underline;
     }
 
+    /* Install Prompt - Simplified and hidden by default */
+    .install-prompt {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      transition: all 0.3s ease;
+    }
+    
+    .install-prompt.hidden {
+      display: none !important;
+    }
+    
+    .install-prompt button {
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .install-prompt button:hover {
+      opacity: 0.9;
+      transform: scale(1.02);
+    }
+    
+    .connection-status {
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+    
+    .connection-status.online {
+      background-color: #10b981;
+      color: white;
+    }
+    
+    .connection-status.offline {
+      background-color: #f59e0b;
+      color: #1f2937;
+    }
+
+    /* File upload styling */
+    .file-upload-area {
+      border: 2px dashed #d1d5db;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      text-align: center;
+      background-color: #f9fafb;
+      color: #374151;
+    }
+    
+    .file-upload-button {
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      width: auto;
+      margin: 0;
+    }
+    
+    .file-upload-button:hover {
+      background-color: #2563eb;
+      transform: none;
+    }
+    
+    .file-previews {
+      margin-top: 0.5rem;
+    }
+    
+    .file-preview {
+      display: inline-block;
+      margin: 0.25rem;
+      padding: 0.5rem;
+      background-color: #e5e7eb;
+      color: #374151;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+    }
+
+    /* Hidden utility */
+    .hidden {
+      display: none !important;
+    }
+    
+    /* Flex utilities */
+    .flex {
+      display: flex;
+    }
+    
+    .items-center {
+      align-items: center;
+    }
+    
+    .justify-between {
+      justify-content: space-between;
+    }
+    
+    .space-x-2 > * + * {
+      margin-left: 0.5rem;
+    }
+    
+    .space-y-3 > * + * {
+      margin-top: 0.75rem;
+    }
+
+    /* Responsive design */
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+      
+      .form-container {
+        padding: 1.5rem;
+      }
+      
+      .logo {
+        width: 60px !important;
+        height: 60px !important;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+      
+      .theme-toggle {
+        top: 1rem;
+        left: 1rem;
+      }
+      
+      .install-prompt {
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        max-width: none;
+      }
+    }
+
     /* Light mode styles */
     body.light-mode {
       background-color: #f8f9fa;
@@ -110,12 +419,8 @@
       border: 1px solid rgba(0, 0, 0, 0.05);
     }
     
-    body.light-mode .text-gray-300 {
-      color: #6b7280 !important;
-    }
-    
-    body.light-mode .text-gray-600 {
-      color: #4b5563 !important;
+    body.light-mode label {
+      color: #374151;
     }
     
     body.light-mode .theme-toggle {
@@ -128,27 +433,261 @@
       background-color: rgba(0, 0, 0, 0.2);
     }
 
-    /* Keep form inputs with proper borders in light mode */
-    body.light-mode .tom-select-searchable,
-    body.light-mode input[type="date"],
-    body.light-mode input[type="time"],
-    body.light-mode input[type="number"],
-    body.light-mode input[type="tel"],
-    body.light-mode input[type="text"],
-    body.light-mode textarea {
-      border-color: #d1d5db !important;
-      background-color: #ffffff !important;
+    /* Notification styles */
+    .offline-notification {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .toast-notification {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 50;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      max-width: 24rem;
+      transition: all 0.3s ease;
+      font-size: 0.875rem;
     }
 
-    body.light-mode .tom-select-searchable:focus,
-    body.light-mode input:focus,
-    body.light-mode textarea:focus {
-      border-color: #3b82f6 !important;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    /* Install instructions modal */
+    .install-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    
+    .install-modal.show {
+      display: flex !important;
+    }
+    
+    .install-modal-content {
+      background-color: #2d3748;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 10000;
+    }
+    
+    body.light-mode .install-modal-content {
+      background-color: #ffffff;
+      color: #343a40;
+    }
+    
+    .install-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #9ca3af;
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: auto;
+      padding: 0.25rem;
+      margin: 0;
+      z-index: 10001;
+    }
+    
+    .install-close:hover {
+      color: #ef4444;
+      background: none;
+      transform: none;
+    }
+    
+    .install-step {
+      background-color: #374151;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    
+    body.light-mode .install-step {
+      background-color: #f3f4f6;
+    }
+
+    /* iPhone/iOS specific fixes */
+    .report-checkbox {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 20px !important;
+      height: 20px !important;
+      border: 2px solid #60a5fa;
+      border-radius: 4px;
+      background-color: transparent;
+      position: relative;
+      margin-right: 0.75rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      transform: none !important;
+    }
+    
+    .report-checkbox:checked {
+      background-color: #60a5fa;
+      border-color: #60a5fa;
+    }
+    
+    .report-checkbox:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1;
+    }
+    
+    .report-checkbox:focus {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+    
+    /* iPhone specific fixes */
+    @media screen and (-webkit-min-device-pixel-ratio: 2) {
+      .report-checkbox {
+        transform: scale(1) !important;
+        margin-right: 1rem;
+      }
+      
+      .install-modal-content {
+        -webkit-overflow-scrolling: touch;
+        overflow-scrolling: touch;
+      }
+      
+      /* Fix for iOS touch events */
+      .install-modal-content button {
+        -webkit-appearance: button;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: manipulation;
+      }
+    }
+    
+    /* Safari/WebKit specific fixes */
+    @supports (-webkit-appearance: none) {
+      .report-checkbox {
+        -webkit-transform: none !important;
+        transform: none !important;
+      }
+    }
+    
+    /* Ensure checkbox container doesn't overflow */
+    .checkbox-container {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+      width: 100%;
+      overflow: visible;
+    }
+    
+    .checkbox-label {
+      flex: 1;
+      margin: 0;
+      padding-left: 0;
     }
   </style>
 </head>
 <body>
+  <!-- Connection Status Indicator -->
+  <div id="connection-status" class="connection-status online">
+    🟢 En línea
+  </div>
+  
+  <!-- Install Prompt - Hidden by default -->
+  <div id="install-prompt" class="install-prompt hidden">
+    <div style="padding: 1rem; text-align: center;">
+      <h3 style="margin: 0 0 0.5rem 0;">📱 Instalar SMT SecApp</h3>
+      <p style="margin: 0 0 1rem 0; font-size: 0.8rem;">Para usar sin conexión</p>
+      <button id="dismiss-install" style="background: #ef4444; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 0.5rem; width: 100%; font-size: 1rem; font-weight: bold;">
+        ✕ Cerrar Permanentemente
+      </button>
+    </div>
+  </div>
+
+  <!-- Install Instructions Modal -->
+  <div id="install-modal" class="install-modal">
+    <div class="install-modal-content">
+      <button class="install-close" onclick="closeInstallModal()">×</button>
+      
+      <div class="text-center mb-6">
+        <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo" />
+        <h2 class="mb-4">📱 Instalar SMT SecApp</h2>
+        <p class="text-sm" style="color: #9ca3af;">Instala la aplicación en tu dispositivo para usar sin conexión</p>
+      </div>
+
+      <div class="space-y-4">
+        <div class="install-step">
+          <h3 class="text-lg font-bold mb-3" style="color: #60a5fa;">🤖 Android / Chrome</h3>
+          <ol style="list-style: decimal; padding-left: 1.5rem; font-size: 0.875rem; line-height: 1.6;">
+            <li>Abre Chrome en tu dispositivo Android</li>
+            <li>Ve a la página del formulario de reportes</li>
+            <li>Toca el menú (⋮) en la esquina superior derecha</li>
+            <li>Selecciona "Instalar aplicación" o "Agregar a pantalla de inicio"</li>
+            <li>Toca "Instalar" en el diálogo que aparece</li>
+            <li>La app aparecerá en tu pantalla de inicio</li>
+          </ol>
+        </div>
+
+        <div class="install-step">
+          <h3 class="text-lg font-bold mb-3" style="color: #60a5fa;">🍎 iPhone / Safari</h3>
+          <ol style="list-style: decimal; padding-left: 1.5rem; font-size: 0.875rem; line-height: 1.6;">
+            <li>Abre Safari en tu iPhone</li>
+            <li>Ve a la página del formulario de reportes</li>
+            <li>Toca el botón "Compartir" (📤) en la parte inferior</li>
+            <li>Desplázate hacia abajo y toca "Agregar a pantalla de inicio"</li>
+            <li>Personaliza el nombre si deseas</li>
+            <li>Toca "Agregar"</li>
+            <li>La app aparecerá en tu pantalla de inicio</li>
+          </ol>
+        </div>
+
+        <div class="install-step">
+          <h3 class="text-lg font-bold mb-3" style="color: #60a5fa;">💻 Escritorio / Chrome</h3>
+          <ol style="list-style: decimal; padding-left: 1.5rem; font-size: 0.875rem; line-height: 1.6;">
+            <li>Abre Chrome en tu computadora</li>
+            <li>Ve a la página del formulario de reportes</li>
+            <li>Busca el ícono "Instalar" (⊕) en la barra de direcciones</li>
+            <li>Haz clic en "Instalar"</li>
+            <li>La app se instalará como una aplicación de escritorio</li>
+          </ol>
+        </div>
+
+        <div style="background-color: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 0.5rem; padding: 1rem;">
+          <h3 class="font-bold mb-2" style="color: #10b981;">✅ Beneficios de la Instalación:</h3>
+          <ul style="list-style: disc; padding-left: 1.5rem; font-size: 0.875rem; line-height: 1.6;">
+            <li>Funciona sin conexión a internet</li>
+            <li>Acceso rápido desde la pantalla de inicio</li>
+            <li>Sincronización automática cuando hay conexión</li>
+            <li>Notificaciones de estado</li>
+            <li>Interfaz como aplicación nativa</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
     <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
@@ -159,37 +698,36 @@
   </button>
 
   <div class="form-container">
+    <!-- Offline Status and Saved Reports Notification -->
+    <div id="offline-status"></div>
+    
     <div class="header-nav">
       {% if name %}
-        <div class="header-nav">
-            {% if name %}
-                <div class="nav-links">
-                    <span class="text-sm text-gray-300">
-                        Bienvenido, <strong class="font-bold text-blue-500">{{ name }}</strong>
-                        {% if is_admin %}
-                        <span class="text-purple-400 font-bold">(Admin)</span>
-                        {% endif %}
-                        .
-                    </span>
-                    <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
-                    
-                    <!-- Admin-only links - only show if user is admin -->
-                    {% if is_admin %}
-                    <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
-                    <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
-                    {% endif %}
-                    
-                    <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
-                </div>
+        <div class="nav-links">
+          <span class="text-sm" style="color: #9ca3af;">
+            Bienvenido, <strong style="color: #60a5fa;">{{ name }}</strong>
+            {% if is_admin %}
+            <span style="color: #a855f7; font-weight: bold;">(Admin)</span>
             {% endif %}
+            .
+          </span>
+          <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+          
+          <!-- Admin-only links -->
+          {% if is_admin %}
+          <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+          <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+          {% endif %}
+          
+          <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
         </div>
       {% endif %}
     </div>
 
     <div class="text-center mb-8">
-      <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto mb-6 w-28 opacity-90" />
-      <h1 class="text-3xl font-bold mb-4">Reporte de Incidencia</h1>
-      <p class="text-gray-300 text-sm">Complete el formulario para reportar una incidencia.</p>
+      <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo" />
+      <h1 class="mb-4">Reporte de Incidencia</h1>
+      <p class="text-sm" style="color: #9ca3af;">Complete el formulario para reportar una incidencia.</p>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -204,10 +742,10 @@
         {% endif %}
     {% endwith %}
 
-    <form action="/submit_report" method="POST" class="space-y-6" enctype="multipart/form-data">
+    <form id="incident-form" action="/submit_report" method="POST" class="form-grid" enctype="multipart/form-data">
       <div>
-        <label for="tipo_incidencia" class="block text-sm font-medium mb-1">Tipo de Incidencia:</label>
-        <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="tipo_incidencia">Tipo de Incidencia:</label>
+        <select id="tipo_incidencia" name="tipo_incidencia" required class="tom-select-searchable">
           <option value="">Seleccione un tipo</option>
           {% for tipo in tipo_incidencia %}
             <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
@@ -216,8 +754,8 @@
       </div>
 
       <div>
-        <label for="tipo_cliente" class="block text-sm font-medium mb-1">Tipo de Cliente:</label>
-        <select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="tipo_cliente">Tipo de Cliente:</label>
+        <select id="tipo_cliente" name="tipo_cliente" required class="tom-select-searchable">
           <option value="">Seleccione un tipo</option>
           {% for tipo in tipo_cliente %}
             <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
@@ -226,8 +764,8 @@
       </div>
 
       <div>
-        <label for="lugar_incidente" class="block text-sm font-medium mb-1">Lugar del Incidente:</label>
-        <select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="lugar_incidente">Lugar del Incidente:</label>
+        <select id="lugar_incidente" name="lugar_incidente" required class="tom-select-searchable">
           <option value="">Seleccione un lugar</option>
           {% for lugar in lugar_incidente %}
             <option value="{{ lugar.id }}">{{ lugar.nombre }}</option>
@@ -236,8 +774,8 @@
       </div>
 
       <div>
-        <label for="propiedad" class="block text-sm font-medium mb-1">Propiedad:</label>
-        <select id="propiedad" name="propiedad" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="propiedad">Propiedad:</label>
+        <select id="propiedad" name="propiedad" required class="tom-select-searchable">
           <option value="">Seleccione una propiedad</option>
           {% for prop in propiedades %}
             <option value="{{ prop.id }}">{{ prop.nombre }}</option>
@@ -246,78 +784,78 @@
       </div>
 
       <div>
-        <label for="descripcion_zona_comun" class="block text-sm font-medium mb-1">Si la incidencia fue en una zona común del C.C. descríbala aquí:</label>
-        <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3" class="w-full px-4 py-3 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900"></textarea>
+        <label for="descripcion_zona_comun">Si la incidencia fue en una zona común del C.C. descríbala aquí:</label>
+        <textarea id="descripcion_zona_comun" name="descripcion_zona_comun" rows="3"></textarea>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="form-row form-row-2">
         <div>
-          <label for="fecha_incidente" class="block text-sm font-medium mb-1">Fecha:</label>
-          <input type="date" id="fecha_incidente" name="fecha_incidente" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+          <label for="fecha_incidente">Fecha:</label>
+          <input type="date" id="fecha_incidente" name="fecha_incidente" required>
         </div>
-
         <div>
-          <label for="hora_incidente" class="block text-sm font-medium mb-1">Hora:</label>
-          <input type="time" id="hora_incidente" name="hora_incidente" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-        </div>
-      </div>
-
-      <div>
-        <label for="descripcion_incidente" class="block text-sm font-medium mb-1">Descripción del Incidente:</label>
-        <textarea id="descripcion_incidente" name="descripcion_incidente" rows="4" required class="w-full px-4 py-3 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900"></textarea>
-      </div>
-
-      <div>
-        <label for="valor_aproximado" class="block text-sm font-medium mb-1">Valor Aproximado:</label>
-        <input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-      </div>
-
-      <div>
-        <label for="pertenencias_sustraidas" class="block text-sm font-medium mb-1">Pertenencias Sustraídas:</label>
-        <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3" class="w-full px-4 py-3 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900"></textarea>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label for="nombre_persona" class="block text-sm font-medium mb-1">Nombre de la Persona:</label>
-          <input type="text" id="nombre_persona" name="nombre_persona" required class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-        </div>
-
-        <div>
-          <label for="telefono_persona" class="block text-sm font-medium mb-1">Teléfono:</label>
-          <input type="tel" id="telefono_persona" name="telefono_persona" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label for="numero_identidad_persona" class="block text-sm font-medium mb-1">Número de Identidad:</label>
-          <input type="text" id="numero_identidad_persona" name="numero_identidad_persona" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
-        </div>
-
-        <div>
-          <label for="numero_local" class="block text-sm font-medium mb-1">Número de Local:</label>
-          <input type="text" id="numero_local" name="numero_local" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+          <label for="hora_incidente">Hora:</label>
+          <input type="time" id="hora_incidente" name="hora_incidente" required>
         </div>
       </div>
 
       <div>
-        <label for="direccion" class="block text-sm font-medium mb-1">Dirección:</label>
-        <input type="text" id="direccion" name="direccion" class="w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="descripcion_incidente">Descripción del Incidente:</label>
+        <textarea id="descripcion_incidente" name="descripcion_incidente" rows="4" required></textarea>
       </div>
 
       <div>
-        <label for="imagenes_pdfs" class="block text-sm font-medium mb-1">Imágenes y PDFs:</label>
-        <label for="imagenes_pdfs" class="cursor-pointer inline-block px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-200 ease-in-out">
-          Seleccionar archivos
-        </label>
-        <input type="file" id="imagenes_pdfs" name="imagenes_pdfs" accept=".jpg,.jpeg,.png,.pdf" class="hidden" multiple onchange="document.getElementById('file-count').innerText = this.files.length + ' archivo(s) seleccionado(s)'">
-        <span id="file-count" class="ml-2 text-sm text-gray-600 dark:text-gray-300">Ningún archivo seleccionado</span>
+        <label for="valor_aproximado">Valor Aproximado:</label>
+        <input type="number" step="0.01" id="valor_aproximado" name="valor_aproximado">
       </div>
 
       <div>
-        <label for="supervisor" class="block text-sm font-medium mb-1">Supervisor:</label>
-        <select id="supervisor" name="supervisor" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900">
+        <label for="pertenencias_sustraidas">Pertenencias Sustraídas:</label>
+        <textarea id="pertenencias_sustraidas" name="pertenencias_sustraidas" rows="3"></textarea>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div>
+          <label for="nombre_persona">Nombre de la Persona:</label>
+          <input type="text" id="nombre_persona" name="nombre_persona" required>
+        </div>
+        <div>
+          <label for="telefono_persona">Teléfono:</label>
+          <input type="tel" id="telefono_persona" name="telefono_persona">
+        </div>
+      </div>
+
+      <div class="form-row form-row-2">
+        <div>
+          <label for="numero_identidad_persona">Número de Identidad:</label>
+          <input type="text" id="numero_identidad_persona" name="numero_identidad_persona">
+        </div>
+        <div>
+          <label for="numero_local">Número de Local:</label>
+          <input type="text" id="numero_local" name="numero_local">
+        </div>
+      </div>
+
+      <div>
+        <label for="direccion">Dirección:</label>
+        <input type="text" id="direccion" name="direccion">
+      </div>
+
+      <div>
+        <label for="imagenes_pdfs">Imágenes y PDFs:</label>
+        <div class="file-upload-area">
+          <input type="file" id="imagenes_pdfs" name="imagenes_pdfs" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden">
+          <button type="button" onclick="document.getElementById('imagenes_pdfs').click()" class="file-upload-button">
+            📎 Seleccionar archivos
+          </button>
+          <p id="file-info" class="mt-2 text-sm" style="color: #6b7280;">Ningún archivo seleccionado</p>
+          <div id="file-previews" class="file-previews"></div>
+        </div>
+      </div>
+
+      <div>
+        <label for="supervisor">Supervisor:</label>
+        <select id="supervisor" name="supervisor" required class="tom-select-searchable">
           <option value="">Seleccione un supervisor</option>
           {% for sup in supervisor %}
             <option value="{{ sup.id }}">{{ sup.nombre }}</option>
@@ -328,22 +866,1008 @@
       <button type="submit" class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
         Enviar Reporte
       </button>
+      
+      <!-- Simple install link at bottom -->
+      <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+        <p style="font-size: 0.8rem; color: #9ca3af; margin: 0 0 0.5rem 0;">
+          💡 Para usar sin conexión a internet
+        </p>
+        <button type="button" id="show-install-instructions" class="install-link">
+          📱 Instalar como App
+        </button>
+      </div>
     </form>
   </div>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+  
+  <!-- PWA Registration Script - Simplified for iPhone -->
   <script>
-    // Initialize Tom Select dropdowns
-    document.querySelectorAll('.tom-select-searchable').forEach(el => {
-      new TomSelect(el, { create: false });
+    // Very simple service worker registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('SW registered:', reg);
+          
+          // Force cache the current page immediately
+          if ('caches' in window) {
+            caches.open('smt-secapp-v4').then(cache => {
+              cache.add('/').then(() => {
+                console.log('Main page cached for offline');
+              });
+            });
+          }
+        })
+        .catch(err => console.log('SW registration failed:', err));
+    }
+
+    // SIMPLIFIED INSTALL PROMPT - Just hide it by default
+    const installPrompt = document.getElementById('install-prompt');
+    const dismissButton = document.getElementById('dismiss-install');
+
+    // Hide by default - only show if user wants it
+    installPrompt.style.display = 'none';
+
+    // Simple dismiss - just hide it
+    if (dismissButton) {
+      dismissButton.addEventListener('click', () => {
+        installPrompt.style.display = 'none';
+        localStorage.setItem('install-prompt-dismissed', 'true');
+      });
+    }
+
+    // Optional: Show install prompt only on user request
+    // You can add a menu option or button to show it if needed
+    window.showInstallPrompt = function() {
+      if (localStorage.getItem('install-prompt-dismissed') !== 'true') {
+        installPrompt.style.display = 'block';
+      }
+    };
+
+    // Optional: Reset function for testing
+    window.resetInstallPrompt = function() {
+      localStorage.removeItem('install-prompt-dismissed');
+      installPrompt.style.display = 'block';
+    };
+
+    // Install Instructions Modal Functions
+    function showInstallModal() {
+      document.getElementById('install-modal').classList.add('show');
+    }
+
+    function closeInstallModal() {
+      document.getElementById('install-modal').classList.remove('show');
+    }
+
+    // Add event listener for the install instructions button
+    document.addEventListener('DOMContentLoaded', function() {
+      const showInstallBtn = document.getElementById('show-install-instructions');
+      if (showInstallBtn) {
+        showInstallBtn.addEventListener('click', showInstallModal);
+      }
+      
+      // Close modal when clicking outside
+      document.getElementById('install-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeInstallModal();
+        }
+      });
     });
+
+    // Connection Status
+    const connectionStatus = document.getElementById('connection-status');
+    
+    function updateConnectionStatus() {
+      if (navigator.onLine) {
+        connectionStatus.textContent = '🟢 En línea';
+        connectionStatus.className = 'connection-status online';
+      } else {
+        connectionStatus.textContent = '🔴 Sin conexión';
+        connectionStatus.className = 'connection-status offline';
+      }
+    }
+
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
+    setInterval(updateConnectionStatus, 5000);
+    updateConnectionStatus();
+
+    // File handling with preview
+    document.getElementById('imagenes_pdfs').addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      const fileInfo = document.getElementById('file-info');
+      const previews = document.getElementById('file-previews');
+      
+      if (files.length === 0) {
+        fileInfo.textContent = 'Ningún archivo seleccionado';
+        previews.innerHTML = '';
+        return;
+      }
+      
+      fileInfo.textContent = `${files.length} archivo(s) seleccionado(s)`;
+      previews.innerHTML = '';
+      
+      files.forEach(file => {
+        const preview = document.createElement('div');
+        preview.className = 'file-preview';
+        preview.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+        previews.appendChild(preview);
+      });
+    });
+  </script>
+  
+  <!-- Enhanced Offline Forms Manager with iOS Support -->
+  <script>
+    class EnhancedOfflineFormsManager {
+      constructor() {
+        this.storageKey = 'smt_draft_reports';
+        this.isOnline = navigator.onLine;
+        this.init();
+      }
+
+      init() {
+        console.log('[OfflineManager] Initializing with online status:', navigator.onLine);
+        this.isOnline = navigator.onLine;
+        this.setupOfflineDetection();
+        this.checkForSavedReports();
+        this.addSaveButton();
+        // Removed auto-sync setup - now manual only
+        
+        // Add debugging for form submission
+        const form = document.getElementById('incident-form');
+        if (form) {
+          console.log('[OfflineManager] Form found, adding debug listeners');
+          form.addEventListener('click', (e) => {
+            if (e.target.type === 'submit') {
+              console.log('[OfflineManager] Submit button clicked, online status:', this.isOnline);
+            }
+          });
+        } else {
+          console.error('[OfflineManager] Form not found during initialization');
+        }
+      }
+
+      setupPeriodicSync() {
+        setInterval(() => {
+          if (this.isOnline) {
+            this.autoSync();
+          }
+        }, 30000);
+      }
+
+      async autoSync() {
+        const savedReports = this.getSavedReports();
+        const pendingReports = Object.entries(savedReports).filter(([id, report]) => report.readyToSubmit);
+        
+        if (pendingReports.length === 0) return;
+
+        let successCount = 0;
+        for (const [reportId, report] of pendingReports) {
+          try {
+            const success = await this.submitSingleReport(report.data);
+            if (success) {
+              delete savedReports[reportId];
+              successCount++;
+            }
+          } catch (error) {
+            break;
+          }
+        }
+
+        if (successCount > 0) {
+          localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+          this.checkForSavedReports();
+          this.showToast(`${successCount} reporte(s) sincronizado(s) automáticamente`, 'success');
+        }
+      }
+
+      async submitSingleReport(reportData) {
+        console.log('[OfflineManager] Attempting to submit single report');
+        
+        // Double-check online status before attempting submission
+        if (!navigator.onLine) {
+          console.log('[OfflineManager] Navigator reports offline, aborting submission');
+          return false;
+        }
+
+        const formData = new FormData();
+        Object.entries(reportData).forEach(([key, value]) => {
+          formData.append(key, value);
+          console.log(`[OfflineManager] Adding to FormData: ${key} = ${value}`);
+        });
+
+        try {
+          console.log('[OfflineManager] Making fetch request to /submit_report');
+          
+          const response = await fetch('/submit_report', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            headers: {
+              // Don't set Content-Type, let browser set it for FormData
+            }
+          });
+          
+          console.log('[OfflineManager] Response status:', response.status);
+          console.log('[OfflineManager] Response ok:', response.ok);
+          
+          if (response.ok) {
+            console.log('[OfflineManager] Report submitted successfully');
+            return true;
+          } else {
+            console.error('[OfflineManager] Server responded with error:', response.status, response.statusText);
+            return false;
+          }
+        } catch (error) {
+          console.error('[OfflineManager] Network error during submission:', error);
+          return false;
+        }
+      }
+
+      addSaveButton() {
+        const form = document.getElementById('incident-form');
+        const submitButton = form.querySelector('button[type="submit"]');
+        
+        if (form.querySelector('.draft-save-button')) {
+          console.log('[OfflineManager] Save button already exists');
+          return;
+        }
+        
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.className = 'draft-save-button button-secondary';
+        saveButton.innerHTML = '💾 Guardar Borrador';
+        
+        saveButton.addEventListener('click', (e) => {
+          console.log('[OfflineManager] Save button clicked');
+          e.preventDefault();
+          e.stopPropagation();
+          this.saveDraft(true);
+        });
+        
+        submitButton.parentNode.insertBefore(saveButton, submitButton);
+        console.log('[OfflineManager] Save button added successfully');
+        this.updateSaveButtonStatus();
+      }
+
+      updateSaveButtonStatus() {
+        const saveButton = document.querySelector('.draft-save-button');
+        if (!saveButton) return;
+
+        if (this.isOnline) {
+          saveButton.innerHTML = '💾 Guardar Borrador';
+          saveButton.title = 'Guardar borrador localmente';
+        } else {
+          saveButton.innerHTML = '📴 Guardar (Sin conexión)';
+          saveButton.title = 'Sin conexión - guardando localmente';
+        }
+      }
+
+      saveDraft(manual = false) {
+        console.log('[OfflineManager] Save draft called, manual:', manual);
+        if (!manual) return;
+
+        const form = document.getElementById('incident-form');
+        if (!form) {
+          console.error('[OfflineManager] Form not found for draft save');
+          return;
+        }
+
+        const formData = new FormData(form);
+        const draftData = {
+          timestamp: new Date().toISOString(),
+          data: {}
+        };
+
+        let hasData = false;
+        console.log('[OfflineManager] Processing draft data...');
+        for (let [key, value] of formData.entries()) {
+          if (key !== 'imagenes_pdfs' && value && value.trim() !== '') {
+            draftData.data[key] = value;
+            hasData = true;
+            console.log(`[OfflineManager] Draft field ${key}:`, value);
+          }
+        }
+
+        if (!hasData) {
+          this.showToast('No hay datos para guardar como borrador', 'warning');
+          return;
+        }
+
+        try {
+          this.saveToStorage(draftData);
+          this.showToast('Borrador guardado localmente', 'success');
+          console.log('[OfflineManager] Draft saved successfully');
+        } catch (error) {
+          console.error('[OfflineManager] Error saving draft:', error);
+          this.showToast('Error guardando borrador', 'error');
+        }
+      }
+
+      saveToStorage(draftData) {
+        try {
+          const savedReports = this.getSavedReports();
+          const reportId = 'draft_' + Date.now();
+          savedReports[reportId] = draftData;
+          localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+          this.checkForSavedReports();
+        } catch (error) {
+          this.showToast('Error: almacenamiento lleno', 'error');
+        }
+      }
+
+      getSavedReports() {
+        try {
+          const saved = localStorage.getItem(this.storageKey);
+          return saved ? JSON.parse(saved) : {};
+        } catch (error) {
+          return {};
+        }
+      }
+
+      checkForSavedReports() {
+        const savedReports = this.getSavedReports();
+        const reportCount = Object.keys(savedReports).length;
+        
+        const existingNotification = document.querySelector('.offline-notification');
+        if (existingNotification) {
+          existingNotification.remove();
+        }
+        
+        if (reportCount > 0) {
+          this.showSavedReportsNotification(reportCount);
+        }
+      }
+
+      showSavedReportsNotification(count) {
+        const pendingCount = Object.values(this.getSavedReports())
+          .filter(report => report.readyToSubmit).length;
+        
+        const notification = document.createElement('div');
+        notification.className = 'offline-notification';
+        
+        notification.innerHTML = `
+          <div class="flex items-center justify-between">
+            <p class="text-sm">
+              📱 <strong>${count}</strong> reporte(s) guardado(s) 
+              ${pendingCount > 0 ? `(${pendingCount} pendiente(s) de envío)` : ''}
+              ${!this.isOnline ? ' - Sin conexión' : ''}
+            </p>
+            <div class="space-x-2">
+              <button onclick="window.offlineManager.showSavedReports()" style="color: #60a5fa; text-decoration: underline; background: none; border: none; font-size: 0.75rem; width: auto; margin: 0; padding: 0;">Ver Reportes</button>
+              ${this.isOnline ? '<button onclick="window.offlineManager.showSavedReports()" style="color: #10b981; text-decoration: underline; background: none; border: none; font-size: 0.75rem; width: auto; margin: 0; padding: 0;">Revisar y Enviar</button>' : ''}
+              <button onclick="window.offlineManager.clearNotification()" style="color: #6b7280; text-decoration: underline; background: none; border: none; font-size: 0.75rem; width: auto; margin: 0; padding: 0;">✕</button>
+            </div>
+          </div>
+        `;
+        
+        const form = document.getElementById('incident-form');
+        if (form) {
+          form.parentNode.insertBefore(notification, form);
+        }
+      }
+
+      clearNotification() {
+        const notification = document.querySelector('.offline-notification');
+        if (notification) {
+          notification.remove();
+        }
+      }
+
+      setupOfflineDetection() {
+        const form = document.getElementById('incident-form');
+        if (form) {
+          form.addEventListener('submit', async (e) => {
+            console.log('[OfflineManager] Form submit event triggered, online status:', this.isOnline);
+            
+            if (!this.isOnline) {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              console.log('[OfflineManager] Offline mode detected, saving for later submission');
+              const success = this.saveForLaterSubmission();
+              if (success) {
+                this.showToast('Sin conexión. Reporte guardado para envío posterior.', 'warning');
+                // Optionally clear the form after successful save
+                setTimeout(() => {
+                  if (confirm('¿Deseas limpiar el formulario después de guardar?')) {
+                    form.reset();
+                    // Reset Tom Select dropdowns
+                    document.querySelectorAll('.tom-select-searchable').forEach(el => {
+                      if (el.tomselect) {
+                        el.tomselect.clear();
+                      }
+                    });
+                  }
+                }, 1000);
+              } else {
+                this.showToast('Error guardando el reporte. Intenta de nuevo.', 'error');
+              }
+              return false;
+            }
+            
+            console.log('[OfflineManager] Online mode, allowing normal form submission');
+            return true;
+          });
+        }
+
+        window.addEventListener('online', () => {
+          console.log('[OfflineManager] Network status: ONLINE');
+          this.isOnline = true;
+          
+          // Additional check for iPhone - sometimes navigator.onLine lies
+          setTimeout(() => {
+            fetch('/health', { cache: 'no-cache' })
+              .then(() => {
+                console.log('[OfflineManager] Connectivity confirmed');
+                this.updateSaveButtonStatus();
+                this.showToast('Conexión restaurada. Revisa tus reportes guardados para enviarlos.', 'info');
+                this.checkForSavedReports();
+              })
+              .catch(() => {
+                console.log('[OfflineManager] False positive - still offline');
+                this.isOnline = false;
+                this.updateSaveButtonStatus();
+              });
+          }, 1000);
+        });
+
+        window.addEventListener('offline', () => {
+          console.log('[OfflineManager] Network status: OFFLINE');
+          this.isOnline = false;
+          this.updateSaveButtonStatus();
+          this.showToast('Sin conexión - los reportes se guardarán localmente', 'warning');
+          this.checkForSavedReports();
+        });
+      }
+
+      saveForLaterSubmission() {
+        console.log('[OfflineManager] Starting saveForLaterSubmission');
+        const form = document.getElementById('incident-form');
+        if (!form) {
+          console.error('[OfflineManager] Form not found');
+          return false;
+        }
+
+        const formData = new FormData(form);
+        const reportData = {
+          timestamp: new Date().toISOString(),
+          readyToSubmit: true,
+          data: {}
+        };
+
+        const requiredFields = ['tipo_incidencia', 'tipo_cliente', 'lugar_incidente', 'propiedad', 
+                              'fecha_incidente', 'hora_incidente', 'descripcion_incidente', 
+                              'nombre_persona', 'supervisor'];
+        
+        let missingFields = [];
+        let hasRequiredData = false;
+        
+        console.log('[OfflineManager] Processing form data...');
+        for (let [key, value] of formData.entries()) {
+          if (key !== 'imagenes_pdfs') {
+            if (value && value.trim() !== '') {
+              reportData.data[key] = value;
+              hasRequiredData = true;
+              console.log(`[OfflineManager] Field ${key}:`, value);
+            }
+            
+            if (requiredFields.includes(key) && (!value || value.trim() === '')) {
+              missingFields.push(key);
+            }
+          }
+        }
+
+        console.log('[OfflineManager] Required fields check:', { missingFields, hasRequiredData });
+
+        if (missingFields.length > 0) {
+          const fieldNames = {
+            'tipo_incidencia': 'Tipo de Incidencia',
+            'tipo_cliente': 'Tipo de Cliente',
+            'lugar_incidente': 'Lugar del Incidente',
+            'propiedad': 'Propiedad',
+            'fecha_incidente': 'Fecha',
+            'hora_incidente': 'Hora',
+            'descripcion_incidente': 'Descripción del Incidente',
+            'nombre_persona': 'Nombre de la Persona',
+            'supervisor': 'Supervisor'
+          };
+          const missingFieldNames = missingFields.map(field => fieldNames[field] || field);
+          this.showToast(`Campos requeridos faltantes: ${missingFieldNames.join(', ')}`, 'error');
+          return false;
+        }
+
+        if (!hasRequiredData) {
+          this.showToast('No hay datos suficientes para guardar el reporte', 'warning');
+          return false;
+        }
+
+        try {
+          const savedReports = this.getSavedReports();
+          const reportId = 'pending_' + Date.now();
+          savedReports[reportId] = reportData;
+          
+          localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+          console.log('[OfflineManager] Report saved successfully:', reportId);
+          this.checkForSavedReports();
+          return true;
+          
+        } catch (error) {
+          console.error('[OfflineManager] Error saving report:', error);
+          this.showToast('Error: almacenamiento lleno. Libera espacio en el navegador.', 'error');
+          return false;
+        }
+      }
+
+      async syncReports() {
+        if (!this.isOnline) {
+          this.showToast('No hay conexión para sincronizar', 'warning');
+          return;
+        }
+
+        const savedReports = this.getSavedReports();
+        const pendingReports = Object.entries(savedReports).filter(([id, report]) => report.readyToSubmit);
+        
+        if (pendingReports.length === 0) {
+          this.showToast('No hay reportes pendientes para sincronizar', 'info');
+          return;
+        }
+
+        this.showToast(`Sincronizando ${pendingReports.length} reporte(s)...`, 'info');
+
+        let successCount = 0;
+        for (const [reportId, report] of pendingReports) {
+          try {
+            const success = await this.submitSingleReport(report.data);
+            if (success) {
+              delete savedReports[reportId];
+              successCount++;
+            }
+          } catch (error) {
+            console.error(`Error submitting report ${reportId}:`, error);
+          }
+        }
+
+        localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+
+        if (successCount > 0) {
+          this.showToast(`${successCount} reporte(s) enviado(s) exitosamente`, 'success');
+          this.checkForSavedReports();
+          
+          if (Object.keys(savedReports).length === 0) {
+            document.getElementById('incident-form').reset();
+          }
+        } else {
+          this.showToast('Error enviando reportes', 'error');
+        }
+      }
+
+      showSavedReports() {
+        const savedReports = this.getSavedReports();
+        const reports = Object.entries(savedReports);
+        
+        if (reports.length === 0) {
+          this.showToast('No hay reportes guardados', 'info');
+          return;
+        }
+
+        // Create modal to show saved reports
+        const modal = document.createElement('div');
+        modal.className = 'install-modal show';
+        modal.innerHTML = `
+          <div class="install-modal-content" style="max-width: 800px;">
+            <button class="install-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            
+            <div class="text-center mb-6">
+              <h2 class="mb-4">📱 Reportes Guardados (${reports.length})</h2>
+              <p class="text-sm" style="color: #9ca3af;">Revisa y decide qué reportes enviar</p>
+            </div>
+
+            <div style="max-height: 60vh; overflow-y: auto;">
+              ${reports.map(([id, report]) => this.createReportCard(id, report)).join('')}
+            </div>
+            
+            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+              <button onclick="window.offlineManager.submitSelectedReports()" 
+                      style="background: #10b981; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; margin-right: 1rem; cursor: pointer;">
+                📤 Enviar Reportes Seleccionados
+              </button>
+              <button onclick="window.offlineManager.deleteSelectedReports()" 
+                      style="background: #ef4444; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; margin-right: 1rem; cursor: pointer;">
+                🗑️ Eliminar Seleccionados
+              </button>
+              <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                      style="background: #6b7280; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer;">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+          if (e.target === this) {
+            this.remove();
+          }
+        });
+      }
+
+      createReportCard(id, report) {
+        const isReady = report.readyToSubmit;
+        const date = new Date(report.timestamp).toLocaleString();
+        const data = report.data;
+        
+        return `
+          <div class="install-step" style="margin-bottom: 1rem; position: relative;">
+            <div class="checkbox-container">
+              <input type="checkbox" id="report_${id}" class="report-checkbox" ${isReady ? 'checked' : ''}>
+              <label for="report_${id}" class="checkbox-label" style="font-weight: bold; color: ${isReady ? '#10b981' : '#f59e0b'};">
+                ${isReady ? '📤 Listo para enviar' : '📝 Borrador'} - ${date}
+              </label>
+            </div>
+            
+            <div style="font-size: 0.875rem; line-height: 1.4; margin-left: 0;">
+              <p><strong>Tipo:</strong> ${this.getFieldDisplay('tipo_incidencia', data.tipo_incidencia)}</p>
+              <p><strong>Fecha:</strong> ${data.fecha_incidente || 'No especificada'} ${data.hora_incidente || ''}</p>
+              <p><strong>Persona:</strong> ${data.nombre_persona || 'No especificado'}</p>
+              <p><strong>Descripción:</strong> ${(data.descripcion_incidente || 'Sin descripción').substring(0, 100)}${data.descripcion_incidente && data.descripcion_incidente.length > 100 ? '...' : ''}</p>
+              <p><strong>Propiedad:</strong> ${this.getFieldDisplay('propiedad', data.propiedad)}</p>
+            </div>
+            
+            <div style="margin-top: 0.75rem; margin-left: 0;">
+              <button onclick="window.offlineManager.viewReportDetails('${id}')" 
+                      style="background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-size: 0.875rem; margin-right: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; touch-action: manipulation;">
+                Ver Detalles
+              </button>
+              <button onclick="window.offlineManager.editReport('${id}')" 
+                      style="background: #f59e0b; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-size: 0.875rem; margin-right: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; touch-action: manipulation;">
+                ✏️ Editar
+              </button>
+              <button onclick="window.offlineManager.deleteReport('${id}')" 
+                      style="background: #ef4444; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-size: 0.875rem; cursor: pointer; touch-action: manipulation;">
+                🗑️ Eliminar
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      getFieldDisplay(fieldType, value) {
+        // You can enhance this to show actual names instead of IDs
+        if (!value) return 'No especificado';
+        return `ID: ${value}`;
+      }
+
+      viewReportDetails(reportId) {
+        const savedReports = this.getSavedReports();
+        const report = savedReports[reportId];
+        
+        if (!report) {
+          this.showToast('Reporte no encontrado', 'error');
+          return;
+        }
+
+        // Close existing modals
+        this.closeAllModals();
+
+        const modal = document.createElement('div');
+        modal.className = 'install-modal';
+        modal.id = 'report-details-modal';
+        modal.innerHTML = `
+          <div class="install-modal-content">
+            <button class="install-close" onclick="window.offlineManager.closeAllModals()">×</button>
+            
+            <div class="text-center mb-6">
+              <h2 class="mb-4">📋 Detalles del Reporte</h2>
+              <p class="text-sm" style="color: #9ca3af;">Guardado: ${new Date(report.timestamp).toLocaleString()}</p>
+            </div>
+
+            <div style="max-height: 60vh; overflow-y: auto;">
+              ${Object.entries(report.data).map(([key, value]) => 
+                `<div style="margin-bottom: 0.75rem;">
+                  <strong style="color: #60a5fa;">${this.getFieldLabel(key)}:</strong>
+                  <span style="margin-left: 0.5rem;">${value || 'No especificado'}</span>
+                </div>`
+              ).join('')}
+            </div>
+            
+            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
+              <button onclick="window.offlineManager.showSavedReports()" 
+                      style="background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; margin-right: 1rem; cursor: pointer;">
+                ← Volver a Reportes
+              </button>
+              <button onclick="window.offlineManager.closeAllModals()" 
+                      style="background: #6b7280; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer;">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Show modal
+        setTimeout(() => {
+          modal.classList.add('show');
+        }, 10);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            this.closeAllModals();
+          }
+        });
+        
+        // Prevent clicks inside modal content from closing modal
+        const modalContent = modal.querySelector('.install-modal-content');
+        modalContent.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      }
+
+      getFieldLabel(key) {
+        const labels = {
+          'tipo_incidencia': 'Tipo de Incidencia',
+          'tipo_cliente': 'Tipo de Cliente',
+          'lugar_incidente': 'Lugar del Incidente',
+          'propiedad': 'Propiedad',
+          'descripcion_zona_comun': 'Descripción Zona Común',
+          'fecha_incidente': 'Fecha del Incidente',
+          'hora_incidente': 'Hora del Incidente',
+          'descripcion_incidente': 'Descripción del Incidente',
+          'valor_aproximado': 'Valor Aproximado',
+          'pertenencias_sustraidas': 'Pertenencias Sustraídas',
+          'nombre_persona': 'Nombre de la Persona',
+          'telefono_persona': 'Teléfono',
+          'numero_identidad_persona': 'Número de Identidad',
+          'numero_local': 'Número de Local',
+          'direccion': 'Dirección',
+          'supervisor': 'Supervisor'
+        };
+        return labels[key] || key;
+      }
+
+      editReport(reportId) {
+        const savedReports = this.getSavedReports();
+        const report = savedReports[reportId];
+        
+        if (!report) {
+          this.showToast('Reporte no encontrado', 'error');
+          return;
+        }
+
+        // Close any open modals
+        this.closeAllModals();
+
+        // Fill form with saved data
+        const form = document.getElementById('incident-form');
+        Object.entries(report.data).forEach(([key, value]) => {
+          const field = form.querySelector(`[name="${key}"]`);
+          if (field) {
+            field.value = value;
+            // Trigger change event for Tom Select dropdowns
+            if (field.classList.contains('tom-select-searchable') && field.tomselect) {
+              field.tomselect.setValue(value);
+            }
+          }
+        });
+
+        // Delete the old report since we're editing it
+        delete savedReports[reportId];
+        localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+        this.checkForSavedReports();
+
+        this.showToast('Reporte cargado para edición. Recuerda guardarlo nuevamente.', 'info');
+      }
+
+      deleteReport(reportId) {
+        if (!confirm('¿Estás seguro de que quieres eliminar este reporte?')) {
+          return;
+        }
+
+        const savedReports = this.getSavedReports();
+        delete savedReports[reportId];
+        localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+        this.checkForSavedReports();
+        
+        // Refresh the modal if it's open
+        this.closeAllModals();
+        if (Object.keys(savedReports).length > 0) {
+          setTimeout(() => {
+            this.showSavedReports();
+          }, 100);
+        }
+        
+        this.showToast('Reporte eliminado', 'success');
+      }
+
+      async submitSelectedReports() {
+        console.log('[OfflineManager] Submit selected reports called');
+        
+        // Force check online status
+        const isReallyOnline = navigator.onLine;
+        console.log('[OfflineManager] Navigator.onLine status:', isReallyOnline);
+        
+        if (!isReallyOnline) {
+          this.showToast('No hay conexión para enviar reportes', 'warning');
+          return;
+        }
+
+        // Additional connectivity check for iPhone
+        try {
+          console.log('[OfflineManager] Performing connectivity test...');
+          const testResponse = await fetch('/health', { 
+            method: 'GET',
+            cache: 'no-cache',
+            timeout: 5000 
+          });
+          console.log('[OfflineManager] Connectivity test result:', testResponse.ok);
+        } catch (error) {
+          console.error('[OfflineManager] Connectivity test failed:', error);
+          this.showToast('No se puede conectar al servidor. Verifica tu conexión.', 'warning');
+          return;
+        }
+
+        const checkboxes = document.querySelectorAll('.report-checkbox:checked');
+        console.log('[OfflineManager] Found checked checkboxes:', checkboxes.length);
+        
+        if (checkboxes.length === 0) {
+          this.showToast('Selecciona al menos un reporte para enviar', 'warning');
+          return;
+        }
+
+        const reportIds = Array.from(checkboxes).map(cb => cb.id.replace('report_', ''));
+        const savedReports = this.getSavedReports();
+        
+        console.log('[OfflineManager] Report IDs to submit:', reportIds);
+        
+        this.showToast(`Enviando ${reportIds.length} reporte(s)...`, 'info');
+
+        let successCount = 0;
+        let failureCount = 0;
+        
+        for (const reportId of reportIds) {
+          const report = savedReports[reportId];
+          if (report) {
+            console.log(`[OfflineManager] Submitting report ${reportId}`);
+            try {
+              const success = await this.submitSingleReport(report.data);
+              if (success) {
+                delete savedReports[reportId];
+                successCount++;
+                console.log(`[OfflineManager] Report ${reportId} submitted successfully`);
+              } else {
+                failureCount++;
+                console.error(`[OfflineManager] Report ${reportId} submission failed`);
+              }
+            } catch (error) {
+              failureCount++;
+              console.error(`[OfflineManager] Error submitting report ${reportId}:`, error);
+            }
+          }
+        }
+
+        localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+
+        console.log(`[OfflineManager] Submission complete. Success: ${successCount}, Failures: ${failureCount}`);
+
+        if (successCount > 0) {
+          let message = `${successCount} reporte(s) enviado(s) exitosamente`;
+          if (failureCount > 0) {
+            message += `, ${failureCount} fallaron`;
+          }
+          this.showToast(message, successCount > failureCount ? 'success' : 'warning');
+          this.checkForSavedReports();
+          
+          // Close modal and refresh form if all reports were sent
+          if (Object.keys(savedReports).length === 0) {
+            this.closeAllModals();
+            document.getElementById('incident-form').reset();
+          } else {
+            // Refresh the modal
+            this.closeAllModals();
+            setTimeout(() => {
+              this.showSavedReports();
+            }, 100);
+          }
+        } else {
+          this.showToast('Error enviando reportes. Verifica tu conexión e intenta de nuevo.', 'error');
+        }
+      }
+
+      deleteSelectedReports() {
+        const checkboxes = document.querySelectorAll('.report-checkbox:checked');
+        if (checkboxes.length === 0) {
+          this.showToast('Selecciona al menos un reporte para eliminar', 'warning');
+          return;
+        }
+
+        if (!confirm(`¿Estás seguro de que quieres eliminar ${checkboxes.length} reporte(s)?`)) {
+          return;
+        }
+
+        const reportIds = Array.from(checkboxes).map(cb => cb.id.replace('report_', ''));
+        const savedReports = this.getSavedReports();
+        
+        reportIds.forEach(id => delete savedReports[id]);
+        localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
+        
+        this.checkForSavedReports();
+        
+        // Refresh the modal
+        this.closeAllModals();
+        if (Object.keys(savedReports).length > 0) {
+          setTimeout(() => {
+            this.showSavedReports();
+          }, 100);
+        }
+        
+        this.showToast(`${reportIds.length} reporte(s) eliminado(s)`, 'success');
+      }
+
+      showToast(message, type = 'info') {
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => toast.remove());
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${
+          type === 'success' ? 'bg-green-500 text-white' :
+          type === 'warning' ? 'bg-yellow-500 text-gray-900' :
+          type === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+        }`;
+        
+        toast.innerHTML = `
+          <div class="flex items-center justify-between">
+            <p class="text-sm">${message}</p>
+            <button onclick="this.parentElement.parentElement.remove()" style="margin-left: 0.5rem; background: none; border: none; color: inherit; width: auto; padding: 0;">×</button>
+          </div>
+        `;
+        
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+      }
+    }
+
+    // Initialize offline manager
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('[App] DOM loaded, initializing offline manager...');
+      window.offlineManager = new EnhancedOfflineFormsManager();
+      
+      // Force initial online/offline status check
+      setTimeout(() => {
+        console.log('[App] Initial network status check:', navigator.onLine ? 'ONLINE' : 'OFFLINE');
+        if (window.offlineManager) {
+          window.offlineManager.isOnline = navigator.onLine;
+          window.offlineManager.updateSaveButtonStatus();
+        }
+      }, 1000);
+    });
+  </script>
+  
+  <!-- Theme Toggle and Tom Select initialization -->
+  <script>
+    // Initialize Tom Select dropdowns with retry for offline
+    function initializeTomSelect() {
+      try {
+        document.querySelectorAll('.tom-select-searchable').forEach(el => {
+          if (!el.tomselect) {
+            new TomSelect(el, { create: false });
+          }
+        });
+      } catch (error) {
+        setTimeout(initializeTomSelect, 1000);
+      }
+    }
 
     // Theme toggle elements
     const themeToggle = document.getElementById('themeToggle');
     const darkModeIcon = document.getElementById('darkModeIcon');
     const lightModeIcon = document.getElementById('lightModeIcon');
 
-    // Theme management
     function initializeTheme() {
       const savedTheme = localStorage.getItem('theme');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -377,9 +1901,10 @@
       }
     }
 
-    // Initialize theme on page load
+    // Initialize everything on page load
     document.addEventListener('DOMContentLoaded', function() {
       initializeTheme();
+      initializeTomSelect();
       
       if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
