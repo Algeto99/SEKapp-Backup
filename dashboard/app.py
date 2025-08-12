@@ -212,6 +212,248 @@ def get_properties():
         if conn:
             conn.close()
 
+def get_reports_for_stat(stat_type, property_id=None, limit=100):
+    """Get detailed reports for a specific statistic"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_reports_for_stat.")
+            return []
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Base query using correct column names from reportes_incidentes table
+        base_query = """
+            SELECT 
+                ri.id_reporte_incidente,
+                ri.fecha_incidente,
+                ri.hora_incidente,
+                ri.descripcion_incidente,
+                ri.nombre_persona,
+                ri.user_email,
+                ri.telefono_persona,
+                ri.numero_identidad_persona,
+                ri.numero_local,
+                ri.direccion,
+                p.nombre as propiedad_nombre,
+                ti.nombre as tipo_incidencia,
+                tc.nombre as tipo_cliente,
+                li.nombre as lugar_incidente,
+                s.nombre as supervisor_name,
+                ri.valor_aproximado
+            FROM reportes_incidentes ri
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_cliente tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN lugar_incidente li ON ri.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
+        """
+        
+        where_conditions = []
+        params = []
+        
+        # Add property filter if specified
+        if property_id:
+            where_conditions.append("ri.id_propiedad = %s")
+            params.append(property_id)
+        
+        # Add conditions based on stat type
+        if stat_type == 'total':
+            # No additional date filters for total
+            pass
+        elif stat_type == 'thisMonth':
+            where_conditions.append("""
+                DATE_TRUNC('month', ri.fecha_incidente) = DATE_TRUNC('month', CURRENT_DATE)
+            """)
+        elif stat_type == 'thisWeek':
+            where_conditions.append("""
+                ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+                AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+            """)
+        elif stat_type == 'incidentTypes':
+            # Last 7 days for incident types
+            where_conditions.append("""
+                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '7 days'
+                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+            """)
+        elif stat_type == 'incidentTypesMonthly':
+            # Last 30 days for monthly incident types
+            where_conditions.append("""
+                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '30 days'
+                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+            """)
+        elif stat_type == 'incidentTypesYearly':
+            # Last 365 days for yearly incident types
+            where_conditions.append("""
+                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '365 days'
+                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+            """)
+        
+        # Build final query
+        if where_conditions:
+            query = base_query + " WHERE " + " AND ".join(where_conditions)
+        else:
+            query = base_query
+            
+        query += " ORDER BY ri.fecha_incidente DESC, ri.hora_incidente DESC"
+        query += f" LIMIT {limit}"
+        
+        app_logger.info(f"Executing query for stat_type {stat_type}: {query}")
+        app_logger.info(f"Query parameters: {params}")
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        app_logger.info(f"Found {len(rows)} reports for stat_type {stat_type}")
+        
+        reports = []
+        for row in rows:
+            reports.append({
+                'id_reporte': row['id_reporte_incidente'],
+                'fecha_incidente': row['fecha_incidente'].strftime('%Y-%m-%d') if row['fecha_incidente'] else '',
+                'hora_incidente': str(row['hora_incidente']) if row['hora_incidente'] else '',
+                'descripcion_incidente': row['descripcion_incidente'] or '',
+                'nombre_reportante': row['user_email'] or '',  # Using user_email as reportante
+                'email_reportante': row['user_email'] or '',
+                'telefono_reportante': row['telefono_persona'] or '',
+                'nombre_usuario_afectado': row['nombre_persona'] or '',
+                'cedula_usuario_afectado': row['numero_identidad_persona'] or '',
+                'numero_apartamento': row['numero_local'] or '',
+                'propiedad_nombre': row['propiedad_nombre'] or '',
+                'tipo_incidencia': row['tipo_incidencia'] or '',
+                'tipo_cliente': row['tipo_cliente'] or '',
+                'lugar_incidente': row['lugar_incidente'] or '',
+                'supervisor_name': row['supervisor_name'] or '',
+                'valor_aproximado': float(row['valor_aproximado']) if row['valor_aproximado'] else 0.0,
+                'direccion': row['direccion'] or ''
+            })
+        
+        return reports
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_reports_for_stat: {e}", exc_info=True)
+        return []
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id=None, limit=100):
+    """Get detailed reports for a specific incident type and timeframe"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_reports_for_incident_type.")
+            return []
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Base query using correct column names
+        base_query = """
+            SELECT 
+                ri.id_reporte_incidente,
+                ri.fecha_incidente,
+                ri.hora_incidente,
+                ri.descripcion_incidente,
+                ri.nombre_persona,
+                ri.user_email,
+                ri.telefono_persona,
+                ri.numero_identidad_persona,
+                ri.numero_local,
+                ri.direccion,
+                p.nombre as propiedad_nombre,
+                ti.nombre as tipo_incidencia,
+                tc.nombre as tipo_cliente,
+                li.nombre as lugar_incidente,
+                s.nombre as supervisor_name,
+                ri.valor_aproximado
+            FROM reportes_incidentes ri
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_cliente tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN lugar_incidente li ON ri.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
+        """
+        
+        where_conditions = ["ti.nombre = %s"]
+        params = [incident_type]
+        
+        # Add property filter if specified
+        if property_id:
+            where_conditions.append("ri.id_propiedad = %s")
+            params.append(property_id)
+        
+        # Add date conditions based on stat type
+        if stat_type == 'weekly':
+            # Last 7 days
+            where_conditions.append("""
+                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '7 days'
+                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+            """)
+        elif stat_type == 'monthly':
+            # Last 30 days
+            where_conditions.append("""
+                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '30 days'
+                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+            """)
+        elif stat_type == 'yearly':
+            # Last 365 days
+            where_conditions.append("""
+                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '365 days'
+                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+            """)
+        
+        # Build final query
+        query = base_query + " WHERE " + " AND ".join(where_conditions)
+        query += " ORDER BY ri.fecha_incidente DESC, ri.hora_incidente DESC"
+        query += f" LIMIT {limit}"
+        
+        app_logger.info(f"Executing query for incident_type {incident_type}, stat_type {stat_type}: {query}")
+        app_logger.info(f"Query parameters: {params}")
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        app_logger.info(f"Found {len(rows)} reports for incident_type {incident_type}")
+        
+        reports = []
+        for row in rows:
+            reports.append({
+                'id_reporte': row['id_reporte_incidente'],
+                'fecha_incidente': row['fecha_incidente'].strftime('%Y-%m-%d') if row['fecha_incidente'] else '',
+                'hora_incidente': str(row['hora_incidente']) if row['hora_incidente'] else '',
+                'descripcion_incidente': row['descripcion_incidente'] or '',
+                'nombre_reportante': row['user_email'] or '',  # Using user_email as reportante
+                'email_reportante': row['user_email'] or '',
+                'telefono_reportante': row['telefono_persona'] or '',
+                'nombre_usuario_afectado': row['nombre_persona'] or '',
+                'cedula_usuario_afectado': row['numero_identidad_persona'] or '',
+                'numero_apartamento': row['numero_local'] or '',
+                'propiedad_nombre': row['propiedad_nombre'] or '',
+                'tipo_incidencia': row['tipo_incidencia'] or '',
+                'tipo_cliente': row['tipo_cliente'] or '',
+                'lugar_incidente': row['lugar_incidente'] or '',
+                'supervisor_name': row['supervisor_name'] or '',
+                'valor_aproximado': float(row['valor_aproximado']) if row['valor_aproximado'] else 0.0,
+                'direccion': row['direccion'] or ''
+            })
+        
+        return reports
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_reports_for_incident_type: {e}", exc_info=True)
+        return []
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 def get_incidents_by_week(property_id=None):
     """Get incident counts grouped by week, optionally filtered by property"""
     conn = None
@@ -390,7 +632,7 @@ def get_incidents_by_year(property_id=None):
             conn.close()
 
 def get_incident_types_stats(property_id=None):
-    """Get incident counts by type for the current week, optionally filtered by property"""
+    """Get incident counts by type for the last 7 days, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -401,9 +643,9 @@ def get_incident_types_stats(property_id=None):
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Build query with optional property filter
-        where_clause = """WHERE ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
-              AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+        # Build query with optional property filter - Changed to last 7 days
+        where_clause = """WHERE ri.fecha_incidente >= CURRENT_DATE - INTERVAL '7 days'
+              AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
               AND ti.nombre IS NOT NULL"""
         params = []
         
@@ -416,7 +658,7 @@ def get_incident_types_stats(property_id=None):
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             {where_clause}
             GROUP BY ti.nombre
             ORDER BY ti.nombre;
@@ -460,7 +702,7 @@ def get_incident_types_stats(property_id=None):
             conn.close()
 
 def get_incident_types_monthly(property_id=None):
-    """Get incident counts by type for the current month, optionally filtered by property"""
+    """Get incident counts by type for the last 30 days, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -471,9 +713,9 @@ def get_incident_types_monthly(property_id=None):
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Build query with optional property filter
-        where_clause = """WHERE ri.fecha_incidente >= DATE_TRUNC('month', CURRENT_DATE)
-              AND ri.fecha_incidente < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+        # Build query with optional property filter - Changed to last 30 days
+        where_clause = """WHERE ri.fecha_incidente >= CURRENT_DATE - INTERVAL '30 days'
+              AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
               AND ti.nombre IS NOT NULL"""
         params = []
         
@@ -486,7 +728,7 @@ def get_incident_types_monthly(property_id=None):
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             {where_clause}
             GROUP BY ti.nombre
             ORDER BY ti.nombre;
@@ -532,7 +774,7 @@ def get_incident_types_monthly(property_id=None):
             conn.close()
 
 def get_incident_types_yearly(property_id=None):
-    """Get incident counts by type for the current year, optionally filtered by property"""
+    """Get incident counts by type for the last 365 days, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -543,8 +785,9 @@ def get_incident_types_yearly(property_id=None):
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Build query with optional property filter
-        where_clause = """WHERE EXTRACT(YEAR FROM ri.fecha_incidente) = EXTRACT(YEAR FROM CURRENT_DATE)
+        # Build query with optional property filter - Changed to last 365 days
+        where_clause = """WHERE ri.fecha_incidente >= CURRENT_DATE - INTERVAL '365 days'
+              AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
               AND ti.nombre IS NOT NULL"""
         params = []
         
@@ -557,7 +800,7 @@ def get_incident_types_yearly(property_id=None):
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             {where_clause}
             GROUP BY ti.nombre
             ORDER BY ti.nombre;
@@ -629,7 +872,7 @@ def get_incidents_by_week_with_types(property_id=None):
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             {where_clause}
             GROUP BY DATE_TRUNC('week', ri.fecha_incidente), ti.nombre
             ORDER BY week_start DESC, ti.nombre
@@ -708,7 +951,7 @@ def get_incidents_by_month_with_types(property_id=None):
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             {where_clause}
             GROUP BY DATE_TRUNC('month', ri.fecha_incidente), ti.nombre
             ORDER BY month_start DESC, ti.nombre
@@ -794,7 +1037,7 @@ def get_incidents_by_year_with_types(property_id=None):
                 ti.nombre as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
             {where_clause}
             GROUP BY EXTRACT(YEAR FROM ri.fecha_incidente), ti.nombre
             ORDER BY year DESC, ti.nombre;
@@ -944,6 +1187,53 @@ def api_properties():
     properties = get_properties()
     return jsonify(properties)
 
+@app.route('/api/reports/<stat_type>')
+@jwt_required()
+def api_reports_for_stat(stat_type):
+    """API endpoint to get detailed reports for a specific statistic"""
+    property_id = request.args.get('property_id', type=int)
+    limit = request.args.get('limit', 100, type=int)
+    
+    # Validate stat_type
+    valid_stat_types = ['total', 'thisMonth', 'thisWeek', 'incidentTypes', 'incidentTypesMonthly', 'incidentTypesYearly']
+    if stat_type not in valid_stat_types:
+        return jsonify({'error': 'Invalid stat type'}), 400
+    
+    reports = get_reports_for_stat(stat_type, property_id, limit)
+    return jsonify({
+        'reports': reports,
+        'count': len(reports),
+        'stat_type': stat_type,
+        'property_id': property_id
+    })
+
+@app.route('/api/reports/incident-type/<incident_type>')
+@jwt_required()
+def api_reports_for_incident_type(incident_type):
+    """API endpoint to get detailed reports for a specific incident type"""
+    property_id = request.args.get('property_id', type=int)
+    stat_type = request.args.get('stat_type', 'weekly')  # weekly, monthly, yearly
+    limit = request.args.get('limit', 100, type=int)
+    
+    # Validate incident_type
+    valid_incident_types = ['Hurto', 'Olvido', 'Recuperacion', 'Robo']
+    if incident_type not in valid_incident_types:
+        return jsonify({'error': 'Invalid incident type'}), 400
+    
+    # Validate stat_type
+    valid_stat_types = ['weekly', 'monthly', 'yearly']
+    if stat_type not in valid_stat_types:
+        return jsonify({'error': 'Invalid stat type'}), 400
+    
+    reports = get_reports_for_incident_type(incident_type, stat_type, property_id, limit)
+    return jsonify({
+        'reports': reports,
+        'count': len(reports),
+        'incident_type': incident_type,
+        'stat_type': stat_type,
+        'property_id': property_id
+    })
+
 @app.route('/api/incidents/weekly')
 @jwt_required()
 def api_incidents_weekly():
@@ -971,7 +1261,7 @@ def api_incidents_yearly():
 @app.route('/api/incidents/types')
 @jwt_required()
 def api_incident_types():
-    """API endpoint for incident types data (weekly)"""
+    """API endpoint for incident types data (last 7 days)"""
     property_id = request.args.get('property_id', type=int)
     data = get_incident_types_stats(property_id)
     return jsonify(data)
@@ -979,7 +1269,7 @@ def api_incident_types():
 @app.route('/api/incidents/types/monthly')
 @jwt_required()
 def api_incident_types_monthly():
-    """API endpoint for monthly incident types data"""
+    """API endpoint for monthly incident types data (last 30 days)"""
     property_id = request.args.get('property_id', type=int)
     data = get_incident_types_monthly(property_id)
     return jsonify(data)
@@ -987,7 +1277,7 @@ def api_incident_types_monthly():
 @app.route('/api/incidents/types/yearly')
 @jwt_required()
 def api_incident_types_yearly():
-    """API endpoint for yearly incident types data"""
+    """API endpoint for yearly incident types data (last 365 days)"""
     property_id = request.args.get('property_id', type=int)
     data = get_incident_types_yearly(property_id)
     return jsonify(data)

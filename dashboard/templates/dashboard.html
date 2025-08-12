@@ -124,6 +124,13 @@
             border: 1px solid #e2e8f0;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: #1d4ed8;
         }
         .incident-type-card {
             background-color: #ffffff;
@@ -134,6 +141,12 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
             position: relative;
+            cursor: pointer;
+        }
+        .incident-type-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: #1d4ed8;
         }
         .incident-type-card.critical {
             border-color: #dc2626;
@@ -243,6 +256,121 @@
             color: #1f2937;
         }
 
+        /* Click indicator styles */
+        .click-indicator {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            color: #1d4ed8;
+            font-size: 12px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+        .stat-card:hover .click-indicator,
+        .incident-type-card:hover .click-indicator {
+            opacity: 1;
+        }
+
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .modal.hidden {
+            display: none;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 1rem;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+            flex: 1;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+        .modal-close:hover {
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .reports-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .reports-table th,
+        .reports-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .reports-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            position: sticky;
+            top: 0;
+        }
+        .reports-table tr:hover {
+            background-color: #f9fafb;
+        }
+        .no-reports {
+            text-align: center;
+            color: #6b7280;
+            font-style: italic;
+            padding: 2rem;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top-color: #1d4ed8;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Mobile navigation styles */
         @media (max-width: 768px) {
             body {
@@ -289,6 +417,17 @@
             }
             .property-select {
                 min-width: 100%;
+            }
+            .modal-content {
+                max-width: 95vw;
+                padding: 1rem;
+            }
+            .reports-table {
+                font-size: 0.875rem;
+            }
+            .reports-table th,
+            .reports-table td {
+                padding: 0.5rem;
             }
         }
 
@@ -408,6 +547,38 @@
             color: #ffffff;
         }
 
+        /* Dark mode for modal */
+        body.dark-mode .modal-content {
+            background-color: #2d3748;
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .modal-title {
+            color: #ffffff;
+        }
+
+        body.dark-mode .modal-close {
+            color: #cbd5e0;
+        }
+
+        body.dark-mode .modal-close:hover {
+            background-color: #4a5568;
+            color: #ffffff;
+        }
+
+        body.dark-mode .reports-table th {
+            background-color: #374151;
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .reports-table tr:hover {
+            background-color: #374151;
+        }
+
+        body.dark-mode .reports-table td {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
         /* Dark mode for text colors */
         body.dark-mode .text-gray-700 {
             color: #e2e8f0 !important;
@@ -450,6 +621,15 @@
         body.dark-mode .kpi-info {
             color: #a0aec0 !important;
         }
+
+        /* Dark mode for click indicators */
+        body.dark-mode .click-indicator {
+            color: #60a5fa;
+        }
+
+        body.dark-mode .no-reports {
+            color: #a0aec0;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex flex-col items-center p-6">
@@ -462,6 +642,52 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
+
+    <!-- Reports Modal -->
+    <div id="reportsModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle" class="modal-title">Reportes Detallados</h3>
+                <button id="modalClose" class="modal-close">&times;</button>
+            </div>
+            <div id="modalBody">
+                <div id="loadingIndicator" class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p>Cargando reportes...</p>
+                </div>
+                <div id="reportsContainer" class="hidden">
+                    <div id="reportsInfo" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                        <p id="reportsCount" class="font-semibold"></p>
+                        <p id="reportsFilter" class="text-sm text-gray-600 dark:text-gray-300"></p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table id="reportsTable" class="reports-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fecha</th>
+                                    <th>Hora</th>
+                                    <th>Tipo</th>
+                                    <th>Propiedad</th>
+                                    <th>Reportante</th>
+                                    <th>Afectado</th>
+                                    <th>Local/Apt</th>
+                                    <th>Lugar</th>
+                                    <th>Valor</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="noReports" class="no-reports hidden">
+                        <p>No se encontraron reportes para los criterios seleccionados.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="container-wrapper">
         <!-- Mobile-Responsive Navigation Bar -->
@@ -503,17 +729,20 @@
         <!-- General Stats -->
         <h2 class="section-title">Estadísticas Generales</h2>
         <div class="stats-grid" id="statsGrid">
-            <div class="stat-card">
+            <div class="stat-card" onclick="showReportsModal('total')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="totalIncidents">-</div>
                 <div class="stat-label">Total de Incidencias</div>
+                <div class="click-indicator">👁️</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" onclick="showReportsModal('thisMonth')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="thisMonthIncidents">-</div>
                 <div class="stat-label">Este Mes</div>
+                <div class="click-indicator">👁️</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" onclick="showReportsModal('thisWeek')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="thisWeekIncidents">-</div>
                 <div class="stat-label">Esta Semana</div>
+                <div class="click-indicator">👁️</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="averagePerMonth">-</div>
@@ -522,23 +751,27 @@
         </div>
 
         <!-- Incident Types KPI -->
-        <h2 class="section-title" id="incidentTypesTitle">Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana</h2>
+        <h2 class="section-title" id="incidentTypesTitle">Tipos de Incidencias (Últimos 7 días) - KPI: ≥4 en 7 días</h2>
         <div class="incident-types-grid" id="incidentTypesGrid">
-            <div class="incident-type-card" id="hurtoCard">
+            <div class="incident-type-card" id="hurtoCard" onclick="showIncidentTypeReports('Hurto')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="hurtoCount">-</div>
                 <div class="stat-label">Hurto</div>
+                <div class="click-indicator">👁️</div>
             </div>
-            <div class="incident-type-card" id="olvidoCard">
+            <div class="incident-type-card" id="olvidoCard" onclick="showIncidentTypeReports('Olvido')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="olvidoCount">-</div>
                 <div class="stat-label">Olvido</div>
+                <div class="click-indicator">👁️</div>
             </div>
-            <div class="incident-type-card" id="recuperacionCard">
+            <div class="incident-type-card" id="recuperacionCard" onclick="showIncidentTypeReports('Recuperacion')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="recuperacionCount">-</div>
                 <div class="stat-label">Recuperación</div>
+                <div class="click-indicator">👁️</div>
             </div>
-            <div class="incident-type-card" id="roboCard">
+            <div class="incident-type-card" id="roboCard" onclick="showIncidentTypeReports('Robo')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="roboCount">-</div>
                 <div class="stat-label">Robo</div>
+                <div class="click-indicator">👁️</div>
             </div>
         </div>
 
@@ -580,6 +813,221 @@
         const themeToggle = document.getElementById('themeToggle');
         const darkModeIcon = document.getElementById('darkModeIcon');
         const lightModeIcon = document.getElementById('lightModeIcon');
+
+        // Modal elements
+        const reportsModal = document.getElementById('reportsModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalClose = document.getElementById('modalClose');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const reportsContainer = document.getElementById('reportsContainer');
+        const reportsCount = document.getElementById('reportsCount');
+        const reportsFilter = document.getElementById('reportsFilter');
+        const reportsTableBody = document.getElementById('reportsTableBody');
+        const noReports = document.getElementById('noReports');
+
+        // Modal event listeners
+        modalClose.addEventListener('click', closeReportsModal);
+        reportsModal.addEventListener('click', function(e) {
+            if (e.target === reportsModal) {
+                closeReportsModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !reportsModal.classList.contains('hidden')) {
+                closeReportsModal();
+            }
+        });
+
+        // Modal functions
+        function showReportsModal(statType) {
+            console.log('Opening modal for stat type:', statType);
+            
+            // Show modal
+            reportsModal.classList.remove('hidden');
+            
+            // Show loading state
+            loadingIndicator.classList.remove('hidden');
+            reportsContainer.classList.add('hidden');
+            
+            // Set title based on stat type
+            const titles = {
+                'total': 'Todos los Reportes',
+                'thisMonth': 'Reportes de Este Mes',
+                'thisWeek': 'Reportes de Esta Semana',
+                'incidentTypes': 'Reportes por Tipo (Últimos 7 días)',
+                'incidentTypesMonthly': 'Reportes por Tipo (Últimos 30 días)',
+                'incidentTypesYearly': 'Reportes por Tipo (Últimos 365 días)'
+            };
+            modalTitle.textContent = titles[statType] || 'Reportes Detallados';
+            
+            // Fetch and display reports
+            fetchReportsForStat(statType);
+        }
+
+        function showIncidentTypeReports(incidentType) {
+            console.log('Opening modal for incident type:', incidentType, 'period:', currentPeriod);
+            
+            // Show modal
+            reportsModal.classList.remove('hidden');
+            
+            // Show loading state
+            loadingIndicator.classList.remove('hidden');
+            reportsContainer.classList.add('hidden');
+            
+            // Set title
+            const periodTexts = {
+                'weekly': 'Últimos 7 días',
+                'monthly': 'Últimos 30 días',
+                'yearly': 'Últimos 365 días'
+            };
+            modalTitle.textContent = `Reportes de ${incidentType} (${periodTexts[currentPeriod]})`;
+            
+            // Fetch and display reports
+            fetchReportsForIncidentType(incidentType, currentPeriod);
+        }
+
+        function closeReportsModal() {
+            reportsModal.classList.add('hidden');
+            // Clear table data
+            reportsTableBody.innerHTML = '';
+        }
+
+        async function fetchReportsForStat(statType) {
+            try {
+                const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
+                const response = await fetch(`/api/reports/${statType}${propertyParam}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received reports data:', data);
+                displayReports(data);
+                
+            } catch (error) {
+                console.error('Error fetching reports:', error);
+                showErrorInModal('Error al cargar los reportes: ' + error.message);
+            }
+        }
+
+        async function fetchReportsForIncidentType(incidentType, statType) {
+            try {
+                const propertyParam = currentPropertyId ? `&property_id=${currentPropertyId}` : '';
+                const response = await fetch(`/api/reports/incident-type/${incidentType}?stat_type=${statType}${propertyParam}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received incident type reports data:', data);
+                displayReports(data);
+                
+            } catch (error) {
+                console.error('Error fetching incident type reports:', error);
+                showErrorInModal('Error al cargar los reportes: ' + error.message);
+            }
+        }
+
+        function displayReports(data) {
+            console.log('Displaying reports:', data);
+            
+            // Hide loading indicator
+            loadingIndicator.classList.add('hidden');
+            reportsContainer.classList.remove('hidden');
+            
+            // Update count and filter info
+            reportsCount.textContent = `Total de reportes encontrados: ${data.count}`;
+            
+            let filterText = '';
+            if (currentPropertyId && properties.length > 0) {
+                const selectedProperty = properties.find(p => p.id === currentPropertyId);
+                if (selectedProperty) {
+                    filterText += `Propiedad: ${selectedProperty.name}`;
+                }
+            } else {
+                filterText += 'Todas las propiedades';
+            }
+            
+            if (data.incident_type) {
+                filterText += ` | Tipo: ${data.incident_type}`;
+            }
+            if (data.stat_type) {
+                const periodTexts = {
+                    'weekly': 'Últimos 7 días',
+                    'monthly': 'Últimos 30 días',
+                    'yearly': 'Últimos 365 días'
+                };
+                filterText += ` | Período: ${periodTexts[data.stat_type]}`;
+            }
+            
+            reportsFilter.textContent = filterText;
+            
+            // Clear existing table data
+            reportsTableBody.innerHTML = '';
+            
+            if (data.reports && data.reports.length > 0) {
+                // Show table and hide no reports message
+                document.getElementById('reportsTable').classList.remove('hidden');
+                noReports.classList.add('hidden');
+                
+                console.log('Populating table with', data.reports.length, 'reports');
+                
+                // Populate table
+                data.reports.forEach((report, index) => {
+                    console.log(`Report ${index}:`, report);
+                    const row = document.createElement('tr');
+                    
+                    // Format currency value
+                    const valorFormatted = report.valor_aproximado ? 
+                        `${parseFloat(report.valor_aproximado).toLocaleString('es-CO', {minimumFractionDigits: 0, maximumFractionDigits: 0})}` : 
+                        '-';
+                    
+                    row.innerHTML = `
+                        <td>${report.id_reporte || '-'}</td>
+                        <td>${report.fecha_incidente || '-'}</td>
+                        <td>${report.hora_incidente || '-'}</td>
+                        <td>${report.tipo_incidencia || '-'}</td>
+                        <td>${report.propiedad_nombre || '-'}</td>
+                        <td title="${report.email_reportante || ''}">${report.nombre_reportante || report.email_reportante || '-'}</td>
+                        <td>${report.nombre_usuario_afectado || '-'}</td>
+                        <td>${report.numero_apartamento || '-'}</td>
+                        <td>${report.lugar_incidente || '-'}</td>
+                        <td>${valorFormatted}</td>
+                        <td title="${report.descripcion_incidente || ''}">
+                            ${report.descripcion_incidente ? 
+                              (report.descripcion_incidente.length > 50 ? 
+                               report.descripcion_incidente.substring(0, 50) + '...' : 
+                               report.descripcion_incidente) : '-'}
+                        </td>
+                    `;
+                    reportsTableBody.appendChild(row);
+                });
+                
+                console.log('Table populated successfully');
+            } else {
+                console.log('No reports found, showing no reports message');
+                // Hide table and show no reports message
+                document.getElementById('reportsTable').classList.add('hidden');
+                noReports.classList.remove('hidden');
+            }
+        }
+
+        function showErrorInModal(message) {
+            console.error('Showing error in modal:', message);
+            loadingIndicator.classList.add('hidden');
+            reportsContainer.classList.remove('hidden');
+            
+            reportsCount.textContent = 'Error al cargar reportes';
+            reportsFilter.textContent = message;
+            
+            document.getElementById('reportsTable').classList.add('hidden');
+            noReports.classList.remove('hidden');
+            noReports.innerHTML = `<p class="text-red-600">${message}</p>`;
+        }
 
         // Theme management functions
         function initializeTheme() {
@@ -645,6 +1093,8 @@
 
         // Initialize the dashboard
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initializing...');
+            
             // Initialize theme first
             initializeTheme();
             
@@ -661,8 +1111,10 @@
 
         async function loadProperties() {
             try {
+                console.log('Loading properties...');
                 const response = await fetch('/api/properties');
                 properties = await response.json();
+                console.log('Properties loaded:', properties);
                 
                 const propertySelect = document.getElementById('propertySelect');
                 propertySelect.innerHTML = '<option value="">Todas las Propiedades</option>';
@@ -683,6 +1135,7 @@
         async function changeProperty() {
             const propertySelect = document.getElementById('propertySelect');
             currentPropertyId = propertySelect.value ? parseInt(propertySelect.value) : null;
+            console.log('Property changed to:', currentPropertyId);
             
             // Reset selected bar when changing property
             currentlySelectedBar = null;
@@ -695,6 +1148,7 @@
 
         async function loadAllData() {
             try {
+                console.log('Loading all data...');
                 showLoadingIndicator();
                 
                 // Build query parameter for property filter
@@ -708,6 +1162,8 @@
                     fetch(`/api/incidents/types${propertyParam}`).then(r => r.json()),
                     fetch(`/api/incidents/weekly-with-kpi${propertyParam}`).then(r => r.json())
                 ]);
+
+                console.log('Data loaded:', {weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData});
 
                 allData = {
                     weekly: weeklyData,
@@ -736,7 +1192,7 @@
         function showLoadingIndicator() {
             // Add loading overlay
             const loadingDiv = document.createElement('div');
-            loadingDiv.id = 'loadingIndicator';
+            loadingDiv.id = 'dashboardLoadingIndicator';
             loadingDiv.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
             loadingDiv.innerHTML = `
                 <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg flex items-center gap-3">
@@ -748,7 +1204,7 @@
         }
 
         function hideLoadingIndicator() {
-            const loadingDiv = document.getElementById('loadingIndicator');
+            const loadingDiv = document.getElementById('dashboardLoadingIndicator');
             if (loadingDiv) {
                 loadingDiv.remove();
             }
@@ -757,7 +1213,7 @@
         async function updateIncidentTypesForPeriod(period) {
             try {
                 const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
-                let endpoint = `/api/incidents/types${propertyParam}`; // default to weekly
+                let endpoint = `/api/incidents/types${propertyParam}`; // default to weekly (last 7 days)
                 
                 if (period === 'monthly') {
                     endpoint = `/api/incidents/types/monthly${propertyParam}`;
@@ -801,21 +1257,24 @@
                         countElement.classList.add('critical');
                         card.classList.add('critical');
                         
-                        // Add KPI indicator
-                        const indicator = document.createElement('div');
-                        indicator.className = 'kpi-indicator';
-                        indicator.textContent = '!';
-                        
-                        // Set tooltip based on current period
-                        const thresholds = {
-                            weekly: 4,
-                            monthly: 16,
-                            yearly: 208
-                        };
-                        const periodText = currentPeriod === 'weekly' ? 'semana' : 
-                                         currentPeriod === 'monthly' ? 'mes' : 'año';
-                        indicator.title = `KPI Alert: ${item.count} incidents this ${currentPeriod} (threshold: ≥${thresholds[currentPeriod]} per ${periodText})`;
-                        card.appendChild(indicator);
+                        // Add KPI indicator (don't add if it's a click indicator)
+                        let existingIndicator = card.querySelector('.kpi-indicator');
+                        if (!existingIndicator) {
+                            const indicator = document.createElement('div');
+                            indicator.className = 'kpi-indicator';
+                            indicator.textContent = '!';
+                            
+                            // Set tooltip based on current period
+                            const thresholds = {
+                                weekly: 4,
+                                monthly: 16,
+                                yearly: 208
+                            };
+                            const periodText = currentPeriod === 'weekly' ? '7 días' : 
+                                             currentPeriod === 'monthly' ? '30 días' : '365 días';
+                            indicator.title = `KPI Alert: ${item.count} incidents in last ${periodText} (threshold: ≥${thresholds[currentPeriod]})`;
+                            card.appendChild(indicator);
+                        }
                     } else {
                         countElement.classList.remove('critical');
                     }
@@ -882,9 +1341,9 @@
             };
             
             const incidentTypesTitles = {
-                weekly: 'Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana',
-                monthly: 'Tipos de Incidencias (Este Mes) - KPI: ≥16 por mes',
-                yearly: 'Tipos de Incidencias (Este Año) - KPI: ≥208 por año'
+                weekly: 'Tipos de Incidencias (Últimos 7 días) - KPI: ≥4 en 7 días',
+                monthly: 'Tipos de Incidencias (Últimos 30 días) - KPI: ≥16 en 30 días',
+                yearly: 'Tipos de Incidencias (Últimos 365 días) - KPI: ≥208 en 365 días'
             };
             
             document.getElementById('chartTitle').textContent = titles[period];
@@ -1271,6 +1730,8 @@
         window.clearPeriodBreakdown = clearPeriodBreakdown;
         window.togglePeriodBreakdown = togglePeriodBreakdown;
         window.changeProperty = changeProperty;
+        window.showReportsModal = showReportsModal;
+        window.showIncidentTypeReports = showIncidentTypeReports;
 
         function showError(message) {
             // Create error message element
