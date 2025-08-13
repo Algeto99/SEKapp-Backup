@@ -526,110 +526,148 @@
       border: 1px solid #e9ecef;
     }
 
-    /* iPhone/iOS specific fixes */
+    /* FIXED: Cross-device checkbox styles */
     .report-checkbox {
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      appearance: none;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
       width: 24px !important;
       height: 24px !important;
-      border: 2px solid #60a5fa;
-      border-radius: 4px;
-      background-color: transparent;
-      position: relative;
-      margin-right: 1rem;
-      cursor: pointer;
-      flex-shrink: 0;
+      min-width: 24px !important;
+      min-height: 24px !important;
+      max-width: 24px !important;
+      max-height: 24px !important;
+      margin: 0 !important;
+      margin-right: 1rem !important;
+      margin-top: 2px !important;
+      padding: 0 !important;
+      border: 2px solid #60a5fa !important;
+      border-radius: 4px !important;
+      background-color: transparent !important;
+      position: relative !important;
+      display: inline-block !important;
+      flex-shrink: 0 !important;
+      vertical-align: top !important;
+      cursor: pointer !important;
+      touch-action: manipulation !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      -webkit-text-size-adjust: 100% !important;
+      box-sizing: border-box !important;
       transform: none !important;
-      /* iPhone specific touch improvements */
-      -webkit-tap-highlight-color: rgba(0,0,0,0);
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-      touch-action: manipulation;
+      -webkit-transform: none !important;
+      float: none !important;
+      clear: none !important;
     }
-    
+
     .report-checkbox:checked {
-      background-color: #60a5fa;
-      border-color: #60a5fa;
+      background-color: #60a5fa !important;
+      border-color: #60a5fa !important;
     }
-    
+
     .report-checkbox:checked::before {
-      content: '✓';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-size: 16px;
-      font-weight: bold;
-      line-height: 1;
-      font-family: Arial, sans-serif;
+      content: '✓' !important;
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      color: white !important;
+      font-size: 16px !important;
+      font-weight: bold !important;
+      line-height: 1 !important;
+      font-family: Arial, sans-serif !important;
+      pointer-events: none !important;
     }
-    
+
     .report-checkbox:focus {
-      outline: 2px solid #60a5fa;
-      outline-offset: 2px;
+      outline: 2px solid #60a5fa !important;
+      outline-offset: 2px !important;
     }
-    
+
     .report-checkbox:hover {
-      border-color: #3b82f6;
-      background-color: rgba(96, 165, 250, 0.1);
+      border-color: #3b82f6 !important;
+      background-color: rgba(96, 165, 250, 0.1) !important;
     }
-    
-    /* iPhone specific fixes */
+
+    .checkbox-container {
+      display: flex !important;
+      align-items: flex-start !important;
+      margin-bottom: 0.75rem !important;
+      width: 100% !important;
+      overflow: visible !important;
+      padding: 0.5rem 0 !important;
+      min-height: 44px !important;
+      -webkit-tap-highlight-color: transparent !important;
+      touch-action: manipulation !important;
+    }
+
+    .checkbox-label {
+      flex: 1 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      padding-left: 0 !important;
+      padding-top: 0.25rem !important;
+      cursor: pointer !important;
+      line-height: 1.4 !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      touch-action: manipulation !important;
+    }
+
     @media screen and (-webkit-min-device-pixel-ratio: 2) {
       .report-checkbox {
         transform: scale(1) !important;
-        margin-right: 1rem;
-        min-width: 24px;
-        min-height: 24px;
+        -webkit-transform: scale(1) !important;
+        position: relative !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
       }
       
-      .install-modal-content {
-        -webkit-overflow-scrolling: touch;
-        overflow-scrolling: touch;
-      }
-      
-      /* Fix for iOS touch events */
-      .install-modal-content button {
-        -webkit-appearance: button;
-        -webkit-user-select: none;
-        user-select: none;
-        touch-action: manipulation;
+      .checkbox-container {
+        -webkit-overflow-scrolling: touch !important;
+        overflow-scrolling: touch !important;
       }
     }
-    
-    /* Safari/WebKit specific fixes */
+
     @supports (-webkit-appearance: none) {
       .report-checkbox {
         -webkit-transform: none !important;
         transform: none !important;
+        background-clip: padding-box !important;
       }
     }
-    
-    /* Ensure checkbox container doesn't overflow */
-    .checkbox-container {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 0.5rem;
-      width: 100%;
-      overflow: visible;
-      padding: 0.5rem 0;
-      /* iPhone touch target improvements */
-      min-height: 44px;
+
+    @media (max-width: 768px) {
+      .checkbox-container {
+        min-height: 48px !important;
+        padding: 0.75rem 0 !important;
+      }
+      
+      .report-checkbox {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        max-width: 28px !important;
+        max-height: 28px !important;
+      }
+      
+      .report-checkbox:checked::before {
+        font-size: 18px !important;
+      }
     }
-    
-    .checkbox-label {
-      flex: 1;
-      margin: 0;
-      padding-left: 0;
-      padding-top: 0.25rem;
-      cursor: pointer;
-      -webkit-tap-highlight-color: rgba(0,0,0,0);
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
+
+    .install-modal .report-checkbox {
+      position: relative !important;
+      z-index: auto !important;
     }
 
     /* NEW: Attachments container styling */
@@ -988,8 +1026,8 @@
         this.registration = null;
         this.updateAvailable = false;
         this.refreshing = false;
-        this.updateProcessing = false; // NEW: Prevent multiple updates
-        this.lastUpdateCheck = 0; // NEW: Rate limiting
+        this.updateProcessing = false;
+        this.lastUpdateCheck = 0;
         this.init();
       }
 
@@ -1004,7 +1042,6 @@
             this.startUpdateChecker();
             this.setupInstallPrompt();
             
-            // Force cache the current page immediately
             if ('caches' in window) {
               caches.open('smt-secapp-v6').then(cache => {
                 cache.add('/').then(() => {
@@ -1020,7 +1057,6 @@
       }
 
       setupUpdateDetection() {
-        // FIXED: Better state management to prevent loops
         if (this.registration.waiting) {
           console.log('[UpdateManager] Service worker waiting on startup');
           this.showUpdateAvailable();
@@ -1043,7 +1079,6 @@
           }
         });
 
-        // FIXED: Better controller change handling
         navigator.serviceWorker.addEventListener('controllerchange', () => {
           console.log('[UpdateManager] Controller changed, refreshing flag:', this.refreshing);
           
@@ -1060,14 +1095,13 @@
           
           switch (event.data.type) {
             case 'SW_UPDATED':
-              this.updateProcessing = false; // Reset flag
+              this.updateProcessing = false;
               this.showToast(event.data.message, 'success');
               break;
               
             case 'CONTENT_UPDATED':
-              // FIXED: Rate limit content update notifications
               const now = Date.now();
-              if (now - this.lastUpdateCheck > 30000) { // Only show every 30 seconds
+              if (now - this.lastUpdateCheck > 30000) {
                 this.lastUpdateCheck = now;
                 this.showUpdateNotification(event.data.message);
               }
@@ -1083,29 +1117,26 @@
       }
 
       startUpdateChecker() {
-        // FIXED: Less aggressive update checking
         setInterval(() => {
           if (this.registration && !this.updateProcessing) {
             console.log('[UpdateManager] Periodic update check...');
             this.registration.update();
           }
-        }, 10 * 60 * 1000); // Check every 10 minutes instead of 5
+        }, 10 * 60 * 1000);
 
-        // Check when page becomes visible (but rate limited)
         document.addEventListener('visibilitychange', () => {
           if (!document.hidden && this.registration && !this.updateProcessing) {
             const now = Date.now();
-            if (now - this.lastUpdateCheck > 60000) { // Only check every minute
+            if (now - this.lastUpdateCheck > 60000) {
               this.lastUpdateCheck = now;
               this.registration.update();
             }
           }
         });
 
-        // Check when app comes back online
         window.addEventListener('online', () => {
           if (this.registration && !this.updateProcessing) {
-            setTimeout(() => { // Small delay to avoid immediate loops
+            setTimeout(() => {
               this.registration.update();
             }, 2000);
           }
@@ -1113,7 +1144,6 @@
       }
 
       showUpdateAvailable() {
-        // FIXED: Prevent multiple update banners
         if (this.updateProcessing || document.getElementById('update-banner')) {
           console.log('[UpdateManager] Update already being processed or banner exists');
           return;
@@ -1149,8 +1179,7 @@
                 font-size: 0.8rem;
                 transition: all 0.2s ease;
                 width: auto;
-              " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
-                 onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+              ">
                 ✨ Actualizar Ahora
               </button>
               <button id="update-dismiss-btn" style="
@@ -1168,7 +1197,6 @@
         
         document.body.appendChild(updateBanner);
         
-        // Add event listeners
         document.getElementById('update-now-btn').addEventListener('click', () => {
           this.applyUpdate();
         });
@@ -1177,7 +1205,6 @@
           this.dismissUpdate();
         });
         
-        // Auto-dismiss after 30 seconds
         setTimeout(() => {
           if (document.getElementById('update-banner')) {
             this.dismissUpdate();
@@ -1185,90 +1212,6 @@
         }, 30000);
       }
 
-      showUpdateNotification(message) {
-        // FIXED: Prevent notification spam
-        if (document.querySelector('.content-update-notification')) {
-          return; // Don't show if one already exists
-        }
-        
-        const notification = document.createElement('div');
-        notification.className = 'content-update-notification';
-        notification.innerHTML = `
-          <div style="
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            z-index: 9999;
-            max-width: 450px;
-            margin: 0 auto;
-            font-size: 0.875rem;
-            animation: slideUp 0.3s ease;
-          ">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <span style="font-size: 1.5rem;">📱</span>
-              <div style="flex: 1;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem;">Contenido Actualizado</div>
-                <div style="opacity: 0.9; font-size: 0.8rem;">Nueva versión disponible con mejoras</div>
-              </div>
-              <button id="refresh-now-btn" style="
-                background: rgba(255,255,255,0.2);
-                border: 1px solid rgba(255,255,255,0.3);
-                color: white;
-                padding: 0.5rem 1rem;
-                border-radius: 0.5rem;
-                cursor: pointer;
-                font-size: 0.8rem;
-                font-weight: bold;
-                width: auto;
-                transition: all 0.2s ease;
-              " onmouseover="this.style.background='rgba(255,255,255,0.3)'" 
-                 onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                🔄 Actualizar
-              </button>
-              <button id="refresh-dismiss-btn" style="
-                background: none;
-                border: none;
-                color: rgba(255,255,255,0.8);
-                cursor: pointer;
-                font-size: 1.2rem;
-                padding: 0.25rem;
-                width: auto;
-              ">×</button>
-            </div>
-          </div>
-          <style>
-            @keyframes slideUp {
-              from { transform: translateY(100%); opacity: 0; }
-              to { transform: translateY(0); opacity: 1; }
-            }
-          </style>
-        `;
-        
-        document.body.appendChild(notification);
-        
-        document.getElementById('refresh-now-btn').addEventListener('click', () => {
-          this.performRefresh();
-        });
-        
-        document.getElementById('refresh-dismiss-btn').addEventListener('click', () => {
-          notification.remove();
-        });
-        
-        // Auto-dismiss after 15 seconds
-        setTimeout(() => {
-          if (notification.parentNode) {
-            notification.remove();
-          }
-        }, 15000);
-      }
-
-      // FIXED: Better update application
       applyUpdate() {
         if (this.updateProcessing) {
           console.log('[UpdateManager] Update already in progress');
@@ -1278,34 +1221,28 @@
         this.updateProcessing = true;
         console.log('[UpdateManager] Applying update...');
         
-        // Remove update banner immediately
         const banner = document.getElementById('update-banner');
         if (banner) banner.remove();
         
-        // Show loading state
         this.showToast('Actualizando aplicación...', 'info');
         
         if (this.registration && this.registration.waiting) {
-          // Tell the waiting SW to skip waiting
           this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          this.refreshing = true; // Set flag for controller change
+          this.refreshing = true;
         } else {
-          // Fallback: force reload
           console.log('[UpdateManager] No waiting SW, forcing reload');
           this.performRefresh();
         }
       }
 
-      // FIXED: Better dismiss handling
       dismissUpdate() {
         this.updateAvailable = false;
         const banner = document.getElementById('update-banner');
         if (banner) banner.remove();
         
-        // Set a temporary flag to prevent immediate re-showing
         setTimeout(() => {
           this.updateProcessing = false;
-        }, 10000); // Wait 10 seconds before allowing new updates
+        }, 10000);
       }
 
       performRefresh() {
@@ -1317,11 +1254,6 @@
         console.log('[UpdateManager] Performing refresh...');
         this.refreshing = true;
         
-        // Remove any update notifications
-        const notification = document.querySelector('.content-update-notification');
-        if (notification) notification.remove();
-        
-        // Clear cache and reload
         if ('caches' in window) {
           caches.delete('smt-secapp-v6').then(() => {
             window.location.reload(true);
@@ -1531,7 +1463,6 @@
     document.addEventListener('DOMContentLoaded', () => {
       window.updateManager = new PWAUpdateManager();
       
-      // Add version info to console
       setTimeout(async () => {
         const versionInfo = await window.updateManager.getVersionInfo();
         if (versionInfo) {
@@ -1545,406 +1476,6 @@
       if (window.updateManager) {
         window.updateManager.checkForUpdate();
       }
-    }; versión disponible con mejoras',
-            icon: '📱',
-            buttonText: '🔄 Actualizar',
-            color: '#3b82f6'
-          },
-          critical: {
-            title: 'Actualización Importante',
-            message: 'Actualización de seguridad disponible',
-            icon: '🔒',
-            buttonText: '⚡ Actualizar Ahora',
-            color: '#ef4444'
-          },
-          feature: {
-            title: 'Nuevas Funciones',
-            message: 'Descubre las últimas mejoras',
-            icon: '✨',
-            buttonText: '🚀 Ver Novedades',
-            color: '#10b981'
-          }
-        };
-        
-        const prompt = prompts[updateType] || prompts.content;
-        
-        // Remove any existing prompts
-        const existingPrompts = document.querySelectorAll('.smart-update-prompt');
-        existingPrompts.forEach(p => p.remove());
-        
-        const updatePrompt = document.createElement('div');
-        updatePrompt.className = 'smart-update-prompt';
-        updatePrompt.innerHTML = `
-          <div style="
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, ${prompt.color} 0%, ${prompt.color}dd 100%);
-            color: white;
-            padding: 1.25rem;
-            border-radius: 1rem;
-            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-            z-index: 10001;
-            max-width: 500px;
-            margin: 0 auto;
-            font-size: 0.9rem;
-            animation: bounceIn 0.4s ease;
-          ">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <div style="
-                font-size: 2rem;
-                background: rgba(255,255,255,0.15);
-                border-radius: 50%;
-                padding: 0.5rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 3rem;
-                height: 3rem;
-              ">${prompt.icon}</div>
-              <div style="flex: 1;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem; font-size: 1rem;">${prompt.title}</div>
-                <div style="opacity: 0.95; font-size: 0.85rem;">${prompt.message}</div>
-              </div>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <button id="smart-update-btn" style="
-                  background: rgba(255,255,255,0.25);
-                  border: 1px solid rgba(255,255,255,0.4);
-                  color: white;
-                  padding: 0.75rem 1rem;
-                  border-radius: 0.5rem;
-                  cursor: pointer;
-                  font-size: 0.8rem;
-                  font-weight: bold;
-                  width: auto;
-                  transition: all 0.2s ease;
-                  white-space: nowrap;
-                " onmouseover="this.style.background='rgba(255,255,255,0.35)'" 
-                   onmouseout="this.style.background='rgba(255,255,255,0.25)'">
-                  ${prompt.buttonText}
-                </button>
-                <button id="smart-dismiss-btn" style="
-                  background: none;
-                  border: none;
-                  color: rgba(255,255,255,0.7);
-                  cursor: pointer;
-                  font-size: 0.75rem;
-                  padding: 0.25rem;
-                  width: auto;
-                  text-decoration: underline;
-                ">Después</button>
-              </div>
-            </div>
-          </div>
-          <style>
-            @keyframes bounceIn {
-              0% { transform: translateY(100%) scale(0.8); opacity: 0; }
-              60% { transform: translateY(-10%) scale(1.05); opacity: 1; }
-              100% { transform: translateY(0) scale(1); opacity: 1; }
-            }
-          </style>
-        `;
-        
-        document.body.appendChild(updatePrompt);
-        
-        // Add event listeners
-        document.getElementById('smart-update-btn').addEventListener('click', () => {
-          this.performRefresh();
-        });
-        
-        document.getElementById('smart-dismiss-btn').addEventListener('click', () => {
-          updatePrompt.remove();
-        });
-        
-        // Auto-dismiss after 20 seconds
-        setTimeout(() => {
-          if (updatePrompt.parentNode) {
-            updatePrompt.remove();
-          }
-        }, 20000);
-      }
-
-      // Detect update type based on version comparison
-      detectUpdateType(oldVersion, newVersion) {
-        // Simple version comparison logic
-        if (!oldVersion || !newVersion) return 'content';
-        
-        const oldNum = parseInt(oldVersion.replace(/\D/g, ''));
-        const newNum = parseInt(newVersion.replace(/\D/g, ''));
-        
-        const diff = newNum - oldNum;
-        
-        if (diff >= 10) return 'critical';  // Major version jump
-        if (diff >= 5) return 'feature';    // Feature update
-        return 'content';                   // Regular content update
-      }
-
-      applyUpdate() {
-        if (this.registration && this.registration.waiting) {
-          // Tell the waiting SW to skip waiting
-          this.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          
-          // Remove update banner
-          const banner = document.getElementById('update-banner');
-          if (banner) banner.remove();
-          
-          // Show loading state
-          this.showToast('Actualizando aplicación...', 'info');
-        }
-      }
-
-      handleBackgroundSync() {
-        // Handle background sync for offline reports
-        if (window.offlineManager) {
-          window.offlineManager.syncReports();
-        }
-      }
-
-      setupInstallPrompt() {
-        let deferredPrompt;
-        
-        window.addEventListener('beforeinstallprompt', (e) => {
-          console.log('[UpdateManager] Install prompt available');
-          e.preventDefault();
-          deferredPrompt = e;
-          
-          // Show custom install button
-          this.showInstallOption(deferredPrompt);
-        });
-        
-        // Handle successful installation
-        window.addEventListener('appinstalled', () => {
-          console.log('[UpdateManager] PWA installed successfully');
-          this.showToast('¡Aplicación instalada exitosamente!', 'success');
-          deferredPrompt = null;
-        });
-      }
-
-      showInstallOption(deferredPrompt) {
-        // Only show if not already dismissed and not in standalone mode
-        if (localStorage.getItem('install-prompt-dismissed') === 'true' || 
-            window.matchMedia('(display-mode: standalone)').matches) {
-          return;
-        }
-        
-        const installBanner = document.createElement('div');
-        installBanner.id = 'install-banner';
-        installBanner.innerHTML = `
-          <div style="
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: white;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            z-index: 9999;
-            font-size: 0.875rem;
-            max-width: 400px;
-            margin: 0 auto;
-          ">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <span style="font-size: 1.5rem;">📱</span>
-              <div style="flex: 1;">
-                <div style="font-weight: bold; margin-bottom: 0.25rem;">Instalar SMT SecApp</div>
-                <div style="opacity: 0.9; font-size: 0.8rem;">Acceso rápido y funciona sin conexión</div>
-              </div>
-              <button id="install-app-btn" style="
-                background: rgba(255,255,255,0.2);
-                border: 1px solid rgba(255,255,255,0.3);
-                color: white;
-                padding: 0.5rem 1rem;
-                border-radius: 0.5rem;
-                cursor: pointer;
-                font-size: 0.8rem;
-                font-weight: bold;
-                width: auto;
-              ">Instalar</button>
-              <button id="install-dismiss-btn" style="
-                background: none;
-                border: none;
-                color: rgba(255,255,255,0.8);
-                cursor: pointer;
-                font-size: 1.2rem;
-                padding: 0.25rem;
-                width: auto;
-              ">×</button>
-            </div>
-          </div>
-        `;
-        
-        document.body.appendChild(installBanner);
-        
-        // Install button click
-        document.getElementById('install-app-btn').addEventListener('click', async () => {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log('[UpdateManager] Install prompt outcome:', outcome);
-            
-            if (outcome === 'accepted') {
-              this.showToast('¡Instalando aplicación...', 'success');
-            }
-            
-            deferredPrompt = null;
-            installBanner.remove();
-          }
-        });
-        
-        // Dismiss button click
-        document.getElementById('install-dismiss-btn').addEventListener('click', () => {
-          localStorage.setItem('install-prompt-dismissed', 'true');
-          installBanner.remove();
-        });
-        
-        // Auto-dismiss after 1 minute
-        setTimeout(() => {
-          if (document.getElementById('install-banner')) {
-            installBanner.remove();
-          }
-        }, 60000);
-      }
-
-      showToast(message, type = 'info') {
-        const existingToasts = document.querySelectorAll('.update-toast');
-        existingToasts.forEach(toast => toast.remove());
-
-        const toast = document.createElement('div');
-        toast.className = 'update-toast';
-        
-        const colors = {
-          success: '#10b981',
-          error: '#ef4444',
-          warning: '#f59e0b',
-          info: '#3b82f6'
-        };
-        
-        toast.innerHTML = `
-          <div style="
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            background: ${colors[type]};
-            color: white;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            z-index: 10001;
-            font-size: 0.875rem;
-            max-width: 300px;
-            animation: slideInRight 0.3s ease;
-          ">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span>${message}</span>
-              <button onclick="this.parentElement.parentElement.remove()" style="
-                background: none;
-                border: none;
-                color: rgba(255,255,255,0.8);
-                cursor: pointer;
-                font-size: 1rem;
-                margin-left: auto;
-                padding: 0;
-                width: auto;
-              ">×</button>
-            </div>
-          </div>
-          <style>
-            @keyframes slideInRight {
-              from { transform: translateX(100%); opacity: 0; }
-              to { transform: translateX(0); opacity: 1; }
-            }
-          </style>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Auto-remove after 4 seconds
-        setTimeout(() => {
-          if (toast.parentNode) {
-            toast.remove();
-          }
-        }, 4000);
-      }
-
-      // Force update check (can be called manually)
-      async checkForUpdate() {
-        if (this.registration) {
-          await this.registration.update();
-          console.log('[UpdateManager] Manual update check completed');
-        }
-      }
-
-      // Get current version info
-      async getVersionInfo() {
-        if (navigator.serviceWorker.controller) {
-          const messageChannel = new MessageChannel();
-          
-          return new Promise((resolve) => {
-            messageChannel.port1.onmessage = (event) => {
-              resolve(event.data);
-            };
-            
-            navigator.serviceWorker.controller.postMessage(
-              { type: 'GET_VERSION' },
-              [messageChannel.port2]
-            );
-          });
-        }
-        
-        return null;
-      }
-    }
-
-    // Initialize the update manager
-    document.addEventListener('DOMContentLoaded', () => {
-      window.updateManager = new PWAUpdateManager();
-      
-      // Add version info to console
-      setTimeout(async () => {
-        const versionInfo = await window.updateManager.getVersionInfo();
-        if (versionInfo) {
-          console.log('[PWA] Current version:', versionInfo.version);
-        }
-      }, 2000);
-    });
-
-    // Expose manual update function globally
-    window.checkForUpdates = () => {
-      if (window.updateManager) {
-        window.updateManager.checkForUpdate();
-      }
-    };
-
-    // SIMPLIFIED INSTALL PROMPT - Just hide it by default
-    const installPrompt = document.getElementById('install-prompt');
-    const dismissButton = document.getElementById('dismiss-install');
-
-    // Hide by default - only show if user wants it
-    installPrompt.style.display = 'none';
-
-    // Simple dismiss - just hide it
-    if (dismissButton) {
-      dismissButton.addEventListener('click', () => {
-        installPrompt.style.display = 'none';
-        localStorage.setItem('install-prompt-dismissed', 'true');
-      });
-    }
-
-    // Optional: Show install prompt only on user request
-    // You can add a menu option or button to show it if needed
-    window.showInstallPrompt = function() {
-      if (localStorage.getItem('install-prompt-dismissed') !== 'true') {
-        installPrompt.style.display = 'block';
-      }
-    };
-
-    // Optional: Reset function for testing
-    window.resetInstallPrompt = function() {
-      localStorage.removeItem('install-prompt-dismissed');
-      installPrompt.style.display = 'block';
     };
 
     // Install Instructions Modal Functions
@@ -1987,7 +1518,6 @@
         connectionStatus.className = 'connection-status offline';
         connectionStatus.style.cursor = 'pointer';
         connectionStatus.onclick = () => {
-          // Force connectivity check and potential refresh
           fetch('/health', { cache: 'no-cache' })
             .then(() => {
               if (window.updateManager) {
@@ -2035,7 +1565,7 @@
     });
   </script>
   
-  <!-- Enhanced Offline Forms Manager with iOS Support -->
+  <!-- FIXED Enhanced Offline Forms Manager -->
   <script>
     class EnhancedOfflineFormsManager {
       constructor() {
@@ -2063,97 +1593,6 @@
         this.setupOfflineDetection();
         this.checkForSavedReports();
         this.addSaveButton();
-        // Removed auto-sync setup - now manual only
-        
-        // Add debugging for form submission
-        const form = document.getElementById('incident-form');
-        if (form) {
-          console.log('[OfflineManager] Form found, adding debug listeners');
-          form.addEventListener('click', (e) => {
-            if (e.target.type === 'submit') {
-              console.log('[OfflineManager] Submit button clicked, online status:', this.isOnline);
-            }
-          });
-        } else {
-          console.error('[OfflineManager] Form not found during initialization');
-        }
-      }
-
-      setupPeriodicSync() {
-        setInterval(() => {
-          if (this.isOnline) {
-            this.autoSync();
-          }
-        }, 30000);
-      }
-
-      async autoSync() {
-        const savedReports = this.getSavedReports();
-        const pendingReports = Object.entries(savedReports).filter(([id, report]) => report.readyToSubmit);
-        
-        if (pendingReports.length === 0) return;
-
-        let successCount = 0;
-        for (const [reportId, report] of pendingReports) {
-          try {
-            const success = await this.submitSingleReport(report.data);
-            if (success) {
-              delete savedReports[reportId];
-              successCount++;
-            }
-          } catch (error) {
-            break;
-          }
-        }
-
-        if (successCount > 0) {
-          localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
-          this.checkForSavedReports();
-          this.showToast(`${successCount} reporte(s) sincronizado(s) automáticamente`, 'success');
-        }
-      }
-
-      async submitSingleReport(reportData) {
-        console.log('[OfflineManager] Attempting to submit single report');
-        
-        // Double-check online status before attempting submission
-        if (!navigator.onLine) {
-          console.log('[OfflineManager] Navigator reports offline, aborting submission');
-          return false;
-        }
-
-        const formData = new FormData();
-        Object.entries(reportData).forEach(([key, value]) => {
-          formData.append(key, value);
-          console.log(`[OfflineManager] Adding to FormData: ${key} = ${value}`);
-        });
-
-        try {
-          console.log('[OfflineManager] Making fetch request to /submit_report');
-          
-          const response = await fetch('/submit_report', {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-            headers: {
-              // Don't set Content-Type, let browser set it for FormData
-            }
-          });
-          
-          console.log('[OfflineManager] Response status:', response.status);
-          console.log('[OfflineManager] Response ok:', response.ok);
-          
-          if (response.ok) {
-            console.log('[OfflineManager] Report submitted successfully');
-            return true;
-          } else {
-            console.error('[OfflineManager] Server responded with error:', response.status, response.statusText);
-            return false;
-          }
-        } catch (error) {
-          console.error('[OfflineManager] Network error during submission:', error);
-          return false;
-        }
       }
 
       addSaveButton() {
@@ -2320,11 +1759,9 @@
               const success = this.saveForLaterSubmission();
               if (success) {
                 this.showToast('Sin conexión. Reporte guardado para envío posterior.', 'warning');
-                // Optionally clear the form after successful save
                 setTimeout(() => {
                   if (confirm('¿Deseas limpiar el formulario después de guardar?')) {
                     form.reset();
-                    // Reset Tom Select dropdowns
                     document.querySelectorAll('.tom-select-searchable').forEach(el => {
                       if (el.tomselect) {
                         el.tomselect.clear();
@@ -2347,7 +1784,6 @@
           console.log('[OfflineManager] Network status: ONLINE');
           this.isOnline = true;
           
-          // Additional check for iPhone - sometimes navigator.onLine lies
           setTimeout(() => {
             fetch('/health', { cache: 'no-cache' })
               .then(() => {
@@ -2494,6 +1930,45 @@
         }
       }
 
+      async submitSingleReport(reportData) {
+        console.log('[OfflineManager] Attempting to submit single report');
+        
+        if (!navigator.onLine) {
+          console.log('[OfflineManager] Navigator reports offline, aborting submission');
+          return false;
+        }
+
+        const formData = new FormData();
+        Object.entries(reportData).forEach(([key, value]) => {
+          formData.append(key, value);
+          console.log(`[OfflineManager] Adding to FormData: ${key} = ${value}`);
+        });
+
+        try {
+          console.log('[OfflineManager] Making fetch request to /submit_report');
+          
+          const response = await fetch('/submit_report', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+          });
+          
+          console.log('[OfflineManager] Response status:', response.status);
+          console.log('[OfflineManager] Response ok:', response.ok);
+          
+          if (response.ok) {
+            console.log('[OfflineManager] Report submitted successfully');
+            return true;
+          } else {
+            console.error('[OfflineManager] Server responded with error:', response.status, response.statusText);
+            return false;
+          }
+        } catch (error) {
+          console.error('[OfflineManager] Network error during submission:', error);
+          return false;
+        }
+      }
+
       showSavedReports() {
         const savedReports = this.getSavedReports();
         const reports = Object.entries(savedReports);
@@ -2503,10 +1978,8 @@
           return;
         }
 
-        // Remove any existing modals first
         this.closeAllModals();
 
-        // Create modal to show saved reports
         const modal = document.createElement('div');
         modal.className = 'install-modal';
         modal.id = 'saved-reports-modal';
@@ -2516,7 +1989,7 @@
             
             <div class="text-center mb-6">
               <h2 class="mb-4">📱 Reportes Guardados (${reports.length})</h2>
-              <p class="text-sm" style="color: #9ca3af;">Revisa y decide qué reportes enviar</p>
+              <p class="text-sm" style="color: #9ca3af;">Selecciona los reportes que quieres enviar</p>
             </div>
 
             <div style="max-height: 60vh; overflow-y: auto;">
@@ -2542,65 +2015,101 @@
         
         document.body.appendChild(modal);
         
-        // Show modal with slight delay to ensure it's in DOM
         setTimeout(() => {
           modal.classList.add('show');
-        }, 10);
+          // FIXED: Setup checkbox handlers after modal is fully rendered
+          this.setupCheckboxHandlers(modal);
+        }, 50);
         
-        // Close modal when clicking outside (on the overlay)
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeAllModals();
           }
         });
         
-        // Prevent clicks inside modal content from closing modal
         const modalContent = modal.querySelector('.install-modal-content');
         modalContent.addEventListener('click', (e) => {
           e.stopPropagation();
         });
-        
-        // iPhone-specific checkbox fix
-        this.setupiPhoneCheckboxFix(modal);
       }
       
-      setupiPhoneCheckboxFix(modal) {
-        // Add touch event listeners for iPhone checkboxes
+      // FIXED: Completely rewritten checkbox handling
+      setupCheckboxHandlers(modal) {
+        console.log('[OfflineManager] Setting up checkbox handlers');
+        
         const checkboxes = modal.querySelectorAll('.report-checkbox');
         const labels = modal.querySelectorAll('.checkbox-label');
         
+        console.log('[OfflineManager] Found checkboxes:', checkboxes.length);
+        console.log('[OfflineManager] Found labels:', labels.length);
+        
         checkboxes.forEach((checkbox, index) => {
-          // Handle direct checkbox clicks
-          checkbox.addEventListener('change', (e) => {
-            console.log('[OfflineManager] Checkbox changed:', checkbox.id, checkbox.checked);
-          });
+          const checkboxId = checkbox.id;
+          console.log(`[OfflineManager] Setting up checkbox ${index}: ${checkboxId}`);
           
-          // Handle touch events for iPhone
-          checkbox.addEventListener('touchend', (e) => {
+          // Remove any existing event listeners by cloning the element
+          const newCheckbox = checkbox.cloneNode(true);
+          checkbox.parentNode.replaceChild(newCheckbox, checkbox);
+          
+          // Get the new reference
+          const freshCheckbox = document.getElementById(checkboxId);
+          
+          // FIXED: Universal click handler that works on all devices
+          const toggleCheckbox = (e) => {
             e.preventDefault();
-            console.log('[OfflineManager] Checkbox touched:', checkbox.id);
-            checkbox.checked = !checkbox.checked;
-            checkbox.dispatchEvent(new Event('change'));
+            e.stopPropagation();
+            
+            console.log(`[OfflineManager] Toggling checkbox ${checkboxId} from ${freshCheckbox.checked} to ${!freshCheckbox.checked}`);
+            
+            freshCheckbox.checked = !freshCheckbox.checked;
+            
+            // Dispatch change event for any other listeners
+            freshCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Visual feedback
+            if (freshCheckbox.checked) {
+              freshCheckbox.style.backgroundColor = '#60a5fa';
+              freshCheckbox.style.borderColor = '#60a5fa';
+            } else {
+              freshCheckbox.style.backgroundColor = 'transparent';
+              freshCheckbox.style.borderColor = '#60a5fa';
+            }
+            
+            console.log(`[OfflineManager] Checkbox ${checkboxId} is now: ${freshCheckbox.checked}`);
+          };
+          
+          // Add multiple event listeners for maximum compatibility
+          freshCheckbox.addEventListener('click', toggleCheckbox);
+          freshCheckbox.addEventListener('touchend', toggleCheckbox);
+          freshCheckbox.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent default touch behavior
           });
           
-          // Handle label clicks for iPhone
+          // Handle label clicks
           const correspondingLabel = labels[index];
           if (correspondingLabel) {
-            correspondingLabel.addEventListener('click', (e) => {
+            // Remove existing listeners by cloning
+            const newLabel = correspondingLabel.cloneNode(true);
+            correspondingLabel.parentNode.replaceChild(newLabel, correspondingLabel);
+            
+            // Add new listeners
+            newLabel.addEventListener('click', toggleCheckbox);
+            newLabel.addEventListener('touchend', toggleCheckbox);
+            newLabel.addEventListener('touchstart', (e) => {
               e.preventDefault();
-              console.log('[OfflineManager] Label clicked for:', checkbox.id);
-              checkbox.checked = !checkbox.checked;
-              checkbox.dispatchEvent(new Event('change'));
             });
             
-            correspondingLabel.addEventListener('touchend', (e) => {
-              e.preventDefault();
-              console.log('[OfflineManager] Label touched for:', checkbox.id);
-              checkbox.checked = !checkbox.checked;
-              checkbox.dispatchEvent(new Event('change'));
-            });
+            console.log(`[OfflineManager] Label handlers set for checkbox ${checkboxId}`);
+          }
+          
+          // Set initial visual state
+          if (freshCheckbox.checked) {
+            freshCheckbox.style.backgroundColor = '#60a5fa';
+            freshCheckbox.style.borderColor = '#60a5fa';
           }
         });
+        
+        console.log('[OfflineManager] All checkbox handlers setup complete');
       }
 
       createReportCard(id, report) {
@@ -2610,9 +2119,39 @@
         
         return `
           <div class="install-step" style="margin-bottom: 1rem; position: relative;">
-            <div class="checkbox-container">
-              <input type="checkbox" id="report_${id}" class="report-checkbox" ${isReady ? 'checked' : ''}>
-              <label for="report_${id}" class="checkbox-label" style="font-weight: bold; color: ${isReady ? '#10b981' : '#f59e0b'};">
+            <div class="checkbox-container" style="display: flex; align-items: flex-start; margin-bottom: 0.75rem; min-height: 44px;">
+              <input type="checkbox" 
+                     id="report_${id}" 
+                     class="report-checkbox" 
+                     ${isReady ? 'checked' : ''}
+                     style="
+                       width: 24px !important; 
+                       height: 24px !important; 
+                       margin-right: 1rem; 
+                       margin-top: 2px;
+                       cursor: pointer;
+                       -webkit-appearance: none;
+                       -moz-appearance: none;
+                       appearance: none;
+                       border: 2px solid #60a5fa;
+                       border-radius: 4px;
+                       background-color: ${isReady ? '#60a5fa' : 'transparent'};
+                       position: relative;
+                       flex-shrink: 0;
+                       touch-action: manipulation;
+                       -webkit-tap-highlight-color: transparent;
+                     ">
+              <label for="report_${id}" 
+                     class="checkbox-label" 
+                     style="
+                       flex: 1; 
+                       margin: 0; 
+                       cursor: pointer; 
+                       font-weight: bold; 
+                       color: ${isReady ? '#10b981' : '#f59e0b'};
+                       touch-action: manipulation;
+                       -webkit-tap-highlight-color: transparent;
+                     ">
                 ${isReady ? '📤 Listo para enviar' : '📝 Borrador'} - ${date}
               </label>
             </div>
@@ -2644,7 +2183,6 @@
       }
 
       getFieldDisplay(fieldType, value) {
-        // You can enhance this to show actual names instead of IDs
         if (!value) return 'No especificado';
         return `ID: ${value}`;
       }
@@ -2658,7 +2196,6 @@
           return;
         }
 
-        // Close existing modals
         this.closeAllModals();
 
         const modal = document.createElement('div');
@@ -2697,19 +2234,16 @@
         
         document.body.appendChild(modal);
         
-        // Show modal
         setTimeout(() => {
           modal.classList.add('show');
         }, 10);
         
-        // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeAllModals();
           }
         });
         
-        // Prevent clicks inside modal content from closing modal
         const modalContent = modal.querySelector('.install-modal-content');
         modalContent.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -2747,23 +2281,19 @@
           return;
         }
 
-        // Close any open modals
         this.closeAllModals();
 
-        // Fill form with saved data
         const form = document.getElementById('incident-form');
         Object.entries(report.data).forEach(([key, value]) => {
           const field = form.querySelector(`[name="${key}"]`);
           if (field) {
             field.value = value;
-            // Trigger change event for Tom Select dropdowns
             if (field.classList.contains('tom-select-searchable') && field.tomselect) {
               field.tomselect.setValue(value);
             }
           }
         });
 
-        // Delete the old report since we're editing it
         delete savedReports[reportId];
         localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
         this.checkForSavedReports();
@@ -2781,7 +2311,6 @@
         localStorage.setItem(this.storageKey, JSON.stringify(savedReports));
         this.checkForSavedReports();
         
-        // Refresh the modal if it's open
         this.closeAllModals();
         if (Object.keys(savedReports).length > 0) {
           setTimeout(() => {
@@ -2792,25 +2321,22 @@
         this.showToast('Reporte eliminado', 'success');
       }
 
+      // FIXED: Completely rewritten submission method with better checkbox detection
       async submitSelectedReports() {
         console.log('[OfflineManager] Submit selected reports called');
         
-        // Force check online status
-        const isReallyOnline = navigator.onLine;
-        console.log('[OfflineManager] Navigator.onLine status:', isReallyOnline);
-        
-        if (!isReallyOnline) {
+        if (!navigator.onLine) {
           this.showToast('No hay conexión para enviar reportes', 'warning');
           return;
         }
 
-        // Additional connectivity check for iPhone
+        // Additional connectivity check for reliability
         try {
           console.log('[OfflineManager] Performing connectivity test...');
           const testResponse = await fetch('/health', { 
             method: 'GET',
             cache: 'no-cache',
-            timeout: 5000 
+            signal: AbortSignal.timeout(5000)
           });
           console.log('[OfflineManager] Connectivity test result:', testResponse.ok);
         } catch (error) {
@@ -2819,15 +2345,31 @@
           return;
         }
 
-        const checkboxes = document.querySelectorAll('.report-checkbox:checked');
-        console.log('[OfflineManager] Found checked checkboxes:', checkboxes.length);
-        
-        if (checkboxes.length === 0) {
-          this.showToast('Selecciona al menos un reporte para enviar', 'warning');
+        // FIXED: Better checkbox selection detection
+        const modal = document.getElementById('saved-reports-modal');
+        if (!modal) {
+          console.error('[OfflineManager] Modal not found');
+          this.showToast('Error: modal no encontrado', 'error');
           return;
         }
 
-        const reportIds = Array.from(checkboxes).map(cb => cb.id.replace('report_', ''));
+        const checkboxes = modal.querySelectorAll('.report-checkbox');
+        console.log('[OfflineManager] Total checkboxes found:', checkboxes.length);
+        
+        const selectedCheckboxes = Array.from(checkboxes).filter(cb => {
+          const isChecked = cb.checked;
+          console.log(`[OfflineManager] Checkbox ${cb.id}: checked = ${isChecked}`);
+          return isChecked;
+        });
+        
+        console.log('[OfflineManager] Selected checkboxes:', selectedCheckboxes.length);
+        
+        if (selectedCheckboxes.length === 0) {
+          this.showToast('Selecciona al menos un reporte para enviar. Marca las casillas junto a los reportes.', 'warning');
+          return;
+        }
+
+        const reportIds = selectedCheckboxes.map(cb => cb.id.replace('report_', ''));
         const savedReports = this.getSavedReports();
         
         console.log('[OfflineManager] Report IDs to submit:', reportIds);
@@ -2870,12 +2412,10 @@
           this.showToast(message, successCount > failureCount ? 'success' : 'warning');
           this.checkForSavedReports();
           
-          // Close modal and refresh form if all reports were sent
           if (Object.keys(savedReports).length === 0) {
             this.closeAllModals();
             document.getElementById('incident-form').reset();
           } else {
-            // Refresh the modal
             this.closeAllModals();
             setTimeout(() => {
               this.showSavedReports();
@@ -2886,18 +2426,27 @@
         }
       }
 
+      // FIXED: Better delete selected with checkbox detection
       deleteSelectedReports() {
-        const checkboxes = document.querySelectorAll('.report-checkbox:checked');
-        if (checkboxes.length === 0) {
+        const modal = document.getElementById('saved-reports-modal');
+        if (!modal) {
+          this.showToast('Error: modal no encontrado', 'error');
+          return;
+        }
+
+        const checkboxes = modal.querySelectorAll('.report-checkbox');
+        const selectedCheckboxes = Array.from(checkboxes).filter(cb => cb.checked);
+        
+        if (selectedCheckboxes.length === 0) {
           this.showToast('Selecciona al menos un reporte para eliminar', 'warning');
           return;
         }
 
-        if (!confirm(`¿Estás seguro de que quieres eliminar ${checkboxes.length} reporte(s)?`)) {
+        if (!confirm(`¿Estás seguro de que quieres eliminar ${selectedCheckboxes.length} reporte(s)?`)) {
           return;
         }
 
-        const reportIds = Array.from(checkboxes).map(cb => cb.id.replace('report_', ''));
+        const reportIds = selectedCheckboxes.map(cb => cb.id.replace('report_', ''));
         const savedReports = this.getSavedReports();
         
         reportIds.forEach(id => delete savedReports[id]);
@@ -2905,7 +2454,6 @@
         
         this.checkForSavedReports();
         
-        // Refresh the modal
         this.closeAllModals();
         if (Object.keys(savedReports).length > 0) {
           setTimeout(() => {
@@ -2927,13 +2475,11 @@
 
         console.log('[OfflineManager] User is online, fetching reports...');
         
-        // Show loading modal first
         this.showLoadingModal('Cargando tus reportes enviados...');
 
         try {
           console.log('[OfflineManager] Making fetch request to /api/my_reports');
           
-          // Fetch submitted reports from the server
           const response = await fetch('/api/my_reports', {
             method: 'GET',
             credentials: 'include',
@@ -2953,7 +2499,6 @@
 
           const reports = await response.json();
           console.log('[OfflineManager] Received reports:', reports.length);
-          console.log('[OfflineManager] Reports data:', reports);
           
           this.closeAllModals();
           this.displaySubmittedReports(reports);
@@ -2992,7 +2537,6 @@
         
         document.body.appendChild(modal);
         
-        // Add CSS animation if not already present
         if (!document.getElementById('spinner-styles')) {
           const style = document.createElement('style');
           style.id = 'spinner-styles';
@@ -3047,7 +2591,6 @@
           modal.classList.add('show');
         }, 10);
         
-        // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeAllModals();
@@ -3087,10 +2630,9 @@
                 <p style="margin: 0.25rem 0;"><strong>Persona:</strong> ${report.nombre_persona || 'No especificado'}</p>
               </div>
               <div>
-                <p style="margin: 0.25rem 0;"><strong>Tipo:</strong> ${this.getSubmittedReportTypeDisplay(report)}</p>
-                <p style="margin: 0.25rem 0;"><strong>Lugar:</strong> ${this.getSubmittedReportLocationDisplay(report)}</p>
-                <p style="margin: 0.25rem 0;"><strong>Valor:</strong> ${report.valor_aproximado || 'No especificado'}</p>
-                <p style="margin: 0.25rem 0;"><strong>Propiedad:</strong> ${this.getSubmittedReportPropertyDisplay(report)}</p>
+                <p style="margin: 0.25rem 0;"><strong>Tipo:</strong> ${report.tipo_incidencia_nombre || `ID: ${report.id_tipo_incidencia || 'N/A'}`}</p>
+                <p style="margin: 0.25rem 0;"><strong>Lugar:</strong> ${report.lugar_incidente_nombre || `ID: ${report.id_lugar_incidente || 'N/A'}`}</p>
+                <p style="margin: 0.25rem 0;"><strong>Propiedad:</strong> ${report.propiedad_nombre || `ID: ${report.id_propiedad || 'N/A'}`}</p>
               </div>
             </div>
             
@@ -3102,439 +2644,8 @@
                   : report.descripcion_incidente || 'Sin descripción'}
               </p>
             </div>
-            
-            ${report.direccion ? `
-              <div style="margin-bottom: 0.75rem;">
-                <p style="margin: 0;"><strong>Dirección:</strong> ${report.direccion}</p>
-              </div>
-            ` : ''}
-            
-            ${this.createSubmittedReportActions(report)}
           </div>
         `;
-      }
-
-      createSubmittedReportActions(report) {
-        return `
-          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-            <button onclick="window.offlineManager.viewSubmittedReportDetails(${report.id_reporte_incidente})" 
-                    style="background: #3b82f6; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-size: 0.875rem; cursor: pointer; touch-action: manipulation;">
-              Ver Detalles Completos
-            </button>
-            <button onclick="window.offlineManager.copyReportAsNew(${report.id_reporte_incidente})" 
-                    style="background: #f59e0b; color: white; padding: 0.5rem 1rem; border: none; border-radius: 0.5rem; font-size: 0.875rem; cursor: pointer; touch-action: manipulation;">
-              📋 Copiar como Nuevo
-            </button>
-          </div>
-        `;
-      }
-
-      getSubmittedReportTypeDisplay(report) {
-        // Use the actual name if available, otherwise fall back to ID
-        if (report.tipo_incidencia_nombre) {
-          return report.tipo_incidencia_nombre;
-        }
-        return `ID: ${report.id_tipo_incidencia || 'N/A'}`;
-      }
-
-      getSubmittedReportLocationDisplay(report) {
-        // Use the actual name if available, otherwise fall back to ID
-        if (report.lugar_incidente_nombre) {
-          return report.lugar_incidente_nombre;
-        }
-        return `ID: ${report.id_lugar_incidente || 'N/A'}`;
-      }
-
-      getSubmittedReportPropertyDisplay(report) {
-        // Use the actual name if available, otherwise fall back to ID
-        if (report.propiedad_nombre) {
-          return report.propiedad_nombre;
-        }
-        return `ID: ${report.id_propiedad || 'N/A'}`;
-      }
-
-      getSubmittedReportClientTypeDisplay(report) {
-        // Use the actual name if available, otherwise fall back to ID
-        if (report.tipo_cliente_nombre) {
-          return report.tipo_cliente_nombre;
-        }
-        return `ID: ${report.id_tipo_cliente || 'N/A'}`;
-      }
-
-      getSubmittedReportSupervisorDisplay(report) {
-        // Use the actual name if available, otherwise fall back to ID
-        if (report.supervisor_nombre) {
-          return report.supervisor_nombre;
-        }
-        return `ID: ${report.id_supervisor || 'N/A'}`;
-      }
-
-      async viewSubmittedReportDetails(reportId) {
-        console.log('[OfflineManager] Loading detailed report:', reportId);
-        
-        this.showLoadingModal('Cargando detalles del reporte...');
-
-        try {
-          const response = await fetch(`/api/my_reports/${reportId}`, {
-            method: 'GET',
-            credentials: 'include'
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          const report = await response.json();
-          this.closeAllModals();
-          this.displayDetailedReport(report);
-
-        } catch (error) {
-          console.error('[OfflineManager] Error fetching report details:', error);
-          this.closeAllModals();
-          this.showToast('Error cargando detalles del reporte', 'error');
-        }
-      }
-
-      displayDetailedReport(report) {
-        const modal = document.createElement('div');
-        modal.className = 'install-modal';
-        modal.id = 'detailed-report-modal';
-        modal.innerHTML = `
-          <div class="install-modal-content" style="max-width: 700px;">
-            <button class="install-close" onclick="window.offlineManager.closeAllModals()">×</button>
-            
-            <div class="text-center mb-6">
-              <h2 class="mb-4">📋 Reporte Detallado #${report.id_reporte_incidente}</h2>
-              <p class="text-sm" style="color: #9ca3af;">
-                Enviado: ${new Date(report.creado_en).toLocaleString()}
-              </p>
-            </div>
-
-            <div style="max-height: 70vh; overflow-y: auto;">
-              <div class="install-step">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
-                  <div>
-                    <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Información del Incidente</h4>
-                    ${this.createDetailField('Fecha', report.fecha_incidente || 'No especificada')}
-                    ${this.createDetailField('Hora', report.hora_incidente || 'No especificada')}
-                    ${this.createDetailField('Tipo de Incidencia', this.getSubmittedReportTypeDisplay(report))}
-                    ${this.createDetailField('Lugar', this.getSubmittedReportLocationDisplay(report))}
-                    ${this.createDetailField('Propiedad', this.getSubmittedReportPropertyDisplay(report))}
-                  </div>
-                  <div>
-                    <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Información Personal</h4>
-                    ${this.createDetailField('Nombre', report.nombre_persona || 'No especificado')}
-                    ${this.createDetailField('Teléfono', report.telefono_persona || 'No especificado')}
-                    ${this.createDetailField('Identidad', report.numero_identidad_persona || 'No especificado')}
-                    ${this.createDetailField('Local', report.numero_local || 'No especificado')}
-                    ${this.createDetailField('Tipo Cliente', this.getSubmittedReportClientTypeDisplay(report))}
-                  </div>
-                </div>
-                
-                <div style="margin-top: 1rem;">
-                  <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Descripción</h4>
-                  ${this.createTextAreaField(report.descripcion_incidente || 'Sin descripción')}
-                </div>
-                
-                ${report.descripcion_zona_comun ? `
-                  <div style="margin-top: 1rem;">
-                    <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Zona Común</h4>
-                    ${this.createTextAreaField(report.descripcion_zona_comun)}
-                  </div>
-                ` : ''}
-                
-                ${report.pertenencias_sustraidas ? `
-                  <div style="margin-top: 1rem;">
-                    <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Pertenencias Sustraídas</h4>
-                    ${this.createTextAreaField(report.pertenencias_sustraidas)}
-                  </div>
-                ` : ''}
-                
-                <div style="margin-top: 1rem;">
-                  <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Información Adicional</h4>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.875rem;">
-                    <div>
-                      ${this.createDetailField('Valor Aproximado', report.valor_aproximado || 'No especificado')}
-                      ${this.createDetailField('Dirección', report.direccion || 'No especificada')}
-                    </div>
-                    <div>
-                      ${this.createDetailField('Supervisor', this.getSubmittedReportSupervisorDisplay(report))}
-                      ${this.createDetailField('Usuario', report.user_email)}
-                    </div>
-                  </div>
-                </div>
-                
-                ${report.imagenes_pdfs ? `
-                  <div style="margin-top: 1rem;">
-                    <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">Archivos Adjuntos</h4>
-                    <div class="attachments-container">
-                      ${this.formatAttachmentsWithImages(report.imagenes_pdfs)}
-                    </div>
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-            
-            <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
-              <button onclick="window.offlineManager.showMySubmittedReports()" 
-                      style="background: #3b82f6; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; margin-right: 1rem; cursor: pointer;">
-                ← Volver a Mis Reportes
-              </button>
-              <button onclick="window.offlineManager.closeAllModals()" 
-                      style="background: #6b7280; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; cursor: pointer;">
-                Cerrar
-              </button>
-            </div>
-          </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        setTimeout(() => {
-          modal.classList.add('show');
-        }, 10);
-        
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-            this.closeAllModals();
-          }
-        });
-        
-        const modalContent = modal.querySelector('.install-modal-content');
-        modalContent.addEventListener('click', (e) => {
-          e.stopPropagation();
-        });
-      }
-
-      // NEW: Helper methods for improved light mode support
-      createDetailField(label, value) {
-        const isDarkMode = !document.body.classList.contains('light-mode');
-        const bgColor = isDarkMode ? '#374151' : '#f3f4f6';
-        const textColor = isDarkMode ? '#e5e7eb' : '#374151';
-        
-        return `
-          <div style="margin-bottom: 0.5rem;">
-            <strong style="color: #60a5fa;">${label}:</strong>
-            <div style="
-              background-color: ${bgColor}; 
-              color: ${textColor}; 
-              padding: 0.5rem; 
-              border-radius: 0.25rem; 
-              margin-top: 0.25rem;
-              font-size: 0.875rem;
-            ">
-              ${value}
-            </div>
-          </div>
-        `;
-      }
-
-      createTextAreaField(value) {
-        const isDarkMode = !document.body.classList.contains('light-mode');
-        const bgColor = isDarkMode ? '#374151' : '#f3f4f6';
-        const textColor = isDarkMode ? '#e5e7eb' : '#374151';
-        
-        return `
-          <div style="
-            background-color: ${bgColor}; 
-            color: ${textColor}; 
-            padding: 1rem; 
-            border-radius: 0.5rem; 
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-          ">
-            ${value}
-          </div>
-        `;
-      }
-
-      formatAttachmentsWithImages(attachmentsString) {
-        if (!attachmentsString) return '<p style="color: #9ca3af;">Ninguno</p>';
-        
-        const urls = attachmentsString.split('\n').filter(url => url.trim());
-        if (urls.length === 0) return '<p style="color: #9ca3af;">Ninguno</p>';
-        
-        const isDarkMode = !document.body.classList.contains('light-mode');
-        const bgColor = isDarkMode ? '#374151' : '#f3f4f6';
-        
-        return `
-          <div style="
-            background-color: ${bgColor}; 
-            padding: 1rem; 
-            border-radius: 0.5rem;
-            display: grid;
-            gap: 1rem;
-          ">
-            ${urls.map(url => {
-              const filename = url.split('/').pop();
-              const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
-              const isPDF = /\.pdf$/i.test(url);
-              
-              if (isImage) {
-                return `
-                  <div style="text-align: center;">
-                    <a href="${url}" target="_blank" style="text-decoration: none;">
-                      <img src="${url}" 
-                           alt="Imagen adjunta" 
-                           style="
-                             max-width: 200px; 
-                             max-height: 150px; 
-                             object-fit: cover;
-                             border-radius: 8px; 
-                             border: 2px solid #60a5fa;
-                             cursor: pointer;
-                             transition: transform 0.2s ease;
-                           "
-                           onmouseover="this.style.transform='scale(1.05)'"
-                           onmouseout="this.style.transform='scale(1)'"
-                      />
-                    </a>
-                    <p style="
-                      font-size: 0.75rem; 
-                      color: #9ca3af; 
-                      margin-top: 0.5rem;
-                      word-break: break-all;
-                    ">${filename}</p>
-                  </div>
-                `;
-              } else if (isPDF) {
-                return `
-                  <div style="
-                    display: flex; 
-                    align-items: center; 
-                    gap: 0.75rem;
-                    padding: 0.75rem;
-                    border: 1px solid #60a5fa;
-                    border-radius: 0.5rem;
-                    background-color: rgba(96, 165, 250, 0.1);
-                  ">
-                    <div style="
-                      width: 40px; 
-                      height: 40px; 
-                      background-color: #ef4444; 
-                      border-radius: 0.5rem; 
-                      display: flex; 
-                      align-items: center; 
-                      justify-content: center;
-                      color: white;
-                      font-weight: bold;
-                      font-size: 0.75rem;
-                    ">PDF</div>
-                    <div style="flex: 1;">
-                      <a href="${url}" target="_blank" style="
-                        color: #60a5fa; 
-                        text-decoration: none; 
-                        font-weight: 500;
-                        word-break: break-all;
-                      ">
-                        ${filename}
-                      </a>
-                      <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">Click para abrir PDF</p>
-                    </div>
-                  </div>
-                `;
-              } else {
-                return `
-                  <div style="
-                    display: flex; 
-                    align-items: center; 
-                    gap: 0.75rem;
-                    padding: 0.75rem;
-                    border: 1px solid #6b7280;
-                    border-radius: 0.5rem;
-                  ">
-                    <div style="
-                      width: 40px; 
-                      height: 40px; 
-                      background-color: #6b7280; 
-                      border-radius: 0.5rem; 
-                      display: flex; 
-                      align-items: center; 
-                      justify-content: center;
-                      color: white;
-                      font-size: 1rem;
-                    ">📎</div>
-                    <div style="flex: 1;">
-                      <a href="${url}" target="_blank" style="
-                        color: #60a5fa; 
-                        text-decoration: none;
-                        word-break: break-all;
-                      ">
-                        ${filename}
-                      </a>
-                    </div>
-                  </div>
-                `;
-              }
-            }).join('')}
-          </div>
-        `;
-      }
-
-      async copyReportAsNew(reportId) {
-        if (!confirm('¿Quieres usar este reporte como plantilla para crear uno nuevo?')) {
-          return;
-        }
-
-        console.log('[OfflineManager] Copying report as new:', reportId);
-        
-        this.showLoadingModal('Cargando datos del reporte...');
-
-        try {
-          const response = await fetch(`/api/my_reports/${reportId}`, {
-            method: 'GET',
-            credentials: 'include'
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          }
-
-          const report = await response.json();
-          this.closeAllModals();
-
-          // Fill form with report data (excluding unique fields)
-          const form = document.getElementById('incident-form');
-          const fieldsToFill = {
-            'tipo_incidencia': report.id_tipo_incidencia,
-            'tipo_cliente': report.id_tipo_cliente,
-            'lugar_incidente': report.id_lugar_incidente,
-            'propiedad': report.id_propiedad,
-            'descripcion_zona_comun': report.descripcion_zona_comun,
-            'valor_aproximado': report.valor_aproximado,
-            'pertenencias_sustraidas': report.pertenencias_sustraidas,
-            'nombre_persona': report.nombre_persona,
-            'telefono_persona': report.telefono_persona,
-            'numero_identidad_persona': report.numero_identidad_persona,
-            'numero_local': report.numero_local,
-            'direccion': report.direccion,
-            'supervisor': report.id_supervisor
-          };
-
-          Object.entries(fieldsToFill).forEach(([key, value]) => {
-            if (value) {
-              const field = form.querySelector(`[name="${key}"]`);
-              if (field) {
-                field.value = value;
-                // Trigger change event for Tom Select dropdowns
-                if (field.classList.contains('tom-select-searchable') && field.tomselect) {
-                  field.tomselect.setValue(value);
-                }
-              }
-            }
-          });
-
-          // Scroll to top of form
-          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          
-          this.showToast('Formulario rellenado con datos del reporte. Modifica los campos necesarios.', 'success');
-
-        } catch (error) {
-          console.error('[OfflineManager] Error copying report:', error);
-          this.closeAllModals();
-          this.showToast('Error copiando el reporte', 'error');
-        }
       }
 
       showToast(message, type = 'info') {
@@ -3561,28 +2672,29 @@
       }
     }
 
-    // Test function to make sure the class is working
-    console.log('[App] EnhancedOfflineFormsManager class defined successfully');
-
-    // Initialize offline manager
+    // Initialize offline manager with the FIXED version
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('[App] DOM loaded, initializing offline manager...');
+      console.log('[App] DOM loaded, initializing FIXED offline manager...');
       try {
         window.offlineManager = new EnhancedOfflineFormsManager();
-        console.log('[App] Offline manager created successfully:', window.offlineManager);
+        console.log('[App] FIXED Offline manager created successfully:', window.offlineManager);
         
-        // Test if the function exists
         if (typeof window.offlineManager.showMySubmittedReports === 'function') {
           console.log('[App] showMySubmittedReports function exists');
         } else {
           console.error('[App] showMySubmittedReports function NOT found');
         }
         
+        if (typeof window.offlineManager.showSavedReports === 'function') {
+          console.log('[App] showSavedReports function exists');
+        } else {
+          console.error('[App] showSavedReports function NOT found');
+        }
+        
       } catch (error) {
-        console.error('[App] Error creating offline manager:', error);
+        console.error('[App] Error creating FIXED offline manager:', error);
       }
       
-      // Force initial online/offline status check
       setTimeout(() => {
         console.log('[App] Initial network status check:', navigator.onLine ? 'ONLINE' : 'OFFLINE');
         if (window.offlineManager) {
@@ -3591,6 +2703,95 @@
         }
       }, 1000);
     });
+
+    // Debugging functions
+    window.debugCheckboxes = function() {
+      console.log('[Debug] Testing checkbox functionality...');
+      
+      const modal = document.getElementById('saved-reports-modal');
+      if (!modal) {
+        console.log('[Debug] No modal found - open saved reports first');
+        return;
+      }
+      
+      const checkboxes = modal.querySelectorAll('.report-checkbox');
+      console.log('[Debug] Found checkboxes:', checkboxes.length);
+      
+      checkboxes.forEach((checkbox, index) => {
+        console.log(`[Debug] Checkbox ${index}:`, {
+          id: checkbox.id,
+          checked: checkbox.checked,
+          style: window.getComputedStyle(checkbox)
+        });
+      });
+    };
+
+    window.testOfflineReportSelection = function() {
+      console.log('[Test] Testing offline report selection...');
+      
+      const savedReports = localStorage.getItem('smt_draft_reports');
+      console.log('[Test] Saved reports in storage:', savedReports);
+      
+      if (!savedReports || Object.keys(JSON.parse(savedReports)).length === 0) {
+        console.log('[Test] No saved reports found. Creating a test report...');
+        
+        const testReport = {
+          timestamp: new Date().toISOString(),
+          readyToSubmit: true,
+          data: {
+            tipo_incidencia: '1',
+            tipo_cliente: '1',
+            lugar_incidente: '1',
+            propiedad: '1',
+            fecha_incidente: '2024-01-01',
+            hora_incidente: '12:00',
+            descripcion_incidente: 'Test report for offline selection',
+            nombre_persona: 'Test User',
+            supervisor: '1'
+          }
+        };
+        
+        const reports = {};
+        reports['test_' + Date.now()] = testReport;
+        localStorage.setItem('smt_draft_reports', JSON.stringify(reports));
+        
+        console.log('[Test] Test report created');
+        
+        if (window.offlineManager) {
+          window.offlineManager.checkForSavedReports();
+        }
+      }
+      
+      if (window.offlineManager) {
+        console.log('[Test] Opening saved reports modal...');
+        window.offlineManager.showSavedReports();
+        
+        setTimeout(() => {
+          console.log('[Test] Testing checkbox interaction...');
+          const modal = document.getElementById('saved-reports-modal');
+          if (modal) {
+            const checkboxes = modal.querySelectorAll('.report-checkbox');
+            if (checkboxes.length > 0) {
+              const firstCheckbox = checkboxes[0];
+              console.log('[Test] First checkbox before click:', firstCheckbox.checked);
+              
+              firstCheckbox.click();
+              
+              console.log('[Test] First checkbox after click:', firstCheckbox.checked);
+              
+              setTimeout(() => {
+                console.log('[Test] Testing submit selected reports...');
+                window.offlineManager.submitSelectedReports();
+              }, 1000);
+            } else {
+              console.log('[Test] No checkboxes found in modal');
+            }
+          } else {
+            console.log('[Test] Modal not found');
+          }
+        }, 500);
+      }
+    };
   </script>
   
   <!-- Theme Toggle and Tom Select initialization -->
