@@ -277,23 +277,19 @@
                 Cargando...
             </p>
 
-            <!-- User Badge -->
             <div id="user-badge" class="user-badge hidden">
                 <span id="user-type-text">Usuario</span>
             </div>
 
             <div class="button-group w-full space-y-4 max-w-xs">
-                <!-- Forms button - Available to ALL users -->
                 <button id="forms-button" class="base-button-style btn-primary-professional">
-                    📝 Reporte de Incidencia
+                    📝 Acceso a Formularios
                 </button>
 
-                <!-- Reports button - ADMIN ONLY -->
                 <button id="reports-button" class="base-button-style btn-admin-special hidden">
                     📊 Reportes (Admin)
                 </button>
 
-                <!-- Dashboard button - ADMIN ONLY -->
                 <button id="dashboard-button" class="base-button-style btn-admin-special hidden">
                     📈 Dashboards (Admin)
                 </button>
@@ -453,12 +449,13 @@
                 themeToggle.addEventListener('click', toggleTheme);
             }
 
-            // Forms button
+            // Forms button - UPDATED
             if (formsButton) {
                 formsButton.addEventListener('click', function() {
                     console.log('Forms button clicked');
                     if (FORMS_SERVICE_URL) {
-                        window.location.href = FORMS_SERVICE_URL;
+                        // Point to the new selection page
+                        window.location.href = FORMS_SERVICE_URL + '/select';
                     } else {
                         console.error('FORMS_SERVICE_URL not configured');
                         alert('Error: URL del servicio de formularios no configurada.');

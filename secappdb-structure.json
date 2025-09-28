@@ -1,0 +1,722 @@
+[
+  {
+    "table_schema": "public",
+    "table_name": "admin_users",
+    "column_name": "id",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "admin_users",
+    "column_name": "username",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "admin_users",
+    "column_name": "email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "admin_users",
+    "column_name": "name",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "admin_users",
+    "column_name": "phone_number",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "admin_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "id",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('authorized_emails_id_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "authorized_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "authorized_by",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": "NULL::character varying"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "is_active",
+    "data_type": "boolean",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "true"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "notes",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "authorized_emails",
+    "column_name": "is_admin",
+    "data_type": "boolean",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "lugar_incidente",
+    "column_name": "id_lugar_incidente",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('lugar_incidente_id_lugar_incidente_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "lugar_incidente",
+    "column_name": "nombre",
+    "data_type": "character varying",
+    "character_maximum_length": "100",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "password_reset_tokens",
+    "column_name": "id",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('password_reset_tokens_id_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "password_reset_tokens",
+    "column_name": "email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "password_reset_tokens",
+    "column_name": "token_hash",
+    "data_type": "character varying",
+    "character_maximum_length": "64",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "password_reset_tokens",
+    "column_name": "expires_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "password_reset_tokens",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "propiedades",
+    "column_name": "id_propiedad",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('propiedades_id_propiedad_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "propiedades",
+    "column_name": "nombre",
+    "data_type": "character varying",
+    "character_maximum_length": "100",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "propiedades",
+    "column_name": "descripcion",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "propiedades",
+    "column_name": "direccion",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "propiedades",
+    "column_name": "activa",
+    "data_type": "boolean",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "true"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "propiedades",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "regular_users",
+    "column_name": "id",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "regular_users",
+    "column_name": "username",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "regular_users",
+    "column_name": "email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "regular_users",
+    "column_name": "name",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "regular_users",
+    "column_name": "phone_number",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "regular_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('reportes_incidentes_id_reporte_incidente_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "id_tipo_incidencia",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "id_tipo_cliente",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "id_lugar_incidente",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_zona_comun",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "fecha_incidente",
+    "data_type": "date",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "hora_incidente",
+    "data_type": "time without time zone",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_incidente",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "valor_aproximado",
+    "data_type": "numeric",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "pertenencias_sustraidas",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "nombre_persona",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "telefono_persona",
+    "data_type": "character varying",
+    "character_maximum_length": "20",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_identidad_persona",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_local",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "direccion",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "imagenes_pdfs",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "id_supervisor",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "user_email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": "'roberto.j.canton@gmail.com'::character varying"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "reportes_incidentes",
+    "column_name": "id_propiedad",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "supervisor",
+    "column_name": "id_supervisor",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('supervisor_id_supervisor_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "supervisor",
+    "column_name": "nombre",
+    "data_type": "character varying",
+    "character_maximum_length": "100",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "tipo_cliente",
+    "column_name": "id_tipo_cliente",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('tipo_cliente_id_tipo_cliente_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "tipo_cliente",
+    "column_name": "nombre",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "tipo_incidencia",
+    "column_name": "id_tipo_incidencia",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('tipo_incidencia_id_tipo_incidencia_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "tipo_incidencia",
+    "column_name": "nombre",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "NO",
+    "column_default": "nextval('users_id_seq'::regclass)"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "username",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "password_hash",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "CURRENT_TIMESTAMP"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "NO",
+    "column_default": "''::character varying"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "phone_number",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": "NULL::character varying"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": "NULL::character varying"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "users",
+    "column_name": "is_admin",
+    "data_type": "boolean",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": "false"
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "user_email",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "fecha_incidente",
+    "data_type": "date",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "hora_incidente",
+    "data_type": "time without time zone",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "descripcion_incidente",
+    "data_type": "text",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "valor_aproximado",
+    "data_type": "numeric",
+    "character_maximum_length": "",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "nombre_persona",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "direccion",
+    "data_type": "character varying",
+    "character_maximum_length": "255",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "propiedad",
+    "data_type": "character varying",
+    "character_maximum_length": "100",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "tipo_incidencia",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "tipo_cliente",
+    "data_type": "character varying",
+    "character_maximum_length": "50",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "lugar_incidente",
+    "data_type": "character varying",
+    "character_maximum_length": "100",
+    "is_nullable": "YES",
+    "column_default": ""
+  },
+  {
+    "table_schema": "public",
+    "table_name": "vista_reportes_completos",
+    "column_name": "supervisor_name",
+    "data_type": "character varying",
+    "character_maximum_length": "100",
+    "is_nullable": "YES",
+    "column_default": ""
+  }
+]

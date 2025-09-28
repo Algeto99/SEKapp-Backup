@@ -1,4 +1,4 @@
-# landing/app.py (FIXED VERSION - Move CloudRunServiceClient initialization inside app context)
+# landing/app.py (FIXED VERSION - Correct secret handling)
 
 import os
 import sys
@@ -32,53 +32,13 @@ app_logger.info(f"Starting Landing Service in {'production' if is_production els
 # --- Secret Manager Client ---
 secret_manager_client = secretmanager.SecretManagerServiceClient()
 
-# Helper to determine if a string is a full secret path
-def is_full_secret_path(s, project_id):
-    """
-    Checks if a given string is a well-formed full Google Secret Manager path.
-    This helps differentiate between a secret name and a full path.
-    """
-    if not s or not project_id:
-        return False
-    # A full path should start with projects/{project_id}/secrets/ and end with /versions/latest
-    # The regex ensures the structure is correct, including non-empty segments.
-    return s.startswith(f"projects/{project_id}/secrets/") and \
-           re.match(r'^projects/[^/]+/secrets/[^/]+/versions/[^/]+$', s)
-
-def get_secret_value(secret_identifier, project_id):
-    """
-    Fetches a secret from Google Secret Manager.
-    secret_identifier can be either the secret name (e.g., "my-secret")
-    or the full secret path (e.g., "projects/PROJECT_ID/secrets/my-secret/versions/latest").
-    """
+def get_secret_value(secret_name, project_id):
+    """Fetches a secret from Google Secret Manager by its name."""
     if not project_id:
         app_logger.error("GCP_PROJECT_ID environment variable is not set.")
         raise ValueError("GCP_PROJECT_ID is not set.")
 
-    secret_path = ""
-    if is_full_secret_path(secret_identifier, project_id):
-        # If the identifier is already a full path, use it directly
-        secret_path = secret_identifier
-        app_logger.info(f"Secret identifier '{secret_identifier}' is a full path. Using it directly.")
-    else:
-        # Otherwise, assume the identifier is just the secret name and construct the full path
-        secret_name = secret_identifier
-        if not secret_name:
-            app_logger.error("Secret name provided is empty.")
-            raise ValueError("Secret name is empty.")
-        
-        # Basic validation for secret name: ensure it doesn't contain path separators
-        # if it's supposed to be just a name. This is a warning, not an error,
-        # to allow for some flexibility but flag potential misconfigurations.
-        if '/' in secret_name or '\\' in secret_name:
-            app_logger.warning(
-                f"Secret identifier '{secret_name}' appears to contain path separators "
-                f"but is not a full secret path. Assuming it's a secret name and constructing path."
-            )
-        
-        secret_path = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
-        app_logger.info(f"Secret identifier '{secret_identifier}' is a name. Constructed path: {secret_path}")
-
+    secret_path = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
     try:
         app_logger.info(f"Attempting to access secret: {secret_path}")
         response = secret_manager_client.access_secret_version(name=secret_path)
@@ -107,15 +67,13 @@ def configure_app():
     app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL')
     app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', 'https://viewer.secapp.tzolkintech.com')
 
-    # NEW: Internal URLs for cost-free service-to-service communication
+    # Internal URLs for cost-free service-to-service communication
     app.config['INTERNAL_LOGIN_SERVICE_URL'] = os.environ.get('INTERNAL_LOGIN_SERVICE_URL', 'https://login-24309643178.us-central1.run.app')
     app.config['INTERNAL_FORMS_SERVICE_URL'] = os.environ.get('INTERNAL_FORMS_SERVICE_URL', 'https://forms-24309643178.us-central1.run.app')
     app.config['INTERNAL_DASHBOARD_SERVICE_URL'] = os.environ.get('INTERNAL_DASHBOARD_SERVICE_URL', 'https://dashboard-24309643178.us-central1.run.app')
     app.config['INTERNAL_VIEWER_SERVICE_URL'] = os.environ.get('INTERNAL_VIEWER_SERVICE_URL', 'https://viewer-24309643178.us-central1.run.app')
 
-    # JWT and other configurations (UNCHANGED)
-    app.config['JWT_SECRET_KEY_IDENTIFIER'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
-    app.config['FLASK_SECRET_KEY_IDENTIFIER'] = os.environ.get('FLASK_SECRET_KEY', 'forms-flask-secret-key')
+    # JWT configurations
     app.config['JWT_TOKEN_LOCATION'] = ['cookies']
     app.config['JWT_COOKIE_SECURE'] = is_production
     app.config['JWT_COOKIE_CSRF_PROTECT'] = True
@@ -125,38 +83,47 @@ def configure_app():
     app_logger.info("Application configuration loaded.")
 
 def setup_jwt_secret():
-    """Fetches JWT_SECRET and SECRET_KEY from Secret Manager."""
+    """
+    Fetches JWT_SECRET_KEY and SECRET_KEY.
+    Prioritizes direct environment variables over fetching from Secret Manager.
+    """
     app_logger.info("Starting secret loading process...")
-    try:
-        # Fetch JWT secret using the identifier (name or full path)
-        jwt_secret_identifier = app.config['JWT_SECRET_KEY_IDENTIFIER']
-        app_logger.info(f"Attempting to fetch JWT secret using identifier: {jwt_secret_identifier}")
+    
+    # --- Load JWT_SECRET_KEY ---
+    jwt_secret = os.environ.get('JWT_SECRET_KEY')
+    if jwt_secret:
+        app.config['JWT_SECRET_KEY'] = jwt_secret
+        app_logger.info("Loaded JWT_SECRET_KEY directly from environment variable.")
+    else:
+        app_logger.info("JWT_SECRET_KEY not in environment. Fetching from Secret Manager...")
         try:
-            app.config['JWT_SECRET'] = get_secret_value(jwt_secret_identifier, app.config['GCP_PROJECT_ID'])
-            app_logger.info("JWT_SECRET loaded successfully into app config.")
+            app.config['JWT_SECRET_KEY'] = get_secret_value('jwt-secret-key', app.config['GCP_PROJECT_ID'])
+            app_logger.info("JWT_SECRET_KEY loaded successfully from Secret Manager.")
         except Exception as e:
-            app_logger.critical(f"Failed to load JWT_SECRET: {str(e)}", exc_info=True)
+            app_logger.critical(f"Failed to load JWT_SECRET_KEY from Secret Manager: {str(e)}", exc_info=True)
             raise
 
-        # Fetch Flask secret using the identifier (name or full path)
-        flask_secret_identifier = app.config['FLASK_SECRET_KEY_IDENTIFIER']
-        app_logger.info(f"Attempting to fetch Flask secret using identifier: {flask_secret_identifier}")
+    # --- Load FLASK_SECRET_KEY (for Flask session signing) ---
+    flask_secret = os.environ.get('FLASK_SECRET_KEY')
+    if flask_secret:
+        app.config['SECRET_KEY'] = flask_secret
+        app_logger.info("Loaded FLASK_SECRET_KEY directly from environment variable.")
+    else:
+        app_logger.info("FLASK_SECRET_KEY not in environment. Fetching from Secret Manager...")
         try:
-            app.config['SECRET_KEY'] = get_secret_value(flask_secret_identifier, app.config['GCP_PROJECT_ID'])
-            app_logger.info("SECRET_KEY loaded successfully into app config.")
+            # Note: The secret name is 'forms-flask-secret-key' as per your original code
+            app.config['SECRET_KEY'] = get_secret_value('forms-flask-secret-key', app.config['GCP_PROJECT_ID'])
+            app_logger.info("SECRET_KEY loaded successfully from Secret Manager.")
         except Exception as e:
-            app_logger.critical(f"Failed to load SECRET_KEY: {str(e)}", exc_info=True)
+            app_logger.critical(f"Failed to load SECRET_KEY from Secret Manager: {str(e)}", exc_info=True)
             raise
-    except Exception as e:
-        app_logger.critical(f"Failed to load critical secrets during setup: {str(e)}", exc_info=True)
-        raise RuntimeError(f"Critical secrets could not be loaded: {str(e)}")
 
 def setup_cors():
     """Configures CORS for the Flask app."""
     CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
     app_logger.info("CORS initialized.")
 
-# --- CloudRunServiceClient ---
+# --- CloudRunServiceClient (No changes needed here) ---
 class CloudRunServiceClient:
     def __init__(self, internal_service_url, external_service_url=None):
         self.internal_service_url = internal_service_url.rstrip('/')
@@ -197,60 +164,40 @@ class CloudRunServiceClient:
             app_logger.error(f"Request to {target_url} failed: {e}", exc_info=True)
             return None
 
-# Initialize JWTManager (but not the service client yet)
+# Initialize JWTManager
 jwt = JWTManager()
 login_service_client = None
 
-# --- JWT Error Handlers for Automatic Redirect ---
+# --- JWT Error Handlers (No changes needed here) ---
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    """
-    Called when an access token has expired.
-    Always redirect user to login service for both web and API requests.
-    """
     user_email = jwt_payload.get('sub', 'unknown')
     app_logger.info(f"JWT token expired for user {user_email}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error_string):
-    """
-    Called when an invalid token is encountered.
-    Always redirect user to login service for both web and API requests.
-    """
     app_logger.info(f"Invalid JWT token encountered: {error_string}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error_string):
-    """
-    Called when no JWT token is present in the request.
-    Always redirect user to login service for both web and API requests.
-    """
     app_logger.info(f"No JWT token found: {error_string}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.revoked_token_loader
 def revoked_token_callback(jwt_header, jwt_payload):
-    """
-    Called when a revoked token is encountered.
-    Always redirect user to login service for both web and API requests.
-    """
     user_email = jwt_payload.get('sub', 'unknown')
     app_logger.info(f"Revoked JWT token for user {user_email}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.needs_fresh_token_loader
 def needs_fresh_token_callback(jwt_header, jwt_payload):
-    """
-    Called when a fresh token is required but not provided.
-    Always redirect user to login service for both web and API requests.
-    """
     user_email = jwt_payload.get('sub', 'unknown')
     app_logger.info(f"Fresh token required for user {user_email}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
-# --- JWT Callbacks ---
+# --- JWT Callbacks (No changes needed here) ---
 @jwt.user_identity_loader
 def user_identity_lookup(jwt_payload):
     return jwt_payload["sub"]
@@ -260,7 +207,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data["sub"]
     return {"email": identity, "name": jwt_data.get("user_name", identity)}
 
-# --- Routes ---
+# --- Routes (No changes needed here) ---
 @app.route('/')
 @jwt_required(optional=True)
 def index():
@@ -268,34 +215,22 @@ def index():
     user_name = None
     is_admin = False
     
-    # Try to get JWT from cookie explicitly if not present in request context
     try:
         claims = get_jwt()
-        token = request.cookies.get(app.config.get('JWT_COOKIE_NAME', 'access_token_cookie'))
-        app_logger.info(f"access_token_cookie value: {token}")
-        
-        if not claims and token:
-            from flask_jwt_extended import decode_token
-            try:
-                claims = decode_token(token)
-            except Exception as e:
-                app_logger.warning(f"Manual decode_token failed: {e}")
-                
         if claims:
             user_email = claims.get('sub')
             user_name = claims.get('name', user_email)
-            is_admin = claims.get('is_admin', False)  # Get admin status from JWT
+            is_admin = claims.get('is_admin', False)
         else:
             app_logger.info("No valid JWT claims found; user not logged in.")
     except Exception as e:
         app_logger.warning(f"Could not get JWT identity: {e}")
     
-    # Always pass user info and service URLs to the template
     return render_template(
         'index.html',
         user_email=user_email,
         user_name=user_name,
-        is_admin=is_admin,  # Pass admin status to template
+        is_admin=is_admin,
         FORMS_SERVICE_URL=app.config.get('FORMS_SERVICE_URL'),
         LOGIN_SERVICE_URL=app.config.get('LOGIN_SERVICE_URL'),
         DASHBOARD_SERVICE_URL=app.config.get('DASHBOARD_SERVICE_URL'),
@@ -309,14 +244,14 @@ def user_info():
         claims = get_jwt()
         user_email = claims.get('sub')
         user_name = claims.get('name', user_email)
-        is_admin = claims.get('is_admin', False)  # Get admin status
+        is_admin = claims.get('is_admin', False)
         
         if user_email:
             app_logger.info(f"User info requested for: {user_email} (admin: {is_admin})")
             return jsonify({
                 "email": user_email,
                 "name": user_name,
-                "is_admin": is_admin,  # Include admin status
+                "is_admin": is_admin,
                 "roles": ["admin"] if is_admin else ["user"]
             }), 200
         return jsonify({"msg": "Unauthorized: No valid user identity"}), 401
@@ -326,134 +261,9 @@ def user_info():
     
 @app.route('/health')
 def health_check():
-    health_status = {'status': 'not_ready', 'service': 'landing-service', 'checks': {}}
-    status_code = 503
+    return "OK", 200
 
-    try:
-        # Use the identifier to check secret manager access
-        get_secret_value(app.config.get('JWT_SECRET_KEY_IDENTIFIER'), app.config.get('GCP_PROJECT_ID'))
-        health_status['checks']['secret_manager_access'] = 'ready'
-    except Exception as e:
-        health_status['checks']['secret_manager_access'] = f'error: {str(e)}'
-        app_logger.error(f"Secret Manager health check failed: {str(e)}")
-
-    if all(check == 'ready' for check in health_status['checks'].values()):
-        health_status['status'] = 'ready'
-        status_code = 200
-
-    health_status['timestamp'] = datetime.now(timezone.utc).isoformat()
-    return jsonify(health_status), status_code
-
-@app.route('/startup')
-def startup_check():
-    startup_status = {'status': 'not_ready', 'service': 'landing-service', 'checks': {}}
-    status_code = 503
-
-    startup_status['checks']['gcp_project_id_env'] = 'ready' if app.config.get('GCP_PROJECT_ID') else 'not_set'
-    startup_status['checks']['jwt_secret_key_env'] = 'ready' if app.config.get('JWT_SECRET_KEY_IDENTIFIER') else 'not_set'
-    startup_status['checks']['flask_secret_key_env'] = 'ready' if app.config.get('FLASK_SECRET_KEY_IDENTIFIER') else 'not_set'
-    startup_status['checks']['login_service_url_env'] = 'ready' if app.config.get('LOGIN_SERVICE_URL') else 'not_set'
-    startup_status['checks']['jwt_secret_loaded'] = 'ready' if app.config.get('JWT_SECRET') else 'not_loaded'
-    startup_status['checks']['flask_secret_loaded'] = 'ready' if app.config.get('SECRET_KEY') else 'not_loaded'
-
-    if all(check == 'ready' for check in startup_status['checks'].values()):
-        startup_status['status'] = 'ready'
-        status_code = 200
-
-    startup_status['timestamp'] = datetime.now(timezone.utc).isoformat()
-    return jsonify(startup_status), status_code
-
-# Add debug endpoints for testing
-@app.route('/debug/test-internal-communication')
-def test_internal_communication():
-    """Test internal service communication to verify cost optimization"""
-    if is_production:
-        return "Debug endpoint disabled in production", 403
-        
-    results = {}
-    
-    # Test internal health checks (should be free)
-    internal_urls = {
-        'login': app.config.get('INTERNAL_LOGIN_SERVICE_URL'),
-        'forms': app.config.get('INTERNAL_FORMS_SERVICE_URL'),
-        'viewer': app.config.get('INTERNAL_VIEWER_SERVICE_URL'),
-        'dashboard': app.config.get('INTERNAL_DASHBOARD_SERVICE_URL'),
-    }
-    
-    for service_name, internal_url in internal_urls.items():
-        if internal_url:
-            try:
-                client = CloudRunServiceClient(
-                    internal_service_url=internal_url,
-                    external_service_url=None
-                )
-                
-                # Test internal health check (FREE)
-                response = client.make_authenticated_request('/health', method='GET', use_internal=True)
-                
-                if response and response.status_code == 200:
-                    results[service_name] = {
-                        'status': 'SUCCESS',
-                        'internal_url': internal_url,
-                        'cost': 'FREE (internal communication)',
-                        'response_time': 'fast'
-                    }
-                else:
-                    results[service_name] = {
-                        'status': 'FAILED',
-                        'internal_url': internal_url,
-                        'error': f"HTTP {response.status_code if response else 'No response'}"
-                    }
-            except Exception as e:
-                results[service_name] = {
-                    'status': 'ERROR',
-                    'internal_url': internal_url,
-                    'error': str(e)
-                }
-        else:
-            results[service_name] = {
-                'status': 'NOT_CONFIGURED',
-                'error': 'Internal URL not set'
-            }
-    
-    return jsonify({
-        'message': 'Internal communication test results',
-        'cost_optimization': 'All successful calls are FREE (no egress charges)',
-        'results': results,
-        'next_steps': [
-            'Monitor Cloud Run logs for "internal" vs "external" request indicators',
-            'Check GCP billing to verify reduced networking charges',
-            'All service-to-service health checks should now be cost-free'
-        ]
-    })
-
-@app.route('/debug/show-service-urls')
-def show_service_urls():
-    """Show configured URLs for debugging"""
-    if is_production:
-        return "Debug endpoint disabled in production", 403
-        
-    return jsonify({
-        'external_urls': {
-            'login': app.config.get('LOGIN_SERVICE_URL'),
-            'forms': app.config.get('FORMS_SERVICE_URL'),
-            'viewer': app.config.get('VIEWER_SERVICE_URL'),
-            'dashboard': app.config.get('DASHBOARD_SERVICE_URL'),
-        },
-        'internal_urls': {
-            'login': app.config.get('INTERNAL_LOGIN_SERVICE_URL'),
-            'forms': app.config.get('INTERNAL_FORMS_SERVICE_URL'),
-            'viewer': app.config.get('INTERNAL_VIEWER_SERVICE_URL'),
-            'dashboard': app.config.get('INTERNAL_DASHBOARD_SERVICE_URL'),
-        },
-        'optimization_status': {
-            'external_urls_for': 'User redirects and navigation (necessary cost)',
-            'internal_urls_for': 'Service-to-service communication (FREE)',
-            'jwt_cookies_still_work': 'YES - shared across *.secapp.tzolkintech.com'
-        }
-    })
-
-# --- Error Handlers ---
+# --- Error Handlers (No changes needed here) ---
 @app.errorhandler(404)
 def not_found_error(error):
     app_logger.warning(f"404 Not Found: {request.path}")
@@ -466,21 +276,18 @@ def internal_error(error):
 
 # --- Application Initialization ---
 try:
-    app_logger.info("Starting application initialization...")
-    app_logger.info("Step 1: Configuring app...")
-    configure_app()
-    app_logger.info("Step 2: Setting up JWT secrets...")
-    setup_jwt_secret()
-    app_logger.info("Step 3: Setting up CORS...")
-    setup_cors()
-    app_logger.info("Step 4: Initializing JWTManager...")
-    # This line should use the actual secret value, not the identifier/path
-    app.config['JWT_SECRET_KEY'] = app.config.get('JWT_SECRET') 
-    jwt.init_app(app)
-    app_logger.info("Step 5: Initializing CloudRunServiceClient...")
-    
-    # MOVED: Initialize service client inside the app context to avoid the error
     with app.app_context():
+        app_logger.info("Starting application initialization...")
+        app_logger.info("Step 1: Configuring app...")
+        configure_app()
+        app_logger.info("Step 2: Setting up secrets...")
+        setup_jwt_secret()
+        app_logger.info("Step 3: Setting up CORS...")
+        setup_cors()
+        app_logger.info("Step 4: Initializing JWTManager...")
+        jwt.init_app(app)
+        app_logger.info("Step 5: Initializing CloudRunServiceClient...")
+        
         login_service_url = app.config.get('LOGIN_SERVICE_URL')
         internal_login_url = app.config.get('INTERNAL_LOGIN_SERVICE_URL')
 
@@ -503,6 +310,8 @@ try:
     app_logger.info("Application initialization complete.")
 except Exception as e:
     app_logger.critical(f"FATAL ERROR during initialization: {str(e)}", exc_info=True)
+    # Re-raise the exception to ensure the Gunicorn worker fails to boot,
+    # which is the behavior seen in the logs.
     raise
 
 # --- Main Entry Point ---

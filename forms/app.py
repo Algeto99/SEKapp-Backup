@@ -1,3 +1,4 @@
+# ... (keep all existing imports at the top of the file)
 import os
 import logging
 import traceback
@@ -78,48 +79,28 @@ app_logger.info("JWT configured successfully")
 # --- JWT Error Handlers for Automatic Redirect ---
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    """
-    Called when an access token has expired.
-    Always redirect user to login service for both web and API requests.
-    """
     user_email = jwt_payload.get('sub', 'unknown')
     app_logger.info(f"JWT token expired for user {user_email}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error_string):
-    """
-    Called when an invalid token is encountered.
-    Always redirect user to login service for both web and API requests.
-    """
     app_logger.info(f"Invalid JWT token encountered: {error_string}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error_string):
-    """
-    Called when no JWT token is present in the request.
-    Always redirect user to login service for both web and API requests.
-    """
     app_logger.info(f"No JWT token found: {error_string}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.revoked_token_loader
 def revoked_token_callback(jwt_header, jwt_payload):
-    """
-    Called when a revoked token is encountered.
-    Always redirect user to login service for both web and API requests.
-    """
     user_email = jwt_payload.get('sub', 'unknown')
     app_logger.info(f"Revoked JWT token for user {user_email}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
 
 @jwt.needs_fresh_token_loader
 def needs_fresh_token_callback(jwt_header, jwt_payload):
-    """
-    Called when a fresh token is required but not provided.
-    Always redirect user to login service for both web and API requests.
-    """
     user_email = jwt_payload.get('sub', 'unknown')
     app_logger.info(f"Fresh token required for user {user_email}. Redirecting to login.")
     return redirect(app.config.get('LOGIN_SERVICE_URL', 'https://secapp.tzolkintech.com'))
@@ -197,7 +178,7 @@ def get_email_password():
         return None
 
     try:
-        with app.app_context(): 
+        with app.app_context():
             secret_value = get_secret_value(secret_name)
         app_logger.info("Successfully retrieved email password from Secret Manager.")
         return secret_value
@@ -210,7 +191,7 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
     smtp_server = app.config.get('SMTP_SERVER')
     smtp_port = app.config.get('SMTP_PORT')
     
-    email_password = get_email_password() 
+    email_password = get_email_password()
 
     if not all([email_username, email_password, smtp_server, smtp_port]):
         app_logger.error(f"Email configuration incomplete. Missing: "
@@ -240,12 +221,12 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
 
-        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10) 
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
         server.starttls()
         server.login(email_username, email_password)
         server.send_message(msg)
         server.quit()
-        app_logger.info(f"Email sent successfully to {', '.join(to_emails)}.") 
+        app_logger.info(f"Email sent successfully to {', '.join(to_emails)}.")
         return True
 
     except smtplib.SMTPAuthenticationError:
@@ -260,7 +241,6 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
     except Exception as e:
         app_logger.error(f"An unexpected error occurred while sending email to {', '.join(to_emails)}: {e}", exc_info=True)
         return False
-
 def send_report_notification(user_email, user_name, fields):
     subject = f"Nuevo Reporte de Incidencia - {fields.get('fecha_incidente')}"
 
@@ -400,9 +380,35 @@ def create_tables_if_not_exists():
 def health():
     return "OK", 200
 
+# FIXED: The root route now redirects to the selection page with proper logging
 @app.route('/')
 @jwt_required()
-def index():
+def root_redirect():
+    app_logger.info("Root route accessed, redirecting to /select")
+    return redirect('/select')
+
+# ROUTE for the form selection page
+@app.route('/select')
+@jwt_required()
+def select_form():
+    app_logger.info("Select form route accessed")
+    return render_template(
+        'select_form.html',
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
+    )
+
+# Debug route to check available routes
+@app.route('/debug-routes')
+def debug_routes():
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append(f"{rule.rule} -> {rule.endpoint} ({', '.join(rule.methods)})")
+    return "<br>".join(sorted(routes))
+
+# The Reporte de Incidencia form
+@app.route('/reporte_incidencia')
+@jwt_required()
+def reporte_incidencia():
     user_email = get_jwt_identity()
     
     # Get admin status from JWT claims
@@ -462,9 +468,120 @@ def index():
         )
     except Exception as e:
         app_logger.error(f"Error rendering index page for {user_email}: {e}", exc_info=True)
-        return render_template('error.html', 
-                             message="Error al cargar el formulario. Por favor, intente de nuevo más tarde.",
-                             login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+        return render_template('error.html',
+                               message="Error al cargar el formulario. Por favor, intente de nuevo más tarde.",
+                               login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+    finally:
+        if conn:
+            conn.close()
+
+# ROUTE for the Control de Accesos form
+@app.route('/control_accesos')
+@jwt_required()
+def control_accesos_form():
+    user_email = get_jwt_identity()
+    
+    # Get admin status from JWT claims
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"User {user_email} accessing control accesos form (admin: {is_admin})")
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        # Get user name from database as fallback
+        cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+        result = cur.fetchone()
+        if result and result[0]:
+            user_name = result[0]
+
+        cur.close()
+        
+        return render_template(
+            'control_accesos.html',
+            name=user_name,
+            is_admin=is_admin,
+            login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+            landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+            dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+            viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
+        )
+    except Exception as e:
+        app_logger.error(f"Error rendering control accesos page for {user_email}: {e}", exc_info=True)
+        return render_template('error.html',
+                               message="Error al cargar el formulario. Por favor, intente de nuevo más tarde.",
+                               login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+    finally:
+        if conn:
+            conn.close()
+
+# ROUTE for submitting the Control de Accesos form
+@app.route('/submit_control_accesos', methods=['POST'])
+@jwt_required()
+def submit_control_accesos():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        # Get all form fields from the request
+        form_data = {
+            'fecha': request.form.get('fecha'),
+            'hora': request.form.get('hora'),
+            'sitio': request.form.get('sitio'),
+            'punto_de_acceso': request.form.get('punto_de_acceso'),
+            'usuario_visitante': request.form.get('usuario_visitante'),
+            'id_usuario_documento': request.form.get('id_usuario_documento'),
+            'rol_del_usuario': request.form.get('rol_del_usuario'),
+            'id_acceso': request.form.get('id_acceso'),
+            'accion': request.form.get('accion'),
+            'motivo_de_ingreso': request.form.get('motivo_de_ingreso'),
+            'autorizacion': request.form.get('autorizacion'),
+            'brecha_detectada': request.form.get('brecha_detectada'),
+            'evidencia': request.form.get('evidencia'),
+            'responsable_del_control': request.form.get('responsable_del_control'),
+            'observaciones': request.form.get('observaciones'),
+            'brecha_por_personas': request.form.get('brecha_por_personas'),
+            'brecha_por_procedimiento': request.form.get('brecha_por_procedimiento'),
+            'brecha_por_tecnologia_equipos': request.form.get('brecha_por_tecnologia_equipos'),
+            'brecha_por_seguridad_fisica': request.form.get('brecha_por_seguridad_fisica'),
+            'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),
+            'accion_correctiva_recomendada': request.form.get('accion_correctiva_recomendada'),
+            'responsable_asignado': request.form.get('responsable_asignado'),
+            'fecha_limite_de_cierre': request.form.get('fecha_limite_de_cierre'),
+            'estado': request.form.get('estado'),
+            'submitted_by_email': user_email
+        }
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Construct the SQL INSERT statement
+        columns = ', '.join(form_data.keys())
+        placeholders = ', '.join(['%s'] * len(form_data))
+        sql = f"INSERT INTO control_accesos_submissions ({columns}) VALUES ({placeholders})"
+        
+        # Execute the query
+        cur.execute(sql, list(form_data.values()))
+        
+        conn.commit()
+        cur.close()
+
+        flash('Reporte de Control de Accesos enviado exitosamente!', 'success')
+        return redirect(url_for('success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting control de accesos report: {e}", exc_info=True)
+        flash('Hubo un error al enviar el reporte de control de accesos.', 'danger')
+        return redirect(url_for('control_accesos_form'))
     finally:
         if conn:
             conn.close()
@@ -496,7 +613,7 @@ def submit_report():
         supervisor = request.form.get('supervisor')
 
         # Validate required fields (including propiedad field)
-        if not all([tipo_incidencia, tipo_cliente, lugar_incidente, propiedad, fecha_incidente, 
+        if not all([tipo_incidencia, tipo_cliente, lugar_incidente, propiedad, fecha_incidente,
                    hora_incidente, descripcion_incidente, nombre_persona, supervisor]):
             app_logger.warning("Missing required fields in form submission.")
             return redirect(url_for('error', message='Por favor, complete todos los campos obligatorios incluyendo la Propiedad.'))
@@ -790,16 +907,16 @@ def logout():
 @jwt_required()
 def success():
     message = request.args.get('message', 'Reporte de incidencia enviado exitosamente!')
-    return render_template('success.html', 
-                         message=message,
-                         login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+    return render_template('success.html',
+                           message=message,
+                           login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
 
 @app.route('/error')
 def error():
     message = request.args.get('message', 'Ha ocurrido un error inesperado.')
-    return render_template('error.html', 
-                         message=message,
-                         login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+    return render_template('error.html',
+                           message=message,
+                           login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
 
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in local development mode.")
