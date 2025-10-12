@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Control de Accesos - SMT SecApp</title>
+    <title>Mantenimiento de Seguridad Física - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -371,7 +371,6 @@
          body.light-mode .clear-button:hover {
             background-color: #d1d5db;
         }
-
     </style>
 </head>
 <body>
@@ -409,13 +408,13 @@
 
         <div class="text-center mb-8">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo" />
-            <h1 class="mb-4">Formato de Control de Accesos</h1>
+            <h1 class="mb-4">Formato de Mantenimiento</h1>
             <p class="text-sm" style="color: #9ca3af;">Seguridad Física</p>
         </div>
 
-        <form action="{{ url_for('submit_control_accesos') }}" method="POST">
+        <form action="{{ url_for('submit_mantenimiento_seguridad_fisica') }}" method="POST">
             <fieldset>
-                <legend>1. Información General</legend>
+                <legend>1. Datos Generales</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2">
                     <div>
                         <label for="fecha">Fecha</label>
@@ -430,164 +429,119 @@
                         <input type="text" name="sitio" id="sitio" required>
                     </div>
                     <div>
-                        <label for="punto_de_acceso">Punto de acceso</label>
-                        <select name="punto_de_acceso" id="punto_de_acceso" required>
+                        <label for="equipo">Equipo</label>
+                        <select name="equipo" id="equipo" required>
                             <option value="">Seleccione...</option>
-                            <option>portería principal</option>
-                            <option>parqueadero</option>
-                            <option>bodega</option>
-                            <option>oficina administrativa</option>
+                            <option>CCTV</option>
+                            <option>Torniquete</option>
+                            <option>Radio</option>
+                            <option>UPS</option>
+                            <option>Panel de alarma</option>
+                            <option>Botón de pánico</option>
+                            <option>Control de acceso</option>
+                            <option>Detección de incendios</option>
                         </select>
                     </div>
                     <div>
-                        <label for="usuario_visitante">Usuario / Visitante</label>
-                        <input type="text" name="usuario_visitante" id="usuario_visitante" required>
+                        <label for="id_equipo_serial">ID Equipo / Serial</label>
+                        <input type="text" name="id_equipo_serial" id="id_equipo_serial">
                     </div>
                     <div>
-                        <label for="id_usuario_documento">ID Usuario / Documento</label>
-                        <input type="text" name="id_usuario_documento" id="id_usuario_documento" required>
-                    </div>
-                    <div>
-                        <label for="rol_del_usuario">Rol del usuario</label>
-                        <select name="rol_del_usuario" id="rol_del_usuario" required>
-                            <option value="">Seleccione...</option>
-                            <option>Empleado</option>
-                            <option>Cliente</option>
-                            <option>Visitante</option>
-                            <option>Proveedor</option>
-                            <option>Contratista</option>
-                        </select>
+                        <label for="tecnico_responsable">Técnico Responsable</label>
+                        <input type="text" name="tecnico_responsable" id="tecnico_responsable" required>
                     </div>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>2. Registro de Accesos</legend>
+                <legend>2. Detalle del Servicio</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2">
                     <div>
-                        <label for="id_acceso">ID Acceso</label>
-                        <input type="text" name="id_acceso" id="id_acceso">
-                    </div>
-                    <div>
-                        <label for="accion">Acción</label>
-                        <select name="accion" id="accion" required>
+                        <label for="tipo_servicio">Tipo de Servicio</label>
+                        <select id="tipo_servicio" name="tipo_servicio">
                             <option value="">Seleccione...</option>
-                            <option>Ingreso</option>
-                            <option>Salida</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="motivo_de_ingreso">Motivo de ingreso</label>
-                        <textarea name="motivo_de_ingreso" id="motivo_de_ingreso" rows="3"></textarea>
-                    </div>
-                    <div>
-                        <label for="autorizacion">Autorización (Sí/No)</label>
-                        <select name="autorizacion" id="autorizacion" required>
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option value="Preventivo">Preventivo</option>
+                            <option value="Correctivo">Correctivo</option>
+                            <option value="Predictivo">Predictivo</option>
                         </select>
                     </div>
                     <div>
-                        <label for="brecha_detectada">Brecha Detectada</label>
-                        <select name="brecha_detectada" id="brecha_detectada" required>
+                        <label for="resultado">Resultado</label>
+                        <select id="resultado" name="resultado">
                             <option value="">Seleccione...</option>
-                            <option>Ninguna</option>
-                            <option>Brechas por personas</option>
-                            <option>Brechas por procedimiento</option>
-                            <option>Brechas por tecnología / equipos</option>
-                            <option>Brechas por seguridad física</option>
+                            <option value="OK">OK</option>
+                            <option value="Reparado">Reparado</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="No solucionado">No solucionado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="downtime_horas">Downtime (horas)</label>
+                        <input type="number" step="0.1" id="downtime_horas" name="downtime_horas">
+                    </div>
+                    <div>
+                        <label for="repuestos_usados">Repuestos Usados</label>
+                        <select id="repuestos_usados" name="repuestos_usados">
+                            <option value="No">No</option>
+                            <option value="Si">Sí</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="evidencia">Evidencia (CCTV, reporte)</label>
-                        <input type="text" name="evidencia" id="evidencia">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="responsable_del_control">Responsable del control</label>
-                        <input type="text" name="responsable_del_control" id="responsable_del_control" required>
+                        <label for="actividad_realizada">Actividad Realizada</label>
+                        <textarea id="actividad_realizada" name="actividad_realizada" rows="3"></textarea>
                     </div>
                     <div class="md:col-span-2">
                         <label for="observaciones">Observaciones</label>
-                        <textarea name="observaciones" id="observaciones" rows="3"></textarea>
+                        <textarea id="observaciones" name="observaciones" rows="3"></textarea>
                     </div>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>3. Seguimiento de Brechas Detectadas</legend>
+                <legend>3. Seguimiento de Alertas Críticas</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2">
-                    <div>
-                        <label for="brecha_por_personas">Brechas por personas</label>
-                        <select name="brecha_por_personas" id="brecha_por_personas">
-                            <option value="">Seleccione...</option>
-                            <option>Usuario sin carné o credencial vigente.</option>
-                            <option>Visitante sin autorización previa.</option>
-                            <option>Intento de ingreso con documento falso.</option>
-                            <option>Ingreso sin registrarse en la bitácora.</option>
-                            <option>Personal sin capacitación en protocolos de acceso.</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="brecha_por_procedimiento">Brechas por procedimiento</label>
-                        <select name="brecha_por_procedimiento" id="brecha_por_procedimiento">
-                            <option value="">Seleccione...</option>
-                            <option>Puerta/torniquete dejado abierto.</option>
-                            <option>Vehículo ingresa sin revisión.</option>
-                            <option>Falta de verificación de objetos o paquetes.</option>
-                            <option>No se registró placa de vehículo en el sistema.</option>
-                            <option>Acceso sin pasar por detector de metales / escáner.</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="brecha_por_tecnologia_equipos">Brechas por tecnología / equipos</label>
-                        <select name="brecha_por_tecnologia_equipos" id="brecha_por_tecnologia_equipos">
-                            <option value="">Seleccione...</option>
-                            <option>Lector biométrico fuera de servicio.</option>
-                            <option>Cámara de CCTV sin grabación en el punto de acceso.</option>
-                            <option>Tarjeta de proximidad clonada o dañada.</option>
-                            <option>Alarma de puerta forzada desactivada.</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="brecha_por_seguridad_fisica">Brechas por seguridad física</label>
-                        <select name="brecha_por_seguridad_fisica" id="brecha_por_seguridad_fisica">
-                            <option value="">Seleccione...</option>
-                            <option>Portón quedó abierto más de X minutos.</option>
-                            <option>Vidrio roto en puerta de acceso.</option>
-                            <option>Candado ausente en acceso restringido.</option>
+                     <div>
+                        <label for="tipo_alerta_generada">Tipo de Alerta Generada</label>
+                        <select id="tipo_alerta_generada" name="tipo_alerta_generada">
+                            <option value="Sin alerta">Sin alerta</option>
+                            <option value="Advertencia">Advertencia</option>
+                            <option value="Crítica">Crítica</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="accion_inmediata_tomada">Acción inmediata tomada</label>
-                        <textarea name="accion_inmediata_tomada" id="accion_inmediata_tomada" rows="3"></textarea>
+                        <label for="descripcion_alerta_critica">Descripción de Alerta</label>
+                        <textarea id="descripcion_alerta_critica" name="descripcion_alerta_critica" rows="3"></textarea>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="accion_correctiva_recomendada">Acción correctiva recomendada</label>
-                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="3"></textarea>
+                        <label for="accion_inmediata_critica">Acción Inmediata</label>
+                        <textarea id="accion_inmediata_critica" name="accion_inmediata_critica" rows="3"></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="accion_correctiva_recomendada">Acción Correctiva Recomendada</label>
+                        <textarea id="accion_correctiva_recomendada" name="accion_correctiva_recomendada" rows="3"></textarea>
                     </div>
                     <div>
-                        <label for="responsable_asignado">Responsable asignado</label>
-                        <input type="text" name="responsable_asignado" id="responsable_asignado">
+                        <label for="responsable_asignado_critica">Responsable Asignado</label>
+                        <input type="text" id="responsable_asignado_critica" name="responsable_asignado_critica">
                     </div>
                     <div>
-                        <label for="fecha_limite_de_cierre">Fecha límite de cierre</label>
-                        <input type="date" name="fecha_limite_de_cierre" id="fecha_limite_de_cierre">
+                        <label for="fecha_limite_cierre_critica">Fecha Límite de Cierre</label>
+                        <input type="date" id="fecha_limite_cierre_critica" name="fecha_limite_cierre_critica">
                     </div>
                     <div>
-                        <label for="estado">Estado</label>
-                        <select name="estado" id="estado" required>
+                        <label for="estado_critica">Estado</label>
+                        <select id="estado_critica" name="estado_critica">
                             <option value="">Seleccione...</option>
-                            <option>Abierto</option>
-                            <option>En progreso</option>
-                            <option>Cerrado</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En proceso">En proceso</option>
+                            <option value="Cerrado">Cerrado</option>
                         </select>
                     </div>
                 </div>
             </fieldset>
 
             <fieldset>
-                <legend>4. Firma del Responsable</legend>
+                <legend>4. Firma del Técnico</legend>
                 <div class="signature-container">
                     <canvas id="signature-pad" class="signature-pad"></canvas>
                 </div>
@@ -598,7 +552,7 @@
             </fieldset>
 
             <button type="submit" class="submit-button">
-                📋 Enviar Reporte de Control de Accesos
+                📋 Enviar Reporte de Mantenimiento
             </button>
         </form>
     </div>
@@ -644,7 +598,7 @@
             }
         }
 
-        // Initialize theme and signature pad on page load
+        // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', function() {
             initializeTheme();
             

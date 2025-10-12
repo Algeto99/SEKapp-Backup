@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe de Novedades y Disciplinario - SMT SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding-top: 80px; /* Account for fixed header */
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+            color: #ffffff;
+        }
+        .header-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 1.5rem;
+            z-index: 50;
+        }
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .nav-link {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        .nav-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+        .user-greeting {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+        .user-name {
+            color: #60a5fa;
+            font-weight: bold;
+        }
+        .admin-badge {
+            color: #a855f7;
+            font-weight: bold;
+        }
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .form-input {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        .signature-pad {
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            cursor: crosshair;
+        }
+        /* Light mode styles */
+        body.light-mode {
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
+            color: #212529;
+        }
+        body.light-mode .header-nav {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        body.light-mode .user-greeting {
+            color: #4a5568;
+        }
+        body.light-mode .form-section {
+            background-color: #ffffff;
+            border-color: #e2e8f0;
+        }
+        body.light-mode .form-input {
+            background-color: #e2e8f0;
+            border-color: #cbd5e0;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="user-greeting">
+                Bienvenido, <span class="user-name">{{ name }}</span>
+                {% if is_admin %}
+                    <span class="admin-badge">(Admin)</span>
+                {% endif %}
+            </div>
+            <div class="nav-links">
+                <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold">Informe de Novedades y Disciplinario</h1>
+        </header>
+
+        <form id="novedadesForm" action="{{ url_for('submit_informe_novedades_disciplinario') }}" method="POST" class="space-y-6">
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">1. Datos de Quien Realiza el Informe</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="realizado_por_nombre" class="block text-sm font-medium mb-1">Apellidos y Nombres</label>
+                        <input type="text" name="realizado_por_nombre" id="realizado_por_nombre" class="form-input">
+                    </div>
+                    <div>
+                        <label for="realizado_por_cargo" class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="realizado_por_cargo" id="realizado_por_cargo" class="form-input">
+                    </div>
+                    <div>
+                        <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>
+                        <input type="date" name="fecha" id="fecha" class="form-input">
+                    </div>
+                    <div>
+                        <label for="hora" class="block text-sm font-medium mb-1">Hora</label>
+                        <input type="time" name="hora" id="hora" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="dirigido_a" class="block text-sm font-medium mb-1">Dirigido a</label>
+                        <input type="text" name="dirigido_a" id="dirigido_a" class="form-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">2. Datos del Empleado Involucrado</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="empleado_nombre" class="block text-sm font-medium mb-1">Nombre completo</label>
+                        <input type="text" name="empleado_nombre" id="empleado_nombre" class="form-input">
+                    </div>
+                    <div>
+                        <label for="empleado_documento" class="block text-sm font-medium mb-1">Número de documento</label>
+                        <input type="text" name="empleado_documento" id="empleado_documento" class="form-input">
+                    </div>
+                    <div>
+                        <label for="empleado_cargo" class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="empleado_cargo" id="empleado_cargo" class="form-input">
+                    </div>
+                    <div>
+                        <label for="cliente" class="block text-sm font-medium mb-1">Cliente</label>
+                        <input type="text" name="cliente" id="cliente" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="puesto" class="block text-sm font-medium mb-1">Puesto</label>
+                        <input type="text" name="puesto" id="puesto" class="form-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">3. Tipo de Novedad / Falta Disciplinaria</h2>
+                <select name="tipo_novedad" id="tipo_novedad" class="form-input">
+                    <option>Ausencia del servicio</option>
+                    <option>Dormido</option>
+                    <option>Desobediencia</option>
+                    <option>Abuso de confianza</option>
+                    <option>Embriaguez</option>
+                    <option>Engaño</option>
+                    <option>Irrespeto</option>
+                    <option>Deslealtad</option>
+                    <option>Incumplimiento de reportes</option>
+                    <option>Incumplimiento de capacitaciones</option>
+                    <option>Abandono del sitio de trabajo</option>
+                    <option>Novedad durante el servicio</option>
+                    <option>Trato indebido a compañeros</option>
+                    <option>Descuido con elementos de dotación</option>
+                    <option>Incumplimiento de funciones</option>
+                    <option>Incorrecta presentación personal</option>
+                    <option>Descuido con el arma de dotación</option>
+                    <option>Queja de clientes y/o usuarios</option>
+                </select>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">4. Descripción de la Novedad</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="sitio_ocurrencia" class="block text-sm font-medium mb-1">Sitio donde ocurrió</label>
+                        <input type="text" name="sitio_ocurrencia" id="sitio_ocurrencia" class="form-input">
+                    </div>
+                    <div>
+                        <label for="descripcion_novedad" class="block text-sm font-medium mb-1">Describa la novedad</label>
+                        <textarea name="descripcion_novedad" id="descripcion_novedad" rows="4" class="form-input"></textarea>
+                    </div>
+                    <div>
+                        <label for="otras_personas_involucradas" class="block text-sm font-medium mb-1">Otras personas involucradas</label>
+                        <input type="text" name="otras_personas_involucradas" id="otras_personas_involucradas" class="form-input">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">5. Anexos</h2>
+                <select name="anexos" id="anexos" class="form-input">
+                    <option>Fotos</option>
+                    <option>Videos</option>
+                    <option>Documentos</option>
+                    <option>No aplica</option>
+                </select>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">6. Firmas</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Firma de Quien Realiza el Informe</label>
+                        <canvas id="signaturePad1" class="signature-pad w-full h-48 bg-gray-100"></canvas>
+                        <button type="button" id="clearSignature1" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_realizado_por" id="firma_realizado_por">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Firma de Quien Recibe y Revisa</label>
+                        <canvas id="signaturePad2" class="signature-pad w-full h-48 bg-gray-100"></canvas>
+                        <button type="button" id="clearSignature2" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_recibido_revisado_por" id="firma_recibido_revisado_por">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-4">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                    Enviar Informe
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Signature Pad 1
+            const canvas1 = document.getElementById('signaturePad1');
+            const signaturePad1 = new SignaturePad(canvas1);
+            const clearButton1 = document.getElementById('clearSignature1');
+            const hiddenInput1 = document.getElementById('firma_realizado_por');
+
+            // Signature Pad 2
+            const canvas2 = document.getElementById('signaturePad2');
+            const signaturePad2 = new SignaturePad(canvas2);
+            const clearButton2 = document.getElementById('clearSignature2');
+            const hiddenInput2 = document.getElementById('firma_recibido_revisado_por');
+
+            clearButton1.addEventListener('click', () => {
+                signaturePad1.clear();
+            });
+
+            clearButton2.addEventListener('click', () => {
+                signaturePad2.clear();
+            });
+
+            const form = document.getElementById('novedadesForm');
+            form.addEventListener('submit', (event) => {
+                if (!signaturePad1.isEmpty()) {
+                    hiddenInput1.value = signaturePad1.toDataURL();
+                }
+                if (!signaturePad2.isEmpty()) {
+                    hiddenInput2.value = signaturePad2.toDataURL();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

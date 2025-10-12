@@ -1,0 +1,1307 @@
+[
+  {
+    "table_name": "admin_users",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "authorized_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "authorized_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "notes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "is_admin",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "sitio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "punto_de_acceso",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "usuario_visitante",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "id_usuario_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "rol_del_usuario",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "id_acceso",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "accion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "motivo_de_ingreso",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "autorizacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "brecha_detectada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "evidencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "responsable_del_control",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "brecha_por_personas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "brecha_por_procedimiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "brecha_por_tecnologia_equipos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "brecha_por_seguridad_fisica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "accion_inmediata_tomada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "accion_correctiva_recomendada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "responsable_asignado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "fecha_limite_de_cierre",
+    "data_type": "date"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "submitted_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "control_accesos_submissions",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "id_informe",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "realizado_por_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "realizado_por_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "dirigido_a",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "tipo_novedad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "sitio_ocurrencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "descripcion_novedad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "otras_personas_involucradas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "anexos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "firma_realizado_por",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "firma_recibido_revisado_por",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_patrulla",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_guardia_nombre_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "sitio_ubicacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_patrulla_consecutivo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "hora_inicio",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "hora_fin",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "detalles_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "riesgo_detectado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "nivel_riesgo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "estado_patrulla",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "contexto_observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "firma_guardia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "lugar_incidente",
+    "column_name": "id_lugar_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "lugar_incidente",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "id_mantenimiento",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "sitio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "equipo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "id_equipo_serial",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "tecnico_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "tipo_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "actividad_realizada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "resultado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "downtime_horas",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "repuestos_usados",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "tipo_alerta_generada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "descripcion_alerta_critica",
+    "data_type": "text"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "accion_inmediata_critica",
+    "data_type": "text"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "accion_correctiva_recomendada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "responsable_asignado_critica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "fecha_limite_cierre_critica",
+    "data_type": "date"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "estado_critica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "mantenimiento_seguridad_fisica",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "token_hash",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "expires_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "descripcion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "activa",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "id_capacitacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "nombre_capacitacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "tema_protocolo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "area_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "lugar_realizacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "hora_inicio",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "hora_finalizacion",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "duracion_horas",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "instructor_capacitador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "instructor_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "firma_instructor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "objetivo_capacitacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "lista_asistencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "observaciones_retroalimentacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "practica_simulacro_realizado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "nivel_comprension",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "recomendaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "id_visita",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "acta_nro",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "hora_inicio",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "hora_final",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "lugar_oficina",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "persona_atendio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "cargo_atendio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "telefono_contacto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "proceso_encargado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "motivo_visita",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "objetivo_reunion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "actividades_realizadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "satisfaccion_cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "comentarios_satisfaccion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "compromisos_adquiridos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "firma_participante_cliente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "visita_realizada_por",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "firma_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_tipo_incidencia",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_tipo_cliente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_lugar_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_zona_comun",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "fecha_incidente",
+    "data_type": "date"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "hora_incidente",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "valor_aproximado",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "pertenencias_sustraidas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "nombre_persona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "telefono_persona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_identidad_persona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_local",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "imagenes_pdfs",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_supervisor",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "user_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "id_encuesta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "empresa_sitio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "fecha_encuesta",
+    "data_type": "date"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "sitio_local",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "cliente_encargado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "cargo_encuestado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_presencia_personal",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_tiempo_respuesta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_funcionamiento_sistemas",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_seguridad_parqueaderos",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_seguridad_areas_comunes",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_comunicacion_informacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "puntuacion_confianza_general",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "riesgo_detectado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "novedades_reportadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "calificacion_global_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "recomendaria_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "observaciones_cliente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "satisfaccion_cliente",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "id_supervision",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "supervisor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "ruta",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "placa_vehiculo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "km_inicial",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "km_final",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "horario_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "tipo_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "nombre_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "documento_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "fecha_inicio_servicio_guardia",
+    "data_type": "date"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "serie_arma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "cantidad_municion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "constancia_induccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "conoce_consignas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "horario_claro",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "asistencia_puntualidad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "presentacion_uniforme",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "estado_limpieza_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "equipamiento_completo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "cumplimiento_ordenes",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "estado_bitacora",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "observaciones_novedades",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervisor",
+    "column_name": "id_supervisor",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervisor",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "tipo_cliente",
+    "column_name": "id_tipo_cliente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "tipo_cliente",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "tipo_incidencia",
+    "column_name": "id_tipo_incidencia",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "tipo_incidencia",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "password_hash",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_admin",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "user_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "fecha_incidente",
+    "data_type": "date"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "hora_incidente",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "descripcion_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "valor_aproximado",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "nombre_persona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "propiedad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "tipo_incidencia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "tipo_cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "lugar_incidente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "vista_reportes_completos",
+    "column_name": "supervisor_name",
+    "data_type": "character varying"
+  }
+]

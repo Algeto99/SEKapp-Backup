@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Reporte de Incidencia - SMT SecApp</title>
   
-  <!-- PWA Meta Tags -->
   <meta name="theme-color" content="#2563eb">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,10 +12,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <link rel="apple-touch-startup-image" href="https://storage.googleapis.com/smt-misc/SMT-logo.png">
   
-  <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json">
   
-  <!-- Icons -->
   <link rel="icon" type="image/png" sizes="192x192" href="https://storage.googleapis.com/smt-misc/SMT-logo.png">
   <link rel="apple-touch-icon" href="https://storage.googleapis.com/smt-misc/SMT-logo.png">
   
@@ -146,6 +143,27 @@
     
     .button-secondary:hover {
       background-color: #4b5563;
+    }
+
+    .button-ghost {
+      background-color: transparent;
+      border: 1px solid #6b7280;
+      color: #e2e8f0;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    .button-ghost:hover {
+      background-color: #6b7280;
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    body.light-mode .button-ghost {
+      color: #4b5563;
+      border-color: #9ca3af;
+    }
+    body.light-mode .button-ghost:hover {
+      background-color: #4b5563;
+      color: #ffffff;
     }
     
     .install-link {
@@ -723,7 +741,7 @@
       color: #495057 !important;
       border: 1px solid #dee2e6;
     }
-
+    
     body.light-mode .report-detail-textarea {
       background-color: #f8f9fa !important;
       color: #495057 !important;
@@ -740,15 +758,30 @@
       background-color: #374151 !important;
       color: #e5e7eb !important;
     }
+
+    /* Signature Pad Styles */
+    .signature-container {
+      border: 2px dashed #d1d5db;
+      border-radius: 0.5rem;
+      background-color: #ffffff;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .signature-pad {
+      width: 100%;
+      height: 200px;
+      display: block;
+    }
+    body.light-mode .signature-container {
+      border-color: #cbd5e1;
+    }
   </style>
 </head>
 <body>
-  <!-- Connection Status Indicator -->
   <div id="connection-status" class="connection-status online">
     🟢 En línea
   </div>
   
-  <!-- Install Prompt - Hidden by default -->
   <div id="install-prompt" class="install-prompt hidden">
     <div style="padding: 1rem; text-align: center;">
       <h3 style="margin: 0 0 0.5rem 0;">📱 Instalar SMT SecApp</h3>
@@ -759,7 +792,6 @@
     </div>
   </div>
 
-  <!-- Install Instructions Modal -->
   <div id="install-modal" class="install-modal">
     <div class="install-modal-content">
       <button class="install-close" onclick="closeInstallModal()">×</button>
@@ -831,7 +863,6 @@
   </button>
 
   <div class="form-container">
-    <!-- Offline Status and Saved Reports Notification -->
     <div id="offline-status"></div>
     
     <div class="header-nav">
@@ -846,13 +877,11 @@
           </span>
           <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
           
-          <!-- Admin-only links -->
           {% if is_admin %}
           <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
           <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
           {% endif %}
           
-          <!-- My Reports link for all users -->
           <a href="#" onclick="console.log('Mis Reportes clicked'); if(window.offlineManager) { console.log('offlineManager found, calling function...'); window.offlineManager.showMySubmittedReports(); } else { console.error('offlineManager not found on window:', window.offlineManager); } return false;" class="nav-link">📋 Mis Reportes</a>
           
           <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
@@ -999,11 +1028,38 @@
         </select>
       </div>
 
+      <div>
+        <label for="firma_usuario">Firma del Reportante:</label>
+        <div class="signature-container">
+            <canvas id="signature-pad" class="signature-pad"></canvas>
+        </div>
+        <div style="margin-top: 0.75rem;">
+            <button type="button" id="clear-signature" class="button-ghost" style="
+                width: auto; 
+                margin: 0; 
+                padding: 0.625rem 1.25rem;
+                font-size: 0.875rem;
+                border-radius: 0.75rem;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: all 0.2s ease;
+                font-weight: 500;
+                border: 2px solid #6b7280;
+            ">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+                Limpiar Firma
+            </button>
+        </div>
+        <input type="hidden" name="firma_usuario" id="firma_usuario">
+      </div>
+
       <button type="submit" class="w-full py-3 px-6 bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition duration-200 ease-in-out transform hover:scale-105">
         Enviar Reporte
       </button>
       
-      <!-- Simple install link at bottom -->
       <div style="text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
         <p style="font-size: 0.8rem; color: #9ca3af; margin: 0 0 0.5rem 0;">
           💡 Para usar sin conexión a internet
@@ -1015,10 +1071,9 @@
     </form>
   </div>
 
-  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
   
-  <!-- Enhanced PWA Update Manager with Loop Prevention -->
   <script>
     // Fixed PWA Update Manager - No More Update Loops
     class PWAUpdateManager {
@@ -1565,7 +1620,6 @@
     });
   </script>
   
-  <!-- FIXED Enhanced Offline Forms Manager -->
   <script>
     class EnhancedOfflineFormsManager {
       constructor() {
@@ -1606,8 +1660,27 @@
         
         const saveButton = document.createElement('button');
         saveButton.type = 'button';
-        saveButton.className = 'draft-save-button button-secondary';
-        saveButton.innerHTML = '💾 Guardar Borrador';
+        saveButton.className = 'draft-save-button button-ghost';
+        saveButton.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.875rem;
+            border-radius: 0.75rem;
+            font-weight: 500;
+            border: 2px solid #6b7280;
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+        `;
+        saveButton.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17,21 17,13 7,13 7,21"/>
+                <polyline points="7,3 7,8 15,8"/>
+            </svg>
+            <span class="save-text">Guardar Borrador</span>
+        `;
         
         saveButton.addEventListener('click', (e) => {
           console.log('[OfflineManager] Save button clicked');
@@ -1625,11 +1698,14 @@
         const saveButton = document.querySelector('.draft-save-button');
         if (!saveButton) return;
 
+        const saveText = saveButton.querySelector('.save-text');
+        if (!saveText) return;
+
         if (this.isOnline) {
-          saveButton.innerHTML = '💾 Guardar Borrador';
+          saveText.textContent = 'Guardar Borrador';
           saveButton.title = 'Guardar borrador localmente';
         } else {
-          saveButton.innerHTML = '📴 Guardar (Sin conexión)';
+          saveText.textContent = 'Guardar (Sin conexión)';
           saveButton.title = 'Sin conexión - guardando localmente';
         }
       }
@@ -2794,7 +2870,6 @@
     };
   </script>
   
-  <!-- Theme Toggle and Tom Select initialization -->
   <script>
     // Initialize Tom Select dropdowns with retry for offline
     function initializeTomSelect() {
@@ -2855,7 +2930,43 @@
       if (themeToggle) {
         themeToggle.addEventListener('click', toggleTheme);
       }
+
+      // Signature Pad Logic
+      const canvas = document.getElementById('signature-pad');
+      if (canvas) {
+          const signaturePad = new SignaturePad(canvas, {
+              backgroundColor: 'rgb(255, 255, 255)'
+          });
+
+          function resizeCanvas() {
+              const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+              canvas.width = canvas.offsetWidth * ratio;
+              canvas.height = canvas.offsetHeight * ratio;
+              canvas.getContext("2d").scale(ratio, ratio);
+              signaturePad.clear(); 
+          }
+          window.addEventListener("resize", resizeCanvas);
+          resizeCanvas();
+
+          const clearButton = document.getElementById('clear-signature');
+          if (clearButton) {
+              clearButton.addEventListener('click', function() {
+                  signaturePad.clear();
+              });
+          }
+
+          const form = document.getElementById('incident-form');
+          if (form) {
+              form.addEventListener('submit', function(event) {
+                  if (!signaturePad.isEmpty()) {
+                      const signatureInput = document.getElementById('firma_usuario');
+                      signatureInput.value = signaturePad.toDataURL('image/png');
+                  }
+              });
+          }
+      }
     });
   </script>
 </body>
 </html>
+}
