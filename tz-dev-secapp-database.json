@@ -700,6 +700,141 @@
     "data_type": "text"
   },
   {
+    "table_name": "orden_mantenimiento",
+    "column_name": "id_orden",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "puesto_area",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "nombre_tecnico",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "firma_tecnico",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "equipo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "id_equipo_serial",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "tipo_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "actividad_realizada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "resultado_servicio",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "downtime_horas",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "repuestos_usados",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "tipo_alerta_generada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "descripcion_alerta",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "accion_inmediata",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "accion_correctiva_recomendada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "responsable_asignado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "fecha_limite_cierre",
+    "data_type": "date"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "supervisor_seguridad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "firma_supervisor_seguridad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "password_reset_tokens",
     "column_name": "id",
     "data_type": "integer"
@@ -1106,8 +1241,8 @@
   },
   {
     "table_name": "supervision_puesto",
-    "column_name": "fecha",
-    "data_type": "date"
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
   },
   {
     "table_name": "supervision_puesto",
@@ -1246,7 +1381,17 @@
   },
   {
     "table_name": "supervision_puesto",
-    "column_name": "firma_usuario",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "firma_guardia",
     "data_type": "text"
   },
   {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supervisión de Puesto y Control Vehicular - SMT SecApp</title>
+    <title>Orden de Servicio de Mantenimiento - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -12,7 +12,7 @@
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
-            padding-top: 80px; /* Account for fixed header */
+            padding-top: 80px;
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif;
@@ -115,7 +115,6 @@
             width: 1.5rem;
             height: 1.5rem;
         }
-        /* Light mode styles */
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
@@ -147,7 +146,6 @@
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
-        /* Responsive design */
         @media (max-width: 768px) {
             .nav-content {
                 flex-direction: column;
@@ -194,33 +192,35 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-2xl md:text-3xl font-bold">Planilla de Supervisión de Puesto y Control Vehicular</h1>
+            <h1 class="text-2xl md:text-3xl font-bold">Orden de Servicio de Mantenimiento de Seguridad y Gestión de Alertas</h1>
         </header>
 
-        <form id="supervisionForm" action="{{ url_for('submit_supervision_puesto') }}" method="POST" class="space-y-6">
+        <form id="mantenimientoForm" action="{{ url_for('submit_orden_mantenimiento') }}" method="POST" class="space-y-6">
             
+            <!-- Section 1: Datos Generales -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
-                        <input type="text" name="cliente" id="cliente" class="form-input" required>
+                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input" required>
                     </div>
                     <div>
-                        <label for="direccion" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" name="direccion" id="direccion" class="form-input">
+                        <label for="puesto_area" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
+                        <input type="text" name="puesto_area" id="puesto_area" class="form-input">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y hora</label>
+                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
                         <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
-                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol de Aplicador/Responsable</label>
+                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Agente de seguridad</option>
                             <option>Supervisor/Inspector</option>
                             <option>Analista de Calidad</option>
+                            <option>Técnico de Mantenimiento</option>
                             <option>Jefe de Seguridad</option>
                             <option>Cliente</option>
                             <option>Locatario</option>
@@ -228,7 +228,7 @@
                     </div>
                     <div>
                         <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
-                        <select name="turno" id="turno" class="form-select" required>
+                        <select name="turno" id="turno" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Mañana</option>
                             <option>Tarde</option>
@@ -237,192 +237,177 @@
                         </select>
                     </div>
                     <div>
-                        <label for="supervisor" class="block text-sm font-medium mb-1">Nombre</label>
-                        <input type="text" name="supervisor" id="supervisor" class="form-input" required>
+                        <label for="equipo" class="block text-sm font-medium mb-1">Equipo</label>
+                        <select name="equipo" id="equipo" class="form-select" required>
+                            <option value="">Seleccione...</option>
+                            <option>CCTV</option>
+                            <option>Torniquete</option>
+                            <option>Radio</option>
+                            <option>UPS</option>
+                            <option>Panel de alarma</option>
+                            <option>Botón de pánico</option>
+                            <option>Control de acceso</option>
+                            <option>Detección de incendios</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="id_equipo_serial" class="block text-sm font-medium mb-1">ID Equipo / Serial</label>
+                        <input type="text" name="id_equipo_serial" id="id_equipo_serial" class="form-input">
+                    </div>
+                    <div>
+                        <label for="nombre_tecnico" class="block text-sm font-medium mb-1">Nombre</label>
+                        <input type="text" name="nombre_tecnico" id="nombre_tecnico" class="form-input" required>
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Firma</label>
-                        <canvas id="signaturePadSupervisor" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clearSignatureSupervisor" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_supervisor" id="firma_supervisor">
-                    </div>
-                    <div>
-                        <label for="placa_vehiculo" class="block text-sm font-medium mb-1">Placa del Vehículo</label>
-                        <input type="text" name="placa_vehiculo" id="placa_vehiculo" class="form-input">
-                    </div>
-                    <div>
-                        <label for="km_inicial" class="block text-sm font-medium mb-1">KM Inicial</label>
-                        <input type="number" name="km_inicial" id="km_inicial" class="form-input">
-                    </div>
-                    <div>
-                        <label for="km_final" class="block text-sm font-medium mb-1">KM Final</label>
-                        <input type="number" name="km_final" id="km_final" class="form-input">
+                        <canvas id="signaturePadTecnico" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clearSignatureTecnico" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_tecnico" id="firma_tecnico">
                     </div>
                 </div>
             </div>
 
+            <!-- Section 2: Detalle del Servicio -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">2. Datos del Puesto</h2>
+                <h2 class="text-xl font-bold mb-4">2. Detalle del Servicio</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="horario_servicio" class="block text-sm font-medium mb-1">Horario del Servicio</label>
-                        <input type="text" name="horario_servicio" id="horario_servicio" class="form-input">
-                    </div>
                     <div>
                         <label for="tipo_servicio" class="block text-sm font-medium mb-1">Tipo de Servicio</label>
-                        <select name="tipo_servicio" id="tipo_servicio" class="form-select">
+                        <select name="tipo_servicio" id="tipo_servicio" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Residencial</option>
-                            <option>Industrial</option>
-                            <option>Comercial</option>
-                            <option>Escolta</option>
+                            <option>Preventivo</option>
+                            <option>Correctivo</option>
+                            <option>Predictivo</option>
                         </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">3. Datos del Guardia de Seguridad</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="nombre_guardia" class="block text-sm font-medium mb-1">Nombre y Apellido</label>
-                        <input type="text" name="nombre_guardia" id="nombre_guardia" class="form-input" required>
-                    </div>
-                    <div>
-                        <label for="documento_guardia" class="block text-sm font-medium mb-1">Documento</label>
-                        <input type="text" name="documento_guardia" id="documento_guardia" class="form-input">
-                    </div>
-                    <div>
-                        <label for="fecha_inicio_servicio_guardia" class="block text-sm font-medium mb-1">Fecha de inicio del servicio</label>
-                        <input type="date" name="fecha_inicio_servicio_guardia" id="fecha_inicio_servicio_guardia" class="form-input">
-                    </div>
-                    <div>
-                        <label for="serie_arma" class="block text-sm font-medium mb-1">Serie del arma asignada</label>
-                        <input type="text" name="serie_arma" id="serie_arma" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label for="cantidad_municion" class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                        <input type="number" name="cantidad_municion" id="cantidad_municion" class="form-input">
+                        <label for="actividad_realizada" class="block text-sm font-medium mb-1">Actividad Realizada</label>
+                        <textarea name="actividad_realizada" id="actividad_realizada" rows="3" class="form-input" required></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="resultado_servicio" class="block text-sm font-medium mb-1">Resultado</label>
+                        <textarea name="resultado_servicio" id="resultado_servicio" rows="2" class="form-input"></textarea>
+                    </div>
+                    <div>
+                        <label for="downtime_horas" class="block text-sm font-medium mb-1">Downtime (horas)</label>
+                        <input type="number" step="0.01" name="downtime_horas" id="downtime_horas" class="form-input" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label for="repuestos_usados" class="block text-sm font-medium mb-1">Repuestos usados</label>
+                        <select name="repuestos_usados" id="repuestos_usados" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="true">Sí</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="tipo_alerta_generada" class="block text-sm font-medium mb-1">Tipo de Alerta Generada</label>
+                        <select name="tipo_alerta_generada" id="tipo_alerta_generada" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Advertencia</option>
+                            <option>Crítica</option>
+                            <option>Sin alerta</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="observaciones" class="block text-sm font-medium mb-1">Observaciones</label>
+                        <textarea name="observaciones" id="observaciones" rows="4" class="form-input"></textarea>
                     </div>
                 </div>
             </div>
 
+            <!-- Section 3: Clasificación de Servicio -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Validación de Inducción</h2>
-                <p class="text-sm text-gray-400 mb-4">El supervisor verifica y marca la opción correspondiente.</p>
-                <div class="space-y-4">
+                <h2 class="text-xl font-bold mb-4">3. Clasificación de Servicio</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                        <label for="constancia_induccion" class="block text-sm font-medium mb-1">¿Se entregó la constancia de inducción al puesto?</label>
-                        <select name="constancia_induccion" id="constancia_induccion" class="form-select">
+                        <label for="tipo_servicio_clasificacion" class="block text-sm font-medium mb-1">Tipo de Servicio</label>
+                        <select name="tipo_servicio_clasificacion" id="tipo_servicio_clasificacion" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Preventivo</option>
+                            <option>Correctivo</option>
+                            <option>Predictivo</option>
                         </select>
                     </div>
                     <div>
-                        <label for="conoce_consignas" class="block text-sm font-medium mb-1">¿El guardia conoce sus Órdenes y Consignas Específicas?</label>
-                         <select name="conoce_consignas" id="conoce_consignas" class="form-select">
+                        <label for="resultado_clasificacion" class="block text-sm font-medium mb-1">Resultado</label>
+                        <select name="resultado_clasificacion" id="resultado_clasificacion" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>OK</option>
+                            <option>Reparado</option>
+                            <option>Pendiente</option>
+                            <option>No solucionado</option>
                         </select>
                     </div>
                     <div>
-                        <label for="horario_claro" class="block text-sm font-medium mb-1">¿El horario y los detalles del servicio son claros para el guardia?</label>
-                         <select name="horario_claro" id="horario_claro" class="form-select">
+                        <label for="tipo_alerta_clasificacion" class="block text-sm font-medium mb-1">Tipo de Alerta</label>
+                        <select name="tipo_alerta_clasificacion" id="tipo_alerta_clasificacion" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Advertencia</option>
+                            <option>Crítica</option>
+                            <option>Sin alerta</option>
                         </select>
                     </div>
                 </div>
             </div>
 
+            <!-- Section 4: Seguimiento de Alertas Críticas -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">5. Estado de Equipos</h2>
+                <h2 class="text-xl font-bold mb-4">4. Seguimiento de Alertas Críticas</h2>
+                <p class="text-sm text-gray-400 mb-4">Complete esta sección solo si se generó una alerta crítica.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="asistencia_puntualidad" class="block text-sm font-medium mb-1">Asistencia y puntualidad</label>
-                        <select name="asistencia_puntualidad" id="asistencia_puntualidad" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
+                    <div class="md:col-span-2">
+                        <label for="descripcion_alerta" class="block text-sm font-medium mb-1">Descripción de Alerta</label>
+                        <textarea name="descripcion_alerta" id="descripcion_alerta" rows="3" class="form-input"></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="accion_inmediata" class="block text-sm font-medium mb-1">Acción Inmediata</label>
+                        <textarea name="accion_inmediata" id="accion_inmediata" rows="2" class="form-input"></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="accion_correctiva_recomendada" class="block text-sm font-medium mb-1">Acción Correctiva Recomendada</label>
+                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="2" class="form-input"></textarea>
                     </div>
                     <div>
-                        <label for="presentacion_uniforme" class="block text-sm font-medium mb-1">Presentación y uniforme</label>
-                        <select name="presentacion_uniforme" id="presentacion_uniforme" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
+                        <label for="responsable_asignado" class="block text-sm font-medium mb-1">Responsable Asignado</label>
+                        <input type="text" name="responsable_asignado" id="responsable_asignado" class="form-input">
                     </div>
                     <div>
-                        <label for="estado_limpieza_puesto" class="block text-sm font-medium mb-1">Estado y limpieza del puesto</label>
-                        <select name="estado_limpieza_puesto" id="estado_limpieza_puesto" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
+                        <label for="fecha_limite_cierre" class="block text-sm font-medium mb-1">Fecha Límite de Cierre</label>
+                        <input type="date" name="fecha_limite_cierre" id="fecha_limite_cierre" class="form-input">
                     </div>
                     <div>
-                        <label for="equipamiento_completo" class="block text-sm font-medium mb-1">Equipamiento (radio, linterna, etc.)</label>
-                         <select name="equipamiento_completo" id="equipamiento_completo" class="form-select">
+                        <label for="estado" class="block text-sm font-medium mb-1">Estado</label>
+                        <select name="estado" id="estado" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="cumplimiento_ordenes" class="block text-sm font-medium mb-1">Cumplimiento de órdenes</label>
-                         <select name="cumplimiento_ordenes" id="cumplimiento_ordenes" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="estado_bitacora" class="block text-sm font-medium mb-1">Estado de bitácora y registros</label>
-                         <select name="estado_bitacora" id="estado_bitacora" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
+                            <option>Pendiente</option>
+                            <option>En proceso</option>
+                            <option>Cerrado</option>
                         </select>
                     </div>
                 </div>
             </div>
 
+            <!-- Section 5: Firmas -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">6. Observaciones y Novedades</h2>
-                <p class="text-sm text-gray-400 mb-4">Espacio para que el supervisor detalle cualquier punto relevante del recorrido.</p>
-                <textarea name="observaciones_novedades" id="observaciones_novedades" rows="5" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">7. Firma del Guardia</h2>
-                <div>
-                    <label class="block text-sm font-medium mb-2">Firma del Guardia</label>
-                    <canvas id="signaturePadGuardia" class="signature-pad w-full h-48"></canvas>
-                    <button type="button" id="clearSignatureGuardia" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                    <input type="hidden" name="firma_guardia" id="firma_guardia">
+                <h2 class="text-xl font-bold mb-4">5. Firmas</h2>
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label for="supervisor_seguridad" class="block text-sm font-medium mb-1">Supervisor de Seguridad</label>
+                        <input type="text" name="supervisor_seguridad" id="supervisor_seguridad" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Firma</label>
+                        <canvas id="signaturePadSupervisor" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clearSignatureSupervisor" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_supervisor_seguridad" id="firma_supervisor_seguridad">
+                    </div>
                 </div>
             </div>
 
             <div class="flex justify-end pt-4">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
-                    Enviar Supervisión
+                    Enviar Orden de Mantenimiento
                 </button>
             </div>
         </form>
@@ -470,32 +455,33 @@
                 themeToggle.addEventListener('click', toggleTheme);
             }
 
-            // Signature Pad Setup
+            // Signature Pad Setup - Tecnico
+            const canvasTecnico = document.getElementById('signaturePadTecnico');
+            const signaturePadTecnico = new SignaturePad(canvasTecnico);
+            const clearButtonTecnico = document.getElementById('clearSignatureTecnico');
+            const hiddenInputTecnico = document.getElementById('firma_tecnico');
+
+            // Signature Pad Setup - Supervisor
             const canvasSupervisor = document.getElementById('signaturePadSupervisor');
             const signaturePadSupervisor = new SignaturePad(canvasSupervisor);
             const clearButtonSupervisor = document.getElementById('clearSignatureSupervisor');
-            const hiddenInputSupervisor = document.getElementById('firma_supervisor');
+            const hiddenInputSupervisor = document.getElementById('firma_supervisor_seguridad');
 
-            const canvasGuardia = document.getElementById('signaturePadGuardia');
-            const signaturePadGuardia = new SignaturePad(canvasGuardia);
-            const clearButtonGuardia = document.getElementById('clearSignatureGuardia');
-            const hiddenInputGuardia = document.getElementById('firma_guardia');
+            clearButtonTecnico.addEventListener('click', () => {
+                signaturePadTecnico.clear();
+            });
 
             clearButtonSupervisor.addEventListener('click', () => {
                 signaturePadSupervisor.clear();
             });
 
-            clearButtonGuardia.addEventListener('click', () => {
-                signaturePadGuardia.clear();
-            });
-
-            const form = document.getElementById('supervisionForm');
+            const form = document.getElementById('mantenimientoForm');
             form.addEventListener('submit', (event) => {
+                if (!signaturePadTecnico.isEmpty()) {
+                    hiddenInputTecnico.value = signaturePadTecnico.toDataURL();
+                }
                 if (!signaturePadSupervisor.isEmpty()) {
                     hiddenInputSupervisor.value = signaturePadSupervisor.toDataURL();
-                }
-                if (!signaturePadGuardia.isEmpty()) {
-                    hiddenInputGuardia.value = signaturePadGuardia.toDataURL();
                 }
             });
         });

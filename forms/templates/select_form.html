@@ -266,11 +266,6 @@
                 gap: 0.5rem;
             }
 
-            .nav-links {
-                gap: 1rem;
-                font-size: 0.8rem;
-            }
-
             body {
                 padding-top: 120px;
             }
@@ -319,14 +314,17 @@
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
-                Bienvenido, <span class="user-name">Roberto Canton</span> <span class="admin-badge">(Admin)</span>.
+                Bienvenido, <span class="user-name">{{ name }}</span>
+                {% if is_admin %}
+                    <span class="admin-badge">(Admin)</span>
+                {% endif %}
             </div>
             <div class="nav-links">
                 <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
-                <a href="https://dashboard.secapp.tzolkintech.com" class="nav-link">Dashboard</a>
-                <a href="https://viewer.secapp.tzolkintech.com" class="nav-link">Reportes</a>
-                <a href="#" onclick="if(window.offlineManager) { window.offlineManager.showMySubmittedReports(); } return false;" class="nav-link">📋 Mis Reportes</a>
-                <a href="https://secapp.tzolkintech.com/logout" class="nav-link">Cerrar Sesión</a>
+                <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
             </div>
         </div>
     </div>
@@ -343,13 +341,13 @@
             </a>
             
             <a href="/control_accesos" class="form-button">
-                <h3>Planilla de Registro de Control de Acceso y Gestión de Brechas</h3>
+                <h3>Control de Acceso y Gestión de Brechas</h3>
                 <p>Para registrar ingresos, salidas y detectar brechas en los puntos de acceso.</p>
             </a>
             
-            <a href="/mantenimiento_seguridad_fisica" class="form-button">
-                <h3>Mantenimiento de Seguridad Física</h3>
-                <p>Para registrar el mantenimiento preventivo y correctivo de equipos de seguridad.</p>
+            <a href="/orden_mantenimiento" class="form-button">
+                <h3>Orden de Servicio de Mantenimiento</h3>
+                <p>Para registrar el mantenimiento de equipos de seguridad y gestionar alertas.</p>
             </a>
 
             <a href="/medicion_experiencia_cliente" class="form-button">
@@ -358,11 +356,11 @@
             </a>
 
             <a href="/supervision_puesto" class="form-button">
-                <h3>Hoja de Supervisión de Puesto</h3>
-                <p>Para que los supervisores evalúen el estado y desempeño de los puestos de seguridad.</p>
+                <h3>Supervisión de Puesto y Control Vehicular</h3>
+                <p>Para que los supervisores evalúen el estado y desempeño de los puestos de seguridad y vehículos.</p>
             </a>
             <a href="/informe_novedades_disciplinario" class="form-button">
-                <h3>Informe de Novedades y Reporte Disciplinario de Personal</h3>
+                <h3>Informe de Novedades y Disciplinario</h3>
                 <p>Para reportar novedades y faltas disciplinarias de los empleados.</p>
             </a>
             <a href="/log_de_patrullas" class="form-button">
@@ -377,6 +375,14 @@
                 <h3>Registro y Acta de Visita</h3>
                 <p>Para documentar las visitas a clientes y los acuerdos alcanzados.</p>
             </a>
+            
+            <!-- The old maintenance form is commented out to avoid confusion -->
+            <!-- 
+            <a href="/mantenimiento_seguridad_fisica" class="form-button">
+                <h3>Mantenimiento de Seguridad Física (Legacy)</h3>
+                <p>Planilla para registrar mantenimientos preventivos y correctivos de equipos de seguridad.</p>
+            </a>
+            -->
         </div>
 
         <div class="mt-8">
@@ -384,7 +390,7 @@
         </div>
         
         <div class="debug-info">
-            Form Selection v2.4
+            Form Selection v2.5
         </div>
     </div>
 
@@ -435,28 +441,7 @@
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
-
-            console.log('Select form page loaded successfully');
-            console.log('Current URL:', window.location.href);
-            
-            // Test the buttons
-            const buttons = document.querySelectorAll('.form-button');
-            buttons.forEach((button, index) => {
-                button.addEventListener('click', function(e) {
-                    console.log(`Button ${index + 1} clicked:`, this.href);
-                });
-            });
         });
-
-        // Basic offline manager for "Mis Reportes" functionality
-        window.offlineManager = {
-            showMySubmittedReports: function() {
-                console.log('Mis Reportes functionality called from select form');
-                // This would normally redirect to the form page where the full offline manager exists
-                // For now, we'll redirect to the main form page
-                window.location.href = '/reporte_incidencia';
-            }
-        };
     </script>
 </body>
 </html>

@@ -1,4 +1,3 @@
-# ... (keep all existing imports at the top of the file)
 import os
 import logging
 import traceback
@@ -469,7 +468,7 @@ def create_tables_if_not_exists():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS supervision_puesto (
                 id_supervision SERIAL PRIMARY KEY,
-                fecha DATE,
+                fecha_hora TIMESTAMP,
                 turno VARCHAR(255),
                 supervisor VARCHAR(255),
                 ruta VARCHAR(255),
@@ -497,7 +496,9 @@ def create_tables_if_not_exists():
                 observaciones_novedades TEXT,
                 submitted_by_email VARCHAR(255),
                 creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                firma_usuario TEXT
+                firma_supervisor TEXT,
+                rol_aplicador VARCHAR(255),
+                firma_guardia TEXT
             );
         """)
         conn.commit()
@@ -613,6 +614,44 @@ def create_tables_if_not_exists():
         conn.commit()
         app_logger.info("Table 'registro_y_acta_de_visita' checked/created.")
 
+        # Create orden_mantenimiento table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS orden_mantenimiento (
+                id_orden SERIAL PRIMARY KEY,
+                cliente_instalacion VARCHAR(255),
+                puesto_area VARCHAR(255),
+                fecha_hora TIMESTAMP,
+                rol_aplicador VARCHAR(255),
+                turno VARCHAR(50),
+                equipo VARCHAR(255),
+                id_equipo_serial VARCHAR(255),
+                nombre_tecnico VARCHAR(255),
+                firma_tecnico TEXT,
+                tipo_servicio VARCHAR(255),
+                actividad_realizada TEXT,
+                resultado_servicio TEXT,
+                downtime_horas NUMERIC(5, 2),
+                repuestos_usados BOOLEAN,
+                tipo_alerta_generada VARCHAR(255),
+                observaciones TEXT,
+                tipo_servicio_clasificacion VARCHAR(255),
+                resultado_clasificacion VARCHAR(255),
+                tipo_alerta_clasificacion VARCHAR(255),
+                descripcion_alerta TEXT,
+                accion_inmediata TEXT,
+                accion_correctiva_recomendada TEXT,
+                responsable_asignado VARCHAR(255),
+                fecha_limite_cierre DATE,
+                estado VARCHAR(50),
+                supervisor_seguridad VARCHAR(255),
+                firma_supervisor_seguridad TEXT,
+                submitted_by_email VARCHAR(255) NOT NULL,
+                creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        app_logger.info("Table 'orden_mantenimiento' checked/created.")
+
 
     except Exception as e:
         app_logger.error(f"Error during database table creation: {e}", exc_info=True)
@@ -637,10 +676,24 @@ def root_redirect():
 @app.route('/select')
 @jwt_required()
 def select_form():
-    app_logger.info("Select form route accessed")
+    user_email = get_jwt_identity()
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
+
     return render_template(
         'select_form.html',
-        landing_service_url=app.config.get('LANDING_SERVICE_URL', 'https://landing.secapp.tzolkintech.com')
+        name=user_name,
+        is_admin=is_admin,
+        login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+        dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+        viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
     )
 
 # Debug route to check available routes
@@ -1104,11 +1157,12 @@ def submit_supervision_puesto():
     user_email = get_jwt_identity()
     conn = None
     try:
-        # Get all form fields from the request
+        # Get all form fields from the request, including new ones
         form_data = {
-            'fecha': request.form.get('fecha'),
+            'fecha_hora': request.form.get('fecha_hora'), # UPDATED
             'turno': request.form.get('turno'),
             'supervisor': request.form.get('supervisor'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
             'ruta': request.form.get('ruta'),
             'placa_vehiculo': request.form.get('placa_vehiculo'),
             'km_inicial': request.form.get('km_inicial'),
@@ -1132,14 +1186,15 @@ def submit_supervision_puesto():
             'cumplimiento_ordenes': request.form.get('cumplimiento_ordenes'),
             'estado_bitacora': request.form.get('estado_bitacora'),
             'observaciones_novedades': request.form.get('observaciones_novedades'),
-            'firma_usuario': request.form.get('firma_usuario'),
+            'firma_supervisor': request.form.get('firma_supervisor'),
+            'firma_guardia': request.form.get('firma_guardia'),
             'submitted_by_email': user_email
         }
         
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Construct the SQL INSERT statement
+        # Construct the SQL INSERT statement with the updated columns
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO supervision_puesto ({columns}) VALUES ({placeholders})"
@@ -1162,6 +1217,7 @@ def submit_supervision_puesto():
     finally:
         if conn:
             conn.close()
+
 
 # ROUTE for the Informe de Novedades y Disciplinario form
 @app.route('/informe_novedades_disciplinario')
@@ -1607,6 +1663,108 @@ def submit_report():
             conn.close()
             app_logger.info("Database connection closed in finally block.")
 
+# NEW: ROUTE for Orden de Mantenimiento form
+@app.route('/orden_mantenimiento')
+@jwt_required()
+def orden_mantenimiento_form():
+    user_email = get_jwt_identity()
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"User {user_email} accessing orden de mantenimiento form (admin: {is_admin})")
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
+
+    return render_template(
+        'orden_mantenimiento.html',
+        name=user_name,
+        is_admin=is_admin,
+        login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+        dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+        viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
+    )
+
+# Replace the existing submit_orden_mantenimiento function in app.py with this updated version:
+
+@app.route('/submit_orden_mantenimiento', methods=['POST'])
+@jwt_required()
+def submit_orden_mantenimiento():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        # Convert repuestos_usados from string to boolean
+        repuestos_value = request.form.get('repuestos_usados')
+        if repuestos_value == 'true':
+            repuestos_usados = True
+        elif repuestos_value == 'false':
+            repuestos_usados = False
+        else:
+            repuestos_usados = None
+
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area': request.form.get('puesto_area'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'equipo': request.form.get('equipo'),
+            'id_equipo_serial': request.form.get('id_equipo_serial'),
+            'nombre_tecnico': request.form.get('nombre_tecnico'),
+            'firma_tecnico': request.form.get('firma_tecnico'),
+            
+            # Section 2: Detalle del Servicio
+            'tipo_servicio': request.form.get('tipo_servicio'),
+            'actividad_realizada': request.form.get('actividad_realizada'),
+            'resultado_servicio': request.form.get('resultado_servicio'),
+            'downtime_horas': request.form.get('downtime_horas') or None,
+            'repuestos_usados': repuestos_usados,
+            'tipo_alerta_generada': request.form.get('tipo_alerta_generada'),
+            'observaciones': request.form.get('observaciones'),
+            
+            # Section 4: Seguimiento de Alertas Críticas
+            'descripcion_alerta': request.form.get('descripcion_alerta'),
+            'accion_inmediata': request.form.get('accion_inmediata'),
+            'accion_correctiva_recomendada': request.form.get('accion_correctiva_recomendada'),
+            'responsable_asignado': request.form.get('responsable_asignado'),
+            'fecha_limite_cierre': request.form.get('fecha_limite_cierre') or None,
+            'estado': request.form.get('estado'),
+
+            # Section 5: Firmas
+            'supervisor_seguridad': request.form.get('supervisor_seguridad'),
+            'firma_supervisor_seguridad': request.form.get('firma_supervisor_seguridad'),
+
+            'submitted_by_email': user_email
+        }
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        columns = ', '.join(form_data.keys())
+        placeholders = ', '.join(['%s'] * len(form_data))
+        sql = f"INSERT INTO orden_mantenimiento ({columns}) VALUES ({placeholders})"
+        
+        cur.execute(sql, list(form_data.values()))
+        
+        conn.commit()
+        cur.close()
+
+        flash('Orden de Mantenimiento enviada exitosamente!', 'success')
+        return redirect(url_for('success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting orden de mantenimiento: {e}", exc_info=True)
+        flash('Hubo un error al enviar la orden de mantenimiento.', 'danger')
+        return redirect(url_for('orden_mantenimiento_form'))
+    finally:
+        if conn:
+            conn.close()
+
 @app.route('/offline.html')
 def offline():
     """Serve offline page for PWA"""
@@ -1812,3 +1970,4 @@ if __name__ == '__main__':
     with app.app_context():
         create_tables_if_not_exists()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
