@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilla de Rondas y Patrullaje - SMT SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base Styles */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding-top: 80px; /* Adjust for fixed header */
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+            color: #ffffff;
+        }
+        
+        /* Form Styles */
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid #4a5568;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 4px;
+            width: 100%;
+            padding: 0.75rem;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        .form-input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+            border-color: #3b82f6;
+        }
+
+        .signature-pad-container {
+            border: 1px solid #718096;
+            border-radius: 4px;
+            background-color: #ffffff;
+            position: relative;
+        }
+
+        label {
+            color: #a0aec0;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .back-link {
+            color: #60a5fa; text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Header & Nav Styles from orden_mantenimiento.html */
+        .header-nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            background-color: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 1.5rem;
+            z-index: 50;
+        }
+        .nav-content {
+            max-width: 1200px; margin: 0 auto; display: flex;
+            justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 1rem;
+        }
+        .nav-links {
+            display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+        }
+        .nav-link {
+            color: #60a5fa; text-decoration: none; font-size: 0.875rem;
+            transition: all 0.2s; padding: 0.5rem 0;
+        }
+        .nav-link:hover {
+            color: #93c5fd; text-decoration: underline;
+        }
+        .user-greeting {
+            font-size: 0.875rem; color: #9ca3af;
+        }
+        .user-name {
+            color: #60a5fa; font-weight: bold;
+        }
+        .admin-badge {
+            color: #a855f7; font-weight: bold;
+        }
+
+        /* Theme Toggle Styles from orden_mantenimiento.html */
+        .theme-toggle {
+            position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem; padding: 0.5rem; cursor: pointer;
+            transition: all 0.2s ease-in-out; color: #e2e8f0;
+        }
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2); transform: scale(1.05);
+        }
+        .theme-toggle svg {
+            width: 1.5rem; height: 1.5rem;
+        }
+
+        /* Light Mode Styles */
+        body.light-mode {
+            background-color: #f8f9fa; color: #343a40;
+        }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
+            color: #212529;
+        }
+        body.light-mode .form-section {
+            background-color: #ffffff; border: 1px solid #dee2e6;
+        }
+        body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea {
+            background-color: #f1f3f5; border-color: #ced4da; color: #495057;
+        }
+        body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        body.light-mode .form-input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: none;
+        }
+        body.light-mode label {
+            color: #6c757d;
+        }
+        body.light-mode .header-nav {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        body.light-mode .user-greeting {
+            color: #4a5568;
+        }
+        body.light-mode .theme-toggle {
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            color: #374151;
+        }
+        body.light-mode .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            body { padding-top: 120px; }
+            .theme-toggle { top: 1rem; left: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="user-greeting">
+                Bienvenido, <span class="user-name">{{ name }}</span>
+                {% if is_admin %}
+                    <span class="admin-badge">(Admin)</span>
+                {% endif %}
+            </div>
+            <div class="nav-links">
+                <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 pb-8 max-w-4xl">
+        <div class="text-center mb-8">
+            <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto w-24 opacity-90" />
+            <h1 class="text-3xl font-bold text-white mt-4">Planilla de Rondas y Patrullaje</h1>
+        </div>
+
+        <form action="/submit" method="post" id="mainForm">
+            <input type="hidden" name="form_type" value="planilla_de_rondas">
+
+            <div class="form-section">
+                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">1. Datos Generales</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="cliente_instalacion">Cliente / Instalación</label>
+                        <input type="text" id="cliente_instalacion" name="cliente_instalacion" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="puesto_area_especifica">Puesto o Área Específica</label>
+                        <input type="text" id="puesto_area_especifica" name="puesto_area_especifica" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="fecha_hora">Fecha y Hora</label>
+                        <input type="datetime-local" id="fecha_hora" name="fecha_hora" required class="form-input">
+                    </div>
+                    <div>
+                        <label for="rol_aplicador">Rol del Aplicador/Responsable</label>
+                        <select id="rol_aplicador" name="rol_aplicador" required class="form-select">
+                            <option value="" disabled selected>Seleccione....</option>
+                            <option value="Agente de seguridad">Agente de seguridad</option>
+                            <option value="Supervisor/Inspector">Supervisor/Inspector</option>
+                            <option value="Analista de Calidad">Analista de Calidad</option>
+                            <option value="Jefe de Seguridad">Jefe de Seguridad</option>
+                            <option value="Cliente">Cliente</option>
+                            <option value="Locatario">Locatario</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="turno">Turno</label>
+                        <select id="turno" name="turno" required class="form-select">
+                            <option value="" disabled selected>Seleccione....</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noche">Noche</option>
+                            <option value="24 Horas">24 Horas</option>
+                        </select>
+                    </div>
+                    <div>
+                         <label for="nombre_responsable">Nombre del Responsable</label>
+                         <input type="text" id="nombre_responsable" name="nombre_responsable" required class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label>Firma del Responsable</label>
+                        <div class="signature-pad-container">
+                            <canvas id="firma_responsable_pad" class="w-full h-40"></canvas>
+                            <input type="hidden" name="firma_responsable" id="firma_responsable">
+                            <button type="button" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded" onclick="clearSignature('firma_responsable_pad')">Limpiar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">2. Matriz de Puntos de Control y Tiempos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="punto_de_control">Punto de Control / Elemento a Revisar</label>
+                        <input type="text" id="punto_de_control" name="punto_de_control" class="form-input">
+                    </div>
+                    <div>
+                        <label for="hora_programada">Hora Programada</label>
+                        <input type="time" id="hora_programada" name="hora_programada" class="form-input">
+                    </div>
+                    <div>
+                        <label for="hora_verificacion">Hora de Verificación (Real)</label>
+                        <input type="time" id="hora_verificacion" name="hora_verificacion" class="form-input">
+                    </div>
+                    <div>
+                        <label for="estado_punto">Estado del Punto</label>
+                        <select id="estado_punto" name="estado_punto" class="form-select">
+                            <option value="" disabled selected>Seleccione....</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Abierto">Abierto</option>
+                            <option value="Dañado">Dañado</option>
+                            <option value="Obstruido">Obstruido</option>
+                            <option value="Falta de Iluminación">Falta de Iluminación</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="cumplimiento">Cumplimiento</label>
+                        <select id="cumplimiento" name="cumplimiento" class="form-select">
+                            <option value="" disabled selected>Seleccione....</option>
+                            <option value="Sí (Cumple)">Sí (Cumple)</option>
+                            <option value="No (Falla)">No (Falla)</option>
+                            <option value="N/A">N/A</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">3. Resumen de Novedades y Seguimiento</h2>
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <label for="novedades_relevantes">Novedades Relevantes Detectadas</label>
+                        <textarea id="novedades_relevantes" name="novedades_relevantes" rows="4" class="form-textarea"></textarea>
+                    </div>
+                    <div>
+                        <label for="accion_inmediata">Acción Inmediata Tomada</label>
+                        <textarea id="accion_inmediata" name="accion_inmediata" rows="4" class="form-textarea"></textarea>
+                    </div>
+                    <div>
+                        <label for="requerimiento_pendiente">Requerimiento Pendiente</label>
+                        <textarea id="requerimiento_pendiente" name="requerimiento_pendiente" rows="4" class="form-textarea"></textarea>
+                    </div>
+                    <div>
+                        <label>Firma de Entrega de Ronda (al Supervisor)</label>
+                        <div class="signature-pad-container">
+                            <canvas id="firma_entrega_ronda_pad" class="w-full h-40"></canvas>
+                            <input type="hidden" name="firma_entrega_ronda" id="firma_entrega_ronda">
+                            <button type="button" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded" onclick="clearSignature('firma_entrega_ronda_pad')">Limpiar</button>
+                        </div>
+                    </div>
+                     <div>
+                        <label>Firma de Recepción (Supervisor)</label>
+                        <div class="signature-pad-container">
+                            <canvas id="firma_recepcion_supervisor_pad" class="w-full h-40"></canvas>
+                            <input type="hidden" name="firma_recepcion_supervisor" id="firma_recepcion_supervisor">
+                             <button type="button" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded" onclick="clearSignature('firma_recepcion_supervisor_pad')">Limpiar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-between items-center">
+                <a href="{{ url_for('select_form') }}" class="back-link">← Volver</a>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+                    Enviar Formulario
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script>
+        // Signature Pad Logic
+        const signaturePads = {};
+        function resizeCanvas(canvas) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            const pad = signaturePads[canvas.id];
+            if (pad) {
+                pad.clear(); 
+            }
+        }
+        function initializeSignaturePads() {
+            const canvases = document.querySelectorAll('canvas[id$="_pad"]');
+            canvases.forEach(canvas => {
+                const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
+                signaturePads[canvas.id] = signaturePad;
+                resizeCanvas(canvas);
+                const hiddenInputId = canvas.id.replace('_pad', '');
+                const hiddenInput = document.getElementById(hiddenInputId);
+                signaturePad.addEventListener("endStroke", () => {
+                    hiddenInput.value = signaturePad.isEmpty() ? '' : signaturePad.toDataURL();
+                });
+            });
+        }
+        function clearSignature(canvasId) {
+            const signaturePad = signaturePads[canvasId];
+            if (signaturePad) {
+                signaturePad.clear();
+                document.getElementById(canvasId.replace('_pad', '')).value = '';
+            }
+        }
+        window.addEventListener('resize', () => {
+             document.querySelectorAll('canvas[id$="_pad"]').forEach(resizeCanvas);
+        });
+        
+        // Theme Toggle Logic from orden_mantenimiento.html
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
+        function setDarkMode() {
+            document.body.classList.remove('light-mode');
+            if(darkModeIcon) darkModeIcon.style.display = 'block';
+            if(lightModeIcon) lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        }
+        function setLightMode() {
+            document.body.classList.add('light-mode');
+            if(darkModeIcon) darkModeIcon.style.display = 'none';
+            if(lightModeIcon) lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+        function toggleTheme() {
+            document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode();
+        }
+        
+        // Initialize everything on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSignaturePads();
+            initializeTheme();
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -835,6 +835,21 @@
     "data_type": "timestamp with time zone"
   },
   {
+    "table_name": "orden_mantenimiento",
+    "column_name": "tipo_servicio_clasificacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "resultado_clasificacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "tipo_alerta_clasificacion",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "password_reset_tokens",
     "column_name": "id",
     "data_type": "integer"
@@ -858,6 +873,101 @@
     "table_name": "password_reset_tokens",
     "column_name": "created_at",
     "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "nombre_firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "punto_de_control",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "hora_programada",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "hora_verificacion",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "estado_punto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "cumplimiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "novedades_relevantes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "accion_inmediata",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "requerimiento_pendiente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "firma_entrega_ronda",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "firma_recepcion_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "creado_en",
+    "data_type": "timestamp without time zone"
   },
   {
     "table_name": "propiedades",

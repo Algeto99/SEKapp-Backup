@@ -584,35 +584,37 @@ def create_tables_if_not_exists():
         conn.commit()
         app_logger.info("Table 'registro_de_capacitaciones' checked/created.")
 
-        # Create registro_y_acta_de_visita table
+        # --- UPDATED: registro_y_acta_de_visita table ---
         cur.execute("""
             CREATE TABLE IF NOT EXISTS registro_y_acta_de_visita (
                 id_visita SERIAL PRIMARY KEY,
-                acta_nro INT,
-                fecha DATE,
-                hora_inicio TIME,
-                hora_final TIME,
-                lugar_oficina VARCHAR(255),
-                persona_atendio VARCHAR(255),
-                cargo_atendio VARCHAR(255),
-                telefono_contacto VARCHAR(50),
-                proceso_encargado VARCHAR(255),
+                cliente_instalacion VARCHAR(255),
+                puesto_area_especifica VARCHAR(255),
+                fecha_hora TIMESTAMP,
+                rol_aplicador VARCHAR(255),
+                turno VARCHAR(50),
+                visita_realizada_por VARCHAR(255),
+                firma_visitante TEXT,
                 motivo_visita TEXT,
                 objetivo_reunion TEXT,
                 actividades_realizadas TEXT,
-                satisfaccion_cliente VARCHAR(100),
+                satisfaccion_cliente VARCHAR(50),
                 comentarios_satisfaccion TEXT,
                 compromisos_adquiridos TEXT,
+                compromisos_responsable VARCHAR(255),
+                compromisos_fecha_limite DATE,
                 observaciones TEXT,
+                persona_atendio VARCHAR(255),
+                cargo_atendio VARCHAR(255),
+                telefono_contacto VARCHAR(50),
                 firma_participante_cliente TEXT,
-                visita_realizada_por VARCHAR(255),
-                firma_visitante TEXT,
                 submitted_by_email VARCHAR(255),
                 creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         """)
         conn.commit()
-        app_logger.info("Table 'registro_y_acta_de_visita' checked/created.")
+        app_logger.info("Table 'registro_y_acta_de_visita' checked/created with new structure.")
+
 
         # Create orden_mantenimiento table
         cur.execute("""
@@ -652,6 +654,33 @@ def create_tables_if_not_exists():
         conn.commit()
         app_logger.info("Table 'orden_mantenimiento' checked/created.")
 
+        # Create planilla_de_rondas table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS planilla_de_rondas (
+                id SERIAL PRIMARY KEY,
+                cliente_instalacion VARCHAR(255),
+                puesto_area_especifica VARCHAR(255),
+                fecha_hora TIMESTAMP,
+                rol_aplicador VARCHAR(255),
+                turno VARCHAR(50),
+                nombre_responsable VARCHAR(255),
+                firma_responsable TEXT,
+                punto_de_control TEXT,
+                hora_programada TIME,
+                hora_verificacion TIME,
+                estado_punto VARCHAR(255),
+                cumplimiento VARCHAR(50),
+                novedades_relevantes TEXT,
+                accion_inmediata TEXT,
+                requerimiento_pendiente TEXT,
+                firma_entrega_ronda TEXT,
+                firma_recepcion_supervisor TEXT,
+                submitted_by_email VARCHAR(255) NOT NULL,
+                creado_en TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+        app_logger.info("Table 'planilla_de_rondas' checked/created.")
 
     except Exception as e:
         app_logger.error(f"Error during database table creation: {e}", exc_info=True)
@@ -774,53 +803,30 @@ def reporte_incidencia():
         if conn:
             conn.close()
 
-# ROUTE for the Control de Accesos form
-@app.route('/control_accesos')
+# ROUTE for Planilla de Rondas form
+@app.route('/planilla_de_rondas')
 @jwt_required()
-def control_accesos_form():
+def planilla_de_rondas_form():
     user_email = get_jwt_identity()
-    
-    # Get admin status from JWT claims
     try:
         claims = get_jwt()
         user_name = claims.get('name', user_email.split('@')[0])
         is_admin = claims.get('is_admin', False)
-        app_logger.info(f"User {user_email} accessing control accesos form (admin: {is_admin})")
+        app_logger.info(f"User {user_email} accessing planilla de rondas form (admin: {is_admin})")
     except Exception as e:
         app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
         user_name = user_email.split('@')[0]
         is_admin = False
 
-    conn = None
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Get user name from database as fallback
-        cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
-        result = cur.fetchone()
-        if result and result[0]:
-            user_name = result[0]
-
-        cur.close()
-        
-        return render_template(
-            'control_accesos.html',
-            name=user_name,
-            is_admin=is_admin,
-            login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
-            landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
-            dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
-            viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
-        )
-    except Exception as e:
-        app_logger.error(f"Error rendering control accesos page for {user_email}: {e}", exc_info=True)
-        return render_template('error.html',
-                               message="Error al cargar el formulario. Por favor, intente de nuevo más tarde.",
-                               login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
-    finally:
-        if conn:
-            conn.close()
+    return render_template(
+        'planilla_de_rondas.html',
+        name=user_name,
+        is_admin=is_admin,
+        login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+        dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+        viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
+    )
 
 # ROUTE for submitting the Control de Accesos form
 @app.route('/submit_control_accesos', methods=['POST'])
@@ -1474,33 +1480,35 @@ def registro_y_acta_de_visita_form():
         viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
     )
 
-# ROUTE for submitting the Registro y Acta de Visita form
+# --- UPDATED: ROUTE for submitting the Registro y Acta de Visita form ---
 @app.route('/submit_registro_y_acta_de_visita', methods=['POST'])
 @jwt_required()
 def submit_registro_y_acta_de_visita():
     user_email = get_jwt_identity()
     conn = None
     try:
+        # Get all form fields from the updated form
         form_data = {
-            'acta_nro': request.form.get('acta_nro'),
-            'fecha': request.form.get('fecha'),
-            'hora_inicio': request.form.get('hora_inicio'),
-            'hora_final': request.form.get('hora_final'),
-            'lugar_oficina': request.form.get('lugar_oficina'),
-            'persona_atendio': request.form.get('persona_atendio'),
-            'cargo_atendio': request.form.get('cargo_atendio'),
-            'telefono_contacto': request.form.get('telefono_contacto'),
-            'proceso_encargado': request.form.get('proceso_encargado'),
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora') or None,
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'visita_realizada_por': request.form.get('visita_realizada_por'),
+            'firma_visitante': request.form.get('firma_visitante'),
             'motivo_visita': request.form.get('motivo_visita'),
             'objetivo_reunion': request.form.get('objetivo_reunion'),
             'actividades_realizadas': request.form.get('actividades_realizadas'),
             'satisfaccion_cliente': request.form.get('satisfaccion_cliente'),
             'comentarios_satisfaccion': request.form.get('comentarios_satisfaccion'),
             'compromisos_adquiridos': request.form.get('compromisos_adquiridos'),
+            'compromisos_responsable': request.form.get('compromisos_responsable'),
+            'compromisos_fecha_limite': request.form.get('compromisos_fecha_limite') or None,
             'observaciones': request.form.get('observaciones'),
+            'persona_atendio': request.form.get('persona_atendio'),
+            'cargo_atendio': request.form.get('cargo_atendio'),
+            'telefono_contacto': request.form.get('telefono_contacto'),
             'firma_participante_cliente': request.form.get('firma_participante_cliente'),
-            'visita_realizada_por': request.form.get('visita_realizada_por'),
-            'firma_visitante': request.form.get('firma_visitante'),
             'submitted_by_email': user_email
         }
         
@@ -1516,14 +1524,14 @@ def submit_registro_y_acta_de_visita():
         conn.commit()
         cur.close()
 
-        flash('Registro y Acta de Visita enviado exitosamente!', 'success')
+        flash('Acta de Visita enviada exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting registro y acta de visita: {e}", exc_info=True)
-        flash('Hubo un error al enviar el registro y acta de visita.', 'danger')
+        flash('Hubo un error al enviar el acta de visita.', 'danger')
         return redirect(url_for('registro_y_acta_de_visita_form'))
     finally:
         if conn:
@@ -1964,6 +1972,62 @@ def error():
     return render_template('error.html',
                            message=message,
                            login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'))
+
+# ROUTE for submitting the Planilla de Rondas form
+@app.route('/submit_planilla_de_rondas', methods=['POST'])
+@jwt_required()
+def submit_planilla_de_rondas():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get all form fields from the request
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'punto_de_control': request.form.get('punto_de_control'),
+            'hora_programada': request.form.get('hora_programada') or None,
+            'hora_verificacion': request.form.get('hora_verificacion') or None,
+            'estado_punto': request.form.get('estado_punto'),
+            'cumplimiento': request.form.get('cumplimiento'),
+            'novedades_relevantes': request.form.get('novedades_relevantes'),
+            'accion_inmediata': request.form.get('accion_inmediata'),
+            'requerimiento_pendiente': request.form.get('requerimiento_pendiente'),
+            'firma_entrega_ronda': request.form.get('firma_entrega_ronda'),
+            'firma_recepcion_supervisor': request.form.get('firma_recepcion_supervisor'),
+            'submitted_by_email': user_email
+        }
+        
+        # Construct the SQL INSERT statement
+        columns = ', '.join(form_data.keys())
+        placeholders = ', '.join(['%s'] * len(form_data))
+        sql = f"INSERT INTO planilla_de_rondas ({columns}) VALUES ({placeholders})"
+        
+        # Execute the query
+        cur.execute(sql, list(form_data.values()))
+        
+        conn.commit()
+        cur.close()
+
+        flash('Planilla de Rondas y Patrullaje enviada exitosamente!', 'success')
+        return redirect(url_for('success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting planilla de rondas report: {e}", exc_info=True)
+        flash('Hubo un error al enviar la planilla de rondas.', 'danger')
+        return redirect(url_for('planilla_de_rondas_form'))
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in local development mode.")
