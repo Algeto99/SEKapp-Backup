@@ -778,14 +778,14 @@ def submit_control_accesos():
     try:
         # Get all form fields from the request
         form_data = {
-            'fecha': request.form.get('fecha'),
-            'hora': request.form.get('hora'),
-            'sitio': request.form.get('sitio'),
-            'punto_de_acceso': request.form.get('punto_de_acceso'),
-            'usuario_visitante': request.form.get('usuario_visitante'),
-            'id_usuario_documento': request.form.get('id_usuario_documento'),
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
             'rol_del_usuario': request.form.get('rol_del_usuario'),
-            'id_acceso': request.form.get('id_acceso'),
             'accion': request.form.get('accion'),
             'motivo_de_ingreso': request.form.get('motivo_de_ingreso'),
             'autorizacion': request.form.get('autorizacion'),
@@ -802,7 +802,8 @@ def submit_control_accesos():
             'responsable_asignado': request.form.get('responsable_asignado'),
             'fecha_limite_de_cierre': request.form.get('fecha_limite_de_cierre'),
             'estado': request.form.get('estado'),
-            'firma_usuario': request.form.get('firma_usuario'),
+            'nombre_cierre': request.form.get('nombre_cierre'), # New field
+            'firma_cierre': request.form.get('firma_cierre'), # New field
             'submitted_by_email': user_email
         }
         

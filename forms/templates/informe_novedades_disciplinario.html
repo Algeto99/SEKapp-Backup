@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe de Novedades y Disciplinario - SMT SecApp</title>
+    <title>Informe de Novedades y Reporte Disciplinario de Personal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -35,11 +35,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         .nav-links {
             display: flex;
             align-items: center;
             gap: 1.5rem;
+            flex-wrap: wrap;
         }
         .nav-link {
             color: #60a5fa;
@@ -88,6 +91,29 @@
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
             cursor: crosshair;
+            background-color: white;
+        }
+        .theme-toggle {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #e2e8f0;
+            width: auto;
+        }
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
         }
         /* Light mode styles */
         body.light-mode {
@@ -113,9 +139,49 @@
             border-color: #cbd5e0;
             color: #2d3748;
         }
+        body.light-mode .theme-toggle {
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            color: #374151;
+        }
+        body.light-mode .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .nav-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .nav-links {
+                gap: 1rem;
+                font-size: 0.8rem;
+            }
+            body {
+                padding-top: 120px;
+            }
+            .theme-toggle {
+                top: 1rem;
+                left: 1rem;
+            }
+        }
+        @media (max-width: 640px) {
+            body {
+                padding-top: 140px;
+            }
+        }
     </style>
 </head>
 <body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
@@ -136,33 +202,57 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-2xl md:text-3xl font-bold">Informe de Novedades y Disciplinario</h1>
+            <h1 class="text-2xl md:text-3xl font-bold">Informe de Novedades y Reporte Disciplinario de Personal</h1>
         </header>
 
-        <form id="novedadesForm" action="{{ url_for('submit_informe_novedades_disciplinario') }}" method="POST" class="space-y-6">
+        <form id="novedadesForm" action="{{ url_for('submit_informe_novedades_disciplinario') }}" method="POST" class="space-y-6" enctype="multipart/form-data">
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">1. Datos de Quien Realiza el Informe</h2>
+                <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="realizado_por_nombre" class="block text-sm font-medium mb-1">Apellidos y Nombres</label>
-                        <input type="text" name="realizado_por_nombre" id="realizado_por_nombre" class="form-input">
+                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input">
                     </div>
                     <div>
-                        <label for="realizado_por_cargo" class="block text-sm font-medium mb-1">Cargo</label>
-                        <input type="text" name="realizado_por_cargo" id="realizado_por_cargo" class="form-input">
+                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input">
                     </div>
                     <div>
-                        <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>
-                        <input type="date" name="fecha" id="fecha" class="form-input">
+                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input">
                     </div>
                     <div>
-                        <label for="hora" class="block text-sm font-medium mb-1">Hora</label>
-                        <input type="time" name="hora" id="hora" class="form-input">
+                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
+                        <select name="rol_aplicador" id="rol_aplicador" class="form-input">
+                            <option value="">Seleccione...</option>
+                            <option>Agente de seguridad</option>
+                            <option>Supervisor/Inspector</option>
+                            <option>Analista de Calidad</option>
+                            <option>Jefe de Seguridad</option>
+                            <option>Cliente</option>
+                            <option>Locatario</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
+                        <select name="turno" id="turno" class="form-input">
+                            <option value="">Seleccione...</option>
+                             <option>Mañana</option>
+                             <option>Tarde</option>
+                             <option>Noche</option>
+                             <option>24 Horas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del Responsable</label>
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label for="dirigido_a" class="block text-sm font-medium mb-1">Dirigido a</label>
-                        <input type="text" name="dirigido_a" id="dirigido_a" class="form-input">
+                        <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
+                        <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clearSignatureResponsable" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                 </div>
             </div>
@@ -182,7 +272,7 @@
                         <label for="empleado_cargo" class="block text-sm font-medium mb-1">Cargo</label>
                         <input type="text" name="empleado_cargo" id="empleado_cargo" class="form-input">
                     </div>
-                    <div>
+                     <div>
                         <label for="cliente" class="block text-sm font-medium mb-1">Cliente</label>
                         <input type="text" name="cliente" id="cliente" class="form-input">
                     </div>
@@ -196,6 +286,7 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">3. Tipo de Novedad / Falta Disciplinaria</h2>
                 <select name="tipo_novedad" id="tipo_novedad" class="form-input">
+                    <option value="">Seleccione...</option>
                     <option>Ausencia del servicio</option>
                     <option>Dormido</option>
                     <option>Desobediencia</option>
@@ -237,28 +328,30 @@
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">5. Anexos</h2>
-                <select name="anexos" id="anexos" class="form-input">
-                    <option>Fotos</option>
-                    <option>Videos</option>
-                    <option>Documentos</option>
-                    <option>No aplica</option>
-                </select>
+                <div class="file-upload-area">
+                    <input type="file" id="anexos_files" name="anexos_files" accept="image/*,video/*" multiple class="hidden" capture>
+                    <button type="button" onclick="document.getElementById('anexos_files').click()" class="form-input">
+                        📎 Seleccionar o Tomar Foto/Video
+                    </button>
+                    <div class="mt-2">
+                        <input type="checkbox" name="anexos_na" id="anexos_na">
+                        <label for="anexos_na" class="text-sm">No Aplica</label>
+                    </div>
+                </div>
             </div>
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">6. Firmas</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Firma de Quien Realiza el Informe</label>
-                        <canvas id="signaturePad1" class="signature-pad w-full h-48 bg-gray-100"></canvas>
-                        <button type="button" id="clearSignature1" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_realizado_por" id="firma_realizado_por">
+                     <div>
+                        <label for="recibido_revisado_por_nombre_cargo" class="block text-sm font-medium mb-1">Recibido y revisado por (Nombre y Cargo)</label>
+                        <input type="text" name="recibido_revisado_por_nombre_cargo" id="recibido_revisado_por_nombre_cargo" class="form-input">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Firma de Quien Recibe y Revisa</label>
-                        <canvas id="signaturePad2" class="signature-pad w-full h-48 bg-gray-100"></canvas>
-                        <button type="button" id="clearSignature2" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_recibido_revisado_por" id="firma_recibido_revisado_por">
+                        <canvas id="signaturePadRevisado" class="signature-pad w-full h-48 bg-gray-100"></canvas>
+                        <button type="button" id="clearSignatureRevisado" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_recibido_revisado" id="firma_recibido_revisado">
                     </div>
                 </div>
             </div>
@@ -273,18 +366,62 @@
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
+        // Theme toggle elements
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+
+        // Theme management
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
+
+        function setDarkMode() {
+            document.body.classList.remove('light-mode');
+            darkModeIcon.style.display = 'block';
+            lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        }
+
+        function setLightMode() {
+            document.body.classList.add('light-mode');
+            darkModeIcon.style.display = 'none';
+            lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('light-mode')) {
+                setDarkMode();
+            } else {
+                setLightMode();
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function () {
+            initializeTheme();
+            
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
             // Signature Pad 1
-            const canvas1 = document.getElementById('signaturePad1');
+            const canvas1 = document.getElementById('signaturePadResponsable');
             const signaturePad1 = new SignaturePad(canvas1);
-            const clearButton1 = document.getElementById('clearSignature1');
-            const hiddenInput1 = document.getElementById('firma_realizado_por');
+            const clearButton1 = document.getElementById('clearSignatureResponsable');
+            const hiddenInput1 = document.getElementById('firma_responsable');
 
             // Signature Pad 2
-            const canvas2 = document.getElementById('signaturePad2');
+            const canvas2 = document.getElementById('signaturePadRevisado');
             const signaturePad2 = new SignaturePad(canvas2);
-            const clearButton2 = document.getElementById('clearSignature2');
-            const hiddenInput2 = document.getElementById('firma_recibido_revisado_por');
+            const clearButton2 = document.getElementById('clearSignatureRevisado');
+            const hiddenInput2 = document.getElementById('firma_recibido_revisado');
 
             clearButton1.addEventListener('click', () => {
                 signaturePad1.clear();

@@ -65,144 +65,154 @@
     "data_type": "boolean"
   },
   {
-    "table_name": "control_accesos_submissions",
-    "column_name": "id",
+    "table_name": "control_accesos",
+    "column_name": "id_control_acceso",
     "data_type": "integer"
   },
   {
-    "table_name": "control_accesos_submissions",
-    "column_name": "fecha",
-    "data_type": "date"
-  },
-  {
-    "table_name": "control_accesos_submissions",
-    "column_name": "hora",
-    "data_type": "time without time zone"
-  },
-  {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "sitio",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "punto_de_acceso",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
-    "column_name": "usuario_visitante",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos_submissions",
-    "column_name": "id_usuario_documento",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "rol_del_usuario",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
-    "column_name": "id_acceso",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "accion",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "motivo_de_ingreso",
     "data_type": "text"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "autorizacion",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "brecha_detectada",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "evidencia",
     "data_type": "text"
   },
   {
-    "table_name": "control_accesos_submissions",
-    "column_name": "responsable_del_control",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "observaciones",
     "data_type": "text"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "brecha_por_personas",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "brecha_por_procedimiento",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "brecha_por_tecnologia_equipos",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "brecha_por_seguridad_fisica",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "accion_inmediata_tomada",
     "data_type": "text"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "accion_correctiva_recomendada",
     "data_type": "text"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "responsable_asignado",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "fecha_limite_de_cierre",
     "data_type": "date"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "estado",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "submitted_by_email",
     "data_type": "character varying"
   },
   {
-    "table_name": "control_accesos_submissions",
-    "column_name": "submitted_at",
+    "table_name": "control_accesos",
+    "column_name": "creado_en",
     "data_type": "timestamp with time zone"
   },
   {
-    "table_name": "control_accesos_submissions",
+    "table_name": "control_accesos",
     "column_name": "firma_usuario",
     "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "creado_en_old",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "firma_cierre",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "nombre_cierre",
+    "data_type": "character varying"
   },
   {
     "table_name": "informe_novedades_disciplinario",
@@ -211,7 +221,7 @@
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "realizado_por_nombre",
+    "column_name": "nombre_responsable",
     "data_type": "character varying"
   },
   {
@@ -251,12 +261,12 @@
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "cliente",
+    "column_name": "cliente_instalacion",
     "data_type": "character varying"
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "puesto",
+    "column_name": "puesto_area_especifica",
     "data_type": "character varying"
   },
   {
@@ -296,13 +306,33 @@
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "firma_realizado_por",
+    "column_name": "firma_responsable",
     "data_type": "text"
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "firma_recibido_revisado_por",
+    "column_name": "firma_recibido_revisado",
     "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "recibido_revisado_por_nombre_cargo",
+    "data_type": "character varying"
   },
   {
     "table_name": "log_de_patrullas",
@@ -507,6 +537,166 @@
   {
     "table_name": "mantenimiento_seguridad_fisica",
     "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "id_encuesta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "empresa_sitio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "fecha_encuesta",
+    "data_type": "date"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "sitio_local",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "cliente_encargado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "cargo_encuestado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_presencia_personal",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_tiempo_respuesta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_funcionamiento_sistemas",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_seguridad_parqueaderos",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_seguridad_areas_comunes",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_comunicacion_informacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_confianza_general",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "riesgo_detectado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "novedades_reportadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "calificacion_global_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "recomendaria_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "observaciones_cliente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puesto_area",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "categoria_evaluada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "encuestado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "firma_encuestado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "firma_responsable",
     "data_type": "text"
   },
   {
@@ -906,111 +1096,6 @@
   },
   {
     "table_name": "reportes_incidentes",
-    "column_name": "firma_usuario",
-    "data_type": "text"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "id_encuesta",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "empresa_sitio",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "fecha_encuesta",
-    "data_type": "date"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "sitio_local",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "cliente_encargado",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "cargo_encuestado",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_presencia_personal",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_tiempo_respuesta",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_funcionamiento_sistemas",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_seguridad_parqueaderos",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_seguridad_areas_comunes",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_comunicacion_informacion",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "puntuacion_confianza_general",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "riesgo_detectado",
-    "data_type": "text"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "novedades_reportadas",
-    "data_type": "text"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "calificacion_global_nps",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "recomendaria_servicio",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "observaciones_cliente",
-    "data_type": "text"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "submitted_by_email",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
-    "column_name": "creado_en",
-    "data_type": "timestamp with time zone"
-  },
-  {
-    "table_name": "satisfaccion_cliente",
     "column_name": "firma_usuario",
     "data_type": "text"
   },

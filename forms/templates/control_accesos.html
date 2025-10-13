@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Control de Accesos - SMT SecApp</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Accesos y Gestión de Brechas - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -12,170 +12,92 @@
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
-            min-height: 100vh;
-            padding: 1.5rem;
-            margin: 0;
-            line-height: 1.6;
+            padding-top: 80px; /* Account for fixed header */
         }
-        
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif;
             color: #ffffff;
-            margin: 0 0 1rem 0;
         }
-        
-        h1 { font-size: 1.875rem; font-weight: 700; }
-        h2 { font-size: 1.5rem; font-weight: 600; }
-        h3 { font-size: 1.25rem; font-weight: 600; }
-        
-        .form-container {
-            background-color: #2d3748;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            max-width: 1000px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 2.5rem;
-        }
-        
-        .logo {
-            width: 80px !important;
-            height: 80px !important;
-            max-width: 80px !important;
-            max-height: 80px !important;
-            object-fit: contain;
-            opacity: 0.9;
-            margin: 0 auto 1.5rem auto;
-            display: block;
-        }
-        
-        label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-bottom: 0.25rem;
-            color: #e2e8f0;
-        }
-        
-        input, textarea, select {
-            width: 100%;
-            padding: 1rem 1.25rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 0.75rem;
-            background-color: #ffffff !important;
-            color: #111827 !important;
-            font-size: 1.125rem;
-            line-height: 1.5;
-            margin-bottom: 1.5rem;
-            min-height: 3rem;
-            transition: all 0.2s ease;
-        }
-        
-        textarea {
-            min-height: 4.5rem;
-            resize: vertical;
-        }
-        
-        input:focus, textarea:focus, select:focus {
-            outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
-            background-color: #f8fafc !important;
-        }
-        
-        .submit-button {
-            width: 100%;
-            padding: 1.25rem 2rem;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            color: white;
-            border: none;
-            border-radius: 0.875rem;
-            font-size: 1.125rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 2rem 0 1rem 0;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .submit-button::before {
-            content: '';
-            position: absolute;
+        .header-nav {
+            position: fixed;
             top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
+            left: 0;
+            right: 0;
+            background-color: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 1.5rem;
+            z-index: 50;
         }
-        
-        .submit-button:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
-        
-        .submit-button:hover::before {
-            left: 100%;
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
         }
-        
-        .submit-button:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        .nav-link {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
         }
-        
-        .submit-button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        .nav-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
         }
-        
-        fieldset {
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.5rem;
+        .user-greeting {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+        .user-name {
+            color: #60a5fa;
+            font-weight: bold;
+        }
+        .admin-badge {
+            color: #a855f7;
+            font-weight: bold;
+        }
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
-            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        
-        legend {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #60a5fa;
-            padding: 0 0.5rem;
+        .form-input {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.2s ease;
         }
-        
-        .grid {
-            display: grid;
-            gap: 1.5rem;
+        .form-input:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
         }
-        
-        .grid-cols-1 {
-            grid-template-columns: 1fr;
+        .signature-pad {
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            cursor: crosshair;
+            background-color: white;
         }
-        
-        .md\\:grid-cols-2 {
-            grid-template-columns: 1fr 1fr;
-        }
-        
-        @media (min-width: 768px) {
-            .md\\:grid-cols-2 {
-                grid-template-columns: 1fr 1fr;
-            }
-            .md\\:col-span-2 {
-                grid-column: span 2;
-            }
-        }
-        
         .theme-toggle {
             position: fixed;
             top: 1.5rem;
             left: 1.5rem;
-            z-index: 10;
+            z-index: 100;
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 0.5rem;
@@ -193,185 +115,62 @@
             width: 1.5rem;
             height: 1.5rem;
         }
-
-        .header-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .nav-link {
-            color: #60a5fa;
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-
-        .nav-link:hover {
-            color: #93c5fd;
-            text-decoration: underline;
-        }
-        
-        .text-center {
-            text-align: center;
-        }
-        
-        .text-sm {
-            font-size: 0.875rem;
-        }
-        
-        .mb-1 { margin-bottom: 0.25rem; }
-        .mb-2 { margin-bottom: 0.5rem; }
-        .mb-4 { margin-bottom: 1rem; }
-        .mb-6 { margin-bottom: 1.5rem; }
-        .mb-8 { margin-bottom: 2rem; }
-        .mt-2 { margin-top: 0.5rem; }
-        .mx-auto { margin-left: auto; margin-right: auto; }
-
         /* Light mode styles */
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
         }
-        
-        body.light-mode h1, 
-        body.light-mode h2, 
-        body.light-mode h3, 
-        body.light-mode h4, 
-        body.light-mode h5, 
-        body.light-mode h6 {
+        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
             color: #212529;
         }
-        
-        body.light-mode .form-container {
+        body.light-mode .header-nav {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        body.light-mode .user-greeting {
+            color: #4a5568;
+        }
+        body.light-mode .form-section {
             background-color: #ffffff;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-color: #e2e8f0;
         }
-        
-        body.light-mode label {
-            color: #374151;
+        body.light-mode .form-input {
+            background-color: #e2e8f0;
+            border-color: #cbd5e0;
+            color: #2d3748;
         }
-        
-        body.light-mode input,
-        body.light-mode textarea,
-        body.light-mode select {
-            border-color: #d1d5db;
-            background-color: #ffffff !important;
-            color: #111827 !important;
-        }
-        
-        body.light-mode input:focus,
-        body.light-mode textarea:focus,
-        body.light-mode select:focus {
-            border-color: #3b82f6;
-            background-color: #f8fafc !important;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
-        }
-        
-        body.light-mode .submit-button {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
-        }
-        
-        body.light-mode .submit-button:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.35);
-        }
-        
         body.light-mode .theme-toggle {
             background-color: rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(0, 0, 0, 0.2);
             color: #374151;
         }
-        
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
-        
-        body.light-mode fieldset {
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            background-color: rgba(0, 0, 0, 0.02);
-        }
-        
-        body.light-mode legend {
-            color: #3b82f6;
-        }
-
         /* Responsive design */
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
+            .nav-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .nav-links {
+                gap: 1rem;
+                font-size: 0.8rem;
+            }
             body {
-                padding: 1rem;
+                padding-top: 120px;
             }
-            
-            .form-container {
-                padding: 1.5rem;
-            }
-            
-            .logo {
-                width: 60px !important;
-                height: 60px !important;
-            }
-            
-            h1 {
-                font-size: 1.5rem;
-            }
-            
             .theme-toggle {
                 top: 1rem;
                 left: 1rem;
             }
         }
-
-        /* Signature Pad Styles */
-        .signature-container {
-            border: 2px dashed #4a5568;
-            border-radius: 0.75rem;
-            margin-bottom: 1rem;
-            background-color: #ffffff;
-            cursor: crosshair;
-            touch-action: none;
-            position: relative;
+        @media (max-width: 640px) {
+            body {
+                padding-top: 140px;
+            }
         }
-        .signature-pad {
-            width: 100%;
-            height: 200px;
-            display: block;
-        }
-        .clear-button {
-            padding: 0.5rem 1rem;
-            background-color: #4a5568;
-            color: white;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin-bottom: 1rem;
-        }
-        .clear-button:hover {
-            background-color: #718096;
-        }
-        body.light-mode .signature-container {
-            border-color: #d1d5db;
-        }
-        body.light-mode .clear-button {
-            background-color: #e5e7eb;
-            color: #374151;
-        }
-         body.light-mode .clear-button:hover {
-            background-color: #d1d5db;
-        }
-
     </style>
 </head>
 <body>
@@ -384,72 +183,87 @@
         </svg>
     </button>
 
-    <div class="form-container">
-        <div class="header-nav">
-            <div class="nav-links">
-                {% if name %}
-                <span class="text-sm" style="color: #9ca3af;">
-                    Bienvenido, <strong style="color: #60a5fa;">{{ name }}</strong>
-                    {% if is_admin %}
-                    <span style="color: #a855f7; font-weight: bold;">(Admin)</span>
-                    {% endif %}.
-                </span>
-                {% endif %}
-                <a href="/select" class="nav-link">Acceso a Formularios</a>
-                
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="user-greeting">
+                Bienvenido, <span class="user-name">{{ name }}</span>
                 {% if is_admin %}
+                    <span class="admin-badge">(Admin)</span>
+                {% endif %}
+            </div>
+            <div class="nav-links">
+                <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
                 <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
                 <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
-                <a href="#" onclick="console.log('Mis Reportes clicked'); if(window.offlineManager) { console.log('offlineManager found, calling function...'); window.offlineManager.showMySubmittedReports(); } else { console.error('offlineManager not found on window:', window.offlineManager); } return false;" class="nav-link">📋 Mis Reportes</a>
-                {% endif %}
-                
+                <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
                 <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
             </div>
         </div>
+    </div>
 
-        <div class="text-center mb-8">
-            <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo" />
-            <h1 class="mb-4">Formato de Control de Accesos</h1>
-            <p class="text-sm" style="color: #9ca3af;">Seguridad Física</p>
-        </div>
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold">Planilla de Registro de Control de Acceso y Gestión de Brechas</h1>
+        </header>
 
-        <form action="{{ url_for('submit_control_accesos') }}" method="POST">
-            <fieldset>
-                <legend>1. Información General</legend>
-                <div class="grid grid-cols-1 md:grid-cols-2">
+        <form id="controlAccesoForm" action="{{ url_for('submit_control_accesos') }}" method="POST" class="space-y-6">
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="fecha">Fecha</label>
-                        <input type="date" name="fecha" id="fecha" required>
+                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input">
                     </div>
                     <div>
-                        <label for="hora">Hora</label>
-                        <input type="time" name="hora" id="hora" required>
+                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input">
                     </div>
                     <div>
-                        <label for="sitio">Sitio</label>
-                        <input type="text" name="sitio" id="sitio" required>
+                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
-                        <label for="punto_de_acceso">Punto de acceso</label>
-                        <select name="punto_de_acceso" id="punto_de_acceso" required>
+                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
+                        <select name="rol_aplicador" id="rol_aplicador" class="form-input">
                             <option value="">Seleccione...</option>
-                            <option>portería principal</option>
-                            <option>parqueadero</option>
-                            <option>bodega</option>
-                            <option>oficina administrativa</option>
+                            <option>Agente de seguridad</option>
+                            <option>Supervisor/Inspector</option>
+                            <option>Analista de Calidad</option>
+                            <option>Jefe de Seguridad</option>
+                            <option>Cliente</option>
+                            <option>Locatario</option>
                         </select>
                     </div>
                     <div>
-                        <label for="usuario_visitante">Usuario / Visitante</label>
-                        <input type="text" name="usuario_visitante" id="usuario_visitante" required>
+                        <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
+                        <select name="turno" id="turno" class="form-input">
+                            <option value="">Seleccione...</option>
+                            <option>Mañana</option>
+                            <option>Tarde</option>
+                            <option>Noche</option>
+                            <option>24 Horas</option>
+                        </select>
                     </div>
                     <div>
-                        <label for="id_usuario_documento">ID Usuario / Documento</label>
-                        <input type="text" name="id_usuario_documento" id="id_usuario_documento" required>
+                        <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del Responsable</label>
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input">
                     </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
+                        <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clearSignatureResponsable" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_responsable" id="firma_responsable">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">2. Registro de Accesos</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="rol_del_usuario">Rol del usuario</label>
-                        <select name="rol_del_usuario" id="rol_del_usuario" required>
+                        <label for="rol_del_usuario" class="block text-sm font-medium mb-1">Rol del Usuario</label>
+                        <select name="rol_del_usuario" id="rol_del_usuario" class="form-input">
                             <option value="">Seleccione...</option>
                             <option>Empleado</option>
                             <option>Cliente</option>
@@ -458,68 +272,58 @@
                             <option>Contratista</option>
                         </select>
                     </div>
-                </div>
-            </fieldset>
-
-            <fieldset>
-                <legend>2. Registro de Accesos</legend>
-                <div class="grid grid-cols-1 md:grid-cols-2">
                     <div>
-                        <label for="id_acceso">ID Acceso</label>
-                        <input type="text" name="id_acceso" id="id_acceso">
-                    </div>
-                    <div>
-                        <label for="accion">Acción</label>
-                        <select name="accion" id="accion" required>
+                        <label for="accion" class="block text-sm font-medium mb-1">Acción</label>
+                        <select name="accion" id="accion" class="form-input">
                             <option value="">Seleccione...</option>
-                            <option>Ingreso</option>
+                            <option>Entrada</option>
                             <option>Salida</option>
+                            <option>Denegado</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="motivo_de_ingreso">Motivo de ingreso</label>
-                        <textarea name="motivo_de_ingreso" id="motivo_de_ingreso" rows="3"></textarea>
+                        <label for="motivo_de_ingreso" class="block text-sm font-medium mb-1">Motivo de Ingreso</label>
+                        <textarea name="motivo_de_ingreso" id="motivo_de_ingreso" rows="3" class="form-input"></textarea>
                     </div>
                     <div>
-                        <label for="autorizacion">Autorización (Sí/No)</label>
-                        <select name="autorizacion" id="autorizacion" required>
+                        <label for="autorizacion" class="block text-sm font-medium mb-1">Autorización (Sí/No)</label>
+                        <select name="autorizacion" id="autorizacion" class="form-input">
                             <option value="">Seleccione...</option>
                             <option>Sí</option>
                             <option>No</option>
                         </select>
                     </div>
                     <div>
-                        <label for="brecha_detectada">Brecha Detectada</label>
-                        <select name="brecha_detectada" id="brecha_detectada" required>
-                            <option value="">Seleccione...</option>
-                            <option>Ninguna</option>
-                            <option>Brechas por personas</option>
-                            <option>Brechas por procedimiento</option>
-                            <option>Brechas por tecnología / equipos</option>
-                            <option>Brechas por seguridad física</option>
+                        <label for="brecha_detectada" class="block text-sm font-medium mb-1">Brecha Detectada</label>
+                        <select name="brecha_detectada" id="brecha_detectada" class="form-input">
+                            <option value="Ninguna">Ninguna</option>
+                            <option value="Brechas por personas">Brechas por personas</option>
+                            <option value="Brechas por procedimiento">Brechas por procedimiento</option>
+                            <option value="Brechas por tecnología / equipos">Brechas por tecnología / equipos</option>
+                            <option value="Brechas por seguridad física">Brechas por seguridad física</option>
                         </select>
                     </div>
-                    <div class="md:col-span-2">
-                        <label for="evidencia">Evidencia (CCTV, reporte)</label>
-                        <input type="text" name="evidencia" id="evidencia">
+                    <div>
+                        <label for="evidencia" class="block text-sm font-medium mb-1">Evidencia (CCTV, reporte)</label>
+                        <input type="text" name="evidencia" id="evidencia" class="form-input">
+                    </div>
+                    <div>
+                        <label for="responsable_del_control" class="block text-sm font-medium mb-1">Responsable del Control</label>
+                        <input type="text" name="responsable_del_control" id="responsable_del_control" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label for="responsable_del_control">Responsable del control</label>
-                        <input type="text" name="responsable_del_control" id="responsable_del_control" required>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="observaciones">Observaciones</label>
-                        <textarea name="observaciones" id="observaciones" rows="3"></textarea>
+                        <label for="observaciones" class="block text-sm font-medium mb-1">Observaciones</label>
+                        <textarea name="observaciones" id="observaciones" rows="3" class="form-input"></textarea>
                     </div>
                 </div>
-            </fieldset>
+            </div>
 
-            <fieldset>
-                <legend>3. Seguimiento de Brechas Detectadas</legend>
-                <div class="grid grid-cols-1 md:grid-cols-2">
-                    <div>
-                        <label for="brecha_por_personas">Brechas por personas</label>
-                        <select name="brecha_por_personas" id="brecha_por_personas">
+            <div id="seguimiento_brechas" class="form-section hidden">
+                <h2 class="text-xl font-bold mb-4">3. Seguimiento de Brechas Detectadas</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div id="brecha_personas_container" class="hidden md:col-span-2">
+                        <label for="brecha_por_personas" class="block text-sm font-medium mb-1">Detalle de Brecha (Personas)</label>
+                        <select name="brecha_por_personas" id="brecha_por_personas" class="form-input">
                             <option value="">Seleccione...</option>
                             <option>Usuario sin carné o credencial vigente.</option>
                             <option>Visitante sin autorización previa.</option>
@@ -528,9 +332,9 @@
                             <option>Personal sin capacitación en protocolos de acceso.</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="brecha_por_procedimiento">Brechas por procedimiento</label>
-                        <select name="brecha_por_procedimiento" id="brecha_por_procedimiento">
+                    <div id="brecha_procedimiento_container" class="hidden md:col-span-2">
+                        <label for="brecha_por_procedimiento" class="block text-sm font-medium mb-1">Detalle de Brecha (Procedimiento)</label>
+                        <select name="brecha_por_procedimiento" id="brecha_por_procedimiento" class="form-input">
                             <option value="">Seleccione...</option>
                             <option>Puerta/torniquete dejado abierto.</option>
                             <option>Vehículo ingresa sin revisión.</option>
@@ -539,9 +343,9 @@
                             <option>Acceso sin pasar por detector de metales / escáner.</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="brecha_por_tecnologia_equipos">Brechas por tecnología / equipos</label>
-                        <select name="brecha_por_tecnologia_equipos" id="brecha_por_tecnologia_equipos">
+                    <div id="brecha_tecnologia_container" class="hidden md:col-span-2">
+                        <label for="brecha_por_tecnologia_equipos" class="block text-sm font-medium mb-1">Detalle de Brecha (Tecnología)</label>
+                        <select name="brecha_por_tecnologia_equipos" id="brecha_por_tecnologia_equipos" class="form-input">
                             <option value="">Seleccione...</option>
                             <option>Lector biométrico fuera de servicio.</option>
                             <option>Cámara de CCTV sin grabación en el punto de acceso.</option>
@@ -549,9 +353,9 @@
                             <option>Alarma de puerta forzada desactivada.</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="brecha_por_seguridad_fisica">Brechas por seguridad física</label>
-                        <select name="brecha_por_seguridad_fisica" id="brecha_por_seguridad_fisica">
+                    <div id="brecha_fisica_container" class="hidden md:col-span-2">
+                        <label for="brecha_por_seguridad_fisica" class="block text-sm font-medium mb-1">Detalle de Brecha (Seguridad Física)</label>
+                        <select name="brecha_por_seguridad_fisica" id="brecha_por_seguridad_fisica" class="form-input">
                             <option value="">Seleccione...</option>
                             <option>Portón quedó abierto más de X minutos.</option>
                             <option>Vidrio roto en puerta de acceso.</option>
@@ -559,47 +363,54 @@
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="accion_inmediata_tomada">Acción inmediata tomada</label>
-                        <textarea name="accion_inmediata_tomada" id="accion_inmediata_tomada" rows="3"></textarea>
+                        <label for="accion_inmediata_tomada" class="block text-sm font-medium mb-1">Acción Inmediata Tomada</label>
+                        <textarea name="accion_inmediata_tomada" id="accion_inmediata_tomada" rows="3" class="form-input"></textarea>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="accion_correctiva_recomendada">Acción correctiva recomendada</label>
-                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="3"></textarea>
+                        <label for="accion_correctiva_recomendada" class="block text-sm font-medium mb-1">Acción Correctiva Recomendada</label>
+                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="3" class="form-input"></textarea>
                     </div>
                     <div>
-                        <label for="responsable_asignado">Responsable asignado</label>
-                        <input type="text" name="responsable_asignado" id="responsable_asignado">
+                        <label for="responsable_asignado" class="block text-sm font-medium mb-1">Responsable Asignado</label>
+                        <input type="text" name="responsable_asignado" id="responsable_asignado" class="form-input">
                     </div>
                     <div>
-                        <label for="fecha_limite_de_cierre">Fecha límite de cierre</label>
-                        <input type="date" name="fecha_limite_de_cierre" id="fecha_limite_de_cierre">
+                        <label for="fecha_limite_de_cierre" class="block text-sm font-medium mb-1">Fecha Límite de Cierre</label>
+                        <input type="date" name="fecha_limite_de_cierre" id="fecha_limite_de_cierre" class="form-input">
                     </div>
                     <div>
-                        <label for="estado">Estado</label>
-                        <select name="estado" id="estado" required>
+                        <label for="estado" class="block text-sm font-medium mb-1">Estado</label>
+                        <select name="estado" id="estado" class="form-input">
                             <option value="">Seleccione...</option>
-                            <option>Abierto</option>
-                            <option>En progreso</option>
+                            <option>Pendiente</option>
+                            <option>En proceso</option>
                             <option>Cerrado</option>
                         </select>
                     </div>
                 </div>
-            </fieldset>
+            </div>
 
-            <fieldset>
-                <legend>4. Firma del Responsable</legend>
-                <div class="signature-container">
-                    <canvas id="signature-pad" class="signature-pad"></canvas>
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">4. Firma de Cierre</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="nombre_cierre" class="block text-sm font-medium mb-1">Nombre de Quien Cierra</label>
+                        <input type="text" name="nombre_cierre" id="nombre_cierre" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Firma de Cierre</label>
+                        <canvas id="signaturePadCierre" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clearSignatureCierre" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_cierre" id="firma_cierre">
+                    </div>
                 </div>
-                <div>
-                    <button type="button" id="clear-signature" class="clear-button">Limpiar Firma</button>
-                </div>
-                <input type="hidden" name="firma_usuario" id="firma_usuario">
-            </fieldset>
+            </div>
 
-            <button type="submit" class="submit-button">
-                📋 Enviar Reporte de Control de Accesos
-            </button>
+            <div class="flex justify-end pt-4">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                    Enviar Reporte
+                </button>
+            </div>
         </form>
     </div>
 
@@ -643,47 +454,71 @@
                 setLightMode();
             }
         }
-
-        // Initialize theme and signature pad on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        
+        document.addEventListener('DOMContentLoaded', function () {
             initializeTheme();
             
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
+            // Signature Pad 1 (Responsable)
+            const canvas1 = document.getElementById('signaturePadResponsable');
+            const signaturePad1 = new SignaturePad(canvas1);
+            const clearButton1 = document.getElementById('clearSignatureResponsable');
+            const hiddenInput1 = document.getElementById('firma_responsable');
 
-            // Signature Pad Logic
-            const canvas = document.getElementById('signature-pad');
-            const signaturePad = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255, 255, 255)'
+            // Signature Pad 2 (Cierre)
+            const canvas2 = document.getElementById('signaturePadCierre');
+            const signaturePad2 = new SignaturePad(canvas2);
+            const clearButton2 = document.getElementById('clearSignatureCierre');
+            const hiddenInput2 = document.getElementById('firma_cierre');
+
+            clearButton1.addEventListener('click', () => {
+                signaturePad1.clear();
             });
 
-            function resizeCanvas() {
-                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad.clear(); 
-            }
-            window.addEventListener("resize", resizeCanvas);
-            resizeCanvas();
+            clearButton2.addEventListener('click', () => {
+                signaturePad2.clear();
+            });
 
-            const clearButton = document.getElementById('clear-signature');
-            if (clearButton) {
-                clearButton.addEventListener('click', function() {
-                    signaturePad.clear();
+            const form = document.getElementById('controlAccesoForm');
+            form.addEventListener('submit', (event) => {
+                if (!signaturePad1.isEmpty()) {
+                    hiddenInput1.value = signaturePad1.toDataURL();
+                }
+                if (!signaturePad2.isEmpty()) {
+                    hiddenInput2.value = signaturePad2.toDataURL();
+                }
+            });
+
+            // Conditional Fields Logic
+            const brechaDetectadaSelect = document.getElementById('brecha_detectada');
+            const seguimientoBrechasFieldset = document.getElementById('seguimiento_brechas');
+            
+            const brechaContainers = {
+                'Brechas por personas': document.getElementById('brecha_personas_container'),
+                'Brechas por procedimiento': document.getElementById('brecha_procedimiento_container'),
+                'Brechas por tecnología / equipos': document.getElementById('brecha_tecnologia_container'),
+                'Brechas por seguridad física': document.getElementById('brecha_fisica_container')
+            };
+
+            brechaDetectadaSelect.addEventListener('change', function () {
+                const selectedValue = this.value;
+
+                Object.values(brechaContainers).forEach(container => {
+                    if (container) container.classList.add('hidden');
                 });
-            }
 
-            const form = document.querySelector('form');
-            if (form) {
-                form.addEventListener('submit', function(event) {
-                    if (!signaturePad.isEmpty()) {
-                        const signatureInput = document.getElementById('firma_usuario');
-                        signatureInput.value = signaturePad.toDataURL('image/png');
+                if (selectedValue !== 'Ninguna') {
+                    seguimientoBrechasFieldset.classList.remove('hidden');
+                    if (brechaContainers[selectedValue]) {
+                        brechaContainers[selectedValue].classList.remove('hidden');
                     }
-                });
-            }
+                } else {
+                    seguimientoBrechasFieldset.classList.add('hidden');
+                }
+            });
+            brechaDetectadaSelect.dispatchEvent(new Event('change'));
         });
     </script>
 </body>
