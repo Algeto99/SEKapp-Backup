@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Único de Incidente - SMT SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding-top: 80px;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+            color: #ffffff;
+        }
+        .header-nav {
+            position: fixed; top: 0; left: 0; right: 0; background-color: rgba(45, 55, 72, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+        .nav-links { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+        .nav-link { color: #60a5fa; text-decoration: none; font-size: 0.875rem; transition: all 0.2s; padding: 0.5rem 0; }
+        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
+        .user-greeting { font-size: 0.875rem; color: #9ca3af; }
+        .user-name { color: #60a5fa; font-weight: bold; }
+        .admin-badge { color: #a855f7; font-weight: bold; }
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .form-input, .form-select, .form-textarea {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        .form-input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .signature-pad {
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            background-color: white;
+            width: 100%;
+            height: 150px;
+        }
+        .theme-toggle {
+            position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100; background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.5rem; cursor: pointer; transition: all 0.2s ease-in-out; color: #e2e8f0; width: auto;
+        }
+        .theme-toggle:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+        .theme-toggle svg { width: 1.5rem; height: 1.5rem; }
+        body.light-mode {
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode .text-white {
+            color: #212529;
+        }
+        body.light-mode .form-section {
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+        }
+        body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea {
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+            color: #495057;
+        }
+        body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        body.light-mode .form-input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: none;
+        }
+        body.light-mode .header-nav {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        body.light-mode .theme-toggle { background-color: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2); color: #374151; }
+        body.light-mode .theme-toggle:hover { background-color: rgba(0, 0, 0, 0.2); }
+        @media (max-width: 768px) {
+            .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            body { padding-top: 120px; }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="user-greeting">
+                Bienvenido, <span class="user-name">{{ name }}</span>
+                {% if is_admin %}
+                    <span class="admin-badge">(Admin)</span>
+                {% endif %}
+            </div>
+            <div class="nav-links">
+                <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold">Reporte Único de Incidente</h1>
+            <p class="text-gray-400 mt-2">Diligencie todos los campos para registrar un nuevo incidente.</p>
+        </div>
+
+        <form id="incidenteForm" action="{{ url_for('submit_incident_report') }}" method="POST">
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="cliente_instalacion" class="form-label">Cliente / Instalación</label>
+                        <input type="text" id="cliente_instalacion" name="cliente_instalacion" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>
+                        <input type="text" id="puesto_area_especifica" name="puesto_area_especifica" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
+                        <input type="datetime-local" id="fecha_hora" name="fecha_hora" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="rol_aplicador" class="form-label">Rol del Aplicador</label>
+                        <select id="rol_aplicador" name="rol_aplicador" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un rol...</option>
+                            <option value="Agente de seguridad">Agente de seguridad</option>
+                            <option value="Supervisor/Inspector">Supervisor/Inspector</option>
+                            <option value="Analista de Calidad">Analista de Calidad</option>
+                            <option value="Jefe de Seguridad">Jefe de Seguridad</option>
+                            <option value="Cliente">Cliente</option>
+                            <option value="Locatario">Locatario</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="turno" class="form-label">Turno</label>
+                        <select id="turno" name="turno" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un turno...</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noche">Noche</option>
+                            <option value="24 Horas">24 Horas</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="nombre_responsable" class="form-label">Nombre</label>
+                        <input type="text" id="nombre_responsable" name="nombre_responsable" value="{{ name }}" class="form-input" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="form-label">Firma</label>
+                        <canvas id="firma-pad" class="signature-pad"></canvas>
+                        <button type="button" onclick="signaturePad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" id="firma" name="firma">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Detalle del Incidente</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="categoria" class="form-label">Categoría</label>
+                        <select id="categoria" name="categoria" class="form-select" onchange="updateIncidentTypes()" required>
+                            <option value="" disabled selected>Seleccione una categoría...</option>
+                            <option value="Seguridad Fisica">Seguridad Física</option>
+                            <option value="Tecnologicos / Infraestructura">Tecnológicos / Infraestructura</option>
+                            <option value="Emergencias">Emergencias</option>
+                            <option value="Parqueaderos">Parqueaderos</option>
+                            <option value="Operativos/administrativos">Operativos / Administrativos</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2" id="incident-type-wrapper" style="display: none;">
+                        <label for="tipo_incidente" class="form-label">Tipo de incidente</label>
+                        <select id="tipo_incidente" name="tipo_incidente" class="form-select"></select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="descripcion" class="form-label">Descripción</label>
+                        <textarea id="descripcion" name="descripcion" rows="4" class="form-textarea" required></textarea>
+                    </div>
+                    <div>
+                        <label for="nivel_severidad" class="form-label">Nivel de Severidad</label>
+                        <select id="nivel_severidad" name="nivel_severidad" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un nivel...</option>
+                            <option value="Bajo">Bajo</option>
+                            <option value="Medio">Medio</option>
+                            <option value="Alto">Alto</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="impacto" class="form-label">Impacto</label>
+                        <select id="impacto" name="impacto" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un impacto...</option>
+                            <option value="Impacto en clientes/usuarios">Impacto en clientes/usuarios</option>
+                            <option value="Impacto en seguridad">Impacto en seguridad</option>
+                            <option value="Impacto operativo">Impacto operativo</option>
+                            <option value="Impacto economico">Impacto económico</option>
+                            <option value="Impacto reputacional">Impacto reputacional</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="tiempo_resolucion_min" class="form-label">Tiempo de resolución (min)</label>
+                        <input type="number" id="tiempo_resolucion_min" name="tiempo_resolucion_min" class="form-input" min="0" required>
+                    </div>
+                    <div>
+                        <label for="responsable_asignado" class="form-label">Responsable asignado</label>
+                        <input type="text" id="responsable_asignado" name="responsable_asignado" class="form-input" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="estado" class="form-label">Estado</label>
+                        <select id="estado" name="estado" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un estado...</option>
+                            <option value="En proceso">En proceso</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Cerrado">Cerrado</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Seguimiento</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="accion_inmediata" class="form-label">Acción inmediata</label>
+                        <textarea id="accion_inmediata" name="accion_inmediata" rows="3" class="form-textarea" required></textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="accion_correctiva_preventiva" class="form-label">Acción correctiva / preventiva</label>
+                        <textarea id="accion_correctiva_preventiva" name="accion_correctiva_preventiva" rows="3" class="form-textarea" required></textarea>
+                    </div>
+                    <div>
+                        <label for="responsable_seguimiento" class="form-label">Responsable</label>
+                        <input type="text" id="responsable_seguimiento" name="responsable_seguimiento" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="fecha_limite_cierre" class="form-label">Fecha límite de cierre</label>
+                        <input type="date" id="fecha_limite_cierre" name="fecha_limite_cierre" class="form-input" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                    Enviar Reporte
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        let signaturePad;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Theme Toggle Logic
+            const themeToggle = document.getElementById('themeToggle');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const lightModeIcon = document.getElementById('lightModeIcon');
+
+            function initializeTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) setLightMode(); else setDarkMode();
+            }
+            function setDarkMode() {
+                document.body.classList.remove('light-mode');
+                darkModeIcon.style.display = 'block'; lightModeIcon.style.display = 'none';
+                localStorage.setItem('theme', 'dark');
+            }
+            function setLightMode() {
+                document.body.classList.add('light-mode');
+                darkModeIcon.style.display = 'none'; lightModeIcon.style.display = 'block';
+                localStorage.setItem('theme', 'light');
+            }
+            function toggleTheme() {
+                if (document.body.classList.contains('light-mode')) setDarkMode(); else setLightMode();
+            }
+
+            initializeTheme();
+            if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+
+            // Set current date and time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
+
+            // Initialize signature pad
+            const canvas = document.getElementById('firma-pad');
+            signaturePad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)' });
+
+            // Form submission
+            const form = document.getElementById('incidenteForm');
+            form.addEventListener('submit', function(event) {
+                if (signaturePad && !signaturePad.isEmpty()) {
+                    document.getElementById('firma').value = signaturePad.toDataURL();
+                }
+            });
+        });
+        
+        const incidentTypes = {
+            'Seguridad Fisica': ['Acceso no autorizado', 'Intento de intrusion', 'Persona sospechosa', 'Alteracion del orden publico', 'Agresion fisica', 'Riña o pelea', 'Hurto al cliente', 'Hurto a local comercial', 'Hurto de vehiculo (carro/moto)', 'Daño a propiedad (vidrios, puertas, cerraduras, etc.)', 'Vandalismo / grafiti', 'Recuperacion'],
+            'Tecnologicos / Infraestructura': ['Fallo de camara CCTV', 'Fallo de grabacion/DVR/NVR', 'Fallo de control de accesos (lector dañado, tarjeta no reconocida)', 'Fallo de sistema de alarma', 'Fallo de iluminacion en areas criticas', 'Fallo de energia electrica', 'Falla en puertas electricas o barreras de parqueadero'],
+            'Emergencias': ['Incendio / conato de incendio', 'Fuga de gas', 'Inundacion / filtracion de agua', 'Emergencia medica (accidente, desmayo, enfermedad subita)', 'Evacuacion parcial / total', 'Desastre natural (temblor, tormenta, inundacion externa)'],
+            'Parqueaderos': ['Accidente vehicular interno (choque en parqueadero)', 'Vehiculo abandonado', 'Mascota / persona dentro de vehiculo', 'Vehiculo con ventana abiera / puertas mal cerradas', 'Daño a vehiculo reportado (rayones, vidrios, espejos)'],
+            'Operativos/administrativos': ['Incumplimiento de protocolos de seguridad', 'Ingreso de proveedores sin autorizacion', 'Mal uso de boton de panico / alarma falsa', 'Robo interno (empleados/contratistas)', 'Fraude / intento de estafa en cajeros o locales', 'Perdida de llaves / elementos de control', 'Sospecha de corrupcion / colusion de personal']
+        };
+
+        function updateIncidentTypes() {
+            const category = document.getElementById('categoria').value;
+            const wrapper = document.getElementById('incident-type-wrapper');
+            const select = document.getElementById('tipo_incidente');
+            select.innerHTML = '';
+            
+            if (category && incidentTypes[category]) {
+                wrapper.style.display = 'block';
+                select.setAttribute('required', 'required');
+                let defaultOption = document.createElement('option');
+                defaultOption.value = ''; defaultOption.disabled = true; defaultOption.selected = true;
+                defaultOption.textContent = 'Seleccione un tipo...';
+                select.appendChild(defaultOption);
+                incidentTypes[category].forEach(type => {
+                    let option = document.createElement('option');
+                    option.value = type; option.textContent = type;
+                    select.appendChild(option);
+                });
+            } else {
+                wrapper.style.display = 'none';
+                select.removeAttribute('required');
+            }
+        }
+    </script>
+</body>
+</html>

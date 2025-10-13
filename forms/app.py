@@ -130,6 +130,38 @@ def get_db_connection():
         app_logger.error(f"Database connection error: {e}", exc_info=True)
         raise
 
+def get_user_details(user_email):
+    """Helper function to get user details from JWT claims and database"""
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        
+        # Optionally fetch from database as fallback
+        conn = None
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+            result = cur.fetchone()
+            if result and result[0]:
+                user_name = result[0]
+            cur.close()
+        except Exception as e:
+            app_logger.warning(f"Could not fetch user from database: {e}")
+        finally:
+            if conn:
+                conn.close()
+        
+        return {
+            'name': user_name,
+            'is_admin': is_admin,
+            'email': user_email
+        }
+    except Exception as e:
+        app_logger.error(f"Error getting user details: {e}", exc_info=True)
+        return None
+    
 def upload_file_to_gcs(file, bucket_name):
     client = storage.Client()
     bucket = client.bucket(bucket_name)
@@ -556,24 +588,21 @@ def create_tables_if_not_exists():
         conn.commit()
         app_logger.info("Table 'log_de_patrullas' checked/created.")
 
-        # Create registro_de_capacitaciones table
+        # --- UPDATED: registro_de_capacitaciones table ---
         cur.execute("""
             CREATE TABLE IF NOT EXISTS registro_de_capacitaciones (
                 id_capacitacion SERIAL PRIMARY KEY,
+                cliente_instalacion VARCHAR(255),
+                puesto_area_especifica VARCHAR(255),
+                fecha_hora TIMESTAMP,
+                rol_aplicador VARCHAR(255),
+                turno VARCHAR(50),
+                nombre_responsable VARCHAR(255),
+                firma_responsable TEXT,
                 nombre_capacitacion VARCHAR(255),
-                tema_protocolo VARCHAR(255),
-                area_servicio VARCHAR(255),
-                lugar_realizacion VARCHAR(255),
-                fecha DATE,
-                hora_inicio TIME,
-                hora_finalizacion TIME,
-                duracion_horas NUMERIC(5, 2),
-                instructor_capacitador VARCHAR(255),
-                instructor_cargo VARCHAR(255),
-                firma_instructor TEXT,
                 objetivo_capacitacion TEXT,
-                lista_asistencia TEXT,
                 observaciones_retroalimentacion TEXT,
+                lista_asistencia TEXT,
                 practica_simulacro_realizado VARCHAR(50),
                 nivel_comprension VARCHAR(100),
                 recomendaciones TEXT,
@@ -582,7 +611,8 @@ def create_tables_if_not_exists():
             );
         """)
         conn.commit()
-        app_logger.info("Table 'registro_de_capacitaciones' checked/created.")
+        app_logger.info("Table 'registro_de_capacitaciones' recreated with new structure.")
+
 
         # --- UPDATED: registro_y_acta_de_visita table ---
         cur.execute("""
@@ -1303,6 +1333,117 @@ def submit_informe_novedades_disciplinario():
         if conn:
             conn.close()
 
+# --- START: REPORTE UNICO DE INCIDENTE (DEFINITIVE FIX) ---
+
+@app.route('/reporte_incidente', methods=['GET'])
+@jwt_required()
+def reporte_incidente_form():
+    """
+    FIXED: This function now correctly fetches user details from the JWT
+    and passes all necessary data to the template, resolving the redirect loop
+    and rendering the navigation bar correctly.
+    """
+    try:
+        user_email = get_jwt_identity()
+        
+        # Get JWT claims
+        try:
+            claims = get_jwt()
+            user_name = claims.get('name', user_email.split('@')[0])
+            is_admin = claims.get('is_admin', False)
+        except Exception as e:
+            app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+            user_name = user_email.split('@')[0]
+            is_admin = False
+        
+        # Optionally get user name from database as fallback
+        conn = None
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+            result = cur.fetchone()
+            if result and result[0]:
+                user_name = result[0]
+            cur.close()
+        except Exception as e:
+            app_logger.warning(f"Could not fetch user from database: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+        app_logger.info(f"User {user_email} accessing reporte_incidente form")
+        
+        # This now correctly passes all the data the template needs
+        return render_template(
+            'reporte_incidente.html',
+            name=user_name,
+            is_admin=is_admin,
+            login_service_url=app.config.get('LOGIN_SERVICE_URL'),
+            landing_service_url=app.config.get('LANDING_SERVICE_URL'),
+            dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL'),
+            viewer_service_url=app.config.get('VIEWER_SERVICE_URL')
+        )
+    except Exception as e:
+        app_logger.error(f"Error in reporte_incidente_form: {e}", exc_info=True)
+        flash('Ocurrió un error inesperado al cargar el formulario de incidente.', 'danger')
+        return redirect(url_for('select_form'))
+
+@app.route('/submit_incident_report', methods=['POST'])
+@jwt_required()
+def submit_incident_report():
+    """Handles the submission of the new incident report form."""
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma'), # Matches name="firma" in HTML
+            'categoria': request.form.get('categoria'),
+            'tipo_incidente': request.form.get('tipo_incidente'),
+            'descripcion_incidente': request.form.get('descripcion'), # Target DB column
+            'nivel_severidad': request.form.get('nivel_severidad'),
+            'impacto': request.form.get('impacto'),
+            'tiempo_resolucion_min': request.form.get('tiempo_resolucion_min'),
+            'responsable_asignado': request.form.get('responsable_asignado'),
+            'estado': request.form.get('estado'),
+            'accion_inmediata': request.form.get('accion_inmediata'),
+            'accion_correctiva_preventiva': request.form.get('accion_correctiva_preventiva'),
+            'responsable_seguimiento': request.form.get('responsable_seguimiento'),
+            'fecha_limite_cierre': request.form.get('fecha_limite_cierre'),
+            'user_email': user_email
+        }
+
+        form_data = {k: v for k, v in form_data.items() if v is not None}
+        columns = ', '.join(form_data.keys())
+        placeholders = ', '.join(['%s'] * len(form_data))
+        sql = f"INSERT INTO reportes_incidentes ({columns}) VALUES ({placeholders})"
+        
+        cur.execute(sql, list(form_data.values()))
+        conn.commit()
+    except Exception as e:
+        if conn: conn.rollback()
+        app_logger.error(f"Error submitting incident report: {e}", exc_info=True)
+        flash('Hubo un error al enviar el reporte de incidente.', 'danger')
+        return redirect(url_for('reporte_incidente_form'))
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+    flash('Reporte de incidente enviado exitosamente!', 'success')
+    return redirect(url_for('success'))
+
+# --- END: REPORTE UNICO DE INCIDENTE ---
+
 # ROUTE for the Log de Patrullas form
 @app.route('/log_de_patrullas')
 @jwt_required()
@@ -1402,7 +1543,7 @@ def registro_de_capacitaciones_form():
         viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
     )
 
-# ROUTE for submitting the Registro de Capacitaciones form
+# --- UPDATED: ROUTE for submitting the Registro de Capacitaciones form ---
 @app.route('/submit_registro_de_capacitaciones', methods=['POST'])
 @jwt_required()
 def submit_registro_de_capacitaciones():
@@ -1410,20 +1551,17 @@ def submit_registro_de_capacitaciones():
     conn = None
     try:
         form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora') or None,
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
             'nombre_capacitacion': request.form.get('nombre_capacitacion'),
-            'tema_protocolo': request.form.get('tema_protocolo'),
-            'area_servicio': request.form.get('area_servicio'),
-            'lugar_realizacion': request.form.get('lugar_realizacion'),
-            'fecha': request.form.get('fecha'),
-            'hora_inicio': request.form.get('hora_inicio'),
-            'hora_finalizacion': request.form.get('hora_finalizacion'),
-            'duracion_horas': request.form.get('duracion_horas'),
-            'instructor_capacitador': request.form.get('instructor_capacitador'),
-            'instructor_cargo': request.form.get('instructor_cargo'),
-            'firma_instructor': request.form.get('firma_instructor'),
             'objetivo_capacitacion': request.form.get('objetivo_capacitacion'),
-            'lista_asistencia': request.form.get('lista_asistencia'),
             'observaciones_retroalimentacion': request.form.get('observaciones_retroalimentacion'),
+            'lista_asistencia': request.form.get('lista_asistencia'),
             'practica_simulacro_realizado': request.form.get('practica_simulacro_realizado'),
             'nivel_comprension': request.form.get('nivel_comprension'),
             'recomendaciones': request.form.get('recomendaciones'),
@@ -2034,4 +2172,3 @@ if __name__ == '__main__':
     with app.app_context():
         create_tables_if_not_exists()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
