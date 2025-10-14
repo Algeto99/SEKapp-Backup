@@ -26,28 +26,23 @@
             border-radius: 8px;
             padding: 2rem;
             margin-bottom: 2rem;
-            border: 1px solid #4a5568;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .form-input, .form-select, .form-textarea {
             background-color: #4a5568;
             border: 1px solid #718096;
             color: #e2e8f0;
-            border-radius: 4px;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
             width: 100%;
-            padding: 0.75rem;
-            transition: all 0.2s ease-in-out;
-        }
-
-        .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-        .form-input[type="time"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
+            transition: all 0.2s ease;
         }
 
         .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
-            border-color: #3b82f6;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
         }
 
         .signature-pad {
@@ -55,11 +50,14 @@
             border-radius: 0.375rem;
             background-color: white;
             width: 100%;
-            height: 200px;
+            height: 150px;
         }
 
         .header-nav {
-            position: fixed; top: 0; left: 0; right: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
             background-color: rgba(45, 55, 72, 0.95);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -67,92 +65,100 @@
             z-index: 50;
         }
         .nav-content {
-            max-width: 1200px; margin: 0 auto; display: flex;
-            justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
         .nav-links {
-            display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
         }
         .nav-link {
-            color: #60a5fa; text-decoration: none; font-size: 0.875rem;
-            transition: all 0.2s; padding: 0.5rem 0;
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
         }
         .nav-link:hover {
-            color: #93c5fd; text-decoration: underline;
+            color: #93c5fd;
+            text-decoration: underline;
         }
         .user-greeting {
-            font-size: 0.875rem; color: #9ca3af;
+            font-size: 0.875rem;
+            color: #9ca3af;
         }
         .user-name {
-            color: #60a5fa; font-weight: bold;
+            color: #60a5fa;
+            font-weight: bold;
         }
         .admin-badge {
-            color: #a855f7; font-weight: bold;
+            color: #a855f7;
+            font-weight: bold;
         }
-
+        
         .theme-toggle {
-            position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100;
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 100;
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 0.5rem; padding: 0.5rem; cursor: pointer;
-            transition: all 0.2s ease-in-out; color: #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #e2e8f0;
         }
         .theme-toggle:hover {
-            background-color: rgba(255, 255, 255, 0.2); transform: scale(1.05);
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
         }
         .theme-toggle svg {
-            width: 1.5rem; height: 1.5rem;
+            width: 1.5rem;
+            height: 1.5rem;
         }
 
-        /* Light Mode Styles */
         body.light-mode {
-            background-color: #f8f9fa; color: #343a40;
+            background-color: #f8f9fa;
+            color: #343a40;
         }
-        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
+        body.light-mode h1, body.light-mode h2, body.light-mode h3 {
             color: #212529;
         }
         body.light-mode .form-section {
-            background-color: #ffffff; border: 1px solid #dee2e6;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
         }
         body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea {
-            background-color: #f1f3f5; border-color: #ced4da; color: #495057;
-        }
-        body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-        body.light-mode .form-input[type="time"]::-webkit-calendar-picker-indicator {
-            filter: none;
-        }
-        body.light-mode label {
-            color: #6c757d;
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+            color: #495057;
         }
         body.light-mode .header-nav {
             background-color: rgba(255, 255, 255, 0.95);
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
-        body.light-mode .user-greeting {
-            color: #4a5568;
-        }
+        body.light-mode .user-greeting { color: #4a5568; }
         body.light-mode .theme-toggle {
             background-color: rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(0, 0, 0, 0.2);
             color: #374151;
         }
-        body.light-mode .theme-toggle:hover {
-            background-color: rgba(0, 0, 0, 0.2);
-        }
-        body.light-mode .signature-pad {
-            border-color: #d1d5db;
-        }
+        body.light-mode .theme-toggle:hover { background-color: rgba(0, 0, 0, 0.2); }
 
         @media (max-width: 768px) {
             .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
             body { padding-top: 120px; }
-            .theme-toggle { top: 1rem; left: 1rem; }
         }
     </style>
 </head>
 <body>
-
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
@@ -161,14 +167,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
-
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
                 Bienvenido, <span class="user-name">{{ name }}</span>
-                {% if is_admin %}
-                    <span class="admin-badge">(Admin)</span>
-                {% endif %}
+                {% if is_admin %}<span class="admin-badge">(Admin)</span>{% endif %}
             </div>
             <div class="nav-links">
                 <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
@@ -180,154 +183,89 @@
         </div>
     </div>
 
-    <div class="container mx-auto px-4 pb-8 max-w-4xl">
-        <div class="text-center mb-8">
-            <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto w-24 opacity-90" />
-            <h1 class="text-3xl font-bold text-white mt-4">Acta de Visita al Cliente</h1>
-        </div>
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold">Acta de Visita al Cliente</h1>
+        </header>
 
-        <form id="visitaForm" action="{{ url_for('submit_registro_y_acta_de_visita') }}" method="POST" class="space-y-6">
-            
+        <form id="visitaForm" action="{{ url_for('submit_registro_y_acta_de_visita') }}" method="POST">
+
             <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">1. Datos Generales</h2>
+                <h2 class="text-xl font-bold mb-4">1. Datos Generales de la Visita</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
-                        <input type="text" id="cliente_instalacion" name="cliente_instalacion" required class="form-input">
-                    </div>
-                    <div>
-                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" id="puesto_area_especifica" name="puesto_area_especifica" class="form-input">
+                        <label for="cliente_visitado" class="block text-sm font-medium mb-1">Cliente Visitado</label>
+                        <input type="text" name="cliente_visitado" id="cliente_visitado" class="form-input" required>
                     </div>
                     <div>
                         <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" id="fecha_hora" name="fecha_hora" required class="form-input">
-                    </div>
-                     <div>
-                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador / Responsable</label>
-                        <select id="rol_aplicador" name="rol_aplicador" required class="form-input">
-                            <option value="" disabled selected>Seleccione un rol</option>
-                            <option>Agente de Seguridad</option>
-                            <option>Supervisor/Inspector</option>
-                            <option>Analista de Calidad</option>
-                            <option>Jefe de Seguridad</option>
-                            <option>Cliente</option>
-                            <option>Locatario</option>
-                        </select>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
-                        <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
-                        <select id="turno" name="turno" required class="form-input">
-                            <option value="" disabled selected>Seleccione un turno</option>
-                            <option>Mañana</option>
-                            <option>Tarde</option>
-                            <option>Noche</option>
-                            <option>24 Horas</option>
+                        <label for="motivo_visita" class="block text-sm font-medium mb-1">Motivo de la Visita</label>
+                        <select name="motivo_visita" id="motivo_visita" class="form-select" required>
+                            <option value="">Seleccione...</option>
+                            <option>Seguimiento de servicio</option>
+                            <option>Auditoría de seguridad</option>
+                            <option>Atención de quejas o reclamos</option>
+                            <option>Presentación de propuesta</option>
+                            <option>Reunión de coordinación</option>
                         </select>
                     </div>
-                     <div>
-                        <label for="visita_realizada_por" class="block text-sm font-medium mb-1">Nombre (Quien realiza visita)</label>
-                        <input type="text" id="visita_realizada_por" name="visita_realizada_por" value="{{ name }}" required class="form-input">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">2. Participantes</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="nombre_visitante" class="block text-sm font-medium mb-1">Nombre del Visitante (SMT)</label>
+                        <input type="text" name="nombre_visitante" id="nombre_visitante" class="form-input" value="{{ name }}" required>
+                    </div>
+                    <div>
+                        <label for="cargo_visitante" class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="cargo_visitante" id="cargo_visitante" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-1">Firma (Quien realiza visita)</label>
-                        <canvas id="firma-visitante-pad" class="signature-pad"></canvas>
+                        <label for="firma_visitante" class="block text-sm font-medium mb-2">Firma del Visitante</label>
+                        <canvas id="firma-visitante-pad" class="signature-pad w-full h-48"></canvas>
                         <button type="button" id="clear-visitante" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" id="firma_visitante" name="firma_visitante">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">2. Motivo de la Visita</h2>
-                <div>
-                    <label for="motivo_visita" class="block text-sm font-medium mb-1">Queja</label>
-                    <select id="motivo_visita" name="motivo_visita" required class="form-input">
-                        <option value="" disabled selected>Seleccione una opción</option>
-                        <option>Programada</option>
-                        <option>A Solicitud</option>
-                        <option>Queja</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">3. Objetivo de la Reunión / Visita</h2>
-                <textarea id="objetivo_reunion" name="objetivo_reunion" rows="5" class="form-input" placeholder="Describa el objetivo..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">4. Actividades Realizadas</h2>
-                <textarea id="actividades_realizadas" name="actividades_realizadas" rows="5" class="form-input" placeholder="Describa en detalle las actividades..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">5. Evaluación de Satisfacción y Seguridad</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="satisfaccion_cliente" class="block text-sm font-medium mb-1">Satisfacción del cliente / inquilino</label>
-                        <select id="satisfaccion_cliente" name="satisfaccion_cliente" required class="form-input">
-                            <option value="" disabled selected>Seleccione una opción</option>
-                            <option>Si</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                     <div class="md:col-span-2">
-                         <label for="comentarios_satisfaccion" class="block text-sm font-medium mb-1">Comentarios</label>
-                         <textarea id="comentarios_satisfaccion" name="comentarios_satisfaccion" rows="4" class="form-input"></textarea>
-                     </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">6. Compromisos Adquiridos</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                         <label for="compromisos_adquiridos" class="block text-sm font-medium mb-1">Compromiso</label>
-                         <textarea id="compromisos_adquiridos" name="compromisos_adquiridos" rows="4" class="form-input" placeholder="Detalle el compromiso..."></textarea>
+                        <input type="hidden" name="firma_visitante" id="firma_visitante">
                     </div>
                     <div>
-                        <label for="compromisos_responsable" class="block text-sm font-medium mb-1">Responsable</label>
-                        <input type="text" id="compromisos_responsable" name="compromisos_responsable" class="form-input">
+                        <label for="nombre_participante_cliente" class="block text-sm font-medium mb-1">Nombre del Participante (Cliente)</label>
+                        <input type="text" name="nombre_participante_cliente" id="nombre_participante_cliente" class="form-input">
                     </div>
                     <div>
-                        <label for="compromisos_fecha_limite" class="block text-sm font-medium mb-1">Fecha Límite</label>
-                        <input type="date" id="compromisos_fecha_limite" name="compromisos_fecha_limite" class="form-input">
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">7. Observaciones</h2>
-                <textarea id="observaciones" name="observaciones" rows="5" class="form-input" placeholder="Cualquier otra observación relevante..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">8. Firma Intervinientes (Participante / Cliente)</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div>
-                        <label for="persona_atendio" class="block text-sm font-medium mb-1">Nombre</label>
-                        <input type="text" id="persona_atendio" name="persona_atendio" required class="form-input">
-                    </div>
-                    <div>
-                        <label for="cargo_atendio" class="block text-sm font-medium mb-1">Cargo</label>
-                        <input type="text" id="cargo_atendio" name="cargo_atendio" class="form-input">
+                        <label for="cargo_participante_cliente" class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="cargo_participante_cliente" id="cargo_participante_cliente" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label for="telefono_contacto" class="block text-sm font-medium mb-1">Teléfono</label>
-                        <input type="tel" id="telefono_contacto" name="telefono_contacto" class="form-input">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-1">Firma y Sello Cliente</label>
-                        <canvas id="firma-cliente-pad" class="signature-pad"></canvas>
+                        <label for="firma_participante_cliente" class="block text-sm font-medium mb-2">Firma del Participante por el Cliente</label>
+                        <canvas id="firma-cliente-pad" class="signature-pad w-full h-48"></canvas>
                         <button type="button" id="clear-cliente" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" id="firma_participante_cliente" name="firma_participante_cliente">
+                        <input type="hidden" name="firma_participante_cliente" id="firma_participante_cliente">
                     </div>
                 </div>
             </div>
 
-            <div class="mt-8 flex justify-end items-center">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">3. Agenda y Temas Tratados</h2>
+                <textarea name="temas_tratados" id="temas_tratados" rows="5" class="form-textarea" placeholder="Liste los puntos principales discutidos..."></textarea>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">4. Acuerdos y Compromisos</h2>
+                <textarea name="acuerdos_compromisos" id="acuerdos_compromisos" rows="5" class="form-textarea" placeholder="Detalle los acuerdos, responsables y fechas de cumplimiento..."></textarea>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">5. Observaciones Adicionales</h2>
+                <textarea name="observaciones" id="observaciones" rows="4" class="form-textarea" placeholder="Cualquier otra información relevante..."></textarea>
+            </div>
+            
+            <div class="flex justify-end pt-4">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
                     Enviar Acta
                 </button>
             </div>
@@ -343,7 +281,8 @@
 
             function initializeTheme() {
                 const savedTheme = localStorage.getItem('theme');
-                if (savedTheme === 'light') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
                     setLightMode();
                 } else {
                     setDarkMode();
@@ -361,7 +300,6 @@
                 if(lightModeIcon) lightModeIcon.style.display = 'block';
                 localStorage.setItem('theme', 'light');
             }
-            initializeTheme();
             if (themeToggle) {
                 themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
             }
@@ -372,15 +310,40 @@
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
             // Signature Pad Logic
-            function initializeSignaturePad(canvasId, clearButtonId) {
-                const canvas = document.getElementById(canvasId);
-                const signaturePad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)' });
-                document.getElementById(clearButtonId).addEventListener('click', () => signaturePad.clear());
-                return signaturePad;
-            }
+            const canvasVisitante = document.getElementById('firma-visitante-pad');
+            const visitantePad = new SignaturePad(canvasVisitante);
+            const clearButtonVisitante = document.getElementById('clear-visitante');
+            
+            const canvasCliente = document.getElementById('firma-cliente-pad');
+            const clientePad = new SignaturePad(canvasCliente);
+            const clearButtonCliente = document.getElementById('clear-cliente');
 
-            const visitantePad = initializeSignaturePad('firma-visitante-pad', 'clear-visitante');
-            const clientePad = initializeSignaturePad('firma-cliente-pad', 'clear-cliente');
+            function resizeCanvas(canvas) {
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                if (canvas.id === 'firma-visitante-pad') {
+                    visitantePad.clear();
+                } else if (canvas.id === 'firma-cliente-pad') {
+                    clientePad.clear();
+                }
+            }
+            
+            window.addEventListener("resize", function(){
+                resizeCanvas(canvasVisitante);
+                resizeCanvas(canvasCliente);
+            });
+            resizeCanvas(canvasVisitante);
+            resizeCanvas(canvasCliente);
+
+            clearButtonVisitante.addEventListener('click', () => {
+                visitantePad.clear();
+            });
+
+            clearButtonCliente.addEventListener('click', () => {
+                clientePad.clear();
+            });
 
             // Form Submission Logic
             document.getElementById('visitaForm').addEventListener('submit', function(event) {
@@ -391,6 +354,8 @@
                     document.getElementById('firma_participante_cliente').value = clientePad.toDataURL();
                 }
             });
+
+            initializeTheme();
         });
     </script>
 </body>
