@@ -1030,6 +1030,446 @@
     "data_type": "timestamp without time zone"
   },
   {
+    "table_name": "planilla_motocicletas",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "nombre_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "placa_motocicleta",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "kilometraje_entrega",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "kilometraje_salida",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_neumaticos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_rines",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "equipo_carretera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_kit_arrastre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_palanca_soporte",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_forro_asiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_tapas_derecha",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_direccionales_derecha",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_delanteras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_guarda_fango_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_sistema_freno_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_manillar_embrague",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_manillar_freno_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_manometros_indicadores",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_tanque_combustible",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "tapa_tanque_combustible",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "espejos_retrovisores",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "tapa_aceite_motor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "bateria_tapa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_izquierda",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_direccionales_izquierda",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luz_trasera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_guarda_fango_trasero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_tubo_escape",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_palanca_freno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_palanca_cambios",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "novedades_criticas_detectadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "accion_inmediata_tomada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "firma_entrega",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "firma_recibe",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "oficial_operaciones_nombre_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "creado_en",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "id_planilla_vehicular",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "placa_vehiculo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "kilometraje_entrega",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "kilometraje_salida",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "estado_rines",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "juego_senales_carretera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "gato_hidraulico",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "palanca_gato",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "estado_asientos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "estado_tapetes_alfombras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "limpieza_carroceria",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "luces_delanteras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "luces_direccionales",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "luces_traseras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "parabrisas_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "parabrisas_trasero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "defensa_delantera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "defensa_trasera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "puertas_vidrios",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "tapa_radiador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "tapa_aceite_motor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "bateria_tapa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "espejo_retrovisor_interno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "espejos_retrovisores_externos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "limpia_brisas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "antena_radio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "radio_funciona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "llanta_repuesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "aire_acondicionado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "diagrama_danos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "novedades_criticas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "accion_inmediata",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "firma_entrega",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "firma_recibe",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "oficial_operaciones_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "oficial_operaciones_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "propiedades",
     "column_name": "id_propiedad",
     "data_type": "integer"

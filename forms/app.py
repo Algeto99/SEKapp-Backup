@@ -732,6 +732,8 @@ def root_redirect():
     return redirect('/select')
 
 # ROUTE for the form selection page
+# Replace the select_form function (around line 378-397) with this corrected version:
+
 @app.route('/select')
 @jwt_required()
 def select_form():
@@ -747,7 +749,7 @@ def select_form():
 
     return render_template(
         'select_form.html',
-        name=user_name,
+        name=user_name,  # Fixed: removed undefined 'token' variable and added comma
         is_admin=is_admin,
         login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
         landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
@@ -1716,6 +1718,111 @@ def submit_planilla_vehicular():
         app_logger.error(f"Error submitting planilla vehicular: {e}", exc_info=True)
         flash('Hubo un error al enviar la planilla vehicular.', 'danger')
         return redirect(url_for('planilla_vehicular_form'))
+    finally:
+        if conn:
+            conn.close()
+
+# Find and REPLACE the planilla_motocicletas routes in app.py
+# This version matches the actual database schema
+
+@app.route('/planilla_motocicletas', methods=['GET'])
+@jwt_required()
+def planilla_motocicletas_form():
+    """Display the motorcycle inspection form"""
+    user_email = get_jwt_identity()
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"User {user_email} accessing planilla motocicletas form (admin: {is_admin})")
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
+
+    # Optionally get user name from database as fallback
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+        result = cur.fetchone()
+        if result and result[0]:
+            user_name = result[0]
+        cur.close()
+    except Exception as e:
+        app_logger.warning(f"Could not fetch user from database: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    return render_template(
+        'planilla_motocicletas.html',
+        name=user_name,
+        is_admin=is_admin,
+        login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+        dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+        viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
+    )
+
+@app.route('/submit_planilla_motocicletas', methods=['POST'])
+@jwt_required()
+def submit_planilla_motocicletas():
+    """Handle motorcycle inspection form submission"""
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        # Base form data matching the database schema exactly
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_firma': request.form.get('nombre_firma'),
+            'placa_motocicleta': request.form.get('placa_motocicleta'),
+            'kilometraje_entrega': request.form.get('kilometraje_entrega') or None,
+            'kilometraje_salida': request.form.get('kilometraje_salida') or None,
+            'novedades_criticas_detectadas': request.form.get('novedades_criticas_detectadas'),
+            'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),
+            'firma_entrega': request.form.get('firma_entrega'),
+            'firma_recibe': request.form.get('firma_recibe'),
+            'oficial_operaciones_nombre_firma': request.form.get('oficial_operaciones_nombre_firma'),
+            'submitted_by_email': user_email
+        }
+        
+        # Add all the checklist items - matching the exact database column names
+        # These come from the dynamically generated form fields
+        for key in request.form.keys():
+            if key.startswith('estado_') and key not in form_data:
+                form_data[key] = request.form.get(key)
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Filter out None values for optional fields
+        form_data_filtered = {k: v for k, v in form_data.items() if v is not None}
+        
+        columns = ', '.join(form_data_filtered.keys())
+        placeholders = ', '.join(['%s'] * len(form_data_filtered))
+        sql = f"INSERT INTO planilla_motocicletas ({columns}) VALUES ({placeholders})"
+        
+        cur.execute(sql, list(form_data_filtered.values()))
+        
+        conn.commit()
+        cur.close()
+
+        flash('Planilla de Motocicletas enviada exitosamente!', 'success')
+        app_logger.info(f"Planilla de motocicletas submitted successfully by {user_email}")
+        return redirect(url_for('success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting planilla motocicletas: {e}", exc_info=True)
+        flash('Hubo un error al enviar la planilla de motocicletas.', 'danger')
+        return redirect(url_for('planilla_motocicletas_form'))
     finally:
         if conn:
             conn.close()
