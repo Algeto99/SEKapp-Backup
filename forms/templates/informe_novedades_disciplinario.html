@@ -423,6 +423,23 @@
             const clearButton2 = document.getElementById('clearSignatureRevisado');
             const hiddenInput2 = document.getElementById('firma_recibido_revisado');
 
+            function resizeCanvas(canvas) {
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                signaturePad1.clear(); //Clear and redraw signature if any
+                signaturePad2.clear();
+            }
+            
+            window.addEventListener("resize", function(){
+                resizeCanvas(canvas1);
+                resizeCanvas(canvas2);
+            });
+            resizeCanvas(canvas1);
+            resizeCanvas(canvas2);
+
+
             clearButton1.addEventListener('click', () => {
                 signaturePad1.clear();
             });

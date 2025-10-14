@@ -1224,35 +1224,68 @@ def submit_informe_novedades_disciplinario():
     user_email = get_jwt_identity()
     conn = None
     try:
+        # Handle file uploads for 'anexos'
+        anexos_urls = []
+        if 'anexos_files' in request.files:
+            files = request.files.getlist('anexos_files')
+            for file in files:
+                if file and file.filename:
+                    public_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                    anexos_urls.append(public_url)
+        
+        anexos_str = "\n".join(anexos_urls) if anexos_urls else "No Aplica" if request.form.get('anexos_na') else ""
+
+        # Split fecha_hora into fecha and hora
+        fecha_hora_str = request.form.get('fecha_hora')
+        fecha = None
+        hora = None
+        if fecha_hora_str:
+            try:
+                dt_obj = datetime.fromisoformat(fecha_hora_str)
+                fecha = dt_obj.date()
+                hora = dt_obj.time()
+            except ValueError:
+                app_logger.warning(f"Could not parse fecha_hora: {fecha_hora_str}")
+
         form_data = {
-            'realizado_por_nombre': request.form.get('realizado_por_nombre'),
-            'realizado_por_cargo': request.form.get('realizado_por_cargo'),
-            'fecha': request.form.get('fecha'),
-            'hora': request.form.get('hora'),
-            'dirigido_a': request.form.get('dirigido_a'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'realizado_por_cargo': request.form.get('rol_aplicador'),
+            'fecha': fecha,
+            'hora': hora,
+            'dirigido_a': request.form.get('recibido_revisado_por_nombre_cargo'),
             'empleado_nombre': request.form.get('empleado_nombre'),
             'empleado_documento': request.form.get('empleado_documento'),
             'empleado_cargo': request.form.get('empleado_cargo'),
-            'cliente': request.form.get('cliente'),
-            'puesto': request.form.get('puesto'),
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
             'tipo_novedad': request.form.get('tipo_novedad'),
             'sitio_ocurrencia': request.form.get('sitio_ocurrencia'),
             'descripcion_novedad': request.form.get('descripcion_novedad'),
             'otras_personas_involucradas': request.form.get('otras_personas_involucradas'),
-            'anexos': request.form.get('anexos'),
-            'firma_realizado_por': request.form.get('firma_realizado_por'),
-            'firma_recibido_revisado_por': request.form.get('firma_recibido_revisado_por'),
-            'submitted_by_email': user_email
+            'anexos': anexos_str,
+            'firma_responsable': request.form.get('firma_responsable'),
+            'firma_recibido_revisado': request.form.get('firma_recibido_revisado'),
+            'submitted_by_email': user_email,
+            'fecha_hora': fecha_hora_str,
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'recibido_revisado_por_nombre_cargo': request.form.get('recibido_revisado_por_nombre_cargo')
         }
         
         conn = get_db_connection()
         cur = conn.cursor()
 
-        columns = ', '.join(form_data.keys())
-        placeholders = ', '.join(['%s'] * len(form_data))
+        # Dynamically get table columns to avoid errors
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'informe_novedades_disciplinario'")
+        table_columns = [row[0] for row in cur.fetchall()]
+        
+        valid_form_data = {k: v for k, v in form_data.items() if k in table_columns}
+
+        columns = ', '.join(valid_form_data.keys())
+        placeholders = ', '.join(['%s'] * len(valid_form_data))
         sql = f"INSERT INTO informe_novedades_disciplinario ({columns}) VALUES ({placeholders})"
         
-        cur.execute(sql, list(form_data.values()))
+        cur.execute(sql, list(valid_form_data.values()))
         
         conn.commit()
         cur.close()
