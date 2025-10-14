@@ -215,6 +215,51 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "control_accesos",
+    "column_name": "nombre_persona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "documento_identidad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "empresa_visitante",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "vehiculo_placa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "vehiculo_marca",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "vehiculo_modelo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "vehiculo_color",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "materiales_ingresados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "materiales_salida",
+    "data_type": "text"
+  },
+  {
     "table_name": "incident_categories",
     "column_name": "id",
     "data_type": "integer"

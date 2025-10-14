@@ -858,71 +858,6 @@ def planilla_de_rondas_form():
         viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
     )
 
-# ROUTE for submitting the Control de Accesos form
-@app.route('/submit_control_accesos', methods=['POST'])
-@jwt_required()
-def submit_control_accesos():
-    user_email = get_jwt_identity()
-    conn = None
-    try:
-        # Get all form fields from the request
-        form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
-            'fecha_hora': request.form.get('fecha_hora'),
-            'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
-            'nombre_responsable': request.form.get('nombre_responsable'),
-            'firma_responsable': request.form.get('firma_responsable'),
-            'rol_del_usuario': request.form.get('rol_del_usuario'),
-            'accion': request.form.get('accion'),
-            'motivo_de_ingreso': request.form.get('motivo_de_ingreso'),
-            'autorizacion': request.form.get('autorizacion'),
-            'brecha_detectada': request.form.get('brecha_detectada'),
-            'evidencia': request.form.get('evidencia'),
-            'responsable_del_control': request.form.get('responsable_del_control'),
-            'observaciones': request.form.get('observaciones'),
-            'brecha_por_personas': request.form.get('brecha_por_personas'),
-            'brecha_por_procedimiento': request.form.get('brecha_por_procedimiento'),
-            'brecha_por_tecnologia_equipos': request.form.get('brecha_por_tecnologia_equipos'),
-            'brecha_por_seguridad_fisica': request.form.get('brecha_por_seguridad_fisica'),
-            'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),
-            'accion_correctiva_recomendada': request.form.get('accion_correctiva_recomendada'),
-            'responsable_asignado': request.form.get('responsable_asignado'),
-            'fecha_limite_de_cierre': request.form.get('fecha_limite_de_cierre'),
-            'estado': request.form.get('estado'),
-            'nombre_cierre': request.form.get('nombre_cierre'), # New field
-            'firma_cierre': request.form.get('firma_cierre'), # New field
-            'submitted_by_email': user_email
-        }
-        
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Construct the SQL INSERT statement
-        columns = ', '.join(form_data.keys())
-        placeholders = ', '.join(['%s'] * len(form_data))
-        sql = f"INSERT INTO control_accesos ({columns}) VALUES ({placeholders})"
-        
-        # Execute the query
-        cur.execute(sql, list(form_data.values()))
-        
-        conn.commit()
-        cur.close()
-
-        flash('Reporte de Control de Accesos enviado exitosamente!', 'success')
-        return redirect(url_for('success'))
-
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        app_logger.error(f"Error submitting control de accesos report: {e}", exc_info=True)
-        flash('Hubo un error al enviar el reporte de control de accesos.', 'danger')
-        return redirect(url_for('control_accesos_form'))
-    finally:
-        if conn:
-            conn.close()
-
 # ROUTE for the Mantenimiento de Seguridad Física form
 @app.route('/mantenimiento_seguridad_fisica')
 @jwt_required()
@@ -1675,6 +1610,115 @@ def submit_registro_y_acta_de_visita():
         if conn:
             conn.close()
 
+# Routes for Planilla Vehicular
+
+@app.route('/planilla_vehicular')
+@jwt_required()
+def planilla_vehicular_form():
+    user_email = get_jwt_identity()
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"User {user_email} accessing planilla vehicular form (admin: {is_admin})")
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
+
+    return render_template(
+        'planilla_vehicular.html',
+        name=user_name,
+        is_admin=is_admin,
+        login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+        dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+        viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
+    )
+
+@app.route('/submit_planilla_vehicular', methods=['POST'])
+@jwt_required()
+def submit_planilla_vehicular():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'placa_vehiculo': request.form.get('placa_vehiculo'),
+            'kilometraje_entrega': request.form.get('kilometraje_entrega'),
+            'kilometraje_salida': request.form.get('kilometraje_salida'),
+            
+            # Inspection items
+            'estado_rines': request.form.get('estado_rines'),
+            'juego_senales_carretera': request.form.get('juego_senales_carretera'),
+            'gato_hidraulico': request.form.get('gato_hidraulico'),
+            'palanca_gato': request.form.get('palanca_gato'),
+            'estado_asientos': request.form.get('estado_asientos'),
+            'estado_tapetes_alfombras': request.form.get('estado_tapetes_alfombras'),
+            'limpieza_carroceria': request.form.get('limpieza_carroceria'),
+            'luces_delanteras': request.form.get('luces_delanteras'),
+            'luces_direccionales': request.form.get('luces_direccionales'),
+            'luces_traseras': request.form.get('luces_traseras'),
+            'parabrisas_delantero': request.form.get('parabrisas_delantero'),
+            'parabrisas_trasero': request.form.get('parabrisas_trasero'),
+            'defensa_delantera': request.form.get('defensa_delantera'),
+            'defensa_trasera': request.form.get('defensa_trasera'),
+            'puertas_vidrios': request.form.get('puertas_vidrios'),
+            'tapa_radiador': request.form.get('tapa_radiador'),
+            'tapa_aceite_motor': request.form.get('tapa_aceite_motor'),
+            'bateria_tapa': request.form.get('bateria_tapa'),
+            'espejo_retrovisor_interno': request.form.get('espejo_retrovisor_interno'),
+            'espejos_retrovisores_externos': request.form.get('espejos_retrovisores_externos'),
+            'limpia_brisas': request.form.get('limpia_brisas'),
+            'antena_radio': request.form.get('antena_radio'),
+            'radio_funciona': request.form.get('radio_funciona'),
+            'llanta_repuesto': request.form.get('llanta_repuesto'),
+            'aire_acondicionado': request.form.get('aire_acondicionado'),
+            
+            # Car damage diagram
+            'diagrama_danos': request.form.get('diagrama_danos'),
+            
+            # Summary
+            'novedades_criticas': request.form.get('novedades_criticas'),
+            'accion_inmediata': request.form.get('accion_inmediata'),
+            'firma_entrega': request.form.get('firma_entrega'),
+            'firma_recibe': request.form.get('firma_recibe'),
+            'oficial_operaciones_nombre': request.form.get('oficial_operaciones_nombre'),
+            'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
+            
+            'submitted_by_email': user_email
+        }
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        columns = ', '.join(form_data.keys())
+        placeholders = ', '.join(['%s'] * len(form_data))
+        sql = f"INSERT INTO planilla_vehicular ({columns}) VALUES ({placeholders})"
+        
+        cur.execute(sql, list(form_data.values()))
+        
+        conn.commit()
+        cur.close()
+
+        flash('Planilla de Chequeo Vehicular enviada exitosamente!', 'success')
+        return redirect(url_for('success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting planilla vehicular: {e}", exc_info=True)
+        flash('Hubo un error al enviar la planilla vehicular.', 'danger')
+        return redirect(url_for('planilla_vehicular_form'))
+    finally:
+        if conn:
+            conn.close()
 
 @app.route('/submit_report', methods=['POST'])
 @jwt_required()
@@ -1907,6 +1951,137 @@ def submit_orden_mantenimiento():
         app_logger.error(f"Error submitting orden de mantenimiento: {e}", exc_info=True)
         flash('Hubo un error al enviar la orden de mantenimiento.', 'danger')
         return redirect(url_for('orden_mantenimiento_form'))
+    finally:
+        if conn:
+            conn.close()
+
+# ROUTE for the Control de Accesos form
+@app.route('/control_accesos')
+@jwt_required()
+def control_accesos_form():
+    user_email = get_jwt_identity()
+    try:
+        claims = get_jwt()
+        user_name = claims.get('name', user_email.split('@')[0])
+        is_admin = claims.get('is_admin', False)
+        app_logger.info(f"User {user_email} accessing control de accesos form (admin: {is_admin})")
+    except Exception as e:
+        app_logger.warning(f"Could not get JWT claims for {user_email}: {e}")
+        user_name = user_email.split('@')[0]
+        is_admin = False
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM users WHERE email = %s", (user_email,))
+        result = cur.fetchone()
+        if result and result[0]:
+            user_name = result[0]
+        cur.close()
+    except Exception as e:
+        app_logger.warning(f"Could not fetch user from database: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+    return render_template(
+        'control_accesos.html',
+        name=user_name,
+        is_admin=is_admin,
+        login_service_url=app.config.get('LOGIN_SERVICE_URL', '/'),
+        landing_service_url=app.config.get('LANDING_SERVICE_URL', '/'),
+        dashboard_service_url=app.config.get('DASHBOARD_SERVICE_URL', '/'),
+        viewer_service_url=app.config.get('VIEWER_SERVICE_URL', '/')
+    )
+
+# ROUTE for submitting the Control de Accesos form
+@app.route('/submit_control_accesos', methods=['POST'])
+@jwt_required()
+def submit_control_accesos():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        # Get all form fields from the request including NEW vehicle and material fields
+        form_data = {
+            # Section 1: General Data
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            
+            # Section 2: Person Information (NEW FIELDS)
+            'nombre_persona': request.form.get('nombre_persona'),
+            'documento_identidad': request.form.get('documento_identidad'),
+            'empresa_visitante': request.form.get('empresa_visitante'),
+            'rol_del_usuario': request.form.get('rol_del_usuario'),
+            
+            # Section 3: Access Control
+            'accion': request.form.get('accion'),
+            'motivo_de_ingreso': request.form.get('motivo_de_ingreso'),
+            'autorizacion': request.form.get('autorizacion'),
+            
+            # Section 4: Vehicle Control (NEW FIELDS)
+            'vehiculo_placa': request.form.get('vehiculo_placa'),
+            'vehiculo_marca': request.form.get('vehiculo_marca'),
+            'vehiculo_modelo': request.form.get('vehiculo_modelo'),
+            'vehiculo_color': request.form.get('vehiculo_color'),
+            
+            # Section 5: Material Control (NEW FIELDS)
+            'materiales_ingresados': request.form.get('materiales_ingresados'),
+            'materiales_salida': request.form.get('materiales_salida'),
+            
+            # Section 6: Breach Detection
+            'brecha_detectada': request.form.get('brecha_detectada'),
+            'evidencia': request.form.get('evidencia'),
+            'responsable_del_control': request.form.get('responsable_del_control'),
+            'observaciones': request.form.get('observaciones'),
+            
+            # Section 7: Breach Follow-up (conditional)
+            'brecha_por_personas': request.form.get('brecha_por_personas'),
+            'brecha_por_procedimiento': request.form.get('brecha_por_procedimiento'),
+            'brecha_por_tecnologia_equipos': request.form.get('brecha_por_tecnologia_equipos'),
+            'brecha_por_seguridad_fisica': request.form.get('brecha_por_seguridad_fisica'),
+            'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),
+            'accion_correctiva_recomendada': request.form.get('accion_correctiva_recomendada'),
+            'responsable_asignado': request.form.get('responsable_asignado'),
+            'fecha_limite_de_cierre': request.form.get('fecha_limite_de_cierre'),
+            'estado': request.form.get('estado'),
+            
+            # Section 8: Closure Signature
+            'nombre_cierre': request.form.get('nombre_cierre'),
+            'firma_cierre': request.form.get('firma_cierre'),
+            
+            'submitted_by_email': user_email
+        }
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Construct the SQL INSERT statement
+        columns = ', '.join(form_data.keys())
+        placeholders = ', '.join(['%s'] * len(form_data))
+        sql = f"INSERT INTO control_accesos ({columns}) VALUES ({placeholders})"
+        
+        # Execute the query
+        cur.execute(sql, list(form_data.values()))
+        
+        conn.commit()
+        cur.close()
+
+        flash('Reporte de Control de Accesos enviado exitosamente!', 'success')
+        app_logger.info(f"Control de Accesos report submitted successfully by {user_email}")
+        return redirect(url_for('success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting control de accesos report: {e}", exc_info=True)
+        flash('Hubo un error al enviar el reporte de control de accesos.', 'danger')
+        return redirect(url_for('control_accesos_form'))
     finally:
         if conn:
             conn.close()

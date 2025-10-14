@@ -3,16 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Accesos y Gestión de Brechas - SMT SecApp</title>
+    <title>Registro de Acceso y Salida - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
-            padding-top: 80px; /* Account for fixed header */
+            padding-top: 80px;
         }
         h1, h2, h3, h4, h5, h6 {
             font-family: 'Merriweather', serif;
@@ -69,11 +70,11 @@
         .form-section {
             background-color: #2d3748;
             border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .form-input {
+        .form-input, .form-select, .form-textarea {
             background-color: #4a5568;
             border: 1px solid #718096;
             color: #e2e8f0;
@@ -82,16 +83,27 @@
             width: 100%;
             transition: all 0.2s ease;
         }
-        .form-input:focus {
+        .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        .form-input[type="date"]::-webkit-calendar-picker-indicator,
+        .form-input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
-            border-color: #3182ce;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
         }
         .signature-pad {
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
-            cursor: crosshair;
             background-color: white;
+            width: 100%;
+            height: 150px;
         }
         .theme-toggle {
             position: fixed;
@@ -105,7 +117,6 @@
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             color: #e2e8f0;
-            width: auto;
         }
         .theme-toggle:hover {
             background-color: rgba(255, 255, 255, 0.2);
@@ -115,12 +126,11 @@
             width: 1.5rem;
             height: 1.5rem;
         }
-        /* Light mode styles */
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
         }
-        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
+        body.light-mode h1, body.light-mode h2, body.light-mode h3 {
             color: #212529;
         }
         body.light-mode .header-nav {
@@ -132,12 +142,17 @@
         }
         body.light-mode .form-section {
             background-color: #ffffff;
-            border-color: #e2e8f0;
+            border: 1px solid #e2e8f0;
         }
-        body.light-mode .form-input {
-            background-color: #e2e8f0;
-            border-color: #cbd5e0;
-            color: #2d3748;
+        body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea {
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+            color: #495057;
+        }
+        body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+        body.light-mode .form-input[type="date"]::-webkit-calendar-picker-indicator,
+        body.light-mode .form-input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: none;
         }
         body.light-mode .theme-toggle {
             background-color: rgba(0, 0, 0, 0.1);
@@ -147,28 +162,14 @@
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
-        /* Responsive design */
         @media (max-width: 768px) {
             .nav-content {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.5rem;
             }
-            .nav-links {
-                gap: 1rem;
-                font-size: 0.8rem;
-            }
             body {
                 padding-top: 120px;
-            }
-            .theme-toggle {
-                top: 1rem;
-                left: 1rem;
-            }
-        }
-        @media (max-width: 640px) {
-            body {
-                padding-top: 140px;
             }
         }
     </style>
@@ -201,32 +202,34 @@
         </div>
     </div>
 
-    <div class="container mx-auto p-4 md:p-8">
-        <header class="text-center mb-8">
-            <h1 class="text-2xl md:text-3xl font-bold">Planilla de Registro de Control de Acceso y Gestión de Brechas</h1>
-        </header>
+    <div class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold">Registro de Acceso y Salida</h1>
+            <p class="text-gray-400 mt-2">Control de acceso personal, vehicular y de proveedores</p>
+        </div>
 
-        <form id="controlAccesoForm" action="{{ url_for('submit_control_accesos') }}" method="POST" class="space-y-6">
+        <form id="controlAccesoForm" action="{{ url_for('submit_control_accesos') }}" method="POST">
 
+            <!-- Section 1: Datos Generales -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
-                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input">
+                        <label for="cliente_instalacion" class="form-label">Cliente / Instalación</label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input" required>
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input">
+                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input" required>
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
+                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
                         <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
-                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
-                        <select name="rol_aplicador" id="rol_aplicador" class="form-input">
-                            <option value="">Seleccione...</option>
+                        <label for="rol_aplicador" class="form-label">Rol del Aplicador</label>
+                        <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un rol...</option>
                             <option>Agente de seguridad</option>
                             <option>Supervisor/Inspector</option>
                             <option>Analista de Calidad</option>
@@ -236,9 +239,9 @@
                         </select>
                     </div>
                     <div>
-                        <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
-                        <select name="turno" id="turno" class="form-input">
-                            <option value="">Seleccione...</option>
+                        <label for="turno" class="form-label">Turno</label>
+                        <select name="turno" id="turno" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un turno...</option>
                             <option>Mañana</option>
                             <option>Tarde</option>
                             <option>Noche</option>
@@ -246,279 +249,188 @@
                         </select>
                     </div>
                     <div>
-                        <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del Responsable</label>
-                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input">
+                        <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" value="{{ name }}" class="form-input" required>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
-                        <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clearSignatureResponsable" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <label class="form-label">Firma del Responsable</label>
+                        <canvas id="firma-responsable-pad" class="signature-pad"></canvas>
+                        <button type="button" onclick="responsablePad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                 </div>
             </div>
 
+            <!-- Section 2: Registro de Evento de Acceso -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">2. Registro de Accesos</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Registro de Evento de Acceso</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="rol_del_usuario" class="block text-sm font-medium mb-1">Rol del Usuario</label>
-                        <select name="rol_del_usuario" id="rol_del_usuario" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Empleado</option>
-                            <option>Cliente</option>
-                            <option>Visitante</option>
-                            <option>Proveedor</option>
-                            <option>Contratista</option>
+                        <label for="tipo_acceso" class="form-label">Tipo de Acceso <span class="text-red-400">*</span></label>
+                        <select name="tipo_acceso" id="tipo_acceso" class="form-select" required>
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option>Personal (Visita)</option>
+                            <option>Personal (Contratista)</option>
+                            <option>Vehicular</option>
+                            <option>Proveedor (Mercancía)</option>
+                            <option>Servicio Técnico</option>
                         </select>
                     </div>
                     <div>
-                        <label for="accion" class="block text-sm font-medium mb-1">Acción</label>
-                        <select name="accion" id="accion" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Entrada</option>
-                            <option>Salida</option>
-                            <option>Denegado</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="motivo_de_ingreso" class="block text-sm font-medium mb-1">Motivo de Ingreso</label>
-                        <textarea name="motivo_de_ingreso" id="motivo_de_ingreso" rows="3" class="form-input"></textarea>
+                        <label for="identificacion" class="form-label">Identificación <span class="text-red-400">*</span></label>
+                        <input type="text" name="identificacion" id="identificacion" class="form-input" placeholder="Ingrese número de identificación" required>
                     </div>
                     <div>
-                        <label for="autorizacion" class="block text-sm font-medium mb-1">Autorización (Sí/No)</label>
-                        <select name="autorizacion" id="autorizacion" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                        <label for="motivo_acceso" class="form-label">Motivo del Acceso <span class="text-red-400">*</span></label>
+                        <select name="motivo_acceso" id="motivo_acceso" class="form-select" required>
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option>Visita Personal / Cita</option>
+                            <option>Entrevista Laboral</option>
+                            <option>Mantenimiento (General)</option>
+                            <option>Entrega / Distribución</option>
+                            <option>Inspección (Interna/Externa)</option>
                         </select>
                     </div>
                     <div>
-                        <label for="brecha_detectada" class="block text-sm font-medium mb-1">Brecha Detectada</label>
-                        <select name="brecha_detectada" id="brecha_detectada" class="form-input">
-                            <option value="Ninguna">Ninguna</option>
-                            <option value="Brechas por personas">Brechas por personas</option>
-                            <option value="Brechas por procedimiento">Brechas por procedimiento</option>
-                            <option value="Brechas por tecnología / equipos">Brechas por tecnología / equipos</option>
-                            <option value="Brechas por seguridad física">Brechas por seguridad física</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="evidencia" class="block text-sm font-medium mb-1">Evidencia (CCTV, reporte)</label>
-                        <input type="text" name="evidencia" id="evidencia" class="form-input">
-                    </div>
-                    <div>
-                        <label for="responsable_del_control" class="block text-sm font-medium mb-1">Responsable del Control</label>
-                        <input type="text" name="responsable_del_control" id="responsable_del_control" class="form-input">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="observaciones" class="block text-sm font-medium mb-1">Observaciones</label>
-                        <textarea name="observaciones" id="observaciones" rows="3" class="form-input"></textarea>
+                        <label for="personal_area_visitar" class="form-label">Personal/Área a Visitar <span class="text-red-400">*</span></label>
+                        <input type="text" name="personal_area_visitar" id="personal_area_visitar" class="form-input" placeholder="Nombre de la persona o área" required>
                     </div>
                 </div>
             </div>
 
-            <div id="seguimiento_brechas" class="form-section hidden">
-                <h2 class="text-xl font-bold mb-4">3. Seguimiento de Brechas Detectadas</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div id="brecha_personas_container" class="hidden md:col-span-2">
-                        <label for="brecha_por_personas" class="block text-sm font-medium mb-1">Detalle de Brecha (Personas)</label>
-                        <select name="brecha_por_personas" id="brecha_por_personas" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Usuario sin carné o credencial vigente.</option>
-                            <option>Visitante sin autorización previa.</option>
-                            <option>Intento de ingreso con documento falso.</option>
-                            <option>Ingreso sin registrarse en la bitácora.</option>
-                            <option>Personal sin capacitación en protocolos de acceso.</option>
-                        </select>
-                    </div>
-                    <div id="brecha_procedimiento_container" class="hidden md:col-span-2">
-                        <label for="brecha_por_procedimiento" class="block text-sm font-medium mb-1">Detalle de Brecha (Procedimiento)</label>
-                        <select name="brecha_por_procedimiento" id="brecha_por_procedimiento" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Puerta/torniquete dejado abierto.</option>
-                            <option>Vehículo ingresa sin revisión.</option>
-                            <option>Falta de verificación de objetos o paquetes.</option>
-                            <option>No se registró placa de vehículo en el sistema.</option>
-                            <option>Acceso sin pasar por detector de metales / escáner.</option>
-                        </select>
-                    </div>
-                    <div id="brecha_tecnologia_container" class="hidden md:col-span-2">
-                        <label for="brecha_por_tecnologia_equipos" class="block text-sm font-medium mb-1">Detalle de Brecha (Tecnología)</label>
-                        <select name="brecha_por_tecnologia_equipos" id="brecha_por_tecnologia_equipos" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Lector biométrico fuera de servicio.</option>
-                            <option>Cámara de CCTV sin grabación en el punto de acceso.</option>
-                            <option>Tarjeta de proximidad clonada o dañada.</option>
-                            <option>Alarma de puerta forzada desactivada.</option>
-                        </select>
-                    </div>
-                    <div id="brecha_fisica_container" class="hidden md:col-span-2">
-                        <label for="brecha_por_seguridad_fisica" class="block text-sm font-medium mb-1">Detalle de Brecha (Seguridad Física)</label>
-                        <select name="brecha_por_seguridad_fisica" id="brecha_por_seguridad_fisica" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Portón quedó abierto más de X minutos.</option>
-                            <option>Vidrio roto en puerta de acceso.</option>
-                            <option>Candado ausente en acceso restringido.</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="accion_inmediata_tomada" class="block text-sm font-medium mb-1">Acción Inmediata Tomada</label>
-                        <textarea name="accion_inmediata_tomada" id="accion_inmediata_tomada" rows="3" class="form-input"></textarea>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="accion_correctiva_recomendada" class="block text-sm font-medium mb-1">Acción Correctiva Recomendada</label>
-                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="3" class="form-input"></textarea>
-                    </div>
-                    <div>
-                        <label for="responsable_asignado" class="block text-sm font-medium mb-1">Responsable Asignado</label>
-                        <input type="text" name="responsable_asignado" id="responsable_asignado" class="form-input">
-                    </div>
-                    <div>
-                        <label for="fecha_limite_de_cierre" class="block text-sm font-medium mb-1">Fecha Límite de Cierre</label>
-                        <input type="date" name="fecha_limite_de_cierre" id="fecha_limite_de_cierre" class="form-input">
-                    </div>
-                    <div>
-                        <label for="estado" class="block text-sm font-medium mb-1">Estado</label>
-                        <select name="estado" id="estado" class="form-input">
-                            <option value="">Seleccione...</option>
-                            <option>Pendiente</option>
-                            <option>En proceso</option>
-                            <option>Cerrado</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
+            <!-- Section 3: Verificación de Protocolo -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Firma de Cierre</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificación de Protocolo (Cumplimiento de Seguridad)</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="nombre_cierre" class="block text-sm font-medium mb-1">Nombre de Quien Cierra</label>
-                        <input type="text" name="nombre_cierre" id="nombre_cierre" class="form-input">
+                        <label for="documento_verificado" class="form-label">Documento Verificado <span class="text-red-400">*</span></label>
+                        <select name="documento_verificado" id="documento_verificado" class="form-select" required>
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option>Cédula</option>
+                            <option>DNI</option>
+                            <option>Pasaporte</option>
+                            <option>Licencia Permiso (Conducción)</option>
+                            <option>Guía de Remisión</option>
+                            <option>Identificación Digital</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="protocolo_revision" class="form-label">Protocolo de Revisión <span class="text-red-400">*</span></label>
+                        <select name="protocolo_revision" id="protocolo_revision" class="form-select" required>
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option>Revisión Completa (Persona/Vehículo)</option>
+                            <option>Solo Identificación</option>
+                            <option>Revisión de Objetos/Bolsos</option>
+                            <option>N/A (Solo Salida o No Requerido)</option>
+                        </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Firma de Cierre</label>
-                        <canvas id="signaturePadCierre" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clearSignatureCierre" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_cierre" id="firma_cierre">
+                        <label for="novedades_revision" class="form-label">Novedades de la Revisión</label>
+                        <textarea name="novedades_revision" id="novedades_revision" rows="3" class="form-textarea" placeholder="Describa cualquier novedad encontrada durante la revisión..."></textarea>
                     </div>
                 </div>
             </div>
 
-            <div class="flex justify-end pt-4">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
-                    Enviar Reporte
+            <!-- Section 4: Registro de Tiempos y Cierre -->
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Registro de Tiempos y Cierre</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="hora_ingreso" class="form-label">Hora de Ingreso <span class="text-red-400">*</span></label>
+                        <input type="time" name="hora_ingreso" id="hora_ingreso" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="hora_salida" class="form-label">Hora de Salida</label>
+                        <input type="time" name="hora_salida" id="hora_salida" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="form-label">Firma Agente de Seguridad de Ingreso <span class="text-red-400">*</span></label>
+                        <canvas id="firma-ingreso-pad" class="signature-pad"></canvas>
+                        <button type="button" onclick="ingresoPad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_agente_ingreso" id="firma_agente_ingreso">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="form-label">Firma Agente de Seguridad de Salida</label>
+                        <canvas id="firma-salida-pad" class="signature-pad"></canvas>
+                        <button type="button" onclick="salidaPad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_agente_salida" id="firma_agente_salida">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
+                    Enviar Registro
                 </button>
             </div>
         </form>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
-        // Theme toggle elements
-        const themeToggle = document.getElementById('themeToggle');
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        const lightModeIcon = document.getElementById('lightModeIcon');
+        let responsablePad, ingresoPad, salidaPad;
 
-        // Theme management
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
-            if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
-                setLightMode();
-            } else {
-                setDarkMode();
-            }
-        }
-
-        function setDarkMode() {
-            document.body.classList.remove('light-mode');
-            darkModeIcon.style.display = 'block';
-            lightModeIcon.style.display = 'none';
-            localStorage.setItem('theme', 'dark');
-        }
-
-        function setLightMode() {
-            document.body.classList.add('light-mode');
-            darkModeIcon.style.display = 'none';
-            lightModeIcon.style.display = 'block';
-            localStorage.setItem('theme', 'light');
-        }
-
-        function toggleTheme() {
-            if (document.body.classList.contains('light-mode')) {
-                setDarkMode();
-            } else {
-                setLightMode();
-            }
-        }
-        
         document.addEventListener('DOMContentLoaded', function () {
-            initializeTheme();
-            
-            if (themeToggle) {
-                themeToggle.addEventListener('click', toggleTheme);
+            // Theme Toggle Logic
+            const themeToggle = document.getElementById('themeToggle');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const lightModeIcon = document.getElementById('lightModeIcon');
+
+            function initializeTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) setLightMode(); else setDarkMode();
             }
-            // Signature Pad 1 (Responsable)
-            const canvas1 = document.getElementById('signaturePadResponsable');
-            const signaturePad1 = new SignaturePad(canvas1);
-            const clearButton1 = document.getElementById('clearSignatureResponsable');
-            const hiddenInput1 = document.getElementById('firma_responsable');
+            function setDarkMode() {
+                document.body.classList.remove('light-mode');
+                darkModeIcon.style.display = 'block'; lightModeIcon.style.display = 'none';
+                localStorage.setItem('theme', 'dark');
+            }
+            function setLightMode() {
+                document.body.classList.add('light-mode');
+                darkModeIcon.style.display = 'none'; lightModeIcon.style.display = 'block';
+                localStorage.setItem('theme', 'light');
+            }
+            initializeTheme();
+            if (themeToggle) themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
 
-            // Signature Pad 2 (Cierre)
-            const canvas2 = document.getElementById('signaturePadCierre');
-            const signaturePad2 = new SignaturePad(canvas2);
-            const clearButton2 = document.getElementById('clearSignatureCierre');
-            const hiddenInput2 = document.getElementById('firma_cierre');
-
-            clearButton1.addEventListener('click', () => {
-                signaturePad1.clear();
-            });
-
-            clearButton2.addEventListener('click', () => {
-                signaturePad2.clear();
-            });
-
-            const form = document.getElementById('controlAccesoForm');
-            form.addEventListener('submit', (event) => {
-                if (!signaturePad1.isEmpty()) {
-                    hiddenInput1.value = signaturePad1.toDataURL();
-                }
-                if (!signaturePad2.isEmpty()) {
-                    hiddenInput2.value = signaturePad2.toDataURL();
-                }
-            });
-
-            // Conditional Fields Logic
-            const brechaDetectadaSelect = document.getElementById('brecha_detectada');
-            const seguimientoBrechasFieldset = document.getElementById('seguimiento_brechas');
+            // Set current date and time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
             
-            const brechaContainers = {
-                'Brechas por personas': document.getElementById('brecha_personas_container'),
-                'Brechas por procedimiento': document.getElementById('brecha_procedimiento_container'),
-                'Brechas por tecnología / equipos': document.getElementById('brecha_tecnologia_container'),
-                'Brechas por seguridad física': document.getElementById('brecha_fisica_container')
-            };
+            // Set current time for hora_ingreso
+            const currentTime = now.toTimeString().slice(0, 5);
+            document.getElementById('hora_ingreso').value = currentTime;
 
-            brechaDetectadaSelect.addEventListener('change', function () {
-                const selectedValue = this.value;
+            // Initialize signature pads
+            const canvas1 = document.getElementById('firma-responsable-pad');
+            const canvas2 = document.getElementById('firma-ingreso-pad');
+            const canvas3 = document.getElementById('firma-salida-pad');
+            
+            responsablePad = new SignaturePad(canvas1, { penColor: 'rgb(0, 0, 0)' });
+            ingresoPad = new SignaturePad(canvas2, { penColor: 'rgb(0, 0, 0)' });
+            salidaPad = new SignaturePad(canvas3, { penColor: 'rgb(0, 0, 0)' });
 
-                Object.values(brechaContainers).forEach(container => {
-                    if (container) container.classList.add('hidden');
-                });
-
-                if (selectedValue !== 'Ninguna') {
-                    seguimientoBrechasFieldset.classList.remove('hidden');
-                    if (brechaContainers[selectedValue]) {
-                        brechaContainers[selectedValue].classList.remove('hidden');
-                    }
-                } else {
-                    seguimientoBrechasFieldset.classList.add('hidden');
+            // Form submission
+            const form = document.getElementById('controlAccesoForm');
+            form.addEventListener('submit', function(event) {
+                // Validate required signature for ingreso
+                if (ingresoPad.isEmpty()) {
+                    event.preventDefault();
+                    alert('Por favor, firme el campo "Firma Agente de Seguridad de Ingreso"');
+                    return false;
+                }
+                
+                if (!responsablePad.isEmpty()) {
+                    document.getElementById('firma_responsable').value = responsablePad.toDataURL();
+                }
+                if (!ingresoPad.isEmpty()) {
+                    document.getElementById('firma_agente_ingreso').value = ingresoPad.toDataURL();
+                }
+                if (!salidaPad.isEmpty()) {
+                    document.getElementById('firma_agente_salida').value = salidaPad.toDataURL();
                 }
             });
-            brechaDetectadaSelect.dispatchEvent(new Event('change'));
         });
     </script>
 </body>
