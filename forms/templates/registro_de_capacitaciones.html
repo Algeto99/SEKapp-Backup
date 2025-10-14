@@ -24,25 +24,21 @@
             border-radius: 8px;
             padding: 2rem;
             margin-bottom: 2rem;
-            border: 1px solid #4a5568;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .form-input, .form-select, .form-textarea {
             background-color: #4a5568;
             border: 1px solid #718096;
             color: #e2e8f0;
-            border-radius: 4px;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
             width: 100%;
-            padding: 0.75rem;
-            transition: all 0.2s ease-in-out;
-        }
-        .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-        .form-input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
+            transition: all 0.2s ease;
         }
         .form-input:focus, .form-select:focus, .form-textarea:focus {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
-            border-color: #3b82f6;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
         }
         .signature-pad {
             border: 2px dashed #4a5568;
@@ -50,6 +46,13 @@
             background-color: white;
             width: 100%;
             height: 150px;
+        }
+        .attendee-block {
+            background-color: #4a5568;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #718096;
         }
         .header-nav {
             position: fixed; top: 0; left: 0; right: 0;
@@ -62,82 +65,63 @@
         .nav-content {
             max-width: 1200px; margin: 0 auto; display: flex;
             justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 1rem;
         }
         .nav-links {
-            display: flex; align-items: center; gap: 1.5rem;
+            display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
         }
         .nav-link {
             color: #60a5fa; text-decoration: none; font-size: 0.875rem;
+            transition: all 0.2s;
         }
-        .nav-link:hover {
-            color: #93c5fd; text-decoration: underline;
-        }
-        .user-greeting {
-            font-size: 0.875rem; color: #9ca3af;
-        }
-        .user-name {
-            color: #60a5fa; font-weight: bold;
-        }
-        .admin-badge {
-            color: #a855f7; font-weight: bold;
-        }
+        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
+        .user-greeting { font-size: 0.875rem; color: #9ca3af; }
+        .user-name { color: #60a5fa; font-weight: bold; }
+        .admin-badge { color: #a855f7; font-weight: bold; }
         .theme-toggle {
             position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100;
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 0.5rem; padding: 0.5rem; cursor: pointer;
+            transition: all 0.2s ease-in-out; color: #e2e8f0;
         }
-        .theme-toggle:hover {
-             background-color: rgba(255, 255, 255, 0.2);
-        }
-        .theme-toggle svg {
-            width: 1.5rem; height: 1.5rem;
-        }
-        body.light-mode {
-            background-color: #f8f9fa; color: #343a40;
-        }
-        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode .text-white {
-            color: #212529;
-        }
-        body.light-mode .form-section {
-            background-color: #ffffff; border: 1px solid #dee2e6;
+        .theme-toggle:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+        .theme-toggle svg { width: 1.5rem; height: 1.5rem; }
+        body.light-mode { background-color: #f8f9fa; color: #343a40; }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3 { color: #212529; }
+        body.light-mode .form-section, body.light-mode .attendee-block {
+            background-color: #ffffff; border: 1px solid #e2e8f0;
         }
         body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea {
             background-color: #f1f3f5; border-color: #ced4da; color: #495057;
         }
-        body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-        body.light-mode .form-input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: none;
-        }
-        body.light-mode .header-nav {
-            background-color: rgba(255, 255, 255, 0.95);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-        }
+        body.light-mode .header-nav { background-color: rgba(255, 255, 255, 0.95); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
+        body.light-mode .user-greeting { color: #4a5568; }
         body.light-mode .theme-toggle {
-            background-color: rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(0, 0, 0, 0.2);
+            background-color: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2);
             color: #374151;
+        }
+        body.light-mode .theme-toggle:hover { background-color: rgba(0, 0, 0, 0.2); }
+        @media (max-width: 768px) {
+            .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            body { padding-top: 120px; }
         }
     </style>
 </head>
 <body>
-
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
-        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="text-white">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;" class="text-gray-800">
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
-
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
                 Bienvenido, <span class="user-name">{{ name }}</span>
-                {% if is_admin %}
-                    <span class="admin-badge">(Admin)</span>
-                {% endif %}
+                {% if is_admin %}<span class="admin-badge">(Admin)</span>{% endif %}
             </div>
             <div class="nav-links">
                 <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
@@ -148,119 +132,53 @@
             </div>
         </div>
     </div>
-
-    <div class="container mx-auto px-4 pb-8 max-w-4xl">
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-white mt-4">Planilla de Control de Formación</h1>
+            <h1 class="text-3xl font-bold">Planilla de Control de Formación de Personal</h1>
         </header>
-
-        <form id="capacitacionForm" action="{{ url_for('submit_registro_de_capacitaciones') }}" method="POST" class="space-y-6">
-            
+        <form id="capacitacionForm" action="{{ url_for('submit_registro_de_capacitaciones') }}" method="POST">
             <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">1. Información General</h2>
+                <h2 class="text-xl font-bold mb-4">1. Datos de la Capacitación</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
-                        <input type="text" id="cliente_instalacion" name="cliente_instalacion" class="form-input">
+                        <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>
+                        <input type="date" name="fecha" id="fecha" class="form-input" required>
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" id="puesto_area_especifica" name="puesto_area_especifica" class="form-input">
-                    </div>
-                    <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" id="fecha_hora" name="fecha_hora" required class="form-input">
-                    </div>
-                    <div>
-                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador / Responsable</label>
-                        <select id="rol_aplicador" name="rol_aplicador" required class="form-input">
-                            <option value="" disabled selected>Seleccione un rol</option>
-                            <option>Agente de seguridad</option>
-                            <option>Supervisor/Inspector</option>
-                            <option>Analista de Calidad</option>
-                            <option>Jefe de Seguridad</option>
-                            <option>Cliente</option>
-                            <option>Locatario</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
-                        <select id="turno" name="turno" required class="form-input">
-                            <option value="" disabled selected>Seleccione un turno</option>
-                            <option>Mañana</option>
-                            <option>Tarde</option>
-                            <option>Noche</option>
-                            <option>24 Horas</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del Responsable</label>
-                        <input type="text" id="nombre_responsable" name="nombre_responsable" value="{{ name }}" class="form-input">
+                        <label for="hora_inicio" class="block text-sm font-medium mb-1">Hora de Inicio</label>
+                        <input type="time" name="hora_inicio" id="hora_inicio" class="form-input" required>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="nombre_capacitacion" class="block text-sm font-medium mb-1">Nombre de la Capacitación</label>
-                        <input type="text" id="nombre_capacitacion" name="nombre_capacitacion" required class="form-input">
+                        <label for="tema_capacitacion" class="block text-sm font-medium mb-1">Tema de la Capacitación</label>
+                        <input type="text" name="tema_capacitacion" id="tema_capacitacion" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del Responsable/Capacitador</label>
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" value="{{ name }}" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="cargo_responsable" class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="cargo_responsable" id="cargo_responsable" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-1">Firma del Responsable</label>
-                        <canvas id="firma-responsable-pad" class="signature-pad"></canvas>
-                        <button type="button" onclick="responsablePad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <label for="firma_responsable" class="block text-sm font-medium mb-2">Firma del Responsable</label>
+                        <canvas id="firma-responsable-pad" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clear-responsable" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                 </div>
             </div>
-
             <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">2. Objetivo de la Capacitación</h2>
-                <textarea name="objetivo_capacitacion" rows="4" class="form-textarea" placeholder="Describa el objetivo principal de esta formación..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">3. Lista de Asistencia</h2>
-                <div id="lista-asistencia-container" class="space-y-6">
-                    <!-- Attendee rows will be injected here by JavaScript -->
-                </div>
-                <button type="button" id="add-attendee" class="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-300">
-                    Añadir Participante
+                <h2 class="text-xl font-bold mb-4">2. Lista de Asistencia</h2>
+                <div id="attendees-container"></div>
+                <button type="button" id="add-attendee" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                    + Agregar Asistente
                 </button>
                 <input type="hidden" name="lista_asistencia" id="lista_asistencia">
             </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">4. Observaciones / Retroalimentación</h2>
-                <textarea name="observaciones_retroalimentacion" rows="4" class="form-textarea" placeholder="Anote cualquier observación o retroalimentación recibida..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-2xl font-semibold text-white border-b border-gray-600 pb-4 mb-6">5. Evaluación de la Capacitación</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="practica_simulacro_realizado" class="block text-sm font-medium mb-1">Práctica / Simulacro Realizado</label>
-                        <select name="practica_simulacro_realizado" required class="form-input">
-                            <option value="" disabled selected>Seleccione una opción</option>
-                            <option>Sí</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="nivel_comprension" class="block text-sm font-medium mb-1">Nivel de Comprensión</label>
-                        <select name="nivel_comprension" required class="form-input">
-                            <option value="" disabled selected>Seleccione un nivel</option>
-                            <option>Alto</option>
-                            <option>Medio</option>
-                            <option>Bajo</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="recomendaciones" class="block text-sm font-medium mb-1">Recomendaciones</label>
-                        <textarea name="recomendaciones" rows="3" class="form-textarea" placeholder="Anote las recomendaciones para futuras capacitaciones..."></textarea>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mt-8 flex justify-end items-center">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
-                    Enviar Planilla
+            <div class="flex justify-end pt-4">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+                    Enviar Registro
                 </button>
             </div>
         </form>
@@ -268,20 +186,29 @@
 
     <script>
         let responsablePad;
-        const attendeePads = [];
+        let attendeePads = [];
+        let attendeeCounter = 0;
 
-        document.addEventListener('DOMContentLoaded', function () {
+        function resizeCanvas(canvas, pad) {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            if (pad) {
+                pad.clear(); // Re-clears the canvas after resizing
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
             // Theme Toggle Logic
             const themeToggle = document.getElementById('themeToggle');
             const darkModeIcon = document.getElementById('darkModeIcon');
             const lightModeIcon = document.getElementById('lightModeIcon');
 
             function initializeTheme() {
-                if (localStorage.getItem('theme') === 'light') {
-                    setLightMode();
-                } else {
-                    setDarkMode();
-                }
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) setLightMode(); else setDarkMode();
             }
             function setDarkMode() {
                 document.body.classList.remove('light-mode');
@@ -295,61 +222,64 @@
                 if(lightModeIcon) lightModeIcon.style.display = 'block';
                 localStorage.setItem('theme', 'light');
             }
+            if (themeToggle) themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+            
             initializeTheme();
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
-            }
-
-            // Set current date and time
-            const now = new Date();
-            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
             // Main signature pad
             const responsableCanvas = document.getElementById('firma-responsable-pad');
-            responsablePad = new SignaturePad(responsableCanvas, { penColor: 'rgb(0, 0, 0)' });
+            responsablePad = new SignaturePad(responsableCanvas);
+            resizeCanvas(responsableCanvas, responsablePad);
+            document.getElementById('clear-responsable').addEventListener('click', () => responsablePad.clear());
 
-            // Dynamic attendees
-            const container = document.getElementById('lista-asistencia-container');
-            const addButton = document.getElementById('add-attendee');
-            let attendeeCounter = 0;
+            const container = document.getElementById('attendees-container');
+            const addAttendeeBtn = document.getElementById('add-attendee');
 
             function addAttendee() {
-                attendeeCounter++;
-                const attendeeId = `attendee-${attendeeCounter}`;
-                
-                const attendeeHTML = `
-                    <div id="${attendeeId}" class="attendee-block border-t border-gray-600 pt-6">
-                        <h3 class="text-lg font-semibold text-gray-300 mb-4">Participante ${attendeeCounter}</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Nombre Completo</label>
-                                <input type="text" data-field="nombre" class="form-input">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Cargo / Puesto</label>
-                                <input type="text" data-field="cargo" class="form-input">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium mb-1">Documento de Identidad</label>
-                                <input type="text" data-field="documento" class="form-input">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium mb-1">Firma</label>
-                                <canvas id="canvas-${attendeeId}" class="signature-pad"></canvas>
-                                <button type="button" onclick="clearAttendeePad(${attendeeCounter-1})" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                            </div>
+                const index = attendeeCounter++;
+                const block = document.createElement('div');
+                block.className = 'attendee-block';
+                block.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
+                            <input type="text" data-field="nombre" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Cargo</label>
+                            <input type="text" data-field="cargo" class="form-input">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-1">Documento</label>
+                            <input type="text" data-field="documento" class="form-input">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-2">Firma</label>
+                            <canvas class="signature-pad w-full h-48"></canvas>
+                            <button type="button" onclick="clearAttendeePad(${index})" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         </div>
                     </div>
                 `;
-                container.insertAdjacentHTML('beforeend', attendeeHTML);
+                container.appendChild(block);
                 
-                const canvas = document.getElementById(`canvas-${attendeeId}`);
-                const newPad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)' });
-                attendeePads.push(newPad);
+                const canvas = block.querySelector('.signature-pad');
+                const newPad = new SignaturePad(canvas);
+                attendeePads[index] = newPad;
+                resizeCanvas(canvas, newPad); // Resize the new canvas
             }
 
-            addButton.addEventListener('click', addAttendee);
+            window.addEventListener('resize', () => {
+                resizeCanvas(responsableCanvas, responsablePad);
+                attendeePads.forEach((pad, index) => {
+                    const attendeeBlock = container.querySelectorAll('.attendee-block')[index];
+                    if (attendeeBlock) {
+                        const canvas = attendeeBlock.querySelector('.signature-pad');
+                        resizeCanvas(canvas, pad);
+                    }
+                });
+            });
+
+            addAttendeeBtn.addEventListener('click', addAttendee);
             addAttendee(); // Add the first attendee by default
 
             // Form Submission
