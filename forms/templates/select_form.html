@@ -335,52 +335,56 @@
         <p class="text-gray-400 mb-8">Elija el formulario que desea completar.</p>
 
         <div class="text-left">
-            <a href="/reporte_incidencia" class="form-button">
-                <h3>Reporte de Incidencia</h3>
-                <p>Para registrar hurtos, olvidos, recuperaciones y otros incidentes de seguridad.</p>
-            </a>
-            
-            <a href="/control_accesos" class="form-button">
-                <h3>Registro de Acceso y Salida</h3>
-                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
-            </a>
-            
-            <a href="/orden_mantenimiento" class="form-button">
-                <h3>Orden de Servicio de Mantenimiento</h3>
-                <p>Para registrar el mantenimiento de equipos de seguridad y gestionar alertas.</p>
-            </a>
-
             <a href="/medicion_experiencia_cliente" class="form-button">
                 <h3>Medición de Experiencia del Cliente</h3>
                 <p>Para medir la percepción y satisfacción del cliente con el servicio de seguridad.</p>
             </a>
 
-            <a href="/supervision_puesto" class="form-button">
-                <h3>Supervisión de Puesto y Control Vehicular</h3>
-                <p>Para que los supervisores evalúen el estado y desempeño de los puestos de seguridad y vehículos.</p>
-            </a>
             <a href="/informe_novedades_disciplinario" class="form-button">
-                <h3>Informe de Novedades y Disciplinario</h3>
+                <h3>Informe de Novedades y Reporte Disciplinario de Personal</h3>
                 <p>Para reportar novedades y faltas disciplinarias de los empleados.</p>
             </a>
-            <a href="/log_de_patrullas" class="form-button">
-                <h3>Log de Patrullas</h3>
-                <p>Para registrar las rondas de seguridad y las novedades encontradas.</p>
+
+            <a href="/control_accesos" class="form-button">
+                <h3>Planilla de Control de Acceso y Gestión de Brechas</h3>
+                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
             </a>
-            <a href="/registro_de_capacitaciones" class="form-button">
-                <h3>Registro de Capacitaciones</h3>
-                <p>Para registrar la asistencia y los detalles de las capacitaciones impartidas.</p>
+
+            <a href="/supervision_puesto" class="form-button">
+                <h3>Planilla de Supervisión de Puesto y Control Vehicular</h3>
+                <p>Para que los supervisores evalúen el estado y desempeño de los puestos de seguridad y vehículos.</p>
             </a>
-            <a href="/registro_y_acta_de_visita" class="form-button">
-                <h3>Registro y Acta de Visita</h3>
-                <p>Para documentar las visitas a clientes y los acuerdos alcanzados.</p>
+
+            <a href="/orden_mantenimiento" class="form-button">
+                <h3>Orden de Servicio de Mantenimiento de Seguridad y Gestión de Alertas</h3>
+                <p>Para registrar el mantenimiento de equipos de seguridad y gestionar alertas.</p>
             </a>
-            
+
             <a href="/planilla_de_rondas" class="form-button">
                 <h3>Planilla de Rondas y Patrullaje</h3>
                 <p>Registrar las rondas de patrullaje y los puntos de control.</p>
             </a>
 
+            <a href="/registro_y_acta_de_visita" class="form-button">
+                <h3>Acta de Visita al Cliente</h3>
+                <p>Para documentar las visitas a clientes y los acuerdos alcanzados.</p>
+            </a>
+
+            <a href="/registro_de_capacitaciones" class="form-button">
+                <h3>Planilla de Control de Formación de Personal</h3>
+                <p>Para registrar la asistencia y los detalles de las capacitaciones impartidas.</p>
+            </a>
+
+            <a href="/reporte_incidencia" class="form-button">
+                <h3>Reporte Único de Incidente</h3>
+                <p>Para registrar hurtos, olvidos, recuperaciones y otros incidentes de seguridad.</p>
+            </a>
+
+            <a href="/control_accesos" class="form-button">
+                <h3>Control de Acceso (Personal, Vehicular y Material)</h3>
+                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
+            </a>
+            
             <a href="/planilla_vehicular" class="form-button">
                 <h3>Planilla de Chequeo Pre-Operacional Vehicular</h3>
                 <p>Inspección completa de vehículos con diagrama interactivo para marcar daños y novedades.</p>
@@ -390,13 +394,7 @@
                 <h3>Planilla de Chequeo Pre-Operacional de Motocicletas</h3>
                 <p>Inspección completa de motocicletas con checklist detallado y control de flota.</p>
             </a>
-
-            <a href="{{ url_for('reporte_incidente_form') }}" class="form-button">
-                <h3>Reporte Único de Incidente</h3>
-                <p>Registrar un nuevo incidente de seguridad con seguimiento detallado.</p>
-            </a>
-
-            </div>
+        </div>
 
         <div class="mt-8">
             <a href="{{ landing_service_url }}" class="back-link">← Volver al Inicio</a>
