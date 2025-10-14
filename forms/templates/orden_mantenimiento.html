@@ -197,7 +197,6 @@
 
         <form id="mantenimientoForm" action="{{ url_for('submit_orden_mantenimiento') }}" method="POST" class="space-y-6">
             
-            <!-- Section 1: Datos Generales -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -267,7 +266,6 @@
                 </div>
             </div>
 
-            <!-- Section 2: Detalle del Servicio -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">2. Detalle del Servicio</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -316,7 +314,6 @@
                 </div>
             </div>
 
-            <!-- Section 3: Clasificación de Servicio -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">3. Clasificación de Servicio</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -351,7 +348,6 @@
                 </div>
             </div>
 
-            <!-- Section 4: Seguimiento de Alertas Críticas -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">4. Seguimiento de Alertas Críticas</h2>
                 <p class="text-sm text-gray-400 mb-4">Complete esta sección solo si se generó una alerta crítica.</p>
@@ -388,7 +384,6 @@
                 </div>
             </div>
 
-            <!-- Section 5: Firmas -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">5. Firmas</h2>
                 <div class="grid grid-cols-1 gap-6">
@@ -466,6 +461,26 @@
             const signaturePadSupervisor = new SignaturePad(canvasSupervisor);
             const clearButtonSupervisor = document.getElementById('clearSignatureSupervisor');
             const hiddenInputSupervisor = document.getElementById('firma_supervisor_seguridad');
+
+            function resizeCanvas(canvas) {
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                if(canvas.id === 'signaturePadTecnico') {
+                    signaturePadTecnico.clear();
+                } else if (canvas.id === 'signaturePadSupervisor') {
+                    signaturePadSupervisor.clear();
+                }
+            }
+
+            window.addEventListener("resize", function(){
+                resizeCanvas(canvasTecnico);
+                resizeCanvas(canvasSupervisor);
+            });
+            resizeCanvas(canvasTecnico);
+            resizeCanvas(canvasSupervisor);
+
 
             clearButtonTecnico.addEventListener('click', () => {
                 signaturePadTecnico.clear();
