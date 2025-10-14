@@ -50,12 +50,13 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
             border-color: #3b82f6;
         }
-
-        .signature-pad-container {
-            border: 1px solid #718096;
-            border-radius: 4px;
-            background-color: #ffffff;
-            position: relative;
+        
+        .signature-pad {
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            background-color: white;
+            width: 100%;
+            height: 150px;
         }
 
         label {
@@ -72,7 +73,7 @@
             text-decoration: underline;
         }
 
-        /* Header & Nav Styles from orden_mantenimiento.html */
+        /* Header & Nav Styles */
         .header-nav {
             position: fixed; top: 0; left: 0; right: 0;
             background-color: rgba(45, 55, 72, 0.95);
@@ -106,7 +107,7 @@
             color: #a855f7; font-weight: bold;
         }
 
-        /* Theme Toggle Styles from orden_mantenimiento.html */
+        /* Theme Toggle Styles */
         .theme-toggle {
             position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100;
             background-color: rgba(255, 255, 255, 0.1);
@@ -156,8 +157,10 @@
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
+        body.light-mode .signature-pad {
+            border-color: #d1d5db;
+        }
 
-        /* Responsive design */
         @media (max-width: 768px) {
             .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
             body { padding-top: 120px; }
@@ -200,7 +203,7 @@
             <h1 class="text-3xl font-bold text-white mt-4">Planilla de Rondas y Patrullaje</h1>
         </div>
 
-        <form action="/submit" method="post" id="mainForm">
+        <form action="{{ url_for('submit_planilla_de_rondas') }}" method="post" id="mainForm">
             <input type="hidden" name="form_type" value="planilla_de_rondas">
 
             <div class="form-section">
@@ -246,11 +249,9 @@
                     </div>
                     <div class="md:col-span-2">
                         <label>Firma del Responsable</label>
-                        <div class="signature-pad-container">
-                            <canvas id="firma_responsable_pad" class="w-full h-40"></canvas>
-                            <input type="hidden" name="firma_responsable" id="firma_responsable">
-                            <button type="button" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded" onclick="clearSignature('firma_responsable_pad')">Limpiar</button>
-                        </div>
+                        <canvas id="firma_responsable_pad" class="signature-pad w-full h-40"></canvas>
+                        <button type="button" id="clear_responsable" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                 </div>
             </div>
@@ -310,19 +311,15 @@
                     </div>
                     <div>
                         <label>Firma de Entrega de Ronda (al Supervisor)</label>
-                        <div class="signature-pad-container">
-                            <canvas id="firma_entrega_ronda_pad" class="w-full h-40"></canvas>
-                            <input type="hidden" name="firma_entrega_ronda" id="firma_entrega_ronda">
-                            <button type="button" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded" onclick="clearSignature('firma_entrega_ronda_pad')">Limpiar</button>
-                        </div>
+                        <canvas id="firma_entrega_ronda_pad" class="signature-pad w-full h-40"></canvas>
+                        <button type="button" id="clear_entrega" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_entrega_ronda" id="firma_entrega_ronda">
                     </div>
                      <div>
                         <label>Firma de Recepción (Supervisor)</label>
-                        <div class="signature-pad-container">
-                            <canvas id="firma_recepcion_supervisor_pad" class="w-full h-40"></canvas>
-                            <input type="hidden" name="firma_recepcion_supervisor" id="firma_recepcion_supervisor">
-                             <button type="button" class="absolute top-2 right-2 bg-gray-600 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded" onclick="clearSignature('firma_recepcion_supervisor_pad')">Limpiar</button>
-                        </div>
+                        <canvas id="firma_recepcion_supervisor_pad" class="signature-pad w-full h-40"></canvas>
+                        <button type="button" id="clear_recepcion" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                         <input type="hidden" name="firma_recepcion_supervisor" id="firma_recepcion_supervisor">
                     </div>
                 </div>
             </div>
@@ -338,78 +335,77 @@
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
-        // Signature Pad Logic
-        const signaturePads = {};
-        function resizeCanvas(canvas) {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = canvas.offsetWidth * ratio;
-            canvas.height = canvas.offsetHeight * ratio;
-            canvas.getContext("2d").scale(ratio, ratio);
-            const pad = signaturePads[canvas.id];
-            if (pad) {
-                pad.clear(); 
-            }
-        }
-        function initializeSignaturePads() {
-            const canvases = document.querySelectorAll('canvas[id$="_pad"]');
-            canvases.forEach(canvas => {
-                const signaturePad = new SignaturePad(canvas, { backgroundColor: 'rgb(255, 255, 255)' });
-                signaturePads[canvas.id] = signaturePad;
-                resizeCanvas(canvas);
-                const hiddenInputId = canvas.id.replace('_pad', '');
-                const hiddenInput = document.getElementById(hiddenInputId);
-                signaturePad.addEventListener("endStroke", () => {
-                    hiddenInput.value = signaturePad.isEmpty() ? '' : signaturePad.toDataURL();
-                });
-            });
-        }
-        function clearSignature(canvasId) {
-            const signaturePad = signaturePads[canvasId];
-            if (signaturePad) {
-                signaturePad.clear();
-                document.getElementById(canvasId.replace('_pad', '')).value = '';
-            }
-        }
-        window.addEventListener('resize', () => {
-             document.querySelectorAll('canvas[id$="_pad"]').forEach(resizeCanvas);
-        });
-        
-        // Theme Toggle Logic from orden_mantenimiento.html
-        const themeToggle = document.getElementById('themeToggle');
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        const lightModeIcon = document.getElementById('lightModeIcon');
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
-                setLightMode();
-            } else {
-                setDarkMode();
-            }
-        }
-        function setDarkMode() {
-            document.body.classList.remove('light-mode');
-            if(darkModeIcon) darkModeIcon.style.display = 'block';
-            if(lightModeIcon) lightModeIcon.style.display = 'none';
-            localStorage.setItem('theme', 'dark');
-        }
-        function setLightMode() {
-            document.body.classList.add('light-mode');
-            if(darkModeIcon) darkModeIcon.style.display = 'none';
-            if(lightModeIcon) lightModeIcon.style.display = 'block';
-            localStorage.setItem('theme', 'light');
-        }
-        function toggleTheme() {
-            document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode();
-        }
-        
-        // Initialize everything on DOMContentLoaded
         document.addEventListener('DOMContentLoaded', function() {
-            initializeSignaturePads();
-            initializeTheme();
-            if (themeToggle) {
-                themeToggle.addEventListener('click', toggleTheme);
+            // Theme Toggle Logic
+            const themeToggle = document.getElementById('themeToggle');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const lightModeIcon = document.getElementById('lightModeIcon');
+
+            function initializeTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+                    setLightMode();
+                } else {
+                    setDarkMode();
+                }
             }
+            function setDarkMode() {
+                document.body.classList.remove('light-mode');
+                if(darkModeIcon) darkModeIcon.style.display = 'block';
+                if(lightModeIcon) lightModeIcon.style.display = 'none';
+                localStorage.setItem('theme', 'dark');
+            }
+            function setLightMode() {
+                document.body.classList.add('light-mode');
+                if(darkModeIcon) darkModeIcon.style.display = 'none';
+                if(lightModeIcon) lightModeIcon.style.display = 'block';
+                localStorage.setItem('theme', 'light');
+            }
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+            }
+            
+            // Signature Pad Logic
+            const pads = {
+                responsable: { canvas: document.getElementById('firma_responsable_pad'), pad: null, clearBtn: document.getElementById('clear_responsable'), input: document.getElementById('firma_responsable') },
+                entrega: { canvas: document.getElementById('firma_entrega_ronda_pad'), pad: null, clearBtn: document.getElementById('clear_entrega'), input: document.getElementById('firma_entrega_ronda') },
+                recepcion: { canvas: document.getElementById('firma_recepcion_supervisor_pad'), pad: null, clearBtn: document.getElementById('clear_recepcion'), input: document.getElementById('firma_recepcion_supervisor') }
+            };
+
+            function resizeCanvas(canvas) {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+            }
+
+            for (const key in pads) {
+                const item = pads[key];
+                item.pad = new SignaturePad(item.canvas, { backgroundColor: 'rgb(255, 255, 255)' });
+                
+                function resizeAndClear() {
+                    resizeCanvas(item.canvas);
+                    item.pad.clear();
+                }
+
+                window.addEventListener('resize', resizeAndClear);
+                resizeAndClear();
+
+                item.clearBtn.addEventListener('click', () => item.pad.clear());
+            }
+
+            // Form Submission Logic
+            document.getElementById('mainForm').addEventListener('submit', function() {
+                for (const key in pads) {
+                    const item = pads[key];
+                    if (!item.pad.isEmpty()) {
+                        item.input.value = item.pad.toDataURL();
+                    }
+                }
+            });
+            
+            initializeTheme();
         });
     </script>
 </body>
