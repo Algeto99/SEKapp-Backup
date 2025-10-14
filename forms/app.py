@@ -2142,9 +2142,9 @@ def submit_control_accesos():
     user_email = get_jwt_identity()
     conn = None
     try:
-        # Get all form fields from the request including NEW vehicle and material fields
+        # Get all form fields from the request
         form_data = {
-            # Section 1: General Data
+            # Section 1: Datos Generales
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
             'fecha_hora': request.form.get('fecha_hora'),
@@ -2153,69 +2153,55 @@ def submit_control_accesos():
             'nombre_responsable': request.form.get('nombre_responsable'),
             'firma_responsable': request.form.get('firma_responsable'),
             
-            # Section 2: Person Information (NEW FIELDS)
-            'nombre_persona': request.form.get('nombre_persona'),
-            'documento_identidad': request.form.get('documento_identidad'),
-            'empresa_visitante': request.form.get('empresa_visitante'),
+            # Section 2: Resistor de accesos
             'rol_del_usuario': request.form.get('rol_del_usuario'),
-            
-            # Section 3: Access Control
             'accion': request.form.get('accion'),
             'motivo_de_ingreso': request.form.get('motivo_de_ingreso'),
-            'autorizacion': request.form.get('autorizacion'),
-            
-            # Section 4: Vehicle Control (NEW FIELDS)
-            'vehiculo_placa': request.form.get('vehiculo_placa'),
-            'vehiculo_marca': request.form.get('vehiculo_marca'),
-            'vehiculo_modelo': request.form.get('vehiculo_modelo'),
-            'vehiculo_color': request.form.get('vehiculo_color'),
-            
-            # Section 5: Material Control (NEW FIELDS)
-            'materiales_ingresados': request.form.get('materiales_ingresados'),
-            'materiales_salida': request.form.get('materiales_salida'),
-            
-            # Section 6: Breach Detection
-            'brecha_detectada': request.form.get('brecha_detectada'),
+            'brecha_por_procedimiento': request.form.get('brecha_por_procedimiento'),
             'evidencia': request.form.get('evidencia'),
             'responsable_del_control': request.form.get('responsable_del_control'),
             'observaciones': request.form.get('observaciones'),
             
-            # Section 7: Breach Follow-up (conditional)
-            'brecha_por_personas': request.form.get('brecha_por_personas'),
-            'brecha_por_procedimiento': request.form.get('brecha_por_procedimiento'),
-            'brecha_por_tecnologia_equipos': request.form.get('brecha_por_tecnologia_equipos'),
-            'brecha_por_seguridad_fisica': request.form.get('brecha_por_seguridad_fisica'),
+            # Section 3: Seguimiento de Brechas Detectadas
+            'brechas_por_personas': request.form.get('brechas_por_personas'),
+            'brechas_por_procedimiento_detalle': request.form.get('brechas_por_procedimiento_detalle'),
+            'brechas_por_tecnologia_equipos': request.form.get('brechas_por_tecnologia_equipos'),
+            'brechas_por_seguridad_fisica': request.form.get('brechas_por_seguridad_fisica'),
             'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),
             'accion_correctiva_recomendada': request.form.get('accion_correctiva_recomendada'),
             'responsable_asignado': request.form.get('responsable_asignado'),
             'fecha_limite_de_cierre': request.form.get('fecha_limite_de_cierre'),
             'estado': request.form.get('estado'),
             
-            # Section 8: Closure Signature
-            'nombre_cierre': request.form.get('nombre_cierre'),
-            'firma_cierre': request.form.get('firma_cierre'),
-            
             'submitted_by_email': user_email
         }
         
+        # Remove empty fields so they don't cause issues with data types
+        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
+
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Construct the SQL INSERT statement
+        # Dynamically build the query based on the fields that have data
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO control_accesos ({columns}) VALUES ({placeholders})"
         
-        # Execute the query
         cur.execute(sql, list(form_data.values()))
         
         conn.commit()
         cur.close()
 
-        flash('Reporte de Control de Accesos enviado exitosamente!', 'success')
+        flash('Registro de Control de Accesos enviado exitosamente!', 'success')
         app_logger.info(f"Control de Accesos report submitted successfully by {user_email}")
         return redirect(url_for('success'))
 
+    except psycopg2.Error as db_error:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Database error submitting control de accesos report: {db_error}", exc_info=True)
+        flash(f'Hubo un error en la base de datos: {db_error}', 'danger')
+        return redirect(url_for('control_accesos_form'))
     except Exception as e:
         if conn:
             conn.rollback()

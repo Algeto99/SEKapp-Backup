@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro de Acceso y Salida - SMT SecApp</title>
+    <title>Planilla de Control de Acceso y Gestión de Brechas - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -162,6 +162,9 @@
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
+        .hidden-section {
+            display: none;
+        }
         @media (max-width: 768px) {
             .nav-content {
                 flex-direction: column;
@@ -204,13 +207,12 @@
 
     <div class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold">Registro de Acceso y Salida</h1>
-            <p class="text-gray-400 mt-2">Control de acceso personal, vehicular y de proveedores</p>
+            <h1 class="text-3xl font-bold">Planilla de Control de Acceso y Gestión de Brechas</h1>
+            <p class="text-gray-400 mt-2">Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
         </div>
 
         <form id="controlAccesoForm" action="{{ url_for('submit_control_accesos') }}" method="POST">
 
-            <!-- Section 1: Datos Generales -->
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -261,99 +263,131 @@
                 </div>
             </div>
 
-            <!-- Section 2: Registro de Evento de Acceso -->
             <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Registro de Evento de Acceso</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Registro de accesos</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="tipo_acceso" class="form-label">Tipo de Acceso <span class="text-red-400">*</span></label>
-                        <select name="tipo_acceso" id="tipo_acceso" class="form-select" required>
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Personal (Visita)</option>
-                            <option>Personal (Contratista)</option>
-                            <option>Vehicular</option>
-                            <option>Proveedor (Mercancía)</option>
-                            <option>Servicio Técnico</option>
+                        <label for="rol_del_usuario" class="form-label">Rol del Usuario</label>
+                        <select name="rol_del_usuario" id="rol_del_usuario" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Empleado</option>
+                            <option>Cliente</option>
+                            <option>Visitante</option>
+                            <option>Proveedor</option>
+                            <option>Contratista</option>
                         </select>
                     </div>
                     <div>
-                        <label for="identificacion" class="form-label">Identificación <span class="text-red-400">*</span></label>
-                        <input type="text" name="identificacion" id="identificacion" class="form-input" placeholder="Ingrese número de identificación" required>
+                        <label for="accion" class="form-label">Acción</label>
+                        <select name="accion" id="accion" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Entrada</option>
+                            <option>Salida</option>
+                            <option>Denegado</option>
+                        </select>
                     </div>
+                    <div class="md:col-span-2">
+                        <label for="motivo_de_ingreso" class="form-label">Motivo de Ingreso</label>
+                        <input type="text" name="motivo_de_ingreso" id="motivo_de_ingreso" class="form-input">
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold mt-8 mb-4 border-b border-gray-600 pb-2">Brecha Detectada</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="motivo_acceso" class="form-label">Motivo del Acceso <span class="text-red-400">*</span></label>
-                        <select name="motivo_acceso" id="motivo_acceso" class="form-select" required>
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Visita Personal / Cita</option>
-                            <option>Entrevista Laboral</option>
-                            <option>Mantenimiento (General)</option>
-                            <option>Entrega / Distribución</option>
-                            <option>Inspección (Interna/Externa)</option>
+                        <label for="brecha_por_procedimiento" class="form-label">Brecha por Procedimiento</label>
+                        <select name="brecha_por_procedimiento" id="brecha_por_procedimiento" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="">Ninguna</option>
+                            <option value="Brechas por personas">Brechas por personas</option>
+                            <option value="Brechas por procedimiento">Brechas por procedimiento</option>
+                            <option value="Brechas por tecnología / equipos">Brechas por tecnología / equipos</option>
+                            <option value="Brechas por seguridad física">Brechas por seguridad física</option>
                         </select>
                     </div>
                     <div>
-                        <label for="personal_area_visitar" class="form-label">Personal/Área a Visitar <span class="text-red-400">*</span></label>
-                        <input type="text" name="personal_area_visitar" id="personal_area_visitar" class="form-input" placeholder="Nombre de la persona o área" required>
+                        <label for="evidencia" class="form-label">Evidencia (CCTV, reporte)</label>
+                        <input type="text" name="evidencia" id="evidencia" class="form-input">
+                    </div>
+                    <div>
+                        <label for="responsable_del_control" class="form-label">Responsable del control</label>
+                        <input type="text" name="responsable_del_control" id="responsable_del_control" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="observaciones" class="form-label">Observaciones</label>
+                        <textarea name="observaciones" id="observaciones" rows="3" class="form-textarea"></textarea>
                     </div>
                 </div>
             </div>
 
-            <!-- Section 3: Verificación de Protocolo -->
-            <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificación de Protocolo (Cumplimiento de Seguridad)</h2>
+            <div id="seguimiento-section" class="form-section hidden-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Seguimiento de Brechas Detectadas</h2>
+                <h3 class="text-xl font-bold mb-4">Brecha de seguridad</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="documento_verificado" class="form-label">Documento Verificado <span class="text-red-400">*</span></label>
-                        <select name="documento_verificado" id="documento_verificado" class="form-select" required>
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Cédula</option>
-                            <option>DNI</option>
-                            <option>Pasaporte</option>
-                            <option>Licencia Permiso (Conducción)</option>
-                            <option>Guía de Remisión</option>
-                            <option>Identificación Digital</option>
+                    <div id="brechas_por_personas_wrapper" class="hidden-section md:col-span-2">
+                        <label for="brechas_por_personas" class="form-label">Brechas por personas</label>
+                        <select name="brechas_por_personas" id="brechas_por_personas" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Usuario sin carne o credencial vigente</option>
+                            <option>Visitante sin autorización previa</option>
+                            <option>Intento de ingreso con documento falso</option>
+                            <option>Ingreso sin registrarse en la bitácora</option>
+                            <option>Personal sin capacitación en protocolos de acceso</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="protocolo_revision" class="form-label">Protocolo de Revisión <span class="text-red-400">*</span></label>
-                        <select name="protocolo_revision" id="protocolo_revision" class="form-select" required>
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Revisión Completa (Persona/Vehículo)</option>
-                            <option>Solo Identificación</option>
-                            <option>Revisión de Objetos/Bolsos</option>
-                            <option>N/A (Solo Salida o No Requerido)</option>
+                    <div id="brechas_por_procedimiento_wrapper" class="hidden-section md:col-span-2">
+                        <label for="brechas_por_procedimiento_detalle" class="form-label">Brechas por procedimiento</label>
+                        <select name="brechas_por_procedimiento_detalle" id="brechas_por_procedimiento_detalle" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Puerta/torniquete dejado abierto</option>
+                            <option>Vehículo ingresa sin revision</option>
+                            <option>Falta de verificación de objetos o paquetes</option>
+                            <option>No se registro placa de vehículo en el sistema</option>
+                            <option>Acceso sin pasar por detector de metales / escáner</option>
+                        </select>
+                    </div>
+                    <div id="brechas_por_tecnologia_equipos_wrapper" class="hidden-section md:col-span-2">
+                        <label for="brechas_por_tecnologia_equipos" class="form-label">Brechas por tecnología / equipos</label>
+                        <select name="brechas_por_tecnologia_equipos" id="brechas_por_tecnologia_equipos" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Lector biométrico fuera de servicio</option>
+                            <option>Camara de CCTV sin grabación en el punto de acceso</option>
+                            <option>Tarjeta de proximidad clorada o dañada</option>
+                            <option>Alarma de puerta forzada desactivada</option>
+                        </select>
+                    </div>
+                    <div id="brechas_por_seguridad_fisica_wrapper" class="hidden-section md:col-span-2">
+                        <label for="brechas_por_seguridad_fisica" class="form-label">Brecha por seguridad física</label>
+                        <select name="brechas_por_seguridad_fisica" id="brechas_por_seguridad_fisica" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Porton quedo abierto mas de X minutos</option>
+                            <option>Vidrio roto en puerta de acceso</option>
+                            <option>Candado ausente en acceso restringido</option>
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="novedades_revision" class="form-label">Novedades de la Revisión</label>
-                        <textarea name="novedades_revision" id="novedades_revision" rows="3" class="form-textarea" placeholder="Describa cualquier novedad encontrada durante la revisión..."></textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section 4: Registro de Tiempos y Cierre -->
-            <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Registro de Tiempos y Cierre</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="hora_ingreso" class="form-label">Hora de Ingreso <span class="text-red-400">*</span></label>
-                        <input type="time" name="hora_ingreso" id="hora_ingreso" class="form-input" required>
-                    </div>
-                    <div>
-                        <label for="hora_salida" class="form-label">Hora de Salida</label>
-                        <input type="time" name="hora_salida" id="hora_salida" class="form-input">
+                        <label for="accion_inmediata_tomada" class="form-label">Acción inmediata tomada</label>
+                        <textarea name="accion_inmediata_tomada" id="accion_inmediata_tomada" rows="3" class="form-textarea"></textarea>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="form-label">Firma Agente de Seguridad de Ingreso <span class="text-red-400">*</span></label>
-                        <canvas id="firma-ingreso-pad" class="signature-pad"></canvas>
-                        <button type="button" onclick="ingresoPad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_agente_ingreso" id="firma_agente_ingreso">
+                        <label for="accion_correctiva_recomendada" class="form-label">Acción correctiva recomendada</label>
+                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="3" class="form-textarea"></textarea>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="form-label">Firma Agente de Seguridad de Salida</label>
-                        <canvas id="firma-salida-pad" class="signature-pad"></canvas>
-                        <button type="button" onclick="salidaPad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_agente_salida" id="firma_agente_salida">
+                    <div>
+                        <label for="responsable_asignado" class="form-label">Responsable asignado</label>
+                        <input type="text" name="responsable_asignado" id="responsable_asignado" class="form-input">
+                    </div>
+                    <div>
+                        <label for="fecha_limite_de_cierre" class="form-label">Fecha límite de cierre</label>
+                        <input type="date" name="fecha_limite_de_cierre" id="fecha_limite_de_cierre" class="form-input">
+                    </div>
+                    <div>
+                        <label for="estado" class="form-label">Estado</label>
+                        <select name="estado" id="estado" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Pendiente</option>
+                            <option>En proceso</option>
+                            <option>Cerrado</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -367,7 +401,7 @@
     </div>
 
     <script>
-        let responsablePad, ingresoPad, salidaPad;
+        let responsablePad;
 
         document.addEventListener('DOMContentLoaded', function () {
             // Theme Toggle Logic
@@ -398,37 +432,60 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
             
-            // Set current time for hora_ingreso
-            const currentTime = now.toTimeString().slice(0, 5);
-            document.getElementById('hora_ingreso').value = currentTime;
-
             // Initialize signature pads
             const canvas1 = document.getElementById('firma-responsable-pad');
-            const canvas2 = document.getElementById('firma-ingreso-pad');
-            const canvas3 = document.getElementById('firma-salida-pad');
-            
             responsablePad = new SignaturePad(canvas1, { penColor: 'rgb(0, 0, 0)' });
-            ingresoPad = new SignaturePad(canvas2, { penColor: 'rgb(0, 0, 0)' });
-            salidaPad = new SignaturePad(canvas3, { penColor: 'rgb(0, 0, 0)' });
+
+            function resizeCanvas(canvas) {
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                responsablePad.clear(); //Clear and redraw signature if any
+            }
+            
+            window.addEventListener("resize", function(){
+                resizeCanvas(canvas1);
+            });
+            resizeCanvas(canvas1);
 
             // Form submission
             const form = document.getElementById('controlAccesoForm');
             form.addEventListener('submit', function(event) {
-                // Validate required signature for ingreso
-                if (ingresoPad.isEmpty()) {
-                    event.preventDefault();
-                    alert('Por favor, firme el campo "Firma Agente de Seguridad de Ingreso"');
-                    return false;
-                }
-                
                 if (!responsablePad.isEmpty()) {
                     document.getElementById('firma_responsable').value = responsablePad.toDataURL();
                 }
-                if (!ingresoPad.isEmpty()) {
-                    document.getElementById('firma_agente_ingreso').value = ingresoPad.toDataURL();
-                }
-                if (!salidaPad.isEmpty()) {
-                    document.getElementById('firma_agente_salida').value = salidaPad.toDataURL();
+            });
+
+            // Conditional logic for breach section
+            const brechaSelect = document.getElementById('brecha_por_procedimiento');
+            const seguimientoSection = document.getElementById('seguimiento-section');
+            const brechaPersonas = document.getElementById('brechas_por_personas_wrapper');
+            const brechaProcedimiento = document.getElementById('brechas_por_procedimiento_wrapper');
+            const brechaTecnologia = document.getElementById('brechas_por_tecnologia_equipos_wrapper');
+            const brechaFisica = document.getElementById('brechas_por_seguridad_fisica_wrapper');
+
+            brechaSelect.addEventListener('change', function() {
+                const selectedValue = this.value;
+
+                // Hide all conditional sections first
+                seguimientoSection.classList.add('hidden-section');
+                brechaPersonas.classList.add('hidden-section');
+                brechaProcedimiento.classList.add('hidden-section');
+                brechaTecnologia.classList.add('hidden-section');
+                brechaFisica.classList.add('hidden-section');
+
+                if (selectedValue) {
+                    seguimientoSection.classList.remove('hidden-section');
+                    if (selectedValue === 'Brechas por personas') {
+                        brechaPersonas.classList.remove('hidden-section');
+                    } else if (selectedValue === 'Brechas por procedimiento') {
+                        brechaProcedimiento.classList.remove('hidden-section');
+                    } else if (selectedValue === 'Brechas por tecnología / equipos') {
+                        brechaTecnologia.classList.remove('hidden-section');
+                    } else if (selectedValue === 'Brechas por seguridad física') {
+                        brechaFisica.classList.remove('hidden-section');
+                    }
                 }
             });
         });

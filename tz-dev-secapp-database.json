@@ -71,13 +71,38 @@
   },
   {
     "table_name": "control_accesos",
-    "column_name": "sitio",
+    "column_name": "cliente_instalacion",
     "data_type": "character varying"
   },
   {
     "table_name": "control_accesos",
-    "column_name": "punto_de_acceso",
+    "column_name": "puesto_area_especifica",
     "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "firma_responsable",
+    "data_type": "text"
   },
   {
     "table_name": "control_accesos",
@@ -96,12 +121,7 @@
   },
   {
     "table_name": "control_accesos",
-    "column_name": "autorizacion",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "brecha_detectada",
+    "column_name": "brecha_por_procedimiento",
     "data_type": "character varying"
   },
   {
@@ -111,27 +131,32 @@
   },
   {
     "table_name": "control_accesos",
+    "column_name": "responsable_del_control",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_accesos",
     "column_name": "observaciones",
     "data_type": "text"
   },
   {
     "table_name": "control_accesos",
-    "column_name": "brecha_por_personas",
+    "column_name": "brechas_por_personas",
     "data_type": "character varying"
   },
   {
     "table_name": "control_accesos",
-    "column_name": "brecha_por_procedimiento",
+    "column_name": "brechas_por_procedimiento_detalle",
     "data_type": "character varying"
   },
   {
     "table_name": "control_accesos",
-    "column_name": "brecha_por_tecnologia_equipos",
+    "column_name": "brechas_por_tecnologia_equipos",
     "data_type": "character varying"
   },
   {
     "table_name": "control_accesos",
-    "column_name": "brecha_por_seguridad_fisica",
+    "column_name": "brechas_por_seguridad_fisica",
     "data_type": "character varying"
   },
   {
@@ -168,96 +193,6 @@
     "table_name": "control_accesos",
     "column_name": "creado_en",
     "data_type": "timestamp with time zone"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "firma_usuario",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "creado_en_old",
-    "data_type": "timestamp without time zone"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "rol_aplicador",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "turno",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "nombre_responsable",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "firma_responsable",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "firma_cierre",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "nombre_cierre",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "nombre_persona",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "documento_identidad",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "empresa_visitante",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "vehiculo_placa",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "vehiculo_marca",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "vehiculo_modelo",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "vehiculo_color",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "materiales_ingresados",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "materiales_salida",
-    "data_type": "text"
   },
   {
     "table_name": "incident_categories",
@@ -392,6 +327,16 @@
   {
     "table_name": "informe_novedades_disciplinario",
     "column_name": "recibido_revisado_por_nombre_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "recibido_revisado_por_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "recibido_revisado_por_cargo",
     "data_type": "character varying"
   },
   {
