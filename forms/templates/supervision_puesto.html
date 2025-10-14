@@ -481,6 +481,26 @@
             const clearButtonGuardia = document.getElementById('clearSignatureGuardia');
             const hiddenInputGuardia = document.getElementById('firma_guardia');
 
+            function resizeCanvas(canvas) {
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                // Get the corresponding signature pad and clear it
+                if (canvas.id === 'signaturePadSupervisor') {
+                    signaturePadSupervisor.clear();
+                } else if (canvas.id === 'signaturePadGuardia') {
+                    signaturePadGuardia.clear();
+                }
+            }
+
+            window.addEventListener("resize", function(){
+                resizeCanvas(canvasSupervisor);
+                resizeCanvas(canvasGuardia);
+            });
+            resizeCanvas(canvasSupervisor);
+            resizeCanvas(canvasGuardia);
+
             clearButtonSupervisor.addEventListener('click', () => {
                 signaturePadSupervisor.clear();
             });
