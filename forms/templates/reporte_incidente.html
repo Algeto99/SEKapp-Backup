@@ -139,6 +139,7 @@
         </div>
 
         <form id="incidenteForm" action="{{ url_for('submit_incident_report') }}" method="POST">
+            
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -184,7 +185,7 @@
                         <label class="form-label">Firma</label>
                         <canvas id="firma-pad" class="signature-pad"></canvas>
                         <button type="button" onclick="signaturePad.clear()" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" id="firma" name="firma">
+                        <input type="hidden" id="firma_responsable" name="firma_responsable">
                     </div>
                 </div>
             </div>
@@ -321,21 +322,76 @@
             const canvas = document.getElementById('firma-pad');
             signaturePad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)' });
 
+            function resizeCanvas() {
+                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                signaturePad.clear(); //Clear and redraw signature if any
+            }
+
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+
+
             // Form submission
             const form = document.getElementById('incidenteForm');
             form.addEventListener('submit', function(event) {
                 if (signaturePad && !signaturePad.isEmpty()) {
-                    document.getElementById('firma').value = signaturePad.toDataURL();
+                    document.getElementById('firma_responsable').value = signaturePad.toDataURL();
                 }
             });
         });
         
+        // ✅ CORRECTED: Incident types matching Excel spreadsheet EXACTLY
         const incidentTypes = {
-            'Seguridad Fisica': ['Acceso no autorizado', 'Intento de intrusion', 'Persona sospechosa', 'Alteracion del orden publico', 'Agresion fisica', 'Riña o pelea', 'Hurto al cliente', 'Hurto a local comercial', 'Hurto de vehiculo (carro/moto)', 'Daño a propiedad (vidrios, puertas, cerraduras, etc.)', 'Vandalismo / grafiti', 'Recuperacion'],
-            'Tecnologicos / Infraestructura': ['Fallo de camara CCTV', 'Fallo de grabacion/DVR/NVR', 'Fallo de control de accesos (lector dañado, tarjeta no reconocida)', 'Fallo de sistema de alarma', 'Fallo de iluminacion en areas criticas', 'Fallo de energia electrica', 'Falla en puertas electricas o barreras de parqueadero'],
-            'Emergencias': ['Incendio / conato de incendio', 'Fuga de gas', 'Inundacion / filtracion de agua', 'Emergencia medica (accidente, desmayo, enfermedad subita)', 'Evacuacion parcial / total', 'Desastre natural (temblor, tormenta, inundacion externa)'],
-            'Parqueaderos': ['Accidente vehicular interno (choque en parqueadero)', 'Vehiculo abandonado', 'Mascota / persona dentro de vehiculo', 'Vehiculo con ventana abiera / puertas mal cerradas', 'Daño a vehiculo reportado (rayones, vidrios, espejos)'],
-            'Operativos/administrativos': ['Incumplimiento de protocolos de seguridad', 'Ingreso de proveedores sin autorizacion', 'Mal uso de boton de panico / alarma falsa', 'Robo interno (empleados/contratistas)', 'Fraude / intento de estafa en cajeros o locales', 'Perdida de llaves / elementos de control', 'Sospecha de corrupcion / colusion de personal']
+            'Seguridad Fisica': [
+                'Acceso no autorizado',
+                'Intento de intrusión',
+                'Persona sospechosa',
+                'Alteración del orden público',
+                'Agresión física',
+                'Riña o pelea',
+                'Hurto al cliente',
+                'Hurto a local comercial',
+                'Hurto de vehículo (carro/moto)',
+                'Daño a propiedad (vidrios, puertas, cerraduras, etc.)',
+                'Vandalismo / grafiti',
+                'Recuperación'
+            ],
+            'Tecnologicos / Infraestructura': [
+                'Fallo de cámara CCTV',
+                'Fallo de grabación/DVR/NVR',
+                'Fallo de control de accesos (lector dañado, tarjeta no reconocida)',
+                'Fallo de sistema de alarma',
+                'Fallo de iluminación en áreas críticas',
+                'Fallo de energía eléctrica',
+                'Falla en puertas eléctricas o barreras de parqueadero'
+            ],
+            'Emergencias': [
+                'Incendio / conato de incendio',
+                'Fuga de gas',
+                'Inundación / filtración de agua',
+                'Emergencia médica (accidente, desmayo, enfermedad súbita)',
+                'Evacuación parcial / total',
+                'Desastre natural (temblor, tormenta, inundación externa)'
+            ],
+            'Parqueaderos': [
+                'Accidente vehicular interno (choque en parqueadero)',
+                'Vehículo abandonado',
+                'Mascota / persona dentro de vehículo',
+                'Vehículo con ventana abierta / puertas mal cerradas',
+                'Daño a vehículo reportado (rayones, vidrios, espejos)'
+            ],
+            'Operativos/administrativos': [
+                'Incumplimiento de protocolos de seguridad',
+                'Ingreso de proveedores sin autorización',
+                'Mal uso de botón de pánico / alarma falsa',
+                'Robo interno (empleados/contratistas)',
+                'Fraude / intento de estafa en cajeros o locales',
+                'Pérdida de llaves / elementos de control',
+                'Sospecha de corrupción / colusión de personal'
+            ]
         };
 
         function updateIncidentTypes() {
@@ -348,12 +404,16 @@
                 wrapper.style.display = 'block';
                 select.setAttribute('required', 'required');
                 let defaultOption = document.createElement('option');
-                defaultOption.value = ''; defaultOption.disabled = true; defaultOption.selected = true;
+                defaultOption.value = ''; 
+                defaultOption.disabled = true; 
+                defaultOption.selected = true;
                 defaultOption.textContent = 'Seleccione un tipo...';
                 select.appendChild(defaultOption);
+                
                 incidentTypes[category].forEach(type => {
                     let option = document.createElement('option');
-                    option.value = type; option.textContent = type;
+                    option.value = type; 
+                    option.textContent = type;
                     select.appendChild(option);
                 });
             } else {

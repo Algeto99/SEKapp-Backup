@@ -623,6 +623,14 @@
         let drawingHistory = [];
         let currentPath = [];
 
+        function resizeCanvas(canvas, pad) {
+            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            pad.clear(); //Clear and redraw signature if any
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             // Theme Toggle Logic
             const themeToggle = document.getElementById('themeToggle');
@@ -653,10 +661,28 @@
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
             // Initialize signature pads
-            responsablePad = new SignaturePad(document.getElementById('firma-responsable-pad'), { penColor: 'rgb(0, 0, 0)' });
-            entregaPad = new SignaturePad(document.getElementById('firma-entrega-pad'), { penColor: 'rgb(0, 0, 0)' });
-            recibePad = new SignaturePad(document.getElementById('firma-recibe-pad'), { penColor: 'rgb(0, 0, 0)' });
-            oficialPad = new SignaturePad(document.getElementById('firma-oficial-pad'), { penColor: 'rgb(0, 0, 0)' });
+            const responsableCanvas = document.getElementById('firma-responsable-pad');
+            const entregaCanvas = document.getElementById('firma-entrega-pad');
+            const recibeCanvas = document.getElementById('firma-recibe-pad');
+            const oficialCanvas = document.getElementById('firma-oficial-pad');
+
+            responsablePad = new SignaturePad(responsableCanvas, { penColor: 'rgb(0, 0, 0)' });
+            entregaPad = new SignaturePad(entregaCanvas, { penColor: 'rgb(0, 0, 0)' });
+            recibePad = new SignaturePad(recibeCanvas, { penColor: 'rgb(0, 0, 0)' });
+            oficialPad = new SignaturePad(oficialCanvas, { penColor: 'rgb(0, 0, 0)' });
+
+            window.addEventListener("resize", function(){
+                resizeCanvas(responsableCanvas, responsablePad);
+                resizeCanvas(entregaCanvas, entregaPad);
+                resizeCanvas(recibeCanvas, recibePad);
+                resizeCanvas(oficialCanvas, oficialPad);
+            });
+
+            resizeCanvas(responsableCanvas, responsablePad);
+            resizeCanvas(entregaCanvas, entregaPad);
+            resizeCanvas(recibeCanvas, recibePad);
+            resizeCanvas(oficialCanvas, oficialPad);
+
 
             // Initialize car diagram canvas
             initializeCarDiagram();

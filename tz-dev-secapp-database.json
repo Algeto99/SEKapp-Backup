@@ -420,16 +420,6 @@
     "data_type": "timestamp with time zone"
   },
   {
-    "table_name": "lugar_incidente",
-    "column_name": "id_lugar_incidente",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "lugar_incidente",
-    "column_name": "nombre",
-    "data_type": "character varying"
-  },
-  {
     "table_name": "mantenimiento_seguridad_fisica",
     "column_name": "id_mantenimiento",
     "data_type": "integer"
@@ -911,11 +901,6 @@
   },
   {
     "table_name": "planilla_de_rondas",
-    "column_name": "nombre_firma_responsable",
-    "data_type": "text"
-  },
-  {
-    "table_name": "planilla_de_rondas",
     "column_name": "punto_de_control",
     "data_type": "text"
   },
@@ -975,6 +960,16 @@
     "data_type": "timestamp without time zone"
   },
   {
+    "table_name": "planilla_de_rondas",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_de_rondas",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
     "table_name": "planilla_motocicletas",
     "column_name": "id",
     "data_type": "integer"
@@ -1003,11 +998,6 @@
     "table_name": "planilla_motocicletas",
     "column_name": "turno",
     "data_type": "character varying"
-  },
-  {
-    "table_name": "planilla_motocicletas",
-    "column_name": "nombre_firma",
-    "data_type": "text"
   },
   {
     "table_name": "planilla_motocicletas",
@@ -1176,11 +1166,6 @@
   },
   {
     "table_name": "planilla_motocicletas",
-    "column_name": "oficial_operaciones_nombre_firma",
-    "data_type": "text"
-  },
-  {
-    "table_name": "planilla_motocicletas",
     "column_name": "submitted_by_email",
     "data_type": "character varying"
   },
@@ -1188,6 +1173,26 @@
     "table_name": "planilla_motocicletas",
     "column_name": "creado_en",
     "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "oficial_operaciones_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "oficial_operaciones_firma",
+    "data_type": "text"
   },
   {
     "table_name": "planilla_vehicular",
@@ -1681,103 +1686,18 @@
   },
   {
     "table_name": "reportes_incidentes",
-    "column_name": "id_tipo_incidencia",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "id_tipo_cliente",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "id_lugar_incidente",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "descripcion_zona_comun",
-    "data_type": "text"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "fecha_incidente",
-    "data_type": "date"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "hora_incidente",
-    "data_type": "time without time zone"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "descripcion_incidente",
-    "data_type": "text"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "valor_aproximado",
-    "data_type": "numeric"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "pertenencias_sustraidas",
-    "data_type": "text"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "nombre_persona",
+    "column_name": "cliente_instalacion",
     "data_type": "character varying"
   },
   {
     "table_name": "reportes_incidentes",
-    "column_name": "telefono_persona",
+    "column_name": "puesto_area_especifica",
     "data_type": "character varying"
   },
   {
     "table_name": "reportes_incidentes",
-    "column_name": "numero_identidad_persona",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "numero_local",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "direccion",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "imagenes_pdfs",
-    "data_type": "text"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "id_supervisor",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "creado_en",
-    "data_type": "timestamp with time zone"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "user_email",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "id_propiedad",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "reportes_incidentes",
-    "column_name": "firma_usuario",
-    "data_type": "text"
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
   },
   {
     "table_name": "reportes_incidentes",
@@ -1791,13 +1711,28 @@
   },
   {
     "table_name": "reportes_incidentes",
-    "column_name": "nombre_firma",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "firma_responsable",
     "data_type": "text"
   },
   {
     "table_name": "reportes_incidentes",
     "column_name": "categoria",
     "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "tipo_incidente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_incidente",
+    "data_type": "text"
   },
   {
     "table_name": "reportes_incidentes",
@@ -1843,6 +1778,21 @@
     "table_name": "reportes_incidentes",
     "column_name": "fecha_limite_cierre",
     "data_type": "date"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "user_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
   },
   {
     "table_name": "supervision_puesto",
@@ -2003,36 +1953,6 @@
     "table_name": "supervision_puesto",
     "column_name": "firma_guardia",
     "data_type": "text"
-  },
-  {
-    "table_name": "supervisor",
-    "column_name": "id_supervisor",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "supervisor",
-    "column_name": "nombre",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "tipo_cliente",
-    "column_name": "id_tipo_cliente",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "tipo_cliente",
-    "column_name": "nombre",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "tipo_incidencia",
-    "column_name": "id_tipo_incidencia",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "tipo_incidencia",
-    "column_name": "nombre",
-    "data_type": "character varying"
   },
   {
     "table_name": "users",

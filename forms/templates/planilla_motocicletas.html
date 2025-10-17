@@ -396,15 +396,15 @@
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Oficial de Operaciones</h2>
                 <p class="text-sm text-gray-400 mb-4">(Inspecciona el Relevo de la Motocicleta)</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        <label for="oficial_nombre_text" class="form-label">Nombre del Oficial de Operaciones</label>
-                        <input type="text" id="oficial_nombre_text" class="form-input mb-2">
+                    <div>
+                        <label for="oficial_operaciones_nombre" class="form-label">Nombre del Oficial de Operaciones</label>
+                        <input type="text" name="oficial_operaciones_nombre" id="oficial_operaciones_nombre" class="form-input">
                     </div>
-                    <div class="md:col-span-2">
+                    <div>
                         <label class="form-label">Firma del Oficial de Operaciones</label>
                         <canvas id="oficial_firma_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="oficial_firma_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="oficial_operaciones_nombre_firma">
+                        <input type="hidden" name="oficial_operaciones_firma" id="oficial_operaciones_firma">
                     </div>
                 </div>
             </div>
@@ -421,16 +421,41 @@
         // --- START CONFIGURATION ---
         const motoImageURL = 'https://storage.googleapis.com/smt-misc/Motorcycle.png';
         const checklistItems = [
-            "Estado de los (2) Neumáticos", "Estado de los 2 Rines", "Equipo de Carretera",
-            "Estado del Kit de Arrastre", "Estado de la Palanca Soporte", "Estado del Forro del Asiento",
-            "Luces Direccionales", "Luces Delanteras", "Sistema de Freno", "Manillar del Embrague",
-            "Manillar del Freno", "Tanque de Combustible", "Espejos Retrovisores", "Tapa del Aceite del Motor",
-            "Batería", "Luz Trasera", "Palanca de Cambios", "Palanca de Freno", "Guarda Fango", "Tubo de Escape"
+            { label: "Estado de los (2) Neumáticos", name: "estado_neumaticos" },
+            { label: "Estado de los 2 Rines", name: "estado_rines" },
+            { label: "Equipo de Carretera", name: "equipo_carretera" },
+            { label: "Estado del Kit de Arrastre", name: "estado_kit_arrastre" },
+            { label: "Estado de la Palanca Soporte", name: "estado_palanca_soporte" },
+            { label: "Estado del Forro del Asiento", name: "estado_forro_asiento" },
+            { label: "Luces Direccionales (Derecha)", name: "estado_luces_direccionales_derecha" },
+            { label: "Luces Direccionales (Izquierda)", name: "estado_luces_direccionales_izquierda" },
+            { label: "Luces Delanteras", name: "estado_luces_delanteras" },
+            { label: "Sistema de Freno Delantero", name: "estado_sistema_freno_delantero" },
+            { label: "Manillar del Embrague", name: "estado_manillar_embrague" },
+            { label: "Manillar del Freno Delantero", name: "estado_manillar_freno_delantero" },
+            { label: "Tanque de Combustible", name: "estado_tanque_combustible" },
+            { label: "Espejos Retrovisores", name: "espejos_retrovisores" },
+            { label: "Tapa del Aceite del Motor", name: "tapa_aceite_motor" },
+            { label: "Batería y Tapa", name: "bateria_tapa" },
+            { label: "Luz Trasera", name: "estado_luz_trasera" },
+            { label: "Palanca de Cambios", name: "estado_palanca_cambios" },
+            { label: "Palanca de Freno", name: "estado_palanca_freno" },
+            { label: "Guarda Fango Delantero", name: "estado_guarda_fango_delantero" },
+            { label: "Guarda Fango Trasero", name: "estado_guarda_fango_trasero" },
+            { label: "Tubo de Escape", name: "estado_tubo_escape" }
         ];
         // --- END CONFIGURATION ---
 
         let signaturePads = {};
         let motoCanvas, motoCtx, isDrawing = false, currentColor = '#ef4444', drawingHistory = [], currentPath = [];
+
+        function resizeCanvas(canvas, pad) {
+            const ratio =  Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            pad.clear(); //Clear and redraw signature if any
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
             // Theme Toggle
@@ -464,12 +489,11 @@
             // Generate checklist
             const container = document.getElementById('checklist-container');
             checklistItems.forEach(item => {
-                const name = "estado_" + item.toLowerCase().replace(/[^a-z0-9]+/g, '_');
                 const div = document.createElement('div');
                 div.className = 'checklist-item';
                 div.innerHTML = `
-                    <label class="font-medium">${item}</label>
-                    <select name="${name}" class="form-select w-32">
+                    <label class="font-medium">${item.label}</label>
+                    <select name="${item.name}" class="form-select w-32">
                         <option value="">Seleccione...</option>
                         <option>Sí</option>
                         <option>No</option>
@@ -479,13 +503,18 @@
             });
 
             // Initialize signature pads
-            ['firma_responsable_pad', 'firma_entrega_pad', 'firma_recibe_pad', 'oficial_firma_pad'].forEach(id => {
+            const padIds = ['firma_responsable_pad', 'firma_entrega_pad', 'firma_recibe_pad', 'oficial_firma_pad'];
+            padIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
-                    signaturePads[id] = new SignaturePad(canvas, { 
+                    const pad = new SignaturePad(canvas, { 
                         penColor: 'rgb(0, 0, 0)',
                         backgroundColor: 'rgb(255, 255, 255)'
                     });
+                    signaturePads[id] = pad;
+
+                    window.addEventListener("resize", () => resizeCanvas(canvas, pad));
+                    resizeCanvas(canvas, pad);
                 }
             });
 
@@ -530,11 +559,9 @@
                 if (signaturePads['firma_recibe_pad'] && !signaturePads['firma_recibe_pad'].isEmpty()) {
                     document.querySelector('input[name="firma_recibe"]').value = signaturePads['firma_recibe_pad'].toDataURL();
                 }
-
-                const oficialName = document.getElementById('oficial_nombre_text').value;
-                const oficialPad = signaturePads['oficial_firma_pad'];
-                const oficialFirmaData = (oficialPad && !oficialPad.isEmpty()) ? oficialPad.toDataURL() : '';
-                document.querySelector('input[name="oficial_operaciones_nombre_firma"]').value = `${oficialName};${oficialFirmaData}`;
+                if (signaturePads['oficial_firma_pad'] && !signaturePads['oficial_firma_pad'].isEmpty()) {
+                    document.querySelector('input[name="oficial_operaciones_firma"]').value = signaturePads['oficial_firma_pad'].toDataURL();
+                }
                 
                 if (motoCanvas) {
                     document.getElementById('diagrama_danos').value = motoCanvas.toDataURL();
