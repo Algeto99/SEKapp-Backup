@@ -766,6 +766,7 @@ def submit_informe_novedades_disciplinario():
             except ValueError:
                 pass
 
+        # Updated form_data - removed 'puesto' field reference from Section 2
         form_data = {
             'nombre_responsable': request.form.get('nombre_responsable'),
             'realizado_por_cargo': request.form.get('rol_aplicador'),

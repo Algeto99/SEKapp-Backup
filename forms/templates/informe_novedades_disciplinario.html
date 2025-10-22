@@ -215,7 +215,7 @@
                         <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input">
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
+                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto</label>
                         <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input">
                     </div>
                     <div>
@@ -226,12 +226,12 @@
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-input">
                             <option value="">Seleccione...</option>
-                            <option>Agente de seguridad</option>
-                            <option>Supervisor/Inspector</option>
                             <option>Analista de Calidad</option>
-                            <option>Jefe de Seguridad</option>
                             <option>Cliente</option>
+                            <option>Coordinador de Seguridad</option>
+                            <option>Jefe de Seguridad</option>
                             <option>Locatario</option>
+                            <option>Supervisor/Inspector</option>
                         </select>
                     </div>
                     <div>
@@ -276,10 +276,6 @@
                         <label for="cliente" class="block text-sm font-medium mb-1">Cliente</label>
                         <input type="text" name="cliente" id="cliente" class="form-input">
                     </div>
-                    <div class="md:col-span-2">
-                        <label for="puesto" class="block text-sm font-medium mb-1">Puesto</label>
-                        <input type="text" name="puesto" id="puesto" class="form-input">
-                    </div>
                 </div>
             </div>
 
@@ -287,24 +283,24 @@
                 <h2 class="text-xl font-bold mb-4">3. Tipo de Novedad / Falta Disciplinaria</h2>
                 <select name="tipo_novedad" id="tipo_novedad" class="form-input">
                     <option value="">Seleccione...</option>
-                    <option>Ausencia del servicio</option>
-                    <option>Dormido</option>
-                    <option>Desobediencia</option>
+                    <option>Abandono del sitio de trabajo</option>
                     <option>Abuso de confianza</option>
+                    <option>Ausencia del servicio</option>
+                    <option>Descuido con el arma de dotación</option>
+                    <option>Descuido con elementos de dotación</option>
+                    <option>Desobediencia</option>
+                    <option>Deslealtad</option>
+                    <option>Dormido</option>
                     <option>Embriaguez</option>
                     <option>Engaño</option>
-                    <option>Irrespeto</option>
-                    <option>Deslealtad</option>
-                    <option>Incumplimiento de reportes</option>
-                    <option>Incumplimiento de capacitaciones</option>
-                    <option>Abandono del sitio de trabajo</option>
-                    <option>Novedad durante el servicio</option>
-                    <option>Trato indebido a compañeros</option>
-                    <option>Descuido con elementos de dotación</option>
-                    <option>Incumplimiento de funciones</option>
                     <option>Incorrecta presentación personal</option>
-                    <option>Descuido con el arma de dotación</option>
+                    <option>Incumplimiento de capacitaciones</option>
+                    <option>Incumplimiento de funciones</option>
+                    <option>Incumplimiento de reportes</option>
+                    <option>Irrespeto</option>
+                    <option>Novedad durante el servicio</option>
                     <option>Queja de clientes y/o usuarios</option>
+                    <option>Trato indebido a compañeros</option>
                 </select>
             </div>
 
@@ -344,11 +340,11 @@
                 <h2 class="text-xl font-bold mb-4">6. Firmas</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                      <div>
-                        <label for="recibido_revisado_por_nombre_cargo" class="block text-sm font-medium mb-1">Recibido y revisado por (Nombre y Cargo)</label>
+                        <label for="recibido_revisado_por_nombre_cargo" class="block text-sm font-medium mb-1">Nombre del Colaborador</label>
                         <input type="text" name="recibido_revisado_por_nombre_cargo" id="recibido_revisado_por_nombre_cargo" class="form-input">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-2">Firma de Quien Recibe y Revisa</label>
+                        <label class="block text-sm font-medium mb-2">Firma del Colaborador</label>
                         <canvas id="signaturePadRevisado" class="signature-pad w-full h-48 bg-gray-100"></canvas>
                         <button type="button" id="clearSignatureRevisado" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_recibido_revisado" id="firma_recibido_revisado">
@@ -411,6 +407,7 @@
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
+            
             // Signature Pad 1
             const canvas1 = document.getElementById('signaturePadResponsable');
             const signaturePad1 = new SignaturePad(canvas1);
@@ -428,7 +425,7 @@
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad1.clear(); //Clear and redraw signature if any
+                signaturePad1.clear();
                 signaturePad2.clear();
             }
             
@@ -438,7 +435,6 @@
             });
             resizeCanvas(canvas1);
             resizeCanvas(canvas2);
-
 
             clearButton1.addEventListener('click', () => {
                 signaturePad1.clear();
