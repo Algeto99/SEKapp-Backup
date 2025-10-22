@@ -666,17 +666,24 @@ def submit_supervision_puesto():
     user_email = get_jwt_identity()
     conn = None
     try:
+        # Handle photo/image upload
+        foto_url = None
+        if 'foto_evidencia' in request.files:
+            file = request.files['foto_evidencia']
+            if file and file.filename:
+                # Upload to Google Cloud Storage
+                foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+        
+        # Updated form_data - removed vehicle fields (placa_vehiculo, km_inicial, km_final)
+        # Added foto_evidencia_url
         form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
             'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
             'supervisor': request.form.get('supervisor'),
-            'rol_aplicador': request.form.get('rol_aplicador'),
-            'ruta': request.form.get('ruta'),
-            'placa_vehiculo': request.form.get('placa_vehiculo'),
-            'km_inicial': request.form.get('km_inicial'),
-            'km_final': request.form.get('km_final'),
-            'cliente': request.form.get('cliente'),
-            'direccion': request.form.get('direccion'),
+            'firma_supervisor': request.form.get('firma_supervisor'),
             'horario_servicio': request.form.get('horario_servicio'),
             'tipo_servicio': request.form.get('tipo_servicio'),
             'nombre_guardia': request.form.get('nombre_guardia'),
@@ -685,8 +692,6 @@ def submit_supervision_puesto():
             'serie_arma': request.form.get('serie_arma'),
             'cantidad_municion': request.form.get('cantidad_municion'),
             'constancia_induccion': request.form.get('constancia_induccion'),
-            'conoce_consignas': request.form.get('conoce_consignas'),
-            'horario_claro': request.form.get('horario_claro'),
             'asistencia_puntualidad': request.form.get('asistencia_puntualidad'),
             'presentacion_uniforme': request.form.get('presentacion_uniforme'),
             'estado_limpieza_puesto': request.form.get('estado_limpieza_puesto'),
@@ -694,14 +699,17 @@ def submit_supervision_puesto():
             'cumplimiento_ordenes': request.form.get('cumplimiento_ordenes'),
             'estado_bitacora': request.form.get('estado_bitacora'),
             'observaciones_novedades': request.form.get('observaciones_novedades'),
-            'firma_supervisor': request.form.get('firma_supervisor'),
             'firma_guardia': request.form.get('firma_guardia'),
-            'submitted_by_email': user_email
+            'submitted_by_email': user_email,
+            'foto_evidencia_url': foto_url
         }
+        
+        # Remove empty values
+        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
         
         conn = get_db_connection()
         cur = conn.cursor()
-
+        
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO supervision_puesto ({columns}) VALUES ({placeholders})"
@@ -710,14 +718,14 @@ def submit_supervision_puesto():
         conn.commit()
         cur.close()
 
-        flash('Supervisión de Puesto enviada exitosamente!', 'success')
+        flash('Control de Supervisión enviado exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"Error submitting supervision: {e}", exc_info=True)
-        flash('Hubo un error al enviar la supervisión.', 'danger')
+        app_logger.error(f"Error submitting supervision puesto: {e}", exc_info=True)
+        flash('Hubo un error al enviar el control.', 'danger')
         return redirect(url_for('supervision_puesto_form'))
     finally:
         if conn:

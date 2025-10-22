@@ -1896,21 +1896,6 @@
   },
   {
     "table_name": "supervision_puesto",
-    "column_name": "placa_vehiculo",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
-    "column_name": "km_inicial",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "supervision_puesto",
-    "column_name": "km_final",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "supervision_puesto",
     "column_name": "cliente",
     "data_type": "character varying"
   },
@@ -2027,6 +2012,11 @@
   {
     "table_name": "supervision_puesto",
     "column_name": "firma_guardia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "foto_evidencia_url",
     "data_type": "text"
   },
   {
