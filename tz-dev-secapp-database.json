@@ -65,6 +65,116 @@
     "data_type": "boolean"
   },
   {
+    "table_name": "control_acceso_integral",
+    "column_name": "id_control_integral",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "tipo_acceso",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "identificacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "motivo_acceso",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "persona_area_visitar",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "documento_verificado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "autorizacion_ingreso",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "protocolo_revision",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "novedades_revision",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "hora_ingreso",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "hora_salida",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "firma_seguridad_ingreso",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "firma_seguridad_salida",
+    "data_type": "text"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "control_accesos",
     "column_name": "id_control_acceso",
     "data_type": "integer"
@@ -646,22 +756,12 @@
   },
   {
     "table_name": "medicion_experiencia_cliente",
-    "column_name": "puesto_area",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
     "column_name": "fecha_hora",
     "data_type": "timestamp without time zone"
   },
   {
     "table_name": "medicion_experiencia_cliente",
     "column_name": "rol_aplicador",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "turno",
     "data_type": "character varying"
   },
   {

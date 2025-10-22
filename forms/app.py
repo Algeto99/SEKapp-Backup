@@ -582,12 +582,11 @@ def submit_medicion_experiencia_cliente():
     user_email = get_jwt_identity()
     conn = None
     try:
+        # Updated form_data dictionary - removed 'puesto_area' and 'turno' fields
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area': request.form.get('puesto_area'),
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
             'nombre_responsable': request.form.get('nombre_responsable'),
             'firma_responsable': request.form.get('firma_responsable'),
             'puntuacion_presencia_personal': request.form.get('puntuacion_presencia_personal'),
@@ -618,13 +617,13 @@ def submit_medicion_experiencia_cliente():
         conn.commit()
         cur.close()
 
-        flash('Medición de Experiencia enviada exitosamente!', 'success')
+        flash('Encuesta enviada exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"Error submitting medicion: {e}", exc_info=True)
+        app_logger.error(f"Error submitting encuesta: {e}", exc_info=True)
         flash('Hubo un error al enviar la encuesta.', 'danger')
         return redirect(url_for('medicion_experiencia_cliente_form'))
     finally:
