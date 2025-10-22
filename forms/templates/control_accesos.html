@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planilla de Control de Acceso y Gestión de Brechas - SMT SecApp</title>
+    <title>Planilla de Control de Acceso y Gestión de Riesgos - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -85,7 +85,8 @@
         }
         .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
         .form-input[type="date"]::-webkit-calendar-picker-indicator,
-        .form-input[type="time"]::-webkit-calendar-picker-indicator {
+        .form-input[type="time"]::-webkit-calendar-picker-indicator,
+        .form-input[type="file"]::-webkit-file-upload-button {
             filter: invert(1);
         }
         .form-input:focus, .form-select:focus, .form-textarea:focus {
@@ -151,7 +152,8 @@
         }
         body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
         body.light-mode .form-input[type="date"]::-webkit-calendar-picker-indicator,
-        body.light-mode .form-input[type="time"]::-webkit-calendar-picker-indicator {
+        body.light-mode .form-input[type="time"]::-webkit-calendar-picker-indicator,
+        body.light-mode .form-input[type="file"]::-webkit-file-upload-button {
             filter: none;
         }
         body.light-mode .theme-toggle {
@@ -162,17 +164,27 @@
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
-        .hidden-section {
-            display: none;
-        }
         @media (max-width: 768px) {
             .nav-content {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.5rem;
             }
+            .nav-links {
+                gap: 1rem;
+                font-size: 0.8rem;
+            }
             body {
                 padding-top: 120px;
+            }
+            .theme-toggle {
+                top: 1rem;
+                left: 1rem;
+            }
+        }
+        @media (max-width: 640px) {
+            body {
+                padding-top: 140px;
             }
         }
     </style>
@@ -186,7 +198,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
-
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
@@ -207,11 +218,11 @@
 
     <div class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold">Planilla de Control de Acceso y Gestión de Brechas</h1>
+            <h1 class="text-3xl font-bold">Planilla de Control de Acceso y Gestión de Riesgos</h1>
             <p class="text-gray-400 mt-2">Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
         </div>
 
-        <form id="controlAccesoForm" action="{{ url_for('submit_control_accesos') }}" method="POST">
+        <form id="controlAccesoForm" action="{{ url_for('submit_control_accesos') }}" method="POST" enctype="multipart/form-data">
 
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
@@ -221,7 +232,7 @@
                         <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input" required>
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>
+                        <label for="puesto_area_especifica" class="form-label">Puesto</label>
                         <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input" required>
                     </div>
                     <div>
@@ -233,11 +244,12 @@
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="" disabled selected>Seleccione un rol...</option>
                             <option>Agente de seguridad</option>
-                            <option>Supervisor/Inspector</option>
                             <option>Analista de Calidad</option>
-                            <option>Jefe de Seguridad</option>
                             <option>Cliente</option>
+                            <option>Coordinador de Seguridad</option>
+                            <option>Jefe de Seguridad</option>
                             <option>Locatario</option>
+                            <option>Supervisor/Inspector</option>
                         </select>
                     </div>
                     <div>
@@ -264,50 +276,8 @@
             </div>
 
             <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Registro de accesos</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Riesgos Detectados</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="rol_del_usuario" class="form-label">Rol del Usuario</label>
-                        <select name="rol_del_usuario" id="rol_del_usuario" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Empleado</option>
-                            <option>Cliente</option>
-                            <option>Visitante</option>
-                            <option>Proveedor</option>
-                            <option>Contratista</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="accion" class="form-label">Acción</label>
-                        <select name="accion" id="accion" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Entrada</option>
-                            <option>Salida</option>
-                            <option>Denegado</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="motivo_de_ingreso" class="form-label">Motivo de Ingreso</label>
-                        <input type="text" name="motivo_de_ingreso" id="motivo_de_ingreso" class="form-input">
-                    </div>
-                </div>
-                <h3 class="text-xl font-bold mt-8 mb-4 border-b border-gray-600 pb-2">Brecha Detectada</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="brecha_por_procedimiento" class="form-label">Brecha por Procedimiento</label>
-                        <select name="brecha_por_procedimiento" id="brecha_por_procedimiento" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option value="">Ninguna</option>
-                            <option value="Brechas por personas">Brechas por personas</option>
-                            <option value="Brechas por procedimiento">Brechas por procedimiento</option>
-                            <option value="Brechas por tecnología / equipos">Brechas por tecnología / equipos</option>
-                            <option value="Brechas por seguridad física">Brechas por seguridad física</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="evidencia" class="form-label">Evidencia (CCTV, reporte)</label>
-                        <input type="text" name="evidencia" id="evidencia" class="form-input">
-                    </div>
                     <div>
                         <label for="responsable_del_control" class="form-label">Responsable del control</label>
                         <input type="text" name="responsable_del_control" id="responsable_del_control" class="form-input">
@@ -317,16 +287,14 @@
                         <textarea name="observaciones" id="observaciones" rows="3" class="form-textarea"></textarea>
                     </div>
                 </div>
-            </div>
-
-            <div id="seguimiento-section" class="form-section hidden-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Seguimiento de Brechas Detectadas</h2>
-                <h3 class="text-xl font-bold mb-4">Brecha de seguridad</h3>
+                
+                <h3 class="text-xl font-bold mt-8 mb-4 border-b border-gray-600 pb-2">Detalle del Riesgo</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div id="brechas_por_personas_wrapper" class="hidden-section md:col-span-2">
-                        <label for="brechas_por_personas" class="form-label">Brechas por personas</label>
+                    <div id="brechas_por_personas_wrapper" class="md:col-span-2">
+                        <label for="brechas_por_personas" class="form-label">Riesgo por personas</label>
                         <select name="brechas_por_personas" id="brechas_por_personas" class="form-select">
                             <option value="">Seleccione...</option>
+                            <option>Ninguno</option>
                             <option>Usuario sin carne o credencial vigente</option>
                             <option>Visitante sin autorización previa</option>
                             <option>Intento de ingreso con documento falso</option>
@@ -334,10 +302,11 @@
                             <option>Personal sin capacitación en protocolos de acceso</option>
                         </select>
                     </div>
-                    <div id="brechas_por_procedimiento_wrapper" class="hidden-section md:col-span-2">
-                        <label for="brechas_por_procedimiento_detalle" class="form-label">Brechas por procedimiento</label>
+                    <div id="brechas_por_procedimiento_wrapper" class="md:col-span-2">
+                        <label for="brechas_por_procedimiento_detalle" class="form-label">Riesgo por procedimiento</label>
                         <select name="brechas_por_procedimiento_detalle" id="brechas_por_procedimiento_detalle" class="form-select">
                             <option value="">Seleccione...</option>
+                            <option>Ninguno</option>
                             <option>Puerta/torniquete dejado abierto</option>
                             <option>Vehículo ingresa sin revision</option>
                             <option>Falta de verificación de objetos o paquetes</option>
@@ -345,20 +314,22 @@
                             <option>Acceso sin pasar por detector de metales / escáner</option>
                         </select>
                     </div>
-                    <div id="brechas_por_tecnologia_equipos_wrapper" class="hidden-section md:col-span-2">
-                        <label for="brechas_por_tecnologia_equipos" class="form-label">Brechas por tecnología / equipos</label>
+                    <div id="brechas_por_tecnologia_equipos_wrapper" class="md:col-span-2">
+                        <label for="brechas_por_tecnologia_equipos" class="form-label">Riesgo por tecnología / equipos</label>
                         <select name="brechas_por_tecnologia_equipos" id="brechas_por_tecnologia_equipos" class="form-select">
                             <option value="">Seleccione...</option>
+                            <option>Ninguno</option>
                             <option>Lector biométrico fuera de servicio</option>
                             <option>Camara de CCTV sin grabación en el punto de acceso</option>
                             <option>Tarjeta de proximidad clorada o dañada</option>
                             <option>Alarma de puerta forzada desactivada</option>
                         </select>
                     </div>
-                    <div id="brechas_por_seguridad_fisica_wrapper" class="hidden-section md:col-span-2">
-                        <label for="brechas_por_seguridad_fisica" class="form-label">Brecha por seguridad física</label>
+                    <div id="brechas_por_seguridad_fisica_wrapper" class="md:col-span-2">
+                        <label for="brechas_por_seguridad_fisica" class="form-label">Riesgo por seguridad física</label>
                         <select name="brechas_por_seguridad_fisica" id="brechas_por_seguridad_fisica" class="form-select">
                             <option value="">Seleccione...</option>
+                            <option>Ninguno</option>
                             <option>Porton quedo abierto mas de X minutos</option>
                             <option>Vidrio roto en puerta de acceso</option>
                             <option>Candado ausente en acceso restringido</option>
@@ -389,6 +360,19 @@
                             <option>Cerrado</option>
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Foto/Evidencia</h2>
+                <div>
+                    <label for="foto_evidencia" class="form-label">Tomar Foto o Cargar Imagen</label>
+                    <input type="file" 
+                           name="foto_evidencia" 
+                           id="foto_evidencia" 
+                           class="form-input" 
+                           accept="image/*">
+                    <p class="text-sm text-gray-400 mt-2">📸 Toque para tomar una foto con la cámara o seleccionar una imagen existente</p>
                 </div>
             </div>
 
@@ -441,7 +425,7 @@
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
-                responsablePad.clear(); //Clear and redraw signature if any
+                responsablePad.clear();
             }
             
             window.addEventListener("resize", function(){
@@ -454,38 +438,6 @@
             form.addEventListener('submit', function(event) {
                 if (!responsablePad.isEmpty()) {
                     document.getElementById('firma_responsable').value = responsablePad.toDataURL();
-                }
-            });
-
-            // Conditional logic for breach section
-            const brechaSelect = document.getElementById('brecha_por_procedimiento');
-            const seguimientoSection = document.getElementById('seguimiento-section');
-            const brechaPersonas = document.getElementById('brechas_por_personas_wrapper');
-            const brechaProcedimiento = document.getElementById('brechas_por_procedimiento_wrapper');
-            const brechaTecnologia = document.getElementById('brechas_por_tecnologia_equipos_wrapper');
-            const brechaFisica = document.getElementById('brechas_por_seguridad_fisica_wrapper');
-
-            brechaSelect.addEventListener('change', function() {
-                const selectedValue = this.value;
-
-                // Hide all conditional sections first
-                seguimientoSection.classList.add('hidden-section');
-                brechaPersonas.classList.add('hidden-section');
-                brechaProcedimiento.classList.add('hidden-section');
-                brechaTecnologia.classList.add('hidden-section');
-                brechaFisica.classList.add('hidden-section');
-
-                if (selectedValue) {
-                    seguimientoSection.classList.remove('hidden-section');
-                    if (selectedValue === 'Brechas por personas') {
-                        brechaPersonas.classList.remove('hidden-section');
-                    } else if (selectedValue === 'Brechas por procedimiento') {
-                        brechaProcedimiento.classList.remove('hidden-section');
-                    } else if (selectedValue === 'Brechas por tecnología / equipos') {
-                        brechaTecnologia.classList.remove('hidden-section');
-                    } else if (selectedValue === 'Brechas por seguridad física') {
-                        brechaFisica.classList.remove('hidden-section');
-                    }
                 }
             });
         });

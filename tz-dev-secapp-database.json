@@ -216,31 +216,6 @@
   },
   {
     "table_name": "control_accesos",
-    "column_name": "rol_del_usuario",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "accion",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "motivo_de_ingreso",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "brecha_por_procedimiento",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "evidencia",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_accesos",
     "column_name": "responsable_del_control",
     "data_type": "character varying"
   },
@@ -262,11 +237,6 @@
   {
     "table_name": "control_accesos",
     "column_name": "brechas_por_tecnologia_equipos",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_accesos",
-    "column_name": "brechas_por_seguridad_fisica",
     "data_type": "character varying"
   },
   {
@@ -303,6 +273,11 @@
     "table_name": "control_accesos",
     "column_name": "creado_en",
     "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "control_accesos",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
   },
   {
     "table_name": "incident_categories",

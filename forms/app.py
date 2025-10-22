@@ -423,6 +423,16 @@ def submit_control_accesos():
     user_email = get_jwt_identity()
     conn = None
     try:
+        # Handle photo/image upload
+        foto_url = None
+        if 'foto_evidencia' in request.files:
+            file = request.files['foto_evidencia']
+            if file and file.filename:
+                # Upload to Google Cloud Storage
+                foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+        
+        # Updated form_data - removed Section 2 fields, removed brecha_por_procedimiento and evidencia
+        # Added back brechas_por_seguridad_fisica
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
@@ -431,11 +441,6 @@ def submit_control_accesos():
             'turno': request.form.get('turno'),
             'nombre_responsable': request.form.get('nombre_responsable'),
             'firma_responsable': request.form.get('firma_responsable'),
-            'rol_del_usuario': request.form.get('rol_del_usuario'),
-            'accion': request.form.get('accion'),
-            'motivo_de_ingreso': request.form.get('motivo_de_ingreso'),
-            'brecha_por_procedimiento': request.form.get('brecha_por_procedimiento'),
-            'evidencia': request.form.get('evidencia'),
             'responsable_del_control': request.form.get('responsable_del_control'),
             'observaciones': request.form.get('observaciones'),
             'brechas_por_personas': request.form.get('brechas_por_personas'),
@@ -447,9 +452,11 @@ def submit_control_accesos():
             'responsable_asignado': request.form.get('responsable_asignado'),
             'fecha_limite_de_cierre': request.form.get('fecha_limite_de_cierre'),
             'estado': request.form.get('estado'),
-            'submitted_by_email': user_email
+            'submitted_by_email': user_email,
+            'foto_evidencia_url': foto_url
         }
         
+        # Remove empty values
         form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
         
         conn = get_db_connection()
@@ -463,7 +470,7 @@ def submit_control_accesos():
         conn.commit()
         cur.close()
 
-        flash('Control de Accesos enviado exitosamente!', 'success')
+        flash('Control de Accesos y Riesgos enviado exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
