@@ -65,6 +65,156 @@
     "data_type": "boolean"
   },
   {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "normativa_aplicable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "nombre_auditor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "firma_auditor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_nombre_completo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_tipo_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_numero_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_cargo_rol",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "curso_certificacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "academia_certifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "nro_resolucion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "fecha_resolucion",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "vigencia_desde",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "vigencia_hasta",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "nivel_cumplimiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "copia_certificados_fisica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "certificados_cargados_sistema",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "documentacion_coincide_hv",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "fechas_vigentes",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "firma_guarda_supervisado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
     "table_name": "control_acceso_integral",
     "column_name": "id_control_integral",
     "data_type": "integer"
