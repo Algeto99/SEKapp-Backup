@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporte Único de Incidente - SMT SecApp</title>
+    <title>Reporte de Incidente - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -134,7 +134,7 @@
 
     <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold">Reporte Único de Incidente</h1>
+            <h1 class="text-3xl font-bold">Reporte de Incidente</h1>
             <p class="text-gray-400 mt-2">Diligencie todos los campos para registrar un nuevo incidente.</p>
         </div>
 
@@ -249,6 +249,15 @@
                             <option value="Cerrado">Cerrado</option>
                         </select>
                     </div>
+                    <div class="md:col-span-2">
+                        <label for="foto_evidencia" class="form-label">Tomar Foto o Cargar Imagen</label>
+                        <input type="file" 
+                               name="foto_evidencia" 
+                               id="foto_evidencia" 
+                               class="form-input" 
+                               accept="image/*">
+                        <p class="text-sm text-gray-400 mt-2">📸 Toque para tomar una foto con la cámara o seleccionar una imagen existente</p>
+                    </div>
                 </div>
             </div>
 
@@ -343,53 +352,53 @@
             });
         });
         
-        // ✅ CORRECTED: Incident types matching Excel spreadsheet EXACTLY
+        // ✅ CORRECTED: Incident types matching Excel spreadsheet EXACTLY - ALPHABETICALLY SORTED
         const incidentTypes = {
             'Seguridad Fisica': [
                 'Acceso no autorizado',
+                'Agresión física',
+                'Alteración del orden público',
+                'Daño a propiedad (vidrios, puertas, cerraduras, etc.)',
+                'Hurto a local comercial',
+                'Hurto al cliente',
+                'Hurto de vehículo (carro/moto)',
                 'Intento de intrusión',
                 'Persona sospechosa',
-                'Alteración del orden público',
-                'Agresión física',
+                'Recuperación',
                 'Riña o pelea',
-                'Hurto al cliente',
-                'Hurto a local comercial',
-                'Hurto de vehículo (carro/moto)',
-                'Daño a propiedad (vidrios, puertas, cerraduras, etc.)',
-                'Vandalismo / grafiti',
-                'Recuperación'
+                'Vandalismo / grafiti'
             ],
             'Tecnologicos / Infraestructura': [
+                'Falla en puertas eléctricas o barreras de parqueadero',
                 'Fallo de cámara CCTV',
-                'Fallo de grabación/DVR/NVR',
                 'Fallo de control de accesos (lector dañado, tarjeta no reconocida)',
-                'Fallo de sistema de alarma',
-                'Fallo de iluminación en áreas críticas',
                 'Fallo de energía eléctrica',
-                'Falla en puertas eléctricas o barreras de parqueadero'
+                'Fallo de grabación/DVR/NVR',
+                'Fallo de iluminación en áreas críticas',
+                'Fallo de sistema de alarma'
             ],
             'Emergencias': [
-                'Incendio / conato de incendio',
-                'Fuga de gas',
-                'Inundación / filtración de agua',
+                'Desastre natural (temblor, tormenta, inundación externa)',
                 'Emergencia médica (accidente, desmayo, enfermedad súbita)',
                 'Evacuación parcial / total',
-                'Desastre natural (temblor, tormenta, inundación externa)'
+                'Fuga de gas',
+                'Incendio / conato de incendio',
+                'Inundación / filtración de agua'
             ],
             'Parqueaderos': [
                 'Accidente vehicular interno (choque en parqueadero)',
-                'Vehículo abandonado',
+                'Daño a vehículo reportado (rayones, vidrios, espejos)',
                 'Mascota / persona dentro de vehículo',
-                'Vehículo con ventana abierta / puertas mal cerradas',
-                'Daño a vehículo reportado (rayones, vidrios, espejos)'
+                'Vehículo abandonado',
+                'Vehículo con ventana abierta / puertas mal cerradas'
             ],
             'Operativos/administrativos': [
+                'Fraude / intento de estafa en cajeros o locales',
                 'Incumplimiento de protocolos de seguridad',
                 'Ingreso de proveedores sin autorización',
                 'Mal uso de botón de pánico / alarma falsa',
-                'Robo interno (empleados/contratistas)',
-                'Fraude / intento de estafa en cajeros o locales',
                 'Pérdida de llaves / elementos de control',
+                'Robo interno (empleados/contratistas)',
                 'Sospecha de corrupción / colusión de personal'
             ]
         };

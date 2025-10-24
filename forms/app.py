@@ -190,6 +190,7 @@ def health():
 def root_redirect():
     return redirect('/select')
 
+@app.route('/select_form')
 @app.route('/select')
 @jwt_required()
 def select_form():
@@ -212,7 +213,7 @@ def select_form():
         viewer_service_url=app.config.get('VIEWER_SERVICE_URL')
     )
 
-# --- REPORTE ÚNICO DE INCIDENTE ---
+# --- REPORTE DE INCIDENTE ---
 @app.route('/reporte_incidente', methods=['GET'])
 @jwt_required()
 def reporte_incidente_form():
@@ -260,6 +261,14 @@ def submit_incident_report():
         conn = get_db_connection()
         cur = conn.cursor()
         
+        # Handle photo upload
+        foto_url = None
+        if 'foto_evidencia' in request.files:
+            file = request.files['foto_evidencia']
+            if file and file.filename:
+                # Upload to Google Cloud Storage
+                foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+        
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
@@ -280,6 +289,7 @@ def submit_incident_report():
             'accion_correctiva_preventiva': request.form.get('accion_correctiva_preventiva'),
             'responsable_seguimiento': request.form.get('responsable_seguimiento'),
             'fecha_limite_cierre': request.form.get('fecha_limite_cierre'),
+            'foto_evidencia_url': foto_url,
             'user_email': user_email
         }
 

@@ -1840,6 +1840,11 @@
     "data_type": "integer"
   },
   {
+    "table_name": "reportes_incidentes",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
     "table_name": "supervision_puesto",
     "column_name": "id_supervision",
     "data_type": "integer"
