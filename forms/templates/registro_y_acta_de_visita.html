@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acta de Visita al Cliente - SMT SecApp</title>
+    <title>Visita a Cliente - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -185,7 +185,7 @@
 
     <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold">Acta de Visita al Cliente</h1>
+            <h1 class="text-3xl font-bold">Visita a Cliente</h1>
         </header>
 
         <form id="visitaForm" action="{{ url_for('submit_registro_y_acta_de_visita') }}" method="POST">
@@ -216,10 +216,24 @@
             </div>
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">2. Participantes</h2>
+                <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
+                <textarea name="temas_tratados" id="temas_tratados" rows="5" class="form-textarea" placeholder="Liste los puntos principales discutidos..."></textarea>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
+                <textarea name="acuerdos_compromisos" id="acuerdos_compromisos" rows="5" class="form-textarea" placeholder="Detalle los acuerdos, responsables y fechas de cumplimiento..."></textarea>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">4. Observaciones Adicionales</h2>
+                <textarea name="observaciones" id="observaciones" rows="4" class="form-textarea" placeholder="Cualquier otra información relevante..."></textarea>
+            </div>
+<div class="form-section">
+                <h2 class="text-xl font-bold mb-4">5. Participantes</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="nombre_visitante" class="block text-sm font-medium mb-1">Nombre del Visitante (SMT)</label>
+                        <label for="nombre_visitante" class="block text-sm font-medium mb-1">Nombre del Visitante</label>
                         <input type="text" name="nombre_visitante" id="nombre_visitante" class="form-input" value="{{ name }}" required>
                     </div>
                     <div>
@@ -249,20 +263,6 @@
                 </div>
             </div>
 
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">3. Agenda y Temas Tratados</h2>
-                <textarea name="temas_tratados" id="temas_tratados" rows="5" class="form-textarea" placeholder="Liste los puntos principales discutidos..."></textarea>
-            </div>
-            
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Acuerdos y Compromisos</h2>
-                <textarea name="acuerdos_compromisos" id="acuerdos_compromisos" rows="5" class="form-textarea" placeholder="Detalle los acuerdos, responsables y fechas de cumplimiento..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">5. Observaciones Adicionales</h2>
-                <textarea name="observaciones" id="observaciones" rows="4" class="form-textarea" placeholder="Cualquier otra información relevante..."></textarea>
-            </div>
             
             <div class="flex justify-end pt-4">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">

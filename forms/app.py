@@ -334,29 +334,29 @@ def submit_planilla_de_rondas():
     user_email = get_jwt_identity()
     conn = None
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-
+        # Form data remains the same - no field changes, only form title and rol options changed
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'puesto_area': request.form.get('puesto_area'),
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
-            'nombre_responsable': request.form.get('nombre_responsable'),
-            'firma_responsable': request.form.get('firma_responsable'),
-            'punto_de_control': request.form.get('punto_de_control'),
-            'hora_programada': request.form.get('hora_programada') or None,
-            'hora_verificacion': request.form.get('hora_verificacion') or None,
-            'estado_punto': request.form.get('estado_punto'),
-            'cumplimiento': request.form.get('cumplimiento'),
-            'novedades_relevantes': request.form.get('novedades_relevantes'),
-            'accion_inmediata': request.form.get('accion_inmediata'),
-            'requerimiento_pendiente': request.form.get('requerimiento_pendiente'),
-            'firma_entrega_ronda': request.form.get('firma_entrega_ronda'),
-            'firma_recepcion_supervisor': request.form.get('firma_recepcion_supervisor'),
+            'nombre_guardia': request.form.get('nombre_guardia'),
+            'punto_control': request.form.get('punto_control'),
+            'hora_inicio_ronda': request.form.get('hora_inicio_ronda'),
+            'hora_fin_ronda': request.form.get('hora_fin_ronda'),
+            'estado_general': request.form.get('estado_general'),
+            'incidentes_detectados': request.form.get('incidentes_detectados'),
+            'novedades_observaciones': request.form.get('novedades_observaciones'),
+            'firma_guardia': request.form.get('firma_guardia'),
             'submitted_by_email': user_email
         }
+        
+        # Remove empty values
+        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
         
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
@@ -366,14 +366,14 @@ def submit_planilla_de_rondas():
         conn.commit()
         cur.close()
 
-        flash('Planilla de Rondas enviada exitosamente!', 'success')
+        flash('Control de Rondas enviado exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla de rondas: {e}", exc_info=True)
-        flash('Hubo un error al enviar la planilla de rondas.', 'danger')
+        flash('Hubo un error al enviar el control.', 'danger')
         return redirect(url_for('planilla_de_rondas_form'))
     finally:
         if conn:
@@ -1011,33 +1011,30 @@ def submit_registro_y_acta_de_visita():
     user_email = get_jwt_identity()
     conn = None
     try:
+        # Form data remains the same - no field changes, only section order changed
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
-            'fecha_hora': request.form.get('fecha_hora') or None,
-            'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
-            'visita_realizada_por': request.form.get('visita_realizada_por'),
-            'firma_visitante': request.form.get('firma_visitante'),
+            'puesto_area': request.form.get('puesto_area'),
+            'fecha_hora': request.form.get('fecha_hora'),
             'motivo_visita': request.form.get('motivo_visita'),
-            'objetivo_reunion': request.form.get('objetivo_reunion'),
-            'actividades_realizadas': request.form.get('actividades_realizadas'),
-            'satisfaccion_cliente': request.form.get('satisfaccion_cliente'),
-            'comentarios_satisfaccion': request.form.get('comentarios_satisfaccion'),
-            'compromisos_adquiridos': request.form.get('compromisos_adquiridos'),
-            'compromisos_responsable': request.form.get('compromisos_responsable'),
-            'compromisos_fecha_limite': request.form.get('compromisos_fecha_limite') or None,
-            'observaciones': request.form.get('observaciones'),
-            'persona_atendio': request.form.get('persona_atendio'),
-            'cargo_atendio': request.form.get('cargo_atendio'),
-            'telefono_contacto': request.form.get('telefono_contacto'),
+            'nombre_visitante': request.form.get('nombre_visitante'),
+            'cargo_visitante': request.form.get('cargo_visitante'),
+            'firma_visitante': request.form.get('firma_visitante'),
+            'nombre_participante_cliente': request.form.get('nombre_participante_cliente'),
+            'cargo_participante_cliente': request.form.get('cargo_participante_cliente'),
             'firma_participante_cliente': request.form.get('firma_participante_cliente'),
+            'temas_tratados': request.form.get('temas_tratados'),
+            'acuerdos_compromisos': request.form.get('acuerdos_compromisos'),
+            'observaciones': request.form.get('observaciones'),
             'submitted_by_email': user_email
         }
         
+        # Remove empty values
+        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
+        
         conn = get_db_connection()
         cur = conn.cursor()
-
+        
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO registro_y_acta_de_visita ({columns}) VALUES ({placeholders})"
@@ -1046,14 +1043,14 @@ def submit_registro_y_acta_de_visita():
         conn.commit()
         cur.close()
 
-        flash('Acta de Visita enviada exitosamente!', 'success')
+        flash('Visita a Cliente registrada exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"Error submitting acta: {e}", exc_info=True)
-        flash('Hubo un error al enviar el acta.', 'danger')
+        app_logger.error(f"Error submitting registro y acta de visita: {e}", exc_info=True)
+        flash('Hubo un error al registrar la visita.', 'danger')
         return redirect(url_for('registro_y_acta_de_visita_form'))
     finally:
         if conn:

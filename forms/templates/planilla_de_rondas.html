@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Planilla de Rondas y Patrullaje - SMT SecApp</title>
+    <title>Control de Rondas - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -200,7 +200,7 @@
     <div class="container mx-auto px-4 pb-8 max-w-4xl">
         <div class="text-center mb-8">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto w-24 opacity-90" />
-            <h1 class="text-3xl font-bold text-white mt-4">Planilla de Rondas y Patrullaje</h1>
+            <h1 class="text-3xl font-bold text-white mt-4">Control de Rondas</h1>
         </div>
 
         <form action="{{ url_for('submit_planilla_de_rondas') }}" method="post" id="mainForm">
@@ -225,12 +225,10 @@
                         <label for="rol_aplicador">Rol del Aplicador/Responsable</label>
                         <select id="rol_aplicador" name="rol_aplicador" required class="form-select">
                             <option value="" disabled selected>Seleccione....</option>
-                            <option value="Agente de seguridad">Agente de seguridad</option>
-                            <option value="Supervisor/Inspector">Supervisor/Inspector</option>
-                            <option value="Analista de Calidad">Analista de Calidad</option>
-                            <option value="Jefe de Seguridad">Jefe de Seguridad</option>
-                            <option value="Cliente">Cliente</option>
-                            <option value="Locatario">Locatario</option>
+                            <option value="Agente de Seguridad">Agente de Seguridad</option>
+                            <option value="Agente Recorredor">Agente Recorredor</option>
+                            <option value="Agente Perimetral">Agente Perimetral</option>
+                            <option value="Supervisor">Supervisor</option>
                         </select>
                     </div>
                     <div>
