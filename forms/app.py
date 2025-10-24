@@ -1107,8 +1107,7 @@ def control_acceso_integral_form():
 @app.route('/submit_control_acceso_integral', methods=['POST'])
 @jwt_required()
 def submit_control_acceso_integral():
-    user_email = get_jwt_identity()
-    conn = None
+# ... existing code ...
     try:
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
@@ -1116,8 +1115,6 @@ def submit_control_acceso_integral():
             'fecha_hora': request.form.get('fecha_hora') or None,
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
-            'nombre_responsable': request.form.get('nombre_responsable'),
-            'firma_responsable': request.form.get('firma_responsable'),
             'tipo_acceso': request.form.get('tipo_acceso'),
             'identificacion': request.form.get('identificacion'),
             'motivo_acceso': request.form.get('motivo_acceso'),
@@ -1128,7 +1125,9 @@ def submit_control_acceso_integral():
             'novedades_revision': request.form.get('novedades_revision'),
             'hora_ingreso': request.form.get('hora_ingreso') or None,
             'hora_salida': request.form.get('hora_salida') or None,
+            'nombre_agente_ingreso': request.form.get('nombre_agente_ingreso'),
             'firma_seguridad_ingreso': request.form.get('firma_seguridad_ingreso'),
+            'nombre_agente_salida': request.form.get('nombre_agente_salida'),
             'firma_seguridad_salida': request.form.get('firma_seguridad_salida'),
             'submitted_by_email': user_email
         }

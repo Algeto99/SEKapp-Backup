@@ -96,16 +96,6 @@
   },
   {
     "table_name": "control_acceso_integral",
-    "column_name": "nombre_responsable",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "control_acceso_integral",
-    "column_name": "firma_responsable",
-    "data_type": "text"
-  },
-  {
-    "table_name": "control_acceso_integral",
     "column_name": "tipo_acceso",
     "data_type": "character varying"
   },
@@ -173,6 +163,16 @@
     "table_name": "control_acceso_integral",
     "column_name": "creado_en",
     "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "nombre_agente_ingreso",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "control_acceso_integral",
+    "column_name": "nombre_agente_salida",
+    "data_type": "character varying"
   },
   {
     "table_name": "control_accesos",

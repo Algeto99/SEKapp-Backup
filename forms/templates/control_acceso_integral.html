@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Control de Acceso Integral - SMT SecApp</title>
+    <!-- 1. Renombrar título -->
+    <title>Control de Acceso - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -216,7 +217,8 @@
 
     <div class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold">Control de Acceso Integral</h1>
+            <!-- 1. Renombrar título -->
+            <h1 class="text-3xl font-bold">Control de Acceso</h1>
             <p class="text-gray-400 mt-2">Control de Acceso Personal, Vehicular y Material</p>
         </div>
 
@@ -239,14 +241,12 @@
                     </div>
                     <div>
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span class="text-red-400">*</span></label>
+                        <!-- 2. Actualizar opciones de Rol -->
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="" disabled selected>Seleccione un rol...</option>
                             <option>Agente de Seguridad</option>
-                            <option>Supervisor/Inspector</option>
-                            <option>Analista de Calidad</option>
-                            <option>Jefe de Seguridad</option>
-                            <option>Cliente</option>
-                            <option>Locatario</option>
+                            <option>Supervisor</option>
+                            <option>Coordinador</option>
                         </select>
                     </div>
                     <div>
@@ -259,22 +259,14 @@
                             <option>24 Horas</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="nombre_responsable" class="form-label">Nombre del Responsable <span class="text-red-400">*</span></label>
-                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}" required>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="form-label">Firma del Responsable <span class="text-red-400">*</span></label>
-                        <canvas id="firma_responsable_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_responsable_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_responsable" id="firma_responsable">
-                    </div>
+                    <!-- 3. Campos eliminados (Nombre del Responsable y Firma del Responsable) -->
                 </div>
             </div>
 
-            <!-- Sección 2: Registro de Evento de Acceso -->
+            <!-- Sección 2: Registro -->
             <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Registro de Evento de Acceso</h2>
+                <!-- 4. Renombrar sección 2 -->
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Registro</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="tipo_acceso" class="form-label">Tipo de Acceso <span class="text-red-400">*</span></label>
@@ -309,9 +301,10 @@
                 </div>
             </div>
 
-            <!-- Sección 3: Verificación de Protocolo -->
+            <!-- Sección 3: Verificación de Ingreso -->
             <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificación de Protocolo (Cumplimiento de Seguridad)</h2>
+                <!-- 5. Renombrar sección 3 -->
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificación de Ingreso</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="documento_verificado" class="form-label">Documento Verificado <span class="text-red-400">*</span></label>
@@ -366,12 +359,20 @@
                         <span class="text-sm text-gray-400">Dejar vacío si aún no ha salido</span>
                     </div>
                     <div>
+                        <!-- 6. Añadir Nombre Agente de Seguridad (Ingreso) -->
+                        <label for="nombre_agente_ingreso" class="form-label">Nombre Agente de Seguridad (Ingreso) <span class="text-red-400">*</span></label>
+                        <input type="text" name="nombre_agente_ingreso" id="nombre_agente_ingreso" class="form-input mb-2" value="{{ name }}" required>
+                        
                         <label class="form-label">Firma Agente de Seguridad (Ingreso) <span class="text-red-400">*</span></label>
                         <canvas id="firma_ingreso_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="firma_ingreso_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_seguridad_ingreso" id="firma_seguridad_ingreso">
                     </div>
                     <div>
+                        <!-- 6. Añadir Nombre Agente de Seguridad (Salida) -->
+                        <label for="nombre_agente_salida" class="form-label">Nombre Agente de Seguridad (Salida)</label>
+                        <input type="text" name="nombre_agente_salida" id="nombre_agente_salida" class="form-input mb-2" placeholder="Nombre del agente">
+
                         <label class="form-label">Firma Agente de Seguridad (Salida)</label>
                         <canvas id="firma_salida_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="firma_salida_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
@@ -452,7 +453,8 @@
             document.getElementById('hora_ingreso').value = currentTime;
 
             // Initialize signature pads
-            const padIds = ['firma_responsable_pad', 'firma_ingreso_pad', 'firma_salida_pad'];
+            // 3. Remover 'firma_responsable_pad' de la inicialización
+            const padIds = ['firma_ingreso_pad', 'firma_salida_pad'];
             padIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
@@ -496,15 +498,11 @@
 
             // Form submission
             document.getElementById('controlAccesoForm').addEventListener('submit', function(event) {
-                // Validate at least one signature (responsable and ingreso are required)
-                let hasResponsableSignature = false;
+                // Validate at least one signature (ingreso is required)
                 let hasIngresoSignature = false;
 
-                if (signaturePads['firma_responsable_pad'] && !signaturePads['firma_responsable_pad'].isEmpty()) {
-                    document.getElementById('firma_responsable').value = signaturePads['firma_responsable_pad'].toDataURL();
-                    hasResponsableSignature = true;
-                }
-
+                // 3. Remover validación para firma_responsable
+                
                 if (signaturePads['firma_ingreso_pad'] && !signaturePads['firma_ingreso_pad'].isEmpty()) {
                     document.getElementById('firma_seguridad_ingreso').value = signaturePads['firma_ingreso_pad'].toDataURL();
                     hasIngresoSignature = true;
@@ -515,15 +513,12 @@
                 }
 
                 // Validate required signatures
-                if (!hasResponsableSignature) {
-                    event.preventDefault();
-                    alert('Por favor, proporcione la firma del responsable.');
-                    return false;
-                }
-
+                // 3. Remover validación para firma_responsable
+                
                 if (!hasIngresoSignature) {
                     event.preventDefault();
-                    alert('Por favor, proporcione la firma del agente de seguridad (ingreso).');
+                    // Usar un modal simple en lugar de alert
+                    showSimpleAlert('Por favor, proporcione la firma del agente de seguridad (ingreso).');
                     return false;
                 }
             });
@@ -536,6 +531,67 @@
                 document.getElementById('hora_salida').focus();
             }
         });
+
+        // Función de alerta simple para reemplazar window.alert()
+        function showSimpleAlert(message) {
+            // Eliminar alerta existente si la hay
+            const existingAlert = document.getElementById('simple-alert-modal');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+
+            // Crear el modal
+            const modal = document.createElement('div');
+            modal.id = 'simple-alert-modal';
+            modal.style = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+            `;
+
+            const modalContent = document.createElement('div');
+            modalContent.style = `
+                background-color: ${document.body.classList.contains('light-mode') ? '#ffffff' : '#2d3748'};
+                color: ${document.body.classList.contains('light-mode') ? '#212529' : '#e2e8f0'};
+                padding: 2rem;
+                border-radius: 0.5rem;
+                text-align: center;
+                max-width: 90%;
+                width: 400px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            `;
+            
+            const messageP = document.createElement('p');
+            messageP.textContent = message;
+            messageP.style.marginBottom = '1.5rem';
+            
+            const closeButton = document.createElement('button');
+            closeButton.textContent = 'Aceptar';
+            closeButton.style = `
+                background-color: #3182ce;
+                color: white;
+                padding: 0.5rem 1rem;
+                border: none;
+                border-radius: 0.375rem;
+                cursor: pointer;
+            `;
+
+            closeButton.onclick = function() {
+                modal.remove();
+            };
+
+            modalContent.appendChild(messageP);
+            modalContent.appendChild(closeButton);
+            modal.appendChild(modalContent);
+            document.body.appendChild(modal);
+        }
     </script>
 </body>
 </html>
