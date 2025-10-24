@@ -674,8 +674,10 @@ def submit_supervision_puesto():
                 # Upload to Google Cloud Storage
                 foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
         
-        # Updated form_data - removed vehicle fields (placa_vehiculo, km_inicial, km_final)
-        # Added foto_evidencia_url
+        # Updated form_data - added new fields:
+        # - conoce_ordenes_consignas
+        # - horario_detalles_claros
+        # - nombre_guardia_firma (NEW - name before signature)
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
@@ -692,6 +694,8 @@ def submit_supervision_puesto():
             'serie_arma': request.form.get('serie_arma'),
             'cantidad_municion': request.form.get('cantidad_municion'),
             'constancia_induccion': request.form.get('constancia_induccion'),
+            'conoce_ordenes_consignas': request.form.get('conoce_ordenes_consignas'),
+            'horario_detalles_claros': request.form.get('horario_detalles_claros'),
             'asistencia_puntualidad': request.form.get('asistencia_puntualidad'),
             'presentacion_uniforme': request.form.get('presentacion_uniforme'),
             'estado_limpieza_puesto': request.form.get('estado_limpieza_puesto'),
@@ -699,6 +703,7 @@ def submit_supervision_puesto():
             'cumplimiento_ordenes': request.form.get('cumplimiento_ordenes'),
             'estado_bitacora': request.form.get('estado_bitacora'),
             'observaciones_novedades': request.form.get('observaciones_novedades'),
+            'nombre_guardia_firma': request.form.get('nombre_guardia_firma'),
             'firma_guardia': request.form.get('firma_guardia'),
             'submitted_by_email': user_email,
             'foto_evidencia_url': foto_url

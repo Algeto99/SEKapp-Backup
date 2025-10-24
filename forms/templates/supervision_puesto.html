@@ -295,12 +295,28 @@
             </div>
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Validación de Inducción</h2>
-                <p class="text-sm text-gray-400 mb-4">El supervisor verifica y marca la opción correspondiente.</p>
-                <div class="space-y-4">
+                <h2 class="text-xl font-bold mb-4">4. Validación de Inducción y Estado Operativo</h2>
+                <p class="text-sm text-gray-400 mb-4">VALIDACIÓN DE INDUCCIÓN (El supervisor verifica y marca con una 'X')</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="constancia_induccion" class="block text-sm font-medium mb-1">¿Se entregó la constancia de inducción al puesto?</label>
                         <select name="constancia_induccion" id="constancia_induccion" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Sí</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="conoce_ordenes_consignas" class="block text-sm font-medium mb-1">¿El guardia conoce sus Órdenes y Consignas Específicas?</label>
+                        <select name="conoce_ordenes_consignas" id="conoce_ordenes_consignas" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Sí</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="horario_detalles_claros" class="block text-sm font-medium mb-1">¿El horario y los detalles del servicio son claros para el guardia?</label>
+                        <select name="horario_detalles_claros" id="horario_detalles_claros" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Sí</option>
                             <option>No</option>
@@ -310,7 +326,7 @@
             </div>
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">5. Checklist de Puesto</h2>
+                <h2 class="text-xl font-bold mb-4">5. Estado de Equipos</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="asistencia_puntualidad" class="block text-sm font-medium mb-1">Asistencia y puntualidad</label>
@@ -323,7 +339,7 @@
                         </select>
                     </div>
                     <div>
-                        <label for="presentacion_uniforme" class="block text-sm font-medium mb-1">Presentación personal</label>
+                        <label for="presentacion_uniforme" class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
                         <select name="presentacion_uniforme" id="presentacion_uniforme" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Excelente</option>
@@ -384,6 +400,10 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">7. Firma del Guardia</h2>
                 <div>
+                <div class="mb-6">
+                    <label for="nombre_guardia_firma" class="block text-sm font-medium mb-1">Guardia de Seguridad</label>
+                    <input type="text" name="nombre_guardia_firma" id="nombre_guardia_firma" class="form-input" placeholder="Ingrese el nombre del guardia">
+                </div>
                     <label class="block text-sm font-medium mb-2">Firma del Guardia</label>
                     <canvas id="signaturePadGuardia" class="signature-pad w-full h-48"></canvas>
                     <button type="button" id="clearSignatureGuardia" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
