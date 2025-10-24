@@ -1360,14 +1360,14 @@ def submit_orden_mantenimiento():
     user_email = get_jwt_identity()
     conn = None
     try:
-        repuestos_value = request.form.get('repuestos_usados')
-        if repuestos_value == 'true':
-            repuestos_usados = True
-        elif repuestos_value == 'false':
-            repuestos_usados = False
-        else:
-            repuestos_usados = None
-
+        # Updated form_data - REMOVED fields from deleted Section 4:
+        # - descripcion_alerta
+        # - accion_inmediata
+        # - accion_correctiva_recomendada
+        # - responsable_asignado
+        # - fecha_limite_cierre
+        # - estado
+        
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area': request.form.get('puesto_area'),
@@ -1375,30 +1375,28 @@ def submit_orden_mantenimiento():
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
             'equipo': request.form.get('equipo'),
-            'id_equipo_serial': request.form.get('id_equipo_serial'),
-            'nombre_tecnico': request.form.get('nombre_tecnico'),
-            'firma_tecnico': request.form.get('firma_tecnico'),
+            'modelo_serie': request.form.get('modelo_serie'),
+            'ubicacion_instalacion': request.form.get('ubicacion_instalacion'),
             'tipo_servicio': request.form.get('tipo_servicio'),
-            'actividad_realizada': request.form.get('actividad_realizada'),
-            'resultado_servicio': request.form.get('resultado_servicio'),
-            'downtime_horas': request.form.get('downtime_horas') or None,
-            'repuestos_usados': repuestos_usados,
-            'tipo_alerta_generada': request.form.get('tipo_alerta_generada'),
-            'observaciones': request.form.get('observaciones'),
-            'descripcion_alerta': request.form.get('descripcion_alerta'),
-            'accion_inmediata': request.form.get('accion_inmediata'),
-            'accion_correctiva_recomendada': request.form.get('accion_correctiva_recomendada'),
-            'responsable_asignado': request.form.get('responsable_asignado'),
-            'fecha_limite_cierre': request.form.get('fecha_limite_cierre') or None,
-            'estado': request.form.get('estado'),
+            'tipo_mantenimiento': request.form.get('tipo_mantenimiento'),
+            'estado_equipo_antes': request.form.get('estado_equipo_antes'),
+            'descripcion_trabajo': request.form.get('descripcion_trabajo'),
+            'repuestos_usados': request.form.get('repuestos_usados'),
+            'observaciones_tecnicas': request.form.get('observaciones_tecnicas'),
+            'estado_equipo_despues': request.form.get('estado_equipo_despues'),
+            'clasificacion_urgencia': request.form.get('clasificacion_urgencia'),
+            'criticidad_impacto': request.form.get('criticidad_impacto'),
             'supervisor_seguridad': request.form.get('supervisor_seguridad'),
             'firma_supervisor_seguridad': request.form.get('firma_supervisor_seguridad'),
             'submitted_by_email': user_email
         }
-
+        
+        # Remove empty values
+        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
+        
         conn = get_db_connection()
         cur = conn.cursor()
-
+        
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO orden_mantenimiento ({columns}) VALUES ({placeholders})"
@@ -1407,14 +1405,14 @@ def submit_orden_mantenimiento():
         conn.commit()
         cur.close()
 
-        flash('Orden de Mantenimiento enviada exitosamente!', 'success')
+        flash('Control de Mantenimiento enviado exitosamente!', 'success')
         return redirect(url_for('success'))
 
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"Error submitting orden: {e}", exc_info=True)
-        flash('Hubo un error al enviar la orden.', 'danger')
+        app_logger.error(f"Error submitting orden mantenimiento: {e}", exc_info=True)
+        flash('Hubo un error al enviar el control.', 'danger')
         return redirect(url_for('orden_mantenimiento_form'))
     finally:
         if conn:

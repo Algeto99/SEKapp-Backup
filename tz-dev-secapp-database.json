@@ -856,36 +856,6 @@
   },
   {
     "table_name": "orden_mantenimiento",
-    "column_name": "descripcion_alerta",
-    "data_type": "text"
-  },
-  {
-    "table_name": "orden_mantenimiento",
-    "column_name": "accion_inmediata",
-    "data_type": "text"
-  },
-  {
-    "table_name": "orden_mantenimiento",
-    "column_name": "accion_correctiva_recomendada",
-    "data_type": "text"
-  },
-  {
-    "table_name": "orden_mantenimiento",
-    "column_name": "responsable_asignado",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "orden_mantenimiento",
-    "column_name": "fecha_limite_cierre",
-    "data_type": "date"
-  },
-  {
-    "table_name": "orden_mantenimiento",
-    "column_name": "estado",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "orden_mantenimiento",
     "column_name": "supervisor_seguridad",
     "data_type": "character varying"
   },

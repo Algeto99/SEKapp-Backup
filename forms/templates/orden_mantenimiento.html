@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orden de Servicio de Mantenimiento - SMT SecApp</title>
+    <title>Control de Mantenimiento a Equipos de Seguridad - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -192,7 +192,7 @@
 
     <div class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
-            <h1 class="text-2xl md:text-3xl font-bold">Orden de Servicio de Mantenimiento de Seguridad y Gestión de Alertas</h1>
+            <h1 class="text-2xl md:text-3xl font-bold">Control de Mantenimiento a Equipos de Seguridad</h1>
         </header>
 
         <form id="mantenimientoForm" action="{{ url_for('submit_orden_mantenimiento') }}" method="POST" class="space-y-6">
@@ -216,13 +216,8 @@
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Agente de seguridad</option>
-                            <option>Supervisor/Inspector</option>
-                            <option>Analista de Calidad</option>
-                            <option>Técnico de Mantenimiento</option>
-                            <option>Jefe de Seguridad</option>
-                            <option>Cliente</option>
-                            <option>Locatario</option>
+                            <option>Técnico CCTV</option>
+                            <option>Contratista</option>
                         </select>
                     </div>
                     <div>
@@ -349,46 +344,10 @@
             </div>
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Seguimiento de Alertas Críticas</h2>
-                <p class="text-sm text-gray-400 mb-4">Complete esta sección solo si se generó una alerta crítica.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        <label for="descripcion_alerta" class="block text-sm font-medium mb-1">Descripción de Alerta</label>
-                        <textarea name="descripcion_alerta" id="descripcion_alerta" rows="3" class="form-input"></textarea>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="accion_inmediata" class="block text-sm font-medium mb-1">Acción Inmediata</label>
-                        <textarea name="accion_inmediata" id="accion_inmediata" rows="2" class="form-input"></textarea>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="accion_correctiva_recomendada" class="block text-sm font-medium mb-1">Acción Correctiva Recomendada</label>
-                        <textarea name="accion_correctiva_recomendada" id="accion_correctiva_recomendada" rows="2" class="form-input"></textarea>
-                    </div>
-                    <div>
-                        <label for="responsable_asignado" class="block text-sm font-medium mb-1">Responsable Asignado</label>
-                        <input type="text" name="responsable_asignado" id="responsable_asignado" class="form-input">
-                    </div>
-                    <div>
-                        <label for="fecha_limite_cierre" class="block text-sm font-medium mb-1">Fecha Límite de Cierre</label>
-                        <input type="date" name="fecha_limite_cierre" id="fecha_limite_cierre" class="form-input">
-                    </div>
-                    <div>
-                        <label for="estado" class="block text-sm font-medium mb-1">Estado</label>
-                        <select name="estado" id="estado" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Pendiente</option>
-                            <option>En proceso</option>
-                            <option>Cerrado</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">5. Firmas</h2>
+                <h2 class="text-xl font-bold mb-4">4. Firmas</h2>
                 <div class="grid grid-cols-1 gap-6">
                     <div>
-                        <label for="supervisor_seguridad" class="block text-sm font-medium mb-1">Supervisor de Seguridad</label>
+                        <label for="supervisor_seguridad" class="block text-sm font-medium mb-1">Supervisor o responsable de la actividad</label>
                         <input type="text" name="supervisor_seguridad" id="supervisor_seguridad" class="form-input">
                     </div>
                     <div>
