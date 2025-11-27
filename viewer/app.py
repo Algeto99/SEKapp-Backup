@@ -202,17 +202,31 @@ def fetch_reports(offset, limit, filters=None):
         query_params = []
         
         if filters:
+            app_logger.info(f"Applying filters: {filters}")
+            
+            # Report ID filter (takes precedence)
+            if filters.get('report_id'):
+                try:
+                    report_id = int(filters['report_id'])
+                    where_conditions.append("ri.id_reporte_incidente = %s")
+                    query_params.append(report_id)
+                    app_logger.info(f"Added report_id filter: {report_id}")
+                except (ValueError, TypeError):
+                    app_logger.warning(f"Invalid report_id value: {filters['report_id']}")
+            
             # Property filter (by ID or name)
             if filters.get('property_id'):
                 try:
                     property_id = int(filters['property_id'])
                     where_conditions.append("ri.id_propiedad = %s")
                     query_params.append(property_id)
-                except (ValueError, AttributeError):
-                    pass
+                    app_logger.info(f"Added property_id filter: {property_id}")
+                except (ValueError, TypeError):
+                    app_logger.warning(f"Invalid property_id value: {filters['property_id']}")
             elif filters.get('property'):
                 where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
                 query_params.append(f"%{filters['property']}%")
+                app_logger.info(f"Added property name filter: {filters['property']}")
             
             # Location filter (by ID or name)
             if filters.get('location_id'):
@@ -220,30 +234,37 @@ def fetch_reports(offset, limit, filters=None):
                     location_id = int(filters['location_id'])
                     where_conditions.append("ri.id_lugar_incidente = %s")
                     query_params.append(location_id)
-                except (ValueError, AttributeError):
-                    pass
+                    app_logger.info(f"Added location_id filter: {location_id}")
+                except (ValueError, TypeError):
+                    app_logger.warning(f"Invalid location_id value: {filters['location_id']}")
             elif filters.get('location'):
                 where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
                 query_params.append(f"%{filters['location']}%")
+                app_logger.info(f"Added location name filter: {filters['location']}")
             
             # Submitted by filter (searches both name and email)
             if filters.get('submitted_by'):
                 where_conditions.append("(LOWER(u.name) LIKE LOWER(%s) OR LOWER(ri.user_email) LIKE LOWER(%s))")
                 search_term = f"%{filters['submitted_by']}%"
                 query_params.extend([search_term, search_term])
+                app_logger.info(f"Added submitted_by filter: {filters['submitted_by']}")
             
             # Date range filters
             if filters.get('start_date'):
                 where_conditions.append("ri.fecha_incidente >= %s")
                 query_params.append(filters['start_date'])
+                app_logger.info(f"Added start_date filter: {filters['start_date']}")
             
             if filters.get('end_date'):
                 where_conditions.append("ri.fecha_incidente <= %s")
                 query_params.append(filters['end_date'])
+                app_logger.info(f"Added end_date filter: {filters['end_date']}")
 
         where_clause = ""
         if where_conditions:
             where_clause = "WHERE " + " AND ".join(where_conditions)
+            app_logger.info(f"Final WHERE clause: {where_clause}")
+            app_logger.info(f"Query parameters: {query_params}")
 
         # First, get the total count of reports with filters
         count_query = f"""
@@ -263,21 +284,7 @@ def fetch_reports(offset, limit, filters=None):
         total_count = cur.fetchone()[0]
         app_logger.info(f"Total reports found with filters: {total_count}")
         
-        # Debug: Let's also check the sorting with a simple query
-        debug_query = """
-            SELECT id_reporte_incidente, creado_en, fecha_incidente 
-            FROM reportes_incidentes 
-            ORDER BY creado_en DESC NULLS LAST, id_reporte_incidente DESC
-            LIMIT 5
-        """
-        cur.execute(debug_query)
-        debug_rows = cur.fetchall()
-        app_logger.info("DEBUG - Recent reports by creado_en:")
-        for row in debug_rows:
-            app_logger.info(f"  ID: {row[0]}, Created: {row[1]}, Incident Date: {row[2]}")
-
         # Then, get the paginated reports with user names and filters
-        # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
         query = f"""
                 SELECT
                     ri.id_reporte_incidente,
@@ -322,20 +329,13 @@ def fetch_reports(offset, limit, filters=None):
                 OFFSET %s LIMIT %s;
             """
 
-        # Add pagination parameters
         final_params = query_params + [offset, limit]
         
         app_logger.info(f"Executing fetch_reports query with offset={offset}, limit={limit}, filters={filters}.")
-        app_logger.info(f"Query ORDER BY: ri.creado_en DESC (newest submissions first)")
         cur.execute(query, final_params)
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} reports from the database.")
         
-        # Debug: Log the first few report timestamps to verify sorting
-        if rows:
-            for i, row in enumerate(rows[:3]):  # Log first 3 reports
-                app_logger.info(f"Report {i+1}: ID={row['id_reporte_incidente']}, creado_en={row['creado_en']}")
-
         for row_dict in rows:
             display_name = row_dict.get("user_name") or row_dict.get("user_email", "desconocido")
             
@@ -368,12 +368,17 @@ def fetch_reports(offset, limit, filters=None):
 
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in fetch_reports: {e}", exc_info=True)
+        app_logger.error(f"Failed query parameters: {query_params}")
         reports = []
         total_count = 0
+        # Re-raise the exception so the API can return a proper error
+        raise e
     except Exception as e:
         app_logger.error(f"An unexpected error occurred in fetch_reports: {e}", exc_info=True)
         reports = []
         total_count = 0
+        # Re-raise the exception so the API can return a proper error
+        raise e
     finally:
         if cur:
             cur.close()
@@ -666,7 +671,7 @@ def get_properties():
         conn = get_db_connection()
         if not conn:
             app_logger.error("Failed to get database connection in get_properties.")
-            return jsonify({"properties": []}), 500
+            return jsonify({"error": "Database connection failed", "properties": []}), 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
@@ -692,10 +697,10 @@ def get_properties():
         
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in get_properties: {e}", exc_info=True)
-        return jsonify({"properties": []}), 500
+        return jsonify({"error": f"Database error: {str(e)}", "properties": []}), 500
     except Exception as e:
         app_logger.error(f"Unexpected error in get_properties: {e}", exc_info=True)
-        return jsonify({"properties": []}), 500
+        return jsonify({"error": f"Server error: {str(e)}", "properties": []}), 500
     finally:
         if cur:
             cur.close()
@@ -715,7 +720,7 @@ def get_locations():
         conn = get_db_connection()
         if not conn:
             app_logger.error("Failed to get database connection in get_locations.")
-            return jsonify({"locations": []}), 500
+            return jsonify({"error": "Database connection failed", "locations": []}), 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
@@ -752,10 +757,10 @@ def get_locations():
         
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in get_locations: {e}", exc_info=True)
-        return jsonify({"locations": []}), 500
+        return jsonify({"error": f"Database error: {str(e)}", "locations": []}), 500
     except Exception as e:
         app_logger.error(f"Unexpected error in get_locations: {e}", exc_info=True)
-        return jsonify({"locations": []}), 500
+        return jsonify({"error": f"Server error: {str(e)}", "locations": []}), 500
     finally:
         if cur:
             cur.close()
@@ -776,6 +781,10 @@ def get_more_reports():
     # Extract filter parameters
     filters = {}
     
+    # Report ID filter
+    if request.args.get('report_id'):
+        filters['report_id'] = request.args.get('report_id')
+
     # Property filters (ID takes precedence over name)
     if request.args.get('property_id'):
         filters['property_id'] = request.args.get('property_id')
@@ -798,8 +807,15 @@ def get_more_reports():
 
     app_logger.info(f"API request with filters: {filters}")
     
-    reports, total_count = fetch_reports(offset, limit, filters if filters else None)
-    return jsonify({"reports": reports, "total_count": total_count})
+    try:
+        reports, total_count = fetch_reports(offset, limit, filters if filters else None)
+        return jsonify({"reports": reports, "total_count": total_count})
+    except psycopg2.Error as e:
+        app_logger.error(f"Database error in get_more_reports: {e}", exc_info=True)
+        return jsonify({"error": f"Database error: {str(e)}", "reports": [], "total_count": 0}), 500
+    except Exception as e:
+        app_logger.error(f"Server error in get_more_reports: {e}", exc_info=True)
+        return jsonify({"error": f"Server error: {str(e)}", "reports": [], "total_count": 0}), 500
 
 # New route to handle fetching a single report by ID, assumed to be used by "Ver Detalles"
 @app.route('/api/report/<int:report_id>', methods=['GET'])

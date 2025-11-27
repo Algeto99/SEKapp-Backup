@@ -351,6 +351,7 @@
         }
         .reports-table tr:hover {
             background-color: #f9fafb;
+            cursor: pointer;
         }
         .no-reports {
             text-align: center;
@@ -369,6 +370,72 @@
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
+        }
+
+        /* Report detail modal styles */
+        .report-detail-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .report-detail-section h4 {
+            margin: 0 0 1rem 0;
+            color: #1d4ed8;
+            font-size: 1.125rem;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        .detail-value {
+            color: #1f2937;
+            background-color: white;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            min-height: 2.5rem;
+            display: flex;
+            align-items: center;
+        }
+        .detail-value.empty {
+            color: #9ca3af;
+            font-style: italic;
+        }
+        .description-value {
+            min-height: 4rem;
+            align-items: flex-start;
+            padding-top: 0.75rem;
+        }
+        .back-button {
+            background-color: #1d4ed8;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-right: 1rem;
+        }
+        .back-button:hover {
+            background-color: #1e40af;
+            transform: translateY(-1px);
         }
 
         /* Mobile navigation styles */
@@ -428,6 +495,9 @@
             .reports-table th,
             .reports-table td {
                 padding: 0.5rem;
+            }
+            .detail-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -579,6 +649,35 @@
             border-color: rgba(255, 255, 255, 0.1);
         }
 
+        /* Dark mode for report details */
+        body.dark-mode .report-detail-section {
+            background-color: #374151;
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body.dark-mode .detail-value {
+            background-color: #2d3748;
+            border-color: rgba(255, 255, 255, 0.1);
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .detail-value.empty {
+            color: #a0aec0;
+        }
+
+        body.dark-mode .detail-label {
+            color: #cbd5e0;
+        }
+
+        body.dark-mode .back-button {
+            background-color: #60a5fa;
+            color: #1a202c;
+        }
+
+        body.dark-mode .back-button:hover {
+            background-color: #3b82f6;
+        }
+
         /* Dark mode for text colors */
         body.dark-mode .text-gray-700 {
             color: #e2e8f0 !important;
@@ -689,6 +788,175 @@
         </div>
     </div>
 
+    <!-- Report Detail Modal -->
+    <div id="reportDetailModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="detailModalTitle" class="modal-title">Detalles del Reporte</h3>
+                <button id="detailModalClose" class="modal-close">&times;</button>
+            </div>
+            <div id="detailModalBody">
+                <div id="detailLoadingIndicator" class="text-center py-8">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p>Cargando detalles del reporte...</p>
+                </div>
+                <div id="reportDetailContainer" class="hidden">
+                    <div class="mb-4">
+                        <button id="backToReportsBtn" class="back-button">← Volver a Reportes</button>
+                    </div>
+                    
+                    <!-- Basic Information -->
+                    <div class="report-detail-section">
+                        <h4>Información Básica</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">ID del Reporte</label>
+                                <div id="detail_id_reporte" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Fecha del Incidente</label>
+                                <div id="detail_fecha_incidente" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Hora del Incidente</label>
+                                <div id="detail_hora_incidente" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Estado del Reporte</label>
+                                <div id="detail_estado_reporte" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Incident Classification -->
+                    <div class="report-detail-section">
+                        <h4>Clasificación del Incidente</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">Tipo de Incidencia</label>
+                                <div id="detail_tipo_incidencia" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Lugar del Incidente</label>
+                                <div id="detail_lugar_incidente" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Tipo de Cliente</label>
+                                <div id="detail_tipo_cliente" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Valor Aproximado ($)</label>
+                                <div id="detail_valor_aproximado" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Property Information -->
+                    <div class="report-detail-section">
+                        <h4>Información de la Propiedad</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">Nombre de la Propiedad</label>
+                                <div id="detail_propiedad_nombre" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Dirección de la Propiedad</label>
+                                <div id="detail_propiedad_direccion" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Descripción de la Propiedad</label>
+                                <div id="detail_propiedad_descripcion" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Número de Local/Apartamento</label>
+                                <div id="detail_numero_local" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Dirección Específica</label>
+                                <div id="detail_direccion" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Person Information -->
+                    <div class="report-detail-section">
+                        <h4>Información de Personas Involucradas</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">Reportante (Email)</label>
+                                <div id="detail_user_email" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Persona Afectada</label>
+                                <div id="detail_nombre_persona" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Teléfono</label>
+                                <div id="detail_telefono_persona" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Número de Identidad</label>
+                                <div id="detail_numero_identidad_persona" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supervisor Information -->
+                    <div class="report-detail-section">
+                        <h4>Información del Supervisor</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">Nombre del Supervisor</label>
+                                <div id="detail_supervisor_name" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Information -->
+                    <div class="report-detail-section">
+                        <h4>Información Adicional</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">Pertenencias Sustraídas</label>
+                                <div id="detail_pertenencias_sustraidas" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Descripción Zona Común</label>
+                                <div id="detail_descripcion_zona_comun" class="detail-value"></div>
+                            </div>
+                            <div class="detail-item">
+                                <label class="detail-label">Imágenes/PDFs</label>
+                                <div id="detail_imagenes_pdfs" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Descriptions -->
+                    <div class="report-detail-section">
+                        <h4>Descripción del Incidente</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item" style="grid-column: 1 / -1;">
+                                <label class="detail-label">Descripción del Incidente</label>
+                                <div id="detail_descripcion_incidente" class="detail-value description-value"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timestamps -->
+                    <div class="report-detail-section">
+                        <h4>Información de Registro</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <label class="detail-label">Fecha de Creación</label>
+                                <div id="detail_created_at" class="detail-value"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container-wrapper">
         <!-- Mobile-Responsive Navigation Bar -->
         <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
@@ -751,7 +1019,7 @@
         </div>
 
         <!-- Incident Types KPI -->
-        <h2 class="section-title" id="incidentTypesTitle">Tipos de Incidencias (Últimos 7 días) - KPI: ≥4 en 7 días</h2>
+        <h2 class="section-title" id="incidentTypesTitle">Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana</h2>
         <div class="incident-types-grid" id="incidentTypesGrid">
             <div class="incident-type-card" id="hurtoCard" onclick="showIncidentTypeReports('Hurto')" title="Haz clic para ver reportes detallados">
                 <div class="stat-number" id="hurtoCount">-</div>
@@ -825,6 +1093,14 @@
         const reportsTableBody = document.getElementById('reportsTableBody');
         const noReports = document.getElementById('noReports');
 
+        // Report detail modal elements
+        const reportDetailModal = document.getElementById('reportDetailModal');
+        const detailModalTitle = document.getElementById('detailModalTitle');
+        const detailModalClose = document.getElementById('detailModalClose');
+        const detailLoadingIndicator = document.getElementById('detailLoadingIndicator');
+        const reportDetailContainer = document.getElementById('reportDetailContainer');
+        const backToReportsBtn = document.getElementById('backToReportsBtn');
+
         // Modal event listeners
         modalClose.addEventListener('click', closeReportsModal);
         reportsModal.addEventListener('click', function(e) {
@@ -833,10 +1109,30 @@
             }
         });
 
-        // Close modal with Escape key
+        // Report detail modal event listeners
+        detailModalClose.addEventListener('click', closeReportDetailModal);
+        reportDetailModal.addEventListener('click', function(e) {
+            if (e.target === reportDetailModal) {
+                closeReportDetailModal();
+            }
+        });
+
+        backToReportsBtn.addEventListener('click', function() {
+            closeReportDetailModal();
+            // Show reports modal again if it was open
+            if (window.lastReportsModalState) {
+                reportsModal.classList.remove('hidden');
+            }
+        });
+
+        // Close modals with Escape key
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && !reportsModal.classList.contains('hidden')) {
-                closeReportsModal();
+            if (e.key === 'Escape') {
+                if (!reportDetailModal.classList.contains('hidden')) {
+                    closeReportDetailModal();
+                } else if (!reportsModal.classList.contains('hidden')) {
+                    closeReportsModal();
+                }
             }
         });
 
@@ -846,17 +1142,18 @@
             
             // Show modal
             reportsModal.classList.remove('hidden');
+            window.lastReportsModalState = true;
             
             // Show loading state
             loadingIndicator.classList.remove('hidden');
             reportsContainer.classList.add('hidden');
             
-            // Set title based on stat type
+            // Set title based on stat type - UPDATED for clarity
             const titles = {
                 'total': 'Todos los Reportes',
                 'thisMonth': 'Reportes de Este Mes',
-                'thisWeek': 'Reportes de Esta Semana',
-                'incidentTypes': 'Reportes por Tipo (Últimos 7 días)',
+                'thisWeek': 'Reportes de Esta Semana (Semana Calendario)',
+                'incidentTypes': 'Reportes por Tipo (Esta Semana)',
                 'incidentTypesMonthly': 'Reportes por Tipo (Últimos 30 días)',
                 'incidentTypesYearly': 'Reportes por Tipo (Últimos 365 días)'
             };
@@ -869,29 +1166,92 @@
         function showIncidentTypeReports(incidentType) {
             console.log('Opening modal for incident type:', incidentType, 'period:', currentPeriod);
             
-            // Show modal
-            reportsModal.classList.remove('hidden');
+            // If a bar representing a specific period is selected, handle it here.
+            if (currentlySelectedBar !== null) {
+                // Check if the detailed reports for that period were successfully loaded.
+                if (window.currentPeriodReports && window.currentPeriodReports.reports) {
+                    console.log('Using period-specific reports for', incidentType);
+                    
+                    // Filter the pre-loaded reports locally for the specific incident type.
+                    const periodReports = window.currentPeriodReports.reports.filter(
+                        report => report.tipo_incidencia === incidentType
+                    );
+                    
+                    console.log(`Filtered ${periodReports.length} reports for incident type ${incidentType}`);
+                    
+                    // --- Display Logic ---
+                    reportsModal.classList.remove('hidden');
+                    window.lastReportsModalState = true;
+                    loadingIndicator.classList.remove('hidden');
+                    reportsContainer.classList.add('hidden');
+                    
+                    const periodInfo = window.currentPeriodReports.period_info;
+                    modalTitle.textContent = `Reportes de ${incidentType} (${periodInfo.period})`;
+                    
+                    displayReports({
+                        reports: periodReports,
+                        count: periodReports.length,
+                        incident_type: incidentType,
+                        period_info: periodInfo
+                    });
+                    
+                    return; // Important: Exit the function to prevent fallback.
+                } else {
+                    // A bar is selected, but the detailed data is missing. Show an error.
+                    showError('Los datos detallados para este período no están disponibles. Intente seleccionar el período de nuevo.');
+                    return;
+                }
+            }
             
-            // Show loading state
+            // Fallback: This logic now only runs if NO bar is selected from the chart.
+            // This is the original behavior for the main dashboard cards.
+            reportsModal.classList.remove('hidden');
+            window.lastReportsModalState = true;
             loadingIndicator.classList.remove('hidden');
             reportsContainer.classList.add('hidden');
             
-            // Set title
+            // UPDATED for clarity
             const periodTexts = {
-                'weekly': 'Últimos 7 días',
-                'monthly': 'Últimos 30 días',
+                'weekly': 'Esta Semana (Semana Calendario)',
+                'monthly': 'Últimos 30 días', 
                 'yearly': 'Últimos 365 días'
             };
             modalTitle.textContent = `Reportes de ${incidentType} (${periodTexts[currentPeriod]})`;
             
-            // Fetch and display reports
+            // Fetch and display reports using the general timeframe.
             fetchReportsForIncidentType(incidentType, currentPeriod);
         }
 
+
         function closeReportsModal() {
             reportsModal.classList.add('hidden');
+            window.lastReportsModalState = false;
             // Clear table data
             reportsTableBody.innerHTML = '';
+        }
+
+        function showReportDetailModal(reportId) {
+            console.log('Opening report detail modal for report ID:', reportId);
+            
+            // Hide reports modal if open
+            reportsModal.classList.add('hidden');
+            
+            // Show detail modal
+            reportDetailModal.classList.remove('hidden');
+            
+            // Show loading state
+            detailLoadingIndicator.classList.remove('hidden');
+            reportDetailContainer.classList.add('hidden');
+            
+            // Set title
+            detailModalTitle.textContent = `Detalles del Reporte #${reportId}`;
+            
+            // Fetch and display report details
+            fetchReportDetails(reportId);
+        }
+
+        function closeReportDetailModal() {
+            reportDetailModal.classList.add('hidden');
         }
 
         async function fetchReportsForStat(statType) {
@@ -932,6 +1292,27 @@
             }
         }
 
+        async function fetchReportDetails(reportId) {
+            try {
+                const response = await fetch(`/api/report/${reportId}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Reporte no encontrado');
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Received report details:', data);
+                displayReportDetails(data.report);
+                
+            } catch (error) {
+                console.error('Error fetching report details:', error);
+                showErrorInDetailModal('Error al cargar los detalles del reporte: ' + error.message);
+            }
+        }
+
         function displayReports(data) {
             console.log('Displaying reports:', data);
             
@@ -957,7 +1338,7 @@
             }
             if (data.stat_type) {
                 const periodTexts = {
-                    'weekly': 'Últimos 7 días',
+                    'weekly': 'Esta Semana (Semana Calendario)',
                     'monthly': 'Últimos 30 días',
                     'yearly': 'Últimos 365 días'
                 };
@@ -980,6 +1361,13 @@
                 data.reports.forEach((report, index) => {
                     console.log(`Report ${index}:`, report);
                     const row = document.createElement('tr');
+                    row.style.cursor = 'pointer';
+                    row.title = 'Haz clic para ver detalles completos';
+                    
+                    // Add click event to show report details
+                    row.addEventListener('click', function() {
+                        showReportDetailModal(report.id_reporte);
+                    });
                     
                     // Format currency value
                     const valorFormatted = report.valor_aproximado ? 
@@ -987,7 +1375,7 @@
                         '-';
                     
                     row.innerHTML = `
-                        <td>${report.id_reporte || '-'}</td>
+                        <td class="font-medium text-blue-600 hover:text-blue-800">${report.id_reporte || '-'}</td>
                         <td>${report.fecha_incidente || '-'}</td>
                         <td>${report.hora_incidente || '-'}</td>
                         <td>${report.tipo_incidencia || '-'}</td>
@@ -1016,6 +1404,108 @@
             }
         }
 
+        function displayReportDetails(report) {
+            console.log('Displaying report details:', report);
+            
+            // Hide loading indicator
+            detailLoadingIndicator.classList.add('hidden');
+            reportDetailContainer.classList.remove('hidden');
+            
+            // Helper function to set field value
+            function setFieldValue(fieldId, value) {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    if (value && value.toString().trim() !== '') {
+                        element.textContent = value;
+                        element.classList.remove('empty');
+                    } else {
+                        element.textContent = 'No especificado';
+                        element.classList.add('empty');
+                    }
+                }
+            }
+            
+            // Basic Information
+            setFieldValue('detail_id_reporte', report.id_reporte);
+            setFieldValue('detail_fecha_incidente', report.fecha_incidente);
+            setFieldValue('detail_hora_incidente', report.hora_incidente);
+            setFieldValue('detail_estado_reporte', report.estado_reporte);
+            
+            // Incident Classification
+            setFieldValue('detail_tipo_incidencia', report.tipo_incidencia);
+            setFieldValue('detail_lugar_incidente', report.lugar_incidente);
+            setFieldValue('detail_tipo_cliente', report.tipo_cliente);
+            
+            // Format currency value
+            if (report.valor_aproximado && report.valor_aproximado > 0) {
+                const valorFormatted = parseFloat(report.valor_aproximado).toLocaleString('es-CO', {
+                    minimumFractionDigits: 0, 
+                    maximumFractionDigits: 0
+                });
+                setFieldValue('detail_valor_aproximado', `${valorFormatted}`);
+            } else {
+                setFieldValue('detail_valor_aproximado', '');
+            }
+            
+            // Property Information
+            setFieldValue('detail_propiedad_nombre', report.propiedad_nombre);
+            setFieldValue('detail_propiedad_direccion', report.propiedad_direccion);
+            setFieldValue('detail_propiedad_descripcion', report.propiedad_descripcion);
+            setFieldValue('detail_numero_local', report.numero_local);
+            setFieldValue('detail_direccion', report.direccion);
+            
+            // Person Information
+            setFieldValue('detail_user_email', report.user_email);
+            setFieldValue('detail_nombre_persona', report.nombre_persona);
+            setFieldValue('detail_telefono_persona', report.telefono_persona);
+            setFieldValue('detail_numero_identidad_persona', report.numero_identidad_persona);
+            
+            // Supervisor Information
+            setFieldValue('detail_supervisor_name', report.supervisor_name);
+            
+            // Additional Information
+            setFieldValue('detail_pertenencias_sustraidas', report.pertenencias_sustraidas);
+            setFieldValue('detail_descripcion_zona_comun', report.descripcion_zona_comun);
+            
+            // --- MODIFICATION START ---
+            // Handle image preview
+            const imageUrl = report.imagenes_pdfs;
+            const imageContainer = document.getElementById('detail_imagenes_pdfs');
+            imageContainer.innerHTML = ''; // Clear previous content
+
+            if (imageUrl && imageUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.alt = 'Vista previa de la imagen del reporte';
+                img.style.maxWidth = '200px';
+                img.style.maxHeight = '200px';
+                img.style.borderRadius = '8px';
+                img.style.objectFit = 'cover';
+                img.style.cursor = 'pointer';
+                img.onclick = () => window.open(imageUrl, '_blank'); // Open full image on click
+                imageContainer.appendChild(img);
+                imageContainer.classList.remove('empty');
+            } else if (imageUrl) {
+                // If it's a URL but not an image (like a PDF), show a link
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.target = '_blank';
+                link.textContent = 'Ver Archivo Adjunto';
+                imageContainer.appendChild(link);
+                imageContainer.classList.remove('empty');
+            } else {
+                imageContainer.textContent = 'No especificado';
+                imageContainer.classList.add('empty');
+            }
+            // --- MODIFICATION END ---
+            
+            // Descriptions
+            setFieldValue('detail_descripcion_incidente', report.descripcion_incidente);
+            
+            // Timestamps
+            setFieldValue('detail_created_at', report.created_at);
+        }
+
         function showErrorInModal(message) {
             console.error('Showing error in modal:', message);
             loadingIndicator.classList.add('hidden');
@@ -1027,6 +1517,20 @@
             document.getElementById('reportsTable').classList.add('hidden');
             noReports.classList.remove('hidden');
             noReports.innerHTML = `<p class="text-red-600">${message}</p>`;
+        }
+
+        function showErrorInDetailModal(message) {
+            console.error('Showing error in detail modal:', message);
+            detailLoadingIndicator.classList.add('hidden');
+            reportDetailContainer.classList.remove('hidden');
+            
+            reportDetailContainer.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-red-600 text-lg font-semibold">Error</p>
+                    <p class="text-gray-600 mt-2">${message}</p>
+                    <button onclick="closeReportDetailModal()" class="back-button mt-4">Cerrar</button>
+                </div>
+            `;
         }
 
         // Theme management functions
@@ -1154,16 +1658,17 @@
                 // Build query parameter for property filter
                 const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
                 
-                // Load data for all periods and incident types
-                const [weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData] = await Promise.all([
+                // Load data for all periods and incident types - UPDATED: Use new stats endpoint
+                const [weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData, statsData] = await Promise.all([
                     fetch(`/api/incidents/weekly${propertyParam}`).then(r => r.json()),
                     fetch(`/api/incidents/monthly${propertyParam}`).then(r => r.json()),
                     fetch(`/api/incidents/yearly${propertyParam}`).then(r => r.json()),
                     fetch(`/api/incidents/types${propertyParam}`).then(r => r.json()),
-                    fetch(`/api/incidents/weekly-with-kpi${propertyParam}`).then(r => r.json())
+                    fetch(`/api/incidents/weekly-with-kpi${propertyParam}`).then(r => r.json()),
+                    fetch(`/api/stats${propertyParam}`).then(r => r.json())
                 ]);
 
-                console.log('Data loaded:', {weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData});
+                console.log('Data loaded:', {weeklyData, monthlyData, yearlyData, incidentTypesData, weeklyKpiData, statsData});
 
                 allData = {
                     weekly: weeklyData,
@@ -1173,8 +1678,8 @@
 
                 window.weeklyKpiData = weeklyKpiData;
 
-                // Update stats
-                updateStats();
+                // Update stats with consistent data
+                updateStatsFromAPI(statsData);
                 await updateIncidentTypesForPeriod(currentPeriod);
                 
                 // Initialize chart with current period data
@@ -1213,7 +1718,7 @@
         async function updateIncidentTypesForPeriod(period) {
             try {
                 const propertyParam = currentPropertyId ? `?property_id=${currentPropertyId}` : '';
-                let endpoint = `/api/incidents/types${propertyParam}`; // default to weekly (last 7 days)
+                let endpoint = `/api/incidents/types${propertyParam}`; // default to weekly (current calendar week)
                 
                 if (period === 'monthly') {
                     endpoint = `/api/incidents/types/monthly${propertyParam}`;
@@ -1233,6 +1738,64 @@
                     updateIncidentTypes(weeklyData);
                 }
             }
+        }
+
+        function updateIncidentTypesWithPeriodData(incidentTypesData, periodInfo) {
+            console.log('Updating incident types with period data:', incidentTypesData);
+            
+            // Clear any existing KPI indicators
+            document.querySelectorAll('.kpi-indicator').forEach(el => el.remove());
+            document.querySelectorAll('.incident-type-card').forEach(el => {
+                el.classList.remove('critical');
+            });
+
+            const counts = {
+                'Hurto': document.getElementById('hurtoCount'),
+                'Olvido': document.getElementById('olvidoCount'),
+                'Recuperacion': document.getElementById('recuperacionCount'),
+                'Robo': document.getElementById('roboCount')
+            };
+
+            const cards = {
+                'Hurto': document.getElementById('hurtoCard'),
+                'Olvido': document.getElementById('olvidoCard'),
+                'Recuperacion': document.getElementById('recuperacionCard'),
+                'Robo': document.getElementById('roboCard')
+            };
+
+            // Update with period-specific data
+            incidentTypesData.forEach(item => {
+                const countElement = counts[item.type];
+                const card = cards[item.type];
+                
+                if (countElement && card) {
+                    countElement.textContent = item.count;
+                    
+                    // Add selected styling
+                    card.style.backgroundColor = '#fbbf24'; // yellow background
+                    card.style.transform = 'scale(1.02)';
+                    card.style.transition = 'all 0.3s ease';
+                    card.style.boxShadow = '0 4px 20px rgba(251, 191, 36, 0.6)';
+                    card.style.border = '2px solid #f59e0b';
+                    
+                    if (item.is_critical) {
+                        countElement.classList.add('critical');
+                        card.classList.add('critical');
+                        
+                        // Add KPI indicator
+                        const indicator = document.createElement('div');
+                        indicator.className = 'kpi-indicator';
+                        indicator.textContent = '!';
+                        indicator.title = `KPI Alert: ${item.count} incidents in 7-day period (threshold: ≥4)`;
+                        card.appendChild(indicator);
+                    } else {
+                        countElement.classList.remove('critical');
+                    }
+                }
+            });
+
+            // Show period info
+            showPeriodInfo(periodInfo);
         }
 
         function updateIncidentTypes(incidentTypesData) {
@@ -1282,28 +1845,12 @@
             });
         }
 
-        function updateStats() {
-            // Calculate total incidents
-            const totalIncidents = allData.yearly.reduce((sum, item) => sum + item.count, 0);
-            document.getElementById('totalIncidents').textContent = totalIncidents;
-
-            // This month incidents (current month from monthly data)
-            const currentMonth = new Date().getMonth() + 1;
-            const currentYear = new Date().getFullYear();
-            const thisMonthData = allData.monthly.find(item => {
-                const [month, year] = item.period.split(' ');
-                return parseInt(year) === currentYear && getMonthNumber(month) === currentMonth;
-            });
-            document.getElementById('thisMonthIncidents').textContent = thisMonthData ? thisMonthData.count : 0;
-
-            // This week incidents (latest week from weekly data)
-            const thisWeekData = allData.weekly.length > 0 ? allData.weekly[allData.weekly.length - 1] : null;
-            document.getElementById('thisWeekIncidents').textContent = thisWeekData ? thisWeekData.count : 0;
-
-            // Average per month
-            const avgPerMonth = allData.monthly.length > 0 ? 
-                Math.round(allData.monthly.reduce((sum, item) => sum + item.count, 0) / allData.monthly.length) : 0;
-            document.getElementById('averagePerMonth').textContent = avgPerMonth;
+        function updateStatsFromAPI(statsData) {
+            // Use the API data directly
+            document.getElementById('totalIncidents').textContent = statsData.total;
+            document.getElementById('thisMonthIncidents').textContent = statsData.thisMonth;
+            document.getElementById('thisWeekIncidents').textContent = statsData.thisWeek;
+            document.getElementById('averagePerMonth').textContent = statsData.averagePerMonth;
         }
 
         function getMonthNumber(monthName) {
@@ -1329,19 +1876,20 @@
             
             // Update chart title and KPI info
             const titles = {
-                weekly: 'Incidencias por Semana',
+                weekly: 'Incidencias por Períodos de 7 Días',
                 monthly: 'Incidencias por Mes',
                 yearly: 'Incidencias por Año'
             };
             
             const kpiInfo = {
-                weekly: 'KPI: Alertas cuando se superan los 4 incidentes por semana',
+                weekly: 'KPI: Alertas cuando se superan los 4 incidentes en 7 días',
                 monthly: 'KPI: Alertas cuando se superan los 16 incidentes por mes (4 semanas × 4)',
                 yearly: 'KPI: Alertas cuando se superan los 208 incidentes por año (52 semanas × 4)'
             };
             
+            // UPDATED: Updated incident types titles for clarity
             const incidentTypesTitles = {
-                weekly: 'Tipos de Incidencias (Últimos 7 días) - KPI: ≥4 en 7 días',
+                weekly: 'Tipos de Incidencias (Esta Semana) - KPI: ≥4 por semana',
                 monthly: 'Tipos de Incidencias (Últimos 30 días) - KPI: ≥16 en 30 días',
                 yearly: 'Tipos de Incidencias (Últimos 365 días) - KPI: ≥208 en 365 días'
             };
@@ -1362,48 +1910,70 @@
             updateChart();
         }
 
-        function togglePeriodBreakdown(dataIndex) {
-            console.log('togglePeriodBreakdown called with index:', dataIndex);
-            
-            // If clicking the same bar, toggle off
+        async function togglePeriodBreakdown(dataIndex) {
             if (currentlySelectedBar === dataIndex) {
-                console.log('Toggling off selected bar');
                 clearPeriodBreakdown();
                 return;
             }
 
-            // Get the data for the clicked period
-            let data = allData[currentPeriod] || [];
-            if (currentPeriod === 'weekly' && window.weeklyKpiData && window.weeklyKpiData.length > 0) {
-                data = window.weeklyKpiData;
-            }
-
-            console.log('Using data:', data);
-            console.log('DataIndex:', dataIndex, 'Data length:', data.length);
-
-            if (dataIndex >= data.length || !data[dataIndex]) {
-                console.log('Invalid data index or no data');
+            // Get the specific period's data from our pre-loaded data (allData)
+            const periodData = allData[currentPeriod][dataIndex];
+            if (!periodData || !periodData.date_range) {
+                console.error("Selected period data is missing a date_range:", periodData);
+                showError("No se puede determinar el rango de fechas para el período seleccionado.");
                 return;
             }
 
-            const item = data[dataIndex];
-            console.log('Selected item:', item);
-
-            // Store original data if not already stored
-            if (originalIncidentTypesData === null) {
-                console.log('Storing original incident types data');
-                storeOriginalIncidentTypesData();
-            }
-
-            // Set the new selected bar
+            // Set the selected bar *before* starting async operations to update the UI immediately
             currentlySelectedBar = dataIndex;
-            console.log('Set currentlySelectedBar to:', currentlySelectedBar);
 
-            // Show breakdown for this period
-            showBreakdownForPeriod(item);
+            const { start, end } = periodData.date_range;
+            const propertyParam = currentPropertyId ? `&property_id=${currentPropertyId}` : '';
 
-            // Update chart to show selection
-            updateChart();
+            // Show a loading indicator while we fetch details
+            showLoadingIndicator();
+
+            try {
+                // Fetch the detailed reports for the exact selected period
+                const reportsResponse = await fetch(`/api/reports/period-range?start_date=${start}&end_date=${end}${propertyParam}`);
+                if (!reportsResponse.ok) {
+                    throw new Error(`Failed to fetch reports: ${reportsResponse.statusText}`);
+                }
+                const reportsData = await reportsResponse.json();
+
+                // Store the fetched reports globally for when the user clicks an incident card
+                window.currentPeriodReports = {
+                    reports: reportsData.reports,
+                    period_info: periodData
+                };
+
+                // Calculate the incident type breakdown from the actual reports we just fetched.
+                // This ensures the numbers on the cards perfectly match the modal details.
+                const incidentTypesCount = { 'Hurto': 0, 'Olvido': 0, 'Recuperacion': 0, 'Robo': 0 };
+                for (const report of reportsData.reports) {
+                    if (report.tipo_incidencia in incidentTypesCount) {
+                        incidentTypesCount[report.tipo_incidencia]++;
+                    }
+                }
+                const incidentTypesForDisplay = Object.entries(incidentTypesCount).map(([type, count]) => ({ type, count }));
+
+                // Store original data for restoration if not already stored
+                if (originalIncidentTypesData === null) {
+                    storeOriginalIncidentTypesData();
+                }
+
+                // Update the UI cards and chart with the real, fetched data
+                updateIncidentTypesWithPeriodData(incidentTypesForDisplay, periodData);
+                updateChart(); // This will highlight the selected bar
+
+            } catch (error) {
+                console.error("Error toggling period breakdown:", error);
+                showError("No se pudieron cargar los detalles para el período seleccionado.");
+                // If something fails, revert the state to avoid inconsistency
+                clearPeriodBreakdown();
+            } finally {
+                hideLoadingIndicator();
+            }
         }
 
         function storeOriginalIncidentTypesData() {
@@ -1531,6 +2101,9 @@
 
         function clearPeriodBreakdown() {
             console.log('Clearing period breakdown');
+            
+            // Clear stored period reports
+            window.currentPeriodReports = null;
             
             if (originalIncidentTypesData === null) {
                 console.log('No original data to restore');
@@ -1732,6 +2305,8 @@
         window.changeProperty = changeProperty;
         window.showReportsModal = showReportsModal;
         window.showIncidentTypeReports = showIncidentTypeReports;
+        window.showReportDetailModal = showReportDetailModal;
+        window.closeReportDetailModal = closeReportDetailModal;
 
         function showError(message) {
             // Create error message element

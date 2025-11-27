@@ -3,6 +3,7 @@ import sys
 import logging
 import re
 from datetime import timedelta, datetime, timezone
+import calendar
 
 from flask import Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
@@ -212,6 +213,231 @@ def get_properties():
         if conn:
             conn.close()
 
+def get_report_details(report_id):
+    """Get detailed information for a specific report"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_report_details.")
+            return None
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        query = """
+            SELECT 
+                ri.id_reporte_incidente,
+                ri.fecha_incidente,
+                ri.hora_incidente,
+                ri.descripcion_incidente,
+                ri.nombre_persona,
+                ri.user_email,
+                ri.telefono_persona,
+                ri.numero_identidad_persona,
+                ri.numero_local,
+                ri.direccion,
+                ri.valor_aproximado,
+                ri.creado_en,
+                ri.pertenencias_sustraidas,
+                ri.descripcion_zona_comun,
+                ri.imagenes_pdfs,
+                p.nombre as propiedad_nombre,
+                p.direccion as propiedad_direccion,
+                p.descripcion as propiedad_descripcion,
+                ti.nombre as tipo_incidencia,
+                tc.nombre as tipo_cliente,
+                li.nombre as lugar_incidente,
+                s.nombre as supervisor_name
+            FROM reportes_incidentes ri
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_cliente tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN lugar_incidente li ON ri.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
+            WHERE ri.id_reporte_incidente = %s;
+        """
+        
+        cur.execute(query, (report_id,))
+        row = cur.fetchone()
+        
+        if not row:
+            app_logger.warning(f"Report with ID {report_id} not found")
+            return None
+        
+        # Format the report data based on actual database schema
+        report = {
+            'id_reporte': row['id_reporte_incidente'],
+            'fecha_incidente': row['fecha_incidente'].strftime('%Y-%m-%d') if row['fecha_incidente'] else '',
+            'hora_incidente': str(row['hora_incidente']) if row['hora_incidente'] else '',
+            'descripcion_incidente': row['descripcion_incidente'] or '',
+            'descripcion_zona_comun': row['descripcion_zona_comun'] or '',
+            'pertenencias_sustraidas': row['pertenencias_sustraidas'] or '',
+            'imagenes_pdfs': row['imagenes_pdfs'] or '',
+            'estado_reporte': 'Reportado',  # Default status since it's not in the schema
+            
+            # Person details
+            'nombre_persona': row['nombre_persona'] or '',
+            'user_email': row['user_email'] or '',
+            'telefono_persona': row['telefono_persona'] or '',
+            'numero_identidad_persona': row['numero_identidad_persona'] or '',
+            'numero_local': row['numero_local'] or '',
+            'direccion': row['direccion'] or '',
+            
+            # Property details
+            'propiedad_nombre': row['propiedad_nombre'] or '',
+            'propiedad_direccion': row['propiedad_direccion'] or '',
+            'propiedad_descripcion': row['propiedad_descripcion'] or '',
+            
+            # Incident classification
+            'tipo_incidencia': row['tipo_incidencia'] or '',
+            'tipo_cliente': row['tipo_cliente'] or '',
+            'lugar_incidente': row['lugar_incidente'] or '',
+            
+            # Supervisor details
+            'supervisor_name': row['supervisor_name'] or '',
+            
+            # Financial
+            'valor_aproximado': float(row['valor_aproximado']) if row['valor_aproximado'] else 0.0,
+            
+            # Timestamps
+            'created_at': row['creado_en'].strftime('%Y-%m-%d %H:%M:%S') if row['creado_en'] else '',
+            'updated_at': ''  # Not available in current schema
+        }
+        
+        app_logger.info(f"Successfully retrieved details for report {report_id}")
+        return report
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_report_details: {e}", exc_info=True)
+        return None
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+def get_this_week_count(property_id=None):
+    """Get count of incidents for current calendar week"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_this_week_count.")
+            return 0
+
+        cur = conn.cursor()
+        
+        # Build query with optional property filter
+        where_clause = """WHERE ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+              AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
+            SELECT COUNT(*) as incident_count
+            FROM reportes_incidentes ri
+            {where_clause}
+        """
+        
+        cur.execute(query, params)
+        result = cur.fetchone()
+        
+        return result[0] if result else 0
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_this_week_count: {e}", exc_info=True)
+        return 0
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+def get_this_month_count(property_id=None):
+    """Get count of incidents for current calendar month"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_this_month_count.")
+            return 0
+
+        cur = conn.cursor()
+        
+        # Build query with optional property filter
+        where_clause = """WHERE DATE_TRUNC('month', ri.fecha_incidente) = DATE_TRUNC('month', CURRENT_DATE)"""
+        params = []
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
+            SELECT COUNT(*) as incident_count
+            FROM reportes_incidentes ri
+            {where_clause}
+        """
+        
+        cur.execute(query, params)
+        result = cur.fetchone()
+        
+        return result[0] if result else 0
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_this_month_count: {e}", exc_info=True)
+        return 0
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+def get_total_count(property_id=None):
+    """Get total count of incidents"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_total_count.")
+            return 0
+
+        cur = conn.cursor()
+        
+        # Build query with optional property filter
+        where_clause = ""
+        params = []
+        
+        if property_id:
+            where_clause = "WHERE ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
+            SELECT COUNT(*) as incident_count
+            FROM reportes_incidentes ri
+            {where_clause}
+        """
+        
+        cur.execute(query, params)
+        result = cur.fetchone()
+        
+        return result[0] if result else 0
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_total_count: {e}", exc_info=True)
+        return 0
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 def get_reports_for_stat(stat_type, property_id=None, limit=100):
     """Get detailed reports for a specific statistic"""
     conn = None
@@ -259,7 +485,7 @@ def get_reports_for_stat(stat_type, property_id=None, limit=100):
             where_conditions.append("ri.id_propiedad = %s")
             params.append(property_id)
         
-        # Add conditions based on stat type
+        # Add conditions based on stat type - FIXED: Use consistent date calculations
         if stat_type == 'total':
             # No additional date filters for total
             pass
@@ -268,16 +494,21 @@ def get_reports_for_stat(stat_type, property_id=None, limit=100):
                 DATE_TRUNC('month', ri.fecha_incidente) = DATE_TRUNC('month', CURRENT_DATE)
             """)
         elif stat_type == 'thisWeek':
+            # FIXED: Use calendar week consistently
             where_conditions.append("""
                 ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
                 AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
             """)
+            # DEBUG: Add logging for thisWeek
+            app_logger.info("ThisWeek date range: week start = DATE_TRUNC('week', CURRENT_DATE)")
         elif stat_type == 'incidentTypes':
-            # Last 7 days for incident types
+            # FIXED: Use same calendar week calculation for consistency
             where_conditions.append("""
-                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '7 days'
-                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+                ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+                AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
             """)
+            # DEBUG: Add logging for incidentTypes
+            app_logger.info("IncidentTypes date range: week start = DATE_TRUNC('week', CURRENT_DATE)")
         elif stat_type == 'incidentTypesMonthly':
             # Last 30 days for monthly incident types
             where_conditions.append("""
@@ -307,6 +538,13 @@ def get_reports_for_stat(stat_type, property_id=None, limit=100):
         rows = cur.fetchall()
         
         app_logger.info(f"Found {len(rows)} reports for stat_type {stat_type}")
+        
+        # DEBUG: Log details about the found reports
+        for i, row in enumerate(rows):
+            app_logger.info(f"Report {i+1}: ID={row['id_reporte_incidente']}, "
+                          f"Date={row['fecha_incidente']}, "
+                          f"Type={row['tipo_incidencia']}, "
+                          f"Property={row['propiedad_nombre']}")
         
         reports = []
         for row in rows:
@@ -388,12 +626,12 @@ def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id
             where_conditions.append("ri.id_propiedad = %s")
             params.append(property_id)
         
-        # Add date conditions based on stat type
+        # FIXED: Add date conditions based on stat type with consistent calculations
         if stat_type == 'weekly':
-            # Last 7 days
+            # Use calendar week for consistency with "Esta Semana"
             where_conditions.append("""
-                ri.fecha_incidente >= CURRENT_DATE - INTERVAL '7 days'
-                AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
+                ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+                AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
             """)
         elif stat_type == 'monthly':
             # Last 30 days
@@ -454,8 +692,131 @@ def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id
         if conn:
             conn.close()
 
+def get_incidents_by_week_with_types(property_id=None):
+    """Get incident counts grouped by 7-day periods with type breakdown for KPI alerts, optionally filtered by property"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_incidents_by_week_with_types.")
+            return []
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # FIXED: Corrected query structure
+        params = []
+        property_filter = ""
+        
+        if property_id:
+            property_filter = "AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        query = f"""
+            WITH seven_day_periods AS (
+                SELECT 
+                    CURRENT_DATE - (generate_series(0, 11) * 7) as period_end,
+                    CURRENT_DATE - (generate_series(0, 11) * 7) - 6 as period_start
+            ),
+            all_types AS (
+                SELECT unnest(ARRAY['Hurto', 'Olvido', 'Recuperacion', 'Robo']) as incident_type
+            ),
+            period_type_combinations AS (
+                SELECT 
+                    sdp.period_start,
+                    sdp.period_end,
+                    at.incident_type
+                FROM seven_day_periods sdp
+                CROSS JOIN all_types at
+            ),
+            actual_data AS (
+                SELECT 
+                    sdp.period_start,
+                    sdp.period_end,
+                    ti.nombre as incident_type,
+                    COUNT(ri.id_reporte_incidente) as incident_count
+                FROM seven_day_periods sdp
+                LEFT JOIN reportes_incidentes ri ON (
+                    ri.fecha_incidente >= sdp.period_start 
+                    AND ri.fecha_incidente <= sdp.period_end
+                    {property_filter}
+                )
+                LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+                WHERE ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo') OR ti.nombre IS NULL
+                GROUP BY sdp.period_start, sdp.period_end, ti.nombre
+            )
+            SELECT 
+                ptc.period_start,
+                ptc.period_end,
+                ptc.incident_type,
+                COALESCE(ad.incident_count, 0) as incident_count
+            FROM period_type_combinations ptc
+            LEFT JOIN actual_data ad ON (
+                ptc.period_start = ad.period_start 
+                AND ptc.period_end = ad.period_end 
+                AND ptc.incident_type = ad.incident_type
+            )
+            ORDER BY ptc.period_start DESC, ptc.incident_type;
+        """
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        # KPI threshold for weekly: 4 incidents per 7-day period
+        weekly_kpi_threshold = 4
+        
+        # Group by period and check for KPI violations
+        periods_data = {}
+        for row in rows:
+            period_start = row['period_start']
+            period_end = row['period_end']
+            incident_type = row['incident_type']
+            count = row['incident_count']
+            
+            period_key = (period_start, period_end)
+            
+            if period_key not in periods_data:
+                periods_data[period_key] = {
+                    'period': f"{period_start.strftime('%d/%m')} - {period_end.strftime('%d/%m/%Y')}",
+                    'total_count': 0,
+                    'has_kpi_violation': False,
+                    'types': {},
+                    'date_range': {
+                        'start': period_start.isoformat(),
+                        'end': period_end.isoformat()
+                    },
+                    'period_start': period_start,
+                    'period_end': period_end
+                }
+            
+            # Always set the count, even if it's 0
+            periods_data[period_key]['types'][incident_type] = count
+            if count > 0:
+                periods_data[period_key]['total_count'] += count
+        
+        # Check KPI violations
+        for period_data in periods_data.values():
+            if period_data['total_count'] >= weekly_kpi_threshold:
+                period_data['has_kpi_violation'] = True
+        
+        # Convert to list and sort chronologically (oldest first)
+        result = []
+        for period_key in sorted(periods_data.keys(), key=lambda x: x[0]):
+            result.append(periods_data[period_key])
+        
+        return result[-12:]  # Return last 12 periods
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_incidents_by_week_with_types: {e}", exc_info=True)
+        return []
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 def get_incidents_by_week(property_id=None):
-    """Get incident counts grouped by week, optionally filtered by property"""
+    """Get incident counts grouped by 7-day periods (last 7 days, previous 7 days, etc.), optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -467,22 +828,32 @@ def get_incidents_by_week(property_id=None):
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # Build query with optional property filter
-        where_clause = "WHERE ri.fecha_incidente IS NOT NULL"
         params = []
+        property_filter = ""
         
         if property_id:
-            where_clause += " AND ri.id_propiedad = %s"
+            property_filter = "AND ri.id_propiedad = %s"
             params.append(property_id)
         
+        # Use same 7-day periods as the KPI function
         query = f"""
+            WITH seven_day_periods AS (
+                SELECT 
+                    CURRENT_DATE - (generate_series(0, 11) * 7) as period_end,
+                    CURRENT_DATE - (generate_series(0, 11) * 7) - 6 as period_start
+            )
             SELECT 
-                DATE_TRUNC('week', ri.fecha_incidente) as week_start,
-                COUNT(*) as incident_count
-            FROM reportes_incidentes ri
-            {where_clause}
-            GROUP BY DATE_TRUNC('week', ri.fecha_incidente)
-            ORDER BY week_start DESC
-            LIMIT 12;
+                sdp.period_start,
+                sdp.period_end,
+                COUNT(ri.id_reporte_incidente) as incident_count
+            FROM seven_day_periods sdp
+            LEFT JOIN reportes_incidentes ri ON (
+                ri.fecha_incidente >= sdp.period_start 
+                AND ri.fecha_incidente <= sdp.period_end
+                {property_filter}
+            )
+            GROUP BY sdp.period_start, sdp.period_end
+            ORDER BY sdp.period_start;
         """
         
         cur.execute(query, params)
@@ -490,14 +861,18 @@ def get_incidents_by_week(property_id=None):
         
         data = []
         for row in rows:
-            week_start = row['week_start']
-            week_end = week_start + timedelta(days=6)
+            period_start = row['period_start']
+            period_end = row['period_end']
             data.append({
-                'period': f"{week_start.strftime('%d/%m')} - {week_end.strftime('%d/%m/%Y')}",
-                'count': row['incident_count']
+                'period': f"{period_start.strftime('%d/%m')} - {period_end.strftime('%d/%m/%Y')}",
+                'count': row['incident_count'],
+                'date_range': {
+                    'start': period_start.isoformat(),
+                    'end': period_end.isoformat()
+                }
             })
         
-        return list(reversed(data))
+        return data
         
     except Exception as e:
         app_logger.error(f"Error in get_incidents_by_week: {e}", exc_info=True)
@@ -558,10 +933,18 @@ def get_incidents_by_month(property_id=None):
             month_name = month_names[month_start.month]
             incident_count = row['incident_count']
             
+            # Calculate the last day of the month for the date range
+            _, last_day = calendar.monthrange(month_start.year, month_start.month)
+            month_end = month_start.replace(day=last_day)
+            
             data.append({
                 'period': f"{month_name} {month_start.year}",
                 'count': incident_count,
-                'has_kpi_violation': incident_count >= monthly_kpi_threshold
+                'has_kpi_violation': incident_count >= monthly_kpi_threshold,
+                'date_range': {
+                    'start': month_start.strftime('%Y-%m-%d'),
+                    'end': month_end.strftime('%Y-%m-%d')
+                }
             })
         
         return list(reversed(data))
@@ -614,10 +997,15 @@ def get_incidents_by_year(property_id=None):
         data = []
         for row in rows:
             incident_count = row['incident_count']
+            year = int(row['year'])
             data.append({
-                'period': str(int(row['year'])),
+                'period': str(year),
                 'count': incident_count,
-                'has_kpi_violation': incident_count >= yearly_kpi_threshold
+                'has_kpi_violation': incident_count >= yearly_kpi_threshold,
+                'date_range': {
+                    'start': f"{year}-01-01",
+                    'end': f"{year}-12-31"
+                }
             })
         
         return data
@@ -632,7 +1020,7 @@ def get_incidents_by_year(property_id=None):
             conn.close()
 
 def get_incident_types_stats(property_id=None):
-    """Get incident counts by type for the last 7 days, optionally filtered by property"""
+    """Get incident counts by type for current calendar week, optionally filtered by property"""
     conn = None
     cur = None
     try:
@@ -643,19 +1031,46 @@ def get_incident_types_stats(property_id=None):
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Build query with optional property filter - Changed to last 7 days
-        where_clause = """WHERE ri.fecha_incidente >= CURRENT_DATE - INTERVAL '7 days'
-              AND ri.fecha_incidente < CURRENT_DATE + INTERVAL '1 day'
-              AND ti.nombre IS NOT NULL"""
+        # FIXED: Use exact same date calculation as thisWeek and remove ti.nombre IS NOT NULL filter
+        where_clause = """WHERE ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+              AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'"""
         params = []
         
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
         
+        # DEBUG: First let's see all incidents in this week
+        debug_query = f"""
+            SELECT 
+                ri.id_reporte_incidente,
+                ri.fecha_incidente,
+                ti.nombre as tipo_incidencia,
+                p.nombre as propiedad_nombre
+            FROM reportes_incidentes ri
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            {where_clause}
+            ORDER BY ri.fecha_incidente DESC;
+        """
+        
+        app_logger.info(f"DEBUG: Executing debug query: {debug_query}")
+        app_logger.info(f"DEBUG: Query parameters: {params}")
+        
+        cur.execute(debug_query, params)
+        debug_rows = cur.fetchall()
+        
+        app_logger.info(f"DEBUG: Found {len(debug_rows)} total incidents this week")
+        for row in debug_rows:
+            app_logger.info(f"DEBUG: Incident ID={row['id_reporte_incidente']}, "
+                          f"Date={row['fecha_incidente']}, "
+                          f"Type={row['tipo_incidencia']}, "
+                          f"Property={row['propiedad_nombre']}")
+        
+        # Now the actual query for incident types
         query = f"""
             SELECT 
-                ti.nombre as incident_type,
+                COALESCE(ti.nombre, 'Sin Tipo') as incident_type,
                 COUNT(*) as incident_count
             FROM reportes_incidentes ri
             LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
@@ -664,8 +1079,15 @@ def get_incident_types_stats(property_id=None):
             ORDER BY ti.nombre;
         """
         
+        app_logger.info(f"Executing incident types query: {query}")
+        app_logger.info(f"Query parameters: {params}")
+        
         cur.execute(query, params)
         rows = cur.fetchall()
+        
+        app_logger.info(f"Raw incident type results: {len(rows)} types found")
+        for row in rows:
+            app_logger.info(f"Type: {row['incident_type']}, Count: {row['incident_count']}")
         
         # Initialize all incident types with 0 count
         incident_types = {
@@ -680,6 +1102,8 @@ def get_incident_types_stats(property_id=None):
             incident_type = row['incident_type']
             if incident_type in incident_types:
                 incident_types[incident_type] = row['incident_count']
+            else:
+                app_logger.warning(f"Found incident with unknown type: {incident_type} (Count: {row['incident_count']})")
         
         # Convert to list format for frontend
         result = []
@@ -689,6 +1113,8 @@ def get_incident_types_stats(property_id=None):
                 'count': count,
                 'is_critical': count >= 4  # KPI threshold
             })
+        
+        app_logger.info(f"Final incident types result: {result}")
         
         return result
         
@@ -838,85 +1264,6 @@ def get_incident_types_yearly(property_id=None):
         
     except Exception as e:
         app_logger.error(f"Error in get_incident_types_yearly: {e}", exc_info=True)
-        return []
-    finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
-
-def get_incidents_by_week_with_types(property_id=None):
-    """Get incident counts grouped by week with type breakdown for KPI alerts, optionally filtered by property"""
-    conn = None
-    cur = None
-    try:
-        conn = get_db_connection()
-        if not conn:
-            app_logger.error("Failed to get database connection in get_incidents_by_week_with_types.")
-            return []
-
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # Build query with optional property filter
-        where_clause = """WHERE ri.fecha_incidente IS NOT NULL
-              AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')"""
-        params = []
-        
-        if property_id:
-            where_clause += " AND ri.id_propiedad = %s"
-            params.append(property_id)
-        
-        query = f"""
-            SELECT 
-                DATE_TRUNC('week', ri.fecha_incidente) as week_start,
-                ti.nombre as incident_type,
-                COUNT(*) as incident_count
-            FROM reportes_incidentes ri
-            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            {where_clause}
-            GROUP BY DATE_TRUNC('week', ri.fecha_incidente), ti.nombre
-            ORDER BY week_start DESC, ti.nombre
-            LIMIT 48; -- 12 weeks * 4 types max
-        """
-        
-        cur.execute(query, params)
-        rows = cur.fetchall()
-        
-        # KPI threshold for weekly: 4 incidents per week
-        weekly_kpi_threshold = 4
-        
-        # Group by week and check for KPI violations
-        weeks_data = {}
-        for row in rows:
-            week_start = row['week_start']
-            incident_type = row['incident_type']
-            count = row['incident_count']
-            
-            if week_start not in weeks_data:
-                week_end = week_start + timedelta(days=6)
-                weeks_data[week_start] = {
-                    'period': f"{week_start.strftime('%d/%m')} - {week_end.strftime('%d/%m/%Y')}",
-                    'total_count': 0,
-                    'has_kpi_violation': False,
-                    'types': {}
-                }
-            
-            weeks_data[week_start]['types'][incident_type] = count
-            weeks_data[week_start]['total_count'] += count
-            
-            # Check KPI violation (4 or more incidents total per week)
-            if weeks_data[week_start]['total_count'] >= weekly_kpi_threshold:
-                weeks_data[week_start]['has_kpi_violation'] = True
-        
-        # Convert to list and sort chronologically
-        result = []
-        for week_start in sorted(weeks_data.keys(), reverse=True)[:12]:  # Last 12 weeks
-            result.append(weeks_data[week_start])
-        
-        return list(reversed(result))  # Reverse to show chronological order
-        
-    except Exception as e:
-        app_logger.error(f"Error in get_incidents_by_week_with_types: {e}", exc_info=True)
         return []
     finally:
         if cur:
@@ -1087,6 +1434,73 @@ def get_incidents_by_year_with_types(property_id=None):
         if conn:
             conn.close()
 
+def get_incident_types_for_period(start_date, end_date, property_id=None):
+    """Get incident counts by type for a specific date range"""
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            app_logger.error("Failed to get database connection in get_incident_types_for_period.")
+            return []
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # FIXED: Use exact same date filtering logic with property filter
+        where_clause = """WHERE ri.fecha_incidente >= %s
+              AND ri.fecha_incidente <= %s"""
+        params = [start_date, end_date]
+        
+        if property_id:
+            where_clause += " AND ri.id_propiedad = %s"
+            params.append(property_id)
+        
+        # FIXED: Include all incident types, even with 0 counts
+        query = f"""
+            WITH all_types AS (
+                SELECT unnest(ARRAY['Hurto', 'Olvido', 'Recuperacion', 'Robo']) as incident_type
+            ),
+            actual_counts AS (
+                SELECT 
+                    ti.nombre as incident_type,
+                    COUNT(*) as incident_count
+                FROM reportes_incidentes ri
+                LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+                {where_clause}
+                    AND ti.nombre IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')
+                GROUP BY ti.nombre
+            )
+            SELECT 
+                at.incident_type,
+                COALESCE(ac.incident_count, 0) as incident_count
+            FROM all_types at
+            LEFT JOIN actual_counts ac ON at.incident_type = ac.incident_type
+            ORDER BY at.incident_type;
+        """
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        # Convert to list format for frontend
+        result = []
+        for row in rows:
+            result.append({
+                'type': row['incident_type'],
+                'count': row['incident_count'],
+                'is_critical': row['incident_count'] >= 4  # KPI threshold for 7-day period
+            })
+        
+        return result
+        
+    except Exception as e:
+        app_logger.error(f"Error in get_incident_types_for_period: {e}", exc_info=True)
+        return []
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 def admin_required(f):
     """
     Decorator that requires the user to be an admin.
@@ -1173,6 +1587,161 @@ def dashboard():
                          current_user=user_email, 
                          user_name=user_name,
                          is_admin=is_admin)  # Pass admin status to template
+
+@app.route('/api/debug/thisweek')
+@jwt_required()
+def debug_thisweek():
+    """Debug endpoint to see what's happening with this week's data"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Get the current date and week boundaries
+        boundary_query = """
+            SELECT 
+                CURRENT_DATE as current_date,
+                DATE_TRUNC('week', CURRENT_DATE) as week_start,
+                DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week' - INTERVAL '1 day' as week_end
+        """
+        
+        cur.execute(boundary_query)
+        boundaries = cur.fetchone()
+        
+        # Get all incidents this week with full details
+        incidents_query = """
+            SELECT 
+                ri.id_reporte_incidente,
+                ri.fecha_incidente,
+                ri.hora_incidente,
+                ri.id_tipo_incidencia,
+                ti.nombre as tipo_incidencia,
+                p.nombre as propiedad_nombre,
+                ri.descripcion_incidente
+            FROM reportes_incidentes ri
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            WHERE ri.fecha_incidente >= DATE_TRUNC('week', CURRENT_DATE)
+              AND ri.fecha_incidente < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+            ORDER BY ri.fecha_incidente DESC, ri.hora_incidente DESC;
+        """
+        
+        cur.execute(incidents_query)
+        incidents = cur.fetchall()
+        
+        result = {
+            "boundaries": {
+                "current_date": boundaries['current_date'].isoformat(),
+                "week_start": boundaries['week_start'].isoformat(),
+                "week_end": boundaries['week_end'].isoformat()
+            },
+            "incidents_count": len(incidents),
+            "incidents": []
+        }
+        
+        for incident in incidents:
+            result["incidents"].append({
+                "id": incident['id_reporte_incidente'],
+                "date": incident['fecha_incidente'].isoformat() if incident['fecha_incidente'] else None,
+                "time": str(incident['hora_incidente']) if incident['hora_incidente'] else None,
+                "type_id": incident['id_tipo_incidencia'],
+                "type_name": incident['tipo_incidencia'],
+                "property": incident['propiedad_nombre'],
+                "description": incident['descripcion_incidente'][:100] if incident['descripcion_incidente'] else None
+            })
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        app_logger.error(f"Error in debug endpoint: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/stats')
+@jwt_required()
+def api_stats():
+    """API endpoint to get consistent statistics"""
+    property_id = request.args.get('property_id', type=int)
+    
+    try:
+        total_count = get_total_count(property_id)
+        this_month_count = get_this_month_count(property_id)
+        this_week_count = get_this_week_count(property_id)
+        
+        # Calculate average from monthly data
+        monthly_data = get_incidents_by_month(property_id)
+        avg_per_month = 0
+        if monthly_data:
+            avg_per_month = round(sum(item['count'] for item in monthly_data) / len(monthly_data))
+        
+        return jsonify({
+            'total': total_count,
+            'thisMonth': this_month_count,
+            'thisWeek': this_week_count,
+            'averagePerMonth': avg_per_month
+        })
+        
+    except Exception as e:
+        app_logger.error(f"Error in api_stats: {e}", exc_info=True)
+        return jsonify({
+            'total': 0,
+            'thisMonth': 0,
+            'thisWeek': 0,
+            'averagePerMonth': 0
+        }), 500
+
+@app.route('/api/report/<int:report_id>')
+@jwt_required()
+def api_report_details(report_id):
+    """API endpoint to get detailed information for a specific report"""
+    try:
+        report = get_report_details(report_id)
+        
+        if not report:
+            return jsonify({'error': 'Report not found'}), 404
+        
+        return jsonify({
+            'report': report,
+            'success': True
+        })
+        
+    except Exception as e:
+        app_logger.error(f"Error fetching report details for ID {report_id}: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Error al obtener los detalles del reporte',
+            'details': str(e)
+        }), 500
+
+@app.route('/api/incidents/period/<int:period_index>')
+@jwt_required()
+def api_incidents_for_period(period_index):
+    """API endpoint for specific 7-day period incident types"""
+    property_id = request.args.get('property_id', type=int)
+    
+    # Get the weekly data to find the specific period
+    weekly_data = get_incidents_by_week_with_types(property_id)
+    
+    if period_index >= len(weekly_data) or period_index < 0:
+        return jsonify({'error': 'Invalid period index'}), 400
+    
+    selected_period = weekly_data[period_index]
+    
+    # Get incident types for this specific period
+    start_date = selected_period['date_range']['start']
+    end_date = selected_period['date_range']['end']
+    incident_types = get_incident_types_for_period(start_date, end_date, property_id)
+    
+    return jsonify({
+        'incident_types': incident_types,
+        'period_info': selected_period,
+        'period_index': period_index
+    })
 
 @app.route('/dashboard')
 @jwt_required()
@@ -1261,7 +1830,7 @@ def api_incidents_yearly():
 @app.route('/api/incidents/types')
 @jwt_required()
 def api_incident_types():
-    """API endpoint for incident types data (last 7 days)"""
+    """API endpoint for incident types data (current calendar week)"""
     property_id = request.args.get('property_id', type=int)
     data = get_incident_types_stats(property_id)
     return jsonify(data)
@@ -1305,6 +1874,110 @@ def api_incidents_yearly_with_types():
     property_id = request.args.get('property_id', type=int)
     data = get_incidents_by_year_with_types(property_id)
     return jsonify(data)
+
+@app.route('/api/reports/period-range')
+@jwt_required()
+def api_reports_for_period_range():
+    """API endpoint to get all reports for a specific date range"""
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    property_id = request.args.get('property_id', type=int)
+    limit = request.args.get('limit', 100, type=int)
+    
+    if not start_date or not end_date:
+        return jsonify({'error': 'start_date and end_date are required'}), 400
+    
+    # Use the existing function to get reports for date range
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"reports": []}), 500
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        where_conditions = [
+            "ri.fecha_incidente >= %s",
+            "ri.fecha_incidente <= %s"
+        ]
+        params = [start_date, end_date]
+        
+        if property_id:
+            where_conditions.append("ri.id_propiedad = %s")
+            params.append(property_id)
+        
+        query = f"""
+            SELECT 
+                ri.id_reporte_incidente,
+                ri.fecha_incidente,
+                ri.hora_incidente,
+                ri.descripcion_incidente,
+                ri.nombre_persona,
+                ri.user_email,
+                ri.telefono_persona,
+                ri.numero_identidad_persona,
+                ri.numero_local,
+                ri.direccion,
+                p.nombre as propiedad_nombre,
+                ti.nombre as tipo_incidencia,
+                tc.nombre as tipo_cliente,
+                li.nombre as lugar_incidente,
+                s.nombre as supervisor_name,
+                ri.valor_aproximado
+            FROM reportes_incidentes ri
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            LEFT JOIN tipo_incidencia ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN tipo_cliente tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN lugar_incidente li ON ri.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
+            WHERE {' AND '.join(where_conditions)}
+            ORDER BY ri.fecha_incidente DESC, ri.hora_incidente DESC
+            LIMIT %s
+        """
+        
+        params.append(limit)
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        reports = []
+        for row in rows:
+            reports.append({
+                'id_reporte': row['id_reporte_incidente'],
+                'fecha_incidente': row['fecha_incidente'].strftime('%Y-%m-%d') if row['fecha_incidente'] else '',
+                'hora_incidente': str(row['hora_incidente']) if row['hora_incidente'] else '',
+                'descripcion_incidente': row['descripcion_incidente'] or '',
+                'nombre_reportante': row['user_email'] or '',
+                'email_reportante': row['user_email'] or '',
+                'telefono_reportante': row['telefono_persona'] or '',
+                'nombre_usuario_afectado': row['nombre_persona'] or '',
+                'cedula_usuario_afectado': row['numero_identidad_persona'] or '',
+                'numero_apartamento': row['numero_local'] or '',
+                'propiedad_nombre': row['propiedad_nombre'] or '',
+                'tipo_incidencia': row['tipo_incidencia'] or '',
+                'tipo_cliente': row['tipo_cliente'] or '',
+                'lugar_incidente': row['lugar_incidente'] or '',
+                'supervisor_name': row['supervisor_name'] or '',
+                'valor_aproximado': float(row['valor_aproximado']) if row['valor_aproximado'] else 0.0,
+                'direccion': row['direccion'] or ''
+            })
+        
+        return jsonify({
+            'reports': reports,
+            'count': len(reports),
+            'start_date': start_date,
+            'end_date': end_date,
+            'property_id': property_id
+        })
+        
+    except Exception as e:
+        app_logger.error(f"Error in api_reports_for_period_range: {e}", exc_info=True)
+        return jsonify({"reports": []}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 @app.route('/logout')
 def logout():

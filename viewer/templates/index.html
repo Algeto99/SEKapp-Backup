@@ -135,6 +135,27 @@
             transition: max-height 0.5s ease-in;
         }
 
+        /* Flash message styles */
+        .flash-message {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 400px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .flash-success {
+            background-color: #10b981;
+            color: white;
+        }
+        .flash-error {
+            background-color: #ef4444;
+            color: white;
+        }
+
         /* Mobile navigation styles */
         @media (max-width: 768px) {
             body {
@@ -245,7 +266,8 @@
         /* Dark mode for form inputs */
         body.dark-mode input[type="text"],
         body.dark-mode input[type="email"],
-        body.dark-mode input[type="date"] {
+        body.dark-mode input[type="date"],
+        body.dark-mode input[type="number"] {
             background-color: #374151 !important;
             border-color: rgba(255, 255, 255, 0.2) !important;
             color: #e2e8f0 !important;
@@ -424,6 +446,9 @@
         </svg>
     </button>
 
+    <!-- Flash message container -->
+    <div id="flash-message-container" class="flash-message hidden"></div>
+
     <div class="container-wrapper">
         <!-- Mobile-Responsive Navigation Bar -->
         <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
@@ -496,6 +521,10 @@
         <!-- Updated search controls section -->
         <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
             <div class="flex-grow w-full">
+                <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Número de Reporte:</label>
+                <input type="number" id="reportIdSearch" placeholder="Ej: 12345" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex-grow w-full">
                 <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Propiedad:</label>
                 <select id="propertySelect" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
                     <option value="">Seleccionar propiedad...</option>
@@ -521,12 +550,14 @@
                     <input type="date" id="endDateFilter" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
             </div>
-            <button id="search-button" class="base-button-style btn-primary-professional w-full md:w-auto">
-                Buscar
-            </button>
-            <button id="clear-search-button" class="base-button-style btn-secondary-professional w-full md:w-auto">
-                Limpiar
-            </button>
+            <div class="flex flex-col space-y-2 w-full md:w-auto">
+                <button id="search-button" class="base-button-style btn-primary-professional w-full">
+                    Buscar
+                </button>
+                <button id="clear-search-button" class="base-button-style btn-secondary-professional w-full">
+                    Limpiar
+                </button>
+            </div>
         </div>
 
         <div id="reports-container" class="space-y-6">
@@ -634,16 +665,14 @@
 
         // --- Utility Functions ---
         function showFlashMessage(message, category) {
-            const flashContainer = document.querySelector('.flash-message');
+            const flashContainer = document.getElementById('flash-message-container');
             if (flashContainer) {
-                flashContainer.innerHTML = `
-                    <div class="p-3 rounded-md ${category === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-                        ${message}
-                    </div>
-                `;
-                flashContainer.style.display = 'block';
+                flashContainer.innerHTML = message;
+                flashContainer.className = `flash-message ${category === 'success' ? 'flash-success' : 'flash-error'}`;
+                flashContainer.classList.remove('hidden');
+                
                 setTimeout(() => {
-                    flashContainer.style.display = 'none';
+                    flashContainer.classList.add('hidden');
                     flashContainer.innerHTML = '';
                 }, 5000);
             }
@@ -742,7 +771,7 @@
                                             } else {
                                                 detailsHtml += `
                                                     <div style='margin-bottom: 10px;'>
-                                                        <p style="margin: 0;">📎 Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${filename}</a></p>
+                                                        <p style="margin: 0;">🔗 Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${filename}</a></p>
                                                     </div>
                                                 `;
                                             }
@@ -849,7 +878,8 @@
                         window.location.href = '/logout';
                         return;
                     }
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
@@ -870,7 +900,7 @@
                 
             } catch (error) {
                 console.error('Error loading properties:', error);
-                showFlashMessage('Error al cargar las propiedades.', 'error');
+                showFlashMessage(`Error al cargar las propiedades: ${error.message}`, 'error');
             }
         }
 
@@ -887,7 +917,8 @@
                         window.location.href = '/logout';
                         return;
                     }
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
@@ -920,11 +951,11 @@
                 
             } catch (error) {
                 console.error('Error loading locations:', error);
-                showFlashMessage('Error al cargar los lugares.', 'error');
+                showFlashMessage(`Error al cargar los lugares: ${error.message}`, 'error');
             }
         }
 
-        // Handle property selection change
+        // Handle property selection change - REMOVED AUTO-APPLY FILTERS
         function handlePropertyChange() {
             const propertySelect = document.getElementById('propertySelect');
             const selectedPropertyId = propertySelect.value;
@@ -934,11 +965,13 @@
             } else {
                 loadLocations(); // This will disable the location dropdown
             }
+            // Note: Removed automatic filter application to prevent timing issues
         }
 
-        // Updated applyFilters function
+        // Updated applyFilters function with better error handling
         function applyFilters() {
             const filters = {
+                report_id: document.getElementById('reportIdSearch').value,
                 property_id: document.getElementById('propertySelect').value,
                 location_id: document.getElementById('locationSelect').value,
                 submitted_by: document.getElementById('submittedBySearch').value,
@@ -961,6 +994,7 @@
                 }
 
                 try {
+                    console.log('Applying filters:', filters);
                     const response = await fetch(`/api/reports?${queryParams.toString()}`, {
                         headers: { 'Accept': 'application/json' }
                     });
@@ -970,11 +1004,22 @@
                             window.location.href = '/logout';
                             return;
                         }
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        
+                        let errorMessage = `HTTP error! status: ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        } catch (e) {
+                            // If can't parse error JSON, use the status message
+                            console.error('Could not parse error response:', e);
+                        }
+                        
+                        throw new Error(errorMessage);
                     }
 
                     const data = await response.json();
                     reportsContainer.innerHTML = '';
+                    
                     if (data.reports.length === 0) {
                         reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
                     } else {
@@ -1020,7 +1065,7 @@
                 } catch (error) {
                     console.error('Error fetching filtered reports:', error);
                     reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
-                    showFlashMessage('Error al cargar reportes filtrados.', 'error');
+                    showFlashMessage(`Error al cargar reportes filtrados: ${error.message}`, 'error');
                 }
             }
             fetchFilteredReports();
@@ -1258,6 +1303,7 @@
             updateActionButtonsState();
 
             // Get form elements
+            const reportIdSearch = document.getElementById('reportIdSearch');
             const propertySelect = document.getElementById('propertySelect');
             const locationSelect = document.getElementById('locationSelect');
             const submittedBySearch = document.getElementById('submittedBySearch');
@@ -1271,6 +1317,7 @@
             searchButton.addEventListener('click', applyFilters);
             
             clearSearchButton.addEventListener('click', () => {
+                reportIdSearch.value = '';
                 propertySelect.value = '';
                 locationSelect.value = '';
                 locationSelect.disabled = true;
@@ -1282,7 +1329,7 @@
             });
 
             // Enter key support for text inputs and date inputs
-            [submittedBySearch, startDateFilter, endDateFilter].forEach(input => {
+            [reportIdSearch, submittedBySearch, startDateFilter, endDateFilter].forEach(input => {
                 input.addEventListener('keypress', (event) => {
                     if (event.key === 'Enter') {
                         applyFilters();
@@ -1290,21 +1337,8 @@
                 });
             });
 
-            // Auto-search when dropdowns change
-            propertySelect.addEventListener('change', () => {
-                if (propertySelect.value) {
-                    // Small delay to allow location dropdown to populate
-                    setTimeout(() => {
-                        applyFilters();
-                    }, 100);
-                }
-            });
-
-            locationSelect.addEventListener('change', () => {
-                if (locationSelect.value) {
-                    applyFilters();
-                }
-            });
+            // REMOVED AUTO-SEARCH ON DROPDOWN CHANGES to prevent timing issues
+            // Users will need to click the search button or press enter to apply filters
 
             // Action button event listeners
             document.getElementById('print-selected-button').addEventListener('click', printSelectedReports);
