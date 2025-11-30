@@ -119,6 +119,7 @@ def verify_landing_service_connection():
 def configure_app():
     try:
         app.config['LANDING_SERVICE_URL'] = os.environ.get('LANDING_SERVICE_URL')
+        app.config['INTERNAL_LANDING_SERVICE_URL'] = os.environ.get('INTERNAL_LANDING_SERVICE_URL')
         app.config['LOGIN_SERVICE_URL'] = os.environ.get('LOGIN_SERVICE_URL')
         app.config['FORMS_SERVICE_URL'] = os.environ.get('FORMS_SERVICE_URL')
         app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL')
@@ -1354,11 +1355,16 @@ with app.app_context():
 
 # Initialize CloudRunServiceClient for landing service globally after app config
 landing_service_url = app.config.get('LANDING_SERVICE_URL')
-if landing_service_url:
+internal_landing_service_url = app.config.get('INTERNAL_LANDING_SERVICE_URL')
+
+if internal_landing_service_url:
+    landing_service_client = CloudRunServiceClient(internal_landing_service_url)
+    app_logger.info(f"CloudRunServiceClient initialized for landing service using INTERNAL URL: {internal_landing_service_url}")
+elif landing_service_url:
     landing_service_client = CloudRunServiceClient(landing_service_url)
-    app_logger.info("CloudRunServiceClient initialized for landing service.")
+    app_logger.info(f"CloudRunServiceClient initialized for landing service using EXTERNAL URL: {landing_service_url}")
 else:
-    app_logger.warning("LANDING_SERVICE_URL not set.")
+    app_logger.warning("Neither INTERNAL_LANDING_SERVICE_URL nor LANDING_SERVICE_URL set.")
 
 
 # --- Main Application Entry Point (For local development or direct execution) ---
