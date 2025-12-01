@@ -519,7 +519,7 @@ def medicion_experiencia_cliente_form():
         is_admin = False
 
     return render_template(
-        'medicion_experiencia_cliente.html',
+        'encuesta_cliente.html',
         name=user_name,
         is_admin=is_admin,
         **get_service_urls()
@@ -537,15 +537,14 @@ def submit_medicion_experiencia_cliente():
             'rol_aplicador': request.form.get('rol_aplicador'),
             'nombre_responsable': request.form.get('nombre_responsable'),
             'firma_responsable': request.form.get('firma_responsable'),
-            'puntuacion_presencia_personal': request.form.get('puntuacion_presencia_personal'),
-            'puntuacion_tiempo_respuesta': request.form.get('puntuacion_tiempo_respuesta'),
-            'puntuacion_funcionamiento_sistemas': request.form.get('puntuacion_funcionamiento_sistemas'),
-            'puntuacion_seguridad_parqueaderos': request.form.get('puntuacion_seguridad_parqueaderos'),
-            'puntuacion_seguridad_areas_comunes': request.form.get('puntuacion_seguridad_areas_comunes'),
-            'puntuacion_comunicacion_informacion': request.form.get('puntuacion_comunicacion_informacion'),
-            'puntuacion_confianza_general': request.form.get('puntuacion_confianza_general'),
-            'riesgo_detectado': request.form.get('riesgo_detectado'),
-            'novedades_reportadas': request.form.get('novedades_reportadas'),
+            'atencion_cliente': request.form.get('atencion_cliente'),
+            'comunicacion': request.form.get('comunicacion'),
+            'confiabilidad': request.form.get('confiabilidad'),
+            'capacidad_reaccion': request.form.get('capacidad_reaccion'),
+            'cumplimiento': request.form.get('cumplimiento'),
+            'competencia_personal': request.form.get('competencia_personal'),
+            'actitud_servicio': request.form.get('actitud_servicio'),
+            'atencion_quejas': request.form.get('atencion_quejas'),
             'calificacion_global_nps': request.form.get('calificacion_global_nps'),
             'recomendaria_servicio': request.form.get('recomendaria_servicio'),
             'observaciones_cliente': request.form.get('observaciones_cliente'),
