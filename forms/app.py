@@ -1025,26 +1025,42 @@ def submit_orden_mantenimiento():
     user_email = get_jwt_identity()['email']
     conn = None
     try:
+        # Process dynamic equipos
+        equipos = request.form.getlist('equipo')
+        ids = request.form.getlist('id_equipo_serial')
+        tipos = request.form.getlist('tipo_servicio')
+        detalles_equipos = []
+        for e, i, t in zip(equipos, ids, tipos):
+            if e or i or t:
+                detalles_equipos.append({'equipo': e, 'id_serial': i, 'tipo_servicio': t})
+        
+        import json
+        detalles_equipos_json = json.dumps(detalles_equipos)
+
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area': request.form.get('puesto_area'),
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
-            'equipo': request.form.get('equipo'),
-            'modelo_serie': request.form.get('modelo_serie'),
-            'ubicacion_instalacion': request.form.get('ubicacion_instalacion'),
-            'tipo_servicio': request.form.get('tipo_servicio'),
-            'tipo_mantenimiento': request.form.get('tipo_mantenimiento'),
-            'estado_equipo_antes': request.form.get('estado_equipo_antes'),
-            'descripcion_trabajo': request.form.get('descripcion_trabajo'),
+            'detalles_equipos': detalles_equipos_json, # New JSON field
+            # 'equipo': request.form.get('equipo'), # Removed
+            # 'modelo_serie': request.form.get('modelo_serie'), # Removed
+            # 'ubicacion_instalacion': request.form.get('ubicacion_instalacion'), # Removed
+            # 'tipo_servicio': request.form.get('tipo_servicio'), # Removed
+            # 'tipo_mantenimiento': request.form.get('tipo_mantenimiento'), # Removed
+            # 'estado_equipo_antes': request.form.get('estado_equipo_antes'), # Removed
+            'actividad_realizada': request.form.get('actividad_realizada'), # Renamed/Mapped from descripcion_trabajo? No, new field name in HTML
             'repuestos_usados': request.form.get('repuestos_usados'),
-            'observaciones_tecnicas': request.form.get('observaciones_tecnicas'),
-            'estado_equipo_despues': request.form.get('estado_equipo_despues'),
-            'clasificacion_urgencia': request.form.get('clasificacion_urgencia'),
-            'criticidad_impacto': request.form.get('criticidad_impacto'),
-            'supervisor_seguridad': request.form.get('supervisor_seguridad'),
-            'firma_supervisor_seguridad': request.form.get('firma_supervisor_seguridad'),
+            # 'observaciones_tecnicas': request.form.get('observaciones_tecnicas'), # Removed
+            # 'estado_equipo_despues': request.form.get('estado_equipo_despues'), # Removed
+            # 'clasificacion_urgencia': request.form.get('clasificacion_urgencia'), # Removed
+            # 'criticidad_impacto': request.form.get('criticidad_impacto'), # Removed
+            # 'supervisor_seguridad': request.form.get('supervisor_seguridad'), # Removed
+            # 'firma_supervisor_seguridad': request.form.get('firma_supervisor_seguridad'), # Removed
+            'nombre_tecnico': request.form.get('nombre_tecnico'),
+            'firma_tecnico': request.form.get('firma_tecnico'),
+            'downtime_horas': request.form.get('downtime_horas'),
             'submitted_by_email': user_email
         }
 
