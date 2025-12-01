@@ -181,8 +181,12 @@ def root_redirect():
 def select_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         app_logger.warning(f"Could not parse JWT claims: {e}")
         user_name = "Usuario"
@@ -231,7 +235,8 @@ def reporte_incidente_form():
 @app.route('/submit_incident_report', methods=['POST'])
 @jwt_required()
 def submit_incident_report():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         conn = get_db_connection()
@@ -299,8 +304,12 @@ def submit_incident_report():
 def mantenimiento_seguridad_fisica_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -315,7 +324,8 @@ def mantenimiento_seguridad_fisica_form():
 @app.route('/submit_mantenimiento_seguridad_fisica', methods=['POST'])
 @jwt_required()
 def submit_mantenimiento_seguridad_fisica():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         form_data = {
@@ -370,8 +380,12 @@ def submit_mantenimiento_seguridad_fisica():
 def medicion_experiencia_cliente_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -386,7 +400,8 @@ def medicion_experiencia_cliente_form():
 @app.route('/submit_medicion_experiencia_cliente', methods=['POST'])
 @jwt_required()
 def submit_medicion_experiencia_cliente():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         form_data = {
@@ -439,8 +454,12 @@ def submit_medicion_experiencia_cliente():
 def supervision_puesto_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -455,7 +474,8 @@ def supervision_puesto_form():
 @app.route('/submit_supervision_puesto', methods=['POST'])
 @jwt_required()
 def submit_supervision_puesto():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         foto_url = None
@@ -538,8 +558,12 @@ def submit_supervision_puesto():
 def informe_novedades_disciplinario_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -554,7 +578,8 @@ def informe_novedades_disciplinario_form():
 @app.route('/submit_informe_novedades_disciplinario', methods=['POST'])
 @jwt_required()
 def submit_informe_novedades_disciplinario():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         anexos_urls = []
@@ -635,8 +660,12 @@ def submit_informe_novedades_disciplinario():
 def log_de_patrullas_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -651,7 +680,8 @@ def log_de_patrullas_form():
 @app.route('/submit_log_de_patrullas', methods=['POST'])
 @jwt_required()
 def submit_log_de_patrullas():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         form_data = {
@@ -699,8 +729,12 @@ def submit_log_de_patrullas():
 def registro_de_capacitaciones_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -715,7 +749,8 @@ def registro_de_capacitaciones_form():
 @app.route('/submit_registro_de_capacitaciones', methods=['POST'])
 @jwt_required()
 def submit_registro_de_capacitaciones():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         form_data = {
@@ -764,8 +799,12 @@ def submit_registro_de_capacitaciones():
 def registro_y_acta_de_visita_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -780,7 +819,8 @@ def registro_y_acta_de_visita_form():
 @app.route('/submit_registro_y_acta_de_visita', methods=['POST'])
 @jwt_required()
 def submit_registro_y_acta_de_visita():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         # Process dynamic participants
@@ -857,8 +897,12 @@ def submit_registro_y_acta_de_visita():
 def planilla_vehicular_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -873,7 +917,8 @@ def planilla_vehicular_form():
 @app.route('/submit_planilla_vehicular', methods=['POST'])
 @jwt_required()
 def submit_planilla_vehicular():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         form_data = {
@@ -950,8 +995,12 @@ def submit_planilla_vehicular():
 def planilla_motocicletas_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -966,7 +1015,8 @@ def planilla_motocicletas_form():
 @app.route('/submit_planilla_motocicletas', methods=['POST'])
 @jwt_required()
 def submit_planilla_motocicletas():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         form_data = {
@@ -1028,8 +1078,12 @@ def submit_planilla_motocicletas():
 def orden_mantenimiento_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         user_name = "Usuario"
         is_admin = False
@@ -1044,7 +1098,8 @@ def orden_mantenimiento_form():
 @app.route('/submit_orden_mantenimiento', methods=['POST'])
 @jwt_required()
 def submit_orden_mantenimiento():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         # Process dynamic equipos
@@ -1117,8 +1172,12 @@ def checklist_cumplimiento():
     """Renders the updated compliance checklist form."""
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         app_logger.warning(f"Could not parse JWT claims: {e}")
         user_name = "Usuario"
@@ -1133,7 +1192,8 @@ def checklist_cumplimiento():
 @jwt_required()
 def submit_checklist_cumplimiento():
     """Handles the submission of the updated compliance checklist form."""
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         # Handle file upload for evidencia
@@ -1277,7 +1337,8 @@ def manifest():
 @app.route('/api/my_reports', methods=['GET'])
 @jwt_required()
 def get_my_reports():
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         conn = get_db_connection()
@@ -1319,7 +1380,8 @@ def get_my_reports():
 @jwt_required()
 def get_my_report_details(report_id):
     # This example only searches reportes_incidentes. Needs logic to determine table.
-    user_email = get_jwt_identity()['email']
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
         conn = get_db_connection()
@@ -1368,8 +1430,12 @@ def success():
     message = request.args.get('message', 'Formulario enviado exitosamente!') # Generic success message
     try: # Safely get user info
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception:
         user_name = "Usuario"
         is_admin = False
@@ -1386,8 +1452,12 @@ def error():
     error_message = request.args.get('error', 'Ha ocurrido un error inesperado.')
     try: # Safely get user info even on error page if logged in
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception:
         user_name = "Usuario"
         is_admin = False
