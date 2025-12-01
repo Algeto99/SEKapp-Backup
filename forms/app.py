@@ -673,7 +673,7 @@ def informe_novedades_disciplinario_form():
         is_admin = False
 
     return render_template(
-        'informe_novedades_disciplinario.html',
+        'reporte_disciplinario.html',
         name=user_name,
         is_admin=is_admin,
         **get_service_urls()
@@ -711,7 +711,7 @@ def submit_informe_novedades_disciplinario():
             'realizado_por_cargo': request.form.get('rol_aplicador'),
             'fecha': fecha,
             'hora': hora,
-            'dirigido_a': request.form.get('recibido_revisado_por_nombre_cargo'),
+            'dirigido_a': None,
             'empleado_nombre': request.form.get('empleado_nombre'),
             'empleado_documento': request.form.get('empleado_documento'),
             'empleado_cargo': request.form.get('empleado_cargo'),
@@ -727,8 +727,7 @@ def submit_informe_novedades_disciplinario():
             'submitted_by_email': user_email,
             'fecha_hora': fecha_hora_str,
             'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
-            'recibido_revisado_por_nombre_cargo': request.form.get('recibido_revisado_por_nombre_cargo')
+            'turno': request.form.get('turno')
         }
 
         conn = get_db_connection()

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,12 +19,17 @@
             min-height: 100vh;
             padding: 1.5rem;
         }
-        
-        h1, h2, h3, h4, h5, h6 {
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             font-family: 'Merriweather', serif;
             color: #ffffff;
         }
-        
+
         .container-card {
             background-color: #2d3748;
             border-radius: 12px;
@@ -33,7 +39,7 @@
             width: 100%;
             padding: 2.5rem;
         }
-        
+
         .form-button {
             display: block;
             width: 100%;
@@ -49,51 +55,51 @@
             text-decoration: none;
             border: none;
         }
-        
+
         .form-button:hover {
             transform: scale(1.02);
             background-color: #3182ce;
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
         }
-        
+
         .form-button:focus {
             outline: none;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
         }
-        
+
         .form-button h3 {
             font-size: 1.25rem;
             font-weight: bold;
             color: white;
             margin-bottom: 0.5rem;
         }
-        
+
         .form-button p {
             font-size: 0.875rem;
             color: #cbd5e0;
             margin: 0;
             line-height: 1.4;
         }
-        
+
         .back-link {
             color: #60a5fa;
             text-decoration: none;
             font-size: 0.875rem;
             transition: all 0.2s ease;
         }
-        
+
         .back-link:hover {
             color: #93c5fd;
             text-decoration: underline;
         }
-        
+
         .debug-info {
             position: fixed;
             bottom: 10px;
             right: 10px;
             font-size: 0.75rem;
             color: #9ca3af;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             padding: 0.5rem;
             border-radius: 0.25rem;
         }
@@ -169,16 +175,16 @@
             background-color: #f8f9fa;
             color: #343a40;
         }
-        
-        body.light-mode h1, 
-        body.light-mode h2, 
-        body.light-mode h3, 
-        body.light-mode h4, 
-        body.light-mode h5, 
+
+        body.light-mode h1,
+        body.light-mode h2,
+        body.light-mode h3,
+        body.light-mode h4,
+        body.light-mode h5,
         body.light-mode h6 {
             color: #212529;
         }
-        
+
         body.light-mode .container-card {
             background-color: #ffffff;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -218,7 +224,7 @@
         }
 
         body.light-mode .debug-info {
-            background: rgba(255,255,255,0.8);
+            background: rgba(255, 255, 255, 0.8);
             color: #4a5568;
         }
 
@@ -237,12 +243,12 @@
             color: #e2e8f0;
             width: auto;
         }
-        
+
         .theme-toggle:hover {
             background-color: rgba(255, 255, 255, 0.2);
             transform: scale(1.05);
         }
-        
+
         .theme-toggle svg {
             width: 1.5rem;
             height: 1.5rem;
@@ -253,7 +259,7 @@
             border: 1px solid rgba(0, 0, 0, 0.2);
             color: #374151;
         }
-        
+
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
@@ -286,28 +292,32 @@
                 padding: 1rem;
                 padding-top: 140px;
             }
-            
+
             .container-card {
                 padding: 1.5rem;
             }
-            
+
             .form-button {
                 padding: 1.25rem;
             }
-            
+
             .form-button h3 {
                 font-size: 1.125rem;
             }
         }
     </style>
 </head>
+
 <body>
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
 
@@ -316,7 +326,7 @@
             <div class="user-greeting">
                 Bienvenido, <span class="user-name">{{ name }}</span>
                 {% if is_admin %}
-                    <span class="admin-badge">(Admin)</span>
+                <span class="admin-badge">(Admin)</span>
                 {% endif %}
             </div>
             <div class="nav-links">
@@ -330,7 +340,8 @@
     </div>
 
     <div class="container-card text-center">
-        <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="mx-auto mb-6 w-24 opacity-90" />
+        <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo"
+            class="mx-auto mb-6 w-24 opacity-90" />
         <h1 class="text-3xl font-bold mb-2">Seleccionar Formulario</h1>
         <p class="text-gray-400 mb-8">Elija el formulario que desea completar.</p>
 
@@ -341,13 +352,14 @@
             </a>
 
             <a href="/informe_novedades_disciplinario" class="form-button">
-                <h3>Informe de Novedades y Reporte Disciplinario de Personal</h3>
+                <h3>Reporte Disciplinario</h3>
                 <p>Para reportar novedades y faltas disciplinarias de los empleados.</p>
             </a>
 
             <a href="/control_accesos" class="form-button">
                 <h3>Planilla de Control de Acceso y Gestión de Riesgos</h3>
-                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
+                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.
+                </p>
             </a>
 
             <a href="/supervision_puesto" class="form-button">
@@ -383,7 +395,8 @@
             <!-- 1. Renombrar título del botón -->
             <a href="/control_acceso_integral" class="form-button">
                 <h3>Control de Acceso</h3>
-                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.</p>
+                <p>Control de acceso personal, vehicular y de proveedores con verificación de protocolos de seguridad.
+                </p>
             </a>
 
             <!-- BLOQUE NUEVO AÑADIDO -->
@@ -391,7 +404,7 @@
                 <h3>Checklist de Cumplimiento Normativo</h3>
                 <p>Auditoría de cumplimiento para SST y Seguridad Física.</p>
             </a>
-            
+
             <a href="/planilla_vehicular" class="form-button">
                 <h3>Planilla de Chequeo Pre-Operacional Vehicular</h3>
                 <p>Inspección completa de vehículos con diagrama interactivo para marcar daños y novedades.</p>
@@ -406,7 +419,7 @@
         <div class="mt-8">
             <a href="{{ landing_service_url }}" class="back-link">← Volver al Inicio</a>
         </div>
-        
+
         <div class="debug-info">
             Form Selection v2.5
         </div>
@@ -422,7 +435,7 @@
         function initializeTheme() {
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
+
             if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
                 setLightMode();
             } else {
@@ -453,14 +466,14 @@
         }
 
         // Initialize theme on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             initializeTheme();
-            
+
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
         });
     </script>
 </body>
-</html>
 
+</html>
