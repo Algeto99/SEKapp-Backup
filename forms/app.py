@@ -258,10 +258,7 @@ def submit_incident_report():
             'tiempo_resolucion_min': request.form.get('tiempo_resolucion_min'),
             'responsable_asignado': request.form.get('responsable_asignado'),
             'estado': request.form.get('estado'),
-            'accion_inmediata': request.form.get('accion_inmediata'),
-            'accion_correctiva_preventiva': request.form.get('accion_correctiva_preventiva'),
-            'responsable_seguimiento': request.form.get('responsable_seguimiento'),
-            'fecha_limite_cierre': request.form.get('fecha_limite_cierre'),
+            'estado': request.form.get('estado'),
             'foto_evidencia_url': foto_url,
             'submitted_by_email': user_email
         }
