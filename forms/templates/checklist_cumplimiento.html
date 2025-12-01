@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,52 +10,241 @@
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <style>
-        body { font-family: 'Roboto', sans-serif; background-color: #1a202c; color: #e2e8f0; padding-top: 80px; }
-        h1, h2, h3, h4, h5, h6 { font-family: 'Merriweather', serif; color: #ffffff; }
-        .header-nav { position: fixed; top: 0; left: 0; right: 0; background-color: rgba(45, 55, 72, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 1rem 1.5rem; z-index: 50; }
-        .nav-content { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
-        .nav-links { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
-        .nav-link { color: #60a5fa; text-decoration: none; font-size: 0.875rem; transition: all 0.2s; }
-        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
-        .user-greeting { font-size: 0.875rem; color: #9ca3af; }
-        .user-name { color: #60a5fa; font-weight: bold; }
-        .admin-badge { color: #a855f7; font-weight: bold; }
-        .form-section { background-color: #2d3748; border-radius: 8px; padding: 2rem; margin-bottom: 2rem; border: 1px solid rgba(255, 255, 255, 0.1); }
-        .form-input, .form-select, .form-textarea { background-color: #4a5568; border: 1px solid #718096; color: #e2e8f0; border-radius: 0.375rem; padding: 0.75rem 1rem; width: 100%; transition: all 0.2s ease; }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding-top: 80px;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-family: 'Merriweather', serif;
+            color: #ffffff;
+        }
+
+        .header-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 1.5rem;
+            z-index: 50;
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+        .user-greeting {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .user-name {
+            color: #60a5fa;
+            font-weight: bold;
+        }
+
+        .admin-badge {
+            color: #a855f7;
+            font-weight: bold;
+        }
+
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
         /* Style adjustments for date/datetime pickers */
         .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
         .form-input[type="date"]::-webkit-calendar-picker-indicator {
-             filter: invert(1);
-             cursor: pointer;
+            filter: invert(1);
+            cursor: pointer;
         }
-        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5); }
-        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        .signature-pad { border: 2px dashed #4a5568; border-radius: 0.375rem; background-color: white; width: 100%; height: 150px; }
-        .theme-toggle { position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100; background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; padding: 0.5rem; cursor: pointer; transition: all 0.2s ease-in-out; color: #e2e8f0; }
-        .theme-toggle:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
-        .theme-toggle svg { width: 1.5rem; height: 1.5rem; }
-        body.light-mode { background-color: #f8f9fa; color: #343a40; }
-        body.light-mode h1, body.light-mode h2, body.light-mode h3 { color: #212529; }
-        body.light-mode .header-nav { background-color: rgba(255, 255, 255, 0.95); border-bottom: 1px solid rgba(0, 0, 0, 0.08); }
-        body.light-mode .user-greeting { color: #4a5568; }
-        body.light-mode .form-section { background-color: #ffffff; border: 1px solid #e2e8f0; }
-        body.light-mode .form-input, body.light-mode .form-select, body.light-mode .form-textarea { background-color: #f1f3f5; border-color: #ced4da; color: #495057; }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .signature-pad {
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            background-color: white;
+            width: 100%;
+            height: 150px;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #e2e8f0;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        body.light-mode {
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+
+        body.light-mode h1,
+        body.light-mode h2,
+        body.light-mode h3 {
+            color: #212529;
+        }
+
+        body.light-mode .header-nav {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        body.light-mode .user-greeting {
+            color: #4a5568;
+        }
+
+        body.light-mode .form-section {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+        }
+
+        body.light-mode .form-input,
+        body.light-mode .form-select,
+        body.light-mode .form-textarea {
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+            color: #495057;
+        }
+
         /* Remove filter for light mode pickers */
         body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
         body.light-mode .form-input[type="date"]::-webkit-calendar-picker-indicator {
             filter: none;
         }
-        body.light-mode .theme-toggle { background-color: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2); color: #374151; }
-        body.light-mode .theme-toggle:hover { background-color: rgba(0, 0, 0, 0.2); }
-        .subsection-title { font-size: 1.1rem; font-weight: 500; margin-top: 1.5rem; margin-bottom: 1rem; color: #cbd5e0; border-top: 1px solid #4a5568; padding-top: 1rem; }
-        body.light-mode .subsection-title { color: #495057; border-top-color: #e2e8f0; }
-        @media (max-width: 768px) { .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; } body { padding-top: 120px; } }
+
+        body.light-mode .theme-toggle {
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            color: #374151;
+        }
+
+        body.light-mode .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .subsection-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            color: #cbd5e0;
+            border-top: 1px solid #4a5568;
+            padding-top: 1rem;
+        }
+
+        body.light-mode .subsection-title {
+            color: #495057;
+            border-top-color: #e2e8f0;
+        }
+
+        @media (max-width: 768px) {
+            .nav-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            body {
+                padding-top: 120px;
+            }
+        }
     </style>
 </head>
+
 <body>
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
-        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
     </button>
 
     <div class="header-nav">
@@ -76,26 +266,33 @@
     <div class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold">Checklist de Cumplimiento Normativo</h1>
-            <p class="text-gray-400 mt-2">Verificación de Cursos y Certificaciones de Agentes</p> <!-- Updated description -->
+            <p class="text-gray-400 mt-2">Verificación de Cursos y Certificaciones de Agentes</p>
+            <!-- Updated description -->
         </div>
 
-        <form id="checklistForm" action="{{ url_for('submit_checklist_cumplimiento') }}" method="POST" enctype="multipart/form-data">
+        <form id="checklistForm" action="{{ url_for('submit_checklist_cumplimiento') }}" method="POST"
+            enctype="multipart/form-data">
             <!-- Sección 1: Datos Generales -->
             <div class="form-section">
                 <!-- Renamed Section 1 -->
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="form-label">Cliente / Instalación <span class="text-red-400">*</span></label>
-                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input" required>
+                        <label for="cliente_instalacion" class="form-label">Cliente / Instalación <span
+                                class="text-red-400">*</span></label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input"
+                            required>
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica <span class="text-red-400">*</span></label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input" required>
+                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica <span
+                                class="text-red-400">*</span></label>
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
+                            required>
                     </div>
                     <div>
                         <!-- Renamed field and changed type -->
-                        <label for="fecha_hora" class="form-label">Fecha y Hora <span class="text-red-400">*</span></label>
+                        <label for="fecha_hora" class="form-label">Fecha y Hora <span
+                                class="text-red-400">*</span></label>
                         <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
@@ -103,40 +300,35 @@
                         <!-- Removed N/A option -->
                         <select name="turno" id="turno" class="form-select" required>
                             <option value="" disabled selected>Seleccione un turno...</option>
-                            <option>Mañana</option>
-                            <option>Tarde</option>
-                            <option>Noche</option>
-                            <option>24 Horas</option>
+                            <option>Diurno</option>
+                            <option>Nocturno</option>
                         </select>
                     </div>
                     <!-- Added Rol del Aplicador -->
                     <div>
-                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span class="text-red-400">*</span></label>
-                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
-                             <option value="" disabled selected>Seleccione un rol...</option>
-                             <option>Agente de Seguridad</option>
-                             <option>Supervisor/Inspector</option>
-                             <option>Analista de Calidad</option>
-                             <option>Jefe de Seguridad</option>
-                             <option>Cliente</option>
-                             <option>Locatario</option>
-                             <option>Coordinador de Seguridad</option>
-                         </select>
-                     </div>
-                    <div class="md:col-span-2">
-                        <label for="normativa_aplicable" class="form-label">Normativa Aplicable</label>
-                        <input type="text" name="normativa_aplicable" id="normativa_aplicable" class="form-input" placeholder="Ej: Ley, Decreto, Resolución...">
+                        <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span
+                                class="text-red-400">*</span></label>
+                        <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
+                            <option value="" disabled selected>Seleccione un rol...</option>
+                            <option>Supervisor/Inspector</option>
+                            <option>Coordinador</option>
+                            <option>Jefe de Seguridad</option>
+                        </select>
+                    </div>
+                    <!-- Normativa Aplicable removed -->
+                    <div>
+                        <!-- Renamed field -->
+                        <label for="nombre_auditor" class="form-label">Nombre <span
+                                class="text-red-400">*</span></label>
+                        <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input"
+                            value="{{ name }}" required>
                     </div>
                     <div>
                         <!-- Renamed field -->
-                        <label for="nombre_auditor" class="form-label">Nombre <span class="text-red-400">*</span></label>
-                        <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input" value="{{ name }}" required>
-                    </div>
-                    <div>
-                         <!-- Renamed field -->
                         <label class="form-label">Firma <span class="text-red-400">*</span></label>
                         <canvas id="firma_auditor_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_auditor_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <button type="button" data-pad="firma_auditor_pad"
+                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_auditor" id="firma_auditor">
                     </div>
                 </div>
@@ -144,7 +336,7 @@
 
             <!-- Sección 2: Datos del Agente de Seguridad -->
             <div class="form-section">
-                 <!-- Renamed Section 2 and changed fields -->
+                <!-- Renamed Section 2 and changed fields -->
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Datos del Agente de Seguridad</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2">
@@ -157,13 +349,14 @@
                     </div>
                     <div>
                         <label for="agente_numero_documento" class="form-label">Numero de Documento</label>
-                        <input type="text" name="agente_numero_documento" id="agente_numero_documento" class="form-input">
+                        <input type="text" name="agente_numero_documento" id="agente_numero_documento"
+                            class="form-input">
                     </div>
                     <div>
                         <label for="agente_cargo_rol" class="form-label">Cargo/Rol</label>
                         <input type="text" name="agente_cargo_rol" id="agente_cargo_rol" class="form-input">
                     </div>
-                     <div>
+                    <div>
                         <label for="agente_puesto" class="form-label">Puesto</label>
                         <input type="text" name="agente_puesto" id="agente_puesto" class="form-input">
                     </div>
@@ -173,7 +366,8 @@
             <!-- Sección 3: Verificacion de Cursos y Certificaciones Obligatorias -->
             <div class="form-section">
                 <!-- Renamed Section 3 and changed fields -->
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificacion de Cursos y Certificaciones Obligatorias</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificacion de Cursos y
+                    Certificaciones Obligatorias</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2">
                         <label for="curso_certificacion" class="form-label">Curso/Certificacion</label>
@@ -216,11 +410,13 @@
                         <input type="date" name="vigencia_hasta" id="vigencia_hasta" class="form-input">
                     </div>
                     <div class="md:col-span-2">
-                         <label for="cargue_evidencia" class="form-label">Cargue de Evidencia</label>
-                         <input type="file" name="cargue_evidencia" id="cargue_evidencia" class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx">
-                         <p class="text-xs text-gray-400 mt-1">Cargue una foto, PDF o documento como evidencia.</p>
-                     </div>
-                     <div class="md:col-span-2">
+                        <label for="cargue_evidencia" class="form-label">Cargue de Evidencia</label>
+                        <input type="file" name="cargue_evidencia" id="cargue_evidencia"
+                            class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx">
+                        <p class="text-xs text-gray-400 mt-1">Cargue una foto, PDF o documento como evidencia.</p>
+                    </div>
+                    <div class="md:col-span-2">
                         <label for="nivel_cumplimiento" class="form-label">Nivel de Cumplimiento</label>
                         <select name="nivel_cumplimiento" id="nivel_cumplimiento" class="form-select">
                             <option value="" disabled selected>Seleccione...</option>
@@ -232,35 +428,39 @@
                 </div>
             </div>
 
-             <!-- Section 4: Checklist de Verificacion (NEW) -->
+            <!-- Section 4: Checklist de Verificacion (NEW) -->
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Checklist de Verificacion</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="copia_certificados_fisica" class="form-label">Copia de Certificados en Carpeta Fisica</label>
+                        <label for="copia_certificados_fisica" class="form-label">Copia de Certificados en Carpeta
+                            Fisica</label>
                         <select name="copia_certificados_fisica" id="copia_certificados_fisica" class="form-select">
                             <option value="" disabled selected>Seleccione...</option>
                             <option>Si</option>
                             <option>No</option>
                         </select>
                     </div>
-                     <div>
-                        <label for="certificados_cargados_sistema" class="form-label">Certificados Cargados en Sistema</label>
-                        <select name="certificados_cargados_sistema" id="certificados_cargados_sistema" class="form-select">
+                    <div>
+                        <label for="certificados_cargados_sistema" class="form-label">Certificados Cargados en
+                            Sistema</label>
+                        <select name="certificados_cargados_sistema" id="certificados_cargados_sistema"
+                            class="form-select">
                             <option value="" disabled selected>Seleccione...</option>
                             <option>Si</option>
                             <option>No</option>
                         </select>
                     </div>
-                     <div>
-                        <label for="documentacion_coincide_hv" class="form-label">Documentacion coincide con Datos en Hoja de Vida</label>
+                    <div>
+                        <label for="documentacion_coincide_hv" class="form-label">Documentacion coincide con Datos en
+                            Hoja de Vida</label>
                         <select name="documentacion_coincide_hv" id="documentacion_coincide_hv" class="form-select">
                             <option value="" disabled selected>Seleccione...</option>
                             <option>Si</option>
                             <option>No</option>
                         </select>
                     </div>
-                     <div>
+                    <div>
                         <label for="fechas_vigentes" class="form-label">Fechas Dentro del Periodo de Vigencia</label>
                         <select name="fechas_vigentes" id="fechas_vigentes" class="form-select">
                             <option value="" disabled selected>Seleccione...</option>
@@ -275,23 +475,20 @@
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">5. Firmas</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <div>
+                    <div>
                         <label class="form-label">Firma del Guarda Supervisado</label>
                         <canvas id="firma_guarda_supervisado_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_guarda_supervisado_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <button type="button" data-pad="firma_guarda_supervisado_pad"
+                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_guarda_supervisado" id="firma_guarda_supervisado">
                     </div>
-                     <div>
-                        <label class="form-label">Firma del Supervisor</label>
-                        <canvas id="firma_supervisor_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_supervisor_pad" class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_supervisor" id="firma_supervisor">
-                    </div>
+                    <!-- Firma del Supervisor removed -->
                 </div>
             </div>
 
             <div class="mt-8 text-center">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
                     Enviar Checklist
                 </button>
             </div>
@@ -309,7 +506,7 @@
             pad.clear();
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Theme Toggle
             const themeToggle = document.getElementById('themeToggle');
             const darkModeIcon = document.getElementById('darkModeIcon');
@@ -338,7 +535,7 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             const formattedDateTime = now.toISOString().slice(0, 16); // Format YYYY-MM-DDTHH:mm
             const fechaHoraInput = document.getElementById('fecha_hora');
-            if(fechaHoraInput) { // Check if the element exists
+            if (fechaHoraInput) { // Check if the element exists
                 fechaHoraInput.value = formattedDateTime;
             } else {
                 console.error("Element with ID 'fecha_hora' not found.");
@@ -368,7 +565,7 @@
             });
 
             // Form submission
-            document.getElementById('checklistForm').addEventListener('submit', function(event) {
+            document.getElementById('checklistForm').addEventListener('submit', function (event) {
                 let hasAuditorSignature = false;
                 // Capture all signatures before submitting
                 if (signaturePads['firma_auditor_pad'] && !signaturePads['firma_auditor_pad'].isEmpty()) {
@@ -378,7 +575,7 @@
                 if (signaturePads['firma_guarda_supervisado_pad'] && !signaturePads['firma_guarda_supervisado_pad'].isEmpty()) {
                     document.getElementById('firma_guarda_supervisado').value = signaturePads['firma_guarda_supervisado_pad'].toDataURL();
                 }
-                 if (signaturePads['firma_supervisor_pad'] && !signaturePads['firma_supervisor_pad'].isEmpty()) {
+                if (signaturePads['firma_supervisor_pad'] && !signaturePads['firma_supervisor_pad'].isEmpty()) {
                     document.getElementById('firma_supervisor').value = signaturePads['firma_supervisor_pad'].toDataURL();
                 }
 
@@ -388,25 +585,25 @@
                     alert('Por favor, proporcione la firma (Sección 1).'); // Updated alert message
                     // Optional: Focus the relevant canvas or section
                     const auditorCanvas = document.getElementById('firma_auditor_pad');
-                    if(auditorCanvas) auditorCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (auditorCanvas) auditorCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     return false;
                 }
 
-                 // Basic validation example for file upload (optional)
-                 const fileInput = document.getElementById('cargue_evidencia');
-                 if (fileInput && fileInput.files.length > 0) {
-                     const fileSize = fileInput.files[0].size / 1024 / 1024; // in MB
-                     if (fileSize > 10) { // Example: Limit to 10MB
-                         event.preventDefault();
-                         alert('El archivo de evidencia no debe exceder los 10MB.');
-                         fileInput.focus();
-                         return false;
-                     }
-                 }
+                // Basic validation example for file upload (optional)
+                const fileInput = document.getElementById('cargue_evidencia');
+                if (fileInput && fileInput.files.length > 0) {
+                    const fileSize = fileInput.files[0].size / 1024 / 1024; // in MB
+                    if (fileSize > 10) { // Example: Limit to 10MB
+                        event.preventDefault();
+                        alert('El archivo de evidencia no debe exceder los 10MB.');
+                        fileInput.focus();
+                        return false;
+                    }
+                }
 
             });
         });
     </script>
 </body>
-</html>
 
+</html>

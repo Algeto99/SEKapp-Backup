@@ -1124,7 +1124,7 @@ def checklist_cumplimiento():
         user_name = "Usuario"
         is_admin = False
 
-    return render_template('acta_visita_cliente.html',
+    return render_template('checklist_cumplimiento.html',
                            name=user_name,
                            is_admin=is_admin,
                            **get_service_urls())
@@ -1151,7 +1151,6 @@ def submit_checklist_cumplimiento():
             'fecha_hora': request.form.get('fecha_hora') or None, # Changed from fecha_auditoria
             'turno': request.form.get('turno'),
             'rol_aplicador': request.form.get('rol_aplicador'), # Added
-            'normativa_aplicable': request.form.get('normativa_aplicable'),
             'nombre_auditor': request.form.get('nombre_auditor'), # Renamed
             'firma_auditor': request.form.get('firma_auditor'), # Renamed
 
@@ -1180,7 +1179,6 @@ def submit_checklist_cumplimiento():
 
             # Sección 5: Firmas
             'firma_guarda_supervisado': request.form.get('firma_guarda_supervisado'),
-            'firma_supervisor': request.form.get('firma_supervisor'),
         }
 
         # Remove empty/None values before inserting
