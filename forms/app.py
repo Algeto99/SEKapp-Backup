@@ -774,7 +774,7 @@ def registro_y_acta_de_visita_form():
         is_admin = False
 
     return render_template(
-        'registro_y_acta_de_visita.html',
+        'acta_visita_cliente.html',
         name=user_name,
         is_admin=is_admin,
         **get_service_urls()
@@ -786,6 +786,30 @@ def submit_registro_y_acta_de_visita():
     user_email = get_jwt_identity()['email']
     conn = None
     try:
+        # Process dynamic participants
+        detalles_participantes = []
+        
+        # Process default participant (index 0 or no suffix if I didn't add it, but I added _0 in HTML replacement?)
+        # Wait, in HTML I added name="nombre_participante_cliente_0" for default?
+        # Let me check the HTML replacement again.
+        # I added: name="nombre_participante_cliente_0" in the HTML replacement.
+        # And for dynamic ones: name="nombre_participante_cliente_${asistenteCount}"
+        
+        # So I should iterate to find all matching keys.
+        
+        for key in request.form:
+            if key.startswith('nombre_participante_cliente_'):
+                suffix = key.split('_')[-1]
+                nombre = request.form.get(f'nombre_participante_cliente_{suffix}')
+                cargo = request.form.get(f'cargo_participante_cliente_{suffix}')
+                firma = request.form.get(f'firma_participante_cliente_{suffix}')
+                
+                if nombre or cargo or firma:
+                    detalles_participantes.append({'nombre': nombre, 'cargo': cargo, 'firma': firma})
+        
+        import json
+        detalles_participantes_json = json.dumps(detalles_participantes)
+
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area': request.form.get('puesto_area'),
@@ -794,12 +818,13 @@ def submit_registro_y_acta_de_visita():
             'nombre_visitante': request.form.get('nombre_visitante'),
             'cargo_visitante': request.form.get('cargo_visitante'),
             'firma_visitante': request.form.get('firma_visitante'),
-            'nombre_participante_cliente': request.form.get('nombre_participante_cliente'),
-            'cargo_participante_cliente': request.form.get('cargo_participante_cliente'),
-            'firma_participante_cliente': request.form.get('firma_participante_cliente'),
+            'detalles_participantes': detalles_participantes_json, # New JSON field
+            # 'nombre_participante_cliente': request.form.get('nombre_participante_cliente'), # Removed
+            # 'cargo_participante_cliente': request.form.get('cargo_participante_cliente'), # Removed
+            # 'firma_participante_cliente': request.form.get('firma_participante_cliente'), # Removed
             'temas_tratados': request.form.get('temas_tratados'),
             'acuerdos_compromisos': request.form.get('acuerdos_compromisos'),
-            'observaciones': request.form.get('observaciones'),
+            # 'observaciones': request.form.get('observaciones'), # Removed
             'submitted_by_email': user_email
         }
 
@@ -1102,7 +1127,7 @@ def checklist_cumplimiento():
         user_name = "Usuario"
         is_admin = False
 
-    return render_template('checklist_cumplimiento.html',
+    return render_template('acta_visita_cliente.html',
                            name=user_name,
                            is_admin=is_admin,
                            **get_service_urls())
