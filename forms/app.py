@@ -466,29 +466,43 @@ def submit_supervision_puesto():
             file = request.files['foto_evidencia']
             foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
 
+        # Process dynamic puestos
+        horarios = request.form.getlist('horario_servicio')
+        tipos = request.form.getlist('tipo_servicio')
+        detalles_puestos = []
+        for h, t in zip(horarios, tipos):
+            if h or t:
+                detalles_puestos.append({'horario': h, 'tipo': t})
+        
+        import json
+        detalles_puestos_json = json.dumps(detalles_puestos)
+
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
+            # 'turno': request.form.get('turno'), # Removed
             'supervisor': request.form.get('supervisor'),
             'firma_supervisor': request.form.get('firma_supervisor'),
-            'horario_servicio': request.form.get('horario_servicio'),
-            'tipo_servicio': request.form.get('tipo_servicio'),
+            'detalles_puestos': detalles_puestos_json, # New JSON field
+            # 'horario_servicio': request.form.get('horario_servicio'), # Removed
+            # 'tipo_servicio': request.form.get('tipo_servicio'), # Removed
             'nombre_guardia': request.form.get('nombre_guardia'),
             'documento_guardia': request.form.get('documento_guardia'),
-            'fecha_inicio_servicio_guardia': request.form.get('fecha_inicio_servicio_guardia'),
+            # 'fecha_inicio_servicio_guardia': request.form.get('fecha_inicio_servicio_guardia'), # Removed
+            'porta_arma': request.form.get('porta_arma'), # New
             'serie_arma': request.form.get('serie_arma'),
             'cantidad_municion': request.form.get('cantidad_municion'),
-            'constancia_induccion': request.form.get('constancia_induccion'),
+            'realiza_induccion': request.form.get('realiza_induccion'), # Renamed from constancia_induccion
             'conoce_ordenes_consignas': request.form.get('conoce_ordenes_consignas'),
             'horario_detalles_claros': request.form.get('horario_detalles_claros'),
             'asistencia_puntualidad': request.form.get('asistencia_puntualidad'),
             'presentacion_uniforme': request.form.get('presentacion_uniforme'),
             'estado_limpieza_puesto': request.form.get('estado_limpieza_puesto'),
             'equipamiento_completo': request.form.get('equipamiento_completo'),
-            'cumplimiento_ordenes': request.form.get('cumplimiento_ordenes'),
+            'conoce_mision_vision': request.form.get('conoce_mision_vision'), # Renamed from cumplimiento_ordenes
+            'conoce_politica': request.form.get('conoce_politica'), # New
             'estado_bitacora': request.form.get('estado_bitacora'),
             'observaciones_novedades': request.form.get('observaciones_novedades'),
             'nombre_guardia_firma': request.form.get('nombre_guardia_firma'),

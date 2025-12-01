@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,10 +15,17 @@
             color: #e2e8f0;
             padding-top: 80px;
         }
-        h1, h2, h3, h4, h5, h6 {
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             font-family: 'Merriweather', serif;
             color: #ffffff;
         }
+
         .header-nav {
             position: fixed;
             top: 0;
@@ -29,6 +37,7 @@
             padding: 1rem 1.5rem;
             z-index: 50;
         }
+
         .nav-content {
             max-width: 1200px;
             margin: 0 auto;
@@ -38,34 +47,41 @@
             flex-wrap: wrap;
             gap: 1rem;
         }
+
         .nav-links {
             display: flex;
             align-items: center;
             gap: 1.5rem;
             flex-wrap: wrap;
         }
+
         .nav-link {
             color: #60a5fa;
             text-decoration: none;
             font-size: 0.875rem;
             transition: all 0.2s;
         }
+
         .nav-link:hover {
             color: #93c5fd;
             text-decoration: underline;
         }
+
         .user-greeting {
             font-size: 0.875rem;
             color: #9ca3af;
         }
+
         .user-name {
             color: #60a5fa;
             font-weight: bold;
         }
+
         .admin-badge {
             color: #a855f7;
             font-weight: bold;
         }
+
         .form-section {
             background-color: #2d3748;
             border-radius: 8px;
@@ -73,7 +89,9 @@
             margin-bottom: 1.5rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .form-input, .form-select {
+
+        .form-input,
+        .form-select {
             background-color: #4a5568;
             border: 1px solid #718096;
             color: #e2e8f0;
@@ -82,20 +100,25 @@
             width: 100%;
             transition: all 0.2s ease;
         }
+
         .form-input[type="file"]::-webkit-file-upload-button {
             filter: invert(1);
         }
-        .form-input:focus, .form-select:focus {
+
+        .form-input:focus,
+        .form-select:focus {
             outline: none;
             border-color: #3182ce;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
         }
+
         .signature-pad {
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
             cursor: crosshair;
             background-color: white;
         }
+
         .theme-toggle {
             position: fixed;
             top: 1.5rem;
@@ -110,58 +133,78 @@
             color: #e2e8f0;
             width: auto;
         }
+
         .theme-toggle:hover {
             background-color: rgba(255, 255, 255, 0.2);
             transform: scale(1.05);
         }
+
         .theme-toggle svg {
             width: 1.5rem;
             height: 1.5rem;
         }
+
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
         }
-        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
+
+        body.light-mode h1,
+        body.light-mode h2,
+        body.light-mode h3,
+        body.light-mode h4,
+        body.light-mode h5,
+        body.light-mode h6 {
             color: #212529;
         }
+
         body.light-mode .header-nav {
             background-color: rgba(255, 255, 255, 0.95);
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
+
         body.light-mode .user-greeting {
             color: #4a5568;
         }
+
         body.light-mode .form-section {
             background-color: #ffffff;
             border-color: #e2e8f0;
         }
-        body.light-mode .form-input, body.light-mode .form-select {
+
+        body.light-mode .form-input,
+        body.light-mode .form-select {
             background-color: #e9ecef;
             border-color: #ced4da;
             color: #212529;
         }
+
         body.light-mode .form-input[type="file"]::-webkit-file-upload-button {
             filter: none;
         }
+
         body.light-mode .theme-toggle {
             background-color: rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(0, 0, 0, 0.2);
             color: #374151;
         }
+
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
+
         @media (max-width: 768px) {
             .nav-content {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.5rem;
             }
+
             body {
                 padding-top: 120px;
             }
         }
+
         @media (max-width: 640px) {
             body {
                 padding-top: 140px;
@@ -169,13 +212,17 @@
         }
     </style>
 </head>
+
 <body>
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
     <div class="header-nav">
@@ -183,7 +230,7 @@
             <div class="user-greeting">
                 Bienvenido, <span class="user-name">{{ name }}</span>
                 {% if is_admin %}
-                    <span class="admin-badge">(Admin)</span>
+                <span class="admin-badge">(Admin)</span>
                 {% endif %}
             </div>
             <div class="nav-links">
@@ -201,40 +248,37 @@
             <h1 class="text-2xl md:text-3xl font-bold">Control de Supervisión</h1>
         </header>
 
-        <form id="supervisionForm" action="{{ url_for('submit_supervision_puesto') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
+        <form id="supervisionForm" action="{{ url_for('submit_supervision_puesto') }}" method="POST"
+            enctype="multipart/form-data" class="space-y-6">
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente / Instalación</label>
-                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input" required>
+                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente /
+                            Instalación</label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input"
+                            required>
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input" required>
+                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área
+                            Específica</label>
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
+                            required>
                     </div>
                     <div>
                         <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
                         <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
-                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
+                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
+                            Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="">Seleccione...</option>
                             <option>Supervisor/Inspector</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="turno" class="block text-sm font-medium mb-1">Turno</label>
-                        <select name="turno" id="turno" class="form-select" required>
-                            <option value="">Seleccione...</option>
-                            <option>Mañana</option>
-                            <option>Tarde</option>
-                            <option>Noche</option>
-                            <option>24 Horas</option>
-                        </select>
-                    </div>
+                    <!-- Turno field removed -->
                     <div>
                         <label for="supervisor" class="block text-sm font-medium mb-1">Nombre</label>
                         <input type="text" name="supervisor" id="supervisor" class="form-input" required>
@@ -242,30 +286,41 @@
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Firma</label>
                         <canvas id="signaturePadSupervisor" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clearSignatureSupervisor" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <button type="button" id="clearSignatureSupervisor"
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_supervisor" id="firma_supervisor">
                     </div>
                 </div>
             </div>
 
-            <div class="form-section">
+            <div class="form-section" id="puestosSection">
                 <h2 class="text-xl font-bold mb-4">2. Datos del Puesto</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="horario_servicio" class="block text-sm font-medium mb-1">Horario del Servicio</label>
-                        <input type="text" name="horario_servicio" id="horario_servicio" class="form-input">
-                    </div>
-                    <div>
-                        <label for="tipo_servicio" class="block text-sm font-medium mb-1">Tipo de Servicio</label>
-                        <select name="tipo_servicio" id="tipo_servicio" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Residencial</option>
-                            <option>Industrial</option>
-                            <option>Comercial</option>
-                            <option>Escolta</option>
-                        </select>
+                <div id="puestosContainer">
+                    <div class="puesto-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-b border-gray-600 pb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
+                            <select name="horario_servicio" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Diurno</option>
+                                <option>Nocturno</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
+                            <select name="tipo_servicio" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Residencial</option>
+                                <option>Industrial</option>
+                                <option>Comercial</option>
+                                <option>Escolta</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
+                <button type="button" id="addPuestoBtn"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
+                    Añadir otro puesto
+                </button>
             </div>
 
             <div class="form-section">
@@ -279,35 +334,47 @@
                         <label for="documento_guardia" class="block text-sm font-medium mb-1">Documento</label>
                         <input type="text" name="documento_guardia" id="documento_guardia" class="form-input">
                     </div>
+                    <!-- Fecha de inicio del servicio removed -->
                     <div>
-                        <label for="fecha_inicio_servicio_guardia" class="block text-sm font-medium mb-1">Fecha de inicio del servicio</label>
-                        <input type="date" name="fecha_inicio_servicio_guardia" id="fecha_inicio_servicio_guardia" class="form-input">
+                        <label for="porta_arma" class="block text-sm font-medium mb-1">Porta arma en el puesto</label>
+                        <select name="porta_arma" id="porta_arma" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
                     </div>
-                    <div>
-                        <label for="serie_arma" class="block text-sm font-medium mb-1">Serie del arma asignada</label>
-                        <input type="text" name="serie_arma" id="serie_arma" class="form-input">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="cantidad_municion" class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                        <input type="number" name="cantidad_municion" id="cantidad_municion" class="form-input">
+                    <div id="armaFields" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="serie_arma" class="block text-sm font-medium mb-1">Serie del arma
+                                asignada</label>
+                            <input type="text" name="serie_arma" id="serie_arma" class="form-input">
+                        </div>
+                        <div>
+                            <label for="cantidad_municion" class="block text-sm font-medium mb-1">Cantidad de
+                                munición</label>
+                            <input type="number" name="cantidad_municion" id="cantidad_municion" class="form-input">
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Validación de Inducción y Estado Operativo</h2>
-                <p class="text-sm text-gray-400 mb-4">VALIDACIÓN DE INDUCCIÓN (El supervisor verifica y marca con una 'X')</p>
+                <h2 class="text-xl font-bold mb-4">4. Inducción de Puesto</h2>
+                <p class="text-sm text-gray-400 mb-4">VALIDACIÓN DE INDUCCIÓN (El supervisor verifica y marca con una
+                    'X')</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="constancia_induccion" class="block text-sm font-medium mb-1">¿Se entregó la constancia de inducción al puesto?</label>
-                        <select name="constancia_induccion" id="constancia_induccion" class="form-select">
+                        <label for="realiza_induccion" class="block text-sm font-medium mb-1">¿Se realiza inducción al
+                            puesto?</label>
+                        <select name="realiza_induccion" id="realiza_induccion" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Sí</option>
                             <option>No</option>
                         </select>
                     </div>
                     <div>
-                        <label for="conoce_ordenes_consignas" class="block text-sm font-medium mb-1">¿El guardia conoce sus Órdenes y Consignas Específicas?</label>
+                        <label for="conoce_ordenes_consignas" class="block text-sm font-medium mb-1">¿El guardia conoce
+                            sus Órdenes y Consignas Específicas?</label>
                         <select name="conoce_ordenes_consignas" id="conoce_ordenes_consignas" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Sí</option>
@@ -315,7 +382,8 @@
                         </select>
                     </div>
                     <div class="md:col-span-2">
-                        <label for="horario_detalles_claros" class="block text-sm font-medium mb-1">¿El horario y los detalles del servicio son claros para el guardia?</label>
+                        <label for="horario_detalles_claros" class="block text-sm font-medium mb-1">¿El horario y los
+                            detalles del servicio son claros para el guardia?</label>
                         <select name="horario_detalles_claros" id="horario_detalles_claros" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Sí</option>
@@ -326,10 +394,11 @@
             </div>
 
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">5. Estado de Equipos</h2>
+                <h2 class="text-xl font-bold mb-4">5. Inspección de Puesto</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="asistencia_puntualidad" class="block text-sm font-medium mb-1">Asistencia y puntualidad</label>
+                        <label for="asistencia_puntualidad" class="block text-sm font-medium mb-1">Asistencia y
+                            puntualidad</label>
                         <select name="asistencia_puntualidad" id="asistencia_puntualidad" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Excelente</option>
@@ -339,7 +408,8 @@
                         </select>
                     </div>
                     <div>
-                        <label for="presentacion_uniforme" class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
+                        <label for="presentacion_uniforme" class="block text-sm font-medium mb-1">Presentación y
+                            Uniforme</label>
                         <select name="presentacion_uniforme" id="presentacion_uniforme" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Excelente</option>
@@ -349,7 +419,8 @@
                         </select>
                     </div>
                     <div>
-                        <label for="estado_limpieza_puesto" class="block text-sm font-medium mb-1">Estado y limpieza del puesto</label>
+                        <label for="estado_limpieza_puesto" class="block text-sm font-medium mb-1">Estado y limpieza del
+                            puesto</label>
                         <select name="estado_limpieza_puesto" id="estado_limpieza_puesto" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Excelente</option>
@@ -359,8 +430,9 @@
                         </select>
                     </div>
                     <div>
-                        <label for="equipamiento_completo" class="block text-sm font-medium mb-1">Equipamiento (radio, linterna, etc.)</label>
-                         <select name="equipamiento_completo" id="equipamiento_completo" class="form-select">
+                        <label for="equipamiento_completo" class="block text-sm font-medium mb-1">Equipamiento (radio,
+                            linterna, etc.)</label>
+                        <select name="equipamiento_completo" id="equipamiento_completo" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Excelente</option>
                             <option>Bueno</option>
@@ -369,18 +441,27 @@
                         </select>
                     </div>
                     <div>
-                        <label for="cumplimiento_ordenes" class="block text-sm font-medium mb-1">Cumplimiento de órdenes</label>
-                         <select name="cumplimiento_ordenes" id="cumplimiento_ordenes" class="form-select">
+                        <label for="conoce_mision_vision" class="block text-sm font-medium mb-1">¿Conoce la misión,
+                            visión y empresa?</label>
+                        <select name="conoce_mision_vision" id="conoce_mision_vision" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
+                            <option>Sí</option>
+                            <option>No</option>
                         </select>
                     </div>
                     <div>
-                        <label for="estado_bitacora" class="block text-sm font-medium mb-1">Estado de bitácora y registros</label>
-                         <select name="estado_bitacora" id="estado_bitacora" class="form-select">
+                        <label for="conoce_politica" class="block text-sm font-medium mb-1">¿Conoce la política de la
+                            compañía?</label>
+                        <select name="conoce_politica" id="conoce_politica" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Sí</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="estado_bitacora" class="block text-sm font-medium mb-1">Estado de bitácora y
+                            registros</label>
+                        <select name="estado_bitacora" id="estado_bitacora" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Excelente</option>
                             <option>Bueno</option>
@@ -393,20 +474,25 @@
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">6. Observaciones y Novedades</h2>
-                <p class="text-sm text-gray-400 mb-4">Espacio para que el supervisor detalle cualquier punto relevante del recorrido.</p>
-                <textarea name="observaciones_novedades" id="observaciones_novedades" rows="5" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
+                <p class="text-sm text-gray-400 mb-4">Espacio para que el supervisor detalle cualquier punto relevante
+                    del recorrido.</p>
+                <textarea name="observaciones_novedades" id="observaciones_novedades" rows="5" class="form-input"
+                    placeholder="Detalle cualquier punto relevante..."></textarea>
             </div>
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">7. Firma del Guardia</h2>
                 <div>
-                <div class="mb-6">
-                    <label for="nombre_guardia_firma" class="block text-sm font-medium mb-1">Guardia de Seguridad</label>
-                    <input type="text" name="nombre_guardia_firma" id="nombre_guardia_firma" class="form-input" placeholder="Ingrese el nombre del guardia">
-                </div>
+                    <div class="mb-6">
+                        <label for="nombre_guardia_firma" class="block text-sm font-medium mb-1">Guardia de
+                            Seguridad</label>
+                        <input type="text" name="nombre_guardia_firma" id="nombre_guardia_firma" class="form-input"
+                            placeholder="Ingrese el nombre del guardia">
+                    </div>
                     <label class="block text-sm font-medium mb-2">Firma del Guardia</label>
                     <canvas id="signaturePadGuardia" class="signature-pad w-full h-48"></canvas>
-                    <button type="button" id="clearSignatureGuardia" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                    <button type="button" id="clearSignatureGuardia"
+                        class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                     <input type="hidden" name="firma_guardia" id="firma_guardia">
                 </div>
             </div>
@@ -414,18 +500,17 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">8. Foto/Evidencia</h2>
                 <div>
-                    <label for="foto_evidencia" class="block text-sm font-medium mb-1">Tomar Foto o Cargar Imagen</label>
-                    <input type="file" 
-                           name="foto_evidencia" 
-                           id="foto_evidencia" 
-                           class="form-input" 
-                           accept="image/*">
-                    <p class="text-sm text-gray-400 mt-2">📸 Toque para tomar una foto con la cámara o seleccionar una imagen existente</p>
+                    <label for="foto_evidencia" class="block text-sm font-medium mb-1">Tomar Foto o Cargar
+                        Imagen</label>
+                    <input type="file" name="foto_evidencia" id="foto_evidencia" class="form-input" accept="image/*">
+                    <p class="text-sm text-gray-400 mt-2">📸 Toque para tomar una foto con la cámara o seleccionar una
+                        imagen existente</p>
                 </div>
             </div>
 
             <div class="flex justify-end pt-4">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
                     Enviar Supervisión
                 </button>
             </div>
@@ -479,15 +564,66 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
+            // Dynamic Puestos
+            const addPuestoBtn = document.getElementById('addPuestoBtn');
+            const puestosContainer = document.getElementById('puestosContainer');
+
+            addPuestoBtn.addEventListener('click', function () {
+                const newPuesto = document.createElement('div');
+                newPuesto.className = 'puesto-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-b border-gray-600 pb-4';
+                newPuesto.innerHTML = `
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
+                        <select name="horario_servicio" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Diurno</option>
+                            <option>Nocturno</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
+                        <select name="tipo_servicio" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Residencial</option>
+                            <option>Industrial</option>
+                            <option>Comercial</option>
+                            <option>Escolta</option>
+                        </select>
+                    </div>
+                    <button type="button" class="remove-puesto text-red-400 hover:text-red-300 text-sm md:col-span-2 text-right">Eliminar</button>
+                `;
+                puestosContainer.appendChild(newPuesto);
+
+                // Re-apply theme styles to new elements if needed (though CSS classes should handle it)
+            });
+
+            puestosContainer.addEventListener('click', function (e) {
+                if (e.target.classList.contains('remove-puesto')) {
+                    e.target.closest('.puesto-item').remove();
+                }
+            });
+
+            // Toggle Arma Fields
+            const portaArmaSelect = document.getElementById('porta_arma');
+            const armaFields = document.getElementById('armaFields');
+
+            portaArmaSelect.addEventListener('change', function () {
+                if (this.value === 'Si') {
+                    armaFields.classList.remove('hidden');
+                } else {
+                    armaFields.classList.add('hidden');
+                }
+            });
+
             // Initialize signature pads
             const canvasSupervisor = document.getElementById('signaturePadSupervisor');
             const canvasGuardia = document.getElementById('signaturePadGuardia');
-            
+
             const signaturePadSupervisor = new SignaturePad(canvasSupervisor, {
                 backgroundColor: 'rgb(255, 255, 255)',
                 penColor: 'rgb(0, 0, 0)'
             });
-            
+
             const signaturePadGuardia = new SignaturePad(canvasGuardia, {
                 backgroundColor: 'rgb(255, 255, 255)',
                 penColor: 'rgb(0, 0, 0)'
@@ -504,22 +640,22 @@
             resizeCanvas(canvasSupervisor, signaturePadSupervisor);
             resizeCanvas(canvasGuardia, signaturePadGuardia);
 
-            window.addEventListener('resize', function() {
+            window.addEventListener('resize', function () {
                 resizeCanvas(canvasSupervisor, signaturePadSupervisor);
                 resizeCanvas(canvasGuardia, signaturePadGuardia);
             });
 
-            document.getElementById('clearSignatureSupervisor').addEventListener('click', function() {
+            document.getElementById('clearSignatureSupervisor').addEventListener('click', function () {
                 signaturePadSupervisor.clear();
             });
 
-            document.getElementById('clearSignatureGuardia').addEventListener('click', function() {
+            document.getElementById('clearSignatureGuardia').addEventListener('click', function () {
                 signaturePadGuardia.clear();
             });
 
             // Form submission
             const form = document.getElementById('supervisionForm');
-            form.addEventListener('submit', function(event) {
+            form.addEventListener('submit', function (event) {
                 if (!signaturePadSupervisor.isEmpty()) {
                     document.getElementById('firma_supervisor').value = signaturePadSupervisor.toDataURL();
                 }
@@ -530,4 +666,5 @@
         });
     </script>
 </body>
+
 </html>
