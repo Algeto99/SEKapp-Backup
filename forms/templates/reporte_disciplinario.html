@@ -318,10 +318,6 @@
                         <label for="empleado_cargo" class="block text-sm font-medium mb-1">Cargo</label>
                         <input type="text" name="empleado_cargo" id="empleado_cargo" class="form-input">
                     </div>
-                    <div>
-                        <label for="cliente" class="block text-sm font-medium mb-1">Cliente</label>
-                        <input type="text" name="cliente" id="cliente" class="form-input">
-                    </div>
                 </div>
             </div>
 
@@ -347,6 +343,7 @@
                     <option>Novedad durante el servicio</option>
                     <option>Queja de clientes y/o usuarios</option>
                     <option>Trato indebido a compañeros</option>
+                    <option>Otros</option>
                 </select>
             </div>
 
@@ -376,10 +373,12 @@
                 <h2 class="text-xl font-bold mb-4">5. Anexos</h2>
                 <div class="file-upload-area">
                     <input type="file" id="anexos_files" name="anexos_files" accept="image/*,video/*,application/pdf"
-                        multiple class="hidden">
-                    <button type="button" onclick="document.getElementById('anexos_files').click()" class="form-input">
+                        multiple class="hidden" onchange="updateFileList()">
+                    <button type="button" onclick="document.getElementById('anexos_files').click()"
+                        class="form-input text-left">
                         📎 Seleccionar o Tomar Foto/Video
                     </button>
+                    <div id="fileList" class="mt-2 text-sm text-gray-400"></div>
                     <div class="mt-2">
                         <input type="checkbox" name="anexos_na" id="anexos_na">
                         <label for="anexos_na" class="text-sm">No Aplica</label>
@@ -503,6 +502,23 @@
                 }
             });
         });
+        function updateFileList() {
+            const input = document.getElementById('anexos_files');
+            const list = document.getElementById('fileList');
+            list.innerHTML = '';
+            if (input.files.length > 0) {
+                const ul = document.createElement('ul');
+                ul.className = 'list-disc list-inside';
+                for (let i = 0; i < input.files.length; i++) {
+                    const li = document.createElement('li');
+                    li.textContent = input.files[i].name;
+                    ul.appendChild(li);
+                }
+                list.appendChild(ul);
+            } else {
+                list.textContent = 'No hay archivos seleccionados';
+            }
+        }
     </script>
 </body>
 
