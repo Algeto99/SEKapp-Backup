@@ -218,8 +218,12 @@ def select_form():
 def reporte_incidente_form():
     try:
         user_info = get_jwt_identity()
-        user_name = user_info.get('name', 'Usuario')
-        is_admin = user_info.get('is_admin', False)
+        if isinstance(user_info, str):
+            user_name = "Usuario"
+            is_admin = False
+        else:
+            user_name = user_info.get('name', 'Usuario')
+            is_admin = user_info.get('is_admin', False)
     except Exception as e:
         app_logger.warning(f"Could not parse JWT claims: {e}")
         user_name = "Usuario"
@@ -260,12 +264,9 @@ def submit_incident_report():
             'descripcion_incidente': request.form.get('descripcion'),
             'nivel_severidad': request.form.get('nivel_severidad'),
             'impacto': request.form.get('impacto'),
-            'tiempo_resolucion_min': request.form.get('tiempo_resolucion_min'),
-            'responsable_asignado': request.form.get('responsable_asignado'),
-            'estado': request.form.get('estado'),
-            'estado': request.form.get('estado'),
+            'descripcion_impacto': request.form.get('descripcion_impacto'),
             'foto_evidencia_url': foto_url,
-            'submitted_by_email': user_email
+            'user_email': user_email
         }
 
         form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}

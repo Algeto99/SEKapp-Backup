@@ -276,8 +276,8 @@
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador</label>
                         <select id="rol_aplicador" name="rol_aplicador" class="form-select" required>
                             <option value="" disabled selected>Seleccione un rol...</option>
-                            <option value="Agente de seguridad">Agente de seguridad</option>
                             <option value="Supervisor/Inspector">Supervisor/Inspector</option>
+                            <option value="Coordinador">Coordinador</option>
                             <option value="Jefe de Seguridad">Jefe de Seguridad</option>
                         </select>
                     </div>
@@ -317,6 +317,7 @@
                             <option value="Emergencias">Emergencias</option>
                             <option value="Estacionamiento">Estacionamiento</option>
                             <option value="Operativos/administrativos">Operativos / Administrativos</option>
+                            <option value="Otros">Otros</option>
                         </select>
                     </div>
                     <div class="md:col-span-2" id="incident-type-wrapper" style="display: none;">
@@ -339,34 +340,25 @@
                     </div>
                     <div>
                         <label for="impacto" class="form-label">Impacto</label>
-                        <select id="impacto" name="impacto" class="form-select" required>
+                        <select id="impacto" name="impacto" class="form-select" onchange="updateImpactDescription()"
+                            required>
                             <option value="" disabled selected>Seleccione un impacto...</option>
                             <option value="Impacto en clientes/usuarios">Impacto en clientes/usuarios</option>
                             <option value="Impacto en seguridad">Impacto en seguridad</option>
                             <option value="Impacto operativo">Impacto operativo</option>
                             <option value="Impacto economico">Impacto económico</option>
                             <option value="Impacto reputacional">Impacto reputacional</option>
+                            <option value="Otros">Otros</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="tiempo_resolucion_min" class="form-label">Tiempo de resolución (min)</label>
-                        <input type="number" id="tiempo_resolucion_min" name="tiempo_resolucion_min" class="form-input"
-                            min="0" required>
+                    <div class="md:col-span-2" id="impact-description-wrapper" style="display: none;">
+                        <label for="descripcion_impacto" class="form-label">Descripción del Impacto</label>
+                        <textarea id="descripcion_impacto" name="descripcion_impacto" rows="3" class="form-textarea"
+                            placeholder="Describa el impacto..."></textarea>
                     </div>
-                    <div>
-                        <label for="responsable_asignado" class="form-label">Responsable asignado</label>
-                        <input type="text" id="responsable_asignado" name="responsable_asignado" class="form-input"
-                            required>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="estado" class="form-label">Estado</label>
-                        <select id="estado" name="estado" class="form-select" required>
-                            <option value="" disabled selected>Seleccione un estado...</option>
-                            <option value="En proceso">En proceso</option>
-                            <option value="Pendiente">Pendiente</option>
-                            <option value="Cerrado">Cerrado</option>
-                        </select>
-                    </div>
+
+                    <!-- Removed Fields: Tiempo de resolucion, Responsable asignado, Estado -->
+
                     <div class="md:col-span-2">
                         <label for="foto_evidencia" class="form-label">Tomar Foto o Cargar Imagen</label>
                         <input type="file" name="foto_evidencia" id="foto_evidencia" class="form-input"
@@ -506,6 +498,13 @@
             const select = document.getElementById('tipo_incidente');
             select.innerHTML = '';
 
+            // If "Otros" is selected, hide the type dropdown and require nothing
+            if (category === 'Otros') {
+                wrapper.style.display = 'none';
+                select.removeAttribute('required');
+                return;
+            }
+
             if (category && incidentTypes[category]) {
                 wrapper.style.display = 'block';
                 select.setAttribute('required', 'required');
@@ -525,6 +524,20 @@
             } else {
                 wrapper.style.display = 'none';
                 select.removeAttribute('required');
+            }
+        }
+
+        function updateImpactDescription() {
+            const impact = document.getElementById('impacto').value;
+            const wrapper = document.getElementById('impact-description-wrapper');
+            const textarea = document.getElementById('descripcion_impacto');
+
+            if (impact === 'Otros') {
+                wrapper.style.display = 'block';
+                textarea.setAttribute('required', 'required');
+            } else {
+                wrapper.style.display = 'none';
+                textarea.removeAttribute('required');
             }
         }
     </script>
