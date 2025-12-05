@@ -251,8 +251,9 @@
         <form id="supervisionForm" action="{{ url_for('submit_supervision_puesto') }}" method="POST"
             enctype="multipart/form-data" class="space-y-6">
 
+            <!-- 1. Datos Generales (GLOBAL) -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
+                <h2 class="text-xl font-bold mb-4">1. Datos Generales (Globales)</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="cliente_instalacion" class="block text-sm font-medium mb-1">Cliente /
@@ -261,30 +262,15 @@
                             required>
                     </div>
                     <div>
-                        <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto o Área
-                            Específica</label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
-                            required>
-                    </div>
-                    <div>
                         <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
                         <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
-                        <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
-                            Aplicador/Responsable</label>
-                        <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
-                            <option value="">Seleccione...</option>
-                            <option>Supervisor/Inspector</option>
-                        </select>
-                    </div>
-                    <!-- Turno field removed -->
-                    <div>
-                        <label for="supervisor" class="block text-sm font-medium mb-1">Nombre</label>
+                        <label for="supervisor" class="block text-sm font-medium mb-1">Nombre Supervisor</label>
                         <input type="text" name="supervisor" id="supervisor" class="form-input" required>
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Firma</label>
+                        <label class="block text-sm font-medium mb-2">Firma Supervisor</label>
                         <canvas id="signaturePadSupervisor" class="signature-pad w-full h-48"></canvas>
                         <button type="button" id="clearSignatureSupervisor"
                             class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
@@ -293,226 +279,18 @@
                 </div>
             </div>
 
-            <div class="form-section" id="puestosSection">
-                <h2 class="text-xl font-bold mb-4">2. Datos del Puesto</h2>
-                <div id="puestosContainer">
-                    <div class="puesto-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-b border-gray-600 pb-4">
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
-                            <select name="horario_servicio" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option>Diurno</option>
-                                <option>Nocturno</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
-                            <select name="tipo_servicio" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option>Residencial</option>
-                                <option>Industrial</option>
-                                <option>Comercial</option>
-                                <option>Escolta</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <button type="button" id="addPuestoBtn"
-                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
-                    Añadir otro puesto
+            <!-- Container for Dynamic Supervision Blocks -->
+            <div id="supervisionsContainer"></div>
+
+            <div class="flex justify-between pt-4">
+                <button type="button" id="addSupervisionBtn"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                    + Añadir otra supervisión
                 </button>
-            </div>
 
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">3. Datos del Guardia de Seguridad</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="nombre_guardia" class="block text-sm font-medium mb-1">Nombre y Apellido</label>
-                        <input type="text" name="nombre_guardia" id="nombre_guardia" class="form-input" required>
-                    </div>
-                    <div>
-                        <label for="documento_guardia" class="block text-sm font-medium mb-1">Documento</label>
-                        <input type="text" name="documento_guardia" id="documento_guardia" class="form-input">
-                    </div>
-                    <!-- Fecha de inicio del servicio removed -->
-                    <div>
-                        <label for="porta_arma" class="block text-sm font-medium mb-1">Porta arma en el puesto</label>
-                        <select name="porta_arma" id="porta_arma" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option value="Si">Sí</option>
-                            <option value="No">No</option>
-                        </select>
-                    </div>
-                    <div id="armaFields" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label for="serie_arma" class="block text-sm font-medium mb-1">Serie del arma
-                                asignada</label>
-                            <input type="text" name="serie_arma" id="serie_arma" class="form-input">
-                        </div>
-                        <div>
-                            <label for="cantidad_municion" class="block text-sm font-medium mb-1">Cantidad de
-                                munición</label>
-                            <input type="number" name="cantidad_municion" id="cantidad_municion" class="form-input">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Inducción de Puesto</h2>
-                <p class="text-sm text-gray-400 mb-4">VALIDACIÓN DE INDUCCIÓN (El supervisor verifica y marca con una
-                    'X')</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="realiza_induccion" class="block text-sm font-medium mb-1">¿Se realiza inducción al
-                            puesto?</label>
-                        <select name="realiza_induccion" id="realiza_induccion" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="conoce_ordenes_consignas" class="block text-sm font-medium mb-1">¿El guardia conoce
-                            sus Órdenes y Consignas Específicas?</label>
-                        <select name="conoce_ordenes_consignas" id="conoce_ordenes_consignas" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="horario_detalles_claros" class="block text-sm font-medium mb-1">¿El horario y los
-                            detalles del servicio son claros para el guardia?</label>
-                        <select name="horario_detalles_claros" id="horario_detalles_claros" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">5. Inspección de Puesto</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="asistencia_puntualidad" class="block text-sm font-medium mb-1">Asistencia y
-                            puntualidad</label>
-                        <select name="asistencia_puntualidad" id="asistencia_puntualidad" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="presentacion_uniforme" class="block text-sm font-medium mb-1">Presentación y
-                            Uniforme</label>
-                        <select name="presentacion_uniforme" id="presentacion_uniforme" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="estado_limpieza_puesto" class="block text-sm font-medium mb-1">Estado y limpieza del
-                            puesto</label>
-                        <select name="estado_limpieza_puesto" id="estado_limpieza_puesto" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="equipamiento_completo" class="block text-sm font-medium mb-1">Equipamiento (radio,
-                            linterna, etc.)</label>
-                        <select name="equipamiento_completo" id="equipamiento_completo" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="conoce_mision_vision" class="block text-sm font-medium mb-1">¿Conoce la misión,
-                            visión y empresa?</label>
-                        <select name="conoce_mision_vision" id="conoce_mision_vision" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="conoce_politica" class="block text-sm font-medium mb-1">¿Conoce la política de la
-                            compañía?</label>
-                        <select name="conoce_politica" id="conoce_politica" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="estado_bitacora" class="block text-sm font-medium mb-1">Estado de bitácora y
-                            registros</label>
-                        <select name="estado_bitacora" id="estado_bitacora" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">6. Observaciones y Novedades</h2>
-                <p class="text-sm text-gray-400 mb-4">Espacio para que el supervisor detalle cualquier punto relevante
-                    del recorrido.</p>
-                <textarea name="observaciones_novedades" id="observaciones_novedades" rows="5" class="form-input"
-                    placeholder="Detalle cualquier punto relevante..."></textarea>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">7. Firma del Guardia</h2>
-                <div>
-                    <div class="mb-6">
-                        <label for="nombre_guardia_firma" class="block text-sm font-medium mb-1">Guardia de
-                            Seguridad</label>
-                        <input type="text" name="nombre_guardia_firma" id="nombre_guardia_firma" class="form-input"
-                            placeholder="Ingrese el nombre del guardia">
-                    </div>
-                    <label class="block text-sm font-medium mb-2">Firma del Guardia</label>
-                    <canvas id="signaturePadGuardia" class="signature-pad w-full h-48"></canvas>
-                    <button type="button" id="clearSignatureGuardia"
-                        class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                    <input type="hidden" name="firma_guardia" id="firma_guardia">
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">8. Foto/Evidencia</h2>
-                <div>
-                    <label for="foto_evidencia" class="block text-sm font-medium mb-1">Tomar Foto o Cargar
-                        Imagen</label>
-                    <input type="file" name="foto_evidencia" id="foto_evidencia" class="form-input"
-                        accept="image/*,application/pdf">
-                    <p class="text-sm text-gray-400 mt-2">📸 Toque para tomar una foto con la cámara o seleccionar una
-                        imagen existente</p>
-                </div>
-            </div>
-
-            <div class="flex justify-end pt-4">
                 <button type="submit"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
-                    Enviar Supervisión
+                    Enviar Todas las Supervisiones
                 </button>
             </div>
         </form>
@@ -565,105 +343,273 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
-            // Dynamic Puestos
-            const addPuestoBtn = document.getElementById('addPuestoBtn');
-            const puestosContainer = document.getElementById('puestosContainer');
+            // --- SUPERVISION BLOCK LOGIC ---
+            let supervisionCount = 0;
+            const container = document.getElementById('supervisionsContainer');
+            const addBtn = document.getElementById('addSupervisionBtn');
+            const signaturePads = {}; // Store references to signature pads by index
 
-            addPuestoBtn.addEventListener('click', function () {
-                const newPuesto = document.createElement('div');
-                newPuesto.className = 'puesto-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-b border-gray-600 pb-4';
-                newPuesto.innerHTML = `
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
-                        <select name="horario_servicio" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Diurno</option>
-                            <option>Nocturno</option>
-                        </select>
+            function createSupervisionBlock(index) {
+                const div = document.createElement('div');
+                div.className = 'form-section supervision-block border-l-4 border-blue-500 pl-4 bg-gray-800 bg-opacity-50 mt-8';
+                div.dataset.index = index;
+
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-blue-400">Supervisión #${index + 1}</h2>
+                        ${index > 0 ? `<button type="button" class="text-red-400 hover:text-red-300 remove-supervision" onclick="removeSupervision(${index})">Eliminar</button>` : ''}
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
-                        <select name="tipo_servicio" class="form-select">
-                            <option value="">Seleccione...</option>
-                            <option>Residencial</option>
-                            <option>Industrial</option>
-                            <option>Comercial</option>
-                            <option>Escolta</option>
-                        </select>
+
+                    <!-- Moved Fields: Datos del Puesto -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Puesto</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
+                            <input type="text" name="supervisions[${index}][puesto_area_especifica]" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
+                            <select name="supervisions[${index}][rol_aplicador]" class="form-select" required>
+                                <option value="">Seleccione...</option>
+                                <option>Supervisor/Inspector</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
+                            <select name="supervisions[${index}][horario_servicio]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Diurno</option>
+                                <option>Nocturno</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
+                            <select name="supervisions[${index}][tipo_servicio]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Residencial</option>
+                                <option>Industrial</option>
+                                <option>Comercial</option>
+                                <option>Escolta</option>
+                            </select>
+                        </div>
                     </div>
-                    <button type="button" class="remove-puesto text-red-400 hover:text-red-300 text-sm md:col-span-2 text-right">Eliminar</button>
+
+                    <!-- Datos del Guardia -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Guardia de Seguridad</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
+                            <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Documento</label>
+                            <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Porta arma en el puesto</label>
+                            <select name="supervisions[${index}][porta_arma]" class="form-select porta-arma-select" data-index="${index}">
+                                <option value="">Seleccione...</option>
+                                <option value="Si">Sí</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div id="armaFields_${index}" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Serie del arma asignada</label>
+                                <input type="text" name="supervisions[${index}][serie_arma]" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
+                                <input type="number" name="supervisions[${index}][cantidad_municion]" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inducción -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inducción de Puesto</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">¿Se realiza inducción al puesto?</label>
+                            <select name="supervisions[${index}][realiza_induccion]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Sí</option>
+                                <option>No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">¿Conoce Órdenes y Consignas?</label>
+                            <select name="supervisions[${index}][conoce_ordenes_consignas]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Sí</option>
+                                <option>No</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-1">¿Horario y detalles claros?</label>
+                            <select name="supervisions[${index}][horario_detalles_claros]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Sí</option>
+                                <option>No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Inspección -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inspección de Puesto</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        ${generateSelectField(index, 'asistencia_puntualidad', 'Asistencia y puntualidad')}
+                        ${generateSelectField(index, 'presentacion_uniforme', 'Presentación y Uniforme')}
+                        ${generateSelectField(index, 'estado_limpieza_puesto', 'Estado y limpieza del puesto')}
+                        ${generateSelectField(index, 'equipamiento_completo', 'Equipamiento (radio, etc.)')}
+                        ${generateSelectField(index, 'estado_bitacora', 'Estado de bitácora y registros')}
+                        <div>
+                            <label class="block text-sm font-medium mb-1">¿Conoce misión/visión?</label>
+                            <select name="supervisions[${index}][conoce_mision_vision]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Sí</option>
+                                <option>No</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">¿Conoce política?</label>
+                            <select name="supervisions[${index}][conoce_politica]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>Sí</option>
+                                <option>No</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Observaciones</h3>
+                    <div class="mb-6">
+                        <textarea name="supervisions[${index}][observaciones_novedades]" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
+                    </div>
+
+                    <!-- Firma Guardia -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
+                    <div class="mb-6">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-1">Nombre para Firma</label>
+                            <input type="text" name="supervisions[${index}][nombre_guardia_firma]" class="form-input">
+                        </div>
+                        <canvas id="signaturePadGuardia_${index}" class="signature-pad w-full h-32"></canvas>
+                        <button type="button" class="mt-2 text-sm text-blue-400 hover:text-blue-300 clear-sig-btn" data-index="${index}">Limpiar Firma</button>
+                        <input type="hidden" name="supervisions[${index}][firma_guardia]" id="firma_guardia_${index}">
+                    </div>
+
+                    <!-- Foto -->
+                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Foto/Evidencia</h3>
+                    <div>
+                         <input type="file" name="supervisions[${index}][foto_evidencia]" class="form-input" accept="image/*,application/pdf">
+                    </div>
                 `;
-                puestosContainer.appendChild(newPuesto);
 
-                // Re-apply theme styles to new elements if needed (though CSS classes should handle it)
-            });
-
-            puestosContainer.addEventListener('click', function (e) {
-                if (e.target.classList.contains('remove-puesto')) {
-                    e.target.closest('.puesto-item').remove();
-                }
-            });
-
-            // Toggle Arma Fields
-            const portaArmaSelect = document.getElementById('porta_arma');
-            const armaFields = document.getElementById('armaFields');
-
-            portaArmaSelect.addEventListener('change', function () {
-                if (this.value === 'Si') {
-                    armaFields.classList.remove('hidden');
-                } else {
-                    armaFields.classList.add('hidden');
-                }
-            });
-
-            // Initialize signature pads
-            const canvasSupervisor = document.getElementById('signaturePadSupervisor');
-            const canvasGuardia = document.getElementById('signaturePadGuardia');
-
-            const signaturePadSupervisor = new SignaturePad(canvasSupervisor, {
-                backgroundColor: 'rgb(255, 255, 255)',
-                penColor: 'rgb(0, 0, 0)'
-            });
-
-            const signaturePadGuardia = new SignaturePad(canvasGuardia, {
-                backgroundColor: 'rgb(255, 255, 255)',
-                penColor: 'rgb(0, 0, 0)'
-            });
-
-            function resizeCanvas(canvas, signaturePad) {
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad.clear();
+                return div;
             }
 
-            resizeCanvas(canvasSupervisor, signaturePadSupervisor);
-            resizeCanvas(canvasGuardia, signaturePadGuardia);
+            function generateSelectField(index, name, label) {
+                return `
+                    <div>
+                        <label class="block text-sm font-medium mb-1">${label}</label>
+                        <select name="supervisions[${index}][${name}]" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Excelente</option>
+                            <option>Bueno</option>
+                            <option>Regular</option>
+                            <option>Malo</option>
+                        </select>
+                    </div>
+                `;
+            }
 
-            window.addEventListener('resize', function () {
-                resizeCanvas(canvasSupervisor, signaturePadSupervisor);
-                resizeCanvas(canvasGuardia, signaturePadGuardia);
-            });
+            function initSignaturePad(index) {
+                const canvas = document.getElementById(`signaturePadGuardia_${index}`);
+                const signaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgb(255, 255, 255)',
+                    penColor: 'rgb(0, 0, 0)'
+                });
+                signaturePads[index] = signaturePad;
 
-            document.getElementById('clearSignatureSupervisor').addEventListener('click', function () {
-                signaturePadSupervisor.clear();
-            });
+                // Resize handling
+                function resize() {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                    signaturePad.clear(); // This clears it, beware on resize
+                }
+                resize();
+                // Note: We're not attaching window resize listener to every dynamic pad to avoid complexity/leaks, but initial size is key.
 
-            document.getElementById('clearSignatureGuardia').addEventListener('click', function () {
-                signaturePadGuardia.clear();
-            });
+                // Clear button
+                const btn = canvas.parentNode.querySelector('.clear-sig-btn');
+                btn.addEventListener('click', () => signaturePad.clear());
+            }
 
-            // Form submission
+            function addSupervision() {
+                const index = supervisionCount++;
+                const block = createSupervisionBlock(index);
+                container.appendChild(block);
+
+                initSignaturePad(index);
+
+                // Arma logic
+                const sel = block.querySelector('.porta-arma-select');
+                const fields = document.getElementById(`armaFields_${index}`);
+                sel.addEventListener('change', function () {
+                    if (this.value === 'Si') fields.classList.remove('hidden');
+                    else fields.classList.add('hidden');
+                });
+            }
+
+            // Global Supervisor Signature
+            const canvasSup = document.getElementById('signaturePadSupervisor');
+            const padSup = new SignaturePad(canvasSup, { backgroundColor: 'white' });
+            function resizeSup() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvasSup.width = canvasSup.offsetWidth * ratio;
+                canvasSup.height = canvasSup.offsetHeight * ratio;
+                canvasSup.getContext("2d").scale(ratio, ratio);
+                padSup.clear();
+            }
+            resizeSup();
+            document.getElementById('clearSignatureSupervisor').addEventListener('click', () => padSup.clear());
+
+            // Initialize first block
+            addSupervision();
+
+            // Add button handler
+            addBtn.addEventListener('click', addSupervision);
+
+            // Remove handler
+            window.removeSupervision = function (index) {
+                const block = document.querySelector(`.supervision-block[data-index="${index}"]`);
+                if (block) {
+                    block.remove();
+                    // delete signaturePads[index]; // Optional, we just iterate through DOM pads on submit
+                }
+            };
+
+            // Submit Handler
             const form = document.getElementById('supervisionForm');
-            form.addEventListener('submit', function (event) {
-                if (!signaturePadSupervisor.isEmpty()) {
-                    document.getElementById('firma_supervisor').value = signaturePadSupervisor.toDataURL();
+            form.addEventListener('submit', function (e) {
+                // Populate supervisor sig
+                if (!padSup.isEmpty()) {
+                    document.getElementById('firma_supervisor').value = padSup.toDataURL();
                 }
-                if (!signaturePadGuardia.isEmpty()) {
-                    document.getElementById('firma_guardia').value = signaturePadGuardia.toDataURL();
+                // Populate dynamic sigs
+                for (const [idx, pad] of Object.entries(signaturePads)) {
+                    // Check if block still exists (it might have been removed)
+                    if (document.getElementById(`signaturePadGuardia_${idx}`)) {
+                        const input = document.getElementById(`firma_guardia_${idx}`);
+                        if (!pad.isEmpty()) {
+                            input.value = pad.toDataURL();
+                        }
+                    }
                 }
             });
+
         });
     </script>
 </body>

@@ -477,67 +477,84 @@ def submit_supervision_puesto():
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
+    import re
+    
     try:
-        foto_url = None
-        if 'foto_evidencia' in request.files:
-            file = request.files['foto_evidencia']
-            foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
-
-        # Process dynamic puestos
-        horarios = request.form.getlist('horario_servicio')
-        tipos = request.form.getlist('tipo_servicio')
-        detalles_puestos = []
-        for h, t in zip(horarios, tipos):
-            if h or t:
-                detalles_puestos.append({'horario': h, 'tipo': t})
-        
-        import json
-        detalles_puestos_json = json.dumps(detalles_puestos)
-
-        form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
-            'fecha_hora': request.form.get('fecha_hora'),
-            'rol_aplicador': request.form.get('rol_aplicador'),
-            # 'turno': request.form.get('turno'), # Removed
-            'supervisor': request.form.get('supervisor'),
-            'firma_supervisor': request.form.get('firma_supervisor'),
-            'detalles_puestos': detalles_puestos_json, # New JSON field
-            # 'horario_servicio': request.form.get('horario_servicio'), # Removed
-            # 'tipo_servicio': request.form.get('tipo_servicio'), # Removed
-            'nombre_guardia': request.form.get('nombre_guardia'),
-            'documento_guardia': request.form.get('documento_guardia'),
-            # 'fecha_inicio_servicio_guardia': request.form.get('fecha_inicio_servicio_guardia'), # Removed
-            'porta_arma': request.form.get('porta_arma'), # New
-            'serie_arma': request.form.get('serie_arma'),
-            'cantidad_municion': request.form.get('cantidad_municion'),
-            'realiza_induccion': request.form.get('realiza_induccion'), # Renamed from constancia_induccion
-            'conoce_ordenes_consignas': request.form.get('conoce_ordenes_consignas'),
-            'horario_detalles_claros': request.form.get('horario_detalles_claros'),
-            'asistencia_puntualidad': request.form.get('asistencia_puntualidad'),
-            'presentacion_uniforme': request.form.get('presentacion_uniforme'),
-            'estado_limpieza_puesto': request.form.get('estado_limpieza_puesto'),
-            'equipamiento_completo': request.form.get('equipamiento_completo'),
-            'conoce_mision_vision': request.form.get('conoce_mision_vision'), # Renamed from cumplimiento_ordenes
-            'conoce_politica': request.form.get('conoce_politica'), # New
-            'estado_bitacora': request.form.get('estado_bitacora'),
-            'observaciones_novedades': request.form.get('observaciones_novedades'),
-            'nombre_guardia_firma': request.form.get('nombre_guardia_firma'),
-            'firma_guardia': request.form.get('firma_guardia'),
-            'submitted_by_email': user_email,
-            'foto_evidencia_url': foto_url
-        }
-
-        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
-
         conn = get_db_connection()
         cur = conn.cursor()
 
-        columns = ', '.join(form_data.keys())
-        placeholders = ', '.join(['%s'] * len(form_data))
-        sql = f"INSERT INTO supervision_puesto ({columns}) VALUES ({placeholders})"
+        # 1. Capture Global Fields
+        global_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'supervisor': request.form.get('supervisor'),
+            'firma_supervisor': request.form.get('firma_supervisor'),
+            'submitted_by_email': user_email
+        }
 
-        cur.execute(sql, list(form_data.values()))
+        # 2. Parse Dynamic Supervisions from request.form
+        # Keys are in format: supervisions[index][field_name]
+        supervisions_map = {}
+        pattern = re.compile(r'supervisions\[(\d+)\]\[(.*)\]')
+
+        for key, value in request.form.items():
+            match = pattern.match(key)
+            if match:
+                index = int(match.group(1))
+                field = match.group(2)
+                if index not in supervisions_map:
+                    supervisions_map[index] = {}
+                supervisions_map[index][field] = value
+
+        # 3. Handle Files (supervisions[index][foto_evidencia])
+        for key, file_storage in request.files.items():
+            match = pattern.match(key)
+            if match:
+                index = int(match.group(1))
+                field = match.group(2)
+                if field == 'foto_evidencia':
+                    # Upload file
+                    url = upload_file_to_gcs(file_storage, GCS_BUCKET_NAME)
+                    if url:
+                         if index not in supervisions_map:
+                             supervisions_map[index] = {}
+                         supervisions_map[index]['foto_evidencia_url'] = url
+
+        # 4. Process and Insert Each Supervision
+        column_cache = None # Optimization to fetch columns once if needed, but simple query is fine
+
+        for index, sup_data in supervisions_map.items():
+            # Merge Global
+            row_data = {**global_data, **sup_data}
+            
+            # Map fields to DB columns (ensure names match what DB expects)
+            # Based on reading, DB columns likely match the form names we used:
+            # puesto_area_especifica, rol_aplicador, horario_servicio, tipo_servicio
+            # nombre_guardia, documento_guardia, porta_arma, serie_arma, cantidad_municion
+            # realiza_induccion, conoce_ordenes_consignas, horario_detalles_claros
+            # asistencia_puntualidad, presentacion_uniforme, estado_limpieza_puesto
+            # equipamiento_completo, conoce_mision_vision, conoce_politica, estado_bitacora
+            # observaciones_novedades, nombre_guardia_firma, firma_guardia
+            
+            # Filter empty strings/None
+            filtered_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
+
+            # Reflection to get valid columns (Safety)
+            if column_cache is None:
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'supervision_puesto'")
+                column_cache = [row[0] for row in cur.fetchall()]
+            
+            valid_row_data = {k: v for k, v in filtered_data.items() if k in column_cache}
+            
+            if not valid_row_data:
+                continue # Skip empty rows
+
+            columns = ', '.join(valid_row_data.keys())
+            placeholders = ', '.join(['%s'] * len(valid_row_data))
+            sql = f"INSERT INTO supervision_puesto ({columns}) VALUES ({placeholders})"
+
+            cur.execute(sql, list(valid_row_data.values()))
+
         conn.commit()
         cur.close()
 
