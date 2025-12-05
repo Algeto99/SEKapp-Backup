@@ -379,14 +379,9 @@
                         <input type="text" name="placa_vehiculo" id="placa_vehiculo" class="form-input" required>
                     </div>
                     <div>
-                        <label for="kilometraje_entrega" class="form-label">Kilometraje de Entrega</label>
-                        <input type="number" name="kilometraje_entrega" id="kilometraje_entrega" class="form-input"
-                            min="0">
-                    </div>
-                    <div>
-                        <label for="kilometraje_salida" class="form-label">Kilometraje de Salida</label>
-                        <input type="number" name="kilometraje_salida" id="kilometraje_salida" class="form-input"
-                            min="0">
+                        <label for="kilometraje_vehiculo" class="form-label">Kilometraje del Vehículo</label>
+                        <input type="number" name="kilometraje_vehiculo" id="kilometraje_vehiculo" class="form-input"
+                            min="0" required>
                     </div>
                 </div>
             </div>
@@ -399,8 +394,8 @@
                         <label for="estado_rines" class="form-label">Estado de los 4 Rines</label>
                         <select name="estado_rines" id="estado_rines" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
@@ -432,8 +427,8 @@
                         <label for="estado_asientos" class="form-label">Estado de los Asientos</label>
                         <select name="estado_asientos" id="estado_asientos" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
@@ -442,8 +437,8 @@
                         <select name="estado_tapetes_alfombras" id="estado_tapetes_alfombras" class="form-select"
                             required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
@@ -458,64 +453,64 @@
                         <label for="luces_delanteras" class="form-label">Luces Delanteras (Bajas/Altas)</label>
                         <select name="luces_delanteras" id="luces_delanteras" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                     <div>
                         <label for="luces_direccionales" class="form-label">Luces Direccionales y Estacionarias</label>
                         <select name="luces_direccionales" id="luces_direccionales" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                     <div>
                         <label for="luces_traseras" class="form-label">Luces Traseras</label>
                         <select name="luces_traseras" id="luces_traseras" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                     <div>
                         <label for="parabrisas_delantero" class="form-label">Parabrisas Delantero</label>
                         <select name="parabrisas_delantero" id="parabrisas_delantero" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                     <div>
                         <label for="parabrisas_trasero" class="form-label">Parabrisas Trasero</label>
                         <select name="parabrisas_trasero" id="parabrisas_trasero" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                     <div>
                         <label for="defensa_delantera" class="form-label">Defensa Delantera</label>
                         <select name="defensa_delantera" id="defensa_delantera" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
                         <label for="defensa_trasera" class="form-label">Defensa Trasera</label>
                         <select name="defensa_trasera" id="defensa_trasera" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
                         <label for="puertas_vidrios" class="form-label">Puertas y Vidrios de las Puertas</label>
                         <select name="puertas_vidrios" id="puertas_vidrios" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
@@ -557,16 +552,16 @@
                         <select name="espejos_retrovisores_externos" id="espejos_retrovisores_externos"
                             class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Bueno</option>
+                            <option>Malo</option>
                         </select>
                     </div>
                     <div>
                         <label for="limpia_brisas" class="form-label">Limpia Brisas</label>
                         <select name="limpia_brisas" id="limpia_brisas" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                     <div>
@@ -597,8 +592,8 @@
                         <label for="aire_acondicionado" class="form-label">Aire Acondicionado</label>
                         <select name="aire_acondicionado" id="aire_acondicionado" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
                         </select>
                     </div>
                 </div>
