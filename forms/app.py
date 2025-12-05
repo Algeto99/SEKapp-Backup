@@ -1214,77 +1214,84 @@ def checklist_cumplimiento():
 @app.route('/submit_checklist_cumplimiento', methods=['POST'])
 @jwt_required()
 def submit_checklist_cumplimiento():
-    """Handles the submission of the updated compliance checklist form."""
+    """Handles the submission of the updated compliance checklist form with multiple entries."""
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
-        # Handle file upload for evidencia
-        evidencia_url = None
-        if 'cargue_evidencia' in request.files:
-            file = request.files['cargue_evidencia']
-            evidencia_url = upload_file_to_gcs(file, GCS_BUCKET_NAME) # Use the helper
-
-        # Map form fields to database columns
-        form_data = {
-            'submitted_by_email': user_email,
-            # Sección 1: Datos Generales
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
-            'fecha_hora': request.form.get('fecha_hora') or None, # Changed from fecha_auditoria
-            'turno': request.form.get('turno'),
-            'rol_aplicador': request.form.get('rol_aplicador'), # Added
-            'nombre_auditor': request.form.get('nombre_auditor'), # Renamed
-            'firma_auditor': request.form.get('firma_auditor'), # Renamed
-
-            # Sección 2: Datos del Agente de Seguridad
-            'agente_nombre_completo': request.form.get('agente_nombre_completo'),
-            'agente_tipo_documento': request.form.get('agente_tipo_documento'),
-            'agente_numero_documento': request.form.get('agente_numero_documento'),
-            'agente_cargo_rol': request.form.get('agente_cargo_rol'),
-            'agente_puesto': request.form.get('agente_puesto'),
-
-            # Sección 3: Verificacion de Cursos y Certificaciones Obligatorias
-            'curso_certificacion': request.form.get('curso_certificacion'),
-            'academia_certifica': request.form.get('academia_certifica'),
-            'nro_resolucion': request.form.get('nro_resolucion'),
-            'fecha_resolucion': request.form.get('fecha_resolucion') or None, # Changed type
-            'vigencia_desde': request.form.get('vigencia_desde') or None,
-            'vigencia_hasta': request.form.get('vigencia_hasta') or None,
-            'evidencia_url': evidencia_url, # File upload URL
-            'nivel_cumplimiento': request.form.get('nivel_cumplimiento'),
-
-            # Sección 4: Checklist de Verificacion
-            'copia_certificados_fisica': request.form.get('copia_certificados_fisica'),
-            'certificados_cargados_sistema': request.form.get('certificados_cargados_sistema'),
-            'documentacion_coincide_hv': request.form.get('documentacion_coincide_hv'),
-            'fechas_vigentes': request.form.get('fechas_vigentes'),
-
-            # Sección 5: Firmas
-            'firma_guarda_supervisado': request.form.get('firma_guarda_supervisado'),
-        }
-
-        # Remove empty/None values before inserting
-        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
-
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Dynamically build INSERT statement based on available keys
-        columns = form_data.keys()
-        values = [form_data[col] for col in columns]
+        # Header Data (Shared for all rows) - Section 1
+        header_data = {
+            'submitted_by_email': user_email,
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora') or None,
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'nombre_auditor': request.form.get('nombre_auditor'),
+            'firma_auditor': request.form.get('firma_auditor'),
+             # 'turno' is removed/ignored
+        }
 
-        insert_query = f"""
-            INSERT INTO checklist_cumplimiento ({', '.join(columns)})
-            VALUES ({', '.join(['%s'] * len(values))})
-        """
+        # Row Data - Sections 2-5 (Lists)
+        # We assume 'agente_nombre_completo[]' exists and controls the number of rows
+        agente_nombres = request.form.getlist('agente_nombre_completo[]')
+        num_rows = len(agente_nombres)
 
-        cur.execute(insert_query, values)
+        for i in range(num_rows):
+            # Handle unique file upload per row
+            evidencia_key = f'cargue_evidencia_{i}'
+            evidencia_url = None
+            if evidencia_key in request.files and request.files[evidencia_key].filename != '':
+                file = request.files[evidencia_key]
+                evidencia_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+
+            # Build row data combining header and indexed lists
+            row_data = header_data.copy()
+            row_data.update({
+                # Section 2
+                'agente_nombre_completo': agente_nombres[i],
+                'agente_tipo_documento': request.form.getlist('agente_tipo_documento[]')[i] if len(request.form.getlist('agente_tipo_documento[]')) > i else None,
+                'agente_numero_documento': request.form.getlist('agente_numero_documento[]')[i] if len(request.form.getlist('agente_numero_documento[]')) > i else None,
+                'agente_cargo_rol': request.form.getlist('agente_cargo_rol[]')[i] if len(request.form.getlist('agente_cargo_rol[]')) > i else None,
+                'agente_puesto': request.form.getlist('agente_puesto[]')[i] if len(request.form.getlist('agente_puesto[]')) > i else None,
+
+                # Section 3
+                'curso_certificacion': request.form.getlist('curso_certificacion[]')[i] if len(request.form.getlist('curso_certificacion[]')) > i else None,
+                'academia_certifica': request.form.getlist('academia_certifica[]')[i] if len(request.form.getlist('academia_certifica[]')) > i else None,
+                'nro_resolucion': request.form.getlist('nro_resolucion[]')[i] if len(request.form.getlist('nro_resolucion[]')) > i else None,
+                'fecha_resolucion': (request.form.getlist('fecha_resolucion[]')[i] or None) if len(request.form.getlist('fecha_resolucion[]')) > i else None,
+                'vigencia_desde': (request.form.getlist('vigencia_desde[]')[i] or None) if len(request.form.getlist('vigencia_desde[]')) > i else None,
+                'vigencia_hasta': (request.form.getlist('vigencia_hasta[]')[i] or None) if len(request.form.getlist('vigencia_hasta[]')) > i else None,
+                'evidencia_url': evidencia_url,
+                'nivel_cumplimiento': request.form.getlist('nivel_cumplimiento[]')[i] if len(request.form.getlist('nivel_cumplimiento[]')) > i else None,
+
+                # Section 4
+                'copia_certificados_fisica': request.form.getlist('copia_certificados_fisica[]')[i] if len(request.form.getlist('copia_certificados_fisica[]')) > i else None,
+                'certificados_cargados_sistema': request.form.getlist('certificados_cargados_sistema[]')[i] if len(request.form.getlist('certificados_cargados_sistema[]')) > i else None,
+                'documentacion_coincide_hv': request.form.getlist('documentacion_coincide_hv[]')[i] if len(request.form.getlist('documentacion_coincide_hv[]')) > i else None,
+                'fechas_vigentes': request.form.getlist('fechas_vigentes[]')[i] if len(request.form.getlist('fechas_vigentes[]')) > i else None,
+
+                # Section 5
+                'firma_guarda_supervisado': request.form.getlist('firma_guarda_supervisado[]')[i] if len(request.form.getlist('firma_guarda_supervisado[]')) > i else None,
+            })
+
+            # Filter None/Empty
+            row_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
+
+            columns = row_data.keys()
+            values = [row_data[col] for col in columns]
+
+            insert_query = f"""
+                INSERT INTO checklist_cumplimiento ({', '.join(columns)})
+                VALUES ({', '.join(['%s'] * len(values))})
+            """
+            cur.execute(insert_query, values)
+
         conn.commit()
-
         cur.close()
-        # Redirect to a generic success page
-        return redirect(url_for('success', message='Checklist enviado exitosamente!'))
+        return redirect(url_for('success', message='Checklist(s) enviado(s) exitosamente!'))
 
     except Exception as e:
         if conn:

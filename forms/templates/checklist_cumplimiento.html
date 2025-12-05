@@ -291,219 +291,327 @@
                     </div>
                     <div>
                         <!-- Renamed field and changed type -->
-                        <label for="fecha_hora" class="form-label">Fecha y Hora <span
-                                class="text-red-400">*</span></label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
-                    </div>
-                    <div>
-                        <label for="turno" class="form-label">Turno <span class="text-red-400">*</span></label>
-                        <!-- Removed N/A option -->
-                        <select name="turno" id="turno" class="form-select" required>
-                            <option value="" disabled selected>Seleccione un turno...</option>
-                            <option>Diurno</option>
-                            <option>Nocturno</option>
-                        </select>
-                    </div>
-                    <!-- Added Rol del Aplicador -->
-                    <div>
-                        <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span
-                                class="text-red-400">*</span></label>
-                        <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
-                            <option value="" disabled selected>Seleccione un rol...</option>
-                            <option>Supervisor/Inspector</option>
-                            <option>Coordinador</option>
-                            <option>Jefe de Seguridad</option>
-                        </select>
-                    </div>
-                    <!-- Normativa Aplicable removed -->
-                    <div>
-                        <!-- Renamed field -->
-                        <label for="nombre_auditor" class="form-label">Nombre <span
-                                class="text-red-400">*</span></label>
-                        <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input"
-                            value="{{ name }}" required>
-                    </div>
-                    <div>
-                        <!-- Renamed field -->
-                        <label class="form-label">Firma <span class="text-red-400">*</span></label>
-                        <canvas id="firma_auditor_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_auditor_pad"
-                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_auditor" id="firma_auditor">
+                        <div>
+                            <label for="fecha_hora" class="form-label">Fecha y Hora <span
+                                    class="text-red-400">*</span></label>
+                            <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
+                        </div>
+                        <!-- Turno Removed -->
+                        <!-- Added Rol del Aplicador -->
+                        <div>
+                            <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span
+                                    class="text-red-400">*</span></label>
+                            <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
+                                <option value="" disabled selected>Seleccione un rol...</option>
+                                <option>Supervisor/Inspector</option>
+                                <option>Coordinador</option>
+                                <option>Jefe de Seguridad</option>
+                            </select>
+                        </div>
+                        <!-- Normativa Aplicable removed -->
+                        <div>
+                            <!-- Renamed field -->
+                            <label for="nombre_auditor" class="form-label">Nombre <span
+                                    class="text-red-400">*</span></label>
+                            <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input"
+                                value="{{ name }}" required>
+                        </div>
+                        <div>
+                            <!-- Renamed field -->
+                            <label class="form-label">Firma <span class="text-red-400">*</span></label>
+                            <canvas id="firma_auditor_pad" class="signature-pad"></canvas>
+                            <button type="button" data-pad="firma_auditor_pad"
+                                class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
+                                Firma</button>
+                            <input type="hidden" name="firma_auditor" id="firma_auditor">
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sección 2: Datos del Agente de Seguridad -->
-            <div class="form-section">
-                <!-- Renamed Section 2 and changed fields -->
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Datos del Agente de Seguridad</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        <label for="agente_nombre_completo" class="form-label">Nombre Completo</label>
-                        <input type="text" name="agente_nombre_completo" id="agente_nombre_completo" class="form-input">
-                    </div>
-                    <div>
-                        <label for="agente_tipo_documento" class="form-label">Tipo de Documento</label>
-                        <input type="text" name="agente_tipo_documento" id="agente_tipo_documento" class="form-input">
-                    </div>
-                    <div>
-                        <label for="agente_numero_documento" class="form-label">Numero de Documento</label>
-                        <input type="text" name="agente_numero_documento" id="agente_numero_documento"
-                            class="form-input">
-                    </div>
-                    <div>
-                        <label for="agente_cargo_rol" class="form-label">Cargo/Rol</label>
-                        <input type="text" name="agente_cargo_rol" id="agente_cargo_rol" class="form-input">
-                    </div>
-                    <div>
-                        <label for="agente_puesto" class="form-label">Puesto</label>
-                        <input type="text" name="agente_puesto" id="agente_puesto" class="form-input">
+                <div id="checklist-container">
+                    <!-- Checklist Item Block Template -->
+                    <div class="checklist-block relative bg-gray-700/30 rounded-lg p-4 mb-8">
+                        <div class="absolute top-2 right-2 flex gap-2">
+                            <button type="button" class="remove-checklist-btn text-red-400 hover:text-red-300 hidden"
+                                onclick="removeChecklistBlock(this)">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <h3 class="text-xl font-bold text-blue-400 mb-4 checklist-title">Checklist #1</h3>
+
+                        <!-- Sección 2: Datos del Agente de Seguridad -->
+                        <div class="form-section">
+                            <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Datos del Agente de
+                                Seguridad</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Nombre Completo</label>
+                                    <input type="text" name="agente_nombre_completo[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Tipo de Documento</label>
+                                    <input type="text" name="agente_tipo_documento[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Numero de Documento</label>
+                                    <input type="text" name="agente_numero_documento[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Cargo/Rol</label>
+                                    <input type="text" name="agente_cargo_rol[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Puesto</label>
+                                    <input type="text" name="agente_puesto[]" class="form-input">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección 3: Verificacion de Cursos y Certificaciones Obligatorias -->
+                        <div class="form-section">
+                            <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificacion de Cursos
+                                y Certificaciones</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Curso/Certificacion</label>
+                                    <select name="curso_certificacion[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option>Certificado de Aptitud Psicofisica</option>
+                                        <option>Fundamentacion en Seguridad</option>
+                                        <option>Fundamentacion en medios tecnologicos</option>
+                                        <option>Reentrenamiento de Vigilancia</option>
+                                        <option>Reentrenamiento en Medios Tecnologicos</option>
+                                        <option>Fundamentacion Supervisor</option>
+                                        <option>Reentrenamiento Supervisor</option>
+                                        <option>Fundamentacion Manejador Canino</option>
+                                        <option>Reentrenamiento Manejador Canino</option>
+                                        <option>Otros</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Academia o Escuela que Certifica</label>
+                                    <input type="text" name="academia_certifica[]" class="form-input">
+                                </div>
+
+                                <h3 class="subsection-title md:col-span-2">Resolucion de Aprobacion de la Academia</h3>
+
+                                <div>
+                                    <label class="form-label">Nro. Resolucion</label>
+                                    <input type="text" name="nro_resolucion[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Fecha de Resolucion</label>
+                                    <input type="date" name="fecha_resolucion[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Vigencia del Curso Desde</label>
+                                    <input type="date" name="vigencia_desde[]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="form-label">Vigencia del Curso Hasta</label>
+                                    <input type="date" name="vigencia_hasta[]" class="form-input">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Cargue de Evidencia</label>
+                                    <!-- File input requires unique name for mapping, handled via suffix in JS or sequential -->
+                                    <!-- We will stick to name="cargue_evidencia_INDEX" handled by JS re-indexing -->
+                                    <input type="file" name="cargue_evidencia_0"
+                                        class="form-input file-input-evidencia file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                        accept="image/*,application/pdf">
+                                    <p class="text-xs text-gray-400 mt-1">Cargue una foto, PDF o documento como
+                                        evidencia.</p>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Nivel de Cumplimiento</label>
+                                    <select name="nivel_cumplimiento[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option>Cumple</option>
+                                        <option>No Cumple</option>
+                                        <option>Cumple con Hallazgos Menores</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección 4: Checklist de Verificacion (NEW) -->
+                        <div class="form-section">
+                            <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Checklist de
+                                Verificacion</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="form-label">Copia de Certificados en Carpeta Fisica</label>
+                                    <select name="copia_certificados_fisica[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option>Si</option>
+                                        <option>No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Certificados Cargados en Sistema</label>
+                                    <select name="certificados_cargados_sistema[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option>Si</option>
+                                        <option>No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Documentacion coincide con Datos en Hoja de Vida</label>
+                                    <select name="documentacion_coincide_hv[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option>Si</option>
+                                        <option>No</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Fechas Dentro del Periodo de Vigencia</label>
+                                    <select name="fechas_vigentes[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option>Si</option>
+                                        <option>No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección 5: Firmas (NEW) -->
+                        <div class="form-section">
+                            <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">5. Firmas</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="form-label">Firma del Guarda Supervisado</label>
+                                    <canvas id="firma_guarda_supervisado_pad_0"
+                                        class="signature-pad dynamic-pad"></canvas>
+                                    <button type="button" data-pad="firma_guarda_supervisado_pad_0"
+                                        class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
+                                        Firma</button>
+                                    <input type="hidden" name="firma_guarda_supervisado[]" class="hidden-sig-input">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sección 3: Verificacion de Cursos y Certificaciones Obligatorias -->
-            <div class="form-section">
-                <!-- Renamed Section 3 and changed fields -->
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificacion de Cursos y
-                    Certificaciones Obligatorias</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        <label for="curso_certificacion" class="form-label">Curso/Certificacion</label>
-                        <select name="curso_certificacion" id="curso_certificacion" class="form-select">
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Certificado de Aptitud Psicofisica</option>
-                            <option>Fundamentacion en Seguridad</option>
-                            <option>Fundamentacion en medios tecnologicos</option>
-                            <option>Reentrenamiento de Vigilancia</option>
-                            <option>Reentrenamiento en Medios Tecnologicos</option>
-                            <option>Fundamentacion Supervisor</option>
-                            <option>Reentrenamiento Supervisor</option>
-                            <option>Fundamentacion Manejador Canino</option>
-                            <option>Reentrenamiento Manejador Canino</option>
-                            <option>Otros</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="academia_certifica" class="form-label">Academia o Escuela que Certifica</label>
-                        <input type="text" name="academia_certifica" id="academia_certifica" class="form-input">
-                    </div>
-
-                    <h3 class="subsection-title md:col-span-2">Resolucion de Aprobacion de la Academia</h3>
-
-                    <div>
-                        <label for="nro_resolucion" class="form-label">Nro. Resolucion</label>
-                        <input type="text" name="nro_resolucion" id="nro_resolucion" class="form-input">
-                    </div>
-                    <div>
-                        <!-- Changed input type to date -->
-                        <label for="fecha_resolucion" class="form-label">Fecha de Resolucion</label>
-                        <input type="date" name="fecha_resolucion" id="fecha_resolucion" class="form-input">
-                    </div>
-                    <div>
-                        <label for="vigencia_desde" class="form-label">Vigencia del Curso Desde</label>
-                        <input type="date" name="vigencia_desde" id="vigencia_desde" class="form-input">
-                    </div>
-                    <div>
-                        <label for="vigencia_hasta" class="form-label">Vigencia del Curso Hasta</label>
-                        <input type="date" name="vigencia_hasta" id="vigencia_hasta" class="form-input">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="cargue_evidencia" class="form-label">Cargue de Evidencia</label>
-                        <input type="file" name="cargue_evidencia" id="cargue_evidencia"
-                            class="form-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                            accept="image/*,application/pdf">
-                        <p class="text-xs text-gray-400 mt-1">Cargue una foto, PDF o documento como evidencia.</p>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="nivel_cumplimiento" class="form-label">Nivel de Cumplimiento</label>
-                        <select name="nivel_cumplimiento" id="nivel_cumplimiento" class="form-select">
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Cumple</option>
-                            <option>No Cumple</option>
-                            <option>Cumple con Hallazgos Menores</option>
-                        </select>
-                    </div>
+                <div class="mt-4 mb-8 text-center">
+                    <button type="button" onclick="addChecklistBlock()"
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-lg flex items-center justify-center mx-auto gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Añadir otro checklist
+                    </button>
                 </div>
-            </div>
 
-            <!-- Section 4: Checklist de Verificacion (NEW) -->
-            <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Checklist de Verificacion</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="copia_certificados_fisica" class="form-label">Copia de Certificados en Carpeta
-                            Fisica</label>
-                        <select name="copia_certificados_fisica" id="copia_certificados_fisica" class="form-select">
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Si</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="certificados_cargados_sistema" class="form-label">Certificados Cargados en
-                            Sistema</label>
-                        <select name="certificados_cargados_sistema" id="certificados_cargados_sistema"
-                            class="form-select">
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Si</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="documentacion_coincide_hv" class="form-label">Documentacion coincide con Datos en
-                            Hoja de Vida</label>
-                        <select name="documentacion_coincide_hv" id="documentacion_coincide_hv" class="form-select">
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Si</option>
-                            <option>No</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="fechas_vigentes" class="form-label">Fechas Dentro del Periodo de Vigencia</label>
-                        <select name="fechas_vigentes" id="fechas_vigentes" class="form-select">
-                            <option value="" disabled selected>Seleccione...</option>
-                            <option>Si</option>
-                            <option>No</option>
-                        </select>
-                    </div>
+                <div class="mt-8 text-center">
+                    <button type="submit"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
+                        Enviar Checklist(s)
+                    </button>
                 </div>
-            </div>
-
-            <!-- Section 5: Firmas (NEW) -->
-            <div class="form-section">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">5. Firmas</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="form-label">Firma del Guarda Supervisado</label>
-                        <canvas id="firma_guarda_supervisado_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_guarda_supervisado_pad"
-                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_guarda_supervisado" id="firma_guarda_supervisado">
-                    </div>
-                    <!-- Firma del Supervisor removed -->
-                </div>
-            </div>
-
-            <div class="mt-8 text-center">
-                <button type="submit"
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
-                    Enviar Checklist
-                </button>
-            </div>
         </form>
     </div>
 
     <script>
         let signaturePads = {};
+        let blockCount = 1;
 
         function resizeCanvas(canvas, pad) {
             const ratio = Math.max(window.devicePixelRatio || 1, 1);
             canvas.width = canvas.offsetWidth * ratio;
             canvas.height = canvas.offsetHeight * ratio;
             canvas.getContext("2d").scale(ratio, ratio);
-            pad.clear();
+            pad.clear(); // This might be annoying if resizing wipes data, but standard behavior for simple implementation.
+        }
+
+        function initPad(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (canvas) {
+                const pad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)', backgroundColor: 'rgb(255, 255, 255)' });
+                signaturePads[canvasId] = pad;
+                window.addEventListener("resize", () => resizeCanvas(canvas, pad));
+                resizeCanvas(canvas, pad);
+            }
+        }
+
+        function addChecklistBlock() {
+            const container = document.getElementById('checklist-container');
+            const firstBlock = container.querySelector('.checklist-block');
+            const newBlock = firstBlock.cloneNode(true);
+            const newIndex = blockCount;
+
+            // Updates titles
+            newBlock.querySelector('.checklist-title').textContent = `Checklist #${newIndex + 1}`;
+
+            // Show remove button
+            newBlock.querySelector('.remove-checklist-btn').classList.remove('hidden');
+
+            // Clear Inputs
+            newBlock.querySelectorAll('input:not([type="hidden"]), select').forEach(input => {
+                input.value = '';
+                if (input.type === 'checkbox' || input.type === 'radio') input.checked = false;
+            });
+
+            // Update File Input Name (cargue_evidencia_INDEX)
+            const fileInput = newBlock.querySelector('.file-input-evidencia');
+            if (fileInput) {
+                fileInput.name = `cargue_evidencia_${newIndex}`;
+                fileInput.value = ''; // Clear file
+            }
+
+            // Handle Signatures
+            const oldCanvas = newBlock.querySelector('canvas');
+            const oldBtn = newBlock.querySelector('.clear-sig-btn');
+            const oldHidden = newBlock.querySelector('.hidden-sig-input');
+
+            // Generate new ID
+            const newPadId = `firma_guarda_supervisado_pad_${newIndex}`;
+
+            oldCanvas.id = newPadId;
+            oldBtn.dataset.pad = newPadId;
+            // hidden input name remains array [], value cleared
+            oldHidden.value = '';
+
+            container.appendChild(newBlock);
+
+            // Initialize new pad
+            initPad(newPadId);
+
+            // Re-attach clear listener
+            oldBtn.addEventListener('click', () => {
+                if (signaturePads[newPadId]) signaturePads[newPadId].clear();
+            });
+
+            blockCount++;
+        }
+
+        function removeChecklistBlock(btn) {
+            const block = btn.closest('.checklist-block');
+            block.remove();
+            // Optional: re-index everything, but backend just iterates what it receives.
+            // As long as file inputs act independently, we are fine.
+            // Wait, if I delete block 1 and keep block 2 (index 2), file input name will be 'cargue_evidencia_2'.
+            // But backend loop iterates `range(len(names))`. So it expects 0, 1.
+            // If I delete an intermediate block, the indices in names will differ from list indices.
+            // FIX: I MUST re-index file inputs after deletion to ensure cargue_evidencia_0, _1, _2 match the list order of text fields.
+            reindexBlocks();
+        }
+
+        function reindexBlocks() {
+            const blocks = document.querySelectorAll('.checklist-block');
+            blockCount = blocks.length;
+            blocks.forEach((block, index) => {
+                block.querySelector('.checklist-title').textContent = `Checklist #${index + 1}`;
+
+                // Re-index file input
+                const fileInput = block.querySelector('.file-input-evidencia');
+                if (fileInput) fileInput.name = `cargue_evidencia_${index}`;
+
+                // Note: Signatures IDs don't strictly need re-indexing for backend sake, but file inputs DO.
+            });
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -533,30 +641,17 @@
             // Set current date & time for 'fecha_hora'
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            const formattedDateTime = now.toISOString().slice(0, 16); // Format YYYY-MM-DDTHH:mm
+            const formattedDateTime = now.toISOString().slice(0, 16);
             const fechaHoraInput = document.getElementById('fecha_hora');
-            if (fechaHoraInput) { // Check if the element exists
-                fechaHoraInput.value = formattedDateTime;
-            } else {
-                console.error("Element with ID 'fecha_hora' not found.");
-            }
+            if (fechaHoraInput) fechaHoraInput.value = formattedDateTime;
 
+            // Initialize Static Pads (Auditor)
+            initPad('firma_auditor_pad');
 
-            // Initialize signature pads - includes new pads
-            const padIds = ['firma_auditor_pad', 'firma_guarda_supervisado_pad', 'firma_supervisor_pad'];
-            padIds.forEach(id => {
-                const canvas = document.getElementById(id);
-                if (canvas) {
-                    const pad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)', backgroundColor: 'rgb(255, 255, 255)' });
-                    signaturePads[id] = pad;
-                    window.addEventListener("resize", () => resizeCanvas(canvas, pad));
-                    resizeCanvas(canvas, pad);
-                } else {
-                    console.warn(`Signature pad canvas with ID '${id}' not found.`); // Add warning if pad not found
-                }
-            });
+            // Initialize First Dynamic Pad
+            initPad('firma_guarda_supervisado_pad_0');
 
-            // Clear signature buttons
+            // Clear signature buttons (Static and First Dynamic)
             document.querySelectorAll('.clear-sig-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const padId = btn.dataset.pad;
@@ -566,41 +661,26 @@
 
             // Form submission
             document.getElementById('checklistForm').addEventListener('submit', function (event) {
-                let hasAuditorSignature = false;
-                // Capture all signatures before submitting
+                // 1. Capture Auditor Signature
                 if (signaturePads['firma_auditor_pad'] && !signaturePads['firma_auditor_pad'].isEmpty()) {
                     document.getElementById('firma_auditor').value = signaturePads['firma_auditor_pad'].toDataURL();
-                    hasAuditorSignature = true; // Still track if auditor signed
-                }
-                if (signaturePads['firma_guarda_supervisado_pad'] && !signaturePads['firma_guarda_supervisado_pad'].isEmpty()) {
-                    document.getElementById('firma_guarda_supervisado').value = signaturePads['firma_guarda_supervisado_pad'].toDataURL();
-                }
-                if (signaturePads['firma_supervisor_pad'] && !signaturePads['firma_supervisor_pad'].isEmpty()) {
-                    document.getElementById('firma_supervisor').value = signaturePads['firma_supervisor_pad'].toDataURL();
-                }
-
-                // Require Auditor signature (adjust if others become required)
-                if (!hasAuditorSignature) {
+                } else {
                     event.preventDefault();
-                    alert('Por favor, proporcione la firma (Sección 1).'); // Updated alert message
-                    // Optional: Focus the relevant canvas or section
-                    const auditorCanvas = document.getElementById('firma_auditor_pad');
-                    if (auditorCanvas) auditorCanvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    alert('Por favor, proporcione la firma del auditor (Sección 1).');
                     return false;
                 }
 
-                // Basic validation example for file upload (optional)
-                const fileInput = document.getElementById('cargue_evidencia');
-                if (fileInput && fileInput.files.length > 0) {
-                    const fileSize = fileInput.files[0].size / 1024 / 1024; // in MB
-                    if (fileSize > 10) { // Example: Limit to 10MB
-                        event.preventDefault();
-                        alert('El archivo de evidencia no debe exceder los 10MB.');
-                        fileInput.focus();
-                        return false;
-                    }
-                }
+                // 2. Loop through all dynamic blocks and capture their signatures
+                const blocks = document.querySelectorAll('.checklist-block');
+                blocks.forEach((block, index) => {
+                    const canvas = block.querySelector('canvas');
+                    const hiddenInput = block.querySelector('.hidden-sig-input');
+                    const padId = canvas.id;
 
+                    if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
+                        hiddenInput.value = signaturePads[padId].toDataURL();
+                    }
+                });
             });
         });
     </script>
