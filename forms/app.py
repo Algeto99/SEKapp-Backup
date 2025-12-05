@@ -865,20 +865,16 @@ def submit_registro_y_acta_de_visita():
         detalles_participantes_json = json.dumps(detalles_participantes)
 
         form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area': request.form.get('puesto_area'),
+            'cliente_instalacion': request.form.get('cliente_visitado'), # Mapped from form field 'cliente_visitado'
+            # 'puesto_area': request.form.get('puesto_area'), # Not present in this form
             'fecha_hora': request.form.get('fecha_hora'),
             'motivo_visita': request.form.get('motivo_visita'),
             'nombre_visitante': request.form.get('nombre_visitante'),
             'cargo_visitante': request.form.get('cargo_visitante'),
             'firma_visitante': request.form.get('firma_visitante'),
-            'detalles_participantes': detalles_participantes_json, # New JSON field
-            # 'nombre_participante_cliente': request.form.get('nombre_participante_cliente'), # Removed
-            # 'cargo_participante_cliente': request.form.get('cargo_participante_cliente'), # Removed
-            # 'firma_participante_cliente': request.form.get('firma_participante_cliente'), # Removed
+            'detalles_participantes': detalles_participantes_json, 
             'temas_tratados': request.form.get('temas_tratados'),
             'acuerdos_compromisos': request.form.get('acuerdos_compromisos'),
-            # 'observaciones': request.form.get('observaciones'), # Removed
             'submitted_by_email': user_email
         }
 

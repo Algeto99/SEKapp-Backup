@@ -780,6 +780,16 @@
     "data_type": "text"
   },
   {
+    "table_name": "orden_mantenimiento",
+    "column_name": "equipo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "orden_mantenimiento",
+    "column_name": "tipo_servicio",
+    "data_type": "text"
+  },
+  {
     "table_name": "password_reset_tokens",
     "column_name": "id",
     "data_type": "integer"
@@ -1477,6 +1487,26 @@
   {
     "table_name": "registro_y_acta_de_visita",
     "column_name": "detalles_participantes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "nombre_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "cargo_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "temas_tratados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "acuerdos_compromisos",
     "data_type": "text"
   },
   {
