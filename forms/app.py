@@ -1118,56 +1118,65 @@ def submit_orden_mantenimiento():
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
+    import re
+
     try:
-        # Process dynamic equipos
-        equipos = request.form.getlist('equipo')
-        ids = request.form.getlist('id_equipo_serial')
-        tipos = request.form.getlist('tipo_servicio')
-        detalles_equipos = []
-        for e, i, t in zip(equipos, ids, tipos):
-            if e or i or t:
-                detalles_equipos.append({'equipo': e, 'id_serial': i, 'tipo_servicio': t})
-        
-        import json
-        detalles_equipos_json = json.dumps(detalles_equipos)
-
-        form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area': request.form.get('puesto_area'),
-            'fecha_hora': request.form.get('fecha_hora'),
-            'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
-            'detalles_equipos': detalles_equipos_json, # New JSON field
-            # 'equipo': request.form.get('equipo'), # Removed
-            # 'modelo_serie': request.form.get('modelo_serie'), # Removed
-            # 'ubicacion_instalacion': request.form.get('ubicacion_instalacion'), # Removed
-            # 'tipo_servicio': request.form.get('tipo_servicio'), # Removed
-            # 'tipo_mantenimiento': request.form.get('tipo_mantenimiento'), # Removed
-            # 'estado_equipo_antes': request.form.get('estado_equipo_antes'), # Removed
-            'actividad_realizada': request.form.get('actividad_realizada'), # Renamed/Mapped from descripcion_trabajo? No, new field name in HTML
-            'repuestos_usados': request.form.get('repuestos_usados'),
-            # 'observaciones_tecnicas': request.form.get('observaciones_tecnicas'), # Removed
-            # 'estado_equipo_despues': request.form.get('estado_equipo_despues'), # Removed
-            # 'clasificacion_urgencia': request.form.get('clasificacion_urgencia'), # Removed
-            # 'criticidad_impacto': request.form.get('criticidad_impacto'), # Removed
-            # 'supervisor_seguridad': request.form.get('supervisor_seguridad'), # Removed
-            # 'firma_supervisor_seguridad': request.form.get('firma_supervisor_seguridad'), # Removed
-            'nombre_tecnico': request.form.get('nombre_tecnico'),
-            'firma_tecnico': request.form.get('firma_tecnico'),
-            'downtime_horas': request.form.get('downtime_horas'),
-            'submitted_by_email': user_email
-        }
-
-        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
-
         conn = get_db_connection()
         cur = conn.cursor()
 
-        columns = ', '.join(form_data.keys())
-        placeholders = ', '.join(['%s'] * len(form_data))
-        sql = f"INSERT INTO orden_mantenimiento ({columns}) VALUES ({placeholders})"
+        # 1. Capture Global Fields
+        global_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'nombre_tecnico': request.form.get('nombre_tecnico'),
+            'firma_tecnico': request.form.get('firma_tecnico'),
+            'submitted_by_email': user_email
+        }
 
-        cur.execute(sql, list(form_data.values()))
+        # 2. Parse Dynamic Mantenimientos from request.form
+        # Keys: mantenimientos[index][field_name]
+        mantenimientos_map = {}
+        pattern = re.compile(r'mantenimientos\[(\d+)\]\[(.*)\]')
+
+        for key, value in request.form.items():
+            match = pattern.match(key)
+            if match:
+                index = int(match.group(1))
+                field = match.group(2)
+                if index not in mantenimientos_map:
+                    mantenimientos_map[index] = {}
+                mantenimientos_map[index][field] = value
+
+        # 3. Process and Insert Each Mantenimiento
+        column_cache = None 
+
+        for index, mant_data in mantenimientos_map.items():
+            # Merge Global
+            row_data = {**global_data, **mant_data}
+            
+            # Map fields to what we expect in DB.
+            # New HTML sends: puesto_area, equipo, id_equipo_serial, tipo_servicio, actividad_realizada, downtime_horas, repuestos_usados
+            
+            # Filter empty
+            filtered_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
+
+            # Reflection to get valid columns
+            if column_cache is None:
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'orden_mantenimiento'")
+                column_cache = [row[0] for row in cur.fetchall()]
+            
+            valid_row_data = {k: v for k, v in filtered_data.items() if k in column_cache}
+            
+            if not valid_row_data:
+                continue
+
+            columns = ', '.join(valid_row_data.keys())
+            placeholders = ', '.join(['%s'] * len(valid_row_data))
+            sql = f"INSERT INTO orden_mantenimiento ({columns}) VALUES ({placeholders})"
+
+            cur.execute(sql, list(valid_row_data.values()))
+
         conn.commit()
         cur.close()
 
