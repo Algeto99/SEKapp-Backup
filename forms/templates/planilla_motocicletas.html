@@ -372,12 +372,9 @@
                         <input type="text" name="placa_motocicleta" id="placa_motocicleta" class="form-input" required>
                     </div>
                     <div>
-                        <label for="kilometraje_entrega" class="form-label">Kilometraje de Entrega</label>
-                        <input type="number" name="kilometraje_entrega" id="kilometraje_entrega" class="form-input">
-                    </div>
-                    <div>
-                        <label for="kilometraje_salida" class="form-label">Kilometraje de Salida</label>
-                        <input type="number" name="kilometraje_salida" id="kilometraje_salida" class="form-input">
+                        <label for="kilometraje_motocicleta" class="form-label">Kilometraje de Motocicleta</label>
+                        <input type="number" name="kilometraje_motocicleta" id="kilometraje_motocicleta"
+                            class="form-input">
                     </div>
                     <div>
                         <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
@@ -498,28 +495,28 @@
         // --- START CONFIGURATION ---
         const motoImageURL = 'https://storage.googleapis.com/smt-misc/Motorcycle.png';
         const checklistItems = [
-            { label: "Estado de los (2) Neumáticos", name: "estado_neumaticos" },
-            { label: "Estado de los 2 Rines", name: "estado_rines" },
-            { label: "Equipo de Carretera", name: "equipo_carretera" },
-            { label: "Estado del Kit de Arrastre", name: "estado_kit_arrastre" },
-            { label: "Estado de la Palanca Soporte", name: "estado_palanca_soporte" },
-            { label: "Estado del Forro del Asiento", name: "estado_forro_asiento" },
-            { label: "Luces Direccionales (Derecha)", name: "estado_luces_direccionales_derecha" },
-            { label: "Luces Direccionales (Izquierda)", name: "estado_luces_direccionales_izquierda" },
-            { label: "Luces Delanteras", name: "estado_luces_delanteras" },
-            { label: "Sistema de Freno Delantero", name: "estado_sistema_freno_delantero" },
-            { label: "Manillar del Embrague", name: "estado_manillar_embrague" },
-            { label: "Manillar del Freno Delantero", name: "estado_manillar_freno_delantero" },
-            { label: "Tanque de Combustible", name: "estado_tanque_combustible" },
-            { label: "Espejos Retrovisores", name: "espejos_retrovisores" },
-            { label: "Tapa del Aceite del Motor", name: "tapa_aceite_motor" },
-            { label: "Batería y Tapa", name: "bateria_tapa" },
-            { label: "Luz Trasera", name: "estado_luz_trasera" },
-            { label: "Palanca de Cambios", name: "estado_palanca_cambios" },
-            { label: "Palanca de Freno", name: "estado_palanca_freno" },
-            { label: "Guarda Fango Delantero", name: "estado_guarda_fango_delantero" },
-            { label: "Guarda Fango Trasero", name: "estado_guarda_fango_trasero" },
-            { label: "Tubo de Escape", name: "estado_tubo_escape" }
+            { label: "Estado de los (2) Neumáticos", name: "estado_neumaticos", options: ["Bueno", "Malo"] },
+            { label: "Estado de los 2 Rines", name: "estado_rines", options: ["Bueno", "Malo"] },
+            { label: "Equipo de Carretera", name: "equipo_carretera", options: ["Sí", "No"] },
+            { label: "Estado del Kit de Arrastre", name: "estado_kit_arrastre", options: ["Bueno", "Malo"] },
+            { label: "Estado de la Palanca Soporte", name: "estado_palanca_soporte", options: ["Funciona", "No Funciona"] },
+            { label: "Estado del Forro del Asiento", name: "estado_forro_asiento", options: ["Bueno", "Malo"] },
+            { label: "Luces Direccionales (Derecha)", name: "estado_luces_direccionales_derecha", options: ["Funciona", "No Funciona"] },
+            { label: "Luces Direccionales (Izquierda)", name: "estado_luces_direccionales_izquierda", options: ["Funciona", "No Funciona"] },
+            { label: "Luces Delanteras", name: "estado_luces_delanteras", options: ["Funciona", "No Funciona"] },
+            { label: "Sistema de Freno Delantero", name: "estado_sistema_freno_delantero", options: ["Funciona", "No Funciona"] },
+            { label: "Manillar del Embrague", name: "estado_manillar_embrague", options: ["Funciona", "No Funciona"] },
+            { label: "Manillar del Freno Delantero", name: "estado_manillar_freno_delantero", options: ["Funciona", "No Funciona"] },
+            { label: "Tanque de Combustible", name: "estado_tanque_combustible", options: ["Bueno", "Malo"] },
+            { label: "Espejos Retrovisores", name: "espejos_retrovisores", options: ["Bueno", "Malo"] },
+            { label: "Tapa del Aceite del Motor", name: "tapa_aceite_motor", options: ["Bueno", "Malo"] },
+            { label: "Batería y Tapa", name: "bateria_tapa", options: ["Bueno", "Malo"] },
+            { label: "Luz Trasera", name: "estado_luz_trasera", options: ["Funciona", "No Funciona"] },
+            { label: "Palanca de Cambios", name: "estado_palanca_cambios", options: ["Funciona", "No Funciona"] },
+            { label: "Palanca de Freno", name: "estado_palanca_freno", options: ["Funciona", "No Funciona"] },
+            { label: "Guarda Fango Delantero", name: "estado_guarda_fango_delantero", options: ["Bueno", "Malo"] },
+            { label: "Guarda Fango Trasero", name: "estado_guarda_fango_trasero", options: ["Bueno", "Malo"] },
+            { label: "Tubo de Escape", name: "estado_tubo_escape", options: ["Bueno", "Malo"] }
         ];
         // --- END CONFIGURATION ---
 
@@ -568,12 +565,14 @@
             checklistItems.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'checklist-item';
+
+                const optionsHtml = item.options.map(opt => `<option>${opt}</option>`).join('');
+
                 div.innerHTML = `
                     <label class="font-medium">${item.label}</label>
-                    <select name="${item.name}" class="form-select w-32">
+                    <select name="${item.name}" class="form-select w-40">
                         <option value="">Seleccione...</option>
-                        <option>Sí</option>
-                        <option>No</option>
+                        ${optionsHtml}
                     </select>
                 `;
                 container.appendChild(div);

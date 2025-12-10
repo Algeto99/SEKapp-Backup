@@ -1040,6 +1040,11 @@
     "data_type": "text"
   },
   {
+    "table_name": "planilla_motocicletas",
+    "column_name": "kilometraje_motocicleta",
+    "data_type": "integer"
+  },
+  {
     "table_name": "planilla_vehicular",
     "column_name": "id_planilla_vehicular",
     "data_type": "integer"
@@ -1263,6 +1268,11 @@
     "table_name": "planilla_vehicular",
     "column_name": "creado_en",
     "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "kilometraje_vehiculo",
+    "data_type": "integer"
   },
   {
     "table_name": "propiedades",
@@ -1637,6 +1647,11 @@
   {
     "table_name": "reportes_incidentes",
     "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_impacto",
     "data_type": "text"
   },
   {

@@ -184,11 +184,267 @@ def get_db_connection():
         return None
 
 
-def fetch_reports(offset, limit, filters=None):
+# --- Form Configurations ---
+FORM_CONFIGS = {
+    'reporte_incidente': {
+        'table': 'reportes_incidentes',
+        'id_col': 'id_reporte_incidente',
+        'date_col': 'creado_en',
+        'user_col': 'user_email',
+        'title_prefix': 'Reporte de Incidente',
+        'joins': """
+            LEFT JOIN "tipo_cliente" tc ON t.id_tipo_cliente = tc.id_tipo_cliente
+            LEFT JOIN "lugar_incidente" li ON t.id_lugar_incidente = li.id_lugar_incidente
+            LEFT JOIN "tipo_incidencia" ti ON t.id_tipo_incidencia = ti.id_tipo_incidencia
+            LEFT JOIN supervisor s ON t.id_supervisor = s.id_supervisor
+            LEFT JOIN users u ON t.user_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+        """,
+        'columns': """
+            t.id_reporte_incidente as id,
+            t.user_email,
+            t.creado_en as date_submitted,
+            ti.nombre AS titulo_incidencia,
+            t.descripcion_incidente,
+            t.valor_aproximado,
+            t.pertenencias_sustraidas,
+            t.nombre_persona,
+            t.telefono_persona,
+            t.numero_identidad_persona,
+            t.numero_local,
+            t.direccion,
+            t.imagenes_pdfs,
+            s.nombre AS supervisor_name,
+            t.fecha_incidente,
+            t.hora_incidente,
+            tc.nombre AS tipo_cliente,
+            li.nombre AS lugar_incidente,
+            p.nombre AS propiedad_nombre,
+            t.descripcion_zona_comun,
+            u.name AS user_name
+        """,
+        'data_mapping': {
+            "Título de Incidencia": "titulo_incidencia",
+            "Tipo de Cliente": "tipo_cliente",
+            "Lugar del Incidente": "lugar_incidente",
+            "Propiedad": "propiedad_nombre",
+            "Zona Común": "descripcion_zona_comun",
+            "Fecha del Incidente": "fecha_incidente",
+            "Hora del Incidente": "hora_incidente",
+            "Descripción del Incidente": "descripcion_incidente",
+            "Valor Aproximado": "valor_aproximado",
+            "Pertenencias Sustraídas": "pertenencias_sustraidas",
+            "Nombre de la Persona": "nombre_persona",
+            "Teléfono": "telefono_persona",
+            "Número de Identidad": "numero_identidad_persona",
+            "Número de Local": "numero_local",
+            "Dirección": "direccion",
+            "URLs de Imágenes o PDFs": "imagenes_pdfs",
+            "Nombre del Supervisor": "supervisor_name"
+        }
+    },
+    'mantenimiento_seguridad_fisica': {
+        'table': 'mantenimiento_seguridad_fisica',
+        'id_col': 'id',
+        'date_col': 'fecha', 
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Mantenimiento Seguridad Física',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Fecha": "fecha",
+            "Hora": "hora",
+            "Sitio": "sitio",
+            "Equipo": "equipo",
+            "ID Equipo/Serial": "id_equipo_serial",
+            "Técnico Responsable": "tecnico_responsable",
+            "Tipo de Servicio": "tipo_servicio",
+            "Actividad Realizada": "actividad_realizada",
+            "Resultado": "resultado",
+            "Observaciones": "observaciones"
+        }
+    },
+    'medicion_experiencia_cliente': {
+        'table': 'medicion_experiencia_cliente',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Medición Experiencia Cliente',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Cliente/Instalación": "cliente_instalacion",
+            "Fecha/Hora": "fecha_hora",
+            "Atención al Cliente": "atencion_cliente",
+            "Comunicación": "comunicacion",
+            "Confiabilidad": "confiabilidad",
+            "NPS": "calificacion_global_nps",
+            "Observaciones": "observaciones_cliente"
+        }
+    },
+    'supervision_puesto': {
+        'table': 'supervision_puesto',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Supervisión de Puesto',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Cliente/Instalación": "cliente_instalacion",
+            "Fecha/Hora": "fecha_hora",
+            "Supervisor": "supervisor",
+            "Puesto/Área": "puesto_area_especifica",
+            "Nombre Guardia": "nombre_guardia",
+            "Observaciones": "observaciones_novedades"
+        }
+    },
+    'informe_novedades_disciplinario': {
+        'table': 'informe_novedades_disciplinario',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Informe Disciplinario',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Empleado": "empleado_nombre",
+            "Cargo": "empleado_cargo",
+            "Tipo Novedad": "tipo_novedad",
+            "Descripción": "descripcion_novedad",
+            "Sitio": "sitio_ocurrencia",
+            "Fecha/Hora": "fecha_hora"
+        }
+    },
+    'log_de_patrullas': {
+        'table': 'log_de_patrullas',
+        'id_col': 'id',
+        'date_col': 'fecha',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Log de Patrullas',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Guardia": "id_guardia_nombre_guardia",
+            "Sitio": "sitio_ubicacion",
+            "Fecha": "fecha",
+            "Hora Inicio": "hora_inicio",
+            "Hora Fin": "hora_fin",
+            "Nivel Riesgo": "nivel_riesgo",
+            "Estado": "estado_patrulla"
+        }
+    },
+    'registro_de_capacitaciones': {
+        'table': 'registro_de_capacitaciones',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Registro de Capacitaciones',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Capacitación": "nombre_capacitacion",
+            "Objetivo": "objetivo_capacitacion",
+            "Responsable": "nombre_responsable",
+            "Fecha/Hora": "fecha_hora",
+            "Nivel Comprensión": "nivel_comprension"
+        }
+    },
+    'registro_y_acta_de_visita': {
+        'table': 'registro_y_acta_de_visita',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Acta de Visita',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Cliente": "cliente_instalacion",
+            "Motivo": "motivo_visita",
+            "Visitante": "nombre_visitante",
+            "Fecha/Hora": "fecha_hora",
+            "Temas Tratados": "temas_tratados",
+            "Acuerdos": "acuerdos_compromisos"
+        }
+    },
+    'planilla_vehicular': {
+        'table': 'planilla_vehicular',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Planilla Vehicular',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Placa": "placa_vehiculo",
+            "Kilometraje": "kilometraje_vehiculo",
+            "Responsable": "nombre_responsable",
+            "Fecha/Hora": "fecha_hora",
+            "Novedades Críticas": "novedades_criticas"
+        }
+    },
+    'planilla_motocicletas': {
+        'table': 'planilla_motocicletas',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Planilla Motocicletas',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Placa": "placa_motocicleta",
+            "Kilometraje": "kilometraje_motocicleta",
+            "Responsable": "nombre_responsable",
+            "Fecha/Hora": "fecha_hora",
+            "Novedades Críticas": "novedades_criticas_detectadas"
+        }
+    },
+    'orden_mantenimiento': {
+        'table': 'orden_mantenimiento',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Orden de Mantenimiento',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Cliente": "cliente_instalacion",
+            "Técnico": "nombre_tecnico",
+            "Fecha/Hora": "fecha_hora",
+            "Equipo": "equipo",
+            "Tipo Servicio": "tipo_servicio"
+        }
+    },
+    'checklist_cumplimiento': {
+        'table': 'checklist_cumplimiento',
+        'id_col': 'id',
+        'date_col': 'fecha_hora',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Checklist Cumplimiento',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.*, u.name as user_name",
+        'data_mapping': {
+            "Cliente": "cliente_instalacion",
+            "Auditor": "nombre_auditor",
+            "Agente": "agente_nombre_completo",
+            "Fecha/Hora": "fecha_hora",
+            "Nivel Cumplimiento": "nivel_cumplimiento"
+        }
+    }
+}
+
+def fetch_reports(offset, limit, filters=None, form_type='reporte_incidente'):
     conn = None
     cur = None
     reports = []
     total_count = 0
+    
+    if form_type not in FORM_CONFIGS:
+        app_logger.warning(f"Invalid form_type: {form_type}. Defaulting to reporte_incidente.")
+        form_type = 'reporte_incidente'
+        
+    config = FORM_CONFIGS[form_type]
+    
     try:
         conn = get_db_connection()
         if not conn:
@@ -204,187 +460,114 @@ def fetch_reports(offset, limit, filters=None):
         if filters:
             app_logger.info(f"Applying filters: {filters}")
             
-            # Report ID filter (takes precedence)
+            # Report ID filter
             if filters.get('report_id'):
                 try:
                     report_id = int(filters['report_id'])
-                    where_conditions.append("ri.id_reporte_incidente = %s")
+                    where_conditions.append(f"t.{config['id_col']} = %s")
                     query_params.append(report_id)
-                    app_logger.info(f"Added report_id filter: {report_id}")
                 except (ValueError, TypeError):
                     app_logger.warning(f"Invalid report_id value: {filters['report_id']}")
             
-            # Property filter (by ID or name)
-            if filters.get('property_id'):
-                try:
-                    property_id = int(filters['property_id'])
-                    where_conditions.append("ri.id_propiedad = %s")
-                    query_params.append(property_id)
-                    app_logger.info(f"Added property_id filter: {property_id}")
-                except (ValueError, TypeError):
-                    app_logger.warning(f"Invalid property_id value: {filters['property_id']}")
-            elif filters.get('property'):
-                where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
-                query_params.append(f"%{filters['property']}%")
-                app_logger.info(f"Added property name filter: {filters['property']}")
-            
-            # Location filter (by ID or name)
-            if filters.get('location_id'):
-                try:
-                    location_id = int(filters['location_id'])
-                    where_conditions.append("ri.id_lugar_incidente = %s")
-                    query_params.append(location_id)
-                    app_logger.info(f"Added location_id filter: {location_id}")
-                except (ValueError, TypeError):
-                    app_logger.warning(f"Invalid location_id value: {filters['location_id']}")
-            elif filters.get('location'):
-                where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
-                query_params.append(f"%{filters['location']}%")
-                app_logger.info(f"Added location name filter: {filters['location']}")
-            
-            # Submitted by filter (searches both name and email)
+            # Submitted by filter
             if filters.get('submitted_by'):
-                where_conditions.append("(LOWER(u.name) LIKE LOWER(%s) OR LOWER(ri.user_email) LIKE LOWER(%s))")
+                where_conditions.append(f"(LOWER(u.name) LIKE LOWER(%s) OR LOWER(t.{config['user_col']}) LIKE LOWER(%s))")
                 search_term = f"%{filters['submitted_by']}%"
                 query_params.extend([search_term, search_term])
-                app_logger.info(f"Added submitted_by filter: {filters['submitted_by']}")
             
             # Date range filters
             if filters.get('start_date'):
-                where_conditions.append("ri.fecha_incidente >= %s")
+                where_conditions.append(f"t.{config['date_col']} >= %s")
                 query_params.append(filters['start_date'])
-                app_logger.info(f"Added start_date filter: {filters['start_date']}")
             
             if filters.get('end_date'):
-                where_conditions.append("ri.fecha_incidente <= %s")
+                where_conditions.append(f"t.{config['date_col']} <= %s")
                 query_params.append(filters['end_date'])
-                app_logger.info(f"Added end_date filter: {filters['end_date']}")
+                
+            # Property/Location filters (Only for reporte_incidente for now as others might not have these specific FKs)
+            if form_type == 'reporte_incidente':
+                 if filters.get('property_id'):
+                    where_conditions.append("t.id_propiedad = %s")
+                    query_params.append(filters['property_id'])
+                 elif filters.get('property'):
+                    where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
+                    query_params.append(f"%{filters['property']}%")
+                 
+                 if filters.get('location_id'):
+                    where_conditions.append("t.id_lugar_incidente = %s")
+                    query_params.append(filters['location_id'])
+                 elif filters.get('location'):
+                    where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
+                    query_params.append(f"%{filters['location']}%")
 
         where_clause = ""
         if where_conditions:
             where_clause = "WHERE " + " AND ".join(where_conditions)
-            app_logger.info(f"Final WHERE clause: {where_clause}")
-            app_logger.info(f"Query parameters: {query_params}")
 
-        # First, get the total count of reports with filters
+        # Count Query
         count_query = f"""
             SELECT COUNT(*)
-            FROM reportes_incidentes ri
-            LEFT JOIN "tipo_cliente" tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
-            LEFT JOIN "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
-            LEFT JOIN "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            LEFT JOIN supervisor s ON ri.id_supervisor = s.id_supervisor
-            LEFT JOIN users u ON ri.user_email = u.email
-            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            FROM {config['table']} t
+            {config['joins']}
             {where_clause}
         """
         
-        app_logger.info("Executing COUNT(*) query for reports with filters.")
         cur.execute(count_query, query_params)
         total_count = cur.fetchone()[0]
-        app_logger.info(f"Total reports found with filters: {total_count}")
         
-        # Then, get the paginated reports with user names and filters
+        # Data Query
         query = f"""
-                SELECT
-                    ri.id_reporte_incidente,
-                    ri.user_email,
-                    ri.creado_en,
-                    ti.nombre AS titulo_incidencia,
-                    ri.descripcion_incidente,
-                    ri.valor_aproximado,
-                    ri.pertenencias_sustraidas,
-                    ri.nombre_persona,
-                    ri.telefono_persona,
-                    ri.numero_identidad_persona,
-                    ri.numero_local,
-                    ri.direccion,
-                    ri.imagenes_pdfs,
-                    s.nombre AS supervisor_name,
-                    ri.fecha_incidente,
-                    ri.hora_incidente,
-                    tc.nombre AS id_tipo_cliente,
-                    li.nombre AS id_lugar_incidente,
-                    p.nombre AS propiedad_nombre,
-                    ri.descripcion_zona_comun,
-                    u.name AS user_name
-                FROM
-                    reportes_incidentes ri
-                LEFT JOIN
-                    "tipo_cliente" tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
-                LEFT JOIN
-                    "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
-                LEFT JOIN
-                    "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-                LEFT JOIN
-                    supervisor s ON ri.id_supervisor = s.id_supervisor
-                LEFT JOIN
-                    users u ON ri.user_email = u.email
-                LEFT JOIN
-                    propiedades p ON ri.id_propiedad = p.id_propiedad
-                {where_clause}
-                ORDER BY
-                    ri.creado_en DESC NULLS LAST,
-                    ri.id_reporte_incidente DESC
-                OFFSET %s LIMIT %s;
-            """
+            SELECT {config['columns']}
+            FROM {config['table']} t
+            {config['joins']}
+            {where_clause}
+            ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
+            OFFSET %s LIMIT %s
+        """
 
         final_params = query_params + [offset, limit]
         
-        app_logger.info(f"Executing fetch_reports query with offset={offset}, limit={limit}, filters={filters}.")
         cur.execute(query, final_params)
         rows = cur.fetchall()
-        app_logger.info(f"Fetched {len(rows)} reports from the database.")
         
         for row_dict in rows:
-            display_name = row_dict.get("user_name") or row_dict.get("user_email", "desconocido")
+            # Determine display name
+            display_name = row_dict.get("user_name") or row_dict.get(config['user_col'], "desconocido")
             
+            # Determine date
+            date_val = row_dict.get(config['date_col'])
+            if isinstance(date_val, datetime):
+                date_str = date_val.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                date_str = str(date_val) if date_val else "N/A"
+
+            # Map data fields
+            data_content = {}
+            for label, col_name in config['data_mapping'].items():
+                val = row_dict.get(col_name)
+                data_content[label] = str(val) if val is not None else "N/A"
+
             forms_data = {
-                "id": row_dict["id_reporte_incidente"],
-                "title": f"Reporte #{row_dict['id_reporte_incidente']}",
+                "id": row_dict[config['id_col']],
+                "title": f"{config['title_prefix']} #{row_dict[config['id_col']]}",
                 "submittedBy": display_name,
-                "dateSubmitted": row_dict.get("creado_en").strftime("%Y-%m-%d %H:%M:%S") if row_dict.get("creado_en") else "N/A",
-                "data": {
-                    "Título de Incidencia": row_dict.get("titulo_incidencia"),
-                    "Tipo de Cliente": row_dict.get("id_tipo_cliente"),
-                    "Lugar del Incidente": row_dict.get("id_lugar_incidente"),
-                    "Propiedad": row_dict.get("propiedad_nombre") or "No especificado",
-                    "Zona Común": row_dict.get("descripcion_zona_comun"),
-                    "Fecha del Incidente": str(row_dict.get("fecha_incidente")),
-                    "Hora del Incidente": str(row_dict.get("hora_incidente")),
-                    "Descripción del Incidente": str(row_dict.get("descripcion_incidente")),
-                    "Valor Aproximado": str(row_dict.get("valor_aproximado")),
-                    "Pertenencias Sustraídas": str(row_dict.get("pertenencias_sustraidas")),
-                    "Nombre de la Persona": str(row_dict.get("nombre_persona")),
-                    "Teléfono": str(row_dict.get("telefono_persona")),
-                    "Número de Identidad": str(row_dict.get("numero_identidad_persona")),
-                    "Número de Local": str(row_dict.get("numero_local")),
-                    "Dirección": str(row_dict.get("direccion")),
-                    "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A"
-                }
+                "dateSubmitted": date_str,
+                "data": data_content,
+                "formType": form_type # Pass back form type for context if needed
             }
             reports.append(forms_data)
 
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in fetch_reports: {e}", exc_info=True)
-        app_logger.error(f"Failed query parameters: {query_params}")
-        reports = []
-        total_count = 0
-        # Re-raise the exception so the API can return a proper error
         raise e
     except Exception as e:
         app_logger.error(f"An unexpected error occurred in fetch_reports: {e}", exc_info=True)
-        reports = []
-        total_count = 0
-        # Re-raise the exception so the API can return a proper error
         raise e
     finally:
         if cur:
             cur.close()
         if conn:
             conn.close()
-            app_logger.info("Database connection closed in fetch_reports.")
     return reports, total_count
 
 def fetch_reports_by_ids(report_ids):
@@ -805,10 +988,13 @@ def get_more_reports():
     if request.args.get('end_date'):
         filters['end_date'] = request.args.get('end_date')
 
-    app_logger.info(f"API request with filters: {filters}")
+    # Form Type Filter
+    form_type = request.args.get('form_type', 'reporte_incidente')
+
+    app_logger.info(f"API request with filters: {filters}, form_type: {form_type}")
     
     try:
-        reports, total_count = fetch_reports(offset, limit, filters if filters else None)
+        reports, total_count = fetch_reports(offset, limit, filters if filters else None, form_type=form_type)
         return jsonify({"reports": reports, "total_count": total_count})
     except psycopg2.Error as e:
         app_logger.error(f"Database error in get_more_reports: {e}", exc_info=True)
