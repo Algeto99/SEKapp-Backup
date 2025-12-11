@@ -138,11 +138,15 @@ def configure_app():
         app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'rcanton@tzolkintech.com')
         
         # Ensure GCP_PROJECT_ID is loaded correctly
-        app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT', os.environ.get('GOOGLE_CLOUD_PROJECT'))
+        # Priority: GCP_PROJECT_ID (user set) -> GCP_PROJECT (standard) -> GOOGLE_CLOUD_PROJECT (standard)
+        app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID', 
+                                     os.environ.get('GCP_PROJECT', 
+                                     os.environ.get('GOOGLE_CLOUD_PROJECT')))
+        
         if not app.config['GCP_PROJECT_ID']:
             app_logger.warning("GCP_PROJECT_ID is not set. Secret Manager access may fail.")
 
-        app.config['EMAIL_PASSWORD_SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
+        app.config['EMAIL_PASSWORD_SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET_NAME', 'admin-email-pass')
         app.config['JWT_SECRET_MANAGER_NAME'] = 'jwt-secret-key'
 
         # Password reset token expiry (1 hour)
@@ -226,7 +230,31 @@ def get_db_connection():
         return None
 
 # --- Password Reset Token Functions ---
+def ensure_password_reset_table(conn):
+    """Ensure password_reset_tokens table exists"""
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                token_hash VARCHAR(64) NOT NULL,
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens(token_hash);
+            CREATE INDEX IF NOT EXISTS idx_password_reset_email ON password_reset_tokens(email);
+        """)
+        conn.commit()
+        cur.close()
+        return True
+    except Exception as e:
+        conn.rollback()
+        app_logger.error(f"Error checking/creating password_reset_tokens table: {e}", exc_info=True)
+        return False
+
 def generate_reset_token():
+
     """Generate a secure random token for password reset"""
     return secrets.token_urlsafe(32)
 
@@ -239,6 +267,9 @@ def create_password_reset_token(email):
     conn = get_db_connection()
     if not conn:
         return None
+    
+    # Ensure table exists
+    ensure_password_reset_table(conn)
     
     try:
         # Generate token
@@ -339,11 +370,14 @@ def get_email_password():
     """
     password = os.environ.get('EMAIL_PASSWORD')
     if password:
-        app_logger.info("Using email password from environment variable.")
-        # --- TEMPORARY DEBUGGING LINE ---
-        app_logger.info(f"DEBUG: Email password from env: {password[:2]}****{password[-2:]}") # Mask most of it
-        # --- END TEMPORARY DEBUGGING LINE ---
+        app_logger.info("Using email password from EMAIL_PASSWORD environment variable.")
         return password
+
+    # Cloud Run secrets mapping often uses _SECRET suffix but provides the value
+    password_secret = os.environ.get('EMAIL_PASSWORD_SECRET')
+    if password_secret:
+        app_logger.info("Using email password from EMAIL_PASSWORD_SECRET environment variable.")
+        return password_secret
     
     # If not in env, try Secret Manager
     project_id = app.config.get('GCP_PROJECT_ID')
@@ -402,8 +436,18 @@ def send_email(to_email, subject, body, is_html=False):
         msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
 
         # --- RESTORED PART (NO EXPLICIT SSL CONTEXT) ---
-        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10) 
-        server.starttls()
+        context = ssl.create_default_context()
+        try:
+             server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+             server.ehlo() # Can be omitted
+             server.starttls(context=context) # Secure the connection
+             server.ehlo() # Can be omitted
+        except Exception as e:
+            app_logger.warning(f"Standard STARTTLS failed: {e}. Trying without context...")
+            # Fallback for older servers or specific configs
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            server.starttls()
+
         # --- END RESTORED PART ---
 
         server.login(email_username, email_password)
@@ -862,17 +906,19 @@ def forgot_password():
             return render_template('forgot_password.html', email=email)
         
         try:
-            # Check if user exists
+            # Check if user exists (case-insensitive)
             cur = conn.cursor(cursor_factory=extras.DictCursor)
-            cur.execute("SELECT id, email, name FROM users WHERE email = %s", (email,))
+            cur.execute("SELECT id, email, name FROM users WHERE LOWER(email) = LOWER(%s)", (email,))
             user = cur.fetchone()
             cur.close()
             
             if user:
+                # Use the email from database to ensure case consistency
+                db_email = user['email']
                 # Generate and send reset token
-                reset_token = create_password_reset_token(email)
+                reset_token = create_password_reset_token(db_email)
                 if reset_token:
-                    if send_password_reset_email(email, reset_token):
+                    if send_password_reset_email(db_email, reset_token):
                         flash('Se ha enviado un enlace de restablecimiento de contraseña a tu correo electrónico.', 'success')
                         app_logger.info(f"Password reset email sent to {email}")
                     else:
@@ -1254,6 +1300,9 @@ def debug_smtp_connectivity():
     except Exception as e:
         app_logger.error(f"Error connecting to {smtp_server}:{smtp_port}: {e}", exc_info=True)
         return jsonify({"status": "error", "message": f"Unexpected error: {str(e)}."}), 500
+
+
+
 
 
 @app.route('/debug/token-validate')
