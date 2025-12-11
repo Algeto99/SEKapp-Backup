@@ -25,9 +25,40 @@ from email.mime.multipart import MIMEMultipart
 
 from functools import wraps
 from flask_jwt_extended import get_jwt
+from google.cloud import storage
 
 # PDF generation imports
 from weasyprint import HTML, CSS
+
+def generate_signed_url(gcs_url):
+    """Generates a v4 signed URL for a GCS blob."""
+    try:
+        if not gcs_url or 'storage.googleapis.com' not in gcs_url:
+            return gcs_url
+        
+        # Extract bucket and blob name
+        # Format: https://storage.googleapis.com/BUCKET_NAME/BLOB_NAME
+        parts = gcs_url.replace("https://storage.googleapis.com/", "").split('/', 1)
+        if len(parts) != 2:
+            return gcs_url
+            
+        bucket_name, blob_name = parts
+        
+        # Explicitly use default credentials which should pick up the service account
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        
+        url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(minutes=60), # 1 hour expiration
+            method="GET"
+        )
+        app_logger.info(f"Generated signed URL for {blob_name}")
+        return url
+    except Exception as e:
+        app_logger.error(f"Error generating signed URL for {gcs_url}: {e}", exc_info=True)
+        return gcs_url
 
 
 # --- Configure Logging ---
@@ -189,38 +220,25 @@ FORM_CONFIGS = {
     'reporte_incidente': {
         'table': 'reportes_incidentes',
         'id_col': 'id_reporte_incidente',
-        'date_col': 'creado_en',
+        'date_col': 'fecha_hora',
         'user_col': 'user_email',
         'title_prefix': 'Reporte de Incidente',
         'joins': """
-            LEFT JOIN "tipo_cliente" tc ON t.id_tipo_cliente = tc.id_tipo_cliente
-            LEFT JOIN "lugar_incidente" li ON t.id_lugar_incidente = li.id_lugar_incidente
-            LEFT JOIN "tipo_incidencia" ti ON t.id_tipo_incidencia = ti.id_tipo_incidencia
-            LEFT JOIN supervisor s ON t.id_supervisor = s.id_supervisor
             LEFT JOIN users u ON t.user_email = u.email
-            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN propiedades p ON t.cliente_instalacion = p.nombre
         """,
         'columns': """
-            t.id_reporte_incidente as id,
+            t.id_reporte_incidente,
             t.user_email,
-            t.creado_en as date_submitted,
-            ti.nombre AS titulo_incidencia,
+            t.fecha_hora as date_submitted,
+            t.tipo_incidente AS titulo_incidencia,
             t.descripcion_incidente,
-            t.valor_aproximado,
-            t.pertenencias_sustraidas,
-            t.nombre_persona,
-            t.telefono_persona,
-            t.numero_identidad_persona,
-            t.numero_local,
-            t.direccion,
-            t.imagenes_pdfs,
-            s.nombre AS supervisor_name,
-            t.fecha_incidente,
-            t.hora_incidente,
-            tc.nombre AS tipo_cliente,
-            li.nombre AS lugar_incidente,
-            p.nombre AS propiedad_nombre,
-            t.descripcion_zona_comun,
+            t.nombre_responsable AS supervisor_name,
+            t.fecha_hora AS fecha_incidente,
+            t.cliente_instalacion AS tipo_cliente,
+            t.puesto_area_especifica AS lugar_incidente,
+            COALESCE(p.nombre, t.cliente_instalacion) AS propiedad_nombre,
+            t.foto_evidencia_url AS imagenes_pdfs,
             u.name AS user_name
         """,
         'data_mapping': {
@@ -228,24 +246,15 @@ FORM_CONFIGS = {
             "Tipo de Cliente": "tipo_cliente",
             "Lugar del Incidente": "lugar_incidente",
             "Propiedad": "propiedad_nombre",
-            "Zona Común": "descripcion_zona_comun",
             "Fecha del Incidente": "fecha_incidente",
-            "Hora del Incidente": "hora_incidente",
             "Descripción del Incidente": "descripcion_incidente",
-            "Valor Aproximado": "valor_aproximado",
-            "Pertenencias Sustraídas": "pertenencias_sustraidas",
-            "Nombre de la Persona": "nombre_persona",
-            "Teléfono": "telefono_persona",
-            "Número de Identidad": "numero_identidad_persona",
-            "Número de Local": "numero_local",
-            "Dirección": "direccion",
-            "URLs de Imágenes o PDFs": "imagenes_pdfs",
-            "Nombre del Supervisor": "supervisor_name"
+            "Nombre del Supervisor": "supervisor_name",
+            "URLs de Imágenes o PDFs": "imagenes_pdfs"
         }
     },
     'mantenimiento_seguridad_fisica': {
         'table': 'mantenimiento_seguridad_fisica',
-        'id_col': 'id',
+        'id_col': 'id_mantenimiento',
         'date_col': 'fecha', 
         'user_col': 'submitted_by_email',
         'title_prefix': 'Mantenimiento Seguridad Física',
@@ -266,7 +275,7 @@ FORM_CONFIGS = {
     },
     'medicion_experiencia_cliente': {
         'table': 'medicion_experiencia_cliente',
-        'id_col': 'id',
+        'id_col': 'id_encuesta',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Medición Experiencia Cliente',
@@ -284,7 +293,7 @@ FORM_CONFIGS = {
     },
     'supervision_puesto': {
         'table': 'supervision_puesto',
-        'id_col': 'id',
+        'id_col': 'id_supervision',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Supervisión de Puesto',
@@ -301,7 +310,7 @@ FORM_CONFIGS = {
     },
     'informe_novedades_disciplinario': {
         'table': 'informe_novedades_disciplinario',
-        'id_col': 'id',
+        'id_col': 'id_informe',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Informe Disciplinario',
@@ -318,7 +327,7 @@ FORM_CONFIGS = {
     },
     'log_de_patrullas': {
         'table': 'log_de_patrullas',
-        'id_col': 'id',
+        'id_col': 'id_patrulla',
         'date_col': 'fecha',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Log de Patrullas',
@@ -336,7 +345,7 @@ FORM_CONFIGS = {
     },
     'registro_de_capacitaciones': {
         'table': 'registro_de_capacitaciones',
-        'id_col': 'id',
+        'id_col': 'id_capacitacion',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Registro de Capacitaciones',
@@ -352,7 +361,7 @@ FORM_CONFIGS = {
     },
     'registro_y_acta_de_visita': {
         'table': 'registro_y_acta_de_visita',
-        'id_col': 'id',
+        'id_col': 'id_visita',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Acta de Visita',
@@ -369,7 +378,7 @@ FORM_CONFIGS = {
     },
     'planilla_vehicular': {
         'table': 'planilla_vehicular',
-        'id_col': 'id',
+        'id_col': 'id_planilla_vehicular',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Planilla Vehicular',
@@ -401,7 +410,7 @@ FORM_CONFIGS = {
     },
     'orden_mantenimiento': {
         'table': 'orden_mantenimiento',
-        'id_col': 'id',
+        'id_col': 'id_orden',
         'date_col': 'fecha_hora',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Orden de Mantenimiento',
@@ -433,150 +442,168 @@ FORM_CONFIGS = {
     }
 }
 
-def fetch_reports(offset, limit, filters=None, form_type='reporte_incidente'):
+def fetch_reports(offset, limit, filters=None, form_type='all'):
     conn = None
     cur = None
-    reports = []
-    total_count = 0
+    all_reports = []
     
-    if form_type not in FORM_CONFIGS:
-        app_logger.warning(f"Invalid form_type: {form_type}. Defaulting to reporte_incidente.")
-        form_type = 'reporte_incidente'
-        
-    config = FORM_CONFIGS[form_type]
-    
+    # Determine which form types to fetch
+    types_to_fetch = []
+    if not form_type or form_type == 'all' or form_type == '':
+        types_to_fetch = list(FORM_CONFIGS.keys())
+    elif form_type in FORM_CONFIGS:
+        types_to_fetch = [form_type]
+    else:
+        app_logger.warning(f"Invalid form_type: {form_type}. Defaulting to all.")
+        types_to_fetch = list(FORM_CONFIGS.keys())
+
+    conn = get_db_connection()
+    if not conn:
+        app_logger.error("Failed to get database connection in fetch_reports. Returning empty list.")
+        return [], 0
+
     try:
-        conn = get_db_connection()
-        if not conn:
-            app_logger.error("Failed to get database connection in fetch_reports. Returning empty list.")
-            return reports, total_count
-
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        # Build WHERE clause based on filters
-        where_conditions = []
-        query_params = []
         
-        if filters:
-            app_logger.info(f"Applying filters: {filters}")
+        total_count = 0
+        
+        for f_type in types_to_fetch:
+            config = FORM_CONFIGS[f_type]
             
-            # Report ID filter
-            if filters.get('report_id'):
-                try:
-                    report_id = int(filters['report_id'])
-                    where_conditions.append(f"t.{config['id_col']} = %s")
-                    query_params.append(report_id)
-                except (ValueError, TypeError):
-                    app_logger.warning(f"Invalid report_id value: {filters['report_id']}")
+            # Build WHERE clause based on filters
+            where_conditions = []
+            query_params = []
             
-            # Submitted by filter
-            if filters.get('submitted_by'):
-                where_conditions.append(f"(LOWER(u.name) LIKE LOWER(%s) OR LOWER(t.{config['user_col']}) LIKE LOWER(%s))")
-                search_term = f"%{filters['submitted_by']}%"
-                query_params.extend([search_term, search_term])
-            
-            # Date range filters
-            if filters.get('start_date'):
-                where_conditions.append(f"t.{config['date_col']} >= %s")
-                query_params.append(filters['start_date'])
-            
-            if filters.get('end_date'):
-                where_conditions.append(f"t.{config['date_col']} <= %s")
-                query_params.append(filters['end_date'])
+            if filters:
+                # Report ID filter
+                if filters.get('report_id'):
+                    try:
+                        report_id = int(filters['report_id'])
+                        where_conditions.append(f"t.{config['id_col']} = %s")
+                        query_params.append(report_id)
+                    except (ValueError, TypeError):
+                        pass # Ignore invalid ID for this type
                 
-            # Property/Location filters (Only for reporte_incidente for now as others might not have these specific FKs)
-            if form_type == 'reporte_incidente':
-                 if filters.get('property_id'):
-                    where_conditions.append("t.id_propiedad = %s")
-                    query_params.append(filters['property_id'])
-                 elif filters.get('property'):
-                    where_conditions.append("LOWER(p.nombre) LIKE LOWER(%s)")
-                    query_params.append(f"%{filters['property']}%")
-                 
-                 if filters.get('location_id'):
-                    where_conditions.append("t.id_lugar_incidente = %s")
-                    query_params.append(filters['location_id'])
-                 elif filters.get('location'):
-                    where_conditions.append("LOWER(li.nombre) LIKE LOWER(%s)")
-                    query_params.append(f"%{filters['location']}%")
+                # Submitted by filter
+                if filters.get('submitted_by'):
+                    where_conditions.append(f"(LOWER(u.name) LIKE LOWER(%s) OR LOWER(t.{config['user_col']}) LIKE LOWER(%s))")
+                    search_term = f"%{filters['submitted_by']}%"
+                    query_params.extend([search_term, search_term])
+                
+                # Date range filters
+                if filters.get('start_date'):
+                    where_conditions.append(f"t.{config['date_col']} >= %s")
+                    query_params.append(filters['start_date'])
+                
+                if filters.get('end_date'):
+                    where_conditions.append(f"t.{config['date_col']} <= %s")
+                    query_params.append(filters['end_date'])
+                    
+                # Property/Location filters (Only for reporte_incidente for now)
+                if f_type == 'reporte_incidente':
+                     if filters.get('property_id'):
+                        where_conditions.append("p.id_propiedad = %s")
+                        query_params.append(filters['property_id'])
+                     elif filters.get('property'):
+                        where_conditions.append("LOWER(t.cliente_instalacion) LIKE LOWER(%s)")
+                        query_params.append(f"%{filters['property']}%")
+                     
+                     if filters.get('location'):
+                        where_conditions.append("LOWER(t.puesto_area_especifica) LIKE LOWER(%s)")
+                        query_params.append(f"%{filters['location']}%")
 
-        where_clause = ""
-        if where_conditions:
-            where_clause = "WHERE " + " AND ".join(where_conditions)
+            where_clause = ""
+            if where_conditions:
+                where_clause = "WHERE " + " AND ".join(where_conditions)
 
-        # Count Query
-        count_query = f"""
-            SELECT COUNT(*)
-            FROM {config['table']} t
-            {config['joins']}
-            {where_clause}
-        """
-        
-        cur.execute(count_query, query_params)
-        total_count = cur.fetchone()[0]
-        
-        # Data Query
-        query = f"""
-            SELECT {config['columns']}
-            FROM {config['table']} t
-            {config['joins']}
-            {where_clause}
-            ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
-            OFFSET %s LIMIT %s
-        """
+            # Count Query
+            count_query = f"SELECT COUNT(*) FROM {config['table']} t {config['joins']} {where_clause}"
+            cur.execute(count_query, query_params)
+            total_count += cur.fetchone()[0]
 
-        final_params = query_params + [offset, limit]
-        
-        cur.execute(query, final_params)
-        rows = cur.fetchall()
-        
-        for row_dict in rows:
-            # Determine display name
-            display_name = row_dict.get("user_name") or row_dict.get(config['user_col'], "desconocido")
+            # Data Query
+            # Fetch enough rows to satisfy the global offset + limit
+            fetch_limit = limit + offset
+            query = f"""
+                SELECT {config['columns']}
+                FROM {config['table']} t
+                {config['joins']}
+                {where_clause}
+                ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
+                LIMIT %s
+            """
             
-            # Determine date
-            date_val = row_dict.get(config['date_col'])
-            if isinstance(date_val, datetime):
-                date_str = date_val.strftime("%Y-%m-%d %H:%M:%S")
-            else:
-                date_str = str(date_val) if date_val else "N/A"
+            cur.execute(query, query_params + [fetch_limit])
+            rows = cur.fetchall()
+            
+            for row_dict in rows:
+                # Determine display name
+                display_name = row_dict.get("user_name") or row_dict.get(config['user_col'], "desconocido")
+                
+                # Determine date
+                date_val = row_dict.get(config['date_col'])
+                if isinstance(date_val, datetime):
+                    date_str = date_val.strftime("%Y-%m-%d %H:%M:%S")
+                else:
+                    date_str = str(date_val) if date_val else "N/A"
 
-            # Map data fields
-            data_content = {}
-            for label, col_name in config['data_mapping'].items():
-                val = row_dict.get(col_name)
-                data_content[label] = str(val) if val is not None else "N/A"
+                # Map data
+                mapped_data = {}
+                for label, col_name in config['data_mapping'].items():
+                    val = row_dict.get(label)
+                    
+                    # Handle GCS URLs signing
+                    if label == 'URLs de Imágenes o PDFs' and val:
+                         signed_urls = []
+                         for url in str(val).split('\n'):
+                             url = url.strip()
+                             if url:
+                                 signed_urls.append(generate_signed_url(url))
+                         val = '\n'.join(signed_urls)
 
-            forms_data = {
-                "id": row_dict[config['id_col']],
-                "title": f"{config['title_prefix']} #{row_dict[config['id_col']]}",
-                "submittedBy": display_name,
-                "dateSubmitted": date_str,
-                "data": data_content,
-                "formType": form_type # Pass back form type for context if needed
-            }
-            reports.append(forms_data)
+                    mapped_data[label] = val
 
-    except psycopg2.Error as e:
-        app_logger.error(f"PostgreSQL Error in fetch_reports: {e}", exc_info=True)
-        raise e
+                report = {
+                    "id": row_dict.get(config['id_col']),
+                    "title": f"{config['title_prefix']} #{row_dict.get(config['id_col'])}",
+                    "submittedBy": display_name,
+                    "dateSubmitted": date_str,
+                    "data": mapped_data,
+                    "formType": f_type
+                }
+                all_reports.append(report)
+
+        # Sort all reports by date descending
+        all_reports.sort(key=lambda x: x['dateSubmitted'], reverse=True)
+        
+        # Apply pagination to the combined list
+        start = offset
+        end = offset + limit
+        paginated_reports = all_reports[start:end]
+        
+        return paginated_reports, total_count
+
     except Exception as e:
-        app_logger.error(f"An unexpected error occurred in fetch_reports: {e}", exc_info=True)
-        raise e
+        app_logger.error(f"Error fetching reports: {e}", exc_info=True)
+        return [], 0
     finally:
-        if cur:
-            cur.close()
         if conn:
             conn.close()
-    return reports, total_count
 
-def fetch_reports_by_ids(report_ids):
+def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
     conn = None
     cur = None
     reports = []
     if not report_ids:
         app_logger.info("fetch_reports_by_ids received an empty report_ids list.")
         return []
+        
+    if form_type not in FORM_CONFIGS:
+        app_logger.warning(f"Invalid form_type: {form_type}. Defaulting to reporte_incidente.")
+        form_type = 'reporte_incidente'
+        
+    config = FORM_CONFIGS[form_type]
+
     try:
         conn = get_db_connection()
         if not conn:
@@ -600,89 +627,52 @@ def fetch_reports_by_ids(report_ids):
         placeholders = ','.join(['%s'] * len(clean_ids))
         # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
         query = f"""
-            SELECT
-                ri.id_reporte_incidente,
-                ri.user_email,
-                ri.creado_en,
-                ti.nombre AS titulo_incidencia,
-                ri.descripcion_incidente,
-                ri.valor_aproximado,
-                ri.pertenencias_sustraidas,
-                ri.nombre_persona,
-                ri.telefono_persona,
-                ri.numero_identidad_persona,
-                ri.numero_local,
-                ri.direccion,
-                ri.imagenes_pdfs,
-                s.nombre AS supervisor_name,
-                ri.fecha_incidente,
-                ri.hora_incidente,
-                tc.nombre AS id_tipo_cliente,
-                li.nombre AS id_lugar_incidente,
-                p.nombre AS propiedad_nombre,
-                ri.descripcion_zona_comun,
-                u.name AS user_name -- Get the user's full name
-            FROM
-                reportes_incidentes ri
-            LEFT JOIN
-                "tipo_cliente" tc ON ri.id_tipo_cliente = tc.id_tipo_cliente
-            LEFT JOIN
-                "lugar_incidente" li ON ri.id_lugar_incidente = li.id_lugar_incidente
-            LEFT JOIN
-                "tipo_incidencia" ti ON ri.id_tipo_incidencia = ti.id_tipo_incidencia
-            LEFT JOIN
-                supervisor s ON ri.id_supervisor = s.id_supervisor
-            LEFT JOIN
-                users u ON ri.user_email = u.email -- Join with users table to get full name
-            LEFT JOIN
-                propiedades p ON ri.id_propiedad = p.id_propiedad
-            WHERE
-                ri.id_reporte_incidente IN ({placeholders})
-            ORDER BY
-                ri.creado_en DESC NULLS LAST,
-                ri.id_reporte_incidente DESC;
+            SELECT {config['columns']}
+            FROM {config['table']} t
+            {config['joins']}
+            WHERE t.{config['id_col']} IN ({placeholders})
+            ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
         """
-        app_logger.info(f"Executing fetch_reports_by_ids query for IDs: {clean_ids}.")
-        app_logger.info(f"Query ORDER BY: ri.creado_en DESC (newest submissions first)")
+        app_logger.info(f"Executing fetch_reports_by_ids query for IDs: {clean_ids} with form_type: {form_type}.")
         cur.execute(query, clean_ids)
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} specific reports.")
         
-        # Debug: Log the report timestamps to verify sorting
-        if rows:
-            for i, row in enumerate(rows):
-                app_logger.info(f"Specific Report {i+1}: ID={row['id_reporte_incidente']}, creado_en={row['creado_en']}")
-
         for row_dict in rows:
-            # Use the full name if available, otherwise fall back to email
-            display_name = row_dict.get("user_name") or row_dict.get("user_email", "desconocido")
+            # Determine display name
+            display_name = row_dict.get("user_name") or row_dict.get(config['user_col'], "desconocido")
             
-            reports_data = {
-                "id": row_dict["id_reporte_incidente"],
-                "title": f"Reporte #{row_dict['id_reporte_incidente']}",
+            # Determine date
+            date_val = row_dict.get(config['date_col'])
+            if isinstance(date_val, datetime):
+                date_str = date_val.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                date_str = str(date_val) if date_val else "N/A"
+
+            # Map data fields
+            data_content = {}
+            for label, col_name in config['data_mapping'].items():
+                val = row_dict.get(col_name)
+                
+                # Generate signed URLs for image/pdf columns
+                if val and (label == "URLs de Imágenes o PDFs" or col_name == 'foto_evidencia_url'):
+                    urls = str(val).split('\n')
+                    signed_urls = []
+                    for url in urls:
+                        signed_urls.append(generate_signed_url(url.strip()))
+                    val = '\n'.join(signed_urls)
+
+                data_content[label] = str(val) if val is not None else "N/A"
+
+            forms_data = {
+                "id": row_dict[config['id_col']],
+                "title": f"{config['title_prefix']} #{row_dict[config['id_col']]}",
                 "submittedBy": display_name,
-                "dateSubmitted": row_dict.get("creado_en").strftime("%Y-%m-%d %H:%M:%S") if row_dict.get("creado_en") else "N/A",
-                "data": {
-                    "Título de Incidencia": row_dict.get("titulo_incidencia"),
-                    "Tipo de Cliente": row_dict.get("id_tipo_cliente"),
-                    "Lugar del Incidente": row_dict.get("id_lugar_incidente"),
-                    "Propiedad": row_dict.get("propiedad_nombre") or "No especificado",
-                    "Zona Común": row_dict.get("descripcion_zona_comun"),
-                    "Fecha del Incidente": str(row_dict.get("fecha_incidente")),
-                    "Hora del Incidente": str(row_dict.get("hora_incidente")),
-                    "Descripción del Incidente": str(row_dict.get("descripcion_incidente")),
-                    "Valor Aproximado": str(row_dict.get("valor_aproximado")),
-                    "Pertenencias Sustraídas": str(row_dict.get("pertenencias_sustraidas")),
-                    "Nombre de la Persona": str(row_dict.get("nombre_persona")),
-                    "Teléfono": str(row_dict.get("telefono_persona")),
-                    "Número de Identidad": str(row_dict.get("numero_identidad_persona")),
-                    "Número de Local": str(row_dict.get("numero_local")),
-                    "Dirección": str(row_dict.get("direccion")),
-                    "URLs de Imágenes o PDFs": str(row_dict.get("imagenes_pdfs")),
-                    "Nombre del Supervisor": row_dict.get("supervisor_name") or "N/A"
-                }
+                "dateSubmitted": date_str,
+                "data": data_content,
+                "formType": form_type
             }
-            reports.append(reports_data)
+            reports.append(forms_data)
 
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in fetch_reports_by_ids: {e}", exc_info=True)
@@ -989,7 +979,7 @@ def get_more_reports():
         filters['end_date'] = request.args.get('end_date')
 
     # Form Type Filter
-    form_type = request.args.get('form_type', 'reporte_incidente')
+    form_type = request.args.get('form_type', 'all')
 
     app_logger.info(f"API request with filters: {filters}, form_type: {form_type}")
     
@@ -1007,9 +997,10 @@ def get_more_reports():
 @app.route('/api/report/<int:report_id>', methods=['GET'])
 @jwt_required()
 def get_single_report(report_id):
-    app_logger.info(f"Attempting to fetch single report with ID: {report_id} via GET /api/report/<id>")
+    form_type = request.args.get('form_type', 'reporte_incidente')
+    app_logger.info(f"Attempting to fetch single report with ID: {report_id} via GET /api/report/<id> with form_type: {form_type}")
     # fetch_reports_by_ids expects a list of IDs
-    reports = fetch_reports_by_ids([report_id])
+    reports = fetch_reports_by_ids([report_id], form_type=form_type)
     
     if reports:
         app_logger.info(f"Successfully fetched report {report_id} for details.")
@@ -1050,47 +1041,70 @@ def email_selected_reports_api():
         f"<p>Adjuntos se encuentran los detalles de los reportes de incidencias seleccionados:</p>"
     ]
 
-    for i, report in enumerate(reports_to_email):
-        html_body_parts.append(f"<div style='background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0;'>")
-        html_body_parts.append(f"<h3 style='color: #4a5568; margin-top: 0;'>Reporte {i+1} (ID: {report['id']})</h3>")
-        html_body_parts.append(f"<p><strong>Título:</strong> {report['title']}</p>")
-        html_body_parts.append(f"<p><strong>Enviado por:</strong> {report['submittedBy']} el {report['dateSubmitted']}</p>")
-        
-        for key, value in report['data'].items():
-            display_value = value if value and str(value).strip() != 'N/A' and str(value).strip() != 'None' else 'No especificado'
-            # Modified section for handling URLs de Imágenes o PDFs
-            if key == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
-                urls = display_value.split('\n')
-                html_body_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;'>")
-                for url in urls:
-                    url = url.strip()
-                    if url:
-                        lower_url = url.lower()
-                        if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
-                            html_body_parts.append(f"""
-                                <div style='margin-bottom: 10px;'>
-                                    <a href="{url}" target="_blank" style="text-decoration: none;">
-                                        <img src="{url}" alt="Imagen del reporte" style="max-width: 200px; height: auto; border-radius: 4px; border: 1px solid #ccc;">
-                                    </a>
-                                </div>
-                            """)
-                        elif lower_url.endswith('.pdf'):
-                            html_body_parts.append(f"""
-                                <div style='margin-bottom: 10px;'>
-                                    <p style="margin: 0;">PDF: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{os.path.basename(url)}</a></p>
-                                </div>
-                            """)
-                        else:
-                            html_body_parts.append(f"""
-                                <div style='margin-bottom: 10px;'>
-                                    <p style="margin: 0;">Archivo: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{os.path.basename(url)}</a></p>
-                                </div>
-                            """)
-                html_body_parts.append(f"</div>") # Close flex container
-            else:
-                html_body_parts.append(f"<p><strong>{key}:</strong> {display_value}</p>")
-        
-        html_body_parts.append(f"</div>")
+    # Group reports by formType
+    reports_by_type = {}
+    for report in reports_to_email: # Changed from 'reports' to 'reports_to_email'
+        f_type = report.get('formType', 'reporte_incidente')
+        if f_type not in reports_by_type:
+            reports_by_type[f_type] = []
+        reports_by_type[f_type].append(report)
+
+    for f_type, type_reports in reports_by_type.items():
+        config = FORM_CONFIGS.get(f_type)
+        if not config:
+            continue
+            
+        title = config.get('title_prefix', f_type)
+        html_body_parts.append(f"<h2>{title}s</h2>") # Changed from html_parts to html_body_parts
+
+        for report in type_reports:
+            html_body_parts.append(f"<div class='report-container'>") # Changed from html_parts to html_body_parts
+            html_body_parts.append(f"<div class='report-header'>") # Changed from html_parts to html_body_parts
+            html_body_parts.append(f"<h2>{report['title']}</h2>") # Changed from html_parts to html_body_parts
+            html_body_parts.append(f"<p><strong>Enviado por:</strong> {report['submittedBy']} | <strong>Fecha:</strong> {report['dateSubmitted']}</p>") # Changed from html_parts to html_body_parts
+            html_body_parts.append(f"</div>") # Changed from html_parts to html_body_parts
+            
+            html_body_parts.append(f"<div class='report-body'>") # Changed from html_parts to html_body_parts
+            
+            # Dynamic fields based on config
+            for label, col_name in config['data_mapping'].items():
+                # Get value from report data using label as key
+                value = report['data'].get(label)
+                display_value = value if value and str(value).strip() != 'N/A' and str(value).strip() != 'None' else 'No especificado'
+                
+                # Handle Attachments
+                if label == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
+                    urls = str(display_value).split('\n')
+                    valid_urls = [u.strip() for u in urls if u.strip()]
+                    
+                    if valid_urls:
+                        html_body_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;'>") # Changed from html_parts to html_body_parts
+                        for url in valid_urls:
+                            # Generate signed URL for PDF/Email if needed (though PDF generation happens server side, so signed URL is good)
+                            # Note: fetch_reports_by_ids already signed them
+                            
+                            lower_url = url.lower()
+                            filename = url.split('?')[0].split('/')[-1]
+                            
+                            if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
+                                html_body_parts.append(f"""
+                                    <div style='margin-bottom: 10px;'>
+                                        <a href="{url}" target="_blank" style="text-decoration: none;">
+                                            <img src="{url}" alt="Imagen" style="max-width: 200px; height: auto; border-radius: 4px; border: 1px solid #ccc;">
+                                        </a>
+                                    </div>
+                                """)
+                            else:
+                                html_body_parts.append(f"""
+                                    <div style='margin-bottom: 10px;'>
+                                        <p style="margin: 0;">Archivo: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{filename}</a></p>
+                                    </div>
+                                """)
+                        html_body_parts.append(f"</div>") # Changed from html_parts to html_body_parts
+                else:
+                    html_body_parts.append(f"<p><strong>{label}:</strong> {display_value}</p>") # Changed from html_parts to html_body_parts
+            
+            html_body_parts.append(f"</div></div>") # Close body and container # Changed from html_parts to html_body_parts
 
     html_body_parts.append(f"<p style='margin-top: 20px;'>Generado por {user_email} desde SMT SecApp.</p>")
     html_body_parts.append(f"</div></body></html>")
@@ -1137,8 +1151,9 @@ def export_excel():
 
         # Create Excel workbook
         wb = Workbook()
-        ws = wb.active
-        ws.title = "Reportes de Incidencias"
+        # Remove default sheet
+        default_ws = wb.active
+        wb.remove(default_ws)
 
         # Define styles
         header_font = Font(bold=True, color="FFFFFF", size=12)
@@ -1151,81 +1166,89 @@ def export_excel():
             bottom=Side(style="thin")
         )
 
-        # Define column headers
-        headers = [
-            "ID Reporte", "Título", "Enviado Por", "Fecha Envío", "Título de Incidencia",
-            "Tipo de Cliente", "Lugar del Incidente", "Propiedad", "Zona Común",
-            "Fecha del Incidente", "Hora del Incidente", "Descripción del Incidente",
-            "Valor Aproximado", "Pertenencias Sustraídas", "Nombre de la Persona",
-            "Teléfono", "Número de Identidad", "Número de Local", "Dirección",
-            "Nombre del Supervisor", "URLs de Archivos"
-        ]
+        # Group reports by formType
+        reports_by_type = {}
+        for report in reports_to_export:
+            f_type = report.get('formType', 'reporte_incidente')
+            if f_type not in reports_by_type:
+                reports_by_type[f_type] = []
+            reports_by_type[f_type].append(report)
 
-        # Write headers
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=header)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_alignment
-            cell.border = border
+        # Create a sheet for each form type
+        for f_type, type_reports in reports_by_type.items():
+            # Get config for this form type to determine headers
+            config = FORM_CONFIGS.get(f_type)
+            if not config:
+                app_logger.warning(f"No configuration found for form type: {f_type}. Skipping.")
+                continue
 
-        # Write data
-        for row, report in enumerate(reports_to_export, 2):
-            data_row = [
-                report['id'],
-                report['title'],
-                report['submittedBy'],
-                report['dateSubmitted'],
-                report['data'].get('Título de Incidencia', ''),
-                report['data'].get('Tipo de Cliente', ''),
-                report['data'].get('Lugar del Incidente', ''),
-                report['data'].get('Propiedad', ''),
-                report['data'].get('Zona Común', ''),
-                report['data'].get('Fecha del Incidente', ''),
-                report['data'].get('Hora del Incidente', ''),
-                report['data'].get('Descripción del Incidente', ''),
-                report['data'].get('Valor Aproximado', ''),
-                report['data'].get('Pertenencias Sustraídas', ''),
-                report['data'].get('Nombre de la Persona', ''),
-                report['data'].get('Teléfono', ''),
-                report['data'].get('Número de Identidad', ''),
-                report['data'].get('Número de Local', ''),
-                report['data'].get('Dirección', ''),
-                report['data'].get('Nombre del Supervisor', ''),
-                report['data'].get('URLs de Imágenes o PDFs', '')
-            ]
+            # Create sheet
+            sheet_title = config.get('title_prefix', f_type)[:30] # Excel sheet names max 31 chars
+            ws = wb.create_sheet(title=sheet_title)
 
-            for col, value in enumerate(data_row, 1):
-                cell = ws.cell(row=row, column=col, value=str(value) if value else '')
+            # Define headers dynamically based on data_mapping
+            # Standard headers first
+            headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
+            
+            # Dynamic headers from mapping
+            dynamic_headers = list(config['data_mapping'].keys())
+            headers.extend(dynamic_headers)
+
+            # Write headers
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
                 cell.border = border
-                # Add text wrapping for long content
-                if col in [4, 9, 12, 21]:  # Description columns
+
+            # Write data
+            for row, report in enumerate(type_reports, 2):
+                # Standard data
+                ws.cell(row=row, column=1, value=report['id']).border = border
+                ws.cell(row=row, column=2, value=report['submittedBy']).border = border
+                ws.cell(row=row, column=3, value=report['dateSubmitted']).border = border
+
+                # Dynamic data
+                for i, header_key in enumerate(dynamic_headers):
+                    # Map header key to data key using config
+                    data_key = header_key # The keys in report['data'] match the keys in data_mapping (labels)
+                    val = report['data'].get(data_key, '')
+                    
+                    cell = ws.cell(row=row, column=4 + i, value=str(val) if val else '')
+                    cell.border = border
                     cell.alignment = Alignment(wrap_text=True, vertical="top")
 
-        # Auto-adjust column widths
-        for col in range(1, len(headers) + 1):
-            column_letter = get_column_letter(col)
-            max_length = 0
+            # Auto-adjust column widths
+            for col in range(1, len(headers) + 1):
+                column_letter = get_column_letter(col)
+                max_length = 0
+                # Check header length
+                max_length = max(max_length, len(headers[col-1]))
+                # Check data lengths (sample first 50 rows)
+                for row in range(2, min(52, ws.max_row + 1)):
+                    cell_value = ws[f"{column_letter}{row}"].value
+                    if cell_value:
+                        max_length = max(max_length, len(str(cell_value)))
+                
+                adjusted_width = min(max(max_length + 2, 10), 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
             
-            # Check header length
-            max_length = max(max_length, len(headers[col-1]))
-            
-            # Check data lengths (sample first 100 rows for performance)
-            for row in range(2, min(102, ws.max_row + 1)):
-                cell_value = ws[f"{column_letter}{row}"].value
-                if cell_value:
-                    max_length = max(max_length, len(str(cell_value)))
-            
-            # Set column width (with limits)
-            adjusted_width = min(max(max_length + 2, 10), 50)
-            ws.column_dimensions[column_letter].width = adjusted_width
+            # Set header row height
+            ws.row_dimensions[1].height = 25
 
         # Set row height for header
         ws.row_dimensions[1].height = 25
 
         # Create filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"reportes_incidencias_{timestamp}.xlsx"
+        custom_filename = data.get('filename')
+        if custom_filename:
+            # Sanitize filename
+            custom_filename = re.sub(r'[^\w\-_]', '', custom_filename)
+            filename = f"{custom_filename}.xlsx"
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"reportes_incidencias_{timestamp}.xlsx"
 
         # Save to BytesIO
         excel_buffer = BytesIO()
@@ -1275,8 +1298,14 @@ def generate_pdf():
         pdf_buffer.seek(0)
 
         # Create filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"reportes_incidencias_{timestamp}.pdf"
+        custom_filename = data.get('filename')
+        if custom_filename:
+            # Sanitize filename
+            custom_filename = re.sub(r'[^\w\-_]', '', custom_filename)
+            filename = f"{custom_filename}.pdf"
+        else:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"reportes_incidencias_{timestamp}.pdf"
 
         app_logger.info(f"PDF generated successfully for {len(reports_to_pdf)} reports using WeasyPrint")
 

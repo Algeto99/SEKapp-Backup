@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMT SecApp - Reportes</title>
+    <title>Reportes de Seguridad - SMT SecApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap"
+        rel="stylesheet">
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -19,10 +22,17 @@
             padding: 2rem;
             transition: all 0.3s ease;
         }
-        h1, h2, h3, h4, h5, h6 {
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             font-family: 'Merriweather', serif;
             color: #212529;
         }
+
         .container-wrapper {
             background-color: #ffffff;
             border-radius: 12px;
@@ -33,6 +43,7 @@
             margin-top: 2rem;
             transition: all 0.3s ease;
         }
+
         .report-block {
             background-color: #ffffff;
             border-radius: 8px;
@@ -42,6 +53,7 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
         }
+
         .base-button-style {
             padding: 0.75rem 1.5rem;
             font-size: 1rem;
@@ -54,6 +66,7 @@
             align-items: center;
             justify-content: center;
         }
+
         .action-button {
             padding: 0.6rem 0.8rem;
             font-size: 0.75rem;
@@ -63,27 +76,33 @@
             text-align: center;
             line-height: 1.2;
         }
+
         .base-button-style:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
+
         .btn-primary-professional {
             background-color: #1d4ed8;
             color: #ffffff;
             border: 2px solid #1d4ed8;
         }
+
         .btn-primary-professional:hover {
             background-color: #1e40af;
             border-color: #1e40af;
         }
+
         .btn-secondary-professional {
             background-color: #f3f4f6;
             color: #1d4ed8;
             border: 2px solid #e5e7eb;
         }
+
         .btn-secondary-professional:hover {
             background-color: #e5e7eb;
         }
+
         .theme-toggle {
             position: absolute;
             top: 1.5rem;
@@ -97,22 +116,27 @@
             transition: all 0.2s ease-in-out;
             color: #374151;
         }
+
         .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
             transform: scale(1.05);
         }
+
         .theme-toggle svg {
             width: 1.5rem;
             height: 1.5rem;
         }
+
         .hidden {
             display: none !important;
         }
+
         .logo-img {
             max-width: 150px;
             height: auto;
             margin-bottom: 1.5rem;
         }
+
         .nav-link {
             text-decoration: none;
             padding: 0.5rem 1rem;
@@ -121,15 +145,18 @@
             display: inline-block;
             transition: all 0.2s ease;
         }
+
         .nav-link:hover {
             background-color: #f3f4f6;
             transform: translateY(-1px);
         }
+
         .report-content {
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease-out;
         }
+
         .report-content.expanded {
             max-height: 1000px;
             transition: max-height 0.5s ease-in;
@@ -147,10 +174,12 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
         }
+
         .flash-success {
             background-color: #10b981;
             color: white;
         }
+
         .flash-error {
             background-color: #ef4444;
             color: white;
@@ -161,10 +190,12 @@
             body {
                 padding: 1rem;
             }
+
             .container-wrapper {
                 padding: 1rem;
                 margin-top: 1rem;
             }
+
             .nav-link {
                 font-size: 0.875rem;
                 padding: 0.5rem 0.75rem;
@@ -180,11 +211,13 @@
                 padding: 0.375rem 0.5rem;
                 line-height: 1.2;
             }
+
             .theme-toggle {
                 top: 1rem;
                 left: 1rem;
                 padding: 0.375rem;
             }
+
             .theme-toggle svg {
                 width: 1.25rem;
                 height: 1.25rem;
@@ -196,38 +229,38 @@
             background-color: #1a202c;
             color: #e2e8f0;
         }
-        
-        body.dark-mode h1, 
-        body.dark-mode h2, 
-        body.dark-mode h3, 
-        body.dark-mode h4, 
-        body.dark-mode h5, 
+
+        body.dark-mode h1,
+        body.dark-mode h2,
+        body.dark-mode h3,
+        body.dark-mode h4,
+        body.dark-mode h5,
         body.dark-mode h6 {
             color: #ffffff;
         }
-        
+
         body.dark-mode .container-wrapper {
             background-color: #2d3748;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        
+
         body.dark-mode .report-block {
             background-color: #2d3748;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
-        
+
         body.dark-mode .nav-link:hover {
             background-color: #4a5568;
         }
-        
+
         body.dark-mode .theme-toggle {
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #e2e8f0;
         }
-        
+
         body.dark-mode .theme-toggle:hover {
             background-color: rgba(255, 255, 255, 0.2);
         }
@@ -353,9 +386,20 @@
                 font-size: 12pt !important;
                 line-height: 1.4 !important;
             }
-            nav, .flex.flex-col.items-center.mb-6, .logo-img, h1, p, #multi-select-controls, .mb-6.p-4.border, #load-more-container, .flash-message, .theme-toggle {
+
+            nav,
+            .flex.flex-col.items-center.mb-6,
+            .logo-img,
+            h1,
+            p,
+            #multi-select-controls,
+            .mb-6.p-4.border,
+            #load-more-container,
+            .flash-message,
+            .theme-toggle {
                 display: none !important;
             }
+
             .container-wrapper {
                 max-width: none !important;
                 box-shadow: none !important;
@@ -364,16 +408,21 @@
                 margin: 0 !important;
                 background: white !important;
             }
+
             #reports-container {
                 margin: 0 !important;
                 padding: 0 !important;
             }
+
             .report-block:not(.print-me) {
                 display: none !important;
             }
-            .report-checkbox, .toggle-details-button {
+
+            .report-checkbox,
+            .toggle-details-button {
                 display: none !important;
             }
+
             .report-block.print-me {
                 display: block !important;
                 page-break-after: always;
@@ -386,10 +435,12 @@
                 border: 1px solid #ddd !important;
                 border-radius: 0 !important;
             }
+
             .report-block.print-me:last-child {
                 page-break-after: auto !important;
                 margin-bottom: 0 !important;
             }
+
             .report-block.print-me .report-content {
                 max-height: none !important;
                 overflow: visible !important;
@@ -397,52 +448,65 @@
                 padding-top: 1rem !important;
                 border-top: 1px solid #eee !important;
             }
+
             .report-block.print-me h2 {
                 font-size: 16pt !important;
                 margin-bottom: 0.5rem !important;
                 color: black !important;
             }
+
             .report-block.print-me p {
                 margin-bottom: 0.5rem !important;
                 color: black !important;
                 font-size: 11pt !important;
             }
+
             .report-block.print-me strong {
                 font-weight: bold !important;
                 color: black !important;
             }
+
             .report-block.print-me ul {
                 margin: 0 !important;
                 padding: 0 !important;
             }
+
             .report-block.print-me li {
                 margin-bottom: 0.5rem !important;
                 padding: 0 !important;
                 list-style: none !important;
             }
+
             .report-block.print-me img {
                 max-width: 200px !important;
                 max-height: 200px !important;
                 page-break-inside: avoid !important;
             }
+
             .report-block.print-me a {
                 color: black !important;
                 text-decoration: underline !important;
             }
+
             .report-block.print-me div {
                 display: block !important;
             }
         }
     </style>
 </head>
+
 <body class="bg-gray-100 flex flex-col items-center p-6">
 
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
-        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
 
@@ -453,16 +517,20 @@
         <!-- Mobile-Responsive Navigation Bar -->
         <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
             <div class="flex flex-wrap justify-center gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-                <a href="{{ landing_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                <a href="{{ landing_service_url }}"
+                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Inicio
                 </a>
-                <a href="{{ forms_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                <a href="{{ forms_service_url }}"
+                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Reporte de Incidencia
                 </a>
-                <a href="{{ dashboard_service_url }}" class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                <a href="{{ dashboard_service_url }}"
+                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
                     Dashboard
                 </a>
-                <a href="/logout" class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
+                <a href="/logout"
+                    class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
                     Cerrar Sesión
                 </a>
             </div>
@@ -470,19 +538,20 @@
 
         <div class="flex flex-col items-center mb-6">
             <img src="https://storage.googleapis.com/smt-misc/SMT-logo.png" alt="SMT Logo" class="logo-img opacity-90">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Reportes de Incidentes</h1>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Reportes de Seguridad</h1>
             <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
-            
+
             <!-- Admin Badge -->
             {% if is_admin %}
-            <div class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium mb-4 shadow-lg">
+            <div
+                class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium mb-4 shadow-lg">
                 <span>👑</span>
                 <span>Panel de Administrador</span>
             </div>
             {% endif %}
-            
+
             <p class="text-lg font-medium text-gray-700">
-                Bienvenido, 
+                Bienvenido,
                 <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span>
                 {% if is_admin %}
                 <span class="text-purple-600 font-bold">(Administrador)</span>
@@ -490,28 +559,34 @@
             </p>
         </div>
 
-        <div id="multi-select-controls" class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div id="multi-select-controls"
+            class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div class="flex items-center">
                 <input type="checkbox" id="select-all-checkbox" class="mr-2 h-4 w-4 text-blue-600 rounded">
                 <label for="select-all-checkbox" class="text-gray-700 font-medium">Seleccionar Todos</label>
             </div>
             <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 w-full lg:w-auto">
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <button id="print-selected-button" class="base-button-style btn-secondary-professional action-button" disabled>
+                    <button id="print-selected-button"
+                        class="base-button-style btn-secondary-professional action-button" disabled>
                         🖨️ Imprimir
                     </button>
-                    <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button" disabled>
+                    <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button"
+                        disabled>
                         📄 PDF
                     </button>
-                    <button id="export-excel-button" class="base-button-style btn-secondary-professional action-button" disabled>
+                    <button id="export-excel-button" class="base-button-style btn-secondary-professional action-button"
+                        disabled>
                         📊 Excel
                     </button>
                 </div>
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <button id="email-selected-button" class="base-button-style btn-primary-professional action-button" disabled>
+                    <button id="email-selected-button" class="base-button-style btn-primary-professional action-button"
+                        disabled>
                         📧 Email
                     </button>
-                    <button id="share-button" class="base-button-style btn-secondary-professional action-button" disabled>
+                    <button id="share-button" class="base-button-style btn-secondary-professional action-button"
+                        disabled>
                         📱 Compartir
                     </button>
                 </div>
@@ -519,35 +594,68 @@
         </div>
 
         <!-- Updated search controls section -->
-        <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
+        <div
+            class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
             <div class="flex-grow w-full">
-                <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Número de Reporte:</label>
-                <input type="number" id="reportIdSearch" placeholder="Ej: 12345" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <label for="formTypeSelect" class="block text-sm font-medium text-gray-700 mb-1">Tipo de
+                    Formulario:</label>
+                <select id="formTypeSelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
+                    <option value="" selected>Todos los tipos</option>
+                    <option value="reporte_incidente">Reporte de Incidente</option>
+                    <option value="mantenimiento_seguridad_fisica">Mantenimiento Seguridad Física</option>
+                    <option value="medicion_experiencia_cliente">Medición Experiencia Cliente</option>
+                    <option value="supervision_puesto">Supervisión de Puesto</option>
+                    <option value="informe_novedades_disciplinario">Informe Disciplinario</option>
+                    <option value="log_de_patrullas">Log de Patrullas</option>
+                    <option value="registro_de_capacitaciones">Registro de Capacitaciones</option>
+                    <option value="registro_y_acta_de_visita">Acta de Visita</option>
+                    <option value="planilla_vehicular">Planilla Vehicular</option>
+                    <option value="planilla_motocicletas">Planilla Motocicletas</option>
+                    <option value="orden_mantenimiento">Orden de Mantenimiento</option>
+                    <option value="checklist_cumplimiento">Checklist Cumplimiento</option>
+                </select>
             </div>
             <div class="flex-grow w-full">
-                <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Propiedad:</label>
-                <select id="propertySelect" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
+                <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Número de
+                    Reporte:</label>
+                <input type="number" id="reportIdSearch" placeholder="Ej: 12345"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex-grow w-full">
+                <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por
+                    Propiedad:</label>
+                <select id="propertySelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
                     <option value="">Seleccionar propiedad...</option>
                 </select>
             </div>
             <div class="flex-grow w-full">
-                <label for="locationSelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Lugar del Incidente:</label>
-                <select id="locationSelect" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white" disabled>
+                <label for="locationSelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Lugar del
+                    Incidente:</label>
+                <select id="locationSelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                    disabled>
                     <option value="">Primero seleccione una propiedad...</option>
                 </select>
             </div>
             <div class="flex-grow w-full">
-                <label for="submittedBySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Nombre de Quién lo Envió:</label>
-                <input type="text" id="submittedBySearch" placeholder="Ej: Juan Pérez" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                <label for="submittedBySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Nombre de
+                    Quién lo Envió:</label>
+                <input type="text" id="submittedBySearch" placeholder="Ej: Juan Pérez"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             </div>
             <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full">
                 <div class="w-full sm:w-1/2">
-                    <label for="startDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha Desde:</label>
-                    <input type="date" id="startDateFilter" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <label for="startDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha
+                        Desde:</label>
+                    <input type="date" id="startDateFilter"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
                 <div class="w-full sm:w-1/2">
                     <label for="endDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha Hasta:</label>
-                    <input type="date" id="endDateFilter" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <input type="date" id="endDateFilter"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
             </div>
             <div class="flex flex-col space-y-2 w-full md:w-auto">
@@ -562,36 +670,42 @@
 
         <div id="reports-container" class="space-y-6">
             {% for form in forms %}
-                <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
-                            <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}</p>
-                        </div>
-                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="{{ form.id }}">
+            <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}"
+                data-form-type="{{ form.formType }}">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
+                        <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}
+                        </p>
                     </div>
-
-                    <div class="text-gray-700 mb-4">
-                        <p><strong>Título de Incidencia:</strong> {{ form.data['Título de Incidencia'] or 'No especificado' }}</p>
-                        <p><strong>Lugar del Incidente:</strong> {{ form.data['Lugar del Incidente'] or 'No especificado' }}</p>
-                        <p><strong>Propiedad:</strong> {{ form.data['Propiedad'] or 'No especificado' }}</p>
-                        <p><strong>Fecha del Incidente:</strong> {{ form.data['Fecha del Incidente'] or 'No especificado' }}</p>
-                    </div>
-                    
-                    <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="{{ form.id }}">
-                        Ver Detalles
-                    </button>
-
-                    <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                        <div id="details-{{ form.id }}" class="text-gray-700">
-                            Cargando detalles...
-                        </div>
-                    </div>
+                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded"
+                        data-report-id="{{ form.id }}">
                 </div>
+
+                <div class="text-sm text-gray-500 mt-4 md:mt-0">
+                    Mostrando <span id="currentCount" class="font-medium">0</span> de <span id="totalCount"
+                        class="font-medium">0</span> reportes
+                </div>
+                <div class="text-gray-700 mb-4">
+                    {% set count = namespace(value=0) %}
+                    {% for key, value in form.data.items() %}
+                    {% if count.value < 4 and key !='URLs de Imágenes o PDFs' and value and value !='N/A' and value
+                        !='None' and value !='No especificado' %} <p><strong>{{ key }}:</strong> {{ value }}</p>
+                        {% set count.value = count.value + 1 %}
+                        {% endif %}
+                        {% endfor %}
+                </div>
+
+                <button class="toggle-details-button base-button-style btn-primary-professional"
+                    data-report-id="{{ form.id }}">
+                    Ver Detalles
+                </button>
+
+            </div>
             {% else %}
-                <div class="text-center text-gray-500 py-8">
-                    <p>No hay reportes disponibles.</p>
-                </div>
+            <div class="text-center text-gray-500 py-8">
+                <p>No hay reportes disponibles.</p>
+            </div>
             {% endfor %}
         </div>
 
@@ -607,11 +721,15 @@
             <h2 class="text-xl font-semibold mb-4">Enviar Reportes por Correo Electrónico</h2>
             <form id="email-form">
                 <div class="mb-4">
-                    <label for="recipient-email" class="block text-gray-700 text-sm font-bold mb-2">Correo Electrónico del Destinatario:</label>
-                    <input type="email" id="recipient-email" name="recipient_email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    <label for="recipient-email" class="block text-gray-700 text-sm font-bold mb-2">Correo Electrónico
+                        del Destinatario:</label>
+                    <input type="email" id="recipient-email" name="recipient_email"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
                 </div>
                 <div class="flex justify-end space-x-4">
-                    <button type="button" id="cancel-email-button" class="base-button-style btn-secondary-professional">Cancelar</button>
+                    <button type="button" id="cancel-email-button"
+                        class="base-button-style btn-secondary-professional">Cancelar</button>
                     <button type="submit" class="base-button-style btn-primary-professional">Enviar</button>
                 </div>
             </form>
@@ -620,7 +738,7 @@
     </div>
 
     <script>
-        let offset = {{ forms|length }};
+        let offset = {{ forms| length }};
         let limit = 10;
         let totalReports = {{ total_reports }};
 
@@ -633,7 +751,7 @@
         function initializeTheme() {
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
+
             if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
                 setDarkMode();
             } else {
@@ -670,7 +788,7 @@
                 flashContainer.innerHTML = message;
                 flashContainer.className = `flash-message ${category === 'success' ? 'flash-success' : 'flash-error'}`;
                 flashContainer.classList.remove('hidden');
-                
+
                 setTimeout(() => {
                     flashContainer.classList.add('hidden');
                     flashContainer.innerHTML = '';
@@ -704,8 +822,8 @@
 
         function attachEventListenersToNewReports() {
             document.querySelectorAll('.toggle-details-button').forEach(button => {
-                button.removeEventListener('click', toggleReportDetails);
-                button.addEventListener('click', toggleReportDetails);
+                button.removeEventListener('click', openReportDetailsModal);
+                button.addEventListener('click', openReportDetailsModal);
             });
 
             document.querySelectorAll('.report-checkbox').forEach(checkbox => {
@@ -714,88 +832,170 @@
             });
         }
 
-        async function toggleReportDetails(event) {
+        async function openReportDetailsModal(event) {
             const button = event.target;
             const reportBlock = button.closest('.report-block');
             const reportId = reportBlock.dataset.reportId;
-            const reportContent = reportBlock.querySelector('.report-content');
-            const detailsDiv = reportBlock.querySelector(`#details-${reportId}`);
+            const formType = reportBlock.dataset.formType || 'reporte_incidente';
 
-            if (reportContent.classList.contains('expanded')) {
-                reportContent.classList.remove('expanded');
-                button.textContent = 'Ver Detalles';
-            } else {
-                button.textContent = 'Cargando Detalles...';
-                try {
-                    const response = await fetch(`/api/report/${reportId}`, {
-                        headers: { 'Accept': 'application/json' }
-                    });
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            window.location.href = '/logout';
-                            return;
-                        }
-                        throw new Error(`HTTP error! status: ${response.status}`);
+            const modal = document.getElementById('report-details-modal');
+            const modalContent = document.getElementById('modal-report-content');
+            const modalTitle = document.getElementById('modal-report-title');
+
+            // Show modal with loading state
+            modal.classList.remove('hidden');
+            modalContent.innerHTML = '<div class="flex justify-center items-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>';
+            modalTitle.textContent = 'Cargando detalles...';
+
+            try {
+                const response = await fetch(`/api/report/${reportId}?form_type=${formType}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
                     }
-                    const reportDetails = await response.json();
-                    
-                    let detailsHtml = '<ul style="list-style-type: none; padding: 0;">';
-                    for (const key in reportDetails.data) {
-                        if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
-                            if (key === 'URLs de Imágenes o PDFs') {
-                                const urls = String(reportDetails.data[key]).split('\n').filter(url => url.trim() !== '');
-                                if (urls.some(url => url.trim() !== '')) {
-                                    detailsHtml += `<li><strong>Archivos Adjuntos:</strong><div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">`;
-                                    urls.forEach(url => {
-                                        url = url.trim();
-                                        if (url) {
-                                            const lowerUrl = url.toLowerCase();
-                                            const filename = url.substring(url.lastIndexOf('/') + 1);
-                                            if (lowerUrl.endsWith('.jpeg') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif') || lowerUrl.endsWith('.webp')) {
-                                                detailsHtml += `
-                                                    <div style='margin-bottom: 10px; text-align: center;'>
-                                                        <a href="${url}" target="_blank" style="text-decoration: none;">
-                                                            <img src="${url}" alt="Imagen del reporte" style="max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;" 
-                                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                                                        </a>
-                                                        <p style="font-size: 0.8em; color: #555; margin-top: 5px; display: none;">Error cargando imagen: ${filename}</p>
-                                                        <p style="font-size: 0.8em; color: #555; margin-top: 5px;">${filename}</p>
-                                                    </div>
-                                                `;
-                                            } else if (lowerUrl.endsWith('.pdf')) {
-                                                detailsHtml += `
-                                                    <div style='margin-bottom: 10px;'>
-                                                        <p style="margin: 0;">📄 PDF: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${filename}</a></p>
-                                                    </div>
-                                                `;
-                                            } else {
-                                                detailsHtml += `
-                                                    <div style='margin-bottom: 10px;'>
-                                                        <p style="margin: 0;">🔗 Archivo: <a href="${url}" target="_blank" style="color: #2563eb; text-decoration: none;">${filename}</a></p>
-                                                    </div>
-                                                `;
-                                            }
-                                        }
-                                    });
-                                    detailsHtml += `</div></li>`;
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reportDetails = await response.json();
+                modalTitle.textContent = reportDetails.title || 'Detalles del Reporte';
+
+                let detailsHtml = '<div class="grid grid-cols-1 gap-4">';
+
+                // Group fields if needed, or just list them nicely
+                detailsHtml += '<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-600">';
+                detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Enviado por:</strong> ${reportDetails.submittedBy}</p>`;
+                detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Fecha:</strong> ${reportDetails.dateSubmitted}</p>`;
+                detailsHtml += '</div>';
+
+                detailsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+
+                for (const key in reportDetails.data) {
+                    if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
+                        if (key === 'URLs de Imágenes o PDFs') {
+                            // Handle images/PDFs separately at the bottom or full width
+                            continue;
+                        }
+                        const cleanedValue = String(reportDetails.data[key]).replace(/\n/g, '<br>');
+                        detailsHtml += `<div class="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-sm">
+                            <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">${key}</span>
+                            <span class="block text-gray-800 dark:text-gray-100">${cleanedValue}</span>
+                        </div>`;
+                    }
+                }
+                detailsHtml += '</div>'; // End grid
+
+                // Handle Attachments
+                if (reportDetails.data['URLs de Imágenes o PDFs']) {
+                    const rawUrls = String(reportDetails.data['URLs de Imágenes o PDFs']);
+                    // Check if it's N/A, None, or empty
+                    if (rawUrls && rawUrls.trim() !== 'N/A' && rawUrls.trim() !== 'None' && rawUrls.trim() !== '') {
+                        const urls = rawUrls.split('\n').filter(url => url.trim() !== '');
+
+                        if (urls.length > 0) {
+                            detailsHtml += `<div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                                <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-3">Archivos Adjuntos</h3>
+                                <div class="flex flex-wrap gap-4">`;
+
+                            urls.forEach(url => {
+                                url = url.trim();
+                                if (url) {
+                                    const lowerUrl = url.toLowerCase();
+                                    // Extract filename from URL (handling signed URLs which have query params)
+                                    let filename = url.split('?')[0].substring(url.lastIndexOf('/') + 1);
+                                    if (!filename) filename = "Archivo Adjunto";
+
+                                    if (lowerUrl.includes('.jpeg') || lowerUrl.includes('.jpg') || lowerUrl.includes('.png') || lowerUrl.includes('.gif') || lowerUrl.includes('.webp')) {
+                                        detailsHtml += `
+                                            <div class="relative group">
+                                                <a href="${url}" target="_blank" class="block">
+                                                    <img src="${url}" alt="Evidencia" class="h-32 w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+                                                </a>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-32" title="${filename}">${filename}</p>
+                                            </div>`;
+                                    } else {
+                                        detailsHtml += `
+                                            <a href="${url}" target="_blank" class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800">
+                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                <span class="truncate max-w-xs">${filename}</span>
+                                            </a>`;
+                                    }
                                 }
-                            } else {
-                                const cleanedValue = String(reportDetails.data[key]).replace(/\n/g, '<br>');
-                                detailsHtml += `<li><strong>${key}:</strong> ${cleanedValue}</li>`;
-                            }
+                            });
+                            detailsHtml += `</div></div>`;
                         }
                     }
-                    detailsHtml += '</ul>';
-                    detailsDiv.innerHTML = detailsHtml;
+                }
 
-                    reportContent.classList.add('expanded');
-                    button.textContent = 'Ocultar Detalles';
-                } catch (error) {
-                    console.error('Error fetching report details:', error);
-                    detailsDiv.innerHTML = 'Error al cargar los detalles.';
-                    button.textContent = 'Ver Detalles';
+                detailsHtml += '</div>';
+                modalContent.innerHTML = detailsHtml;
+
+            } catch (error) {
+                console.error('Error fetching report details:', error);
+                modalContent.innerHTML = `
+                    <div class="text-center p-6 text-red-600">
+                        <p>Error al cargar los detalles del reporte.</p>
+                        <p class="text-sm mt-2 text-gray-500">${error.message}</p>
+                    </div>`;
+            }
+        }
+
+        function closeReportDetailsModal() {
+            document.getElementById('report-details-modal').classList.add('hidden');
+        }
+
+        // --- Helper Functions ---
+        function getFilters() {
+            return {
+                form_type: document.getElementById('formTypeSelect').value,
+                report_id: document.getElementById('reportIdSearch').value,
+                property_id: document.getElementById('propertySelect').value,
+                location_id: document.getElementById('locationSelect').value,
+                submitted_by: document.getElementById('submittedBySearch').value,
+                start_date: document.getElementById('startDateFilter').value,
+                end_date: document.getElementById('endDateFilter').value
+            };
+        }
+
+        function createReportBlock(form) {
+            const reportBlock = document.createElement('div');
+            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+            reportBlock.setAttribute('data-report-id', form.id);
+            reportBlock.setAttribute('data-form-type', form.formType); // Store form type
+
+            let dataHtml = '';
+            let count = 0;
+            // Display first 4 relevant fields
+            for (const key in form.data) {
+                if (count >= 4) break;
+                const value = form.data[key];
+                if (key !== 'URLs de Imágenes o PDFs' && value && value !== 'N/A' && value !== 'None' && value !== 'No especificado') {
+                    dataHtml += `<p><strong>${key}:</strong> ${value}</p>`;
+                    count++;
                 }
             }
+
+            reportBlock.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                    </div>
+                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                </div>
+
+                <div class="text-gray-700 mb-4">
+                    ${dataHtml}
+                </div>
+                
+                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                    Ver Detalles
+                </button>
+            `;
+            return reportBlock;
         }
 
         // --- Report Loading Functionality ---
@@ -804,8 +1004,19 @@
             loadMoreButton.disabled = true;
             loadMoreButton.textContent = 'Cargando...';
 
+            // Get current filters
+            const filters = getFilters();
+            const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+
+            // Add filters to query params
+            for (const key in filters) {
+                if (filters[key]) {
+                    queryParams.append(key, filters[key]);
+                }
+            }
+
             try {
-                const response = await fetch(`/api/reports?offset=${offset}&limit=${limit}`, {
+                const response = await fetch(`/api/reports?${queryParams.toString()}`, {
                     headers: { 'Accept': 'application/json' }
                 });
 
@@ -819,38 +1030,12 @@
 
                 const data = await response.json();
                 const reportsContainer = document.getElementById('reports-container');
+
                 data.reports.forEach(form => {
-                    const reportBlock = document.createElement('div');
-                    reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                    reportBlock.setAttribute('data-report-id', form.id);
-                    reportBlock.innerHTML = `
-                        <div class="flex justify-between items-start mb-4">
-                            <div>
-                                <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                            </div>
-                            <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                        </div>
-
-                        <div class="text-gray-700 mb-4">
-                            <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                            <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                            <p><strong>Propiedad:</strong> ${form.data['Propiedad'] || 'No especificado'}</p>
-                            <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                        </div>
-                        
-                        <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                            Ver Detalles
-                        </button>
-
-                        <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                            <div id="details-${form.id}" class="text-gray-700">
-                                Cargando detalles...
-                            </div>
-                        </div>
-                    `;
+                    const reportBlock = createReportBlock(form);
                     reportsContainer.appendChild(reportBlock);
                 });
+
                 offset += data.reports.length;
                 totalReports = data.total_count;
                 checkLoadMoreButtonVisibility();
@@ -872,7 +1057,7 @@
                 const response = await fetch('/api/properties', {
                     headers: { 'Accept': 'application/json' }
                 });
-                
+
                 if (!response.ok) {
                     if (response.status === 401) {
                         window.location.href = '/logout';
@@ -881,13 +1066,13 @@
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 const propertySelect = document.getElementById('propertySelect');
-                
+
                 // Clear existing options except the first one
                 propertySelect.innerHTML = '<option value="">Seleccionar propiedad...</option>';
-                
+
                 // Add properties to dropdown
                 data.properties.forEach(property => {
                     const option = document.createElement('option');
@@ -895,9 +1080,9 @@
                     option.textContent = property.name;
                     propertySelect.appendChild(option);
                 });
-                
+
                 console.log(`Loaded ${data.properties.length} properties`);
-                
+
             } catch (error) {
                 console.error('Error loading properties:', error);
                 showFlashMessage(`Error al cargar las propiedades: ${error.message}`, 'error');
@@ -911,7 +1096,7 @@
                 const response = await fetch(url, {
                     headers: { 'Accept': 'application/json' }
                 });
-                
+
                 if (!response.ok) {
                     if (response.status === 401) {
                         window.location.href = '/logout';
@@ -920,17 +1105,17 @@
                     const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 const locationSelect = document.getElementById('locationSelect');
-                
+
                 // Clear existing options
                 locationSelect.innerHTML = '';
-                
+
                 if (propertyId) {
                     locationSelect.disabled = false;
                     locationSelect.innerHTML = '<option value="">Seleccionar lugar del incidente...</option>';
-                    
+
                     // Add locations to dropdown
                     data.locations.forEach(location => {
                         const option = document.createElement('option');
@@ -938,7 +1123,7 @@
                         option.textContent = location.name;
                         locationSelect.appendChild(option);
                     });
-                    
+
                     if (data.locations.length === 0) {
                         locationSelect.innerHTML = '<option value="">No hay lugares disponibles para esta propiedad</option>';
                     }
@@ -946,9 +1131,9 @@
                     locationSelect.disabled = true;
                     locationSelect.innerHTML = '<option value="">Primero seleccione una propiedad...</option>';
                 }
-                
+
                 console.log(`Loaded ${data.locations.length} locations for property ${propertyId}`);
-                
+
             } catch (error) {
                 console.error('Error loading locations:', error);
                 showFlashMessage(`Error al cargar los lugares: ${error.message}`, 'error');
@@ -959,7 +1144,7 @@
         function handlePropertyChange() {
             const propertySelect = document.getElementById('propertySelect');
             const selectedPropertyId = propertySelect.value;
-            
+
             if (selectedPropertyId) {
                 loadLocations(selectedPropertyId);
             } else {
@@ -970,14 +1155,7 @@
 
         // Updated applyFilters function with better error handling
         function applyFilters() {
-            const filters = {
-                report_id: document.getElementById('reportIdSearch').value,
-                property_id: document.getElementById('propertySelect').value,
-                location_id: document.getElementById('locationSelect').value,
-                submitted_by: document.getElementById('submittedBySearch').value,
-                start_date: document.getElementById('startDateFilter').value,
-                end_date: document.getElementById('endDateFilter').value
-            };
+            const filters = getFilters();
 
             offset = 0;
             totalReports = 0;
@@ -1004,7 +1182,7 @@
                             window.location.href = '/logout';
                             return;
                         }
-                        
+
                         let errorMessage = `HTTP error! status: ${response.status}`;
                         try {
                             const errorData = await response.json();
@@ -1013,46 +1191,18 @@
                             // If can't parse error JSON, use the status message
                             console.error('Could not parse error response:', e);
                         }
-                        
+
                         throw new Error(errorMessage);
                     }
 
                     const data = await response.json();
                     reportsContainer.innerHTML = '';
-                    
+
                     if (data.reports.length === 0) {
                         reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
                     } else {
                         data.reports.forEach(form => {
-                            const reportBlock = document.createElement('div');
-                            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
-                            reportBlock.setAttribute('data-report-id', form.id);
-                            reportBlock.innerHTML = `
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
-                                    </div>
-                                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
-                                </div>
-
-                                <div class="text-gray-700 mb-4">
-                                    <p><strong>Título de Incidencia:</strong> ${form.data['Título de Incidencia'] || 'No especificado'}</p>
-                                    <p><strong>Lugar del Incidente:</strong> ${form.data['Lugar del Incidente'] || 'No especificado'}</p>
-                                    <p><strong>Propiedad:</strong> ${form.data['Propiedad'] || 'No especificado'}</p>
-                                    <p><strong>Fecha del Incidente:</strong> ${form.data['Fecha del Incidente'] || 'No especificado'}</p>
-                                </div>
-                                
-                                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
-                                    Ver Detalles
-                                </button>
-
-                                <div class="report-content mt-4 border-t border-gray-200 pt-4">
-                                    <div id="details-${form.id}" class="text-gray-700">
-                                        Cargando detalles...
-                                    </div>
-                                </div>
-                            `;
+                            const reportBlock = createReportBlock(form);
                             reportsContainer.appendChild(reportBlock);
                         });
                     }
@@ -1111,7 +1261,10 @@
             }
 
             const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
-            
+
+            // Prompt for filename
+            let filename = prompt("Ingrese un nombre para el archivo PDF (opcional):");
+
             try {
                 const response = await fetch('/api/generate-pdf', {
                     method: 'POST',
@@ -1119,7 +1272,10 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/pdf'
                     },
-                    body: JSON.stringify({ report_ids: reportIds })
+                    body: JSON.stringify({
+                        report_ids: reportIds,
+                        filename: filename
+                    })
                 });
 
                 if (!response.ok) {
@@ -1136,11 +1292,17 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                
+
                 // Get filename from response header or create default
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-                a.download = `reportes_incidencias_${timestamp}.pdf`;
-                
+                if (filename) {
+                    // Sanitize filename for download attribute
+                    filename = filename.replace(/[^\w\-_]/g, '');
+                    a.download = `${filename}.pdf`;
+                } else {
+                    a.download = `reportes_incidencias_${timestamp}.pdf`;
+                }
+
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -1162,7 +1324,10 @@
             }
 
             const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
-            
+
+            // Prompt for filename
+            let filename = prompt("Ingrese un nombre para el archivo Excel (opcional):");
+
             try {
                 const response = await fetch('/api/export-excel', {
                     method: 'POST',
@@ -1170,7 +1335,10 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                     },
-                    body: JSON.stringify({ report_ids: reportIds })
+                    body: JSON.stringify({
+                        report_ids: reportIds,
+                        filename: filename
+                    })
                 });
 
                 if (!response.ok) {
@@ -1178,7 +1346,7 @@
                         window.location.href = '/logout';
                         return;
                     }
-                    
+
                     const errorData = await response.json();
                     throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
                 }
@@ -1189,11 +1357,17 @@
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                
+
                 // Get filename from response header or create default
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-                a.download = `reportes_incidencias_${timestamp}.xlsx`;
-                
+                if (filename) {
+                    // Sanitize filename for download attribute
+                    filename = filename.replace(/[^\w\-_]/g, '');
+                    a.download = `${filename}.xlsx`;
+                } else {
+                    a.download = `reportes_incidencias_${timestamp}.xlsx`;
+                }
+
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -1229,7 +1403,7 @@
                 const reportIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.dataset.reportId);
                 try {
                     await navigator.share({
-                        title: 'Reportes de Incidencias - SMT SecApp',
+                        title: 'Reportes de Seguridad - SMT SecApp',
                         text: `${reportIds.length} reportes seleccionados: ${reportIds.join(', ')}`,
                         url: window.location.href
                     });
@@ -1275,18 +1449,18 @@
         function toggleSelectAll() {
             const selectAllCheckbox = document.getElementById('select-all-checkbox');
             const reportCheckboxes = document.querySelectorAll('.report-checkbox');
-            
+
             reportCheckboxes.forEach(checkbox => {
                 checkbox.checked = selectAllCheckbox.checked;
             });
-            
+
             updateActionButtonsState();
         }
 
         // --- DOMContentLoaded ---
         document.addEventListener('DOMContentLoaded', () => {
             initializeTheme();
-            
+
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
@@ -1313,9 +1487,10 @@
             const clearSearchButton = document.getElementById('clear-search-button');
 
             // Add event listeners
+            document.getElementById('formTypeSelect').addEventListener('change', applyFilters);
             propertySelect.addEventListener('change', handlePropertyChange);
             searchButton.addEventListener('click', applyFilters);
-            
+
             clearSearchButton.addEventListener('click', () => {
                 reportIdSearch.value = '';
                 propertySelect.value = '';
@@ -1361,7 +1536,7 @@
                 const recipientEmail = document.getElementById('recipient-email').value;
                 const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
                 const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
-                
+
                 await sendEmailWithReports(recipientEmail, reportIds);
             });
 
@@ -1374,5 +1549,56 @@
             });
         });
     </script>
+    <!-- Report Details Modal -->
+    <div id="report-details-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
+        <div
+            class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700">
+            <!-- Modal Header -->
+            <div
+                class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-lg">
+                <h2 id="modal-report-title" class="text-2xl font-bold text-gray-800 dark:text-white">Detalles del
+                    Reporte</h2>
+                <button onclick="closeReportDetailsModal()"
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div id="modal-report-content" class="p-6 overflow-y-auto flex-grow bg-gray-50 dark:bg-gray-900">
+                <!-- Content injected via JS -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div
+                class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-white dark:bg-gray-800 rounded-b-lg">
+                <button onclick="closeReportDetailsModal()"
+                    class="base-button-style btn-secondary-professional dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Close modal when clicking outside
+        document.getElementById('report-details-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'report-details-modal') {
+                closeReportDetailsModal();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !document.getElementById('report-details-modal').classList.contains('hidden')) {
+                closeReportDetailsModal();
+            }
+        });
+    </script>
 </body>
+
 </html>
