@@ -339,17 +339,64 @@
                         </select>
                     </div>
                     <div>
-                        <label for="impacto" class="form-label">Impacto</label>
-                        <select id="impacto" name="impacto" class="form-select" onchange="updateImpactDescription()"
-                            required>
-                            <option value="" disabled selected>Seleccione un impacto...</option>
-                            <option value="Impacto en clientes/usuarios">Impacto en clientes/usuarios</option>
-                            <option value="Impacto en seguridad">Impacto en seguridad</option>
-                            <option value="Impacto operativo">Impacto operativo</option>
-                            <option value="Impacto economico">Impacto económico</option>
-                            <option value="Impacto reputacional">Impacto reputacional</option>
-                            <option value="Otros">Otros</option>
-                        </select>
+                        <label class="form-label">Impacto (Seleccione uno o varios)</label>
+                        <div class="relative">
+                            <button type="button" id="impacto-btn" onclick="toggleImpactDropdown()"
+                                class="form-select text-left flex justify-between items-center w-full">
+                                <span id="impacto-text">Seleccione un impacto...</span>
+                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="impacto-dropdown"
+                                class="hidden absolute z-10 w-full mt-1 bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                <div class="p-2 space-y-2">
+                                    <label
+                                        class="flex items-center space-x-2 p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input type="checkbox" name="impacto" value="Impacto en clientes/usuarios"
+                                            class="form-checkbox h-4 w-4 text-blue-600"
+                                            onchange="updateImpactText(); updateImpactDescription()">
+                                        <span>Impacto en clientes/usuarios</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center space-x-2 p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input type="checkbox" name="impacto" value="Impacto en seguridad"
+                                            class="form-checkbox h-4 w-4 text-blue-600"
+                                            onchange="updateImpactText(); updateImpactDescription()">
+                                        <span>Impacto en seguridad</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center space-x-2 p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input type="checkbox" name="impacto" value="Impacto operativo"
+                                            class="form-checkbox h-4 w-4 text-blue-600"
+                                            onchange="updateImpactText(); updateImpactDescription()">
+                                        <span>Impacto operativo</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center space-x-2 p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input type="checkbox" name="impacto" value="Impacto economico"
+                                            class="form-checkbox h-4 w-4 text-blue-600"
+                                            onchange="updateImpactText(); updateImpactDescription()">
+                                        <span>Impacto económico</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center space-x-2 p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input type="checkbox" name="impacto" value="Impacto reputacional"
+                                            class="form-checkbox h-4 w-4 text-blue-600"
+                                            onchange="updateImpactText(); updateImpactDescription()">
+                                        <span>Impacto reputacional</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center space-x-2 p-2 hover:bg-gray-600 rounded cursor-pointer">
+                                        <input type="checkbox" name="impacto" value="Otros"
+                                            class="form-checkbox h-4 w-4 text-blue-600"
+                                            onchange="updateImpactText(); updateImpactDescription()">
+                                        <span>Otros</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="md:col-span-2" id="impact-description-wrapper" style="display: none;">
                         <label for="descripcion_impacto" class="form-label">Descripción del Impacto</label>
@@ -527,12 +574,32 @@
             }
         }
 
+        function toggleImpactDropdown() {
+            const dropdown = document.getElementById('impacto-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        function updateImpactText() {
+            const checkboxes = document.querySelectorAll('input[name="impacto"]:checked');
+            const textSpan = document.getElementById('impacto-text');
+
+            if (checkboxes.length === 0) {
+                textSpan.textContent = 'Seleccione un impacto...';
+            } else if (checkboxes.length === 1) {
+                textSpan.textContent = checkboxes[0].nextElementSibling.textContent;
+            } else {
+                textSpan.textContent = `${checkboxes.length} seleccionados`;
+            }
+        }
+
         function updateImpactDescription() {
-            const impact = document.getElementById('impacto').value;
             const wrapper = document.getElementById('impact-description-wrapper');
             const textarea = document.getElementById('descripcion_impacto');
 
-            if (impact === 'Otros') {
+            // Check if "Otros" is checked
+            const otrosCheckbox = document.querySelector('input[name="impacto"][value="Otros"]');
+
+            if (otrosCheckbox && otrosCheckbox.checked) {
                 wrapper.style.display = 'block';
                 textarea.setAttribute('required', 'required');
             } else {
@@ -540,6 +607,18 @@
                 textarea.removeAttribute('required');
             }
         }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            const dropdown = document.getElementById('impacto-dropdown');
+            const button = document.getElementById('impacto-btn');
+
+            if (!dropdown.classList.contains('hidden') &&
+                !dropdown.contains(event.target) &&
+                !button.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
     </script>
 </body>
 
