@@ -124,6 +124,9 @@
         }
 
         .signature-pad {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
             background-color: white;
@@ -463,27 +466,61 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
-            // Initialize signature pad
+                        // Initialize signature pad - FIXED VERSION
             const canvas = document.getElementById('firma-pad');
-            signaturePad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)' });
+            let savedSignatureImage = null;
+            
+            signaturePad = new SignaturePad(canvas, { 
+                penColor: 'rgb(0, 0, 0)', 
+                backgroundColor: 'rgb(255, 255, 255)',
+                minWidth: 0.5,
+                maxWidth: 2.5,
+                throttle: 0
+            });
+            
+            // Save signature as image after each stroke
+            signaturePad.addEventListener('endStroke', () => {
+                if (!signaturePad.isEmpty()) {
+                    savedSignatureImage = signaturePad.toDataURL('image/png');
+                }
+            });
 
             function resizeCanvas() {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad.clear(); //Clear and redraw signature if any
+                const rect = canvas.getBoundingClientRect();
+                
+                canvas.width = rect.width * ratio;
+                canvas.height = rect.height * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                
+                // Restore from saved image
+                if (savedSignatureImage) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                    };
+                    img.src = savedSignatureImage;
+                }
             }
-
-            window.addEventListener("resize", resizeCanvas);
+            
             resizeCanvas();
+            
+            // Use ResizeObserver
+            let resizeTimer;
+            const resizeObserver = new ResizeObserver(() => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(resizeCanvas, 100);
+            });
+            resizeObserver.observe(canvas.parentElement);
+
 
 
             // Form submission
             const form = document.getElementById('incidenteForm');
             form.addEventListener('submit', function (event) {
                 if (signaturePad && !signaturePad.isEmpty()) {
-                    document.getElementById('firma_responsable').value = signaturePad.toDataURL();
+                    document.getElementById('firma_responsable').value = savedSignatureImage || signaturePad.toDataURL();
                 }
             });
         });

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,17 +18,33 @@
             margin: 0;
             line-height: 1.6;
         }
-        
-        h1, h2, h3, h4, h5, h6 {
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             font-family: 'Merriweather', serif;
             color: #ffffff;
             margin: 0 0 1rem 0;
         }
-        
-        h1 { font-size: 1.875rem; font-weight: 700; }
-        h2 { font-size: 1.5rem; font-weight: 600; }
-        h3 { font-size: 1.25rem; font-weight: 600; }
-        
+
+        h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
         .form-container {
             background-color: #2d3748;
             border-radius: 12px;
@@ -38,7 +55,7 @@
             margin: 0 auto;
             padding: 2.5rem;
         }
-        
+
         .logo {
             width: 80px !important;
             height: 80px !important;
@@ -49,7 +66,7 @@
             margin: 0 auto 1.5rem auto;
             display: block;
         }
-        
+
         label {
             display: block;
             font-size: 0.875rem;
@@ -57,8 +74,10 @@
             margin-bottom: 0.25rem;
             color: #e2e8f0;
         }
-        
-        input, textarea, select {
+
+        input,
+        textarea,
+        select {
             width: 100%;
             padding: 1rem 1.25rem;
             border: 2px solid #e5e7eb;
@@ -71,19 +90,21 @@
             min-height: 3rem;
             transition: all 0.2s ease;
         }
-        
+
         textarea {
             min-height: 4.5rem;
             resize: vertical;
         }
-        
-        input:focus, textarea:focus, select:focus {
+
+        input:focus,
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: #3b82f6;
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
             background-color: #f8fafc !important;
         }
-        
+
         .submit-button {
             width: 100%;
             padding: 1.25rem 2rem;
@@ -100,7 +121,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .submit-button::before {
             content: '';
             position: absolute;
@@ -111,29 +132,29 @@
             background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
             transition: left 0.5s;
         }
-        
+
         .submit-button:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
         }
-        
+
         .submit-button:hover::before {
             left: 100%;
         }
-        
+
         .submit-button:active {
             transform: translateY(0);
             box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
         }
-        
+
         .submit-button:disabled {
             background: #9ca3af;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
-        
+
         fieldset {
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 0.5rem;
@@ -141,36 +162,37 @@
             margin-bottom: 1.5rem;
             background-color: rgba(255, 255, 255, 0.02);
         }
-        
+
         legend {
             font-size: 1.125rem;
             font-weight: 600;
             color: #60a5fa;
             padding: 0 0.5rem;
         }
-        
+
         .grid {
             display: grid;
             gap: 1.5rem;
         }
-        
+
         .grid-cols-1 {
             grid-template-columns: 1fr;
         }
-        
+
         .md\\:grid-cols-2 {
             grid-template-columns: 1fr 1fr;
         }
-        
+
         @media (min-width: 768px) {
             .md\\:grid-cols-2 {
                 grid-template-columns: 1fr 1fr;
             }
+
             .md\\:col-span-2 {
                 grid-column: span 2;
             }
         }
-        
+
         .theme-toggle {
             position: fixed;
             top: 1.5rem;
@@ -185,10 +207,12 @@
             color: #e2e8f0;
             width: auto;
         }
+
         .theme-toggle:hover {
             background-color: rgba(255, 255, 255, 0.2);
             transform: scale(1.05);
         }
+
         .theme-toggle svg {
             width: 1.5rem;
             height: 1.5rem;
@@ -221,48 +245,69 @@
             color: #93c5fd;
             text-decoration: underline;
         }
-        
+
         .text-center {
             text-align: center;
         }
-        
+
         .text-sm {
             font-size: 0.875rem;
         }
-        
-        .mb-1 { margin-bottom: 0.25rem; }
-        .mb-2 { margin-bottom: 0.5rem; }
-        .mb-4 { margin-bottom: 1rem; }
-        .mb-6 { margin-bottom: 1.5rem; }
-        .mb-8 { margin-bottom: 2rem; }
-        .mt-2 { margin-top: 0.5rem; }
-        .mx-auto { margin-left: auto; margin-right: auto; }
+
+        .mb-1 {
+            margin-bottom: 0.25rem;
+        }
+
+        .mb-2 {
+            margin-bottom: 0.5rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .mb-6 {
+            margin-bottom: 1.5rem;
+        }
+
+        .mb-8 {
+            margin-bottom: 2rem;
+        }
+
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
 
         /* Light mode styles */
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
         }
-        
-        body.light-mode h1, 
-        body.light-mode h2, 
-        body.light-mode h3, 
-        body.light-mode h4, 
-        body.light-mode h5, 
+
+        body.light-mode h1,
+        body.light-mode h2,
+        body.light-mode h3,
+        body.light-mode h4,
+        body.light-mode h5,
         body.light-mode h6 {
             color: #212529;
         }
-        
+
         body.light-mode .form-container {
             background-color: #ffffff;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             border: 1px solid rgba(0, 0, 0, 0.05);
         }
-        
+
         body.light-mode label {
             color: #374151;
         }
-        
+
         body.light-mode input,
         body.light-mode textarea,
         body.light-mode select {
@@ -270,7 +315,7 @@
             background-color: #ffffff !important;
             color: #111827 !important;
         }
-        
+
         body.light-mode input:focus,
         body.light-mode textarea:focus,
         body.light-mode select:focus {
@@ -278,32 +323,32 @@
             background-color: #f8fafc !important;
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
         }
-        
+
         body.light-mode .submit-button {
             background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
             box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
         }
-        
+
         body.light-mode .submit-button:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
             box-shadow: 0 8px 25px rgba(59, 130, 246, 0.35);
         }
-        
+
         body.light-mode .theme-toggle {
             background-color: rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(0, 0, 0, 0.2);
             color: #374151;
         }
-        
+
         body.light-mode .theme-toggle:hover {
             background-color: rgba(0, 0, 0, 0.2);
         }
-        
+
         body.light-mode fieldset {
             border: 1px solid rgba(0, 0, 0, 0.1);
             background-color: rgba(0, 0, 0, 0.02);
         }
-        
+
         body.light-mode legend {
             color: #3b82f6;
         }
@@ -313,20 +358,20 @@
             body {
                 padding: 1rem;
             }
-            
+
             .form-container {
                 padding: 1.5rem;
             }
-            
+
             .logo {
                 width: 60px !important;
                 height: 60px !important;
             }
-            
+
             h1 {
                 font-size: 1.5rem;
             }
-            
+
             .theme-toggle {
                 top: 1rem;
                 left: 1rem;
@@ -335,6 +380,9 @@
 
         /* Signature Pad Styles */
         .signature-container {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
             border: 2px dashed #4a5568;
             border-radius: 0.75rem;
             margin-bottom: 1rem;
@@ -343,11 +391,13 @@
             touch-action: none;
             position: relative;
         }
+
         .signature-pad {
             width: 100%;
             height: 200px;
             display: block;
         }
+
         .clear-button {
             padding: 0.5rem 1rem;
             background-color: #4a5568;
@@ -358,28 +408,39 @@
             transition: background-color 0.2s;
             margin-bottom: 1rem;
         }
+
         .clear-button:hover {
             background-color: #718096;
         }
+
         body.light-mode .signature-container {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
             border-color: #d1d5db;
         }
+
         body.light-mode .clear-button {
             background-color: #e5e7eb;
             color: #374151;
         }
-         body.light-mode .clear-button:hover {
+
+        body.light-mode .clear-button:hover {
             background-color: #d1d5db;
         }
     </style>
 </head>
+
 <body>
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
         </svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
 
@@ -395,13 +456,15 @@
                 </span>
                 {% endif %}
                 <a href="/select" class="nav-link">Acceso a Formularios</a>
-                
+
                 {% if is_admin %}
                 <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
                 <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
-                <a href="#" onclick="console.log('Mis Reportes clicked'); if(window.offlineManager) { console.log('offlineManager found, calling function...'); window.offlineManager.showMySubmittedReports(); } else { console.error('offlineManager not found on window:', window.offlineManager); } return false;" class="nav-link">📋 Mis Reportes</a>
+                <a href="#"
+                    onclick="console.log('Mis Reportes clicked'); if(window.offlineManager) { console.log('offlineManager found, calling function...'); window.offlineManager.showMySubmittedReports(); } else { console.error('offlineManager not found on window:', window.offlineManager); } return false;"
+                    class="nav-link">📋 Mis Reportes</a>
                 {% endif %}
-                
+
                 <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
             </div>
         </div>
@@ -500,7 +563,7 @@
             <fieldset>
                 <legend>3. Seguimiento de Alertas Críticas</legend>
                 <div class="grid grid-cols-1 md:grid-cols-2">
-                     <div>
+                    <div>
                         <label for="tipo_alerta_generada">Tipo de Alerta Generada</label>
                         <select id="tipo_alerta_generada" name="tipo_alerta_generada">
                             <option value="Sin alerta">Sin alerta</option>
@@ -518,7 +581,8 @@
                     </div>
                     <div class="md:col-span-2">
                         <label for="accion_correctiva_recomendada">Acción Correctiva Recomendada</label>
-                        <textarea id="accion_correctiva_recomendada" name="accion_correctiva_recomendada" rows="3"></textarea>
+                        <textarea id="accion_correctiva_recomendada" name="accion_correctiva_recomendada"
+                            rows="3"></textarea>
                     </div>
                     <div>
                         <label for="responsable_asignado_critica">Responsable Asignado</label>
@@ -568,7 +632,7 @@
         function initializeTheme() {
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
+
             if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
                 setLightMode();
             } else {
@@ -599,46 +663,83 @@
         }
 
         // Initialize theme on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             initializeTheme();
-            
+
             if (themeToggle) {
                 themeToggle.addEventListener('click', toggleTheme);
             }
 
-            // Signature Pad Logic
+                        // Signature Pad Logic - FIXED VERSION
             const canvas = document.getElementById('signature-pad');
-            const signaturePad = new SignaturePad(canvas, {
-                backgroundColor: 'rgb(255, 255, 255)'
+            let signaturePad;
+            let savedSignatureImage = null;
+            
+            signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 0.5,
+                maxWidth: 2.5,
+                throttle: 0
+            });
+            
+            // Save signature as image after each stroke
+            signaturePad.addEventListener('endStroke', () => {
+                if (!signaturePad.isEmpty()) {
+                    savedSignatureImage = signaturePad.toDataURL('image/png');
+                }
             });
 
             function resizeCanvas() {
-                const ratio =  Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad.clear(); 
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                const rect = canvas.getBoundingClientRect();
+                
+                canvas.width = rect.width * ratio;
+                canvas.height = rect.height * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                
+                // Restore from saved image
+                if (savedSignatureImage) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                    };
+                    img.src = savedSignatureImage;
+                }
             }
-            window.addEventListener("resize", resizeCanvas);
+            
             resizeCanvas();
+            
+            // Use ResizeObserver instead of orientation change
+            let resizeTimer;
+            const resizeObserver = new ResizeObserver(() => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(resizeCanvas, 100);
+            });
+            resizeObserver.observe(canvas.parentElement);
 
             const clearButton = document.getElementById('clear-signature');
             if (clearButton) {
-                clearButton.addEventListener('click', function() {
+                clearButton.addEventListener('click', function () {
                     signaturePad.clear();
+                    savedSignatureImage = null;
                 });
             }
 
             const form = document.querySelector('form');
             if (form) {
-                form.addEventListener('submit', function(event) {
+                form.addEventListener('submit', function (event) {
                     if (!signaturePad.isEmpty()) {
                         const signatureInput = document.getElementById('firma_usuario');
-                        signatureInput.value = signaturePad.toDataURL('image/png');
+                        signatureInput.value = savedSignatureImage || signaturePad.toDataURL('image/png');
                     }
                 });
+            }
+
             }
         });
     </script>
 </body>
+
 </html>

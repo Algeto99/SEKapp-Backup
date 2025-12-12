@@ -101,6 +101,10 @@
             transition: all 0.2s ease;
         }
 
+        .form-input[type="file"]::-webkit-file-upload-button {
+            filter: invert(1);
+        }
+
         .form-input:focus,
         .form-select:focus {
             outline: none;
@@ -175,6 +179,10 @@
             color: #212529;
         }
 
+        body.light-mode .form-input[type="file"]::-webkit-file-upload-button {
+            filter: none;
+        }
+
         body.light-mode .theme-toggle {
             background-color: rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(0, 0, 0, 0.2);
@@ -240,10 +248,8 @@
             <h1 class="text-2xl md:text-3xl font-bold">Control de Mantenimiento a Equipos de Seguridad</h1>
         </header>
 
-        <form id="mantenimientoForm" action="{{ url_for('submit_orden_mantenimiento') }}" method="POST"
-            class="space-y-6">
+        <form id="mantenimientoForm" action="{{ url_for('submit_orden_mantenimiento') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
 
-            <!-- 1. Datos Generales (Global) -->
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -280,7 +286,6 @@
                 </div>
             </div>
 
-            <!-- Container for Dynamic Mantenimiento Blocks -->
             <div id="mantenimientosContainer"></div>
 
             <div class="flex justify-between pt-4">
@@ -361,13 +366,11 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <!-- Moved Field: Puesto o Area -->
                         <div>
                             <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
                             <input type="text" name="mantenimientos[${index}][puesto_area]" class="form-input" required>
                         </div>
                         
-                        <!-- Equipo -->
                         <div>
                             <label class="block text-sm font-medium mb-1">Equipo</label>
                             <select name="mantenimientos[${index}][equipo]" class="form-select" required>
@@ -383,13 +386,11 @@
                             </select>
                         </div>
 
-                        <!-- Serial -->
                         <div>
                             <label class="block text-sm font-medium mb-1">ID Equipo / Serial</label>
                             <input type="text" name="mantenimientos[${index}][id_equipo_serial]" class="form-input">
                         </div>
 
-                        <!-- Tipo Servicio -->
                         <div>
                             <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
                             <select name="mantenimientos[${index}][tipo_servicio]" class="form-select" required>
@@ -417,6 +418,12 @@
                                 <option value="true">Sí</option>
                                 <option value="false">No</option>
                             </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-1">Foto/Evidencia</label>
+                            <input type="file" name="mantenimientos[${index}][foto_evidencia]" class="form-input" accept="image/*,application/pdf">
+                            <p class="text-xs text-gray-400 mt-1">Sube una foto o PDF del mantenimiento.</p>
                         </div>
                     </div>
                 `;

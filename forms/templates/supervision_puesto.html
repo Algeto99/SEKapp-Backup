@@ -113,6 +113,9 @@
         }
 
         .signature-pad {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
             cursor: crosshair;
@@ -489,10 +492,7 @@
                     <!-- Firma Guardia -->
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
                     <div class="mb-6">
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium mb-1">Nombre para Firma</label>
-                            <input type="text" name="supervisions[${index}][nombre_guardia_firma]" class="form-input">
-                        </div>
+                        <label class="block text-sm font-medium mb-1">Firma</label>
                         <canvas id="signaturePadGuardia_${index}" class="signature-pad w-full h-32"></canvas>
                         <button type="button" class="mt-2 text-sm text-blue-400 hover:text-blue-300 clear-sig-btn" data-index="${index}">Limpiar Firma</button>
                         <input type="hidden" name="supervisions[${index}][firma_guardia]" id="firma_guardia_${index}">
@@ -523,22 +523,77 @@
                 `;
             }
 
-            function initSignaturePad(index) {
+                        function initSignaturePad(index) {
                 const canvas = document.getElementById(`signaturePadGuardia_${index}`);
                 const signaturePad = new SignaturePad(canvas, {
                     backgroundColor: 'rgb(255, 255, 255)',
-                    penColor: 'rgb(0, 0, 0)'
+                    penColor: 'rgb(0, 0, 0)',
+                    minWidth: 0.5,
+                    maxWidth: 2.5,
+                    throttle: 0
                 });
+                signaturePads[index] = signaturePad;
+                
+                // Store signature as image
+                let savedImage = null;
+                signaturePad.addEventListener('endStroke', () => {
+                    if (!signaturePad.isEmpty()) {
+                        savedImage = signaturePad.toDataURL('image/png');
+                    }
+                });
+
+                function resize() {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    const rect = canvas.getBoundingClientRect();
+                    
+                    canvas.width = rect.width * ratio;
+                    canvas.height = rect.height * ratio;
+                    canvas.getContext('2d').scale(ratio, ratio);
+                    
+                    if (savedImage) {
+                        const img = new Image();
+                        img.onload = function() {
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                        };
+                        img.src = savedImage;
+                    }
+                }
+
+                resize();
+                
+                let resizeTimer;
+                const resizeObserver = new ResizeObserver(() => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(resize, 100);
+                });
+                resizeObserver.observe(canvas.parentElement);
+
+                const btn = canvas.parentNode.querySelector('.clear-sig-btn');
+                btn.addEventListener('click', () => {
+                    signaturePad.clear();
+                    savedImage = null;
+                });
+            });
                 signaturePads[index] = signaturePad;
 
                 // Resize handling
                 function resize() {
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    const data = signaturePad.toData();
+
                     canvas.width = canvas.offsetWidth * ratio;
                     canvas.height = canvas.offsetHeight * ratio;
                     canvas.getContext("2d").scale(ratio, ratio);
-                    signaturePad.clear(); // This clears it, beware on resize
+
+                    signaturePad.clear();
+                    signaturePad.fromData(data);
                 }
+
+                // Listen for orientation changes only
+                window.addEventListener("orientationchange", () => {
+                    setTimeout(resize, 500); // Wait for rotation to finish
+                });
                 resize();
                 // Note: We're not attaching window resize listener to every dynamic pad to avoid complexity/leaks, but initial size is key.
 
@@ -563,51 +618,53 @@
                 });
             }
 
-            // Global Supervisor Signature
+                        // Global Supervisor Signature - FIXED VERSION
             const canvasSup = document.getElementById('signaturePadSupervisor');
-            const padSup = new SignaturePad(canvasSup, { backgroundColor: 'white' });
+            const padSup = new SignaturePad(canvasSup, { 
+                backgroundColor: 'white', 
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 0.5,
+                maxWidth: 2.5,
+                throttle: 0
+            });
+            let supervisorSavedImage = null;
+
+            padSup.addEventListener('endStroke', () => {
+                if (!padSup.isEmpty()) {
+                    supervisorSavedImage = padSup.toDataURL('image/png');
+                }
+            });
+
             function resizeSup() {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                canvasSup.width = canvasSup.offsetWidth * ratio;
-                canvasSup.height = canvasSup.offsetHeight * ratio;
-                canvasSup.getContext("2d").scale(ratio, ratio);
-                padSup.clear();
+                const rect = canvasSup.getBoundingClientRect();
+                
+                canvasSup.width = rect.width * ratio;
+                canvasSup.height = rect.height * ratio;
+                canvasSup.getContext('2d').scale(ratio, ratio);
+                
+                if (supervisorSavedImage) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const ctx = canvasSup.getContext('2d');
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                    };
+                    img.src = supervisorSavedImage;
+                }
             }
+
             resizeSup();
-            document.getElementById('clearSignatureSupervisor').addEventListener('click', () => padSup.clear());
-
-            // Initialize first block
-            addSupervision();
-
-            // Add button handler
-            addBtn.addEventListener('click', addSupervision);
-
-            // Remove handler
-            window.removeSupervision = function (index) {
-                const block = document.querySelector(`.supervision-block[data-index="${index}"]`);
-                if (block) {
-                    block.remove();
-                    // delete signaturePads[index]; // Optional, we just iterate through DOM pads on submit
-                }
-            };
-
-            // Submit Handler
-            const form = document.getElementById('supervisionForm');
-            form.addEventListener('submit', function (e) {
-                // Populate supervisor sig
-                if (!padSup.isEmpty()) {
-                    document.getElementById('firma_supervisor').value = padSup.toDataURL();
-                }
-                // Populate dynamic sigs
-                for (const [idx, pad] of Object.entries(signaturePads)) {
-                    // Check if block still exists (it might have been removed)
-                    if (document.getElementById(`signaturePadGuardia_${idx}`)) {
-                        const input = document.getElementById(`firma_guardia_${idx}`);
-                        if (!pad.isEmpty()) {
-                            input.value = pad.toDataURL();
-                        }
-                    }
-                }
+            
+            let resizeSupTimer;
+            const resizeSupObserver = new ResizeObserver(() => {
+                clearTimeout(resizeSupTimer);
+                resizeSupTimer = setTimeout(resizeSup, 100);
+            });
+            resizeSupObserver.observe(canvasSup.parentElement);
+            
+            document.getElementById('clearSignatureSupervisor').addEventListener('click', () => {
+                padSup.clear();
+                supervisorSavedImage = null;
             });
 
         });

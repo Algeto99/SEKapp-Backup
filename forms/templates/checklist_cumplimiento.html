@@ -103,7 +103,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Style adjustments for date/datetime pickers */
         .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
         .form-input[type="date"]::-webkit-calendar-picker-indicator {
             filter: invert(1);
@@ -124,12 +123,22 @@
             font-weight: 500;
         }
 
-        .signature-pad {
+        .signature-wrapper {
+            position: relative;
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
             background-color: white;
             width: 100%;
             height: 150px;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .signature-pad {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         .theme-toggle {
@@ -189,7 +198,6 @@
             color: #495057;
         }
 
-        /* Remove filter for light mode pickers */
         body.light-mode .form-input[type="datetime-local"]::-webkit-calendar-picker-indicator,
         body.light-mode .form-input[type="date"]::-webkit-calendar-picker-indicator {
             filter: none;
@@ -267,14 +275,11 @@
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold">Checklist de Cumplimiento Normativo</h1>
             <p class="text-gray-400 mt-2">Verificación de Cursos y Certificaciones de Agentes</p>
-            <!-- Updated description -->
         </div>
 
         <form id="checklistForm" action="{{ url_for('submit_checklist_cumplimiento') }}" method="POST"
             enctype="multipart/form-data">
-            <!-- Sección 1: Datos Generales -->
             <div class="form-section">
-                <!-- Renamed Section 1 -->
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -290,14 +295,11 @@
                             required>
                     </div>
                     <div>
-                        <!-- Renamed field and changed type -->
                         <div>
                             <label for="fecha_hora" class="form-label">Fecha y Hora <span
                                     class="text-red-400">*</span></label>
                             <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                         </div>
-                        <!-- Turno Removed -->
-                        <!-- Added Rol del Aplicador -->
                         <div>
                             <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span
                                     class="text-red-400">*</span></label>
@@ -308,18 +310,17 @@
                                 <option>Jefe de Seguridad</option>
                             </select>
                         </div>
-                        <!-- Normativa Aplicable removed -->
                         <div>
-                            <!-- Renamed field -->
                             <label for="nombre_auditor" class="form-label">Nombre <span
                                     class="text-red-400">*</span></label>
                             <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input"
                                 value="{{ name }}" required>
                         </div>
                         <div>
-                            <!-- Renamed field -->
                             <label class="form-label">Firma <span class="text-red-400">*</span></label>
-                            <canvas id="firma_auditor_pad" class="signature-pad"></canvas>
+                            <div class="signature-wrapper">
+                                <canvas id="firma_auditor_pad" class="signature-pad"></canvas>
+                            </div>
                             <button type="button" data-pad="firma_auditor_pad"
                                 class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
                                 Firma</button>
@@ -329,7 +330,6 @@
                 </div>
 
                 <div id="checklist-container">
-                    <!-- Checklist Item Block Template -->
                     <div class="checklist-block relative bg-gray-700/30 rounded-lg p-4 mb-8">
                         <div class="absolute top-2 right-2 flex gap-2">
                             <button type="button" class="remove-checklist-btn text-red-400 hover:text-red-300 hidden"
@@ -343,12 +343,11 @@
                         </div>
                         <h3 class="text-xl font-bold text-blue-400 mb-4 checklist-title">Checklist #1</h3>
 
-                        <!-- Sección 2: Datos del Agente de Seguridad -->
                         <div class="form-section">
-                            <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Datos del Agente de
-                                Seguridad</h2>
+                            <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Información del Agente
+                            </h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="md:col-span-2">
+                                <div>
                                     <label class="form-label">Nombre Completo</label>
                                     <input type="text" name="agente_nombre_completo[]" class="form-input">
                                 </div>
@@ -371,7 +370,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 3: Verificacion de Cursos y Certificaciones Obligatorias -->
                         <div class="form-section">
                             <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Verificacion de Cursos
                                 y Certificaciones</h2>
@@ -417,8 +415,6 @@
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Cargue de Evidencia</label>
-                                    <!-- File input requires unique name for mapping, handled via suffix in JS or sequential -->
-                                    <!-- We will stick to name="cargue_evidencia_INDEX" handled by JS re-indexing -->
                                     <input type="file" name="cargue_evidencia_0"
                                         class="form-input file-input-evidencia file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                         accept="image/*,application/pdf">
@@ -437,7 +433,6 @@
                             </div>
                         </div>
 
-                        <!-- Sección 4: Checklist de Verificacion (NEW) -->
                         <div class="form-section">
                             <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Checklist de
                                 Verificacion</h2>
@@ -477,14 +472,15 @@
                             </div>
                         </div>
 
-                        <!-- Sección 5: Firmas (NEW) -->
                         <div class="form-section">
                             <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">5. Firmas</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label class="form-label">Firma del Guarda Supervisado</label>
-                                    <canvas id="firma_guarda_supervisado_pad_0"
-                                        class="signature-pad dynamic-pad"></canvas>
+                                    <div class="signature-wrapper">
+                                        <canvas id="firma_guarda_supervisado_pad_0"
+                                            class="signature-pad dynamic-pad"></canvas>
+                                    </div>
                                     <button type="button" data-pad="firma_guarda_supervisado_pad_0"
                                         class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
                                         Firma</button>
@@ -517,24 +513,62 @@
 
     <script>
         let signaturePads = {};
+        let signatureImages = {}; // Store as image data URLs
         let blockCount = 1;
-
-        function resizeCanvas(canvas, pad) {
-            const ratio = Math.max(window.devicePixelRatio || 1, 1);
-            canvas.width = canvas.offsetWidth * ratio;
-            canvas.height = canvas.offsetHeight * ratio;
-            canvas.getContext("2d").scale(ratio, ratio);
-            pad.clear(); // This might be annoying if resizing wipes data, but standard behavior for simple implementation.
-        }
 
         function initPad(canvasId) {
             const canvas = document.getElementById(canvasId);
-            if (canvas) {
-                const pad = new SignaturePad(canvas, { penColor: 'rgb(0, 0, 0)', backgroundColor: 'rgb(255, 255, 255)' });
-                signaturePads[canvasId] = pad;
-                window.addEventListener("resize", () => resizeCanvas(canvas, pad));
-                resizeCanvas(canvas, pad);
+            if (!canvas) return;
+
+            const pad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 0.5,
+                maxWidth: 2.5,
+                throttle: 0
+            });
+
+            signaturePads[canvasId] = pad;
+            signatureImages[canvasId] = null;
+
+            // Save as image immediately after each stroke
+            pad.addEventListener('endStroke', () => {
+                if (!pad.isEmpty()) {
+                    signatureImages[canvasId] = pad.toDataURL('image/png');
+                }
+            });
+
+            // Set initial canvas size
+            function setCanvasSize() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                const rect = canvas.getBoundingClientRect();
+                
+                canvas.width = rect.width * ratio;
+                canvas.height = rect.height * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                
+                // Restore image if exists
+                if (signatureImages[canvasId]) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                    };
+                    img.src = signatureImages[canvasId];
+                }
             }
+
+            setCanvasSize();
+
+            // Only resize on actual window resize (debounced) - NOT on scroll
+            let resizeTimer;
+            const resizeObserver = new ResizeObserver(() => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    setCanvasSize();
+                }, 100);
+            });
+            resizeObserver.observe(canvas.parentElement);
         }
 
         function addChecklistBlock() {
@@ -543,46 +577,37 @@
             const newBlock = firstBlock.cloneNode(true);
             const newIndex = blockCount;
 
-            // Updates titles
             newBlock.querySelector('.checklist-title').textContent = `Checklist #${newIndex + 1}`;
-
-            // Show remove button
             newBlock.querySelector('.remove-checklist-btn').classList.remove('hidden');
 
-            // Clear Inputs
             newBlock.querySelectorAll('input:not([type="hidden"]), select').forEach(input => {
                 input.value = '';
                 if (input.type === 'checkbox' || input.type === 'radio') input.checked = false;
             });
 
-            // Update File Input Name (cargue_evidencia_INDEX)
             const fileInput = newBlock.querySelector('.file-input-evidencia');
             if (fileInput) {
                 fileInput.name = `cargue_evidencia_${newIndex}`;
-                fileInput.value = ''; // Clear file
+                fileInput.value = '';
             }
 
-            // Handle Signatures
             const oldCanvas = newBlock.querySelector('canvas');
             const oldBtn = newBlock.querySelector('.clear-sig-btn');
             const oldHidden = newBlock.querySelector('.hidden-sig-input');
 
-            // Generate new ID
             const newPadId = `firma_guarda_supervisado_pad_${newIndex}`;
-
             oldCanvas.id = newPadId;
             oldBtn.dataset.pad = newPadId;
-            // hidden input name remains array [], value cleared
             oldHidden.value = '';
 
             container.appendChild(newBlock);
-
-            // Initialize new pad
             initPad(newPadId);
 
-            // Re-attach clear listener
             oldBtn.addEventListener('click', () => {
-                if (signaturePads[newPadId]) signaturePads[newPadId].clear();
+                if (signaturePads[newPadId]) {
+                    signaturePads[newPadId].clear();
+                    signatureImages[newPadId] = null;
+                }
             });
 
             blockCount++;
@@ -591,12 +616,6 @@
         function removeChecklistBlock(btn) {
             const block = btn.closest('.checklist-block');
             block.remove();
-            // Optional: re-index everything, but backend just iterates what it receives.
-            // As long as file inputs act independently, we are fine.
-            // Wait, if I delete block 1 and keep block 2 (index 2), file input name will be 'cargue_evidencia_2'.
-            // But backend loop iterates `range(len(names))`. So it expects 0, 1.
-            // If I delete an intermediate block, the indices in names will differ from list indices.
-            // FIX: I MUST re-index file inputs after deletion to ensure cargue_evidencia_0, _1, _2 match the list order of text fields.
             reindexBlocks();
         }
 
@@ -605,12 +624,8 @@
             blockCount = blocks.length;
             blocks.forEach((block, index) => {
                 block.querySelector('.checklist-title').textContent = `Checklist #${index + 1}`;
-
-                // Re-index file input
                 const fileInput = block.querySelector('.file-input-evidencia');
                 if (fileInput) fileInput.name = `cargue_evidencia_${index}`;
-
-                // Note: Signatures IDs don't strictly need re-indexing for backend sake, but file inputs DO.
             });
         }
 
@@ -638,39 +653,40 @@
             initializeTheme();
             if (themeToggle) themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
 
-            // Set current date & time for 'fecha_hora'
+            // Set current date & time
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             const formattedDateTime = now.toISOString().slice(0, 16);
             const fechaHoraInput = document.getElementById('fecha_hora');
             if (fechaHoraInput) fechaHoraInput.value = formattedDateTime;
 
-            // Initialize Static Pads (Auditor)
+            // Initialize Signature Pads
             initPad('firma_auditor_pad');
-
-            // Initialize First Dynamic Pad
             initPad('firma_guarda_supervisado_pad_0');
 
-            // Clear signature buttons (Static and First Dynamic)
+            // Clear signature buttons
             document.querySelectorAll('.clear-sig-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const padId = btn.dataset.pad;
-                    if (signaturePads[padId]) signaturePads[padId].clear();
+                    if (signaturePads[padId]) {
+                        signaturePads[padId].clear();
+                        signatureImages[padId] = null;
+                    }
                 });
             });
 
             // Form submission
             document.getElementById('checklistForm').addEventListener('submit', function (event) {
-                // 1. Capture Auditor Signature
+                // Capture Auditor Signature
                 if (signaturePads['firma_auditor_pad'] && !signaturePads['firma_auditor_pad'].isEmpty()) {
-                    document.getElementById('firma_auditor').value = signaturePads['firma_auditor_pad'].toDataURL();
+                    document.getElementById('firma_auditor').value = signatureImages['firma_auditor_pad'] || signaturePads['firma_auditor_pad'].toDataURL();
                 } else {
                     event.preventDefault();
                     alert('Por favor, proporcione la firma del auditor (Sección 1).');
                     return false;
                 }
 
-                // 2. Loop through all dynamic blocks and capture their signatures
+                // Loop through all dynamic blocks and capture their signatures
                 const blocks = document.querySelectorAll('.checklist-block');
                 blocks.forEach((block, index) => {
                     const canvas = block.querySelector('canvas');
@@ -678,7 +694,7 @@
                     const padId = canvas.id;
 
                     if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
-                        hiddenInput.value = signaturePads[padId].toDataURL();
+                        hiddenInput.value = signatureImages[padId] || signaturePads[padId].toDataURL();
                     }
                 });
             });

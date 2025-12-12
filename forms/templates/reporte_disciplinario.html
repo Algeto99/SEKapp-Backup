@@ -14,7 +14,6 @@
             background-color: #1a202c;
             color: #e2e8f0;
             padding-top: 80px;
-            /* Account for fixed header */
         }
 
         h1,
@@ -107,11 +106,22 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
         }
 
-        .signature-pad {
+        .signature-wrapper {
+            position: relative;
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
+            background-color: white;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .signature-pad {
             cursor: crosshair;
             background-color: white;
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         .theme-toggle {
@@ -139,7 +149,6 @@
             height: 1.5rem;
         }
 
-        /* Light mode styles */
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
@@ -169,9 +178,9 @@
         }
 
         body.light-mode .form-input {
-            background-color: #e2e8f0;
-            border-color: #cbd5e0;
-            color: #2d3748;
+            background-color: #e9ecef;
+            border-color: #ced4da;
+            color: #212529;
         }
 
         body.light-mode .theme-toggle {
@@ -184,7 +193,6 @@
             background-color: rgba(0, 0, 0, 0.2);
         }
 
-        /* Responsive design */
         @media (max-width: 768px) {
             .nav-content {
                 flex-direction: column;
@@ -192,24 +200,8 @@
                 gap: 0.5rem;
             }
 
-            .nav-links {
-                gap: 1rem;
-                font-size: 0.8rem;
-            }
-
             body {
                 padding-top: 120px;
-            }
-
-            .theme-toggle {
-                top: 1rem;
-                left: 1rem;
-            }
-        }
-
-        @media (max-width: 640px) {
-            body {
-                padding-top: 140px;
             }
         }
     </style>
@@ -294,7 +286,9 @@
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
-                        <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
+                        <div class="signature-wrapper w-full h-48">
+                            <canvas id="signaturePadResponsable" class="signature-pad"></canvas>
+                        </div>
                         <button type="button" id="clearSignatureResponsable"
                             class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
@@ -391,7 +385,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <label class="block text-sm font-medium mb-2">Firma del Colaborador</label>
-                        <canvas id="signaturePadRevisado" class="signature-pad w-full h-48 bg-gray-100"></canvas>
+                        <div class="signature-wrapper w-full h-48">
+                            <canvas id="signaturePadRevisado" class="signature-pad"></canvas>
+                        </div>
                         <button type="button" id="clearSignatureRevisado"
                             class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_recibido_revisado" id="firma_recibido_revisado">
@@ -411,15 +407,35 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         // Theme toggle elements
+         {
+            const input = document.getElementById('anexos_files');
+            const list = document.getElementById('fileList');
+            list.innerHTML = '';
+            if (input.files.length > 0) {
+                const ul = document.createElement('ul');
+                ul.className = 'list-disc list-inside';
+                for (let i = 0; i < input.files.length; i++) {
+                    const li = document.createElement('li');
+                    li.textContent = input.files[i].name;
+                    ul.appendChild(li);
+                }
+                list.appendChild(ul);
+            } else {
+                list.textContent = 'No hay archivos seleccionados';
+            }
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script>
+        // Theme Toggle Logic
         const themeToggle = document.getElementById('themeToggle');
         const darkModeIcon = document.getElementById('darkModeIcon');
         const lightModeIcon = document.getElementById('lightModeIcon');
 
-        // Theme management
         function initializeTheme() {
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
             if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
                 setLightMode();
             } else {
@@ -429,15 +445,15 @@
 
         function setDarkMode() {
             document.body.classList.remove('light-mode');
-            darkModeIcon.style.display = 'block';
-            lightModeIcon.style.display = 'none';
+            if (darkModeIcon) darkModeIcon.style.display = 'block';
+            if (lightModeIcon) lightModeIcon.style.display = 'none';
             localStorage.setItem('theme', 'dark');
         }
 
         function setLightMode() {
             document.body.classList.add('light-mode');
-            darkModeIcon.style.display = 'none';
-            lightModeIcon.style.display = 'block';
+            if (darkModeIcon) darkModeIcon.style.display = 'none';
+            if (lightModeIcon) lightModeIcon.style.display = 'block';
             localStorage.setItem('theme', 'light');
         }
 
@@ -456,57 +472,124 @@
                 themeToggle.addEventListener('click', toggleTheme);
             }
 
-            // Signature Pad 1
-            const canvas1 = document.getElementById('signaturePadResponsable');
-            const signaturePad1 = new SignaturePad(canvas1);
-            const clearButton1 = document.getElementById('clearSignatureResponsable');
-            const hiddenInput1 = document.getElementById('firma_responsable');
+            // FIXED SIGNATURE PAD IMPLEMENTATION
+            let signaturePads = {};
+            let signatureImages = {};
 
-            // Signature Pad 2
-            const canvas2 = document.getElementById('signaturePadRevisado');
-            const signaturePad2 = new SignaturePad(canvas2);
-            const clearButton2 = document.getElementById('clearSignatureRevisado');
-            const hiddenInput2 = document.getElementById('firma_recibido_revisado');
+            function initSignaturePad(canvasId) {
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) {
+                    console.warn('Canvas not found:', canvasId);
+                    return null;
+                }
 
-            function resizeCanvas(canvas) {
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                canvas.width = canvas.offsetWidth * ratio;
-                canvas.height = canvas.offsetHeight * ratio;
-                canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad1.clear();
-                signaturePad2.clear();
+                const pad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgb(255, 255, 255)',
+                    penColor: 'rgb(0, 0, 0)',
+                    minWidth: 0.5,
+                    maxWidth: 2.5,
+                    throttle: 0
+                });
+
+                signaturePads[canvasId] = pad;
+                signatureImages[canvasId] = null;
+
+                // Save signature as image after each stroke
+                pad.addEventListener('endStroke', () => {
+                    if (!pad.isEmpty()) {
+                        signatureImages[canvasId] = pad.toDataURL('image/png');
+                    }
+                });
+
+                function setCanvasSize() {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    const rect = canvas.getBoundingClientRect();
+                    
+                    canvas.width = rect.width * ratio;
+                    canvas.height = rect.height * ratio;
+                    canvas.getContext('2d').scale(ratio, ratio);
+                    
+                    // Restore signature image if exists
+                    if (signatureImages[canvasId]) {
+                        const img = new Image();
+                        img.onload = function() {
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                        };
+                        img.src = signatureImages[canvasId];
+                    }
+                }
+
+                setCanvasSize();
+
+                // Use ResizeObserver - only triggers on actual size changes
+                let resizeTimer;
+                const resizeObserver = new ResizeObserver(() => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(setCanvasSize, 100);
+                });
+                resizeObserver.observe(canvas.parentElement);
+
+                return pad;
             }
 
-            window.addEventListener("resize", function () {
-                resizeCanvas(canvas1);
-                resizeCanvas(canvas2);
-            });
-            resizeCanvas(canvas1);
-            resizeCanvas(canvas2);
+            // Initialize both signature pads
+            initSignaturePad('signaturePadResponsable');
+            initSignaturePad('signaturePadRevisado');
 
-            clearButton1.addEventListener('click', () => {
-                signaturePad1.clear();
-            });
+            // Clear button handlers
+            const clearButton1 = document.getElementById('clearSignatureResponsable');
+            if (clearButton1) {
+                clearButton1.addEventListener('click', () => {
+                    if (signaturePads['signaturePadResponsable']) {
+                        signaturePads['signaturePadResponsable'].clear();
+                        signatureImages['signaturePadResponsable'] = null;
+                    }
+                });
+            }
 
-            clearButton2.addEventListener('click', () => {
-                signaturePad2.clear();
-            });
+            const clearButton2 = document.getElementById('clearSignatureRevisado');
+            if (clearButton2) {
+                clearButton2.addEventListener('click', () => {
+                    if (signaturePads['signaturePadRevisado']) {
+                        signaturePads['signaturePadRevisado'].clear();
+                        signatureImages['signaturePadRevisado'] = null;
+                    }
+                });
+            }
 
+            // Form submission
             const form = document.getElementById('novedadesForm');
-            form.addEventListener('submit', (event) => {
-                if (!signaturePad1.isEmpty()) {
-                    hiddenInput1.value = signaturePad1.toDataURL();
-                }
-                if (!signaturePad2.isEmpty()) {
-                    hiddenInput2.value = signaturePad2.toDataURL();
-                }
-            });
+            if (form) {
+                form.addEventListener('submit', (event) => {
+                    // Signature 1
+                    if (signaturePads['signaturePadResponsable'] && !signaturePads['signaturePadResponsable'].isEmpty()) {
+                        const hiddenInput1 = document.getElementById('firma_responsable');
+                        if (hiddenInput1) {
+                            hiddenInput1.value = signatureImages['signaturePadResponsable'] || 
+                                                 signaturePads['signaturePadResponsable'].toDataURL();
+                        }
+                    }
+                    
+                    // Signature 2
+                    if (signaturePads['signaturePadRevisado'] && !signaturePads['signaturePadRevisado'].isEmpty()) {
+                        const hiddenInput2 = document.getElementById('firma_recibido_revisado');
+                        if (hiddenInput2) {
+                            hiddenInput2.value = signatureImages['signaturePadRevisado'] || 
+                                                 signaturePads['signaturePadRevisado'].toDataURL();
+                        }
+                    }
+                });
+            }
         });
+
         function updateFileList() {
             const input = document.getElementById('anexos_files');
             const list = document.getElementById('fileList');
+            if (!list) return;
+            
             list.innerHTML = '';
-            if (input.files.length > 0) {
+            if (input && input.files.length > 0) {
                 const ul = document.createElement('ul');
                 ul.className = 'list-disc list-inside';
                 for (let i = 0; i < input.files.length; i++) {

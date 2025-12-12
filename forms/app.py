@@ -14,6 +14,7 @@ import smtplib
 import socket
 from google.api_core.exceptions import NotFound
 import urllib.parse as urlparse
+import re
 
 # --- Logger Setup ---
 logging.basicConfig(level=logging.INFO)
@@ -208,19 +209,6 @@ def select_form():
         **get_service_urls()
     )
 
-# --- Routes for existing forms ---
-# ... (Keep all your existing routes for other forms: reporte_incidente, planilla_de_rondas, etc.) ...
-# Example structure:
-# @app.route('/reporte_incidente', methods=['GET'])
-# @jwt_required()
-# def reporte_incidente_form(): ...
-#
-# @app.route('/submit_incident_report', methods=['POST'])
-# @jwt_required()
-# def submit_incident_report(): ...
-#
-# ... (Include all other form routes here) ...
-
 # --- REPORTE DE INCIDENTE ---
 @app.route('/reporte_incidente', methods=['GET'])
 @jwt_required()
@@ -293,10 +281,6 @@ def submit_incident_report():
     finally:
         if conn:
             conn.close()
-
-
-
-
 
 # --- MANTENIMIENTO SEGURIDAD FISICA ---
 @app.route('/mantenimiento_seguridad_fisica')
@@ -1042,7 +1026,21 @@ def submit_orden_mantenimiento():
                     mantenimientos_map[index] = {}
                 mantenimientos_map[index][field] = value
 
-        # 3. Process and Insert Each Mantenimiento
+        # 3. Handle File Uploads (similar to supervision_puesto)
+        for key, file_storage in request.files.items():
+            match = pattern.match(key)
+            if match:
+                index = int(match.group(1))
+                field = match.group(2)
+                if field == 'foto_evidencia':
+                    # Upload file
+                    url = upload_file_to_gcs(file_storage, GCS_BUCKET_NAME)
+                    if url:
+                         if index not in mantenimientos_map:
+                             mantenimientos_map[index] = {}
+                         mantenimientos_map[index]['foto_evidencia_url'] = url
+
+        # 4. Process and Insert Each Mantenimiento
         column_cache = None 
 
         for index, mant_data in mantenimientos_map.items():
@@ -1050,7 +1048,7 @@ def submit_orden_mantenimiento():
             row_data = {**global_data, **mant_data}
             
             # Map fields to what we expect in DB.
-            # New HTML sends: puesto_area, equipo, id_equipo_serial, tipo_servicio, actividad_realizada, downtime_horas, repuestos_usados
+            # New HTML sends: puesto_area, equipo, id_equipo_serial, tipo_servicio, actividad_realizada, downtime_horas, repuestos_usados, foto_evidencia_url
             
             # Filter empty
             filtered_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
@@ -1379,4 +1377,3 @@ def error():
 if __name__ == '__main__':
     app_logger.info("Starting Flask app in local development mode.")
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-
