@@ -442,6 +442,10 @@ def submit_supervision_puesto():
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'fecha_hora': request.form.get('fecha_hora'),
             'supervisor': request.form.get('supervisor'),
+<<<<<<< HEAD
+=======
+            'rol_aplicador': request.form.get('rol_aplicador'),
+>>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             'firma_supervisor': request.form.get('firma_supervisor'),
             'submitted_by_email': user_email
         }
@@ -571,6 +575,10 @@ def submit_informe_novedades_disciplinario():
             'hora': hora,
             'dirigido_a': None,
             'empleado_nombre': request.form.get('empleado_nombre'),
+<<<<<<< HEAD
+=======
+            'empleado_numero': request.form.get('empleado_numero'),
+>>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             'empleado_documento': request.form.get('empleado_documento'),
             'empleado_cargo': request.form.get('empleado_cargo'),
             'cliente_instalacion': request.form.get('cliente_instalacion'),
