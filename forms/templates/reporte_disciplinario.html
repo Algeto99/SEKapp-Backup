@@ -204,9 +204,6 @@
                 padding-top: 120px;
             }
         }
-<<<<<<< HEAD
-    </style>
-=======
 
         /* Spinner Styles */
         .loading-overlay {
@@ -251,7 +248,7 @@
     </style>
     <script type="text/javascript"
         src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+
 </head>
 
 <body>
@@ -266,8 +263,6 @@
                 d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
     </button>
-<<<<<<< HEAD
-=======
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="loading-overlay">
@@ -275,7 +270,7 @@
         <div class="loading-text">Comprimiendo y enviando archivos...</div>
     </div>
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
@@ -361,13 +356,11 @@
                         <input type="text" name="empleado_nombre" id="empleado_nombre" class="form-input">
                     </div>
                     <div>
-<<<<<<< HEAD
-=======
                         <label for="empleado_numero" class="block text-sm font-medium mb-1">Número de Empleado</label>
                         <input type="text" name="empleado_numero" id="empleado_numero" class="form-input">
                     </div>
                     <div>
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+
                         <label for="empleado_documento" class="block text-sm font-medium mb-1">Número de
                             documento</label>
                         <input type="text" name="empleado_documento" id="empleado_documento" class="form-input">
@@ -430,8 +423,8 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">5. Anexos</h2>
                 <div class="file-upload-area">
-                    <input type="file" id="anexos_files" name="anexos_files" accept="image/*,video/*,application/pdf"
-                        multiple class="hidden" onchange="updateFileList()">
+                    <input type="file" id="anexos_files" name="anexos_files" accept="image/*,application/pdf" multiple
+                        class="hidden" onchange="updateFileList()">
                     <button type="button" onclick="document.getElementById('anexos_files').click()"
                         class="form-input text-left">
                         📎 Seleccionar o Tomar Foto/Video
@@ -471,11 +464,8 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         // Theme toggle elements
-<<<<<<< HEAD
-         {
-=======
         {
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+
             const input = document.getElementById('anexos_files');
             const list = document.getElementById('fileList');
             list.innerHTML = '';
@@ -572,17 +562,6 @@
                 function setCanvasSize() {
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
                     const rect = canvas.getBoundingClientRect();
-<<<<<<< HEAD
-                    
-                    canvas.width = rect.width * ratio;
-                    canvas.height = rect.height * ratio;
-                    canvas.getContext('2d').scale(ratio, ratio);
-                    
-                    // Restore signature image if exists
-                    if (signatureImages[canvasId]) {
-                        const img = new Image();
-                        img.onload = function() {
-=======
 
                     canvas.width = rect.width * ratio;
                     canvas.height = rect.height * ratio;
@@ -592,7 +571,7 @@
                     if (signatureImages[canvasId]) {
                         const img = new Image();
                         img.onload = function () {
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, rect.width, rect.height);
                         };
@@ -641,9 +620,6 @@
             // Form submission
             const form = document.getElementById('novedadesForm');
             if (form) {
-<<<<<<< HEAD
-                form.addEventListener('submit', (event) => {
-=======
                 form.addEventListener('submit', async (event) => {
                     event.preventDefault(); // Stop default submission initially
 
@@ -652,34 +628,19 @@
                     if (loadingOverlay) loadingOverlay.style.display = 'flex';
 
                     // Update signatures
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
                     // Signature 1
                     if (signaturePads['signaturePadResponsable'] && !signaturePads['signaturePadResponsable'].isEmpty()) {
                         const hiddenInput1 = document.getElementById('firma_responsable');
                         if (hiddenInput1) {
-<<<<<<< HEAD
-                            hiddenInput1.value = signatureImages['signaturePadResponsable'] || 
-                                                 signaturePads['signaturePadResponsable'].toDataURL();
-                        }
-                    }
-                    
-=======
                             hiddenInput1.value = signatureImages['signaturePadResponsable'] ||
                                 signaturePads['signaturePadResponsable'].toDataURL();
                         }
                     }
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
                     // Signature 2
                     if (signaturePads['signaturePadRevisado'] && !signaturePads['signaturePadRevisado'].isEmpty()) {
                         const hiddenInput2 = document.getElementById('firma_recibido_revisado');
                         if (hiddenInput2) {
-<<<<<<< HEAD
-                            hiddenInput2.value = signatureImages['signaturePadRevisado'] || 
-                                                 signaturePads['signaturePadRevisado'].toDataURL();
-                        }
-                    }
-=======
                             hiddenInput2.value = signatureImages['signaturePadRevisado'] ||
                                 signaturePads['signaturePadRevisado'].toDataURL();
                         }
@@ -727,7 +688,7 @@
 
                     // Submit the form programmatically
                     form.submit();
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+
                 });
             }
         });
@@ -736,11 +697,7 @@
             const input = document.getElementById('anexos_files');
             const list = document.getElementById('fileList');
             if (!list) return;
-<<<<<<< HEAD
-            
-=======
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             list.innerHTML = '';
             if (input && input.files.length > 0) {
                 const ul = document.createElement('ul');

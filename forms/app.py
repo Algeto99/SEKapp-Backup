@@ -390,17 +390,30 @@ def submit_medicion_experiencia_cliente():
             'submitted_by_email': user_email
         }
 
+
+        app_logger.info(f"Submitting customer experience survey for user: {user_email}")
+
         conn = get_db_connection()
         cur = conn.cursor()
 
-        columns = ', '.join(form_data.keys())
-        placeholders = ', '.join(['%s'] * len(form_data))
+        # Validate columns against the database to prevent errors if schema drifts
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'medicion_experiencia_cliente'")
+        table_columns = [row[0] for row in cur.fetchall()]
+
+        valid_form_data = {k: v for k, v in form_data.items() if k in table_columns}
+        
+        # Log keys for debugging (avoid logging sensitive values or large base64 strings)
+        app_logger.debug(f"Inserting into medicion_experiencia_cliente with keys: {list(valid_form_data.keys())}")
+
+        columns = ', '.join(valid_form_data.keys())
+        placeholders = ', '.join(['%s'] * len(valid_form_data))
         sql = f"INSERT INTO medicion_experiencia_cliente ({columns}) VALUES ({placeholders})"
 
-        cur.execute(sql, list(form_data.values()))
+        cur.execute(sql, list(valid_form_data.values()))
         conn.commit()
         cur.close()
 
+        app_logger.info("Customer experience survey submitted successfully.")
         return redirect(url_for('success'))
 
     except Exception as e:
@@ -442,10 +455,7 @@ def submit_supervision_puesto():
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'fecha_hora': request.form.get('fecha_hora'),
             'supervisor': request.form.get('supervisor'),
-<<<<<<< HEAD
-=======
             'rol_aplicador': request.form.get('rol_aplicador'),
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             'firma_supervisor': request.form.get('firma_supervisor'),
             'submitted_by_email': user_email
         }
@@ -575,10 +585,7 @@ def submit_informe_novedades_disciplinario():
             'hora': hora,
             'dirigido_a': None,
             'empleado_nombre': request.form.get('empleado_nombre'),
-<<<<<<< HEAD
-=======
             'empleado_numero': request.form.get('empleado_numero'),
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             'empleado_documento': request.form.get('empleado_documento'),
             'empleado_cargo': request.form.get('empleado_cargo'),
             'cliente_instalacion': request.form.get('cliente_instalacion'),
@@ -596,6 +603,8 @@ def submit_informe_novedades_disciplinario():
             'turno': request.form.get('turno')
         }
 
+        app_logger.info(f"Submitting disciplinary report for {user_email}, Employee: {form_data.get('empleado_nombre')}")
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -607,11 +616,15 @@ def submit_informe_novedades_disciplinario():
         columns = ', '.join(valid_form_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_form_data))
         sql = f"INSERT INTO informe_novedades_disciplinario ({columns}) VALUES ({placeholders})"
+        
+        # Log the SQL (be careful with sensitive data, or just log valid_form_data keys)
+        app_logger.debug(f"Inserting into informe_novedades_disciplinario with keys: {list(valid_form_data.keys())}")
 
         cur.execute(sql, list(valid_form_data.values()))
         conn.commit()
         cur.close()
 
+        app_logger.info("Disciplinary report submitted successfully.")
         return redirect(url_for('success'))
 
     except Exception as e:
@@ -1054,9 +1067,14 @@ def submit_orden_mantenimiento():
         for index, mant_data in mantenimientos_map.items():
             # Merge Global
             row_data = {**global_data, **mant_data}
-            
+
             # Map fields to what we expect in DB.
-            # New HTML sends: puesto_area, equipo, id_equipo_serial, tipo_servicio, actividad_realizada, downtime_horas, repuestos_usados, foto_evidencia_url
+            if 'puesto_area' in row_data and 'puesto_area_especifica' not in row_data:
+                 row_data['puesto_area_especifica'] = row_data['puesto_area']
+            
+            app_logger.info(f"Processing maintenance item {index} for user {user_email}")
+
+            # New HTML sends: puesto_area_especifica, equipo, id_equipo_serial, tipo_servicio, actividad_realizada, downtime_horas, repuestos_usados, foto_evidencia_url
             
             # Filter empty
             filtered_data = {k: v for k, v in row_data.items() if v is not None and v != ''}

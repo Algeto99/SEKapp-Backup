@@ -749,17 +749,33 @@
             recibePad = new SignaturePad(recibeCanvas, { penColor: 'rgb(0, 0, 0)' });
             oficialPad = new SignaturePad(oficialCanvas, { penColor: 'rgb(0, 0, 0)' });
 
+            function resizeAndRestore(canvas, pad) {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+
+                // Restore from saved data if available
+                if (pad && !pad.isEmpty()) {
+                    const data = pad.toData();
+                    pad.clear();
+                    pad.fromData(data);
+                } else if (pad) {
+                    pad.clear();
+                }
+            }
+
             window.addEventListener("resize", function () {
-                resizeCanvas(responsableCanvas, responsablePad);
-                resizeCanvas(entregaCanvas, entregaPad);
-                resizeCanvas(recibeCanvas, recibePad);
-                resizeCanvas(oficialCanvas, oficialPad);
+                resizeAndRestore(responsableCanvas, responsablePad);
+                resizeAndRestore(entregaCanvas, entregaPad);
+                resizeAndRestore(recibeCanvas, recibePad);
+                resizeAndRestore(oficialCanvas, oficialPad);
             });
 
-            resizeCanvas(responsableCanvas, responsablePad);
-            resizeCanvas(entregaCanvas, entregaPad);
-            resizeCanvas(recibeCanvas, recibePad);
-            resizeCanvas(oficialCanvas, oficialPad);
+            resizeAndRestore(responsableCanvas, responsablePad);
+            resizeAndRestore(entregaCanvas, entregaPad);
+            resizeAndRestore(recibeCanvas, recibePad);
+            resizeAndRestore(oficialCanvas, oficialPad);
 
 
             // Initialize car diagram canvas

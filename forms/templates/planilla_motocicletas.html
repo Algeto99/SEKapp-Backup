@@ -589,8 +589,25 @@
                     });
                     signaturePads[id] = pad;
 
-                    window.addEventListener("resize", () => resizeCanvas(canvas, pad));
-                    resizeCanvas(canvas, pad);
+                    // Restore signature after resize
+                    function resizeAndRestore() {
+                        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                        canvas.width = canvas.offsetWidth * ratio;
+                        canvas.height = canvas.offsetHeight * ratio;
+                        canvas.getContext("2d").scale(ratio, ratio);
+
+                        // Restore from saved data if available
+                        if (!pad.isEmpty()) {
+                            const data = pad.toData();
+                            pad.clear();
+                            pad.fromData(data);
+                        } else {
+                            pad.clear(); // Just clear if empty
+                        }
+                    }
+
+                    window.addEventListener("resize", () => resizeAndRestore());
+                    resizeAndRestore();
                 }
             });
 
