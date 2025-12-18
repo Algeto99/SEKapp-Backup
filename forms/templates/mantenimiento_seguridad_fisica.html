@@ -670,11 +670,10 @@
                 themeToggle.addEventListener('click', toggleTheme);
             }
 
-                        // Signature Pad Logic - FIXED VERSION
+            // Signature Pad Logic - FIXED VERSION
             const canvas = document.getElementById('signature-pad');
             let signaturePad;
-            let savedSignatureImage = null;
-            
+
             signaturePad = new SignaturePad(canvas, {
                 backgroundColor: 'rgb(255, 255, 255)',
                 penColor: 'rgb(0, 0, 0)',
@@ -682,39 +681,31 @@
                 maxWidth: 2.5,
                 throttle: 0
             });
-            
-            // Save signature as image after each stroke
-            signaturePad.addEventListener('endStroke', () => {
-                if (!signaturePad.isEmpty()) {
-                    savedSignatureImage = signaturePad.toDataURL('image/png');
-                }
-            });
 
             function resizeCanvas() {
+                // Capture data BEFORE resizing (which clears canvas)
+                const data = signaturePad.toData();
+
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const rect = canvas.getBoundingClientRect();
-                
+
                 canvas.width = rect.width * ratio;
                 canvas.height = rect.height * ratio;
                 canvas.getContext('2d').scale(ratio, ratio);
-                
-                // Restore from saved image
-                if (savedSignatureImage) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                    };
-                    img.src = savedSignatureImage;
-                }
+
+                // Restore data
+                signaturePad.clear();
+                signaturePad.fromData(data);
             }
-            
+
+            // Initial resize
             resizeCanvas();
-            
-            // Use ResizeObserver instead of orientation change
+
+            // Using ResizeObserver for all resize events (element or window)
             let resizeTimer;
             const resizeObserver = new ResizeObserver(() => {
                 clearTimeout(resizeTimer);
+                // Debounce to prevent excessive redraws
                 resizeTimer = setTimeout(resizeCanvas, 100);
             });
             resizeObserver.observe(canvas.parentElement);
@@ -723,7 +714,6 @@
             if (clearButton) {
                 clearButton.addEventListener('click', function () {
                     signaturePad.clear();
-                    savedSignatureImage = null;
                 });
             }
 
@@ -732,11 +722,9 @@
                 form.addEventListener('submit', function (event) {
                     if (!signaturePad.isEmpty()) {
                         const signatureInput = document.getElementById('firma_usuario');
-                        signatureInput.value = savedSignatureImage || signaturePad.toDataURL('image/png');
+                        signatureInput.value = signaturePad.toDataURL('image/png');
                     }
                 });
-            }
-
             }
         });
     </script>

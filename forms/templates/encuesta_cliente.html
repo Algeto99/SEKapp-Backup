@@ -516,21 +516,34 @@
             const clearButton2 = document.getElementById('clearSignatureEncuestado');
             const hiddenInput2 = document.getElementById('firma_encuestado');
 
-            function resizeCanvas(canvas) {
+            function resizeCanvas(canvas, pad) {
+                // Capture data BEFORE resizing
+                let data;
+                if (pad) {
+                    data = pad.toData();
+                }
+
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
-                signaturePad1.clear(); //Clear and redraw signature if any
-                signaturePad2.clear();
+
+                // Restore signature data if it exists
+                if (pad && data) {
+                    pad.clear();
+                    pad.fromData(data);
+                }
             }
 
+            // Resize handling
             window.addEventListener("resize", function () {
-                resizeCanvas(canvas1);
-                resizeCanvas(canvas2);
+                resizeCanvas(canvas1, signaturePad1);
+                resizeCanvas(canvas2, signaturePad2);
             });
-            resizeCanvas(canvas1);
-            resizeCanvas(canvas2);
+
+            // Initial resize
+            resizeCanvas(canvas1, signaturePad1);
+            resizeCanvas(canvas2, signaturePad2);
 
 
             clearButton1.addEventListener('click', () => {

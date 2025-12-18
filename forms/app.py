@@ -117,6 +117,7 @@ def upload_file_to_gcs(file, bucket_name):
         bucket = client.bucket(bucket_name)
         unique_filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
         blob = bucket.blob(unique_filename)
+        app_logger.info(f"Starting upload for file: {unique_filename} to bucket {bucket_name}")
         blob.upload_from_file(file, content_type=file.content_type)
         app_logger.info(f"File {unique_filename} uploaded to {bucket_name}.")
         return f"https://storage.googleapis.com/{bucket.name}/{blob.name}"
@@ -393,12 +394,15 @@ def submit_medicion_experiencia_cliente():
 
         app_logger.info(f"Submitting customer experience survey for user: {user_email}")
 
+        app_logger.info("Connecting to DB...")
         conn = get_db_connection()
         cur = conn.cursor()
 
         # Validate columns against the database to prevent errors if schema drifts
+        app_logger.info("Fetching schema columns...")
         cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'medicion_experiencia_cliente'")
         table_columns = [row[0] for row in cur.fetchall()]
+        app_logger.info(f"Found {len(table_columns)} columns in schema.")
 
         valid_form_data = {k: v for k, v in form_data.items() if k in table_columns}
         
@@ -409,7 +413,9 @@ def submit_medicion_experiencia_cliente():
         placeholders = ', '.join(['%s'] * len(valid_form_data))
         sql = f"INSERT INTO medicion_experiencia_cliente ({columns}) VALUES ({placeholders})"
 
+        app_logger.info("Executing INSERT...")
         cur.execute(sql, list(valid_form_data.values()))
+        app_logger.info("Committing transaction...")
         conn.commit()
         cur.close()
 
@@ -971,9 +977,12 @@ def submit_planilla_motocicletas():
             if key.startswith('estado_') and key not in form_data:
                 form_data[key] = request.form.get(key)
 
+        app_logger.info(f"Submitting motorcycle form for {user_email}")
+        
         conn = get_db_connection()
         cur = conn.cursor()
 
+        app_logger.info("Fetching schema columns for planilla_motocicletas...")
         cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'planilla_motocicletas'")
         table_columns = [row[0] for row in cur.fetchall()]
 
@@ -982,10 +991,12 @@ def submit_planilla_motocicletas():
         columns = ', '.join(valid_form_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_form_data))
         sql = f"INSERT INTO planilla_motocicletas ({columns}) VALUES ({placeholders})"
-
+        
+        app_logger.info(f"Inserting into planilla_motocicletas with keys: {list(valid_form_data.keys())}")
         cur.execute(sql, list(valid_form_data.values()))
         conn.commit()
         cur.close()
+        app_logger.info("Motorcycle form submitted successfully.")
 
         return redirect(url_for('success'))
 
@@ -1148,8 +1159,10 @@ def submit_checklist_cumplimiento():
         # We assume 'agente_nombre_completo[]' exists and controls the number of rows
         agente_nombres = request.form.getlist('agente_nombre_completo[]')
         num_rows = len(agente_nombres)
+        app_logger.info(f"Submitting checklist fulfillment for {user_email}. Rows: {num_rows}")
 
         for i in range(num_rows):
+            app_logger.info(f"Processing row {i+1}/{num_rows}")
             # Handle unique file upload per row
             evidencia_key = f'cargue_evidencia_{i}'
             evidencia_url = None

@@ -750,14 +750,19 @@
             oficialPad = new SignaturePad(oficialCanvas, { penColor: 'rgb(0, 0, 0)' });
 
             function resizeAndRestore(canvas, pad) {
+                // Capture data
+                let data;
+                if (pad && !pad.isEmpty()) {
+                    data = pad.toData();
+                }
+
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
 
                 // Restore from saved data if available
-                if (pad && !pad.isEmpty()) {
-                    const data = pad.toData();
+                if (pad && data) {
                     pad.clear();
                     pad.fromData(data);
                 } else if (pad) {
@@ -856,8 +861,9 @@
             isDrawing = true;
             currentPath = [];
             const rect = carCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            // Scale x and y based on ratio of canvas internal size to css size
+            const x = (e.clientX - rect.left) * (carCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (carCanvas.height / rect.height);
             currentPath.push({ x, y, color: currentColor });
         }
 
@@ -865,8 +871,8 @@
             if (!isDrawing) return;
 
             const rect = carCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX - rect.left) * (carCanvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (carCanvas.height / rect.height);
 
             currentPath.push({ x, y, color: currentColor });
 

@@ -377,16 +377,32 @@
             const clearButtonVisitante = document.getElementById('clear-visitante');
 
             function resizeCanvas(canvas, pad) {
+                // Capture data
+                let data;
+                if (pad) {
+                    data = pad.toData();
+                }
+
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 canvas.width = canvas.offsetWidth * ratio;
                 canvas.height = canvas.offsetHeight * ratio;
                 canvas.getContext("2d").scale(ratio, ratio);
-                if (pad) pad.clear();
+
+                // Restore data
+                if (pad && data) {
+                    pad.clear();
+                    pad.fromData(data);
+                }
             }
 
             window.addEventListener("resize", function () {
                 resizeCanvas(canvasVisitante, visitantePad);
-                // Resize dynamic pads? Complex, maybe just clear them or leave as is.
+                // Resize dynamic pads
+                asistentePads.forEach(item => {
+                    if (document.body.contains(item.canvas)) {
+                        resizeCanvas(item.canvas, item.pad);
+                    }
+                });
             });
             resizeCanvas(canvasVisitante, visitantePad);
 

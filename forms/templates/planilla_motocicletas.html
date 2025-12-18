@@ -591,14 +591,19 @@
 
                     // Restore signature after resize
                     function resizeAndRestore() {
+                        // Capture data
+                        let data;
+                        if (!pad.isEmpty()) {
+                            data = pad.toData();
+                        }
+
                         const ratio = Math.max(window.devicePixelRatio || 1, 1);
                         canvas.width = canvas.offsetWidth * ratio;
                         canvas.height = canvas.offsetHeight * ratio;
                         canvas.getContext("2d").scale(ratio, ratio);
 
                         // Restore from saved data if available
-                        if (!pad.isEmpty()) {
-                            const data = pad.toData();
+                        if (data) {
                             pad.clear();
                             pad.fromData(data);
                         } else {
@@ -686,8 +691,8 @@
         function getMousePos(canvas, evt) {
             const rect = canvas.getBoundingClientRect();
             return {
-                x: evt.clientX - rect.left,
-                y: evt.clientY - rect.top
+                x: (evt.clientX - rect.left) * (canvas.width / rect.width),
+                y: (evt.clientY - rect.top) * (canvas.height / rect.height)
             };
         }
 

@@ -272,8 +272,6 @@
                         <label for="supervisor" class="block text-sm font-medium mb-1">Nombre Supervisor</label>
                         <input type="text" name="supervisor" id="supervisor" class="form-input" required>
                     </div>
-<<<<<<< HEAD
-=======
                     <div>
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
                             Aplicador/Responsable</label>
@@ -284,7 +282,6 @@
                             <option>Jefe de Operaciones</option>
                         </select>
                     </div>
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Firma Supervisor</label>
                         <canvas id="signaturePadSupervisor" class="signature-pad w-full h-48"></canvas>
@@ -384,16 +381,6 @@
                             <input type="text" name="supervisions[${index}][puesto_area_especifica]" class="form-input" required>
                         </div>
                         <div>
-<<<<<<< HEAD
-                            <label class="block text-sm font-medium mb-1">Rol del Aplicador/Responsable</label>
-                            <select name="supervisions[${index}][rol_aplicador]" class="form-select" required>
-                                <option value="">Seleccione...</option>
-                                <option>Supervisor/Inspector</option>
-                            </select>
-                        </div>
-                        <div>
-=======
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
                             <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
                             <select name="supervisions[${index}][horario_servicio]" class="form-select">
                                 <option value="">Seleccione...</option>
@@ -539,11 +526,7 @@
                 `;
             }
 
-<<<<<<< HEAD
-                        function initSignaturePad(index) {
-=======
             function initSignaturePad(index) {
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
                 const canvas = document.getElementById(`signaturePadGuardia_${index}`);
                 const signaturePad = new SignaturePad(canvas, {
                     backgroundColor: 'rgb(255, 255, 255)',
@@ -553,54 +536,26 @@
                     throttle: 0
                 });
                 signaturePads[index] = signaturePad;
-<<<<<<< HEAD
-                
-=======
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
-                // Store signature as image
-                let savedImage = null;
-                signaturePad.addEventListener('endStroke', () => {
-                    if (!signaturePad.isEmpty()) {
-                        savedImage = signaturePad.toDataURL('image/png');
-                    }
-                });
-
+                // Robust resize function
                 function resize() {
+                    // Capture data
+                    const data = signaturePad.toData();
+
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
                     const rect = canvas.getBoundingClientRect();
-<<<<<<< HEAD
-                    
-                    canvas.width = rect.width * ratio;
-                    canvas.height = rect.height * ratio;
-                    canvas.getContext('2d').scale(ratio, ratio);
-                    
-                    if (savedImage) {
-                        const img = new Image();
-                        img.onload = function() {
-=======
 
                     canvas.width = rect.width * ratio;
                     canvas.height = rect.height * ratio;
                     canvas.getContext('2d').scale(ratio, ratio);
 
-                    if (savedImage) {
-                        const img = new Image();
-                        img.onload = function () {
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                        };
-                        img.src = savedImage;
-                    }
+                    signaturePad.clear();
+                    signaturePad.fromData(data);
                 }
 
                 resize();
-<<<<<<< HEAD
-                
-=======
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
+                // Using ResizeObserver for robustness
                 let resizeTimer;
                 const resizeObserver = new ResizeObserver(() => {
                     clearTimeout(resizeTimer);
@@ -611,37 +566,7 @@
                 const btn = canvas.parentNode.querySelector('.clear-sig-btn');
                 btn.addEventListener('click', () => {
                     signaturePad.clear();
-                    savedImage = null;
                 });
-<<<<<<< HEAD
-            });
-                signaturePads[index] = signaturePad;
-
-                // Resize handling
-                function resize() {
-                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                    const data = signaturePad.toData();
-
-                    canvas.width = canvas.offsetWidth * ratio;
-                    canvas.height = canvas.offsetHeight * ratio;
-                    canvas.getContext("2d").scale(ratio, ratio);
-
-                    signaturePad.clear();
-                    signaturePad.fromData(data);
-                }
-
-                // Listen for orientation changes only
-                window.addEventListener("orientationchange", () => {
-                    setTimeout(resize, 500); // Wait for rotation to finish
-                });
-                resize();
-                // Note: We're not attaching window resize listener to every dynamic pad to avoid complexity/leaks, but initial size is key.
-
-                // Clear button
-                const btn = canvas.parentNode.querySelector('.clear-sig-btn');
-                btn.addEventListener('click', () => signaturePad.clear());
-=======
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             }
 
             function addSupervision() {
@@ -660,81 +585,44 @@
                 });
             }
 
-<<<<<<< HEAD
-                        // Global Supervisor Signature - FIXED VERSION
-            const canvasSup = document.getElementById('signaturePadSupervisor');
-            const padSup = new SignaturePad(canvasSup, { 
-                backgroundColor: 'white', 
-=======
             addBtn.addEventListener('click', addSupervision);
 
             // Global Supervisor Signature - FIXED VERSION
             const canvasSup = document.getElementById('signaturePadSupervisor');
             const padSup = new SignaturePad(canvasSup, {
                 backgroundColor: 'white',
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
                 penColor: 'rgb(0, 0, 0)',
                 minWidth: 0.5,
                 maxWidth: 2.5,
                 throttle: 0
             });
-            let supervisorSavedImage = null;
-
-            padSup.addEventListener('endStroke', () => {
-                if (!padSup.isEmpty()) {
-                    supervisorSavedImage = padSup.toDataURL('image/png');
-                }
-            });
 
             function resizeSup() {
+                // Capture data
+                const data = padSup.toData();
+
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const rect = canvasSup.getBoundingClientRect();
-<<<<<<< HEAD
-                
-                canvasSup.width = rect.width * ratio;
-                canvasSup.height = rect.height * ratio;
-                canvasSup.getContext('2d').scale(ratio, ratio);
-                
-                if (supervisorSavedImage) {
-                    const img = new Image();
-                    img.onload = function() {
-=======
 
                 canvasSup.width = rect.width * ratio;
                 canvasSup.height = rect.height * ratio;
                 canvasSup.getContext('2d').scale(ratio, ratio);
 
-                if (supervisorSavedImage) {
-                    const img = new Image();
-                    img.onload = function () {
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
-                        const ctx = canvasSup.getContext('2d');
-                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                    };
-                    img.src = supervisorSavedImage;
-                }
+                padSup.clear();
+                padSup.fromData(data);
             }
 
             resizeSup();
-<<<<<<< HEAD
-            
-=======
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             let resizeSupTimer;
             const resizeSupObserver = new ResizeObserver(() => {
                 clearTimeout(resizeSupTimer);
                 resizeSupTimer = setTimeout(resizeSup, 100);
             });
             resizeSupObserver.observe(canvasSup.parentElement);
-<<<<<<< HEAD
-            
-=======
 
->>>>>>> 97a1fd2 (Stable version - Moved a couple of fields to some forms including Control de Supervision)
             document.getElementById('clearSignatureSupervisor').addEventListener('click', () => {
                 padSup.clear();
-                supervisorSavedImage = null;
             });
 
         });
