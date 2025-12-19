@@ -408,6 +408,10 @@
                             <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" required>
                         </div>
                         <div>
+                            <label class="block text-sm font-medium mb-1">Número de Empleado</label>
+                            <input type="text" name="supervisions[${index}][numero_empleado]" class="form-input">
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
                             <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input">
                         </div>
@@ -586,6 +590,9 @@
             }
 
             addBtn.addEventListener('click', addSupervision);
+
+            // Add one supervision block by default
+            addSupervision();
 
             // Global Supervisor Signature - FIXED VERSION
             const canvasSup = document.getElementById('signaturePadSupervisor');
