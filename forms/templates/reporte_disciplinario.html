@@ -281,8 +281,10 @@
             </div>
             <div class="nav-links">
                 <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                {% if is_admin %}
                 <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
                 <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                {% endif %}
                 <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
                 <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
             </div>

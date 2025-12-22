@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,12 +13,20 @@
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
-            padding-top: 80px; /* Account for fixed header */
+            padding-top: 80px;
+            /* Account for fixed header */
         }
-        h1, h2, h3, h4, h5, h6 {
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             font-family: 'Merriweather', serif;
             color: #ffffff;
         }
+
         .header-nav {
             position: fixed;
             top: 0;
@@ -29,6 +38,7 @@
             padding: 1rem 1.5rem;
             z-index: 50;
         }
+
         .nav-content {
             max-width: 1200px;
             margin: 0 auto;
@@ -36,33 +46,40 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .nav-links {
             display: flex;
             align-items: center;
             gap: 1.5rem;
         }
+
         .nav-link {
             color: #60a5fa;
             text-decoration: none;
             font-size: 0.875rem;
             transition: all 0.2s;
         }
+
         .nav-link:hover {
             color: #93c5fd;
             text-decoration: underline;
         }
+
         .user-greeting {
             font-size: 0.875rem;
             color: #9ca3af;
         }
+
         .user-name {
             color: #60a5fa;
             font-weight: bold;
         }
+
         .admin-badge {
             color: #a855f7;
             font-weight: bold;
         }
+
         .form-section {
             background-color: #2d3748;
             border-radius: 8px;
@@ -70,6 +87,7 @@
             margin-bottom: 1.5rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
         .form-input {
             background-color: #4a5568;
             border: 1px solid #718096;
@@ -79,35 +97,48 @@
             width: 100%;
             transition: all 0.2s ease;
         }
+
         .form-input:focus {
             outline: none;
             border-color: #3182ce;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
         }
+
         .signature-pad {
             border: 2px dashed #4a5568;
             border-radius: 0.375rem;
             cursor: crosshair;
         }
+
         /* Light mode styles */
         body.light-mode {
             background-color: #f8f9fa;
             color: #343a40;
         }
-        body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4, body.light-mode h5, body.light-mode h6 {
+
+        body.light-mode h1,
+        body.light-mode h2,
+        body.light-mode h3,
+        body.light-mode h4,
+        body.light-mode h5,
+        body.light-mode h6 {
             color: #212529;
         }
+
         body.light-mode .header-nav {
             background-color: rgba(255, 255, 255, 0.95);
             border-bottom: 1px solid rgba(0, 0, 0, 0.08);
         }
+
         body.light-mode .user-greeting {
             color: #4a5568;
         }
+
         body.light-mode .form-section {
             background-color: #ffffff;
             border-color: #e2e8f0;
         }
+
         body.light-mode .form-input {
             background-color: #e2e8f0;
             border-color: #cbd5e0;
@@ -115,19 +146,22 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header-nav">
         <div class="nav-content">
             <div class="user-greeting">
                 Bienvenido, <span class="user-name">{{ name }}</span>
                 {% if is_admin %}
-                    <span class="admin-badge">(Admin)</span>
+                <span class="admin-badge">(Admin)</span>
                 {% endif %}
             </div>
             <div class="nav-links">
                 <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                {% if is_admin %}
                 <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
                 <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                {% endif %}
                 <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
                 <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
             </div>
@@ -140,12 +174,14 @@
         </header>
 
         <form id="patrullaForm" action="{{ url_for('submit_log_de_patrullas') }}" method="POST" class="space-y-6">
-            
+
             <div class="form-section">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="id_guardia_nombre_guardia" class="block text-sm font-medium mb-1">ID Guardia / Nombre Guardia</label>
-                        <input type="text" name="id_guardia_nombre_guardia" id="id_guardia_nombre_guardia" class="form-input">
+                        <label for="id_guardia_nombre_guardia" class="block text-sm font-medium mb-1">ID Guardia /
+                            Nombre Guardia</label>
+                        <input type="text" name="id_guardia_nombre_guardia" id="id_guardia_nombre_guardia"
+                            class="form-input">
                     </div>
                     <div>
                         <label for="sitio_ubicacion" class="block text-sm font-medium mb-1">Sitio / Ubicación</label>
@@ -153,7 +189,8 @@
                     </div>
                     <div>
                         <label for="id_patrulla_consecutivo" class="block text-sm font-medium mb-1">ID Patrulla</label>
-                        <input type="text" name="id_patrulla_consecutivo" id="id_patrulla_consecutivo" class="form-input">
+                        <input type="text" name="id_patrulla_consecutivo" id="id_patrulla_consecutivo"
+                            class="form-input">
                     </div>
                     <div>
                         <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>
@@ -174,8 +211,10 @@
                 <h2 class="text-xl font-bold mb-4">Detalles de la Patrulla</h2>
                 <div class="space-y-4">
                     <div>
-                        <label for="detalles_incidente" class="block text-sm font-medium mb-1">Detalles Incidente</label>
-                        <textarea name="detalles_incidente" id="detalles_incidente" rows="4" class="form-input"></textarea>
+                        <label for="detalles_incidente" class="block text-sm font-medium mb-1">Detalles
+                            Incidente</label>
+                        <textarea name="detalles_incidente" id="detalles_incidente" rows="4"
+                            class="form-input"></textarea>
                     </div>
                     <div>
                         <label for="riesgo_detectado" class="block text-sm font-medium mb-1">Riesgo Detectado</label>
@@ -206,32 +245,37 @@
                         </select>
                     </div>
                     <div>
-                        <label for="contexto_observaciones" class="block text-sm font-medium mb-1">Contexto / Observaciones</label>
-                        <textarea name="contexto_observaciones" id="contexto_observaciones" rows="4" class="form-input"></textarea>
+                        <label for="contexto_observaciones" class="block text-sm font-medium mb-1">Contexto /
+                            Observaciones</label>
+                        <textarea name="contexto_observaciones" id="contexto_observaciones" rows="4"
+                            class="form-input"></textarea>
                     </div>
                 </div>
             </div>
-            
+
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">Firmas</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <label class="block text-sm font-medium mb-2">Firma Guardia</label>
                         <canvas id="signaturePad1" class="signature-pad w-full h-48 bg-gray-100"></canvas>
-                        <button type="button" id="clearSignature1" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <button type="button" id="clearSignature1"
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_guardia" id="firma_guardia">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Firma Supervisor</label>
                         <canvas id="signaturePad2" class="signature-pad w-full h-48 bg-gray-100"></canvas>
-                        <button type="button" id="clearSignature2" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <button type="button" id="clearSignature2"
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_supervisor" id="firma_supervisor">
                     </div>
                 </div>
             </div>
 
             <div class="flex justify-end pt-4">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
                     Enviar Log
                 </button>
             </div>
@@ -273,4 +317,5 @@
         });
     </script>
 </body>
+
 </html>

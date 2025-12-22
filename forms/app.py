@@ -563,17 +563,29 @@ def submit_informe_novedades_disciplinario():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        # [DEBUG] Start of execution
+        content_length = request.content_length
+        app_logger.info(f"[DEBUG] submit_informe_novedades_disciplinario started. Content-Length: {content_length}")
+
         anexos_urls = []
         if 'anexos_files' in request.files:
             files = request.files.getlist('anexos_files')
-            for file in files:
+            app_logger.info(f"[DEBUG] Processing {len(files)} files.")
+            for i, file in enumerate(files):
+                app_logger.info(f"[DEBUG] Uploading file {i+1}/{len(files)}: {file.filename} ({file.content_length if hasattr(file, 'content_length') else 'unk'} bytes)")
                 url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
                 if url:
                     anexos_urls.append(url)
+                    app_logger.info(f"[DEBUG] File {i+1} uploaded: {url}")
+                else:
+                    app_logger.warning(f"[DEBUG] File {i+1} failed to upload.")
+        else:
+             app_logger.info(f"[DEBUG] No 'anexos_files' in request.")
 
         anexos_str = "\n".join(anexos_urls) if anexos_urls else "No Aplica" if request.form.get('anexos_na') else ""
 
         fecha_hora_str = request.form.get('fecha_hora')
+        app_logger.info(f"[DEBUG] Parsing fecha_hora: {fecha_hora_str}")
         fecha = None
         hora = None
         if fecha_hora_str:
@@ -582,8 +594,10 @@ def submit_informe_novedades_disciplinario():
                 fecha = dt_obj.date()
                 hora = dt_obj.time()
             except ValueError:
+                app_logger.error(f"[DEBUG] Error parsing date: {fecha_hora_str}")
                 pass
-
+        
+        app_logger.info("[DEBUG] Constructing form_data dictionary.")
         form_data = {
             'nombre_responsable': request.form.get('nombre_responsable'),
             'realizado_por_cargo': request.form.get('rol_aplicador'),

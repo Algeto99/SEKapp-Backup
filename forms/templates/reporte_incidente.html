@@ -242,8 +242,10 @@
             </div>
             <div class="nav-links">
                 <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                {% if is_admin %}
                 <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
                 <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                {% endif %}
                 <a href="{{ url_for('select_form') }}" class="nav-link">Seleccionar Formulario</a>
                 <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
             </div>
@@ -466,18 +468,18 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
-                        // Initialize signature pad - FIXED VERSION
+            // Initialize signature pad - FIXED VERSION
             const canvas = document.getElementById('firma-pad');
             let savedSignatureImage = null;
-            
-            signaturePad = new SignaturePad(canvas, { 
-                penColor: 'rgb(0, 0, 0)', 
+
+            signaturePad = new SignaturePad(canvas, {
+                penColor: 'rgb(0, 0, 0)',
                 backgroundColor: 'rgb(255, 255, 255)',
                 minWidth: 0.5,
                 maxWidth: 2.5,
                 throttle: 0
             });
-            
+
             // Save signature as image after each stroke
             signaturePad.addEventListener('endStroke', () => {
                 if (!signaturePad.isEmpty()) {
@@ -488,24 +490,24 @@
             function resizeCanvas() {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const rect = canvas.getBoundingClientRect();
-                
+
                 canvas.width = rect.width * ratio;
                 canvas.height = rect.height * ratio;
                 canvas.getContext('2d').scale(ratio, ratio);
-                
+
                 // Restore from saved image
                 if (savedSignatureImage) {
                     const img = new Image();
-                    img.onload = function() {
+                    img.onload = function () {
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, rect.width, rect.height);
                     };
                     img.src = savedSignatureImage;
                 }
             }
-            
+
             resizeCanvas();
-            
+
             // Use ResizeObserver
             let resizeTimer;
             const resizeObserver = new ResizeObserver(() => {
