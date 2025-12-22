@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import re
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime, timezone, date, time
 from io import BytesIO
 
 from flask import Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
@@ -220,7 +220,7 @@ FORM_CONFIGS = {
     'reporte_incidente': {
         'table': 'reportes_incidentes',
         'id_col': 'id_reporte_incidente',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'user_email',
         'title_prefix': 'Reporte de Incidente',
         'joins': """
@@ -228,6 +228,7 @@ FORM_CONFIGS = {
             LEFT JOIN propiedades p ON t.cliente_instalacion = p.nombre
         """,
         'columns': """
+            t.creado_en,
             t.id_reporte_incidente,
             t.user_email,
             t.fecha_hora as date_submitted,
@@ -255,11 +256,11 @@ FORM_CONFIGS = {
     'mantenimiento_seguridad_fisica': {
         'table': 'mantenimiento_seguridad_fisica',
         'id_col': 'id_mantenimiento',
-        'date_col': 'fecha', 
+        'date_col': 'creado_en', 
         'user_col': 'submitted_by_email',
         'title_prefix': 'Mantenimiento Seguridad Física',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Fecha": "fecha",
             "Hora": "hora",
@@ -276,11 +277,11 @@ FORM_CONFIGS = {
     'medicion_experiencia_cliente': {
         'table': 'medicion_experiencia_cliente',
         'id_col': 'id_encuesta',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Medición Experiencia Cliente',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Cliente/Instalación": "cliente_instalacion",
             "Fecha/Hora": "fecha_hora",
@@ -294,11 +295,11 @@ FORM_CONFIGS = {
     'supervision_puesto': {
         'table': 'supervision_puesto',
         'id_col': 'id_supervision',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Supervisión de Puesto',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Cliente/Instalación": "cliente_instalacion",
             "Fecha/Hora": "fecha_hora",
@@ -311,11 +312,11 @@ FORM_CONFIGS = {
     'informe_novedades_disciplinario': {
         'table': 'informe_novedades_disciplinario',
         'id_col': 'id_informe',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Informe Disciplinario',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Empleado": "empleado_nombre",
             "Cargo": "empleado_cargo",
@@ -328,11 +329,11 @@ FORM_CONFIGS = {
     'log_de_patrullas': {
         'table': 'log_de_patrullas',
         'id_col': 'id_patrulla',
-        'date_col': 'fecha',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Log de Patrullas',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Guardia": "id_guardia_nombre_guardia",
             "Sitio": "sitio_ubicacion",
@@ -346,11 +347,11 @@ FORM_CONFIGS = {
     'registro_de_capacitaciones': {
         'table': 'registro_de_capacitaciones',
         'id_col': 'id_capacitacion',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Registro de Capacitaciones',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Capacitación": "nombre_capacitacion",
             "Objetivo": "objetivo_capacitacion",
@@ -362,11 +363,11 @@ FORM_CONFIGS = {
     'registro_y_acta_de_visita': {
         'table': 'registro_y_acta_de_visita',
         'id_col': 'id_visita',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Acta de Visita',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Cliente": "cliente_instalacion",
             "Motivo": "motivo_visita",
@@ -379,11 +380,11 @@ FORM_CONFIGS = {
     'planilla_vehicular': {
         'table': 'planilla_vehicular',
         'id_col': 'id_planilla_vehicular',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Planilla Vehicular',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Placa": "placa_vehiculo",
             "Kilometraje": "kilometraje_vehiculo",
@@ -395,11 +396,11 @@ FORM_CONFIGS = {
     'planilla_motocicletas': {
         'table': 'planilla_motocicletas',
         'id_col': 'id',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Planilla Motocicletas',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Placa": "placa_motocicleta",
             "Kilometraje": "kilometraje_motocicleta",
@@ -411,11 +412,11 @@ FORM_CONFIGS = {
     'orden_mantenimiento': {
         'table': 'orden_mantenimiento',
         'id_col': 'id_orden',
-        'date_col': 'fecha_hora',
+        'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Orden de Mantenimiento',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Cliente": "cliente_instalacion",
             "Técnico": "nombre_tecnico",
@@ -427,11 +428,11 @@ FORM_CONFIGS = {
     'checklist_cumplimiento': {
         'table': 'checklist_cumplimiento',
         'id_col': 'id',
-        'date_col': 'fecha_hora',
+        'date_col': 'created_at',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Checklist Cumplimiento',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.*, u.name as user_name",
+        'columns': "t.created_at, t.*, u.name as user_name",
         'data_mapping': {
             "Cliente": "cliente_instalacion",
             "Auditor": "nombre_auditor",
@@ -549,20 +550,44 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
 
                 # Map data
                 mapped_data = {}
+                processed_cols = set() # Keep track of columns already processed
+
+                # 1. Process explicit data_mapping first
                 for label, col_name in config['data_mapping'].items():
-                    val = row_dict.get(label)
-                    
-                    # Handle GCS URLs signing
+                    val = row_dict.get(col_name)
+                    processed_cols.add(col_name) # Mark as processed
+
+                    # Handle GCS URLs signing for specific labels
                     if label == 'URLs de Imágenes o PDFs' and val:
-                         signed_urls = []
-                         for url in str(val).split('\n'):
-                             url = url.strip()
-                             if url:
-                                 signed_urls.append(generate_signed_url(url))
-                         val = '\n'.join(signed_urls)
+                        signed_urls = []
+                        for url in str(val).split('\n'):
+                            url = url.strip()
+                            if url:
+                                signed_urls.append(generate_signed_url(url))
+                        val = '\n'.join(signed_urls)
+                    # Sign signatures if they are GCS URLs
+                    elif 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                         val = generate_signed_url(val)
 
                     mapped_data[label] = val
 
+                # 2. Add unmapped fields, filtering out system columns
+                system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name'}
+                for col_name, val in row_dict.items():
+                    if col_name not in processed_cols and col_name not in system_cols:
+                        # Sign signatures if they are GCS URLs
+                        if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                             val = generate_signed_url(val)
+                             
+                        # Convert snake_case to Title Case for display
+                        display_label = ' '.join(word.capitalize() for word in col_name.split('_'))
+                        
+                        # Handle Date/Time objects for JSON serialization
+                        if isinstance(val, (datetime, date, time)):
+                            val = str(val)
+                            
+                        mapped_data[display_label] = val
+                
                 report = {
                     "id": row_dict.get(config['id_col']),
                     "title": f"{config['title_prefix']} #{row_dict.get(config['id_col'])}",
@@ -651,8 +676,12 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
 
             # Map data fields
             data_content = {}
+            processed_cols = set()
+            
+            # 1. Process explicit data_mapping first
             for label, col_name in config['data_mapping'].items():
                 val = row_dict.get(col_name)
+                processed_cols.add(col_name)
                 
                 # Generate signed URLs for image/pdf columns
                 if val and (label == "URLs de Imágenes o PDFs" or col_name == 'foto_evidencia_url'):
@@ -661,8 +690,28 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
                     for url in urls:
                         signed_urls.append(generate_signed_url(url.strip()))
                     val = '\n'.join(signed_urls)
+                # Sign signatures if they are GCS URLs
+                elif 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                     val = generate_signed_url(val)
 
                 data_content[label] = str(val) if val is not None else "N/A"
+
+            # 2. Add unmapped fields, filtering out system columns
+            system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name'}
+            for col_name, val in row_dict.items():
+                if col_name not in processed_cols and col_name not in system_cols:
+                    # Sign signatures if they are GCS URLs
+                    if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                         val = generate_signed_url(val)
+                         
+                    # Convert snake_case to Title Case for display
+                    display_label = ' '.join(word.capitalize() for word in col_name.split('_'))
+                    
+                    # Handle Date/Time objects for JSON serialization
+                    if isinstance(val, (datetime, date, time)):
+                        val = str(val)
+
+                    data_content[display_label] = str(val) if val is not None else "N/A"
 
             forms_data = {
                 "id": row_dict[config['id_col']],
