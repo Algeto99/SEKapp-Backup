@@ -229,28 +229,28 @@ FORM_CONFIGS = {
         """,
         'columns': """
             t.creado_en,
-            t.id_reporte_incidente,
-            t.user_email,
-            t.fecha_hora as date_submitted,
-            t.tipo_incidente AS titulo_incidencia,
-            t.descripcion_incidente,
-            t.nombre_responsable AS supervisor_name,
-            t.fecha_hora AS fecha_incidente,
-            t.cliente_instalacion AS tipo_cliente,
-            t.puesto_area_especifica AS lugar_incidente,
+            t.*,
             COALESCE(p.nombre, t.cliente_instalacion) AS propiedad_nombre,
-            t.foto_evidencia_url AS imagenes_pdfs,
             u.name AS user_name
         """,
         'data_mapping': {
-            "Título de Incidencia": "titulo_incidencia",
-            "Tipo de Cliente": "tipo_cliente",
-            "Lugar del Incidente": "lugar_incidente",
+            "Título de Incidencia": "tipo_incidente",
+            "Tipo de Cliente": "cliente_instalacion",
+            "Lugar del Incidente": "puesto_area_especifica",
             "Propiedad": "propiedad_nombre",
-            "Fecha del Incidente": "fecha_incidente",
+            "Fecha del Incidente": "fecha_hora",
             "Descripción del Incidente": "descripcion_incidente",
-            "Nombre del Supervisor": "supervisor_name",
-            "URLs de Imágenes o PDFs": "imagenes_pdfs"
+            "Nombre del Supervisor": "nombre_responsable",
+            "URLs de Imágenes o PDFs": "foto_evidencia_url",
+            "Nivel Severidad": "nivel_severidad",
+            "Impacto": "impacto",
+            "Tiempo Resolución (min)": "tiempo_resolucion_min",
+            "Responsable Asignado": "responsable_asignado",
+            "Estado": "estado",
+            "Descripción Impacto": "descripcion_impacto",
+            "Categoría": "categoria",
+            "ID Propiedad": "id_propiedad",
+            "Firma Responsable": "firma_responsable"
         }
     },
     'mantenimiento_seguridad_fisica': {
@@ -271,7 +271,17 @@ FORM_CONFIGS = {
             "Tipo de Servicio": "tipo_servicio",
             "Actividad Realizada": "actividad_realizada",
             "Resultado": "resultado",
-            "Observaciones": "observaciones"
+            "Observaciones": "observaciones",
+            "Downtime (Horas)": "downtime_horas",
+            "Repuestos Usados": "repuestos_usados",
+            "Tipo de Alerta": "tipo_alerta_generada",
+            "Descripción Alerta": "descripcion_alerta_critica",
+            "Acción Inmediata": "accion_inmediata_critica",
+            "Acción Correctiva": "accion_correctiva_recomendada",
+            "Responsable Crítica": "responsable_asignado_critica",
+            "Fecha Límite": "fecha_limite_cierre_critica",
+            "Estado Crítica": "estado_critica",
+            "Firma Usuario": "firma_usuario"
         }
     },
     'medicion_experiencia_cliente': {
@@ -289,7 +299,21 @@ FORM_CONFIGS = {
             "Comunicación": "comunicacion",
             "Confiabilidad": "confiabilidad",
             "NPS": "calificacion_global_nps",
-            "Observaciones": "observaciones_cliente"
+            "Observaciones": "observaciones_cliente",
+            "Empresa/Sitio": "empresa_sitio",
+            "Sitio Local": "sitio_local",
+            "Cliente Encargado": "cliente_encargado",
+            "Cargo Encuestado": "cargo_encuestado",
+            "Recomendaría Servicio": "recomendaria_servicio",
+            "Categoría Evaluada": "categoria_evaluada",
+            "Encuestado": "encuestado",
+            "Firma Encuestado": "firma_encuestado",
+            "Firma Responsable": "firma_responsable",
+            "Capacidad Reacción": "capacidad_reaccion",
+            "Cumplimiento": "cumplimiento",
+            "Competencia Personal": "competencia_personal",
+            "Actitud Servicio": "actitud_servicio",
+            "Atención Quejas": "atencion_quejas"
         }
     },
     'supervision_puesto': {
@@ -306,7 +330,33 @@ FORM_CONFIGS = {
             "Supervisor": "supervisor",
             "Puesto/Área": "puesto_area_especifica",
             "Nombre Guardia": "nombre_guardia",
-            "Observaciones": "observaciones_novedades"
+            "Observaciones": "observaciones_novedades",
+            "Ruta": "ruta",
+            "Cliente": "cliente",
+            "Dirección": "direccion",
+            "Documento Guardia": "documento_guardia",
+            "Serie Arma": "serie_arma",
+            "Cantidad Munición": "cantidad_municion",
+            "Realiza Inducción": "realiza_induccion",
+            "Conoce Consignas": "conoce_consignas",
+            "Horario Claro": "horario_claro",
+            "Asistencia/Puntualidad": "asistencia_puntualidad",
+            "Presentación Uniforme": "presentacion_uniforme",
+            "Estado Limpieza": "estado_limpieza_puesto",
+            "Equipamiento Completo": "equipamiento_completo",
+            "Conoce Misión/Visión": "conoce_mision_vision",
+            "Estado Bitácora": "estado_bitacora",
+            "Firma Guardia": "firma_guardia",
+            "Foto Evidencia": "foto_evidencia_url",
+            "Conoce Ordenes": "conoce_ordenes_consignas",
+            "Horario Detalles": "horario_detalles_claros",
+            "Nombre Guardia Firma": "nombre_guardia_firma",
+            "Detalles Puestos": "detalles_puestos",
+            "Porta Arma": "porta_arma",
+            "Conoce Política": "conoce_politica",
+            "Número Empleado": "numero_empleado",
+            "Rol Aplicador": "rol_aplicador",
+            "Firma Supervisor": "firma_supervisor"
         }
     },
     'informe_novedades_disciplinario': {
@@ -323,7 +373,20 @@ FORM_CONFIGS = {
             "Tipo Novedad": "tipo_novedad",
             "Descripción": "descripcion_novedad",
             "Sitio": "sitio_ocurrencia",
-            "Fecha/Hora": "fecha_hora"
+            "Fecha/Hora": "fecha_hora",
+            "Responsable": "nombre_responsable",
+            "Realizado Por Cargo": "realizado_por_cargo",
+            "Dirigido A": "dirigido_a",
+            "Empleado Número": "empleado_numero",
+            "Empleado Documento": "empleado_documento",
+            "Otras Personas": "otras_personas_involucradas",
+            "Anexos": "anexos",
+            "Firma Responsable": "firma_responsable",
+            "Firma Recibido": "firma_recibido_revisado",
+            "Rol Aplicador": "rol_aplicador",
+            "Turno": "turno",
+            "Recibido Por Nombre": "recibido_revisado_por_nombre",
+            "Recibido Por Cargo": "recibido_revisado_por_cargo"
         }
     },
     'log_de_patrullas': {
@@ -341,7 +404,13 @@ FORM_CONFIGS = {
             "Hora Inicio": "hora_inicio",
             "Hora Fin": "hora_fin",
             "Nivel Riesgo": "nivel_riesgo",
-            "Estado": "estado_patrulla"
+            "Estado": "estado_patrulla",
+            "Patrulla ID": "id_patrulla_consecutivo",
+            "Detalles Incidente": "detalles_incidente",
+            "Riesgo Detectado": "riesgo_detectado",
+            "Contexto": "contexto_observaciones",
+            "Firma Guardia": "firma_guardia",
+            "Firma Supervisor": "firma_supervisor"
         }
     },
     'registro_de_capacitaciones': {
@@ -357,7 +426,11 @@ FORM_CONFIGS = {
             "Objetivo": "objetivo_capacitacion",
             "Responsable": "nombre_responsable",
             "Fecha/Hora": "fecha_hora",
-            "Nivel Comprensión": "nivel_comprension"
+            "Nivel Comprensión": "nivel_comprension",
+            "Observaciones": "observaciones_retroalimentacion",
+            "Lista Asistencia": "lista_asistencia",
+            "Práctica Realizada": "practica_simulacro_realizado",
+            "Recomendaciones": "recomendaciones"
         }
     },
     'registro_y_acta_de_visita': {
@@ -374,7 +447,23 @@ FORM_CONFIGS = {
             "Visitante": "nombre_visitante",
             "Fecha/Hora": "fecha_hora",
             "Temas Tratados": "temas_tratados",
-            "Acuerdos": "acuerdos_compromisos"
+            "Acuerdos": "acuerdos_compromisos",
+            "Rol Aplicador": "rol_aplicador",
+            "Turno": "turno",
+            "Visita Realizada Por": "visita_realizada_por",
+            "Firma Visitante": "firma_visitante",
+            "Objetivo": "objetivo_reunion",
+            "Actividades": "actividades_realizadas",
+            "Satisfacción": "satisfaccion_cliente",
+            "Comentarios": "comentarios_satisfaccion",
+            "Compromisos": "compromisos_adquiridos",
+            "Compromisos Responsable": "compromisos_responsable",
+            "Compromisos Fecha": "compromisos_fecha_limite",
+            "Atendió": "persona_atendio",
+            "Cargo Atendió": "cargo_atendio",
+            "Teléfono": "telefono_contacto",
+            "Detalles Participantes": "detalles_participantes",
+            "Cargo Visitante": "cargo_visitante"
         }
     },
     'planilla_vehicular': {
@@ -390,7 +479,43 @@ FORM_CONFIGS = {
             "Kilometraje": "kilometraje_vehiculo",
             "Responsable": "nombre_responsable",
             "Fecha/Hora": "fecha_hora",
-            "Novedades Críticas": "novedades_criticas"
+            "Novedades Críticas": "novedades_criticas",
+            "Rol Aplicador": "rol_aplicador",
+            "Turno": "turno",
+            "Firma Responsable": "firma_responsable",
+            "Km Entrega": "kilometraje_entrega",
+            "Km Salida": "kilometraje_salida",
+            "Estado Rines": "estado_rines",
+            "Juego Señales": "juego_senales_carretera",
+            "Gato Hidráulico": "gato_hidraulico",
+            "Palanca Gato": "palanca_gato",
+            "Estado Asientos": "estado_asientos",
+            "Estado Tapetes": "estado_tapetes_alfombras",
+            "Limpieza Carrocería": "limpieza_carroceria",
+            "Luces Delanteras": "luces_delanteras",
+            "Luces Direccionales": "luces_direccionales",
+            "Luces Traseras": "luces_traseras",
+            "Parabrisas Delantero": "parabrisas_delantero",
+            "Parabrisas Trasero": "parabrisas_trasero",
+            "Defensa Delantera": "defensa_delantera",
+            "Defensa Trasera": "defensa_trasera",
+            "Puertas/Vidrios": "puertas_vidrios",
+            "Tapa Radiador": "tapa_radiador",
+            "Tapa Aceite": "tapa_aceite_motor",
+            "Batería Tapa": "bateria_tapa",
+            "Espejo Interno": "espejo_retrovisor_interno",
+            "Espejos Externos": "espejos_retrovisores_externos",
+            "Limpiabrisas": "limpia_brisas",
+            "Antena Radio": "antena_radio",
+            "Radio Funciona": "radio_funciona",
+            "Llanta Repuesto": "llanta_repuesto",
+            "Aire Acondicionado": "aire_acondicionado",
+            "Diagrama Daños": "diagrama_danos",
+            "Acción Inmediata": "accion_inmediata",
+            "Firma Entrega": "firma_entrega",
+            "Firma Recibe": "firma_recibe",
+            "Oficial Operaciones": "oficial_operaciones_nombre",
+            "Firma Oficial": "oficial_operaciones_firma"
         }
     },
     'planilla_motocicletas': {
@@ -406,7 +531,43 @@ FORM_CONFIGS = {
             "Kilometraje": "kilometraje_motocicleta",
             "Responsable": "nombre_responsable",
             "Fecha/Hora": "fecha_hora",
-            "Novedades Críticas": "novedades_criticas_detectadas"
+            "Novedades Críticas": "novedades_criticas_detectadas",
+            "Rol Aplicador": "rol_aplicador",
+            "Turno": "turno",
+            "Km Entrega": "kilometraje_entrega",
+            "Km Salida": "kilometraje_salida",
+            "Estado Neumáticos": "estado_neumaticos",
+            "Estado Rines": "estado_rines",
+            "Equipo Carretera": "equipo_carretera",
+            "Kit Arrastre": "estado_kit_arrastre",
+            "Palanca Soporte": "estado_palanca_soporte",
+            "Forro Asiento": "estado_forro_asiento",
+            "Tapas Derecha": "estado_tapas_derecha",
+            "Direccionales Derecha": "estado_luces_direccionales_derecha",
+            "Luces Delanteras": "estado_luces_delanteras",
+            "Guardafango Delantero": "estado_guarda_fango_delantero",
+            "Freno Delantero": "estado_sistema_freno_delantero",
+            "Manillar Embrague": "estado_manillar_embrague",
+            "Manillar Freno": "estado_manillar_freno_delantero",
+            "Manómetros": "estado_manometros_indicadores",
+            "Tanque Combustible": "estado_tanque_combustible",
+            "Tapa Tanque": "tapa_tanque_combustible",
+            "Espejos Retrovisores": "espejos_retrovisores",
+            "Tapa Aceite": "tapa_aceite_motor",
+            "Batería Tapa": "bateria_tapa",
+            "Luces Izquierda": "estado_luces_izquierda",
+            "Direccionales Izquierda": "estado_luces_direccionales_izquierda",
+            "Luz Trasera": "estado_luz_trasera",
+            "Guardafango Trasero": "estado_guarda_fango_trasero",
+            "Tubo Escape": "estado_tubo_escape",
+            "Palanca Freno": "estado_palanca_freno",
+            "Palanca Cambios": "estado_palanca_cambios",
+            "Acción Inmediata": "accion_inmediata_tomada",
+            "Firma Entrega": "firma_entrega",
+            "Firma Recibe": "firma_recibe",
+            "Firma Responsable": "firma_responsable",
+            "Oficial Operaciones": "oficial_operaciones_nombre",
+            "Firma Oficial": "oficial_operaciones_firma"
         }
     },
     'orden_mantenimiento': {
@@ -422,7 +583,21 @@ FORM_CONFIGS = {
             "Técnico": "nombre_tecnico",
             "Fecha/Hora": "fecha_hora",
             "Equipo": "equipo",
-            "Tipo Servicio": "tipo_servicio"
+            "Tipo Servicio": "tipo_servicio",
+            "Puesto/Area": "puesto_area",
+            "Rol Aplicador": "rol_aplicador",
+            "Turno": "turno",
+            "Firma Técnico": "firma_tecnico",
+            "ID Equipo": "id_equipo_serial",
+            "Actividad": "actividad_realizada",
+            "Downtime": "downtime_horas",
+            "Repuestos": "repuestos_usados",
+            "Observaciones": "observaciones",
+            "Tipo Clasificación": "tipo_servicio_clasificacion",
+            "Resultado Clasificación": "resultado_clasificacion",
+            "Alerta Clasificación": "tipo_alerta_clasificacion",
+            "Detalles Equipos": "detalles_equipos",
+            "Foto Evidencia": "foto_evidencia_url"
         }
     },
     'checklist_cumplimiento': {
@@ -438,7 +613,26 @@ FORM_CONFIGS = {
             "Auditor": "nombre_auditor",
             "Agente": "agente_nombre_completo",
             "Fecha/Hora": "fecha_hora",
-            "Nivel Cumplimiento": "nivel_cumplimiento"
+            "Nivel Cumplimiento": "nivel_cumplimiento",
+            "Turno": "turno",
+            "Firma Auditor": "firma_auditor",
+            "Rol Aplicador": "rol_aplicador",
+            "Agente Tipo Doc": "agente_tipo_documento",
+            "Agente Nro Doc": "agente_numero_documento",
+            "Agente Cargo": "agente_cargo_rol",
+            "Agente Puesto": "agente_puesto",
+            "Curso Certificación": "curso_certificacion",
+            "Academia": "academia_certifica",
+            "Nro Resolución": "nro_resolucion",
+            "Fecha Resolución": "fecha_resolucion",
+            "Vigencia Desde": "vigencia_desde",
+            "Vigencia Hasta": "vigencia_hasta",
+            "Evidencia URL": "evidencia_url",
+            "Copia Certificados": "copia_certificados_fisica",
+            "Certificados Sistema": "certificados_cargados_sistema",
+            "Doc Coincide HV": "documentacion_coincide_hv",
+            "Fechas Vigentes": "fechas_vigentes",
+            "Firma Guardia": "firma_guarda_supervisado"
         }
     }
 }
@@ -736,6 +930,44 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
             conn.close()
             app_logger.info("Database connection closed in fetch_reports_by_ids.")
     return reports
+
+def fetch_reports_mixed(items):
+    """
+    Fetches reports from multiple tables based on a list of item dicts.
+    Each item in 'items' should be a dict with: {'id': int/str, 'formType': str}
+    Returns a unified list of report objects.
+    """
+    if not items:
+        return []
+
+    # Group IDs by formType
+    ids_by_type = {}
+    for item in items:
+        f_type = item.get('formType', 'reporte_incidente')
+        r_id = item.get('id')
+        
+        if not r_id:
+            continue
+            
+        if f_type not in ids_by_type:
+            ids_by_type[f_type] = []
+        ids_by_type[f_type].append(r_id)
+
+    all_reports = []
+    
+    # Fetch for each type
+    for f_type, ids in ids_by_type.items():
+        if not ids:
+            continue
+        app_logger.info(f"fetch_reports_mixed: Fetching {len(ids)} reports of type {f_type}")
+        type_reports = fetch_reports_by_ids(ids, form_type=f_type)
+        all_reports.extend(type_reports)
+
+    # Sort combined results by date (submitted at)
+    # The 'dateSubmitted' field is a string, so sorting might be imperfect if format varies, but usually YYYY-MM-DD HH:MM:SS
+    all_reports.sort(key=lambda x: str(x.get('dateSubmitted', '')), reverse=True)
+    
+    return all_reports
 
 def send_reports_email(recipient_email, subject, body, is_html=False):
     # Retrieve email credentials - using provided values and Secret Manager for password
@@ -1064,20 +1296,26 @@ def get_single_report(report_id):
 def email_selected_reports_api():
     user_email = get_jwt_identity()
     data = request.get_json()
-    report_ids = data.get('report_ids')
-    recipient_email = data.get('recipient_email')
+    requests_payload = data.get('reports') # New format: list of {id, formType}
+    report_ids = data.get('report_ids') # Old format: list of ids (ints)
 
-    if not report_ids or not isinstance(report_ids, list):
-        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
+    if not requests_payload and not report_ids:
+        return jsonify({"success": False, "message": "No reports provided."}), 400
+        
     if not recipient_email or not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", recipient_email):
         return jsonify({"success": False, "message": "Invalid recipient email address."}), 400
 
-    app_logger.info(f"User {user_email} requested to email reports {report_ids} to {recipient_email}")
+    app_logger.info(f"User {user_email} requested to email reports to {recipient_email}")
 
-    reports_to_email = fetch_reports_by_ids(report_ids)
+    reports_to_email = []
+    if requests_payload:
+        reports_to_email = fetch_reports_mixed(requests_payload)
+    elif report_ids:
+        # Fallback for backward compatibility
+        reports_to_email = fetch_reports_by_ids(report_ids)
 
     if not reports_to_email:
-        app_logger.warning(f"No reports found for the provided IDs during email request: {report_ids}")
+        app_logger.warning(f"No reports found for the provided items during email request.")
         return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
 
     subject = f"Reportes de Incidencias Seleccionados ({len(reports_to_email)} Reportes)"
@@ -1174,12 +1412,13 @@ def export_excel():
     """Export selected reports to Excel format"""
     user_email = get_jwt_identity()
     data = request.get_json()
+    requests_payload = data.get('reports') # New format: list of {id, formType}
     report_ids = data.get('report_ids')
 
-    if not report_ids or not isinstance(report_ids, list):
-        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
+    if not requests_payload and not report_ids:
+        return jsonify({"success": False, "message": "No reports provided."}), 400
 
-    app_logger.info(f"User {user_email} requested Excel export for reports {report_ids}")
+    app_logger.info(f"User {user_email} requested Excel export")
 
     try:
         # Import openpyxl for Excel generation
@@ -1192,10 +1431,14 @@ def export_excel():
             return jsonify({"success": False, "message": "Excel export not available. Missing required dependencies."}), 500
 
         # Fetch the reports
-        reports_to_export = fetch_reports_by_ids(report_ids)
+        reports_to_export = []
+        if requests_payload:
+             reports_to_export = fetch_reports_mixed(requests_payload)
+        elif report_ids:
+             reports_to_export = fetch_reports_by_ids(report_ids)
 
         if not reports_to_export:
-            app_logger.warning(f"No reports found for the provided IDs during Excel export: {report_ids}")
+            app_logger.warning(f"No reports found for the provided IDs during Excel export.")
             return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
 
         # Create Excel workbook
@@ -1259,14 +1502,90 @@ def export_excel():
                 ws.cell(row=row, column=3, value=report['dateSubmitted']).border = border
 
                 # Dynamic data
+                max_row_height = 25 # Default height
+                
                 for i, header_key in enumerate(dynamic_headers):
                     # Map header key to data key using config
                     data_key = header_key # The keys in report['data'] match the keys in data_mapping (labels)
                     val = report['data'].get(data_key, '')
                     
-                    cell = ws.cell(row=row, column=4 + i, value=str(val) if val else '')
+                    col_index = 4 + i
+                    cell = ws.cell(row=row, column=col_index, value=str(val) if val else '')
                     cell.border = border
                     cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+                    # Image Embedding Logic
+                    is_image_field = any(keyword in header_key.lower() for keyword in ['firma', 'foto', 'evidencia', 'diagrama', 'imagen'])
+                    
+                    if is_image_field and val and isinstance(val, str):
+                        try:
+                            from openpyxl.drawing.image import Image as OpenpyxlImage
+                            import base64
+                            
+                            img_file = None
+                            
+                            # Case A: Base64 Data URI
+                            if val.strip().startswith('data:image'):
+                                try:
+                                    # Format: data:image/png;base64,.....
+                                    header, encoded = val.strip().split(',', 1)
+                                    img_bytes = base64.b64decode(encoded)
+                                    img_file = BytesIO(img_bytes)
+                                    cell.value = "Firma Digital" # Set friendly text
+                                    cell.hyperlink = None # No external link for base64
+                                except Exception as e:
+                                    app_logger.error(f"Error processing base64 image: {e}")
+                                    
+                            # Case B: URL (HTTP/GCS)
+                            elif 'http' in val or 'storage.googleapis.com' in val:
+                                # Handle multiple images (newlines)
+                                urls = val.split('\n')
+                                
+                                valid_url = None
+                                for u in urls:
+                                    if u.strip():
+                                        valid_url = u.strip()
+                                        break
+                                
+                                if valid_url:
+                                    # Download image
+                                    res = requests.get(valid_url, stream=True, timeout=10)
+                                    if res.status_code == 200:
+                                        img_file = BytesIO(res.content)
+                                        cell.value = "Ver Imagen Original"
+                                        cell.hyperlink = valid_url
+                                        cell.style = "Hyperlink"
+
+                            # If we successfully got an image file, resize and place it
+                            if img_file:
+                                img = OpenpyxlImage(img_file)
+                                
+                                # Resize image (thumbnail)
+                                # Target height ~80px
+                                aspect_ratio = img.width / img.height
+                                new_height = 80
+                                new_width = int(new_height * aspect_ratio)
+                                
+                                img.height = new_height
+                                img.width = new_width
+                                
+                                # Anchor to cell
+                                col_letter = get_column_letter(col_index)
+                                cell_address = f"{col_letter}{row}"
+                                img.anchor = cell_address
+                                
+                                ws.add_image(img)
+                                
+                                # Update max row height needed
+                                max_row_height = max(max_row_height, 90)
+
+                        except Exception as e:
+                            app_logger.error(f"Error embedding image for field {header_key}: {e}")
+                            # Keep original text value
+                            pass
+
+                # Set row height
+                ws.row_dimensions[row].height = max_row_height
 
             # Auto-adjust column widths
             for col in range(1, len(headers) + 1):
@@ -1323,19 +1642,24 @@ def generate_pdf():
     """Generate PDF for selected reports using WeasyPrint"""
     user_email = get_jwt_identity()
     data = request.get_json()
+    requests_payload = data.get('reports') # New format: list of {id, formType}
     report_ids = data.get('report_ids')
 
-    if not report_ids or not isinstance(report_ids, list):
-        return jsonify({"success": False, "message": "No report IDs provided or invalid format."}), 400
+    if not requests_payload and not report_ids:
+        return jsonify({"success": False, "message": "No reports provided."}), 400
 
-    app_logger.info(f"User {user_email} requested PDF generation for reports {report_ids}")
+    app_logger.info(f"User {user_email} requested PDF generation")
 
     try:
         # Fetch the reports
-        reports_to_pdf = fetch_reports_by_ids(report_ids)
+        reports_to_pdf = []
+        if requests_payload:
+            reports_to_pdf = fetch_reports_mixed(requests_payload)
+        elif report_ids:
+            reports_to_pdf = fetch_reports_by_ids(report_ids)
 
         if not reports_to_pdf:
-            app_logger.warning(f"No reports found for the provided IDs during PDF request: {report_ids}")
+            app_logger.warning(f"No reports found for the provided IDs during PDF request.")
             return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
 
         # Generate HTML content for PDF

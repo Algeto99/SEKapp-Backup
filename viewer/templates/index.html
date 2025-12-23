@@ -1322,7 +1322,13 @@
                 return;
             }
 
-            const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
+            const reports = Array.from(checkedCheckboxes).map(checkbox => {
+                const block = checkbox.closest('.report-block');
+                return {
+                    id: parseInt(checkbox.dataset.reportId),
+                    formType: block.dataset.formType || 'reporte_incidente'
+                };
+            });
 
             // Prompt for filename
             let filename = prompt("Ingrese un nombre para el archivo PDF (opcional):");
@@ -1335,7 +1341,7 @@
                         'Accept': 'application/pdf'
                     },
                     body: JSON.stringify({
-                        report_ids: reportIds,
+                        reports: reports,
                         filename: filename
                     })
                 });
@@ -1385,7 +1391,13 @@
                 return;
             }
 
-            const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
+            const reports = Array.from(checkedCheckboxes).map(checkbox => {
+                const block = checkbox.closest('.report-block');
+                return {
+                    id: parseInt(checkbox.dataset.reportId),
+                    formType: block.dataset.formType || 'reporte_incidente'
+                };
+            });
 
             // Prompt for filename
             let filename = prompt("Ingrese un nombre para el archivo Excel (opcional):");
@@ -1398,7 +1410,7 @@
                         'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                     },
                     body: JSON.stringify({
-                        report_ids: reportIds,
+                        reports: reports,
                         filename: filename
                     })
                 });
@@ -1479,7 +1491,7 @@
         }
 
         // --- Email Modal Functions ---
-        async function sendEmailWithReports(recipientEmail, reportIds) {
+        async function sendEmailWithReports(recipientEmail, reports) {
             try {
                 const response = await fetch('/api/email-reports', {
                     method: 'POST',
@@ -1487,7 +1499,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        report_ids: reportIds,
+                        reports: reports,
                         recipient_email: recipientEmail
                     })
                 });
@@ -1597,10 +1609,26 @@
                 event.preventDefault();
                 const recipientEmail = document.getElementById('recipient-email').value;
                 const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-                const reportIds = Array.from(checkedCheckboxes).map(checkbox => parseInt(checkbox.dataset.reportId));
+                const reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
 
-                await sendEmailWithReports(recipientEmail, reportIds);
+                const submitButton = event.target.querySelector('button[type="submit"]');
+                const originalText = submitButton.textContent;
+                submitButton.disabled = true;
+                submitButton.textContent = 'Enviando...';
+
+                await sendEmailWithReports(recipientEmail, reports);
+
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
             });
+
+
 
             // Close modal when clicking outside
             document.getElementById('email-modal').addEventListener('click', (event) => {
