@@ -15,6 +15,8 @@ import socket
 from google.api_core.exceptions import NotFound
 import urllib.parse as urlparse
 import re
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 # --- Logger Setup ---
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +25,14 @@ app_logger = logging.getLogger('app')
 # --- Flask App Setup ---
 app = Flask(__name__)
 GCS_BUCKET_NAME = 'smt-uploads' # Make sure this bucket exists and permissions are set
+
+# Initialize GCS client lazily or globally if environment is ready
+try:
+    gcs_client = storage.Client()
+    logging.info("Global GCS Client initialized successfully.")
+except Exception as e:
+    logging.warning(f"Failed to initialize global GCS Client: {e}")
+    gcs_client = None
 
 def configure_app(app):
     is_production = os.getenv("K_SERVICE") is not None
@@ -113,13 +123,20 @@ def upload_file_to_gcs(file, bucket_name):
     if not file or not file.filename:
         return None
     try:
-        client = storage.Client()
+        # Use global client if available, else fallback (though global should be preferred)
+        global gcs_client
+        client = gcs_client if gcs_client else storage.Client()
+        
         bucket = client.bucket(bucket_name)
         unique_filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
         blob = bucket.blob(unique_filename)
-        app_logger.info(f"Starting upload for file: {unique_filename} to bucket {bucket_name}")
+        # app_logger.info(f"Starting upload for file: {unique_filename} to bucket {bucket_name}")
+        
+        start_time = time.time()
         blob.upload_from_file(file, content_type=file.content_type)
-        app_logger.info(f"File {unique_filename} uploaded to {bucket_name}.")
+        duration = time.time() - start_time
+        
+        app_logger.info(f"File {unique_filename} uploaded to {bucket_name} in {duration:.2f}s.")
         return f"https://storage.googleapis.com/{bucket.name}/{blob.name}"
     except Exception as e:
         app_logger.error(f"Error uploading file to GCS: {e}", exc_info=True)
@@ -570,15 +587,30 @@ def submit_informe_novedades_disciplinario():
         anexos_urls = []
         if 'anexos_files' in request.files:
             files = request.files.getlist('anexos_files')
-            app_logger.info(f"[DEBUG] Processing {len(files)} files.")
-            for i, file in enumerate(files):
-                app_logger.info(f"[DEBUG] Uploading file {i+1}/{len(files)}: {file.filename} ({file.content_length if hasattr(file, 'content_length') else 'unk'} bytes)")
-                url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
-                if url:
-                    anexos_urls.append(url)
-                    app_logger.info(f"[DEBUG] File {i+1} uploaded: {url}")
-                else:
-                    app_logger.warning(f"[DEBUG] File {i+1} failed to upload.")
+            file_count = len(files)
+            app_logger.info(f"[DEBUG] Processing {file_count} files for upload.")
+            
+            # Use ThreadPoolExecutor for parallel uploads
+            start_upload_time = time.time()
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # We need to map the function to the files, but we also need to pass bucket_name
+                # Partial or lambda is good here
+                futures = [executor.submit(upload_file_to_gcs, file, GCS_BUCKET_NAME) for file in files]
+                
+                for i, future in enumerate(futures):
+                    try:
+                        url = future.result() # This will block until the specific future is done
+                        if url:
+                            anexos_urls.append(url)
+                            # app_logger.info(f"[DEBUG] File {i+1} uploaded successfully.")
+                        else:
+                            app_logger.warning(f"[DEBUG] File {i+1} returned None.")
+                    except Exception as exc:
+                        app_logger.error(f"[DEBUG] File {i+1} generated an exception: {exc}")
+
+            total_upload_time = time.time() - start_upload_time
+            app_logger.info(f"[DEBUG] All {file_count} files processed in {total_upload_time:.2f}s. Validation: {len(anexos_urls)}/{file_count} successful.")
+
         else:
              app_logger.info(f"[DEBUG] No 'anexos_files' in request.")
 
