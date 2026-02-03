@@ -251,11 +251,6 @@
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "empleado_numero",
-    "data_type": "text"
-  },
-  {
-    "table_name": "informe_novedades_disciplinario",
     "column_name": "empleado_nombre",
     "data_type": "character varying"
   },

@@ -243,7 +243,8 @@
         <header class="text-center mb-8">
             <h1 class="text-3xl font-bold">Control de Capacitaciones</h1>
         </header>
-        <form id="capacitacionForm" action="{{ url_for('submit_registro_de_capacitaciones') }}" method="POST">
+        <form id="capacitacionForm" action="{{ url_for('submit_registro_de_capacitaciones') }}" method="POST"
+            enctype="multipart/form-data">
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos de la Capacitación/Reunión/Entrenamiento</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -277,6 +278,22 @@
                         <button type="button" id="clear-responsable"
                             class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Fotos/Documentos de la Capacitación</label>
+                        <div class="file-upload-area">
+                            <input type="file" id="capacitacion_files" name="capacitacion_files"
+                                accept="image/*,application/pdf" multiple class="hidden" onchange="updateFileList()">
+                            <button type="button" onclick="document.getElementById('capacitacion_files').click()"
+                                class="form-input text-left cursor-pointer hover:bg-opacity-80">
+                                📎 Seleccionar o Tomar Foto/Documento
+                            </button>
+                            <div id="fileList" class="mt-2 text-sm text-gray-400"></div>
+                            <div class="mt-2">
+                                <input type="checkbox" name="capacitacion_files_na" id="capacitacion_files_na">
+                                <label for="capacitacion_files_na" class="text-sm ml-2">No Aplica</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -433,6 +450,26 @@
         function clearAttendeePad(index) {
             if (attendeePads[index]) {
                 attendeePads[index].clear();
+            }
+        }
+
+        function updateFileList() {
+            const input = document.getElementById('capacitacion_files');
+            const list = document.getElementById('fileList');
+            if (!list) return;
+
+            list.innerHTML = '';
+            if (input && input.files.length > 0) {
+                const ul = document.createElement('ul');
+                ul.className = 'list-disc list-inside';
+                for (let i = 0; i < input.files.length; i++) {
+                    const li = document.createElement('li');
+                    li.textContent = input.files[i].name;
+                    ul.appendChild(li);
+                }
+                list.appendChild(ul);
+            } else {
+                list.textContent = 'No hay archivos seleccionados';
             }
         }
     </script>

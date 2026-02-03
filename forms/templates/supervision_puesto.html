@@ -591,6 +591,28 @@
                 });
             }
 
+            // Define removeSupervision as a global function so onclick can access it
+            window.removeSupervision = function (index) {
+                const block = container.querySelector(`[data-index="${index}"]`);
+                if (block) {
+                    // Clean up signature pad reference
+                    if (signaturePads[index]) {
+                        delete signaturePads[index];
+                    }
+                    // Remove the block from DOM
+                    block.remove();
+
+                    // Renumber remaining blocks
+                    const remainingBlocks = container.querySelectorAll('.supervision-block');
+                    remainingBlocks.forEach((blk, idx) => {
+                        const header = blk.querySelector('h2');
+                        if (header) {
+                            header.textContent = `Supervisión #${idx + 1}`;
+                        }
+                    });
+                }
+            };
+
             addBtn.addEventListener('click', addSupervision);
 
             // Add one supervision block by default

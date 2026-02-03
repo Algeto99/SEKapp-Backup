@@ -444,12 +444,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <label class="block text-sm font-medium mb-2">Firma del Colaborador</label>
-                        <div class="signature-wrapper w-full h-48">
+                        <div class="signature-wrapper w-full h-48" id="signatureWrapperRevisado">
                             <canvas id="signaturePadRevisado" class="signature-pad"></canvas>
                         </div>
                         <button type="button" id="clearSignatureRevisado"
                             class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                         <input type="hidden" name="firma_recibido_revisado" id="firma_recibido_revisado">
+                        <div class="mt-3">
+                            <input type="checkbox" name="empleado_niega_firmar" id="empleado_niega_firmar">
+                            <label for="empleado_niega_firmar" class="text-sm ml-2">Empleado se niega a firmar</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -619,6 +623,47 @@
                 });
             }
 
+            // Handle "employee refuses to sign" checkbox
+            const empleadoNiegaFirmar = document.getElementById('empleado_niega_firmar');
+            const signatureWrapperRevisado = document.getElementById('signatureWrapperRevisado');
+            const clearButtonRevisado = document.getElementById('clearSignatureRevisado');
+
+            if (empleadoNiegaFirmar) {
+                empleadoNiegaFirmar.addEventListener('change', () => {
+                    if (empleadoNiegaFirmar.checked) {
+                        // Disable signature pad
+                        if (signaturePads['signaturePadRevisado']) {
+                            signaturePads['signaturePadRevisado'].clear();
+                            signaturePads['signaturePadRevisado'].off();
+                            signatureImages['signaturePadRevisado'] = null;
+                        }
+                        if (signatureWrapperRevisado) {
+                            signatureWrapperRevisado.style.opacity = '0.5';
+                            signatureWrapperRevisado.style.pointerEvents = 'none';
+                        }
+                        if (clearButtonRevisado) {
+                            clearButtonRevisado.disabled = true;
+                            clearButtonRevisado.style.opacity = '0.5';
+                            clearButtonRevisado.style.cursor = 'not-allowed';
+                        }
+                    } else {
+                        // Enable signature pad
+                        if (signaturePads['signaturePadRevisado']) {
+                            signaturePads['signaturePadRevisado'].on();
+                        }
+                        if (signatureWrapperRevisado) {
+                            signatureWrapperRevisado.style.opacity = '1';
+                            signatureWrapperRevisado.style.pointerEvents = 'auto';
+                        }
+                        if (clearButtonRevisado) {
+                            clearButtonRevisado.disabled = false;
+                            clearButtonRevisado.style.opacity = '1';
+                            clearButtonRevisado.style.cursor = 'pointer';
+                        }
+                    }
+                });
+            }
+
             // Form submission
             const form = document.getElementById('novedadesForm');
             if (form) {
@@ -639,8 +684,9 @@
                         }
                     }
 
-                    // Signature 2
-                    if (signaturePads['signaturePadRevisado'] && !signaturePads['signaturePadRevisado'].isEmpty()) {
+                    // Signature 2 - Only capture if employee didn't refuse to sign
+                    const empleadoNiegaFirmarChecked = document.getElementById('empleado_niega_firmar')?.checked;
+                    if (!empleadoNiegaFirmarChecked && signaturePads['signaturePadRevisado'] && !signaturePads['signaturePadRevisado'].isEmpty()) {
                         const hiddenInput2 = document.getElementById('firma_recibido_revisado');
                         if (hiddenInput2) {
                             hiddenInput2.value = signatureImages['signaturePadRevisado'] ||
