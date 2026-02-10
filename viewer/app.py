@@ -809,7 +809,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
         if conn:
             conn.close()
 
-def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
+def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing=False):
     conn = None
     cur = None
     reports = []
@@ -879,14 +879,16 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
                 
                 # Generate signed URLs for image/pdf columns
                 if val and (label == "URLs de Imágenes o PDFs" or col_name == 'foto_evidencia_url'):
-                    urls = str(val).split('\n')
-                    signed_urls = []
-                    for url in urls:
-                        signed_urls.append(generate_signed_url(url.strip()))
-                    val = '\n'.join(signed_urls)
+                    if not skip_signing:
+                        urls = str(val).split('\n')
+                        signed_urls = []
+                        for url in urls:
+                            signed_urls.append(generate_signed_url(url.strip()))
+                        val = '\n'.join(signed_urls)
                 # Sign signatures if they are GCS URLs
                 elif 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
-                     val = generate_signed_url(val)
+                     if not skip_signing:
+                        val = generate_signed_url(val)
 
                 data_content[label] = str(val) if val is not None else "N/A"
 
@@ -896,7 +898,8 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
                 if col_name not in processed_cols and col_name not in system_cols:
                     # Sign signatures if they are GCS URLs
                     if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
-                         val = generate_signed_url(val)
+                         if not skip_signing:
+                            val = generate_signed_url(val)
                          
                     # Convert snake_case to Title Case for display
                     display_label = ' '.join(word.capitalize() for word in col_name.split('_'))
@@ -931,7 +934,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente'):
             app_logger.info("Database connection closed in fetch_reports_by_ids.")
     return reports
 
-def fetch_reports_mixed(items):
+def fetch_reports_mixed(items, skip_signing=False):
     """
     Fetches reports from multiple tables based on a list of item dicts.
     Each item in 'items' should be a dict with: {'id': int/str, 'formType': str}
@@ -960,7 +963,7 @@ def fetch_reports_mixed(items):
         if not ids:
             continue
         app_logger.info(f"fetch_reports_mixed: Fetching {len(ids)} reports of type {f_type}")
-        type_reports = fetch_reports_by_ids(ids, form_type=f_type)
+        type_reports = fetch_reports_by_ids(ids, form_type=f_type, skip_signing=skip_signing)
         all_reports.extend(type_reports)
 
     # Sort combined results by date (submitted at)
@@ -1226,11 +1229,15 @@ def get_locations():
 def get_more_reports():
     offset = request.args.get('offset', type=int, default=0)
     limit = request.args.get('limit', type=int, default=10)
+    ids_only = request.args.get('ids_only', type=str, default='false').lower() == 'true'
 
     if offset < 0:
         offset = 0
-    if limit <= 0 or limit > 100:
-        limit = 10
+    
+    # Allow unlimited limit when ids_only is true, otherwise cap at 100
+    if not ids_only:
+        if limit <= 0 or limit > 100:
+            limit = 10
 
     # Extract filter parameters
     filters = {}
@@ -1262,10 +1269,16 @@ def get_more_reports():
     # Form Type Filter
     form_type = request.args.get('form_type', 'all')
 
-    app_logger.info(f"API request with filters: {filters}, form_type: {form_type}")
+    app_logger.info(f"API request with filters: {filters}, form_type: {form_type}, ids_only: {ids_only}")
     
     try:
         reports, total_count = fetch_reports(offset, limit, filters if filters else None, form_type=form_type)
+        
+        # If ids_only is true, return simplified response with just IDs and form types
+        if ids_only:
+            report_ids = [{'id': r['id'], 'formType': r['formType']} for r in reports]
+            return jsonify({"report_ids": report_ids, "total_count": total_count})
+        
         return jsonify({"reports": reports, "total_count": total_count})
     except psycopg2.Error as e:
         app_logger.error(f"Database error in get_more_reports: {e}", exc_info=True)
@@ -1433,9 +1446,9 @@ def export_excel():
         # Fetch the reports
         reports_to_export = []
         if requests_payload:
-             reports_to_export = fetch_reports_mixed(requests_payload)
+             reports_to_export = fetch_reports_mixed(requests_payload, skip_signing=True)
         elif report_ids:
-             reports_to_export = fetch_reports_by_ids(report_ids)
+             reports_to_export = fetch_reports_by_ids(report_ids, skip_signing=True)
 
         if not reports_to_export:
             app_logger.warning(f"No reports found for the provided IDs during Excel export.")
@@ -1520,6 +1533,7 @@ def export_excel():
                     if is_image_field and val and isinstance(val, str):
                         try:
                             from openpyxl.drawing.image import Image as OpenpyxlImage
+                            from PIL import Image as PILImage
                             import base64
                             
                             img_file = None
@@ -1530,7 +1544,17 @@ def export_excel():
                                     # Format: data:image/png;base64,.....
                                     header, encoded = val.strip().split(',', 1)
                                     img_bytes = base64.b64decode(encoded)
-                                    img_file = BytesIO(img_bytes)
+                                    
+                                    # Convert to PNG if needed (for WebP or other formats)
+                                    pil_img = PILImage.open(BytesIO(img_bytes))
+                                    if pil_img.format not in ['PNG', 'JPEG', 'JPG', 'GIF', 'BMP']:
+                                        png_buffer = BytesIO()
+                                        pil_img.convert('RGB').save(png_buffer, format='PNG')
+                                        png_buffer.seek(0)
+                                        img_file = png_buffer
+                                    else:
+                                        img_file = BytesIO(img_bytes)
+                                    
                                     cell.value = "Firma Digital" # Set friendly text
                                     cell.hyperlink = None # No external link for base64
                                 except Exception as e:
@@ -1548,13 +1572,10 @@ def export_excel():
                                         break
                                 
                                 if valid_url:
-                                    # Download image
-                                    res = requests.get(valid_url, stream=True, timeout=10)
-                                    if res.status_code == 200:
-                                        img_file = BytesIO(res.content)
-                                        cell.value = "Ver Imagen Original"
-                                        cell.hyperlink = valid_url
-                                        cell.style = "Hyperlink"
+                                    # Just set the hyperlink, do not attempt to download or embed
+                                    cell.value = "Ver Imagen Original"
+                                    cell.hyperlink = valid_url
+                                    cell.style = "Hyperlink"
 
                             # If we successfully got an image file, resize and place it
                             if img_file:

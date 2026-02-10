@@ -561,9 +561,24 @@
 
         <div id="multi-select-controls"
             class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div class="flex items-center">
-                <input type="checkbox" id="select-all-checkbox" class="mr-2 h-4 w-4 text-blue-600 rounded">
-                <label for="select-all-checkbox" class="text-gray-700 font-medium">Seleccionar Todos</label>
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center">
+                        <input type="radio" id="select-mode-page" name="select-mode" value="page"
+                            class="mr-2 h-4 w-4 text-blue-600" checked>
+                        <label for="select-mode-page" class="text-gray-700 font-medium cursor-pointer">Seleccionar Todos
+                            en Página</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="radio" id="select-mode-all" name="select-mode" value="all"
+                            class="mr-2 h-4 w-4 text-blue-600">
+                        <label for="select-mode-all" class="text-gray-700 font-medium cursor-pointer">Seleccionar Todos
+                            los Reportes</label>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-600" id="selection-info">
+                    <span id="selected-count">0</span> reportes seleccionados
+                </div>
             </div>
             <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 w-full lg:w-auto">
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -813,12 +828,16 @@
 
         function updateActionButtonsState() {
             const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-            const isDisabled = checkedCheckboxes.length === 0;
+            const hasSelection = checkedCheckboxes.length > 0 || (selectAllMode === 'all' && allReportIds.length > 0);
+            const isDisabled = !hasSelection;
+
             document.getElementById('print-selected-button').disabled = isDisabled;
             document.getElementById('save-pdf-button').disabled = isDisabled;
             document.getElementById('export-excel-button').disabled = isDisabled;
             document.getElementById('email-selected-button').disabled = isDisabled;
             document.getElementById('share-button').disabled = isDisabled;
+
+            updateSelectionCount();
         }
 
         function attachEventListenersToNewReports() {
@@ -830,6 +849,13 @@
             document.querySelectorAll('.report-checkbox').forEach(checkbox => {
                 checkbox.removeEventListener('change', updateActionButtonsState);
                 checkbox.addEventListener('change', updateActionButtonsState);
+
+                // Also add selection count update listener
+                checkbox.addEventListener('change', () => {
+                    if (selectAllMode === 'page') {
+                        updateSelectionCount();
+                    }
+                });
             });
         }
 
@@ -1285,8 +1311,11 @@
 
         // --- Action Button Functions ---
         async function printSelectedReports() {
-            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-            if (checkedCheckboxes.length === 0) {
+            // Check if we have any selection
+            const hasSelection = (selectAllMode === 'all' && allReportIds.length > 0) ||
+                document.querySelectorAll('.report-checkbox:checked').length > 0;
+
+            if (!hasSelection) {
                 showFlashMessage('Por favor seleccione al menos un reporte para imprimir.', 'error');
                 return;
             }
@@ -1294,11 +1323,17 @@
             // Mark selected reports for printing
             document.querySelectorAll('.report-block').forEach(block => {
                 const checkbox = block.querySelector('.report-checkbox');
-                if (checkbox.checked) {
+                // In "all reports" mode, print all visible reports
+                // In "page" mode, only print checked reports
+                const shouldPrint = (selectAllMode === 'all' && allReportIds.length > 0) || checkbox.checked;
+
+                if (shouldPrint) {
                     block.classList.add('print-me');
                     // Expand the report content for printing
                     const reportContent = block.querySelector('.report-content');
-                    reportContent.classList.add('expanded');
+                    if (reportContent) {
+                        reportContent.classList.add('expanded');
+                    }
                 } else {
                     block.classList.remove('print-me');
                 }
@@ -1316,19 +1351,26 @@
         }
 
         async function generatePDFForSelected() {
-            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-            if (checkedCheckboxes.length === 0) {
-                showFlashMessage('Por favor seleccione al menos un reporte para generar PDF.', 'error');
-                return;
-            }
+            let reports;
 
-            const reports = Array.from(checkedCheckboxes).map(checkbox => {
-                const block = checkbox.closest('.report-block');
-                return {
-                    id: parseInt(checkbox.dataset.reportId),
-                    formType: block.dataset.formType || 'reporte_incidente'
-                };
-            });
+            // Check if we're in "all reports" mode
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reports = allReportIds;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para generar PDF.', 'error');
+                    return;
+                }
+
+                reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
+            }
 
             // Prompt for filename
             let filename = prompt("Ingrese un nombre para el archivo PDF (opcional):");
@@ -1385,22 +1427,32 @@
         }
 
         async function exportExcelForSelected() {
-            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-            if (checkedCheckboxes.length === 0) {
-                showFlashMessage('Por favor seleccione al menos un reporte para exportar a Excel.', 'error');
-                return;
-            }
+            let reports;
 
-            const reports = Array.from(checkedCheckboxes).map(checkbox => {
-                const block = checkbox.closest('.report-block');
-                return {
-                    id: parseInt(checkbox.dataset.reportId),
-                    formType: block.dataset.formType || 'reporte_incidente'
-                };
-            });
+            // Check if we're in "all reports" mode
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reports = allReportIds;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para exportar a Excel.', 'error');
+                    return;
+                }
+
+                reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
+            }
 
             // Prompt for filename
             let filename = prompt("Ingrese un nombre para el archivo Excel (opcional):");
+
+            // Show loading indicator
+            const loadingMsg = showFlashMessage(`Generando Excel con ${reports.length} reportes... Por favor espere.`, 'info', 0);
 
             try {
                 const response = await fetch('/api/export-excel', {
@@ -1415,49 +1467,59 @@
                     })
                 });
 
+                // Hide loading indicator
+                if (loadingMsg && loadingMsg.remove) {
+                    loadingMsg.remove();
+                }
+
                 if (!response.ok) {
                     if (response.status === 401) {
                         window.location.href = '/logout';
                         return;
                     }
-
                     const errorData = await response.json();
                     throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
                 }
 
-                // Create blob and download
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
 
-                // Get filename from response header or create default
-                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
-                if (filename) {
-                    // Sanitize filename for download attribute
-                    filename = filename.replace(/[^\w\-_]/g, '');
-                    a.download = `${filename}.xlsx`;
-                } else {
-                    a.download = `reportes_incidencias_${timestamp}.xlsx`;
+                // Get filename from Content-Disposition header or use default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let downloadFilename = 'reportes.xlsx';
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+                    if (filenameMatch) {
+                        downloadFilename = filenameMatch[1];
+                    }
                 }
 
+                a.download = downloadFilename;
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
-                showFlashMessage('Archivo Excel generado y descargado exitosamente!', 'success');
-
+                showFlashMessage('Excel exportado exitosamente!', 'success');
             } catch (error) {
+                // Hide loading indicator
+                if (loadingMsg && loadingMsg.remove) {
+                    loadingMsg.remove();
+                }
                 console.error('Error generating Excel file:', error);
-                showFlashMessage(`Error al generar el archivo Excel: ${error.message}`, 'error');
+                showFlashMessage(`Error al generar Excel: ${error.message}`, 'error');
             }
         }
 
         async function emailSelectedReports() {
-            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-            if (checkedCheckboxes.length === 0) {
+            // Check if we have any selection
+            const hasSelection = (selectAllMode === 'all' && allReportIds.length > 0) ||
+                document.querySelectorAll('.report-checkbox:checked').length > 0;
+
+            if (!hasSelection) {
                 showFlashMessage('Por favor seleccione al menos un reporte para enviar por email.', 'error');
                 return;
             }
@@ -1467,18 +1529,28 @@
         }
 
         async function shareSelectedReports() {
-            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-            if (checkedCheckboxes.length === 0) {
-                showFlashMessage('Por favor seleccione al menos un reporte para compartir.', 'error');
-                return;
+            let reportIds;
+            let reportCount;
+
+            // Check if we're in "all reports" mode
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reportIds = allReportIds.map(r => r.id);
+                reportCount = allReportIds.length;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para compartir.', 'error');
+                    return;
+                }
+                reportIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.dataset.reportId);
+                reportCount = reportIds.length;
             }
 
             if (navigator.share) {
-                const reportIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.dataset.reportId);
                 try {
                     await navigator.share({
                         title: 'Reportes de Seguridad - SMT SecApp',
-                        text: `${reportIds.length} reportes seleccionados: ${reportIds.join(', ')}`,
+                        text: `${reportCount} reportes seleccionados: ${reportIds.join(', ')}`,
                         url: window.location.href
                     });
                 } catch (error) {
@@ -1520,14 +1592,90 @@
         }
 
         // --- Select All Functionality ---
-        function toggleSelectAll() {
-            const selectAllCheckbox = document.getElementById('select-all-checkbox');
-            const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+        let allReportIds = []; // Store all report IDs when "all reports" mode is selected
+        let selectAllMode = 'page'; // 'page' or 'all'
 
-            reportCheckboxes.forEach(checkbox => {
-                checkbox.checked = selectAllCheckbox.checked;
-            });
+        async function fetchAllReportIds() {
+            try {
+                // Build query params from current filters
+                const params = new URLSearchParams({
+                    offset: 0,
+                    limit: 999999, // Request all reports
+                    ids_only: 'true' // Tell backend to return only IDs
+                });
 
+                // Add current filters
+                const formType = document.getElementById('formTypeSelect')?.value;
+                if (formType) params.append('form_type', formType);
+
+                const reportId = document.getElementById('reportIdSearch')?.value;
+                if (reportId) params.append('report_id', reportId);
+
+                const property = document.getElementById('propertySelect')?.value;
+                if (property) params.append('property', property);
+
+                const location = document.getElementById('locationSelect')?.value;
+                if (location) params.append('location', location);
+
+                const submittedBy = document.getElementById('submittedBySearch')?.value;
+                if (submittedBy) params.append('submitted_by', submittedBy);
+
+                const startDate = document.getElementById('startDateFilter')?.value;
+                if (startDate) params.append('start_date', startDate);
+
+                const endDate = document.getElementById('endDateFilter')?.value;
+                if (endDate) params.append('end_date', endDate);
+
+                const response = await fetch(`/api/reports?${params.toString()}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    return data.report_ids || []; // Use report_ids from new backend response
+                } else {
+                    console.error('Error fetching all report IDs:', data.error);
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching all report IDs:', error);
+                return [];
+            }
+        }
+
+        function updateSelectionCount() {
+            const selectedCountSpan = document.getElementById('selected-count');
+
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                selectedCountSpan.textContent = allReportIds.length;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                selectedCountSpan.textContent = checkedCheckboxes.length;
+            }
+        }
+
+        async function handleSelectionModeChange() {
+            const selectModePage = document.getElementById('select-mode-page');
+            const selectModeAll = document.getElementById('select-mode-all');
+
+            if (selectModeAll.checked) {
+                selectAllMode = 'all';
+                // Fetch all report IDs
+                allReportIds = await fetchAllReportIds();
+                // Check all visible checkboxes
+                const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+                reportCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            } else {
+                selectAllMode = 'page';
+                allReportIds = [];
+                // Uncheck all visible checkboxes
+                const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+                reportCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            }
+
+            updateSelectionCount();
             updateActionButtonsState();
         }
 
@@ -1596,8 +1744,18 @@
             document.getElementById('email-selected-button').addEventListener('click', emailSelectedReports);
             document.getElementById('share-button').addEventListener('click', shareSelectedReports);
 
-            // Select all functionality
-            document.getElementById('select-all-checkbox').addEventListener('change', toggleSelectAll);
+            // Select all functionality - radio buttons
+            document.getElementById('select-mode-page').addEventListener('change', handleSelectionModeChange);
+            document.getElementById('select-mode-all').addEventListener('change', handleSelectionModeChange);
+
+            // Also update selection count when individual checkboxes are clicked
+            document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    if (selectAllMode === 'page') {
+                        updateSelectionCount();
+                    }
+                });
+            });
 
             // Email modal event listeners
             document.getElementById('cancel-email-button').addEventListener('click', () => {
@@ -1608,14 +1766,21 @@
             document.getElementById('email-form').addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const recipientEmail = document.getElementById('recipient-email').value;
-                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
-                const reports = Array.from(checkedCheckboxes).map(checkbox => {
-                    const block = checkbox.closest('.report-block');
-                    return {
-                        id: parseInt(checkbox.dataset.reportId),
-                        formType: block.dataset.formType || 'reporte_incidente'
-                    };
-                });
+
+                let reports;
+                // Check if we're in "all reports" mode
+                if (selectAllMode === 'all' && allReportIds.length > 0) {
+                    reports = allReportIds;
+                } else {
+                    const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                    reports = Array.from(checkedCheckboxes).map(checkbox => {
+                        const block = checkbox.closest('.report-block');
+                        return {
+                            id: parseInt(checkbox.dataset.reportId),
+                            formType: block.dataset.formType || 'reporte_incidente'
+                        };
+                    });
+                }
 
                 const submitButton = event.target.querySelector('button[type="submit"]');
                 const originalText = submitButton.textContent;
