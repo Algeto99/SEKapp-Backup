@@ -24,4 +24,4 @@ EXPOSE 8080
 
 # Launch the app with Gunicorn
 # 'app:app' refers to the 'app' Flask instance within the 'app.py' file.
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "app:app"]

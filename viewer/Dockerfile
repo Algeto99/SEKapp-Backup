@@ -55,4 +55,4 @@ ENV PYTHONUNBUFFERED=1
 # 'app:app' refers to the 'app' Flask instance within the 'app.py' file.
 # The --timeout 0 flag is often useful for Cloud Run to prevent Gunicorn from
 # prematurely killing connections if initial processing is slow.
-CMD gunicorn --bind 0.0.0.0:${PORT} --timeout 0 app:app
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "app:app"]

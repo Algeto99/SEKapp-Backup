@@ -43,7 +43,7 @@ EXPOSE 8080
 # Use the PORT environment variable provided by Cloud Run (or similar platforms).
 # The --timeout parameter prevents requests from hanging indefinitely.
 # The --access-logfile and --error-logfile can be set to '-' to output to stdout/stderr for container logging.
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "3", "--threads", "2", "--timeout", "30", "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "main:app"]
 
 # Alternative CMD for development (not recommended for production)
 # CMD ["python", "main.py"]
