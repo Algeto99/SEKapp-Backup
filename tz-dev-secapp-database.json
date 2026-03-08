@@ -205,21 +205,6 @@
     "data_type": "text"
   },
   {
-    "table_name": "incident_categories",
-    "column_name": "id",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "incident_categories",
-    "column_name": "category_name",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "incident_categories",
-    "column_name": "incident_type",
-    "data_type": "character varying"
-  },
-  {
     "table_name": "informe_novedades_disciplinario",
     "column_name": "id_informe",
     "data_type": "integer"
@@ -548,31 +533,6 @@
     "table_name": "medicion_experiencia_cliente",
     "column_name": "id_encuesta",
     "data_type": "integer"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "empresa_sitio",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "fecha_encuesta",
-    "data_type": "date"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "sitio_local",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "cliente_encargado",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "cargo_encuestado",
-    "data_type": "character varying"
   },
   {
     "table_name": "medicion_experiencia_cliente",
@@ -1681,17 +1641,7 @@
   },
   {
     "table_name": "supervision_puesto",
-    "column_name": "ruta",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
     "column_name": "cliente",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
-    "column_name": "direccion",
     "data_type": "character varying"
   },
   {
@@ -1717,16 +1667,6 @@
   {
     "table_name": "supervision_puesto",
     "column_name": "realiza_induccion",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
-    "column_name": "conoce_consignas",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
-    "column_name": "horario_claro",
     "data_type": "character varying"
   },
   {
