@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acta de Visita a Cliente - SMT SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding-top: 80px;
+            /* Adjust for fixed header */
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-family: 'Merriweather', serif;
+            color: #ffffff;
+        }
+
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+        }
+
+        .signature-pad {
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            background-color: white;
+            width: 100%;
+            height: 150px;
+        }
+
+        .header-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 1rem 1.5rem;
+            z-index: 50;
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+        .user-greeting {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .user-name {
+            color: #60a5fa;
+            font-weight: bold;
+        }
+
+        .admin-badge {
+            color: #a855f7;
+            font-weight: bold;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #e2e8f0;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        body.light-mode {
+            background-color: #f8f9fa;
+            color: #343a40;
+        }
+
+        body.light-mode h1,
+        body.light-mode h2,
+        body.light-mode h3 {
+            color: #212529;
+        }
+
+        body.light-mode .form-section {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+        }
+
+        body.light-mode .form-input,
+        body.light-mode .form-select,
+        body.light-mode .form-textarea {
+            background-color: #f1f3f5;
+            border-color: #ced4da;
+            color: #495057;
+        }
+
+        body.light-mode .header-nav {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+
+        body.light-mode .user-greeting {
+            color: #4a5568;
+        }
+
+        body.light-mode .theme-toggle {
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            color: #374151;
+        }
+
+        body.light-mode .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .nav-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            body {
+                padding-top: 120px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo"
+                    class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ name }}</span>
+                    {% if is_admin %}<span class="admin-badge">(Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                {% if is_admin %}
+                <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                {% endif %}
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold">Acta de Visita a Cliente</h1>
+        </header>
+
+        <form id="visitaForm" action="{{ url_for('forms_bp.submit_registro_y_acta_de_visita') }}" method="POST">
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">1. Datos Generales de la Visita</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="cliente_visitado" class="block text-sm font-medium mb-1">Cliente Visitado</label>
+                        <input type="text" name="cliente_visitado" id="cliente_visitado" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="motivo_visita" class="block text-sm font-medium mb-1">Motivo de la Visita</label>
+                        <select name="motivo_visita" id="motivo_visita" class="form-select" required>
+                            <option value="">Seleccione...</option>
+                            <option>Seguimiento de servicio</option>
+                            <option>Auditoría de seguridad</option>
+                            <option>Atención de quejas o reclamos</option>
+                            <option>Presentación de propuesta</option>
+                            <option>Reunión de coordinación</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
+                <textarea name="temas_tratados" id="temas_tratados" rows="5" class="form-textarea"
+                    placeholder="Liste los puntos principales discutidos..."></textarea>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
+                <textarea name="acuerdos_compromisos" id="acuerdos_compromisos" rows="5" class="form-textarea"
+                    placeholder="Detalle los acuerdos, responsables y fechas de cumplimiento..."></textarea>
+            </div>
+
+            <!-- Section 4 "Observaciones Adicionales" removed -->
+
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">4. Participantes</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="nombre_visitante" class="block text-sm font-medium mb-1">Nombre del
+                            Visitante</label>
+                        <input type="text" name="nombre_visitante" id="nombre_visitante" class="form-input"
+                            value="{{ name }}" required>
+                    </div>
+                    <div>
+                        <label for="cargo_visitante" class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="cargo_visitante" id="cargo_visitante" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="firma_visitante" class="block text-sm font-medium mb-2">Firma del Visitante</label>
+                        <canvas id="firma-visitante-pad" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clear-visitante"
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_visitante" id="firma_visitante">
+                    </div>
+                </div>
+
+                <div id="asistentesContainer">
+                    <!-- Default Participant -->
+                    <div class="asistente-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pt-6">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nombre del Participante (Cliente)</label>
+                            <input type="text" name="nombre_participante_cliente_0" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Cargo</label>
+                            <input type="text" name="cargo_participante_cliente_0" class="form-input">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-2">Firma del Participante por el Cliente</label>
+                            <canvas id="canvas-asistente-0" class="signature-pad w-full h-48"></canvas>
+                            <button type="button" id="clear-asistente-0"
+                                class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            <input type="hidden" name="firma_participante_cliente_0" id="input-asistente-0">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="addAsistenteBtn"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300 mt-4">
+                    +Agregar Asistente
+                </button>
+            </div>
+
+
+            <div class="flex justify-end pt-4">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                    Enviar Acta
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Theme Toggle Logic
+            const themeToggle = document.getElementById('themeToggle');
+            const darkModeIcon = document.getElementById('darkModeIcon');
+            const lightModeIcon = document.getElementById('lightModeIcon');
+
+            function initializeTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+                    setLightMode();
+                } else {
+                    setDarkMode();
+                }
+            }
+            function setDarkMode() {
+                document.body.classList.remove('light-mode');
+                if (darkModeIcon) darkModeIcon.style.display = 'block';
+                if (lightModeIcon) lightModeIcon.style.display = 'none';
+                localStorage.setItem('theme', 'dark');
+            }
+            function setLightMode() {
+                document.body.classList.add('light-mode');
+                if (darkModeIcon) darkModeIcon.style.display = 'none';
+                if (lightModeIcon) lightModeIcon.style.display = 'block';
+                localStorage.setItem('theme', 'light');
+            }
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+            }
+
+            // Set current date and time
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
+
+            // Signature Pad Logic for Visitante
+            const canvasVisitante = document.getElementById('firma-visitante-pad');
+            const visitantePad = new SignaturePad(canvasVisitante);
+            const clearButtonVisitante = document.getElementById('clear-visitante');
+
+            function resizeCanvas(canvas, pad) {
+                // Capture data
+                let data;
+                if (pad) {
+                    data = pad.toData();
+                }
+
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+
+                // Restore data
+                if (pad && data) {
+                    pad.clear();
+                    pad.fromData(data);
+                }
+            }
+
+            window.addEventListener("resize", function () {
+                resizeCanvas(canvasVisitante, visitantePad);
+                // Resize dynamic pads
+                asistentePads.forEach(item => {
+                    if (document.body.contains(item.canvas)) {
+                        resizeCanvas(item.canvas, item.pad);
+                    }
+                });
+            });
+            resizeCanvas(canvasVisitante, visitantePad);
+
+            clearButtonVisitante.addEventListener('click', () => {
+                visitantePad.clear();
+            });
+
+            // Dynamic Assistants Logic
+            const asistentesContainer = document.getElementById('asistentesContainer');
+            const addAsistenteBtn = document.getElementById('addAsistenteBtn');
+            let asistenteCount = 0; // 0 is default
+            const asistentePads = []; // Store pads to retrieve data on submit
+
+            // Initialize default participant pad
+            function initPad(idSuffix) {
+                const canvas = document.getElementById(`canvas-${idSuffix}`);
+                const pad = new SignaturePad(canvas);
+                const clearBtn = document.getElementById(`clear-${idSuffix}`);
+                const input = document.getElementById(`input-${idSuffix}`);
+
+                asistentePads.push({ pad, input, canvas });
+
+                resizeCanvas(canvas, pad);
+
+                clearBtn.addEventListener('click', () => {
+                    pad.clear();
+                });
+            }
+
+            // Init default
+            initPad('asistente-0');
+
+            addAsistenteBtn.addEventListener('click', function () {
+                asistenteCount++;
+                const asistenteId = `asistente-${asistenteCount}`;
+
+                const newAsistente = document.createElement('div');
+                newAsistente.className = 'asistente-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-t border-gray-600 pt-6';
+                newAsistente.innerHTML = `
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre del Participante (Cliente)</label>
+                        <input type="text" name="nombre_participante_cliente_${asistenteCount}" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cargo</label>
+                        <input type="text" name="cargo_participante_cliente_${asistenteCount}" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Firma del Participante por el Cliente</label>
+                        <canvas id="canvas-${asistenteId}" class="signature-pad w-full h-48"></canvas>
+                        <button type="button" id="clear-${asistenteId}" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_participante_cliente_${asistenteCount}" id="input-${asistenteId}">
+                    </div>
+                    <button type="button" class="remove-asistente text-red-400 hover:text-red-300 text-sm md:col-span-2 text-right">Eliminar Asistente</button>
+                `;
+                asistentesContainer.appendChild(newAsistente);
+
+                initPad(asistenteId);
+            });
+
+            asistentesContainer.addEventListener('click', function (e) {
+                if (e.target.classList.contains('remove-asistente')) {
+                    // Note: Removing from DOM doesn't remove from asistentePads array easily without more complex tracking.
+                    // For simplicity, we'll leave it in array but it won't be submitted if element is gone? 
+                    // Actually, if we remove the element, the inputs are gone, so form submission won't include them.
+                    // But we need to handle the signature data extraction carefully.
+                    // Ideally we should remove from array too, but index matching is hard.
+                    // Alternative: Iterate DOM on submit to find pads.
+                    e.target.closest('.asistente-item').remove();
+                }
+            });
+
+            // Form Submission Logic
+            document.getElementById('visitaForm').addEventListener('submit', function (event) {
+                if (!visitantePad.isEmpty()) {
+                    document.getElementById('firma_visitante').value = visitantePad.toDataURL();
+                }
+
+                // Process dynamic pads
+                asistentePads.forEach(item => {
+                    // Check if the canvas is still in the DOM (wasn't removed)
+                    if (document.body.contains(item.canvas)) {
+                        if (!item.pad.isEmpty()) {
+                            item.input.value = item.pad.toDataURL();
+                        }
+                    }
+                });
+            });
+
+            initializeTheme();
+        });
+    </script>
+</body>
+
+</html>

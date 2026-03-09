@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes de Seguridad - Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8fafc;
+            color: #343a40;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-family: 'Merriweather', serif;
+            color: #212529;
+        }
+
+        .container-wrapper {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 2rem;
+            max-width: 1000px;
+            width: 100%;
+            margin-top: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .report-block {
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .base-button-style {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-button {
+            padding: 0.6rem 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            min-width: 100px;
+            white-space: nowrap;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .base-button-style:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary-professional {
+            background-color: #1d4ed8;
+            color: #ffffff;
+            border: 2px solid #1d4ed8;
+        }
+
+        .btn-primary-professional:hover {
+            background-color: #1e40af;
+            border-color: #1e40af;
+        }
+
+        .btn-secondary-professional {
+            background-color: #f3f4f6;
+            color: #1d4ed8;
+            border: 2px solid #e5e7eb;
+        }
+
+        .btn-secondary-professional:hover {
+            background-color: #e5e7eb;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            z-index: 10;
+            background-color: rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            color: #374151;
+        }
+
+        .theme-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+            transform: scale(1.05);
+        }
+
+        .theme-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .logo-img {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            background-color: #f3f4f6;
+            transform: translateY(-1px);
+        }
+
+        .report-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .report-content.expanded {
+            max-height: 1000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        /* Flash message styles */
+        .flash-message {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            max-width: 400px;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .flash-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .flash-error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        /* Mobile navigation styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .container-wrapper {
+                padding: 1rem;
+                margin-top: 1rem;
+            }
+
+            .nav-link {
+                font-size: 0.875rem;
+                padding: 0.5rem 0.75rem;
+                text-align: center;
+                min-width: 0;
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .nav-link {
+                font-size: 0.75rem;
+                padding: 0.375rem 0.5rem;
+                line-height: 1.2;
+            }
+
+            .theme-toggle {
+                top: 1rem;
+                left: 1rem;
+                padding: 0.375rem;
+            }
+
+            .theme-toggle svg {
+                width: 1.25rem;
+                height: 1.25rem;
+            }
+        }
+
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+
+        body.dark-mode h1,
+        body.dark-mode h2,
+        body.dark-mode h3,
+        body.dark-mode h4,
+        body.dark-mode h5,
+        body.dark-mode h6 {
+            color: #ffffff;
+        }
+
+        body.dark-mode .container-wrapper {
+            background-color: #2d3748;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        body.dark-mode .report-block {
+            background-color: #2d3748;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode .nav-link:hover {
+            background-color: #4a5568;
+        }
+
+        body.dark-mode .theme-toggle {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dark mode for navigation bar */
+        body.dark-mode nav {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for navigation links and user name */
+        body.dark-mode .nav-link.text-blue-700,
+        body.dark-mode .text-blue-700,
+        body.dark-mode span.text-blue-700,
+        body.dark-mode .font-bold.text-blue-700 {
+            color: #60a5fa !important;
+        }
+
+        body.dark-mode .nav-link.text-blue-700:hover,
+        body.dark-mode .nav-link:hover {
+            color: #93c5fd !important;
+        }
+
+        /* Dark mode for multi-select controls */
+        body.dark-mode #multi-select-controls {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for search controls */
+        body.dark-mode .mb-6.p-4.border {
+            background-color: #2d3748 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Dark mode for form inputs */
+        body.dark-mode input[type="text"],
+        body.dark-mode input[type="email"],
+        body.dark-mode input[type="date"],
+        body.dark-mode input[type="number"] {
+            background-color: #374151 !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode input[type="text"]:focus,
+        body.dark-mode input[type="email"]:focus,
+        body.dark-mode input[type="date"]:focus {
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+        }
+
+        /* Dark mode for select dropdowns */
+        body.dark-mode select {
+            background-color: #374151 !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode select:focus {
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+        }
+
+        body.dark-mode select:disabled {
+            background-color: #2d3748 !important;
+            color: #718096 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        body.dark-mode select option {
+            background-color: #374151 !important;
+            color: #e2e8f0 !important;
+        }
+
+        /* Dark mode for checkboxes */
+        body.dark-mode input[type="checkbox"] {
+            background-color: #374151;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dark mode for labels */
+        body.dark-mode label {
+            color: #e2e8f0 !important;
+        }
+
+        /* Dark mode for modal */
+        body.dark-mode .bg-white {
+            background-color: #2d3748 !important;
+        }
+
+        body.dark-mode .text-gray-700 {
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode .text-gray-600 {
+            color: #cbd5e0 !important;
+        }
+
+        body.dark-mode .text-gray-800 {
+            color: #f7fafc !important;
+        }
+
+        body.dark-mode .text-gray-500 {
+            color: #a0aec0 !important;
+        }
+
+        /* Dark mode for red/logout links */
+        body.dark-mode .text-red-600 {
+            color: #f87171 !important;
+        }
+
+        body.dark-mode .text-red-800 {
+            color: #fca5a5 !important;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 12pt !important;
+                line-height: 1.4 !important;
+            }
+
+            nav,
+            .flex.flex-col.items-center.mb-6,
+            .logo-img,
+            h1,
+            p,
+            #multi-select-controls,
+            .mb-6.p-4.border,
+            #load-more-container,
+            .flash-message,
+            .theme-toggle {
+                display: none !important;
+            }
+
+            .container-wrapper {
+                max-width: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+            }
+
+            #reports-container {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .report-block:not(.print-me) {
+                display: none !important;
+            }
+
+            .report-checkbox,
+            .toggle-details-button {
+                display: none !important;
+            }
+
+            .report-block.print-me {
+                display: block !important;
+                page-break-after: always;
+                page-break-inside: avoid;
+                width: 100% !important;
+                margin: 0 0 2rem 0 !important;
+                padding: 1rem !important;
+                background: white !important;
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+                border-radius: 0 !important;
+            }
+
+            .report-block.print-me:last-child {
+                page-break-after: auto !important;
+                margin-bottom: 0 !important;
+            }
+
+            .report-block.print-me .report-content {
+                max-height: none !important;
+                overflow: visible !important;
+                margin-top: 1rem !important;
+                padding-top: 1rem !important;
+                border-top: 1px solid #eee !important;
+            }
+
+            .report-block.print-me h2 {
+                font-size: 16pt !important;
+                margin-bottom: 0.5rem !important;
+                color: black !important;
+            }
+
+            .report-block.print-me p {
+                margin-bottom: 0.5rem !important;
+                color: black !important;
+                font-size: 11pt !important;
+            }
+
+            .report-block.print-me strong {
+                font-weight: bold !important;
+                color: black !important;
+            }
+
+            .report-block.print-me ul {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .report-block.print-me li {
+                margin-bottom: 0.5rem !important;
+                padding: 0 !important;
+                list-style: none !important;
+            }
+
+            .report-block.print-me img {
+                max-width: 200px !important;
+                max-height: 200px !important;
+                page-break-inside: avoid !important;
+            }
+
+            .report-block.print-me a {
+                color: black !important;
+                text-decoration: underline !important;
+            }
+
+            .report-block.print-me div {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 flex flex-col items-center p-6">
+
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <!-- Flash message container -->
+    <div id="flash-message-container" class="flash-message hidden"></div>
+
+    <div class="container-wrapper">
+        <!-- Mobile-Responsive Navigation Bar -->
+        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
+            <div class="flex flex-wrap justify-center items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo"
+                    class="w-8 h-8 rounded-md shadow-sm">
+                <a href="{{ landing_service_url }}"
+                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Inicio
+                </a>
+                <a href="{{ forms_service_url }}"
+                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Reporte de Incidencia
+                </a>
+                <a href="{{ dashboard_service_url }}"
+                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
+                    Dashboard
+                </a>
+                <a href="/logout"
+                    class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
+                    Cerrar Sesión
+                </a>
+            </div>
+        </nav>
+
+        <div class="flex flex-col items-center mb-6">
+            <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Kanan Logo"
+                class="logo-img opacity-90" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);">
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Reportes de Seguridad</h1>
+            <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
+
+            <!-- Admin Badge -->
+            {% if is_admin %}
+            <div
+                class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium mb-4 shadow-lg">
+                <span>👑</span>
+                <span>Panel de Administrador</span>
+            </div>
+            {% endif %}
+
+            <p class="text-lg font-medium text-gray-700">
+                Bienvenido,
+                <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span>
+                {% if is_admin %}
+                <span class="text-purple-600 font-bold">(Administrador)</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div id="multi-select-controls"
+            class="bg-white shadow-md rounded-lg p-6 mb-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div class="flex flex-col gap-3">
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center">
+                        <input type="radio" id="select-mode-page" name="select-mode" value="page"
+                            class="mr-2 h-4 w-4 text-blue-600" checked>
+                        <label for="select-mode-page" class="text-gray-700 font-medium cursor-pointer">Seleccionar Todos
+                            en Página</label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="radio" id="select-mode-all" name="select-mode" value="all"
+                            class="mr-2 h-4 w-4 text-blue-600">
+                        <label for="select-mode-all" class="text-gray-700 font-medium cursor-pointer">Seleccionar Todos
+                            los Reportes</label>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-600" id="selection-info">
+                    <span id="selected-count">0</span> reportes seleccionados
+                </div>
+            </div>
+            <div class="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 w-full lg:w-auto">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <button id="print-selected-button"
+                        class="base-button-style btn-secondary-professional action-button" disabled>
+                        🖨️ Imprimir
+                    </button>
+                    <button id="save-pdf-button" class="base-button-style btn-primary-professional action-button"
+                        disabled>
+                        📄 PDF
+                    </button>
+                    <button id="export-excel-button" class="base-button-style btn-secondary-professional action-button"
+                        disabled>
+                        📊 Excel
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <button id="email-selected-button" class="base-button-style btn-primary-professional action-button"
+                        disabled>
+                        📧 Email
+                    </button>
+                    <button id="share-button" class="base-button-style btn-secondary-professional action-button"
+                        disabled>
+                        📱 Compartir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Updated search controls section -->
+        <div
+            class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
+            <div class="flex-grow w-full">
+                <label for="formTypeSelect" class="block text-sm font-medium text-gray-700 mb-1">Tipo de
+                    Formulario:</label>
+                <select id="formTypeSelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
+                    <option value="" selected>Todos los tipos</option>
+                    <option value="reporte_incidente">Reporte de Incidente</option>
+                    <option value="mantenimiento_seguridad_fisica">Mantenimiento Seguridad Física</option>
+                    <option value="medicion_experiencia_cliente">Medición Experiencia Cliente</option>
+                    <option value="supervision_puesto">Supervisión de Puesto</option>
+                    <option value="informe_novedades_disciplinario">Informe Disciplinario</option>
+                    <option value="log_de_patrullas">Log de Patrullas</option>
+                    <option value="registro_de_capacitaciones">Registro de Capacitaciones</option>
+                    <option value="registro_y_acta_de_visita">Acta de Visita</option>
+                    <option value="planilla_vehicular">Planilla Vehicular</option>
+                    <option value="planilla_motocicletas">Planilla Motocicletas</option>
+                    <option value="orden_mantenimiento">Orden de Mantenimiento</option>
+                    <option value="checklist_cumplimiento">Checklist Cumplimiento</option>
+                </select>
+            </div>
+            <div class="flex-grow w-full">
+                <label for="reportIdSearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Número de
+                    Reporte:</label>
+                <input type="number" id="reportIdSearch" placeholder="Ej: 12345"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex-grow w-full">
+                <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por
+                    Propiedad:</label>
+                <select id="propertySelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
+                    <option value="">Seleccionar propiedad...</option>
+                </select>
+            </div>
+            <div class="flex-grow w-full">
+                <label for="locationSelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Lugar del
+                    Incidente:</label>
+                <select id="locationSelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                    disabled>
+                    <option value="">Primero seleccione una propiedad...</option>
+                </select>
+            </div>
+            <div class="flex-grow w-full">
+                <label for="submittedBySearch" class="block text-sm font-medium text-gray-700 mb-1">Buscar por Nombre de
+                    Quién lo Envió:</label>
+                <input type="text" id="submittedBySearch" placeholder="Ej: Juan Pérez"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 w-full">
+                <div class="w-full sm:w-1/2">
+                    <label for="startDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha
+                        Desde:</label>
+                    <input type="date" id="startDateFilter"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div class="w-full sm:w-1/2">
+                    <label for="endDateFilter" class="block text-sm font-medium text-gray-700 mb-1">Fecha Hasta:</label>
+                    <input type="date" id="endDateFilter"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+            </div>
+            <div class="flex flex-col space-y-2 w-full md:w-auto">
+                <button id="search-button" class="base-button-style btn-primary-professional w-full">
+                    Buscar
+                </button>
+                <button id="clear-search-button" class="base-button-style btn-secondary-professional w-full">
+                    Limpiar
+                </button>
+            </div>
+        </div>
+
+        <div id="reports-container" class="space-y-6">
+            {% for form in forms %}
+            <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}"
+                data-form-type="{{ form.formType }}">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
+                        <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}
+                        </p>
+                    </div>
+                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded"
+                        data-report-id="{{ form.id }}">
+                </div>
+
+                <div class="text-sm text-gray-500 mt-4 md:mt-0">
+                    Mostrando <span id="currentCount" class="font-medium">0</span> de <span id="totalCount"
+                        class="font-medium">0</span> reportes
+                </div>
+                <div class="text-gray-700 mb-4">
+                    {% set count = namespace(value=0) %}
+                    {% for key, value in form.data.items() %}
+                    {% if count.value < 4 and key !='URLs de Imágenes o PDFs' and value and value !='N/A' and value
+                        !='None' and value !='No especificado' and 'Firma' not in key and 'Lista' not in key and 'Json'
+                        not in key and 'foto' not in key %} <p><strong>{{ key }}:</strong> {{ value }}</p>
+                        {% set count.value = count.value + 1 %}
+                        {% endif %}
+                        {% endfor %}
+                </div>
+
+                <button class="toggle-details-button base-button-style btn-primary-professional"
+                    data-report-id="{{ form.id }}">
+                    Ver Detalles
+                </button>
+
+            </div>
+            {% else %}
+            <div class="text-center text-gray-500 py-8">
+                <p>No hay reportes disponibles.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div id="load-more-container" class="text-center mt-8 {% if total_reports <= 10 %}hidden{% endif %}">
+            <button id="load-more-button" class="base-button-style btn-secondary-professional">
+                Cargar Más Reportes ({{ total_reports - 10 if total_reports > 10 else 0 }} restantes)
+            </button>
+        </div>
+    </div>
+
+    <div id="email-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-semibold mb-4">Enviar Reportes por Correo Electrónico</h2>
+            <form id="email-form">
+                <div class="mb-4">
+                    <label for="recipient-email" class="block text-gray-700 text-sm font-bold mb-2">Correo Electrónico
+                        del Destinatario:</label>
+                    <input type="email" id="recipient-email" name="recipient_email"
+                        class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        required>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="cancel-email-button"
+                        class="base-button-style btn-secondary-professional">Cancelar</button>
+                    <button type="submit" class="base-button-style btn-primary-professional">Enviar</button>
+                </div>
+            </form>
+            <div id="email-status" class="mt-4 text-center hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        let offset = {{ forms| length }};
+        let limit = 10;
+        let totalReports = {{ total_reports }};
+
+        // Theme toggle elements
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+
+        // Theme management functions
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                setDarkMode();
+            } else {
+                setLightMode();
+            }
+        }
+
+        function setDarkMode() {
+            document.body.classList.add('dark-mode');
+            darkModeIcon.style.display = 'block';
+            lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        }
+
+        function setLightMode() {
+            document.body.classList.remove('dark-mode');
+            darkModeIcon.style.display = 'none';
+            lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
+
+        // --- Utility Functions ---
+        function showFlashMessage(message, category) {
+            const flashContainer = document.getElementById('flash-message-container');
+            if (flashContainer) {
+                flashContainer.innerHTML = message;
+                flashContainer.className = `flash-message ${category === 'success' ? 'flash-success' : 'flash-error'}`;
+                flashContainer.classList.remove('hidden');
+
+                setTimeout(() => {
+                    flashContainer.classList.add('hidden');
+                    flashContainer.innerHTML = '';
+                }, 5000);
+            }
+        }
+
+        // --- Event Listeners and State Management ---
+        function checkLoadMoreButtonVisibility() {
+            const loadMoreContainer = document.getElementById('load-more-container');
+            if (loadMoreContainer) {
+                if (offset >= totalReports) {
+                    loadMoreContainer.classList.add('hidden');
+                } else {
+                    loadMoreContainer.classList.remove('hidden');
+                    const loadMoreButton = document.getElementById('load-more-button');
+                    loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
+                }
+            }
+        }
+
+        function updateActionButtonsState() {
+            const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+            const hasSelection = checkedCheckboxes.length > 0 || (selectAllMode === 'all' && allReportIds.length > 0);
+            const isDisabled = !hasSelection;
+
+            document.getElementById('print-selected-button').disabled = isDisabled;
+            document.getElementById('save-pdf-button').disabled = isDisabled;
+            document.getElementById('export-excel-button').disabled = isDisabled;
+            document.getElementById('email-selected-button').disabled = isDisabled;
+            document.getElementById('share-button').disabled = isDisabled;
+
+            updateSelectionCount();
+        }
+
+        function attachEventListenersToNewReports() {
+            document.querySelectorAll('.toggle-details-button').forEach(button => {
+                button.removeEventListener('click', openReportDetailsModal);
+                button.addEventListener('click', openReportDetailsModal);
+            });
+
+            document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                checkbox.removeEventListener('change', updateActionButtonsState);
+                checkbox.addEventListener('change', updateActionButtonsState);
+
+                // Also add selection count update listener
+                checkbox.addEventListener('change', () => {
+                    if (selectAllMode === 'page') {
+                        updateSelectionCount();
+                    }
+                });
+            });
+        }
+
+        async function openReportDetailsModal(event) {
+            const button = event.target;
+            const reportBlock = button.closest('.report-block');
+            const reportId = reportBlock.dataset.reportId;
+            const formType = reportBlock.dataset.formType || 'reporte_incidente';
+
+            const modal = document.getElementById('report-details-modal');
+            const modalContent = document.getElementById('modal-report-content');
+            const modalTitle = document.getElementById('modal-report-title');
+
+            // Show modal with loading state
+            modal.classList.remove('hidden');
+            modalContent.innerHTML = '<div class="flex justify-center items-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>';
+            modalTitle.textContent = 'Cargando detalles...';
+
+            try {
+                const response = await fetch(`/viewer/api/report/${reportId}?form_type=${formType}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reportDetails = await response.json();
+                modalTitle.textContent = reportDetails.title || 'Detalles del Reporte';
+
+                let detailsHtml = '<div class="grid grid-cols-1 gap-4">';
+
+                // Group fields if needed, or just list them nicely
+                detailsHtml += '<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-600">';
+                detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Enviado por:</strong> ${reportDetails.submittedBy}</p>`;
+                detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Fecha:</strong> ${reportDetails.dateSubmitted}</p>`;
+                detailsHtml += '</div>';
+
+                detailsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+
+                for (const key in reportDetails.data) {
+                    if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
+                        if (key === 'URLs de Imágenes o PDFs') {
+                            // Handle images/PDFs separately at the bottom or full width
+                            continue;
+                        }
+                        const rawValue = String(reportDetails.data[key]);
+                        const lowerKey = key.toLowerCase();
+                        let displayContent;
+
+                        // Check for JSON List (e.g. Lista Asistencia)
+                        if (rawValue.trim().startsWith('[') && rawValue.trim().endsWith(']')) {
+                            try {
+                                const listData = JSON.parse(rawValue);
+                                if (Array.isArray(listData) && listData.length > 0) {
+                                    // Build Table
+                                    const headers = Object.keys(listData[0]);
+                                    let tableRows = '';
+
+                                    listData.forEach(item => {
+                                        tableRows += '<tr>';
+                                        headers.forEach(h => {
+                                            let cellVal = item[h];
+                                            // Check for signature in cell
+                                            if (h.toLowerCase().includes('firma') && String(cellVal).startsWith('data:image')) {
+                                                cellVal = `<img src="${cellVal}" alt="Firma" class="h-12 w-auto object-contain">`;
+                                            }
+                                            tableRows += `<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${cellVal}</td>`;
+                                        });
+                                        tableRows += '</tr>';
+                                    });
+
+                                    displayContent = `
+                                     <div class="mt-2 overflow-x-auto">
+                                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                                <tr>
+                                                    ${headers.map(h => `<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">${h}</th>`).join('')}
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                                ${tableRows}
+                                            </tbody>
+                                        </table>
+                                     </div>`;
+
+                                } else {
+                                    displayContent = `<span class="block text-gray-800 dark:text-gray-100">${rawValue}</span>`;
+                                }
+                            } catch (e) {
+                                // Fallback if parsing fails
+                                displayContent = `<span class="block text-gray-800 dark:text-gray-100">${rawValue.replace(/\n/g, '<br>')}</span>`;
+                            }
+                        }
+                        // Check for Signatures (Main Form Fields)
+                        else if (lowerKey.includes('firma') && (rawValue.startsWith('http') || rawValue.startsWith('data:image'))) {
+                            displayContent = `<div class="mt-1">
+                                <img src="${rawValue}" alt="Firma" class="h-24 w-auto object-contain border border-gray-300 dark:border-gray-600 rounded bg-white p-1">
+                            </div>`;
+                        } else {
+                            // Text fallback
+                            displayContent = `<span class="block text-gray-800 dark:text-gray-100">${rawValue.replace(/\n/g, '<br>')}</span>`;
+                        }
+
+                        detailsHtml += `<div class="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-sm">
+                            <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">${key}</span>
+                            ${displayContent}
+                        </div>`;
+                    }
+                }
+                detailsHtml += '</div>'; // End grid
+
+                // Handle Attachments
+                if (reportDetails.data['URLs de Imágenes o PDFs']) {
+                    const rawUrls = String(reportDetails.data['URLs de Imágenes o PDFs']);
+                    // Check if it's N/A, None, or empty
+                    if (rawUrls && rawUrls.trim() !== 'N/A' && rawUrls.trim() !== 'None' && rawUrls.trim() !== '') {
+                        const urls = rawUrls.split('\n').filter(url => url.trim() !== '');
+
+                        if (urls.length > 0) {
+                            detailsHtml += `<div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                                <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-3">Archivos Adjuntos</h3>
+                                <div class="flex flex-wrap gap-4">`;
+
+                            urls.forEach(url => {
+                                url = url.trim();
+                                if (url) {
+                                    const lowerUrl = url.toLowerCase();
+                                    // Extract filename from URL (handling signed URLs which have query params)
+                                    let filename = url.split('?')[0].substring(url.lastIndexOf('/') + 1);
+                                    if (!filename) filename = "Archivo Adjunto";
+
+                                    if (lowerUrl.includes('.jpeg') || lowerUrl.includes('.jpg') || lowerUrl.includes('.png') || lowerUrl.includes('.gif') || lowerUrl.includes('.webp')) {
+                                        detailsHtml += `
+                                            <div class="relative group">
+                                                <a href="${url}" target="_blank" class="block">
+                                                    <img src="${url}" alt="Evidencia" class="h-32 w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+                                                </a>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-32" title="${filename}">${filename}</p>
+                                            </div>`;
+                                    } else {
+                                        detailsHtml += `
+                                            <a href="${url}" target="_blank" class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800">
+                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                <span class="truncate max-w-xs">${filename}</span>
+                                            </a>`;
+                                    }
+                                }
+                            });
+                            detailsHtml += `</div></div>`;
+                        }
+                    }
+                }
+
+                detailsHtml += '</div>';
+                modalContent.innerHTML = detailsHtml;
+
+            } catch (error) {
+                console.error('Error fetching report details:', error);
+                modalContent.innerHTML = `
+                    <div class="text-center p-6 text-red-600">
+                        <p>Error al cargar los detalles del reporte.</p>
+                        <p class="text-sm mt-2 text-gray-500">${error.message}</p>
+                    </div>`;
+            }
+        }
+
+        function closeReportDetailsModal() {
+            document.getElementById('report-details-modal').classList.add('hidden');
+        }
+
+        // --- Helper Functions ---
+        function getFilters() {
+            return {
+                form_type: document.getElementById('formTypeSelect').value,
+                report_id: document.getElementById('reportIdSearch').value,
+                property_id: document.getElementById('propertySelect').value,
+                location_id: document.getElementById('locationSelect').value,
+                submitted_by: document.getElementById('submittedBySearch').value,
+                start_date: document.getElementById('startDateFilter').value,
+                end_date: document.getElementById('endDateFilter').value
+            };
+        }
+
+        function createReportBlock(form) {
+            const reportBlock = document.createElement('div');
+            reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
+            reportBlock.setAttribute('data-report-id', form.id);
+            reportBlock.setAttribute('data-form-type', form.formType); // Store form type
+
+            let dataHtml = '';
+            let count = 0;
+            // Display first 4 relevant fields
+            for (const key in form.data) {
+                if (count >= 4) break;
+                const value = form.data[key];
+
+                const lowerKey = key.toLowerCase();
+                const isComplexField = lowerKey.includes('firma') || lowerKey.includes('lista') || lowerKey.includes('json') || lowerKey.includes('foto') || lowerKey.includes('participantes');
+
+                if (!isComplexField && key !== 'URLs de Imágenes o PDFs' && value && value !== 'N/A' && value !== 'None' && value !== 'No especificado') {
+                    dataHtml += `<p><strong>${key}:</strong> ${value}</p>`;
+                    count++;
+                }
+            }
+
+            reportBlock.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                    </div>
+                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                </div>
+
+                <div class="text-gray-700 mb-4">
+                    ${dataHtml}
+                </div>
+                
+                <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
+                    Ver Detalles
+                </button>
+            `;
+            return reportBlock;
+        }
+
+        // --- Report Loading Functionality ---
+        async function loadMoreReports() {
+            const loadMoreButton = document.getElementById('load-more-button');
+            loadMoreButton.disabled = true;
+            loadMoreButton.textContent = 'Cargando...';
+
+            // Get current filters
+            const filters = getFilters();
+            const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+
+            // Add filters to query params
+            for (const key in filters) {
+                if (filters[key]) {
+                    queryParams.append(key, filters[key]);
+                }
+            }
+
+            try {
+                const response = await fetch(`/viewer/api/reports?${queryParams.toString()}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const reportsContainer = document.getElementById('reports-container');
+
+                data.reports.forEach(form => {
+                    const reportBlock = createReportBlock(form);
+                    reportsContainer.appendChild(reportBlock);
+                });
+
+                offset += data.reports.length;
+                totalReports = data.total_count;
+                checkLoadMoreButtonVisibility();
+                attachEventListenersToNewReports();
+                updateActionButtonsState();
+
+            } catch (error) {
+                console.error('Error loading more reports:', error);
+                showFlashMessage('Error al cargar más reportes.', 'error');
+            } finally {
+                loadMoreButton.disabled = false;
+                loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
+            }
+        }
+
+        // Load properties from database
+        async function loadProperties() {
+            try {
+                const response = await fetch('/viewer/api/properties', {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const propertySelect = document.getElementById('propertySelect');
+
+                // Clear existing options except the first one
+                propertySelect.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+
+                // Add properties to dropdown
+                data.properties.forEach(property => {
+                    const option = document.createElement('option');
+                    option.value = property.id;
+                    option.textContent = property.name;
+                    propertySelect.appendChild(option);
+                });
+
+                console.log(`Loaded ${data.properties.length} properties`);
+
+            } catch (error) {
+                console.error('Error loading properties:', error);
+                showFlashMessage(`Error al cargar las propiedades: ${error.message}`, 'error');
+            }
+        }
+
+        // Load locations based on selected property
+        async function loadLocations(propertyId = null) {
+            try {
+                const url = propertyId ? `/viewer/api/locations?property_id=${propertyId}` : '/viewer/api/locations';
+                const response = await fetch(url, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const locationSelect = document.getElementById('locationSelect');
+
+                // Clear existing options
+                locationSelect.innerHTML = '';
+
+                if (propertyId) {
+                    locationSelect.disabled = false;
+                    locationSelect.innerHTML = '<option value="">Seleccionar lugar del incidente...</option>';
+
+                    // Add locations to dropdown
+                    data.locations.forEach(location => {
+                        const option = document.createElement('option');
+                        option.value = location.id;
+                        option.textContent = location.name;
+                        locationSelect.appendChild(option);
+                    });
+
+                    if (data.locations.length === 0) {
+                        locationSelect.innerHTML = '<option value="">No hay lugares disponibles para esta propiedad</option>';
+                    }
+                } else {
+                    locationSelect.disabled = true;
+                    locationSelect.innerHTML = '<option value="">Primero seleccione una propiedad...</option>';
+                }
+
+                console.log(`Loaded ${data.locations.length} locations for property ${propertyId}`);
+
+            } catch (error) {
+                console.error('Error loading locations:', error);
+                showFlashMessage(`Error al cargar los lugares: ${error.message}`, 'error');
+            }
+        }
+
+        // Handle property selection change - REMOVED AUTO-APPLY FILTERS
+        function handlePropertyChange() {
+            const propertySelect = document.getElementById('propertySelect');
+            const selectedPropertyId = propertySelect.value;
+
+            if (selectedPropertyId) {
+                loadLocations(selectedPropertyId);
+            } else {
+                loadLocations(); // This will disable the location dropdown
+            }
+            // Note: Removed automatic filter application to prevent timing issues
+        }
+
+        // Updated applyFilters function with better error handling
+        function applyFilters() {
+            const filters = getFilters();
+
+            offset = 0;
+            totalReports = 0;
+
+            async function fetchFilteredReports() {
+                const reportsContainer = document.getElementById('reports-container');
+                reportsContainer.innerHTML = '<p class="text-center text-blue-600">Cargando reportes filtrados...</p>';
+
+                const queryParams = new URLSearchParams({ offset: offset, limit: limit });
+                for (const key in filters) {
+                    if (filters[key]) {
+                        queryParams.append(key, filters[key]);
+                    }
+                }
+
+                try {
+                    console.log('Applying filters:', filters);
+                    const response = await fetch(`/viewer/api/reports?${queryParams.toString()}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            window.location.href = '/logout';
+                            return;
+                        }
+
+                        let errorMessage = `HTTP error! status: ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        } catch (e) {
+                            // If can't parse error JSON, use the status message
+                            console.error('Could not parse error response:', e);
+                        }
+
+                        throw new Error(errorMessage);
+                    }
+
+                    const data = await response.json();
+                    reportsContainer.innerHTML = '';
+
+                    if (data.reports.length === 0) {
+                        reportsContainer.innerHTML = '<p class="text-center text-gray-500">No se encontraron reportes que coincidan con los criterios de búsqueda.</p>';
+                    } else {
+                        data.reports.forEach(form => {
+                            const reportBlock = createReportBlock(form);
+                            reportsContainer.appendChild(reportBlock);
+                        });
+                    }
+                    offset = data.reports.length;
+                    totalReports = data.total_count;
+                    checkLoadMoreButtonVisibility();
+                    attachEventListenersToNewReports();
+                    updateActionButtonsState();
+
+                } catch (error) {
+                    console.error('Error fetching filtered reports:', error);
+                    reportsContainer.innerHTML = '<p class="text-center text-red-500">Error al cargar reportes filtrados.</p>';
+                    showFlashMessage(`Error al cargar reportes filtrados: ${error.message}`, 'error');
+                }
+            }
+            fetchFilteredReports();
+        }
+
+        // --- Action Button Functions ---
+        async function printSelectedReports() {
+            // Check if we have any selection
+            const hasSelection = (selectAllMode === 'all' && allReportIds.length > 0) ||
+                document.querySelectorAll('.report-checkbox:checked').length > 0;
+
+            if (!hasSelection) {
+                showFlashMessage('Por favor seleccione al menos un reporte para imprimir.', 'error');
+                return;
+            }
+
+            // Mark selected reports for printing
+            document.querySelectorAll('.report-block').forEach(block => {
+                const checkbox = block.querySelector('.report-checkbox');
+                // In "all reports" mode, print all visible reports
+                // In "page" mode, only print checked reports
+                const shouldPrint = (selectAllMode === 'all' && allReportIds.length > 0) || checkbox.checked;
+
+                if (shouldPrint) {
+                    block.classList.add('print-me');
+                    // Expand the report content for printing
+                    const reportContent = block.querySelector('.report-content');
+                    if (reportContent) {
+                        reportContent.classList.add('expanded');
+                    }
+                } else {
+                    block.classList.remove('print-me');
+                }
+            });
+
+            // Trigger print
+            window.print();
+
+            // Clean up after printing
+            setTimeout(() => {
+                document.querySelectorAll('.report-block').forEach(block => {
+                    block.classList.remove('print-me');
+                });
+            }, 1000);
+        }
+
+        async function generatePDFForSelected() {
+            let reports;
+
+            // Check if we're in "all reports" mode
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reports = allReportIds;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para generar PDF.', 'error');
+                    return;
+                }
+
+                reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
+            }
+
+            // Prompt for filename
+            let filename = prompt("Ingrese un nombre para el archivo PDF (opcional):");
+
+            try {
+                const response = await fetch('/viewer/api/generate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/pdf'
+                    },
+                    body: JSON.stringify({
+                        reports: reports,
+                        filename: filename
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+
+                // Get filename from response header or create default
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                if (filename) {
+                    // Sanitize filename for download attribute
+                    filename = filename.replace(/[^\w\-_]/g, '');
+                    a.download = `${filename}.pdf`;
+                } else {
+                    a.download = `reportes_incidencias_${timestamp}.pdf`;
+                }
+
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showFlashMessage('PDF generado y descargado exitosamente!', 'success');
+
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                showFlashMessage('Error al generar el PDF.', 'error');
+            }
+        }
+
+        async function exportExcelForSelected() {
+            let reports;
+
+            // Check if we're in "all reports" mode
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reports = allReportIds;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para exportar a Excel.', 'error');
+                    return;
+                }
+
+                reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
+            }
+
+            // Prompt for filename
+            let filename = prompt("Ingrese un nombre para el archivo Excel (opcional):");
+
+            // Show loading indicator
+            const loadingMsg = showFlashMessage(`Generando Excel con ${reports.length} reportes... Por favor espere.`, 'info', 0);
+
+            try {
+                const response = await fetch('/viewer/api/export-excel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    },
+                    body: JSON.stringify({
+                        reports: reports,
+                        filename: filename
+                    })
+                });
+
+                // Hide loading indicator
+                if (loadingMsg && loadingMsg.remove) {
+                    loadingMsg.remove();
+                }
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+
+                // Get filename from Content-Disposition header or use default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let downloadFilename = 'reportes.xlsx';
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+                    if (filenameMatch) {
+                        downloadFilename = filenameMatch[1];
+                    }
+                }
+
+                a.download = downloadFilename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showFlashMessage('Excel exportado exitosamente!', 'success');
+            } catch (error) {
+                // Hide loading indicator
+                if (loadingMsg && loadingMsg.remove) {
+                    loadingMsg.remove();
+                }
+                console.error('Error generating Excel file:', error);
+                showFlashMessage(`Error al generar Excel: ${error.message}`, 'error');
+            }
+        }
+
+        async function emailSelectedReports() {
+            // Check if we have any selection
+            const hasSelection = (selectAllMode === 'all' && allReportIds.length > 0) ||
+                document.querySelectorAll('.report-checkbox:checked').length > 0;
+
+            if (!hasSelection) {
+                showFlashMessage('Por favor seleccione al menos un reporte para enviar por email.', 'error');
+                return;
+            }
+
+            // Show email modal
+            document.getElementById('email-modal').classList.remove('hidden');
+        }
+
+        async function shareSelectedReports() {
+            let reportIds;
+            let reportCount;
+
+            // Check if we're in "all reports" mode
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reportIds = allReportIds.map(r => r.id);
+                reportCount = allReportIds.length;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para compartir.', 'error');
+                    return;
+                }
+                reportIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.dataset.reportId);
+                reportCount = reportIds.length;
+            }
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        title: 'Reportes de Seguridad - Kanan Sentinel SecApp',
+                        text: `${reportCount} reportes seleccionados: ${reportIds.join(', ')}`,
+                        url: window.location.href
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                }
+            } else {
+                // Fallback for browsers that don't support Web Share API
+                showFlashMessage('Función de compartir no disponible en este navegador.', 'error');
+            }
+        }
+
+        // --- Email Modal Functions ---
+        async function sendEmailWithReports(recipientEmail, reports) {
+            try {
+                const response = await fetch('/viewer/api/email-reports', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        reports: reports,
+                        recipient_email: recipientEmail
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showFlashMessage(data.message, 'success');
+                    document.getElementById('email-modal').classList.add('hidden');
+                    document.getElementById('recipient-email').value = '';
+                } else {
+                    showFlashMessage(data.message || 'Error al enviar el email.', 'error');
+                }
+            } catch (error) {
+                console.error('Error sending email:', error);
+                showFlashMessage('Error al enviar el email.', 'error');
+            }
+        }
+
+        // --- Select All Functionality ---
+        let allReportIds = []; // Store all report IDs when "all reports" mode is selected
+        let selectAllMode = 'page'; // 'page' or 'all'
+
+        async function fetchAllReportIds() {
+            try {
+                // Build query params from current filters
+                const params = new URLSearchParams({
+                    offset: 0,
+                    limit: 999999, // Request all reports
+                    ids_only: 'true' // Tell backend to return only IDs
+                });
+
+                // Add current filters
+                const formType = document.getElementById('formTypeSelect')?.value;
+                if (formType) params.append('form_type', formType);
+
+                const reportId = document.getElementById('reportIdSearch')?.value;
+                if (reportId) params.append('report_id', reportId);
+
+                const property = document.getElementById('propertySelect')?.value;
+                if (property) params.append('property', property);
+
+                const location = document.getElementById('locationSelect')?.value;
+                if (location) params.append('location', location);
+
+                const submittedBy = document.getElementById('submittedBySearch')?.value;
+                if (submittedBy) params.append('submitted_by', submittedBy);
+
+                const startDate = document.getElementById('startDateFilter')?.value;
+                if (startDate) params.append('start_date', startDate);
+
+                const endDate = document.getElementById('endDateFilter')?.value;
+                if (endDate) params.append('end_date', endDate);
+
+                const response = await fetch(`/viewer/api/reports?${params.toString()}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    return data.report_ids || []; // Use report_ids from new backend response
+                } else {
+                    console.error('Error fetching all report IDs:', data.error);
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching all report IDs:', error);
+                return [];
+            }
+        }
+
+        function updateSelectionCount() {
+            const selectedCountSpan = document.getElementById('selected-count');
+
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                selectedCountSpan.textContent = allReportIds.length;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                selectedCountSpan.textContent = checkedCheckboxes.length;
+            }
+        }
+
+        async function handleSelectionModeChange() {
+            const selectModePage = document.getElementById('select-mode-page');
+            const selectModeAll = document.getElementById('select-mode-all');
+
+            if (selectModeAll.checked) {
+                selectAllMode = 'all';
+                // Fetch all report IDs
+                allReportIds = await fetchAllReportIds();
+                // Check all visible checkboxes
+                const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+                reportCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            } else {
+                selectAllMode = 'page';
+                allReportIds = [];
+                // Uncheck all visible checkboxes
+                const reportCheckboxes = document.querySelectorAll('.report-checkbox');
+                reportCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            }
+
+            updateSelectionCount();
+            updateActionButtonsState();
+        }
+
+        // --- DOMContentLoaded ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTheme();
+
+            if (themeToggle) {
+                themeToggle.addEventListener('click', toggleTheme);
+            }
+
+            // Load initial data
+            loadProperties();
+
+            const loadMoreButton = document.getElementById('load-more-button');
+            if (loadMoreButton) {
+                loadMoreButton.addEventListener('click', loadMoreReports);
+            }
+            checkLoadMoreButtonVisibility();
+            attachEventListenersToNewReports();
+            updateActionButtonsState();
+
+            // Get form elements
+            const reportIdSearch = document.getElementById('reportIdSearch');
+            const propertySelect = document.getElementById('propertySelect');
+            const locationSelect = document.getElementById('locationSelect');
+            const submittedBySearch = document.getElementById('submittedBySearch');
+            const startDateFilter = document.getElementById('startDateFilter');
+            const endDateFilter = document.getElementById('endDateFilter');
+            const searchButton = document.getElementById('search-button');
+            const clearSearchButton = document.getElementById('clear-search-button');
+
+            // Add event listeners
+            document.getElementById('formTypeSelect').addEventListener('change', applyFilters);
+            propertySelect.addEventListener('change', handlePropertyChange);
+            searchButton.addEventListener('click', applyFilters);
+
+            clearSearchButton.addEventListener('click', () => {
+                reportIdSearch.value = '';
+                propertySelect.value = '';
+                locationSelect.value = '';
+                locationSelect.disabled = true;
+                locationSelect.innerHTML = '<option value="">Primero seleccione una propiedad...</option>';
+                submittedBySearch.value = '';
+                startDateFilter.value = '';
+                endDateFilter.value = '';
+                applyFilters();
+            });
+
+            // Enter key support for text inputs and date inputs
+            [reportIdSearch, submittedBySearch, startDateFilter, endDateFilter].forEach(input => {
+                input.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        applyFilters();
+                    }
+                });
+            });
+
+            // REMOVED AUTO-SEARCH ON DROPDOWN CHANGES to prevent timing issues
+            // Users will need to click the search button or press enter to apply filters
+
+            // Action button event listeners
+            document.getElementById('print-selected-button').addEventListener('click', printSelectedReports);
+            document.getElementById('save-pdf-button').addEventListener('click', generatePDFForSelected);
+            document.getElementById('export-excel-button').addEventListener('click', exportExcelForSelected);
+            document.getElementById('email-selected-button').addEventListener('click', emailSelectedReports);
+            document.getElementById('share-button').addEventListener('click', shareSelectedReports);
+
+            // Select all functionality - radio buttons
+            document.getElementById('select-mode-page').addEventListener('change', handleSelectionModeChange);
+            document.getElementById('select-mode-all').addEventListener('change', handleSelectionModeChange);
+
+            // Also update selection count when individual checkboxes are clicked
+            document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    if (selectAllMode === 'page') {
+                        updateSelectionCount();
+                    }
+                });
+            });
+
+            // Email modal event listeners
+            document.getElementById('cancel-email-button').addEventListener('click', () => {
+                document.getElementById('email-modal').classList.add('hidden');
+                document.getElementById('recipient-email').value = '';
+            });
+
+            document.getElementById('email-form').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const recipientEmail = document.getElementById('recipient-email').value;
+
+                let reports;
+                // Check if we're in "all reports" mode
+                if (selectAllMode === 'all' && allReportIds.length > 0) {
+                    reports = allReportIds;
+                } else {
+                    const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                    reports = Array.from(checkedCheckboxes).map(checkbox => {
+                        const block = checkbox.closest('.report-block');
+                        return {
+                            id: parseInt(checkbox.dataset.reportId),
+                            formType: block.dataset.formType || 'reporte_incidente'
+                        };
+                    });
+                }
+
+                const submitButton = event.target.querySelector('button[type="submit"]');
+                const originalText = submitButton.textContent;
+                submitButton.disabled = true;
+                submitButton.textContent = 'Enviando...';
+
+                await sendEmailWithReports(recipientEmail, reports);
+
+                submitButton.disabled = false;
+                submitButton.textContent = originalText;
+            });
+
+
+
+            // Close modal when clicking outside
+            document.getElementById('email-modal').addEventListener('click', (event) => {
+                if (event.target.id === 'email-modal') {
+                    document.getElementById('email-modal').classList.add('hidden');
+                    document.getElementById('recipient-email').value = '';
+                }
+            });
+        });
+    </script>
+    <!-- Report Details Modal -->
+    <div id="report-details-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
+        <div
+            class="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700">
+            <!-- Modal Header -->
+            <div
+                class="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-lg">
+                <h2 id="modal-report-title" class="text-2xl font-bold text-gray-800 dark:text-white">Detalles del
+                    Reporte</h2>
+                <button onclick="closeReportDetailsModal()"
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none transition-colors">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div id="modal-report-content" class="p-6 overflow-y-auto flex-grow bg-gray-50 dark:bg-gray-900">
+                <!-- Content injected via JS -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div
+                class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-white dark:bg-gray-800 rounded-b-lg">
+                <button onclick="closeReportDetailsModal()"
+                    class="base-button-style btn-secondary-professional dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Close modal when clicking outside
+        document.getElementById('report-details-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'report-details-modal') {
+                closeReportDetailsModal();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !document.getElementById('report-details-modal').classList.contains('hidden')) {
+                closeReportDetailsModal();
+            }
+        });
+    </script>
+</body>
+
+</html>
