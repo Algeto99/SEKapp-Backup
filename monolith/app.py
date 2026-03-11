@@ -117,23 +117,23 @@ bcrypt = Bcrypt(app)
 # --- JWT Error Handlers ---
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return redirect('/login')
+    return redirect('/')
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error_string):
-    return redirect('/login')
+    return redirect('/')
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error_string):
-    return redirect('/login')
+    return redirect('/')
 
 @jwt.revoked_token_loader
 def revoked_token_callback(jwt_header, jwt_payload):
-    return redirect('/login')
+    return redirect('/')
 
 @jwt.needs_fresh_token_loader
 def needs_fresh_token_callback(jwt_header, jwt_payload):
-    return redirect('/login')
+    return redirect('/')
 
 # --- Mount Applications/Blueprints Here ---
 # Prefixing them is important to prevent route collisions.
@@ -150,7 +150,7 @@ def health_check():
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return redirect('/login')
+    return redirect('/')
 
 # --- Main Entry Point ---
 if __name__ == '__main__':
