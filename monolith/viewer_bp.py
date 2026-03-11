@@ -1240,7 +1240,7 @@ def email_selected_reports_api():
     html_body_parts = [
         f"<html><body style='font-family: Arial, sans-serif; color: #333;'>",
         f"<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>",
-        f"<h2 style='color: #2563eb;'>Reportes de Incidencias Seleccionados - SMT SecApp</h2>",
+        f"<h2 style='color: #2563eb;'>Reportes de Incidencias Seleccionados - Kanan SecApp</h2>",
         f"<p>Hola,</p>",
         f"<p>Adjuntos se encuentran los detalles de los reportes de incidencias seleccionados:</p>"
     ]
@@ -1310,7 +1310,7 @@ def email_selected_reports_api():
             
             html_body_parts.append(f"</div></div>") # Close body and container # Changed from html_parts to html_body_parts
 
-    html_body_parts.append(f"<p style='margin-top: 20px;'>Generado por {user_email} desde SMT SecApp.</p>")
+    html_body_parts.append(f"<p style='margin-top: 20px;'>Generado por {user_email} desde Kanan SecApp.</p>")
     html_body_parts.append(f"</div></body></html>")
     email_html_body = "\n".join(html_body_parts)
 
@@ -1742,7 +1742,7 @@ def generate_reports_html(reports):
             @page {
                 margin: 2cm;
                 @bottom-center {
-                    content: "Página " counter(page) " - SMT SecApp";
+                    content: "Página " counter(page) " - Kanan SecApp";
                     font-size: 10px;
                     color: #666;
                 }
@@ -1751,7 +1751,7 @@ def generate_reports_html(reports):
     </head>
     <body>
         <div class="header">
-            <h1>Reportes de Incidencias - SMT SecApp</h1>
+            <h1>Reportes de Incidencias - Kanan SecApp</h1>
             <p style="margin: 10px 0 0 0; color: #666;">Generado el """ + datetime.now().strftime("%d/%m/%Y a las %H:%M") + """</p>
         </div>
     """]

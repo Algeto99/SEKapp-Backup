@@ -231,7 +231,7 @@ def submit_incident_report():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -297,7 +297,7 @@ def submit_mantenimiento_seguridad_fisica():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -379,7 +379,7 @@ def submit_medicion_experiencia_cliente():
         cur.close()
 
         app_logger.info("Customer experience survey submitted successfully.")
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -491,7 +491,7 @@ def submit_supervision_puesto():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -619,7 +619,7 @@ def submit_informe_novedades_disciplinario():
         cur.close()
 
         app_logger.info("Disciplinary report submitted successfully.")
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -678,7 +678,7 @@ def submit_log_de_patrullas():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -738,7 +738,7 @@ def submit_registro_de_capacitaciones():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -820,7 +820,7 @@ def submit_registro_y_acta_de_visita():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -909,7 +909,7 @@ def submit_planilla_vehicular():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -986,7 +986,7 @@ def submit_planilla_motocicletas():
         cur.close()
         app_logger.info("Motorcycle form submitted successfully.")
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -1097,7 +1097,7 @@ def submit_orden_mantenimiento():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('success'))
+        return redirect(url_for('forms_bp.success'))
 
     except Exception as e:
         if conn:
@@ -1237,9 +1237,9 @@ def install_instructions():
 @forms_bp.route('/manifest.json')
 def manifest():
     return jsonify({
-        "name": "SMT SecApp Forms", # Slightly updated name
-        "short_name": "SMT Forms",
-        "description": "Aplicación para completar formularios de SMT SecApp",
+        "name": "Kanan SecApp Forms", # Slightly updated name
+        "short_name": "Kanan Forms",
+        "description": "Aplicación para completar formularios de Kanan SecApp",
         "start_url": "/select", # Start at selection
         "display": "standalone",
         "background_color": "#1a202c",

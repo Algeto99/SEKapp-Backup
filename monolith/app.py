@@ -148,6 +148,10 @@ app.register_blueprint(viewer_bp, url_prefix='/viewer')
 def health_check():
     return jsonify({"status": "healthy", "service": "monolith"}), 200
 
+@app.errorhandler(404)
+def page_not_found(e):
+    return redirect('/login')
+
 # --- Main Entry Point ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))

@@ -751,7 +751,8 @@
                         class="base-button-style btn-secondary-professional">Cancelar</button>
                     <button type="submit" class="base-button-style btn-primary-professional">Enviar</button>
                 </div>
-            </form>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        </form>
             <div id="email-status" class="mt-4 text-center hidden"></div>
         </div>
     </div>

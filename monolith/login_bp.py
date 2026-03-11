@@ -207,12 +207,12 @@ def send_email(to_email, subject, body, is_html=False):
 
 def send_password_reset_email(email, reset_token):
     reset_url = url_for('login_bp.reset_password', token=reset_token, _external=True)
-    subject = "Restablecer Contraseña - SMT SecApp"
+    subject = "Restablecer Contraseña - Kanan SecApp"
     html_body = f"""<div style="font-family: sans-serif;"><a href="{reset_url}">Restablecer</a></div>"""
     return send_email(email, subject, html_body, is_html=True)
 
 def send_welcome_email(user_email, user_name, is_admin=False):
-    subject = "¡Bienvenido a SMT SecApp!"
+    subject = "¡Bienvenido a Kanan SecApp!"
     login_url = url_for('login_bp.login', _external=True)
     html_body = f"""<div style="font-family: sans-serif;">¡Hola {user_name}! <a href="{login_url}">Iniciar Sesión</a></div>"""
     return send_email(user_email, subject, html_body, is_html=True)
@@ -417,6 +417,53 @@ def reset_password(token):
             conn.close()
             
     return render_template('reset_password.html', token=token)
+
+@login_bp.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not all([email, current_password, new_password, confirm_password]):
+            flash('Por favor complete todos los campos.', 'warning')
+            return render_template('change_password.html', email=email)
+
+        if new_password != confirm_password:
+            flash('Las contraseñas nuevas no coinciden.', 'danger')
+            return render_template('change_password.html', email=email)
+
+        conn = get_db_connection()
+        if not conn:
+            flash('Error de conexión a la base de datos.', 'danger')
+            return render_template('change_password.html', email=email)
+
+        try:
+            cur = conn.cursor(cursor_factory=extras.DictCursor)
+            cur.execute('SELECT "id", "password_hash" FROM "users" WHERE "email" = %s', (email,))
+            user = cur.fetchone()
+
+            if not user or not bcrypt.check_password_hash(user['password_hash'], current_password):
+                flash('Correo electrónico o contraseña actual incorrectos.', 'danger')
+                return render_template('change_password.html', email=email)
+
+            hashed_new = bcrypt.generate_password_hash(new_password).decode('utf-8')
+            cur.execute('UPDATE "users" SET "password_hash" = %s WHERE "email" = %s', (hashed_new, email))
+            conn.commit()
+            cur.close()
+
+            flash('Contraseña actualizada exitosamente.', 'success')
+            return redirect(url_for('login_bp.login'))
+
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.error(f'Error changing password: {e}', exc_info=True)
+            flash('Ocurrió un error al cambiar la contraseña.', 'danger')
+        finally:
+            conn.close()
+
+    return render_template('change_password.html', email=request.args.get('email', ''))
 
 @login_bp.route('/logout')
 def logout():
