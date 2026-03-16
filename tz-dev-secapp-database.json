@@ -345,6 +345,11 @@
     "data_type": "text"
   },
   {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_niega_firmar",
+    "data_type": "boolean"
+  },
+  {
     "table_name": "log_de_patrullas",
     "column_name": "id_patrulla",
     "data_type": "integer"
@@ -1701,11 +1706,6 @@
   },
   {
     "table_name": "supervision_puesto",
-    "column_name": "conoce_mision_vision",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
     "column_name": "estado_bitacora",
     "data_type": "character varying"
   },
@@ -1767,11 +1767,6 @@
   {
     "table_name": "supervision_puesto",
     "column_name": "porta_arma",
-    "data_type": "text"
-  },
-  {
-    "table_name": "supervision_puesto",
-    "column_name": "conoce_politica",
     "data_type": "text"
   },
   {

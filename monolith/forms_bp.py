@@ -594,7 +594,10 @@ def submit_informe_novedades_disciplinario():
             'submitted_by_email': user_email,
             'fecha_hora': fecha_hora_str,
             'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno')
+            'turno': request.form.get('turno'),
+            'empleado_niega_firmar': True if request.form.get('empleado_niega_firmar') else False,
+            'nombre_testigo': request.form.get('nombre_testigo'),
+            'firma_testigo': request.form.get('firma_testigo'),
         }
 
         app_logger.info(f"Submitting disciplinary report for {user_email}, Employee: {form_data.get('empleado_nombre')}")

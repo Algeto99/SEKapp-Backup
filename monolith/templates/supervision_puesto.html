@@ -473,28 +473,13 @@
 
                     <!-- Inspección -->
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inspección de Puesto</h3>
+                    <p class="text-xs text-gray-400 mb-3">1 = Muy Deficiente &nbsp;·&nbsp; 5 = Excelente</p>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         ${generateSelectField(index, 'asistencia_puntualidad', 'Asistencia y puntualidad')}
                         ${generateSelectField(index, 'presentacion_uniforme', 'Presentación y Uniforme')}
                         ${generateSelectField(index, 'estado_limpieza_puesto', 'Estado y limpieza del puesto')}
                         ${generateSelectField(index, 'equipamiento_completo', 'Equipamiento (radio, etc.)')}
                         ${generateSelectField(index, 'estado_bitacora', 'Estado de bitácora y registros')}
-                        <div>
-                            <label class="block text-sm font-medium mb-1">¿Conoce misión/visión?</label>
-                            <select name="supervisions[${index}][conoce_mision_vision]" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option>Sí</option>
-                                <option>No</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">¿Conoce política?</label>
-                            <select name="supervisions[${index}][conoce_politica]" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option>Sí</option>
-                                <option>No</option>
-                            </select>
-                        </div>
                     </div>
 
                     <!-- Observaciones -->
@@ -528,10 +513,11 @@
                         <label class="block text-sm font-medium mb-1">${label}</label>
                         <select name="supervisions[${index}][${name}]" class="form-select">
                             <option value="">Seleccione...</option>
-                            <option>Excelente</option>
-                            <option>Bueno</option>
-                            <option>Regular</option>
-                            <option>Malo</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
                         </select>
                     </div>
                 `;
