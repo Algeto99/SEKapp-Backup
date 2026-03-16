@@ -459,6 +459,26 @@
                             <label for="empleado_niega_firmar" class="text-sm ml-2">Empleado se niega a firmar</label>
                         </div>
                     </div>
+
+                    <!-- Witness section — shown only when employee refuses to sign -->
+                    <div id="testigoSection" class="md:col-span-2 mt-4" style="display:none;">
+                        <div class="border border-yellow-500/40 bg-yellow-500/10 rounded-lg p-4 space-y-4">
+                            <p class="text-yellow-400 text-sm font-semibold">⚠️ El empleado se negó a firmar — registre los datos del testigo.</p>
+                            <div>
+                                <label for="nombre_testigo" class="block text-sm font-medium mb-1">Nombre del Testigo</label>
+                                <input type="text" name="nombre_testigo" id="nombre_testigo" class="form-input" placeholder="Nombre completo del testigo">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Firma del Testigo</label>
+                                <div class="signature-wrapper w-full h-48" id="signatureWrapperTestigo">
+                                    <canvas id="signaturePadTestigo" class="signature-pad"></canvas>
+                                </div>
+                                <button type="button" id="clearSignatureTestigo"
+                                    class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                                <input type="hidden" name="firma_testigo" id="firma_testigo">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -606,6 +626,7 @@
             // Initialize both signature pads
             initSignaturePad('signaturePadResponsable');
             initSignaturePad('signaturePadRevisado');
+            // Testigo pad is initialized lazily when the section is first shown
 
             // Clear button handlers
             const clearButton1 = document.getElementById('clearSignatureResponsable');
@@ -628,15 +649,27 @@
                 });
             }
 
+            const clearButtonTestigo = document.getElementById('clearSignatureTestigo');
+            if (clearButtonTestigo) {
+                clearButtonTestigo.addEventListener('click', () => {
+                    if (signaturePads['signaturePadTestigo']) {
+                        signaturePads['signaturePadTestigo'].clear();
+                        signatureImages['signaturePadTestigo'] = null;
+                    }
+                });
+            }
+
             // Handle "employee refuses to sign" checkbox
             const empleadoNiegaFirmar = document.getElementById('empleado_niega_firmar');
             const signatureWrapperRevisado = document.getElementById('signatureWrapperRevisado');
             const clearButtonRevisado = document.getElementById('clearSignatureRevisado');
+            const testigoSection = document.getElementById('testigoSection');
+            let testigoPadInitialized = false;
 
             if (empleadoNiegaFirmar) {
                 empleadoNiegaFirmar.addEventListener('change', () => {
                     if (empleadoNiegaFirmar.checked) {
-                        // Disable signature pad
+                        // Disable colaborador signature pad
                         if (signaturePads['signaturePadRevisado']) {
                             signaturePads['signaturePadRevisado'].clear();
                             signaturePads['signaturePadRevisado'].off();
@@ -651,8 +684,17 @@
                             clearButtonRevisado.style.opacity = '0.5';
                             clearButtonRevisado.style.cursor = 'not-allowed';
                         }
+                        // Show witness section
+                        if (testigoSection) {
+                            testigoSection.style.display = 'block';
+                            // Initialize the witness pad the first time it becomes visible
+                            if (!testigoPadInitialized) {
+                                initSignaturePad('signaturePadTestigo');
+                                testigoPadInitialized = true;
+                            }
+                        }
                     } else {
-                        // Enable signature pad
+                        // Enable colaborador signature pad
                         if (signaturePads['signaturePadRevisado']) {
                             signaturePads['signaturePadRevisado'].on();
                         }
@@ -665,6 +707,16 @@
                             clearButtonRevisado.style.opacity = '1';
                             clearButtonRevisado.style.cursor = 'pointer';
                         }
+                        // Hide and clear witness section
+                        if (testigoSection) {
+                            testigoSection.style.display = 'none';
+                        }
+                        if (signaturePads['signaturePadTestigo']) {
+                            signaturePads['signaturePadTestigo'].clear();
+                            signatureImages['signaturePadTestigo'] = null;
+                        }
+                        const nombreTestigo = document.getElementById('nombre_testigo');
+                        if (nombreTestigo) nombreTestigo.value = '';
                     }
                 });
             }
@@ -696,6 +748,15 @@
                         if (hiddenInput2) {
                             hiddenInput2.value = signatureImages['signaturePadRevisado'] ||
                                 signaturePads['signaturePadRevisado'].toDataURL();
+                        }
+                    }
+
+                    // Signature 3 - Witness, only when employee refused to sign
+                    if (empleadoNiegaFirmarChecked && signaturePads['signaturePadTestigo'] && !signaturePads['signaturePadTestigo'].isEmpty()) {
+                        const hiddenInput3 = document.getElementById('firma_testigo');
+                        if (hiddenInput3) {
+                            hiddenInput3.value = signatureImages['signaturePadTestigo'] ||
+                                signaturePads['signaturePadTestigo'].toDataURL();
                         }
                     }
 

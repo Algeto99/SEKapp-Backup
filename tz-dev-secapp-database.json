@@ -335,6 +335,16 @@
     "data_type": "text"
   },
   {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "nombre_testigo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "firma_testigo",
+    "data_type": "text"
+  },
+  {
     "table_name": "log_de_patrullas",
     "column_name": "id_patrulla",
     "data_type": "integer"
