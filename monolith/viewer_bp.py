@@ -157,37 +157,6 @@ FORM_CONFIGS = {
             "Firma Responsable": "firma_responsable"
         }
     },
-    'mantenimiento_seguridad_fisica': {
-        'table': 'mantenimiento_seguridad_fisica',
-        'id_col': 'id_mantenimiento',
-        'date_col': 'creado_en', 
-        'user_col': 'submitted_by_email',
-        'title_prefix': 'Mantenimiento Seguridad Física',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
-        'data_mapping': {
-            "Fecha": "fecha",
-            "Hora": "hora",
-            "Sitio": "sitio",
-            "Equipo": "equipo",
-            "ID Equipo/Serial": "id_equipo_serial",
-            "Técnico Responsable": "tecnico_responsable",
-            "Tipo de Servicio": "tipo_servicio",
-            "Actividad Realizada": "actividad_realizada",
-            "Resultado": "resultado",
-            "Observaciones": "observaciones",
-            "Downtime (Horas)": "downtime_horas",
-            "Repuestos Usados": "repuestos_usados",
-            "Tipo de Alerta": "tipo_alerta_generada",
-            "Descripción Alerta": "descripcion_alerta_critica",
-            "Acción Inmediata": "accion_inmediata_critica",
-            "Acción Correctiva": "accion_correctiva_recomendada",
-            "Responsable Crítica": "responsable_asignado_critica",
-            "Fecha Límite": "fecha_limite_cierre_critica",
-            "Estado Crítica": "estado_critica",
-            "Firma Usuario": "firma_usuario"
-        }
-    },
     'medicion_experiencia_cliente': {
         'table': 'medicion_experiencia_cliente',
         'id_col': 'id_encuesta',
