@@ -267,22 +267,50 @@
                 </div>
             </div>
 
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
-                <textarea name="temas_tratados" id="temas_tratados" rows="5" class="form-textarea"
-                    placeholder="Liste los puntos principales discutidos..."></textarea>
+            <!-- REPEATABLE BLOCKS CONTAINER -->
+            <div id="blocksContainer">
+                <!-- Block 0 (default) -->
+                <div class="block-group" data-block-index="0">
+                    <div class="form-section">
+                        <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
+                        <textarea name="temas_tratados_0" rows="5" class="form-textarea"
+                            placeholder="Liste los puntos principales discutidos..."></textarea>
+                    </div>
+
+                    <div class="form-section">
+                        <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
+                        <textarea name="acuerdos_compromisos_0" rows="5" class="form-textarea"
+                            placeholder="Detalle los acuerdos alcanzados..."></textarea>
+                    </div>
+
+                    <div class="form-section">
+                        <h2 class="text-xl font-bold mb-4">4. Responsables</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Nombre del Responsable</label>
+                                <input type="text" name="nombre_responsable_0" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Fecha de Cumplimiento</label>
+                                <input type="date" name="fecha_cumplimiento_0" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
-                <textarea name="acuerdos_compromisos" id="acuerdos_compromisos" rows="5" class="form-textarea"
-                    placeholder="Detalle los acuerdos, responsables y fechas de cumplimiento..."></textarea>
+            <!-- Agregar Button -->
+            <div class="flex justify-start mb-6">
+                <button type="button" id="addBlockBtn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg focus:outline-none transition duration-300 flex items-center gap-2">
+                    <span class="text-lg">+</span> Agregar
+                </button>
             </div>
 
-            <!-- Section 4 "Observaciones Adicionales" removed -->
-
+            <!-- Section 5 (previously 4): Participantes -->
             <div class="form-section">
-                <h2 class="text-xl font-bold mb-4">4. Participantes</h2>
+                <h2 class="text-xl font-bold mb-4">5. Participantes</h2>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label for="nombre_visitante" class="block text-sm font-medium mb-1">Nombre del
@@ -441,6 +469,59 @@
 
             // Init default
             initPad('asistente-0');
+
+            // ── Agregar Block (sections 2, 3, Responsables) ──────────────────────
+            let blockCount = 0;
+            const blocksContainer = document.getElementById('blocksContainer');
+            const addBlockBtn = document.getElementById('addBlockBtn');
+
+            addBlockBtn.addEventListener('click', function () {
+                blockCount++;
+                const idx = blockCount;
+
+                const newBlock = document.createElement('div');
+                newBlock.className = 'block-group';
+                newBlock.dataset.blockIndex = idx;
+                newBlock.innerHTML = `
+                    <div class="my-4 flex items-center gap-3">
+                        <div class="flex-1 border-t border-indigo-500"></div>
+                        <span class="text-indigo-400 text-sm font-semibold">Bloque ${idx + 1}</span>
+                        <div class="flex-1 border-t border-indigo-500"></div>
+                        <button type="button" class="remove-block text-red-400 hover:text-red-300 text-sm ml-2">✕ Eliminar bloque</button>
+                    </div>
+                    <div class="form-section">
+                        <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
+                        <textarea name="temas_tratados_${idx}" rows="5" class="form-textarea"
+                            placeholder="Liste los puntos principales discutidos..."></textarea>
+                    </div>
+                    <div class="form-section">
+                        <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
+                        <textarea name="acuerdos_compromisos_${idx}" rows="5" class="form-textarea"
+                            placeholder="Detalle los acuerdos alcanzados..."></textarea>
+                    </div>
+                    <div class="form-section">
+                        <h2 class="text-xl font-bold mb-4">4. Responsables</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Nombre del Responsable</label>
+                                <input type="text" name="nombre_responsable_${idx}" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Fecha de Cumplimiento</label>
+                                <input type="date" name="fecha_cumplimiento_${idx}" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                `;
+                blocksContainer.appendChild(newBlock);
+            });
+
+            blocksContainer.addEventListener('click', function (e) {
+                if (e.target.classList.contains('remove-block')) {
+                    e.target.closest('.block-group').remove();
+                }
+            });
+            // ─────────────────────────────────────────────────────────────────────
 
             addAsistenteBtn.addEventListener('click', function () {
                 asistenteCount++;

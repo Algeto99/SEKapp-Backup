@@ -1280,6 +1280,16 @@
     "data_type": "text"
   },
   {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "nombre_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "fecha_cumplimiento",
+    "data_type": "date"
+  },
+  {
     "table_name": "regular_users",
     "column_name": "id",
     "data_type": "integer"

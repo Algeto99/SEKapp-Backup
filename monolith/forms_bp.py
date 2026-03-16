@@ -730,17 +730,41 @@ def submit_registro_y_acta_de_visita():
         import json
         detalles_participantes_json = json.dumps(detalles_participantes)
 
+        # Collect all repeatable block data (indexed temas_tratados_N, acuerdos_compromisos_N, etc.)
+        bloques = {}
+        for key in request.form:
+            for prefix in ('temas_tratados_', 'acuerdos_compromisos_', 'nombre_responsable_', 'fecha_cumplimiento_'):
+                if key.startswith(prefix):
+                    idx = key[len(prefix):]
+                    if idx not in bloques:
+                        bloques[idx] = {}
+                    bloques[idx][prefix.rstrip('_')] = request.form.get(key)
+
+        # Merge blocks into combined strings for storage in existing columns
+        temas_list = [bloques[i].get('temas_tratados', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('temas_tratados')]
+        acuerdos_list = [bloques[i].get('acuerdos_compromisos', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('acuerdos_compromisos')]
+        responsables_list = [
+            {'nombre': bloques[i].get('nombre_responsable', ''), 'fecha': bloques[i].get('fecha_cumplimiento', '')}
+            for i in sorted(bloques.keys(), key=lambda x: int(x))
+            if bloques[i].get('nombre_responsable') or bloques[i].get('fecha_cumplimiento')
+        ]
+
+        import json
+        temas_combined = '\n---\n'.join(temas_list) if temas_list else None
+        acuerdos_combined = '\n---\n'.join(acuerdos_list) if acuerdos_list else None
+        responsables_json = json.dumps(responsables_list) if responsables_list else None
+
         form_data = {
-            'cliente_instalacion': request.form.get('cliente_visitado'), # Mapped from form field 'cliente_visitado'
-            # 'puesto_area': request.form.get('puesto_area'), # Not present in this form
+            'cliente_instalacion': request.form.get('cliente_visitado'),
             'fecha_hora': request.form.get('fecha_hora'),
             'motivo_visita': request.form.get('motivo_visita'),
             'nombre_visitante': request.form.get('nombre_visitante'),
             'cargo_visitante': request.form.get('cargo_visitante'),
             'firma_visitante': request.form.get('firma_visitante'),
-            'detalles_participantes': detalles_participantes_json, 
-            'temas_tratados': request.form.get('temas_tratados'),
-            'acuerdos_compromisos': request.form.get('acuerdos_compromisos'),
+            'detalles_participantes': detalles_participantes_json,
+            'temas_tratados': temas_combined,
+            'acuerdos_compromisos': acuerdos_combined,
+            'compromisos_responsable': responsables_json,
             'submitted_by_email': user_email
         }
 
