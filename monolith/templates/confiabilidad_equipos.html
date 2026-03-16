@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confiabilidad de Equipos - Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding-top: 80px;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Merriweather', serif;
+            color: #ffffff;
+        }
+
+        /* ─── Navigation ─── */
+        .header-nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            background-color: rgba(45, 55, 72, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1200px; margin: 0 auto;
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 1rem;
+        }
+        .nav-links { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+        .nav-link { color: #60a5fa; text-decoration: none; font-size: 0.875rem; transition: all 0.2s; }
+        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
+        .user-greeting { font-size: 0.875rem; color: #9ca3af; }
+        .user-name { color: #60a5fa; font-weight: bold; }
+        .admin-badge { color: #a855f7; font-weight: bold; }
+
+        /* ─── Form Sections ─── */
+        .form-section {
+            background-color: #2d3748;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.375rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #3182ce;
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.5);
+        }
+        .form-textarea { resize: vertical; }
+
+        /* ─── Signature Pad ─── */
+        .signature-pad {
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            border: 2px dashed #4a5568;
+            border-radius: 0.375rem;
+            cursor: crosshair;
+            background-color: white;
+        }
+
+        /* ─── Confiabilidad Table ─── */
+        .confiabilidad-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+        .confiabilidad-table th {
+            background-color: #1e3a5f;
+            color: #90cdf4;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border: 1px solid #4a5568;
+            font-weight: 600;
+        }
+        .confiabilidad-table td {
+            padding: 0.75rem 1rem;
+            border: 1px solid #4a5568;
+            color: #e2e8f0;
+        }
+        .confiabilidad-table tr:nth-child(even) td {
+            background-color: rgba(255,255,255,0.03);
+        }
+        .confiabilidad-table .average-row td {
+            background-color: rgba(49,130,206,0.1);
+            font-weight: bold;
+            border-top: 2px solid #3182ce;
+        }
+
+        /* ─── Status Badges ─── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .status-verde   { background: rgba(34,197,94,0.2);  color: #4ade80; border: 1px solid #22c55e; }
+        .status-amarillo{ background: rgba(234,179,8,0.2);  color: #facc15; border: 1px solid #eab308; }
+        .status-naranja { background: rgba(249,115,22,0.2); color: #fb923c; border: 1px solid #f97316; }
+        .status-rojo    { background: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid #ef4444; }
+        .status-na      { background: rgba(107,114,128,0.2);color: #9ca3af; border: 1px solid #6b7280; }
+
+        /* ─── Theme Toggle ─── */
+        .theme-toggle {
+            position: fixed; top: 1.5rem; left: 1.5rem; z-index: 100;
+            background-color: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.5rem; padding: 0.5rem;
+            cursor: pointer; transition: all 0.2s ease-in-out;
+            color: #e2e8f0; width: auto;
+        }
+        .theme-toggle:hover { background-color: rgba(255,255,255,0.2); transform: scale(1.05); }
+        .theme-toggle svg { width: 1.5rem; height: 1.5rem; }
+
+        /* ─── Light Mode ─── */
+        body.light-mode { background-color: #f8f9fa; color: #343a40; }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3,
+        body.light-mode h4, body.light-mode h5, body.light-mode h6 { color: #212529; }
+        body.light-mode .header-nav { background-color: rgba(255,255,255,0.95); border-bottom: 1px solid rgba(0,0,0,0.08); }
+        body.light-mode .user-greeting { color: #4a5568; }
+        body.light-mode .form-section { background-color: #ffffff; border-color: #e2e8f0; }
+        body.light-mode .form-input,
+        body.light-mode .form-select,
+        body.light-mode .form-textarea { background-color: #e9ecef; border-color: #ced4da; color: #212529; }
+        body.light-mode .theme-toggle { background-color: rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.2); color: #374151; }
+        body.light-mode .theme-toggle:hover { background-color: rgba(0,0,0,0.2); }
+        body.light-mode .confiabilidad-table th { background-color: #2563eb; color: #fff; }
+        body.light-mode .confiabilidad-table td { color: #212529; }
+        body.light-mode .confiabilidad-table .average-row td { background-color: rgba(37,99,235,0.08); }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            body { padding-top: 120px; }
+            .confiabilidad-table { font-size: 0.75rem; }
+            .confiabilidad-table th, .confiabilidad-table td { padding: 0.5rem; }
+        }
+        @media (max-width: 640px) { body { padding-top: 140px; } }
+
+        /* ─── Inventory block ─── */
+        .inventory-block {
+            border-left: 4px solid #3182ce;
+            padding-left: 1rem;
+            background: rgba(45,55,72,0.5);
+            margin-top: 1.5rem;
+            border-radius: 0 8px 8px 0;
+            padding: 1.25rem 1.25rem 1.25rem 1.5rem;
+        }
+
+        /* Table overflow on mobile */
+        .table-wrapper { overflow-x: auto; }
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            style="display: none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <!-- Navigation -->
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo"
+                    class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ name }}</span>
+                    {% if is_admin %}
+                    <span class="admin-badge">(Admin)</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                {% if is_admin %}
+                <a href="{{ dashboard_service_url }}" class="nav-link">Dashboard</a>
+                <a href="{{ viewer_service_url }}" class="nav-link">Reportes</a>
+                {% endif %}
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="{{ login_service_url }}/logout" class="nav-link">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold">Confiabilidad de Equipos</h1>
+            <p class="text-gray-400 mt-1 text-sm">Sistema de Seguridad</p>
+        </header>
+
+        <form id="confiabilidadForm"
+              action="{{ url_for('forms_bp.submit_confiabilidad_equipos') }}"
+              method="POST"
+              class="space-y-6">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <!-- ══════════════════════════════════════════════════
+                 SECTION 1 – DATOS GENERALES
+            ══════════════════════════════════════════════════ -->
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-600">
+                    1. Datos Generales
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">
+                            Cliente / Instalación
+                        </label>
+                        <input type="text" name="cliente_instalacion" id="cliente_instalacion"
+                               class="form-input" placeholder="Nombre del cliente o instalación" required>
+                    </div>
+                    <div>
+                        <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>
+                        <input type="date" name="fecha" id="fecha" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="hora" class="block text-sm font-medium mb-1">Hora</label>
+                        <input type="time" name="hora" id="hora" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="sitio" class="block text-sm font-medium mb-1">Sitio</label>
+                        <input type="text" name="sitio" id="sitio"
+                               class="form-input" placeholder="Ubicación específica">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════
+                 SECTION 2 – INVENTARIO Y ESTADO DE EQUIPOS
+            ══════════════════════════════════════════════════ -->
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-600">
+                    2. Inventario y Estado de Equipos
+                </h2>
+
+                <!-- Dynamic inventory blocks injected here -->
+                <div id="inventarioContainer"></div>
+
+                <div class="mt-6">
+                    <button type="button" id="addInventarioBtn"
+                        class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-lg
+                               transition duration-200 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Añadir Equipo
+                    </button>
+                </div>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════
+                 SECTION 3 – CONFIABILIDAD (auto-computed)
+            ══════════════════════════════════════════════════ -->
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-600">
+                    3. Confiabilidad
+                </h2>
+                <div class="table-wrapper">
+                    <table class="confiabilidad-table" id="confiabilidadTable">
+                        <thead>
+                            <tr>
+                                <th>Tipo de Equipo</th>
+                                <th>Total Equipos</th>
+                                <th>Funcionando</th>
+                                <th>% Funcionando</th>
+                                <th>Estatus</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr data-tipo="Camaras">
+                                <td>Cámaras</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr data-tipo="Monitores">
+                                <td>Monitores</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr data-tipo="Grabadores">
+                                <td>Grabadores</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr data-tipo="Alarmas">
+                                <td>Alarmas</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr data-tipo="Boton de Panico">
+                                <td>Botón de Pánico</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr data-tipo="Control de Acceso">
+                                <td>Control de Acceso</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr class="average-row" id="averageRow">
+                                <td>Promedio General</td>
+                                <td class="cell-total" id="avg-total">—</td>
+                                <td class="cell-func" id="avg-func">—</td>
+                                <td class="cell-pct" id="avg-pct">—</td>
+                                <td class="cell-status" id="avg-status">—</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-xs text-gray-400 mt-3">
+                    * Esta tabla se actualiza automáticamente con los datos ingresados en la Sección 2.
+                </p>
+            </div>
+
+            <!-- ══════════════════════════════════════════════════
+                 SECTION 4 – FIRMAS
+            ══════════════════════════════════════════════════ -->
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-600">
+                    4. Firmas
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                    <!-- Técnico de Mantenimiento -->
+                    <div>
+                        <div class="mb-4">
+                            <label for="tecnico_mantenimiento" class="block text-sm font-medium mb-1">
+                                Técnico de Mantenimiento
+                            </label>
+                            <input type="text" name="tecnico_mantenimiento" id="tecnico_mantenimiento"
+                                   class="form-input" placeholder="Nombre completo">
+                        </div>
+                        <label class="block text-sm font-medium mb-2">Firma</label>
+                        <canvas id="signaturePadTecnico" class="signature-pad w-full h-36"></canvas>
+                        <button type="button" id="clearSignatureTecnico"
+                                class="mt-2 text-sm text-blue-400 hover:text-blue-300 transition">
+                            Limpiar Firma
+                        </button>
+                        <input type="hidden" name="firma_tecnico" id="firma_tecnico">
+                    </div>
+
+                    <!-- Supervisor de Seguridad -->
+                    <div>
+                        <div class="mb-4">
+                            <label for="supervisor_seguridad" class="block text-sm font-medium mb-1">
+                                Supervisor de Seguridad / Agente
+                            </label>
+                            <input type="text" name="supervisor_seguridad" id="supervisor_seguridad"
+                                   class="form-input" placeholder="Nombre completo">
+                        </div>
+                        <label class="block text-sm font-medium mb-2">Firma</label>
+                        <canvas id="signaturePadSupervisor" class="signature-pad w-full h-36"></canvas>
+                        <button type="button" id="clearSignatureSupervisor"
+                                class="mt-2 text-sm text-blue-400 hover:text-blue-300 transition">
+                            Limpiar Firma
+                        </button>
+                        <input type="hidden" name="firma_supervisor" id="firma_supervisor">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex justify-end pb-8">
+                <button type="submit" id="submitBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg
+                           transition duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    Enviar Formulario
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- SignaturePad Library -->
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+        /* ─── Theme Toggle ─── */
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+
+        function setDarkMode() {
+            document.body.classList.remove('light-mode');
+            darkModeIcon.style.display = 'block';
+            lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        }
+        function setLightMode() {
+            document.body.classList.add('light-mode');
+            darkModeIcon.style.display = 'none';
+            lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+        function initializeTheme() {
+            localStorage.getItem('theme') === 'light' ? setLightMode() : setDarkMode();
+        }
+        initializeTheme();
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode();
+        });
+
+        /* ─── Pre-fill date/time ─── */
+        const now = new Date();
+        document.getElementById('fecha').value = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        document.getElementById('hora').value   = now.toTimeString().slice(0, 5);  // HH:MM
+
+        /* ─── Equipment types (order matches table rows) ─── */
+        const TIPOS = [
+            'Camaras',
+            'Monitores',
+            'Grabadores',
+            'Alarmas',
+            'Boton de Panico',
+            'Control de Acceso'
+        ];
+
+        /* ─── Confiabilidad Table Helpers ─── */
+        function getStatusBadge(pct) {
+            if (pct === null) return '<span class="status-badge status-na">N/A</span>';
+            if (pct >= 95)  return `<span class="status-badge status-verde">🟢 Operativo</span>`;
+            if (pct >= 85)  return `<span class="status-badge status-amarillo">🟡 Operativo con observaciones</span>`;
+            if (pct >= 70)  return `<span class="status-badge status-naranja">🟠 Riesgo operativo</span>`;
+            return `<span class="status-badge status-rojo">🔴 No confiable</span>`;
+        }
+
+        function updateConfiabilidadTable() {
+            // Aggregate totals per tipo from all inventory blocks
+            const data = {}; // tipo → { total, func }
+            TIPOS.forEach(t => { data[t] = { total: null, func: null }; });
+
+            const blocks = document.querySelectorAll('.inventory-block');
+            blocks.forEach(block => {
+                const tipoSel = block.querySelector('.inv-tipo');
+                const totalIn = block.querySelector('.inv-total');
+                const funcIn  = block.querySelector('.inv-func');
+                if (!tipoSel || !totalIn || !funcIn) return;
+
+                const tipo  = tipoSel.value;
+                const total = parseInt(totalIn.value, 10);
+                const func  = parseInt(funcIn.value,  10);
+
+                if (!tipo || !TIPOS.includes(tipo)) return;
+
+                if (!isNaN(total)) {
+                    data[tipo].total = (data[tipo].total || 0) + total;
+                }
+                if (!isNaN(func)) {
+                    data[tipo].func = (data[tipo].func || 0) + func;
+                }
+            });
+
+            // Update rows
+            let sumTotal = 0, sumFunc = 0, countValid = 0;
+            const tbody = document.querySelector('#confiabilidadTable tbody');
+            TIPOS.forEach(tipo => {
+                const row = tbody.querySelector(`tr[data-tipo="${tipo}"]`);
+                if (!row) return;
+                const { total, func } = data[tipo];
+                const hasData = (total !== null);
+
+                const totalVal = hasData ? total : null;
+                const funcVal  = (hasData && func !== null) ? func : null;
+                const pct      = (totalVal && totalVal > 0 && funcVal !== null)
+                                 ? Math.round((funcVal / totalVal) * 100) : null;
+
+                row.querySelector('.cell-total').textContent  = totalVal !== null ? totalVal : '—';
+                row.querySelector('.cell-func').textContent   = funcVal  !== null ? funcVal  : '—';
+                row.querySelector('.cell-pct').textContent    = pct      !== null ? pct + '%' : '—';
+                row.querySelector('.cell-status').innerHTML   = getStatusBadge(pct);
+
+                if (pct !== null) {
+                    sumTotal += (totalVal || 0);
+                    sumFunc  += (funcVal  || 0);
+                    countValid++;
+                }
+            });
+
+            // Average row
+            const avgPct = (countValid > 0 && sumTotal > 0)
+                           ? Math.round((sumFunc / sumTotal) * 100) : null;
+            document.getElementById('avg-total').textContent  = countValid > 0 ? sumTotal : '—';
+            document.getElementById('avg-func').textContent   = countValid > 0 ? sumFunc  : '—';
+            document.getElementById('avg-pct').textContent    = avgPct !== null ? avgPct + '%' : '—';
+            document.getElementById('avg-status').innerHTML   = getStatusBadge(avgPct);
+        }
+
+        /* ─── Inventory Block Factory ─── */
+        let inventarioCount = 0;
+        const inventarioContainer = document.getElementById('inventarioContainer');
+
+        function createInventarioBlock(index) {
+            const div = document.createElement('div');
+            div.className = 'inventory-block';
+            div.dataset.index = index;
+
+            div.innerHTML = `
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-blue-300">Equipo #${index + 1}</h3>
+                    ${index > 0 ? `<button type="button" class="text-red-400 hover:text-red-300 text-sm font-medium remove-inv-btn" data-index="${index}">Eliminar</button>` : ''}
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tipo de Equipo</label>
+                        <select name="inventario[${index}][tipo_equipo]" class="form-select inv-tipo" required>
+                            <option value="">Seleccione...</option>
+                            <option value="Camaras">Cámaras</option>
+                            <option value="Monitores">Monitores</option>
+                            <option value="Grabadores">Grabadores</option>
+                            <option value="Alarmas">Alarmas</option>
+                            <option value="Boton de Panico">Botón de Pánico</option>
+                            <option value="Control de Acceso">Control de Acceso</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Total de Equipos</label>
+                        <input type="number" name="inventario[${index}][total_equipos]"
+                               class="form-input inv-total" min="0" placeholder="0">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Equipos Operativos</label>
+                        <input type="number" name="inventario[${index}][equipos_operativos]"
+                               class="form-input inv-func" min="0" placeholder="0">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Equipos con Falla</label>
+                        <input type="number" name="inventario[${index}][equipos_con_falla]"
+                               class="form-input" min="0" placeholder="0">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Pendiente de Reparación</label>
+                        <select name="inventario[${index}][pendiente_reparacion]" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                            <option value="N/A">N/A</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Pendiente de Compra</label>
+                        <select name="inventario[${index}][pendiente_compra]" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                            <option value="N/A">N/A</option>
+                        </select>
+                    </div>
+
+                    <div class="md:col-span-2 lg:col-span-3">
+                        <label class="block text-sm font-medium mb-1">Comentario</label>
+                        <textarea name="inventario[${index}][comentario]"
+                                  class="form-textarea" rows="2"
+                                  placeholder="Observaciones o detalles adicionales..."></textarea>
+                    </div>
+                </div>
+            `;
+
+            return div;
+        }
+
+        function bindInventarioEvents(block) {
+            // Remove button
+            const removeBtn = block.querySelector('.remove-inv-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', () => {
+                    block.remove();
+                    renumberInventarioBlocks();
+                    updateConfiabilidadTable();
+                });
+            }
+            // Live-update table on any change
+            block.querySelectorAll('.inv-tipo, .inv-total, .inv-func').forEach(el => {
+                el.addEventListener('change', updateConfiabilidadTable);
+                el.addEventListener('input',  updateConfiabilidadTable);
+            });
+        }
+
+        function renumberInventarioBlocks() {
+            document.querySelectorAll('.inventory-block').forEach((blk, idx) => {
+                const header = blk.querySelector('h3');
+                if (header) header.textContent = `Equipo #${idx + 1}`;
+            });
+        }
+
+        function addInventarioBlock() {
+            const index = inventarioCount++;
+            const block = createInventarioBlock(index);
+            inventarioContainer.appendChild(block);
+            bindInventarioEvents(block);
+            updateConfiabilidadTable();
+        }
+
+        document.getElementById('addInventarioBtn').addEventListener('click', addInventarioBlock);
+
+        // Start with one block
+        addInventarioBlock();
+
+        /* ─── Signature Pads ─── */
+        function initSignaturePad(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            const pad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)',
+                penColor: 'rgb(0, 0, 0)',
+                minWidth: 0.5, maxWidth: 2.5, throttle: 0
+            });
+
+            function resize() {
+                const data = pad.toData();
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                const rect  = canvas.getBoundingClientRect();
+                canvas.width  = rect.width  * ratio;
+                canvas.height = rect.height * ratio;
+                canvas.getContext('2d').scale(ratio, ratio);
+                pad.clear();
+                pad.fromData(data);
+            }
+            resize();
+
+            let resizeTimer;
+            new ResizeObserver(() => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(resize, 100);
+            }).observe(canvas.parentElement);
+
+            return pad;
+        }
+
+        const padTecnico    = initSignaturePad('signaturePadTecnico');
+        const padSupervisor = initSignaturePad('signaturePadSupervisor');
+
+        document.getElementById('clearSignatureTecnico').addEventListener('click', () => padTecnico.clear());
+        document.getElementById('clearSignatureSupervisor').addEventListener('click', () => padSupervisor.clear());
+
+        /* ─── Form Submit ─── */
+        document.getElementById('confiabilidadForm').addEventListener('submit', function (e) {
+            // Capture signatures
+            document.getElementById('firma_tecnico').value =
+                padTecnico.isEmpty() ? '' : padTecnico.toDataURL();
+            document.getElementById('firma_supervisor').value =
+                padSupervisor.isEmpty() ? '' : padSupervisor.toDataURL();
+        });
+
+    });
+    </script>
+</body>
+</html>

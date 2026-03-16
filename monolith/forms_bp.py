@@ -1134,6 +1134,91 @@ def submit_checklist_cumplimiento():
             conn.close()
 
 
+# --- CONFIABILIDAD DE EQUIPOS ---
+@forms_bp.route('/confiabilidad_equipos')
+@jwt_required()
+def confiabilidad_equipos_form():
+    user_name, is_admin = get_user_info_from_jwt()
+    return render_template(
+        'confiabilidad_equipos.html',
+        name=user_name,
+        is_admin=is_admin,
+        **get_service_urls()
+    )
+
+@forms_bp.route('/submit_confiabilidad_equipos', methods=['POST'])
+@jwt_required()
+def submit_confiabilidad_equipos():
+    import json as _json
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        # Parse dynamic inventario rows from form data
+        # Keys follow the pattern: inventario[N][field]
+        inventario_map = {}
+        pattern = re.compile(r'inventario\[(\d+)\]\[(.+)\]')
+        for key, value in request.form.items():
+            match = pattern.match(key)
+            if match:
+                idx   = int(match.group(1))
+                field = match.group(2)
+                if idx not in inventario_map:
+                    inventario_map[idx] = {}
+                inventario_map[idx][field] = value
+
+        # Convert to an ordered list (drop empty rows)
+        inventario_list = []
+        for idx in sorted(inventario_map.keys()):
+            row = {k: v for k, v in inventario_map[idx].items() if v}
+            if row:
+                inventario_list.append(row)
+
+        inventario_json = _json.dumps(inventario_list, ensure_ascii=False)
+
+        form_data = {
+            'cliente_instalacion':  request.form.get('cliente_instalacion'),
+            'fecha':                request.form.get('fecha')  or None,
+            'hora':                 request.form.get('hora')   or None,
+            'sitio':                request.form.get('sitio'),
+            'inventario':           inventario_json,
+            'tecnico_mantenimiento':request.form.get('tecnico_mantenimiento'),
+            'firma_tecnico':        request.form.get('firma_tecnico'),
+            'supervisor_seguridad': request.form.get('supervisor_seguridad'),
+            'firma_supervisor':     request.form.get('firma_supervisor'),
+            'submitted_by_email':   user_email,
+        }
+        # Remove None/empty values
+        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
+
+        conn = get_db_connection()
+        cur  = conn.cursor()
+
+        # Validate columns against DB schema (safety)
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'confiabilidad_equipos'")
+        table_columns = [row[0] for row in cur.fetchall()]
+        valid_data = {k: v for k, v in form_data.items() if k in table_columns}
+
+        columns      = ', '.join(valid_data.keys())
+        placeholders = ', '.join(['%s'] * len(valid_data))
+        sql = f"INSERT INTO confiabilidad_equipos ({columns}) VALUES ({placeholders})"
+        cur.execute(sql, list(valid_data.values()))
+        conn.commit()
+        cur.close()
+
+        app_logger.info(f"Confiabilidad de Equipos submitted by {user_email}")
+        return redirect(url_for('forms_bp.success'))
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error submitting confiabilidad_equipos: {e}", exc_info=True)
+        return render_template('error.html', error=str(e)), 500
+    finally:
+        if conn:
+            conn.close()
+
+
 # --- PWA ROUTES ---
 @forms_bp.route('/offline.html')
 def offline():

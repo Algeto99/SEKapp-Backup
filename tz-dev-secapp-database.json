@@ -240,6 +240,66 @@
     "data_type": "text"
   },
   {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "cliente_instalacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "sitio",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "inventario",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "tecnico_mantenimiento",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "firma_tecnico",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "supervisor_seguridad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "submitted_by_email",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "informe_novedades_disciplinario",
     "column_name": "id_informe",
     "data_type": "integer"
