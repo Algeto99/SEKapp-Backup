@@ -65,6 +65,41 @@
     "data_type": "boolean"
   },
   {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "session_token",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "nombre",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "checklist_cumplimiento",
     "column_name": "id",
     "data_type": "integer"

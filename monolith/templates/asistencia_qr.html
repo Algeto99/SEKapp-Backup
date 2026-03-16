@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Asistencia – Kanan Sentinel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+
+        .card {
+            background-color: #2d3748;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+            width: 100%;
+            max-width: 480px;
+            padding: 2rem;
+        }
+
+        .form-input {
+            background-color: #4a5568;
+            border: 1px solid #718096;
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            width: 100%;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96,165,250,0.3);
+        }
+
+        .signature-pad {
+            border: 2px dashed #60a5fa;
+            border-radius: 0.5rem;
+            background-color: white;
+            width: 100%;
+            height: 160px;
+            touch-action: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3182ce, #2b6cb0);
+            color: white;
+            font-weight: 700;
+            padding: 0.9rem 2rem;
+            border-radius: 0.5rem;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(49,130,206,0.5);
+        }
+
+        .success-card {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .success-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #a0aec0;
+            margin-bottom: 0.375rem;
+        }
+
+        h1 { color: #ffffff; }
+        h2 { color: #e2e8f0; }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <!-- Header -->
+        <div class="flex items-center gap-3 mb-6">
+            <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo"
+                class="w-10 h-10 rounded-lg shadow">
+            <div>
+                <h1 class="text-xl font-bold">Registrar Asistencia</h1>
+                <p class="text-sm text-gray-400">Kanan Sentinel SecApp</p>
+            </div>
+        </div>
+
+        {% if topic %}
+        <div class="bg-indigo-900 border border-indigo-600 rounded-lg px-4 py-3 mb-6">
+            <p class="text-xs text-indigo-300 uppercase font-semibold tracking-wide">Capacitación</p>
+            <p class="text-white font-medium mt-1">{{ topic }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Success view (hidden initially) -->
+        <div id="successView" class="success-card hidden">
+            <div class="success-icon">✅</div>
+            <h2 class="text-2xl font-bold text-green-400 mb-2">¡Listo!</h2>
+            <p class="text-gray-300">Tu asistencia ha sido registrada exitosamente.<br>Puedes cerrar esta página.</p>
+        </div>
+
+        <!-- Form view -->
+        <div id="formView">
+            <p class="text-sm text-gray-400 mb-6">Complete los campos y firme para confirmar su asistencia.</p>
+
+            <form id="attendanceForm" method="POST" action="/forms/submit_asistencia_qr/{{ session_token }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="nombre">Nombre y Apellido <span class="text-red-400">*</span></label>
+                        <input type="text" id="nombre" name="nombre" class="form-input"
+                            placeholder="Ej. Juan Pérez" required>
+                    </div>
+
+                    <div>
+                        <label for="cargo">Cargo</label>
+                        <input type="text" id="cargo" name="cargo" class="form-input"
+                            placeholder="Ej. Oficial de Seguridad">
+                    </div>
+
+                    <div>
+                        <label for="documento">Número de Documento</label>
+                        <input type="text" id="documento" name="documento" class="form-input"
+                            placeholder="Ej. 12345678">
+                    </div>
+
+                    <div>
+                        <label>Firma <span class="text-red-400">*</span></label>
+                        <canvas id="signaturePad" class="signature-pad"></canvas>
+                        <button type="button" id="clearSignature"
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar firma</button>
+                        <input type="hidden" name="firma" id="firmaInput">
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <button type="submit" class="btn-primary">
+                        ✓ Confirmar Asistencia
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Signature pad
+        const canvas = document.getElementById('signaturePad');
+        const signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255,255,255)'
+        });
+
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            const data = signaturePad.toData();
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext('2d').scale(ratio, ratio);
+            signaturePad.clear();
+            signaturePad.fromData(data);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        document.getElementById('clearSignature').addEventListener('click', () => signaturePad.clear());
+
+        // Form submission
+        document.getElementById('attendanceForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (signaturePad.isEmpty()) {
+                alert('Por favor firme antes de enviar.');
+                return;
+            }
+
+            document.getElementById('firmaInput').value = signaturePad.toDataURL();
+
+            const formData = new FormData(this);
+            const actionUrl = this.action;
+
+            fetch(actionUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok || response.redirected) {
+                    document.getElementById('formView').classList.add('hidden');
+                    document.getElementById('successView').classList.remove('hidden');
+                } else {
+                    alert('Error al registrar asistencia. Por favor intente de nuevo.');
+                }
+            })
+            .catch(() => {
+                alert('Error de conexión. Por favor intente de nuevo.');
+            });
+        });
+    </script>
+</body>
+
+</html>

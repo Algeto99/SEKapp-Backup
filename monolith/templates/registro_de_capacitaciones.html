@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -302,6 +303,15 @@
                 </div>
             </div>
             <div class="form-section">
+                <h2 class="text-xl font-bold mb-2">📱 Código QR de Asistencia</h2>
+                <p class="text-sm text-gray-400 mb-4">Muestre este código a los asistentes para que registren su asistencia desde su teléfono, sin necesidad de iniciar sesión.</p>
+                <div class="flex flex-col items-center gap-4">
+                    <div id="qrcode" class="bg-white p-4 rounded-xl shadow-lg"></div>
+                    <p class="text-xs text-gray-500 text-center">Escanear con la cámara del teléfono</p>
+                </div>
+                <input type="hidden" name="session_token" id="session_token">
+            </div>
+            <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">2. Lista de Asistencia</h2>
                 <div id="attendees-container"></div>
                 <button type="button" id="add-attendee"
@@ -344,6 +354,46 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+
+            // ── QR Code + Session Token ───────────────────────────────────────────
+            function generateUUID() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    const r = Math.random() * 16 | 0;
+                    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+                });
+            }
+
+            const sessionToken = generateUUID();
+            document.getElementById('session_token').value = sessionToken;
+
+            const topic = encodeURIComponent(document.getElementById('tema_capacitacion').value || '');
+            const guestUrl = `${window.location.origin}/forms/asistencia_qr/${sessionToken}?topic=${topic}`;
+
+            new QRCode(document.getElementById('qrcode'), {
+                text: guestUrl,
+                width: 220,
+                height: 220,
+                colorDark: '#1a202c',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            // Update QR when topic changes
+            document.getElementById('tema_capacitacion').addEventListener('input', function() {
+                const updatedTopic = encodeURIComponent(this.value || '');
+                const updatedUrl = `${window.location.origin}/forms/asistencia_qr/${sessionToken}?topic=${updatedTopic}`;
+                document.getElementById('qrcode').innerHTML = '';
+                new QRCode(document.getElementById('qrcode'), {
+                    text: updatedUrl,
+                    width: 220,
+                    height: 220,
+                    colorDark: '#1a202c',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            });
+            // ─────────────────────────────────────────────────────────────────────
+
             // Theme Toggle Logic
             const themeToggle = document.getElementById('themeToggle');
             const darkModeIcon = document.getElementById('darkModeIcon');

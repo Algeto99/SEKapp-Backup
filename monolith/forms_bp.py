@@ -627,6 +627,48 @@ def submit_log_de_patrullas():
             conn.close()
 
 # --- REGISTRO DE CAPACITACIONES ---
+# --- ASISTENCIA QR (PUBLIC – no JWT) ---
+@forms_bp.route('/asistencia_qr/<session_token>')
+def asistencia_qr_form(session_token):
+    """Public guest attendance form, no login required."""
+    topic = request.args.get('topic', '')
+    return render_template('asistencia_qr.html', session_token=session_token, topic=topic)
+
+@forms_bp.route('/submit_asistencia_qr/<session_token>', methods=['POST'])
+def submit_asistencia_qr(session_token):
+    """Save a guest attendance entry; no JWT needed."""
+    conn = None
+    try:
+        nombre = request.form.get('nombre', '').strip()
+        if not nombre:
+            return 'Nombre requerido', 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO capacitacion_asistencia (session_token, nombre, cargo, documento, firma) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            (
+                session_token,
+                nombre,
+                request.form.get('cargo', ''),
+                request.form.get('documento', ''),
+                request.form.get('firma', '')
+            )
+        )
+        conn.commit()
+        cur.close()
+        return '', 200
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error saving QR attendance: {e}", exc_info=True)
+        return 'Error interno', 500
+    finally:
+        if conn:
+            conn.close()
+
+# --- REGISTRO DE CAPACITACIONES ---
 @forms_bp.route('/registro_de_capacitaciones')
 @jwt_required()
 def registro_de_capacitaciones_form():
@@ -642,10 +684,40 @@ def registro_de_capacitaciones_form():
 @forms_bp.route('/submit_registro_de_capacitaciones', methods=['POST'])
 @jwt_required()
 def submit_registro_de_capacitaciones():
+    import json as _json
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Merge manually-entered attendees with any QR guest entries
+        lista_manual_raw = request.form.get('lista_asistencia', '[]')
+        try:
+            lista_manual = _json.loads(lista_manual_raw) if lista_manual_raw else []
+        except Exception:
+            lista_manual = []
+
+        session_token = request.form.get('session_token', '')
+        if session_token:
+            try:
+                cur.execute(
+                    "SELECT nombre, cargo, documento, firma FROM capacitacion_asistencia WHERE session_token = %s",
+                    (session_token,)
+                )
+                guest_rows = cur.fetchall()
+                for row in guest_rows:
+                    lista_manual.append({
+                        'nombre': row[0], 'cargo': row[1],
+                        'documento': row[2], 'firma': row[3],
+                        'via': 'QR'
+                    })
+            except Exception as qr_err:
+                app_logger.warning(f"Could not fetch QR attendees: {qr_err}")
+
+        lista_asistencia_json = _json.dumps(lista_manual)
+
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
@@ -657,15 +729,12 @@ def submit_registro_de_capacitaciones():
             'nombre_capacitacion': request.form.get('nombre_capacitacion'),
             'objetivo_capacitacion': request.form.get('objetivo_capacitacion'),
             'observaciones_retroalimentacion': request.form.get('observaciones_retroalimentacion'),
-            'lista_asistencia': request.form.get('lista_asistencia'),
+            'lista_asistencia': lista_asistencia_json,
             'practica_simulacro_realizado': request.form.get('practica_simulacro_realizado'),
             'nivel_comprension': request.form.get('nivel_comprension'),
             'recomendaciones': request.form.get('recomendaciones'),
             'submitted_by_email': user_email
         }
-
-        conn = get_db_connection()
-        cur = conn.cursor()
 
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
