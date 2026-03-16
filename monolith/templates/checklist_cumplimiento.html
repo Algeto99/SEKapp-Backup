@@ -359,7 +359,13 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Tipo de Documento</label>
-                                    <input type="text" name="agente_tipo_documento[]" class="form-input">
+                                    <select name="agente_tipo_documento[]" class="form-select">
+                                        <option value="" disabled selected>Seleccione...</option>
+                                        <option value="CC">Cédula de Ciudadanía (CC)</option>
+                                        <option value="CE">Cédula de Extranjería (CE)</option>
+                                        <option value="PA">Pasaporte (PA)</option>
+                                        <option value="PPT">Permiso de Protección Temporal (PPT)</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Documento</label>
@@ -368,10 +374,6 @@
                                 <div>
                                     <label class="form-label">Cargo/Rol</label>
                                     <input type="text" name="agente_cargo_rol[]" class="form-input">
-                                </div>
-                                <div>
-                                    <label class="form-label">Puesto</label>
-                                    <input type="text" name="agente_puesto[]" class="form-input">
                                 </div>
                             </div>
                         </div>
