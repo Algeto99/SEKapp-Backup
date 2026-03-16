@@ -443,36 +443,6 @@ FORM_CONFIGS = {
             "Firma Oficial": "oficial_operaciones_firma"
         }
     },
-    'orden_mantenimiento': {
-        'table': 'orden_mantenimiento',
-        'id_col': 'id_orden',
-        'date_col': 'creado_en',
-        'user_col': 'submitted_by_email',
-        'title_prefix': 'Orden de Mantenimiento',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
-        'data_mapping': {
-            "Cliente": "cliente_instalacion",
-            "Técnico": "nombre_tecnico",
-            "Fecha/Hora": "fecha_hora",
-            "Equipo": "equipo",
-            "Tipo Servicio": "tipo_servicio",
-            "Puesto/Area": "puesto_area",
-            "Rol Aplicador": "rol_aplicador",
-            "Turno": "turno",
-            "Firma Técnico": "firma_tecnico",
-            "ID Equipo": "id_equipo_serial",
-            "Actividad": "actividad_realizada",
-            "Downtime": "downtime_horas",
-            "Repuestos": "repuestos_usados",
-            "Observaciones": "observaciones",
-            "Tipo Clasificación": "tipo_servicio_clasificacion",
-            "Resultado Clasificación": "resultado_clasificacion",
-            "Alerta Clasificación": "tipo_alerta_clasificacion",
-            "Detalles Equipos": "detalles_equipos",
-            "Foto Evidencia": "foto_evidencia_url"
-        }
-    },
     'checklist_cumplimiento': {
         'table': 'checklist_cumplimiento',
         'id_col': 'id',
