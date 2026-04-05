@@ -1446,25 +1446,18 @@ def admin_required(f):
     
     return decorated_function
 
-# --- Routes ---
-@dashboard_bp.route('/')
-@jwt_required()
-@admin_required
-def dashboard():
-    user_email = get_jwt_identity()
-    
-    # Get JWT claims and admin status
+# --- Helper to resolve user name from JWT + DB ---
+def _get_user_info(user_email):
+    """Returns (user_name, is_admin) for the given email."""
     try:
         claims = get_jwt()
         user_name = claims.get('name', user_email.split('@')[0])
         is_admin = claims.get('is_admin', False)
-        app_logger.info(f"Admin user {user_email} (is_admin={is_admin}) accessing dashboard")
     except Exception as e:
         app_logger.error(f"Error getting JWT claims: {e}", exc_info=True)
         user_name = user_email.split('@')[0]
         is_admin = False
 
-    # Get user name from database as fallback
     conn = None
     cur = None
     try:
@@ -1475,7 +1468,6 @@ def dashboard():
             user_row = cur.fetchone()
             if user_row and user_row[0]:
                 user_name = user_row[0]
-                app_logger.info(f"User found in DB: {user_name}")
     except Exception as e:
         app_logger.error(f"Error fetching user name: {e}", exc_info=True)
     finally:
@@ -1484,10 +1476,584 @@ def dashboard():
         if conn:
             conn.close()
 
-    return render_template("dashboard.html", 
-                         current_user=user_email, 
-                         user_name=user_name,
-                         is_admin=is_admin)  # Pass admin status to template
+    return user_name, is_admin
+
+
+# --- Routes ---
+@dashboard_bp.route('/')
+@jwt_required()
+@admin_required
+def dashboard_home():
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing dashboard home")
+    return render_template("dashboard_home.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
+
+
+@dashboard_bp.route('/incidentes/')
+@jwt_required()
+@admin_required
+def dashboard_incidentes():
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing incidentes dashboard")
+    return render_template("dashboard.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
+
+
+# ── Module configurations ────────────────────────────────────────────────────
+# Each entry: (route_slug, function_name, display_name, description, accent_class, svg_icon)
+_MODULE_CONFIGS = {
+    'satisfaccion': {
+        'name': 'Satisfacción',
+        'desc': 'Para medir la percepción y satisfacción del cliente con el servicio de seguridad.',
+        'accent': 'accent-green',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
+    },
+    'supervision': {
+        'name': 'Supervisión',
+        'desc': 'Para que los supervisores evalúen el estado y desempeño de los puestos de seguridad.',
+        'accent': 'accent-blue',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>',
+    },
+    'cumplimiento': {
+        'name': 'Cumplimiento',
+        'desc': 'Auditoría de cumplimiento para SST y Seguridad Física.',
+        'accent': 'accent-purple',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>',
+    },
+    'capacitacion': {
+        'name': 'Capacitación',
+        'desc': 'Para registrar la asistencia y los detalles de las capacitaciones impartidas.',
+        'accent': 'accent-amber',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>',
+    },
+    'disciplina': {
+        'name': 'Disciplina',
+        'desc': 'Para reportar novedades y faltas disciplinarias de los empleados.',
+        'accent': 'accent-orange',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>',
+    },
+    'visitas': {
+        'name': 'Visitas',
+        'desc': 'Para documentar las visitas a clientes y los acuerdos alcanzados.',
+        'accent': 'accent-teal',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>',
+    },
+    'vehiculos': {
+        'name': 'Vehículos',
+        'desc': 'Inspección pre-operacional de vehículos y motocicletas de la flota.',
+        'accent': 'accent-indigo',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>',
+    },
+    'equipos': {
+        'name': 'Equipos',
+        'desc': 'Evaluación del estado y confiabilidad de los equipos del sistema de seguridad.',
+        'accent': 'accent-slate',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" /></svg>',
+    },
+    'gestion': {
+        'name': 'Gestión y Resultados',
+        'desc': 'Vista consolidada de todos los módulos — KPIs, tendencias y métricas de desempeño global.',
+        'accent': 'accent-blue-purple',
+        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>',
+    },
+}
+
+
+def _module_view(slug):
+    """Generic handler for all module dashboard pages."""
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    cfg = _MODULE_CONFIGS[slug]
+    app_logger.info(f"Admin user {user_email} accessing {slug} dashboard")
+    return render_template(
+        "dashboard_module.html",
+        current_user=user_email,
+        user_name=user_name,
+        is_admin=is_admin,
+        module_name=cfg['name'],
+        module_desc=cfg['desc'],
+        module_accent=cfg['accent'],
+        module_icon=cfg['icon'],
+    )
+
+
+@dashboard_bp.route('/satisfaccion/')
+@jwt_required()
+@admin_required
+def dashboard_satisfaccion():
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    return render_template("dashboard_satisfaccion.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
+
+@dashboard_bp.route('/supervision/')
+@jwt_required()
+@admin_required
+def dashboard_supervision():
+    return _module_view('supervision')
+
+@dashboard_bp.route('/cumplimiento/')
+@jwt_required()
+@admin_required
+def dashboard_cumplimiento():
+    return _module_view('cumplimiento')
+
+@dashboard_bp.route('/capacitacion/')
+@jwt_required()
+@admin_required
+def dashboard_capacitacion():
+    return _module_view('capacitacion')
+
+@dashboard_bp.route('/disciplina/')
+@jwt_required()
+@admin_required
+def dashboard_disciplina():
+    return _module_view('disciplina')
+
+@dashboard_bp.route('/visitas/')
+@jwt_required()
+@admin_required
+def dashboard_visitas():
+    return _module_view('visitas')
+
+@dashboard_bp.route('/vehiculos/')
+@jwt_required()
+@admin_required
+def dashboard_vehiculos():
+    return _module_view('vehiculos')
+
+@dashboard_bp.route('/equipos/')
+@jwt_required()
+@admin_required
+def dashboard_equipos():
+    return _module_view('equipos')
+
+@dashboard_bp.route('/gestion/')
+@jwt_required()
+@admin_required
+def dashboard_gestion():
+    return _module_view('gestion')
+
+
+# ── Satisfacción Dashboard ────────────────────────────────────────────────────
+
+_SAT_CRITERIA = [
+    ('atencion_cliente',     'Atención al cliente'),
+    ('comunicacion',         'Comunicación'),
+    ('confiabilidad',        'Confiabilidad'),
+    ('capacidad_reaccion',   'Cap. de reacción'),
+    ('cumplimiento',         'Cumplimiento'),
+    ('competencia_personal', 'Competencia personal'),
+    ('actitud_servicio',     'Actitud del servicio'),
+    ('atencion_quejas',      'Atención quejas'),
+]
+
+def _sat_color_criteria(avg):
+    if avg is None: return '#6b7280'
+    if avg >= 4.25: return '#22c55e'
+    if avg >= 3.25: return '#eab308'
+    if avg >= 2.25: return '#f97316'
+    return '#ef4444'
+
+def _sat_color_global(score):
+    if score is None: return '#6b7280'
+    if score >= 34: return '#22c55e'
+    if score >= 26: return '#eab308'
+    if score >= 18: return '#f97316'
+    return '#ef4444'
+
+def _sat_label_global(score):
+    if score is None: return 'Sin datos'
+    if score >= 34: return 'Totalmente satisfecho'
+    if score >= 26: return 'Con oportunidades de mejora'
+    if score >= 18: return 'Satisfacción baja'
+    return 'Insatisfecho'
+
+def _sat_date_prefix(year, month, day):
+    """Build an ISO date prefix string for LIKE-based filtering.
+    Works regardless of whether fecha_hora is stored as TEXT or TIMESTAMP,
+    since casting either to TEXT produces an ISO-sortable string.
+    """
+    if not year:
+        return None
+    prefix = f"{year}"
+    if month:
+        prefix += f"-{month:02d}"
+        if day:
+            prefix += f"-{day:02d}"
+    return prefix
+
+
+def _sat_where(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    prefix = _sat_date_prefix(year, month, day)
+    if prefix:
+        conds.append("fecha_hora::TEXT LIKE %s")
+        params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+def _sat_prev_where(cliente, year, month, day):
+    """Build WHERE clause for the previous comparison period."""
+    if not year:
+        return None, None
+
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+
+    now = datetime.now(timezone.utc)
+    if year and month and day:
+        prev = datetime(year, month, day) - timedelta(days=1)
+        prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
+    elif year and month:
+        prev_month = month - 1 or 12
+        prev_year  = year if month > 1 else year - 1
+        prefix = f"{prev_year}-{prev_month:02d}"
+    elif year:
+        prefix = str(year - 1)
+    else:
+        prefix = str(now.year - 1)
+
+    conds.append("fecha_hora::TEXT LIKE %s")
+    params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+@dashboard_bp.route('/api/satisfaccion/clientes')
+@jwt_required()
+def api_satisfaccion_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM medicion_experiencia_cliente
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_satisfaccion_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/satisfaccion/debug')
+@jwt_required()
+@admin_required
+def api_satisfaccion_debug():
+    """Diagnostic endpoint — shows table shape, column types, sample rows, and a safe count."""
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        # Column types
+        cur.execute("""
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'medicion_experiencia_cliente'
+            ORDER BY ordinal_position
+        """)
+        columns = [dict(r) for r in cur.fetchall()]
+
+        # Row count
+        cur.execute("SELECT COUNT(*) AS cnt FROM medicion_experiencia_cliente")
+        total = cur.fetchone()['cnt']
+
+        # Most recent 3 rows (only safe TEXT columns to avoid cast errors)
+        cur.execute("""
+            SELECT
+                id,
+                cliente_instalacion,
+                fecha_hora,
+                calificacion_global_nps,
+                recomendaria_servicio,
+                atencion_cliente,
+                comunicacion,
+                confiabilidad
+            FROM medicion_experiencia_cliente
+            ORDER BY id DESC
+            LIMIT 3
+        """)
+        sample = []
+        for r in cur.fetchall():
+            sample.append({k: str(v) if v is not None else None for k, v in r.items()})
+
+        # Test the LIKE date filter
+        cur.execute("""
+            SELECT COUNT(*) AS cnt
+            FROM medicion_experiencia_cliente
+            WHERE fecha_hora::TEXT LIKE %s
+        """, (f"{datetime.now().year}%",))
+        this_year = cur.fetchone()['cnt']
+
+        return jsonify({
+            'total_rows': total,
+            'this_year_rows': this_year,
+            'columns': columns,
+            'sample_rows': sample,
+        })
+    except Exception as e:
+        app_logger.error(f"api_satisfaccion_debug error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/satisfaccion/data')
+@jwt_required()
+def api_satisfaccion_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where,      params      = _sat_where(cliente, year, month, day)
+        where_prev, params_prev = _sat_prev_where(cliente, year, month, day)
+
+        # ── Main summary ─────────────────────────────────────────────────
+        # Use ::TEXT before NULLIF so it works for both INTEGER and TEXT columns.
+        # Use ::NUMERIC for math; PostgreSQL handles '5'::NUMERIC just fine.
+        def _safe_avg(col):
+            return f"AVG(NULLIF({col}::TEXT, '')::NUMERIC)"
+        def _safe_int(col):
+            return f"NULLIF({col}::TEXT, '')::NUMERIC"
+
+        criteria_sql_parts = []
+        for f, _ in _SAT_CRITERIA:
+            criteria_sql_parts.append(f"{_safe_avg(f)} as avg_{f}")
+            for rating in range(1, 6):
+                criteria_sql_parts.append(f"SUM(CASE WHEN {_safe_int(f)} = {rating} THEN 1 ELSE 0 END) as {f}_{rating}")
+        
+        criteria_sql = ",\n                ".join(criteria_sql_parts)
+
+        rec_check = """LOWER(COALESCE(recomendaria_servicio::TEXT, '')) IN ('sí','si','yes','s')"""
+
+        cur.execute(f"""
+            SELECT
+                {_safe_avg('calificacion_global_nps')}                             AS avg_global,
+                COUNT(*)                                                            AS total,
+                SUM(CASE WHEN {rec_check} THEN 1 ELSE 0 END)                       AS total_si,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 34 THEN 1 ELSE 0 END) AS dist_satisfecho,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 26 AND {_safe_int('calificacion_global_nps')} < 34 THEN 1 ELSE 0 END) AS dist_oportunidad,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 18 AND {_safe_int('calificacion_global_nps')} < 26 THEN 1 ELSE 0 END) AS dist_baja,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} < 18 AND {_safe_int('calificacion_global_nps')} IS NOT NULL THEN 1 ELSE 0 END) AS dist_insatisfecho,
+                {criteria_sql}
+            FROM medicion_experiencia_cliente
+            {where}
+        """, params)
+        row = cur.fetchone()
+
+        avg_global = float(row['avg_global']) if row['avg_global'] else None
+        total      = int(row['total'])        if row['total']      else 0
+        total_si   = int(row['total_si'])     if row['total_si']   else 0
+
+        # ── Previous period ───────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                {_safe_avg('calificacion_global_nps')} AS avg_global,
+                COUNT(*) AS total,
+                SUM(CASE WHEN {rec_check} THEN 1 ELSE 0 END) AS total_si
+            FROM medicion_experiencia_cliente
+            {where_prev}
+        """, params_prev)
+        prev = cur.fetchone()
+        avg_global_prev = float(prev['avg_global']) if prev and prev['avg_global'] else None
+        total_prev      = int(prev['total'])        if prev and prev['total']      else 0
+        total_si_prev   = int(prev['total_si'])     if prev and prev['total_si']   else 0
+
+        def pct_change(curr, prev_val):
+            if curr is None or not prev_val or prev_val == 0: return None
+            return round((curr - prev_val) / prev_val * 100, 1)
+
+        pct_rec      = round(total_si / total * 100, 1)           if total      else None
+        pct_rec_prev = round(total_si_prev / total_prev * 100, 1) if total_prev else None
+
+        # ── Criteria (sorted ascending) ───────────────────────────────────
+        criteria = []
+        for field, label in _SAT_CRITERIA:
+            avg = float(row[f'avg_{field}']) if row[f'avg_{field}'] else None
+            
+            counts = {r: int(row[f'{field}_{r}']) if row[f'{field}_{r}'] else 0 for r in range(1, 6)}
+            total_c = sum(counts.values())
+            pcts = {r: round((counts[r] / total_c) * 100, 1) if total_c > 0 else 0 for r in range(1, 6)}
+            
+            criteria.append({
+                'label': label,
+                'avg':   round(avg, 2) if avg is not None else None,
+                'color': _sat_color_criteria(avg),
+                'pcts':  pcts,
+            })
+        criteria.sort(key=lambda x: x['avg'] if x['avg'] is not None else 0)
+
+        # ── Trend — use SUBSTRING on TEXT to avoid TIMESTAMP cast issues ───
+        # fecha_hora is stored as 'YYYY-MM-DDTHH:MM' so SUBSTRING works safely.
+        if month and year:
+            # Daily: group by day number within the month
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"   # 'DD'
+            label_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"   # 'DD'
+        elif year:
+            # Monthly: group by 'YYYY-MM'
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"   # 'YYYY-MM'
+            label_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+        else:
+            # All time: group by 'YYYY-MM'
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            label_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+
+        trend_criteria_sql = ", ".join(
+            f"{_safe_avg(f)} as avg_{f}"
+            for f, _ in _SAT_CRITERIA
+        )
+
+        cur.execute(f"""
+            SELECT
+                {group_expr}                                              AS period_num,
+                {label_expr}                                              AS period_label,
+                {_safe_avg('calificacion_global_nps')}                    AS avg_global,
+                {trend_criteria_sql},
+                COUNT(*)                                                   AS cnt
+            FROM medicion_experiencia_cliente
+            {where}
+            GROUP BY period_num
+            ORDER BY period_num
+            LIMIT 24
+        """, params)
+        trend_rows = cur.fetchall()
+
+        return jsonify({
+            'kpi': {
+                'avg_global':            round(avg_global, 1) if avg_global is not None else None,
+                'avg_global_color':      _sat_color_global(avg_global),
+                'avg_global_label':      _sat_label_global(avg_global),
+                'pct_change_global':     pct_change(avg_global, avg_global_prev),
+                'total':                 total,
+                'pct_change_total':      pct_change(total, total_prev),
+                'pct_recomienda':        pct_rec,
+                'pct_change_recomienda': pct_change(pct_rec, pct_rec_prev),
+            },
+            'criteria': criteria,
+            'distribution': {
+                'satisfecho':   int(row['dist_satisfecho'])   if row['dist_satisfecho']   else 0,
+                'oportunidad':  int(row['dist_oportunidad'])  if row['dist_oportunidad']  else 0,
+                'baja':         int(row['dist_baja'])         if row['dist_baja']         else 0,
+                'insatisfecho': int(row['dist_insatisfecho']) if row['dist_insatisfecho'] else 0,
+            },
+            'recommendation': {
+                'si': total_si,
+                'no': total - total_si,
+            },
+            'trend': {
+                'labels': [r['period_label'] for r in trend_rows],
+                'global': [round(float(r['avg_global']), 2) if r['avg_global'] else None for r in trend_rows],
+                'criteria': [
+                    {
+                        'label': label,
+                        'data': [round(float(r[f'avg_{f}']), 2) if r[f'avg_{f}'] else None for r in trend_rows]
+                    }
+                    for f, label in _SAT_CRITERIA
+                ],
+                'counts': [int(r['cnt']) for r in trend_rows],
+            },
+        })
+    except Exception as e:
+        app_logger.error(f"api_satisfaccion_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/satisfaccion/detalles')
+@jwt_required()
+def api_satisfaccion_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params = _sat_where(cliente, year, month, day)
+
+        cur.execute(f"""
+            SELECT 
+                id_encuesta as id, 
+                fecha_hora, 
+                cliente_instalacion, 
+                encuestado,
+                recomendaria_servicio,
+                calificacion_global_nps 
+            FROM medicion_experiencia_cliente 
+            {where}
+            ORDER BY fecha_hora DESC NULLS LAST, id_encuesta DESC
+            LIMIT 500
+        """, params)
+        rows = cur.fetchall()
+        
+        detalles = []
+        for r in rows:
+            fh = r['fecha_hora']
+            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
+            if fh_str == 'None': fh_str = '—'
+            
+            calc = r['calificacion_global_nps']
+            calc_str = str(calc) if calc is not None and str(calc).strip() != '' else '—'
+            
+            detalles.append({
+                'id': r['id'] if r['id'] else 0,
+                'fecha_hora': fh_str,
+                'cliente': r['cliente_instalacion'] if r['cliente_instalacion'] else '—',
+                'encuestado': r['encuestado'] if 'encuestado' in r and r['encuestado'] else '—',
+                'recomendaria': r['recomendaria_servicio'] if r['recomendaria_servicio'] else '—',
+                'calificacion': calc_str
+            })
+            
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_satisfaccion_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
 
 @dashboard_bp.route('/api/debug/thisweek')
 @jwt_required()

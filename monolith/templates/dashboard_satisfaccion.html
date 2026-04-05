@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satisfacción — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Base ─────────────────────────────────────────────────────────── */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
+
+        /* ── Nav ──────────────────────────────────────────────────────────── */
+        .header-nav {
+            position: fixed; top:0; left:0; right:0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1280px; margin:0 auto;
+            display:flex; justify-content:space-between;
+            align-items:center; flex-wrap:wrap; gap:0.75rem;
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
+        .user-greeting { font-size:0.875rem; color:#9ca3af; }
+        .user-name { color:#60a5fa; font-weight:bold; }
+        .admin-badge { color:#a855f7; font-weight:bold; }
+
+        /* ── Theme toggle ─────────────────────────────────────────────────── */
+        .theme-toggle {
+            position:fixed; top:1.25rem; left:1.25rem; z-index:100;
+            background-color:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+            border-radius:0.5rem; padding:0.5rem; cursor:pointer; color:#e2e8f0;
+            transition:all 0.2s;
+        }
+        .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+
+        /* ── Layout ───────────────────────────────────────────────────────── */
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+
+        /* ── Module header ────────────────────────────────────────────────── */
+        .module-header {
+            display:flex; align-items:center; gap:1rem;
+            margin-bottom:1.75rem; padding-bottom:1.5rem;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        .module-icon {
+            width:50px; height:50px; border-radius:12px; flex-shrink:0;
+            background-color:rgba(16,185,129,0.15); color:#34d399;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 0.2rem; }
+        .module-header p { font-family:'Roboto',sans-serif; font-size:0.875rem; color:#64748b; margin:0; }
+
+        /* ── Cards ────────────────────────────────────────────────────────── */
+        .card {
+            background-color:#2d3748;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:14px; padding:1.5rem;
+        }
+        .card-title {
+            font-family:'Roboto',sans-serif; font-size:0.6875rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; color:#6b7280;
+            margin-bottom:0.875rem;
+        }
+
+        /* ── KPI Cards ────────────────────────────────────────────────────── */
+        .kpi-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
+            margin-bottom:1.25rem;
+        }
+        .kpi-value {
+            font-family:'Merriweather',serif; font-size:2.5rem; font-weight:700;
+            line-height:1; margin-bottom:0.375rem;
+        }
+        .kpi-label { font-size:0.8125rem; color:#94a3b8; margin-bottom:0.75rem; font-family:'Roboto',sans-serif; }
+        .kpi-change {
+            display:inline-flex; align-items:center; gap:0.3rem;
+            font-size:0.8125rem; font-weight:600; font-family:'Roboto',sans-serif;
+            padding:0.2rem 0.5rem; border-radius:999px;
+        }
+        .kpi-change.up   { background-color:rgba(34,197,94,0.12); color:#4ade80; }
+        .kpi-change.down { background-color:rgba(239,68,68,0.12);  color:#f87171; }
+        .kpi-change.flat { background-color:rgba(100,116,139,0.12); color:#94a3b8; }
+        .kpi-compare { font-size:0.75rem; color:#4b5563; margin-top:0.3rem; font-family:'Roboto',sans-serif; }
+
+        /* ── Global score big display ─────────────────────────────────────── */
+        .kpi-global-body {
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            text-align:center; padding:0.5rem 0 0.75rem;
+        }
+        .kpi-global-score-row {
+            display:flex; align-items:center; justify-content:center;
+            gap:0.5rem; line-height:1;
+        }
+        .kpi-global-arrow {
+            font-size:2.25rem; line-height:1;
+            transition:color 0.3s;
+        }
+        .kpi-global-num {
+            font-family:'Merriweather',serif;
+            font-size:3.25rem; font-weight:700; line-height:1;
+            transition:color 0.3s;
+        }
+        .kpi-global-sublabel {
+            font-family:'Roboto',sans-serif;
+            font-size:0.8125rem; color:#94a3b8;
+            margin-top:0.625rem; line-height:1.4;
+        }
+        .kpi-global-footer {
+            margin-top:0.75rem; display:flex; align-items:center;
+            justify-content:center; gap:0.5rem; flex-wrap:wrap;
+        }
+        .kpi-global-badge {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            font-family:'Roboto',sans-serif; font-size:0.8125rem; font-weight:600;
+            padding:0.2rem 0.625rem; border-radius:999px; border:1px solid currentColor;
+            opacity:0.85;
+        }
+        .kpi-global-compare {
+            font-family:'Roboto',sans-serif;
+            font-size:0.75rem; color:#4b5563;
+        }
+        body.light-mode .kpi-global-sublabel { color:#64748b; }
+        body.light-mode .kpi-global-compare  { color:#94a3b8; }
+
+        /* Traffic light dot */
+        .tl-dot {
+            display:inline-block; width:12px; height:12px;
+            border-radius:50%; margin-right:0.375rem; vertical-align:middle;
+        }
+
+        /* ── Charts grid ──────────────────────────────────────────────────── */
+        .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full { margin-bottom:1rem; }
+        .charts-bottom { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+        .chart-wrap { position:relative; }
+        .chart-canvas { width:100% !important; }
+
+        /* ── Loading overlay ──────────────────────────────────────────────── */
+        .loading-overlay {
+            position:absolute; inset:0; border-radius:14px;
+            background-color:rgba(26,32,44,0.75);
+            display:flex; align-items:center; justify-content:center;
+            z-index:10; pointer-events:none; opacity:0; transition:opacity 0.2s;
+        }
+        .loading-overlay.active { opacity:1; pointer-events:all; }
+        .spinner {
+            width:28px; height:28px; border:3px solid rgba(255,255,255,0.1);
+            border-top-color:#60a5fa; border-radius:50%;
+            animation:spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* ── Empty state ──────────────────────────────────────────────────── */
+        .empty-state { text-align:center; padding:3rem 1rem; }
+        .empty-state svg { width:40px; height:40px; color:#4b5563; margin:0 auto 0.75rem; display:block; }
+        .empty-state p { font-size:0.875rem; color:#4b5563; }
+
+        /* ── Traffic light legend ─────────────────────────────────────────── */
+        .tl-legend {
+            display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;
+            font-size:0.75rem; font-family:'Roboto',sans-serif;
+        }
+        .tl-legend-item { display:flex; align-items:center; gap:0.375rem; color:#9ca3af; }
+        .tl-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+        /* ── Score range table ────────────────────────────────────────────── */
+        .score-table { width:100%; border-collapse:collapse; font-size:0.8rem; font-family:'Roboto',sans-serif; margin-top:0.75rem; }
+        .score-table td { padding:0.4rem 0.5rem; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .score-table tr:last-child td { border-bottom:none; }
+        .score-table td:first-child { color:#6b7280; white-space:nowrap; }
+
+        /* ── Light mode ───────────────────────────────────────────────────── */
+        body.light-mode { background-color:#f1f5f9; color:#1e293b; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,
+        body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav {
+            background-color:rgba(255,255,255,0.97);
+            border-bottom:1px solid rgba(0,0,0,0.08);
+        }
+        body.light-mode .user-greeting { color:#475569; }
+        body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
+        body.light-mode .card { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+        body.light-mode .card-title { color:#94a3b8; }
+        body.light-mode .kpi-label { color:#64748b; }
+        body.light-mode .kpi-compare { color:#94a3b8; }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color:#94a3b8; }
+        body.light-mode .tl-legend-item { color:#64748b; }
+        body.light-mode .score-table td { border-bottom-color:rgba(0,0,0,0.06); }
+        body.light-mode .score-table td:first-child { color:#94a3b8; }
+        body.light-mode .empty-state p { color:#94a3b8; }
+        body.light-mode .empty-state svg { color:#cbd5e1; }
+        body.light-mode .loading-overlay { background-color:rgba(241,245,249,0.75); }
+
+        /* ── Responsive ───────────────────────────────────────────────────── */
+        @media (max-width:900px) {
+            .charts-row, .charts-bottom { grid-template-columns:1fr; }
+        }
+        @media (max-width:700px) {
+            .kpi-grid { grid-template-columns:1fr; }
+            body { padding-top:110px; }
+            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+        }
+        @media (max-width:500px) {
+            .kpi-value { font-size:2rem; }
+        }
+        /* ── Modal ────────────────────────────────────────────────────────── */
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: 100; display: none; align-items: center; justify-content: center;
+        }
+        .modal-backdrop.active { display: flex; }
+        .modal-container {
+            background-color: #2d3748; border-radius: 12px; width: 90%; max-width: 900px;
+            max-height: 90vh; display: flex; flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: 'Roboto', sans-serif;
+        }
+        body.light-mode .modal-container { background-color: #fff; }
+        .modal-header {
+            padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        body.light-mode .modal-header { border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .modal-title { font-family: 'Merriweather', serif; font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; }
+        body.light-mode .modal-title { color: #1e293b; }
+        .modal-close {
+            background: none; border: none; color: #94a3b8; font-size: 1.5rem;
+            cursor: pointer; line-height: 1; padding: 0.2rem; transition: color 0.2s;
+        }
+        .modal-close:hover { color: #fff; }
+        body.light-mode .modal-close:hover { color: #1e293b; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; }
+
+        .modal-table-wrapper { overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+        .modal-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; text-align: left;}
+        .modal-table th { padding: 0.75rem; color: #94a3b8; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap; position: sticky; top: 0; background-color: #2d3748; z-index: 10; }
+        .modal-table td { padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; }
+        body.light-mode .modal-table th { color: #64748b; border-bottom: 1px solid rgba(0,0,0,0.1); background-color: #fff; }
+        body.light-mode .modal-table td { color: #334155; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .modal-table tr:hover td { background-color: rgba(255,255,255,0.03); }
+        body.light-mode .modal-table tr:hover td { background-color: rgba(0,0,0,0.03); }
+
+        .clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-color: #60a5fa; }
+        body.light-mode .clickable-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: #3b82f6;}
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+    </button>
+
+    <!-- Nav -->
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Satisfacción del Cliente</h1>
+                <p>Métricas de percepción y calificación del servicio de seguridad</p>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        {% include '_dashboard_filters.html' %}
+
+        <!-- ── KPI Row ──────────────────────────────────────────────────── -->
+        <div class="kpi-grid" id="kpiSection">
+            <!-- KPI 1: Calificación Global -->
+        <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Calificación Global</div>
+                <div class="kpi-global-body">
+                    <div class="kpi-global-score-row">
+                        <span class="kpi-global-num" id="kpiGlobalVal">—</span>
+                    </div>
+                    <div class="kpi-global-sublabel" id="kpiGlobalLabel">Cargando...</div>
+                </div>
+                <div id="kpiGlobalChange" style="text-align: center; margin-top: 0.5rem;"></div>
+                <div class="kpi-compare" id="kpiGlobalCompare" style="text-align: center; margin-bottom: 1rem;">vs período anterior</div>
+                <table class="score-table">
+                    <tr><td>34 – 40</td><td><span class="tl-dot" style="background:#22c55e"></span>Totalmente satisfecho</td></tr>
+                    <tr><td>26 – 33</td><td><span class="tl-dot" style="background:#eab308"></span>Con oportunidades de mejora</td></tr>
+                    <tr><td>18 – 25</td><td><span class="tl-dot" style="background:#f97316"></span>Satisfacción baja</td></tr>
+                    <tr><td>8 – 17</td> <td><span class="tl-dot" style="background:#ef4444"></span>Insatisfecho</td></tr>
+                </table>
+            </div>
+            <!-- KPI 2: Total encuestas -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Total Encuestas</div>
+                <div class="kpi-value" id="kpiTotalVal" style="color:#60a5fa">—</div>
+                <div class="kpi-label">Encuestas en el período</div>
+                <div id="kpiTotalChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+            <!-- KPI 3: Recomendación -->
+            <div class="card">
+                <div class="card-title">¿Recomienda el Servicio?</div>
+                <div class="kpi-value" id="kpiRecVal" style="color:#22c55e">—</div>
+                <div class="kpi-label">de clientes recomienda</div>
+                <div id="kpiRecChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+        </div>
+
+        <!-- ── Charts row 1: Criteria (left) + Distribution (right) ────── -->
+        <div class="charts-row">
+
+            <!-- Criteria bar chart -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">Promedio por Criterio</div>
+                <div class="tl-legend">
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#22c55e"></span>Excelente (≥4.25)</span>
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#eab308"></span>Bueno (3.25–4.24)</span>
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#f97316"></span>Regular (2.25–3.24)</span>
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#ef4444"></span>Bajo (&lt;2.25)</span>
+                </div>
+                <div class="chart-wrap" style="min-height:260px;">
+                    <canvas id="criteriaChart" class="chart-canvas"></canvas>
+                    <div id="criteriaEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="criteriaLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Distribution bar chart -->
+            <div class="card" style="position:relative;">
+                <div class="card-title">Distribución de Satisfacción</div>
+                <div class="chart-wrap" style="min-height:260px;">
+                    <canvas id="distChart" class="chart-canvas"></canvas>
+                    <div id="distEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="distLoading"><div class="spinner"></div></div>
+            </div>
+
+        </div>
+
+        <!-- ── Chart row 2: Trend (full width) ──────────────────────────── -->
+        <div class="chart-full">
+            <div class="card" style="position:relative;">
+                <div class="card-title">Evolución de la Calificación Global</div>
+                <div class="chart-wrap" style="height:220px;">
+                    <canvas id="trendChart" class="chart-canvas" style="height:220px!important;"></canvas>
+                    <div id="trendEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                        <p>Sin datos de tendencia para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="trendLoading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- ── Chart row 3: Recommendation donut + summary ──────────────── -->
+        <div class="charts-bottom">
+
+            <!-- Recommendation donut -->
+            <div class="card" style="position:relative;">
+                <div class="card-title">¿Recomendaría el Servicio?</div>
+                <div class="chart-wrap" style="max-height:260px; display:flex; align-items:center; justify-content:center;">
+                    <canvas id="recChart" class="chart-canvas" style="max-height:240px;"></canvas>
+                    <div id="recEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p>Sin datos de recomendación</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="recLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Score table summary -->
+            <div class="card">
+                <div class="card-title">Tabla de Interpretación</div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.8125rem;font-family:'Roboto',sans-serif;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
+                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Puntaje</th>
+                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Nivel</th>
+                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Acción recomendada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <td style="padding:0.5rem;color:#94a3b8;">34 – 40</td>
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#22c55e"></span><span style="color:#4ade80;">Totalmente satisfecho</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">El servicio se presta correctamente</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <td style="padding:0.5rem;color:#94a3b8;">26 – 33</td>
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#eab308"></span><span style="color:#facc15;">Con oportunidades</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Revisar algunos aspectos</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <td style="padding:0.5rem;color:#94a3b8;">18 – 25</td>
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#f97316"></span><span style="color:#fb923c;">Satisfacción baja</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Implementar acciones de mejora</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:0.5rem;color:#94a3b8;">8 – 17</td>
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#ef4444"></span><span style="color:#f87171;">Insatisfecho</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Generar plan de acción inmediato</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </div><!-- /main-container -->
+
+    <!-- ── Interactive Modal ────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) this.classList.remove('active')">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Detalles de Registros</h3>
+                <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailsLoading" style="display:none; text-align:center; color:#94a3b8; padding: 2rem;">Cargando detalles...</div>
+                <div class="modal-table-wrapper">
+                    <table class="modal-table" id="detailsTable">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Instalación</th>
+                                <th>Encuestado</th>
+                                <th>Recomendaría</th>
+                                <th>Calificación Global</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsTableBody">
+                            <!-- Rows inserted dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let currentQS = '';
+    
+    // ── Theme ─────────────────────────────────────────────────────────────
+    const themeToggle   = document.getElementById('themeToggle');
+    const darkModeIcon  = document.getElementById('darkModeIcon');
+    const lightModeIcon = document.getElementById('lightModeIcon');
+    function setDarkMode()  { document.body.classList.remove('light-mode'); darkModeIcon.style.display='block';  lightModeIcon.style.display='none';  localStorage.setItem('theme','dark');  updateChartTheme(false); }
+    function setLightMode() { document.body.classList.add('light-mode');    darkModeIcon.style.display='none';   lightModeIcon.style.display='block'; localStorage.setItem('theme','light'); updateChartTheme(true);  }
+    function initTheme()    { const s=localStorage.getItem('theme'); (s==='light'||(!s&&!window.matchMedia('(prefers-color-scheme: dark)').matches)) ? setLightMode() : setDarkMode(); }
+    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+
+    // ── Chart.js global defaults ──────────────────────────────────────────
+    Chart.register(ChartDataLabels);
+
+    const CHART_DARK  = { tick:'#94a3b8', grid:'rgba(255,255,255,0.05)', label:'#e2e8f0' };
+    const CHART_LIGHT = { tick:'#64748b', grid:'rgba(0,0,0,0.06)',       label:'#0f172a' };
+    let chartTheme = CHART_DARK;
+
+    function updateChartTheme(isLight) {
+        chartTheme = isLight ? CHART_LIGHT : CHART_DARK;
+        [criteriaChart, distChart, trendChart, recChart].forEach(c => {
+            if (!c) return;
+            if (c.options.scales) {
+                Object.values(c.options.scales).forEach(axis => {
+                    if (axis.ticks) axis.ticks.color = chartTheme.tick;
+                    if (axis.grid)  axis.grid.color  = chartTheme.grid;
+                });
+            }
+            if (c.options.plugins?.legend?.labels)
+                c.options.plugins.legend.labels.color = chartTheme.label;
+            c.update('none');
+        });
+    }
+
+    // ── Chart instances ───────────────────────────────────────────────────
+    let criteriaChart = null, distChart = null, trendChart = null, recChart = null;
+
+    // ── Loading helpers ───────────────────────────────────────────────────
+    function setLoading(id, on) {
+        document.getElementById(id)?.classList.toggle('active', on);
+    }
+
+    // ── KPI helpers ───────────────────────────────────────────────────────
+    function renderChange(containerId, pct) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (pct === null || pct === undefined) { 
+            el.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">N/A</span>'; 
+            return; 
+        }
+        const dir  = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+        const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+        el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
+    }
+
+    function renderKPI(data) {
+        const k = data.kpi;
+
+        // Global
+        const gEl = document.getElementById('kpiGlobalVal');
+        const compareEl = document.getElementById('kpiGlobalCompare');
+        
+        if (k.avg_global !== null) {
+            gEl.textContent = parseFloat(k.avg_global).toFixed(1);
+        } else {
+            gEl.textContent = '—';
+        }
+        
+        gEl.style.color = k.avg_global_color;
+        
+        if (k.avg_global === null || k.pct_change_global === null) {
+            if(compareEl) compareEl.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">N/A</span> vs período anterior';
+            const changeEl = document.getElementById('kpiGlobalChange');
+            if (changeEl) changeEl.innerHTML = '';
+        } else {
+            if(compareEl) compareEl.innerHTML = 'vs período anterior';
+            renderChange('kpiGlobalChange', k.pct_change_global);
+        }
+        
+        document.getElementById('kpiGlobalLabel').textContent = k.avg_global_label || '';
+
+        // Total
+        document.getElementById('kpiTotalVal').textContent = k.total ?? '—';
+        renderChange('kpiTotalChange', k.pct_change_total);
+
+        // Recommendation
+        const rEl = document.getElementById('kpiRecVal');
+        if (k.pct_recomienda !== null && k.pct_recomienda !== undefined) {
+            rEl.textContent = k.pct_recomienda + '%';
+            rEl.style.color = k.pct_recomienda >= 80 ? '#22c55e' : k.pct_recomienda >= 60 ? '#eab308' : '#ef4444';
+        } else {
+            rEl.textContent = '—';
+            rEl.style.color = '#6b7280';
+        }
+        renderChange('kpiRecChange', k.pct_change_recomienda);
+    }
+
+    // ── Criteria horizontal bar chart ─────────────────────────────────────
+    function renderCriteriaChart(criteria) {
+        const canvas = document.getElementById('criteriaChart');
+        const empty  = document.getElementById('criteriaEmpty');
+        if (!criteria || criteria.length === 0 || criteria.every(c => c.avg === null)) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = criteria.map(c => c.label);
+        
+        const datasetConfig = [
+            { key: '1', label: '1 - Insatisfecho', color: '#ef4444', negative: true },
+            { key: '2', label: '2 - Sat. Baja', color: '#f97316', negative: true },
+            { key: '3', label: '3 - Neutral', color: '#94a3b8', negative: false },
+            { key: '4', label: '4 - Oportunidad', color: '#eab308', negative: false },
+            { key: '5', label: '5 - Satisfecho', color: '#22c55e', negative: false }
+        ];
+
+        const datasets = datasetConfig.map(conf => {
+            return {
+                label: conf.label,
+                data: criteria.map(c => {
+                    const val = c.pcts && c.pcts[conf.key] ? c.pcts[conf.key] : 0;
+                    return conf.negative ? -val : val;
+                }),
+                backgroundColor: conf.color,
+                borderWidth: 0,
+                barPercentage: 0.8,
+                categoryPercentage: 0.8,
+            };
+        });
+
+        if (criteriaChart) criteriaChart.destroy();
+        criteriaChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 20 } },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { 
+                            color: chartTheme.tick,
+                            callback: function(val) { return Math.abs(val) + '%'; }
+                        },
+                        grid: { color: chartTheme.grid },
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid: { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        display: true, 
+                        position: 'bottom',
+                        labels: { color: chartTheme.label, usePointStyle: true, boxWidth: 8, font: {size: 10} }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.dataset.label}: ${Math.abs(ctx.raw).toFixed(1)}%`
+                        }
+                    },
+                    datalabels: {
+                        color: '#ffffff',
+                        font: { size: 10, weight: '600' },
+                        formatter: v => Math.abs(v) >= 5 ? Math.abs(v).toFixed(0) + '%' : '',
+                        anchor: 'center',
+                        align: 'center'
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(220, criteria.length * 34 + 40) + 'px';
+    }
+
+    // ── Distribution horizontal bar chart ─────────────────────────────────
+    function renderDistChart(dist) {
+        const canvas = document.getElementById('distChart');
+        const empty  = document.getElementById('distEmpty');
+        const total  = (dist.satisfecho||0)+(dist.oportunidad||0)+(dist.baja||0)+(dist.insatisfecho||0);
+        if (!total) { canvas.style.display='none'; empty.style.display='block'; return; }
+        canvas.style.display='block'; empty.style.display='none';
+
+        const labels = ['Insatisfecho','Satisfacción baja','Con oportunidades de mejora','Totalmente satisfecho'];
+        const values = [dist.insatisfecho, dist.baja, dist.oportunidad, dist.satisfecho];
+        const colors = ['#ef4444','#f97316','#eab308','#22c55e'];
+
+        if (distChart) distChart.destroy();
+        distChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    barThickness: 22,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: chartTheme.tick, precision: 0 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed.x;
+                                const pct = total ? ((v/total)*100).toFixed(1) : 0;
+                                return ` ${v} clientes (${pct}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '600' },
+                        formatter: (v) => {
+                            if (!v) return '';
+                            const pct = ((v/total)*100).toFixed(1);
+                            return `${v} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = '230px';
+    }
+
+    // ── Trend line chart ──────────────────────────────────────────────────
+    function renderTrendChart(trend) {
+        const canvas = document.getElementById('trendChart');
+        const empty  = document.getElementById('trendEmpty');
+        if (!trend.labels?.length) { canvas.style.display='none'; empty.style.display='block'; return; }
+        canvas.style.display='block'; empty.style.display='none';
+
+        const lineColors = [
+            '#ef4444', '#f97316', '#eab308', '#84cc16', 
+            '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6'
+        ];
+
+        const datasets = trend.criteria ? trend.criteria.map((crit, idx) => ({
+            label: crit.label,
+            data: crit.data,
+            borderColor: lineColors[idx % lineColors.length],
+            backgroundColor: 'transparent',
+            tension: 0.35,
+            fill: false,
+            pointBackgroundColor: lineColors[idx % lineColors.length],
+            pointRadius: 4,
+            pointHoverRadius: 6,
+        })) : [];
+
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: trend.labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0, max: 5,
+                        ticks: { color: chartTheme.tick, stepSize: 1 },
+                        grid: { color: chartTheme.grid },
+                    },
+                    x: {
+                        ticks: { color: chartTheme.tick, maxRotation: 45 },
+                        grid: { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { 
+                        display: true, 
+                        position: 'top',
+                        labels: { color: chartTheme.label, usePointStyle: true, boxWidth: 8, font: {size: 11} }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}`
+                        }
+                    },
+                    datalabels: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Recommendation doughnut ───────────────────────────────────────────
+    function renderRecChart(rec) {
+        const canvas = document.getElementById('recChart');
+        const empty  = document.getElementById('recEmpty');
+        const total  = (rec.si||0) + (rec.no||0);
+        if (!total) { canvas.style.display='none'; empty.style.display='block'; return; }
+        canvas.style.display='block'; empty.style.display='none';
+
+        if (recChart) recChart.destroy();
+        recChart = new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: ['Sí recomienda','No recomienda'],
+                datasets: [{
+                    data: [rec.si, rec.no],
+                    backgroundColor: ['#22c55e','#ef4444'],
+                    borderColor: document.body.classList.contains('light-mode') ? '#fff' : '#2d3748',
+                    borderWidth: 3,
+                    hoverOffset: 6,
+                }]
+            },
+            options: {
+                cutout: '62%',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: chartTheme.label, padding: 16, font: { size: 12 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const pct = ((ctx.parsed/total)*100).toFixed(1);
+                                return ` ${ctx.parsed} encuestas (${pct}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#fff', font: { size: 13, weight: '700' },
+                        formatter: (v) => {
+                            const pct = ((v/total)*100).toFixed(1);
+                            return v ? `${pct}%` : '';
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Error toast ───────────────────────────────────────────────────────
+    function showError(msg) {
+        let toast = document.getElementById('df-error-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'df-error-toast';
+            toast.style.cssText = [
+                'position:fixed','bottom:1.5rem','left:50%','transform:translateX(-50%)',
+                'background:#7f1d1d','color:#fca5a5','border:1px solid #ef4444',
+                'border-radius:10px','padding:0.75rem 1.25rem','font-size:0.8125rem',
+                'font-family:Roboto,sans-serif','z-index:9999','max-width:90vw',
+                'box-shadow:0 8px 24px rgba(0,0,0,0.4)','white-space:pre-wrap',
+            ].join(';');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = '⚠️  ' + msg;
+        toast.style.display = 'block';
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 8000);
+    }
+
+    // ── Details Modal Loader ──────────────────────────────────────────────
+    async function openDetailsModal() {
+        const modal = document.getElementById('detailsModal');
+        const tBody = document.getElementById('detailsTableBody');
+        const loading = document.getElementById('detailsLoading');
+        
+        modal.classList.add('active');
+        tBody.innerHTML = '';
+        loading.style.display = 'block';
+
+        try {
+            const url = `/dashboard/api/satisfaccion/detalles${currentQS ? '?'+currentQS : ''}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            if (!res.ok || data.error) {
+                showError(`API Error: ${data.error || res.status}`);
+                return;
+            }
+            
+            if(!data.detalles || data.detalles.length === 0) {
+                tBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No hay registros para este período.</td></tr>';
+                return;
+            }
+            
+            data.detalles.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${r.fecha_hora}</td>
+                    <td>${r.cliente}</td>
+                    <td>${r.encuestado}</td>
+                    <td>${r.recomendaria}</td>
+                    <td><strong>${r.calificacion}</strong></td>
+                `;
+                tBody.appendChild(tr);
+            });
+        } catch(err) {
+            showError(`Error cargando detalles: ${err.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    // ── Main data loader ──────────────────────────────────────────────────
+    async function loadData(qs = '') {
+        ['criteriaLoading','distLoading','trendLoading','recLoading'].forEach(id => setLoading(id, true));
+        try {
+            const url = `/dashboard/api/satisfaccion/data${qs ? '?'+qs : ''}`;
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                const msg = data.error || `Error HTTP ${res.status}`;
+                showError(`API Error: ${msg}`);
+                console.error('API error:', msg);
+                return;
+            }
+
+            renderKPI(data);
+            renderCriteriaChart(data.criteria);
+            renderDistChart(data.distribution);
+            renderTrendChart(data.trend);
+            renderRecChart(data.recommendation);
+        } catch (err) {
+            showError(`Error de conexión: ${err.message}`);
+            console.error('loadData error:', err);
+        } finally {
+            ['criteriaLoading','distLoading','trendLoading','recLoading'].forEach(id => setLoading(id, false));
+        }
+    }
+
+    // ── Build query string mapping 'propertyId' → 'cliente' ──────────────
+    function buildQS(state) {
+        const p = new URLSearchParams();
+        if (state.propertyId) p.set('cliente', state.propertyId);
+        if (state.year)       p.set('year',    state.year);
+        if (state.month)      p.set('month',   state.month);
+        if (state.day)        p.set('day',     state.day);
+        return p.toString();
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTheme();
+
+        // Init filter bar
+        const filters = new DashboardFilters();
+        filters.init();
+
+        // Override property filter: relabel + populate with clientes
+        const propSelect = document.getElementById('df-property');
+        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+        try {
+            const res = await fetch('/dashboard/api/satisfaccion/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            clientes.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch(e) { console.warn('Could not load clientes', e); }
+
+        // Listen for filter changes
+        document.addEventListener('filtersChanged', (e) => {
+            currentQS = buildQS(e.detail);
+            loadData(currentQS);
+        });
+
+        // Initial load
+        loadData();
+    });
+    </script>
+</body>
+</html>
