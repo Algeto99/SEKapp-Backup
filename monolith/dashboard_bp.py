@@ -1500,7 +1500,7 @@ def dashboard_incidentes():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
     app_logger.info(f"Admin user {user_email} accessing incidentes dashboard")
-    return render_template("dashboard.html",
+    return render_template("dashboard_incidentes.html",
                            current_user=user_email,
                            user_name=user_name,
                            is_admin=is_admin)
@@ -1599,7 +1599,13 @@ def dashboard_satisfaccion():
 @jwt_required()
 @admin_required
 def dashboard_supervision():
-    return _module_view('supervision')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing supervision dashboard")
+    return render_template("dashboard_supervision.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/cumplimiento/')
 @jwt_required()
@@ -1617,7 +1623,13 @@ def dashboard_capacitacion():
 @jwt_required()
 @admin_required
 def dashboard_disciplina():
-    return _module_view('disciplina')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing disciplina dashboard")
+    return render_template("dashboard_disciplina.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/visitas/')
 @jwt_required()
@@ -2049,6 +2061,949 @@ def api_satisfaccion_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_satisfaccion_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Incidentes Dashboard ─────────────────────────────────────────────────────
+
+def _inc_where(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    prefix = _sat_date_prefix(year, month, day)
+    if prefix:
+        conds.append("fecha_hora::TEXT LIKE %s")
+        params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+def _inc_prev_where(cliente, year, month, day):
+    if not year:
+        return None, None
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    now = datetime.now(timezone.utc)
+    if year and month and day:
+        prev = datetime(year, month, day) - timedelta(days=1)
+        prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
+    elif year and month:
+        prev_month = month - 1 or 12
+        prev_year  = year if month > 1 else year - 1
+        prefix = f"{prev_year}-{prev_month:02d}"
+    elif year:
+        prefix = str(year - 1)
+    else:
+        prefix = str(now.year - 1)
+    conds.append("fecha_hora::TEXT LIKE %s")
+    params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+@dashboard_bp.route('/api/incidentes/clientes')
+@jwt_required()
+def api_incidentes_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM reportes_incidentes
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_incidentes_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/incidentes/data')
+@jwt_required()
+def api_incidentes_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params           = _inc_where(cliente, year, month, day)
+        where_prev, params_prev = _inc_prev_where(cliente, year, month, day)
+
+        # ── KPI summary ───────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN nivel_severidad = 'Alto' THEN 1 ELSE 0 END) AS total_alto,
+                AVG(CASE WHEN tiempo_resolucion_min IS NOT NULL AND tiempo_resolucion_min > 0
+                         THEN tiempo_resolucion_min END) AS avg_resolucion,
+                SUM(CASE WHEN nivel_severidad = 'Bajo'  THEN 1 ELSE 0 END) AS sev_bajo,
+                SUM(CASE WHEN nivel_severidad = 'Medio' THEN 1 ELSE 0 END) AS sev_medio,
+                SUM(CASE WHEN nivel_severidad = 'Alto'  THEN 1 ELSE 0 END) AS sev_alto,
+                SUM(CASE WHEN turno = 'Diurno'   THEN 1 ELSE 0 END) AS turno_diurno,
+                SUM(CASE WHEN turno = 'Nocturno' THEN 1 ELSE 0 END) AS turno_nocturno
+            FROM reportes_incidentes
+            {where}
+        """, params)
+        row = cur.fetchone()
+
+        total         = int(row['total'])          if row['total']         else 0
+        total_alto    = int(row['total_alto'])      if row['total_alto']    else 0
+        avg_resolucion = float(row['avg_resolucion']) if row['avg_resolucion'] else None
+
+        # ── Previous period ───────────────────────────────────────────────
+        total_prev = 0
+        total_alto_prev = 0
+        avg_resolucion_prev = None
+        if where_prev is not None:
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN nivel_severidad = 'Alto' THEN 1 ELSE 0 END) AS total_alto,
+                    AVG(CASE WHEN tiempo_resolucion_min IS NOT NULL AND tiempo_resolucion_min > 0
+                             THEN tiempo_resolucion_min END) AS avg_resolucion
+                FROM reportes_incidentes
+                {where_prev}
+            """, params_prev)
+            prev = cur.fetchone()
+            if prev:
+                total_prev          = int(prev['total'])           if prev['total']          else 0
+                total_alto_prev     = int(prev['total_alto'])      if prev['total_alto']     else 0
+                avg_resolucion_prev = float(prev['avg_resolucion']) if prev['avg_resolucion'] else None
+
+        def pct_change(curr, prev_val):
+            if curr is None or not prev_val or prev_val == 0: return None
+            return round((curr - prev_val) / prev_val * 100, 1)
+
+        pct_alto      = round(total_alto / total * 100, 1) if total else None
+        pct_alto_prev = round(total_alto_prev / total_prev * 100, 1) if total_prev else None
+
+        # ── Category breakdown ────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(categoria), ''), 'Sin categoría') AS cat,
+                COUNT(*) AS cnt
+            FROM reportes_incidentes
+            {where}
+            GROUP BY cat
+            ORDER BY cnt DESC
+            LIMIT 10
+        """, params)
+        categorias = [{'label': r['cat'], 'count': int(r['cnt'])} for r in cur.fetchall()]
+
+        # ── Trend ─────────────────────────────────────────────────────────
+        if month and year:
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+            label_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+        else:
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            label_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+
+        cur.execute(f"""
+            SELECT
+                {group_expr} AS period_num,
+                {label_expr} AS period_label,
+                COUNT(*) AS cnt
+            FROM reportes_incidentes
+            {where}
+            GROUP BY period_num
+            ORDER BY period_num
+            LIMIT 24
+        """, params)
+        trend_rows = cur.fetchall()
+
+        return jsonify({
+            'kpi': {
+                'total':                 total,
+                'pct_change_total':      pct_change(total, total_prev),
+                'total_alto':            total_alto,
+                'pct_alto':              pct_alto,
+                'pct_change_alto':       pct_change(pct_alto, pct_alto_prev),
+                'avg_resolucion':        round(avg_resolucion, 0) if avg_resolucion is not None else None,
+                'pct_change_resolucion': pct_change(avg_resolucion, avg_resolucion_prev),
+            },
+            'severidad': {
+                'bajo':   int(row['sev_bajo'])   if row['sev_bajo']   else 0,
+                'medio':  int(row['sev_medio'])  if row['sev_medio']  else 0,
+                'alto':   int(row['sev_alto'])   if row['sev_alto']   else 0,
+            },
+            'turno': {
+                'diurno':   int(row['turno_diurno'])   if row['turno_diurno']   else 0,
+                'nocturno': int(row['turno_nocturno']) if row['turno_nocturno'] else 0,
+            },
+            'categorias': categorias,
+            'trend': {
+                'labels': [r['period_label'] for r in trend_rows],
+                'counts': [int(r['cnt'])      for r in trend_rows],
+            },
+        })
+    except Exception as e:
+        app_logger.error(f"api_incidentes_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/incidentes/detalles')
+@jwt_required()
+def api_incidentes_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params = _inc_where(cliente, year, month, day)
+
+        cur.execute(f"""
+            SELECT
+                id_reporte_incidente,
+                fecha_hora,
+                cliente_instalacion,
+                categoria,
+                tipo_incidente,
+                nivel_severidad,
+                turno,
+                estado,
+                nombre_responsable
+            FROM reportes_incidentes
+            {where}
+            ORDER BY fecha_hora DESC NULLS LAST, id_reporte_incidente DESC
+            LIMIT 500
+        """, params)
+        rows = cur.fetchall()
+
+        detalles = []
+        for r in rows:
+            fh = r['fecha_hora']
+            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
+            if fh_str == 'None': fh_str = '—'
+            detalles.append({
+                'id':           r['id_reporte_incidente'] or 0,
+                'fecha_hora':   fh_str,
+                'cliente':      r['cliente_instalacion'] or '—',
+                'categoria':    r['categoria']            or '—',
+                'tipo':         r['tipo_incidente']       or '—',
+                'severidad':    r['nivel_severidad']      or '—',
+                'turno':        r['turno']                or '—',
+                'estado':       r['estado']               or '—',
+                'responsable':  r['nombre_responsable']   or '—',
+            })
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_incidentes_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Disciplina Dashboard ─────────────────────────────────────────────────────
+
+def _disc_where(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    prefix = _sat_date_prefix(year, month, day)
+    if prefix:
+        conds.append("fecha_hora::TEXT LIKE %s")
+        params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+def _disc_prev_where(cliente, year, month, day):
+    if not year:
+        return None, None
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    now = datetime.now(timezone.utc)
+    if year and month and day:
+        prev = datetime(year, month, day) - timedelta(days=1)
+        prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
+    elif year and month:
+        prev_month = month - 1 or 12
+        prev_year  = year if month > 1 else year - 1
+        prefix = f"{prev_year}-{prev_month:02d}"
+    elif year:
+        prefix = str(year - 1)
+    else:
+        prefix = str(now.year - 1)
+    conds.append("fecha_hora::TEXT LIKE %s")
+    params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+@dashboard_bp.route('/api/disciplina/clientes')
+@jwt_required()
+def api_disciplina_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM informe_novedades_disciplinario
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_disciplina_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/disciplina/data')
+@jwt_required()
+def api_disciplina_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params           = _disc_where(cliente, year, month, day)
+        where_prev, params_prev = _disc_prev_where(cliente, year, month, day)
+
+        # ── KPIs via CTE on employee counts ──────────────────────────────
+        # Use empleado_numero as the canonical employee key, fall back to name
+        # when number is missing so we don't lose records.
+        cte_filter = where.replace("WHERE ", "AND ") if where else ""
+
+        cur.execute(f"""
+            WITH emp_counts AS (
+                SELECT
+                    COALESCE(NULLIF(TRIM(empleado_numero), ''), empleado_nombre) AS emp_key,
+                    COUNT(*) AS cnt
+                FROM informe_novedades_disciplinario
+                {where}
+                GROUP BY emp_key
+            )
+            SELECT
+                COALESCE(SUM(cnt), 0)                                       AS total,
+                COUNT(*)                                                      AS total_empleados,
+                ROUND(AVG(cnt)::NUMERIC, 2)                                   AS avg_novedades,
+                ROUND(
+                    100.0 * SUM(CASE WHEN cnt > 1 THEN 1 ELSE 0 END)
+                    / NULLIF(COUNT(*), 0)
+                , 1)                                                          AS pct_reincidencia,
+                SUM(CASE WHEN cnt > 3 THEN 1 ELSE 0 END)                     AS criticos
+            FROM emp_counts
+        """, params)
+        row = cur.fetchone()
+
+        total             = int(row['total'])             if row['total']             else 0
+        total_empleados   = int(row['total_empleados'])   if row['total_empleados']   else 0
+        avg_novedades     = float(row['avg_novedades'])   if row['avg_novedades']     else 0.0
+        pct_reincidencia  = float(row['pct_reincidencia'])if row['pct_reincidencia']  else 0.0
+        criticos          = int(row['criticos'])          if row['criticos']          else 0
+
+        # ── Previous period KPIs ──────────────────────────────────────────
+        total_prev, total_emp_prev = 0, 0
+        avg_prev, pct_reinc_prev   = None, None
+        if where_prev is not None:
+            cur.execute(f"""
+                WITH emp_counts AS (
+                    SELECT
+                        COALESCE(NULLIF(TRIM(empleado_numero), ''), empleado_nombre) AS emp_key,
+                        COUNT(*) AS cnt
+                    FROM informe_novedades_disciplinario
+                    {where_prev}
+                    GROUP BY emp_key
+                )
+                SELECT
+                    COALESCE(SUM(cnt), 0)                                           AS total,
+                    COUNT(*)                                                          AS total_empleados,
+                    ROUND(AVG(cnt)::NUMERIC, 2)                                       AS avg_novedades,
+                    ROUND(
+                        100.0 * SUM(CASE WHEN cnt > 1 THEN 1 ELSE 0 END)
+                        / NULLIF(COUNT(*), 0)
+                    , 1)                                                              AS pct_reincidencia
+                FROM emp_counts
+            """, params_prev)
+            prev = cur.fetchone()
+            if prev:
+                total_prev      = int(prev['total'])             if prev['total']             else 0
+                total_emp_prev  = int(prev['total_empleados'])   if prev['total_empleados']   else 0
+                avg_prev        = float(prev['avg_novedades'])   if prev['avg_novedades']     else None
+                pct_reinc_prev  = float(prev['pct_reincidencia'])if prev['pct_reincidencia']  else None
+
+        def pct_change(curr, prev_val):
+            if curr is None or prev_val is None or prev_val == 0: return None
+            return round((curr - prev_val) / prev_val * 100, 1)
+
+        # ── Novedades por tipo (sorted desc) ──────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(tipo_novedad), ''), 'Sin tipo') AS tipo,
+                COUNT(*) AS cnt
+            FROM informe_novedades_disciplinario
+            {where}
+            GROUP BY tipo
+            ORDER BY cnt DESC
+            LIMIT 20
+        """, params)
+        por_tipo = [{'label': r['tipo'], 'count': int(r['cnt'])} for r in cur.fetchall()]
+
+        # ── Novedades por cliente/instalación (sorted desc) ───────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(cliente_instalacion), ''), 'Sin cliente') AS cliente,
+                COUNT(*) AS cnt
+            FROM informe_novedades_disciplinario
+            {where}
+            GROUP BY cliente
+            ORDER BY cnt DESC
+            LIMIT 15
+        """, params)
+        por_cliente = [{'label': r['cliente'], 'count': int(r['cnt'])} for r in cur.fetchall()]
+
+        # ── Trend ─────────────────────────────────────────────────────────
+        if month and year:
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+        else:
+            group_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+
+        cur.execute(f"""
+            SELECT
+                {group_expr} AS period_label,
+                COUNT(*) AS cnt
+            FROM informe_novedades_disciplinario
+            {where}
+            GROUP BY period_label
+            ORDER BY period_label
+            LIMIT 24
+        """, params)
+        trend_rows = cur.fetchall()
+
+        # ── Top empleados ranking ─────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(empleado_numero), ''), '—')  AS emp_numero,
+                MAX(empleado_nombre)                                AS emp_nombre,
+                COUNT(*)                                            AS cnt
+            FROM informe_novedades_disciplinario
+            {where}
+            GROUP BY emp_numero
+            ORDER BY cnt DESC
+            LIMIT 20
+        """, params)
+        emp_rows = cur.fetchall()
+
+        empleados = []
+        for r in emp_rows:
+            cnt = int(r['cnt'])
+            pct_of_total = round(cnt / total * 100, 1) if total else 0
+            critico = cnt > 3
+            empleados.append({
+                'numero':       r['emp_numero'],
+                'nombre':       r['emp_nombre'] or '—',
+                'count':        cnt,
+                'pct_total':    pct_of_total,
+                'critico':      critico,
+            })
+
+        # ── Critical employees list for alert banner ──────────────────────
+        criticos_list = [e for e in empleados if e['critico']]
+
+        return jsonify({
+            'kpi': {
+                'total':                total,
+                'pct_change_total':     pct_change(total, total_prev),
+                'total_empleados':      total_empleados,
+                'pct_change_empleados': pct_change(total_empleados, total_emp_prev),
+                'avg_novedades':        round(avg_novedades, 2),
+                'pct_change_avg':       pct_change(avg_novedades, avg_prev),
+                'pct_reincidencia':     round(pct_reincidencia, 1),
+                'pct_change_reinc':     pct_change(pct_reincidencia, pct_reinc_prev),
+                'criticos':             criticos,
+            },
+            'por_tipo':    por_tipo,
+            'por_cliente': por_cliente,
+            'trend': {
+                'labels': [r['period_label'] for r in trend_rows],
+                'counts': [int(r['cnt'])      for r in trend_rows],
+            },
+            'empleados':        empleados,
+            'criticos_list':    criticos_list,
+        })
+    except Exception as e:
+        app_logger.error(f"api_disciplina_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/disciplina/detalles')
+@jwt_required()
+def api_disciplina_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params = _disc_where(cliente, year, month, day)
+
+        cur.execute(f"""
+            SELECT
+                id_informe,
+                fecha_hora,
+                cliente_instalacion,
+                empleado_numero,
+                empleado_nombre,
+                empleado_cargo,
+                tipo_novedad,
+                turno,
+                nombre_responsable
+            FROM informe_novedades_disciplinario
+            {where}
+            ORDER BY fecha_hora DESC NULLS LAST, id_informe DESC
+            LIMIT 500
+        """, params)
+        rows = cur.fetchall()
+
+        detalles = []
+        for r in rows:
+            fh = r['fecha_hora']
+            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
+            if fh_str == 'None': fh_str = '—'
+            detalles.append({
+                'id':           r['id_informe'] or 0,
+                'fecha_hora':   fh_str,
+                'cliente':      r['cliente_instalacion'] or '—',
+                'emp_numero':   r['empleado_numero']     or '—',
+                'emp_nombre':   r['empleado_nombre']     or '—',
+                'emp_cargo':    r['empleado_cargo']      or '—',
+                'tipo':         r['tipo_novedad']        or '—',
+                'turno':        r['turno']               or '—',
+                'responsable':  r['nombre_responsable']  or '—',
+            })
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_disciplina_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Supervision Dashboard ─────────────────────────────────────────────────────
+# Scoring: 5 criteria (asistencia_puntualidad, presentacion_uniforme,
+#   estado_limpieza_puesto, equipamiento_completo, estado_bitacora) × 1-5 = max 25
+# Thresholds: ≤15 → crítico, 16-20 → seguimiento, 21-25 → excelente
+
+_SUP_CRITERIA = [
+    ('asistencia_puntualidad',  'Asistencia y puntualidad'),
+    ('presentacion_uniforme',   'Presentación y uniforme'),
+    ('estado_limpieza_puesto',  'Estado y limpieza del puesto'),
+    ('equipamiento_completo',   'Equipamiento'),
+    ('estado_bitacora',         'Estado de bitácora'),
+]
+
+def _sup_score_label(score):
+    if score is None:   return 'Sin datos'
+    if score >= 21:     return 'Excelente'
+    if score >= 16:     return 'Con oportunidades de mejora'
+    if score > 0:       return 'Requiere acción inmediata'
+    return 'Sin datos'
+
+def _sup_score_color(score):
+    if score is None:  return '#6b7280'
+    if score >= 21:    return '#22c55e'
+    if score >= 16:    return '#eab308'
+    return '#ef4444'
+
+def _sup_where(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente = %s")
+        params.append(cliente)
+    prefix = _sat_date_prefix(year, month, day)
+    if prefix:
+        conds.append("fecha_hora::TEXT LIKE %s")
+        params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+def _sup_prev_where(cliente, year, month, day):
+    if not year:
+        return None, None
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente = %s")
+        params.append(cliente)
+    now = datetime.now(timezone.utc)
+    if year and month and day:
+        prev = datetime(year, month, day) - timedelta(days=1)
+        prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
+    elif year and month:
+        prev_month = month - 1 or 12
+        prev_year  = year if month > 1 else year - 1
+        prefix = f"{prev_year}-{prev_month:02d}"
+    elif year:
+        prefix = str(year - 1)
+    else:
+        prefix = str(now.year - 1)
+    conds.append("fecha_hora::TEXT LIKE %s")
+    params.append(prefix + "%")
+    where = ("WHERE " + " AND ".join(conds)) if conds else ""
+    return where, params
+
+
+@dashboard_bp.route('/api/supervision/clientes')
+@jwt_required()
+def api_supervision_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT cliente
+            FROM supervision_puesto
+            WHERE cliente IS NOT NULL AND cliente <> ''
+            ORDER BY cliente
+        """)
+        return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_supervision_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/supervision/data')
+@jwt_required()
+def api_supervision_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params           = _sup_where(cliente, year, month, day)
+        where_prev, params_prev = _sup_prev_where(cliente, year, month, day)
+
+        # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
+        # Some records store 'Excelente'/'Bueno'/etc. instead of 1-5.
+        def _safe(col):
+            return f"""CASE
+                WHEN TRIM({col}::TEXT) ~ '^[0-9]+(\.[0-9]+)?$' THEN TRIM({col}::TEXT)::NUMERIC
+                WHEN LOWER(TRIM({col}::TEXT)) = 'excelente'            THEN 5
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('bueno','bien')       THEN 4
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('regular','aceptable')THEN 3
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('malo','deficiente')  THEN 2
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('pesimo','pésimo','muy malo') THEN 1
+                ELSE NULL
+            END"""
+
+        score_expr = " + ".join(f"COALESCE(({_safe(f)}),0)" for f, _ in _SUP_CRITERIA)
+        avg_criteria = ", ".join(
+            f"AVG({_safe(f)}) AS avg_{f}" for f, _ in _SUP_CRITERIA
+        )
+
+        # ── KPI summary ───────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                                                    AS total,
+                AVG({score_expr})                                           AS avg_score,
+                SUM(CASE WHEN ({score_expr}) >= 21 THEN 1 ELSE 0 END)     AS cnt_excelente,
+                SUM(CASE WHEN ({score_expr}) BETWEEN 16 AND 20
+                         THEN 1 ELSE 0 END)                                AS cnt_seguimiento,
+                SUM(CASE WHEN ({score_expr}) <= 15
+                         AND ({score_expr}) > 0 THEN 1 ELSE 0 END)        AS cnt_critico,
+                {avg_criteria}
+            FROM supervision_puesto
+            {where}
+        """, params)
+        row = cur.fetchone()
+
+        total          = int(row['total'])         if row['total']     else 0
+        avg_score      = float(row['avg_score'])   if row['avg_score'] else None
+        cnt_excelente  = int(row['cnt_excelente'])  if row['cnt_excelente']  else 0
+        cnt_seguimiento= int(row['cnt_seguimiento'])if row['cnt_seguimiento'] else 0
+        cnt_critico    = int(row['cnt_critico'])    if row['cnt_critico']     else 0
+
+        # ── Previous period ───────────────────────────────────────────────
+        avg_score_prev, total_prev = None, 0
+        if where_prev is not None:
+            cur.execute(f"""
+                SELECT COUNT(*) AS total, AVG({score_expr}) AS avg_score
+                FROM supervision_puesto
+                {where_prev}
+            """, params_prev)
+            prev = cur.fetchone()
+            if prev:
+                total_prev     = int(prev['total'])       if prev['total']     else 0
+                avg_score_prev = float(prev['avg_score']) if prev['avg_score'] else None
+
+        def pct_change(curr, prev_val):
+            if curr is None or prev_val is None or prev_val == 0: return None
+            return round((curr - prev_val) / prev_val * 100, 1)
+
+        pct_critico    = round(cnt_critico     / total * 100, 1) if total else 0
+        pct_seguimiento= round(cnt_seguimiento / total * 100, 1) if total else 0
+        pct_excelente  = round(cnt_excelente   / total * 100, 1) if total else 0
+
+        # ── Per-criterion averages (for criteria bar chart) ───────────────
+        criteria = []
+        for field, label in _SUP_CRITERIA:
+            avg = float(row[f'avg_{field}']) if row[f'avg_{field}'] else None
+            color = _sup_score_color(avg * 5 if avg else None)  # scale 1-5 → 5-25
+            # Use raw 1-5 scale for criteria bars
+            crit_color = '#22c55e' if avg and avg >= 4.0 else '#eab308' if avg and avg >= 2.5 else '#ef4444'
+            criteria.append({
+                'label': label,
+                'avg':   round(avg, 2) if avg is not None else None,
+                'color': crit_color,
+            })
+        # Sort ascending (worst first) per requirements
+        criteria.sort(key=lambda x: x['avg'] if x['avg'] is not None else 0)
+
+        # ── Result per puesto (by numero_empleado) ────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') AS emp_key,
+                MAX(nombre_guardia)                                                    AS guardia,
+                COUNT(*)                                                               AS cnt,
+                ROUND(AVG({score_expr})::NUMERIC, 1)                                  AS avg_score
+            FROM supervision_puesto
+            {where}
+            GROUP BY emp_key
+            ORDER BY avg_score ASC
+            LIMIT 30
+        """, params)
+        puestos = []
+        for r in cur.fetchall():
+            s = float(r['avg_score']) if r['avg_score'] else None
+            puestos.append({
+                'emp_key':  r['emp_key'],
+                'guardia':  r['guardia'] or '—',
+                'cnt':      int(r['cnt']),
+                'avg_score': s,
+                'color':    _sup_score_color(s),
+                'label':    _sup_score_label(s),
+                'alerta':   s is not None and s <= 15,
+            })
+
+        # ── Critical puestos for alert banner ─────────────────────────────
+        criticos   = [p for p in puestos if p['alerta']]
+        seguimiento= [p for p in puestos if p['avg_score'] is not None and 16 <= p['avg_score'] <= 20]
+
+        # ── Trend by period ───────────────────────────────────────────────
+        if month and year:
+            grp = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+        else:
+            grp = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+
+        cur.execute(f"""
+            SELECT
+                {grp} AS period_label,
+                ROUND(AVG({score_expr})::NUMERIC, 2) AS avg_score,
+                COUNT(*) AS cnt
+            FROM supervision_puesto
+            {where}
+            GROUP BY period_label
+            ORDER BY period_label
+            LIMIT 24
+        """, params)
+        trend_rows = cur.fetchall()
+
+        # ── Trend by rol_aplicador (turno not stored as a top-level column) ─
+        cur.execute(f"""
+            SELECT
+                {grp} AS period_label,
+                COALESCE(NULLIF(TRIM(rol_aplicador),''), 'Sin rol') AS turno,
+                ROUND(AVG({score_expr})::NUMERIC, 2) AS avg_score
+            FROM supervision_puesto
+            {where}
+            GROUP BY period_label, turno
+            ORDER BY period_label, turno
+            LIMIT 72
+        """, params)
+        turno_rows = cur.fetchall()
+
+        # Build per-turno series
+        turno_periods = sorted(set(r['period_label'] for r in turno_rows))
+        turno_map = {}
+        for r in turno_rows:
+            t = r['turno']
+            if t not in turno_map:
+                turno_map[t] = {}
+            turno_map[t][r['period_label']] = float(r['avg_score']) if r['avg_score'] else None
+        turno_series = [
+            {'turno': t, 'data': [turno_map[t].get(p) for p in turno_periods]}
+            for t in sorted(turno_map.keys())
+        ]
+
+        return jsonify({
+            'kpi': {
+                'total':                total,
+                'pct_change_total':     pct_change(total, total_prev),
+                'avg_score':            round(avg_score, 1) if avg_score is not None else None,
+                'avg_score_prev':       round(avg_score_prev, 1) if avg_score_prev else None,
+                'pct_change_score':     pct_change(avg_score, avg_score_prev),
+                'avg_score_color':      _sup_score_color(avg_score),
+                'avg_score_label':      _sup_score_label(avg_score),
+                'cnt_critico':          cnt_critico,
+                'pct_critico':          pct_critico,
+                'cnt_seguimiento':      cnt_seguimiento,
+                'pct_seguimiento':      pct_seguimiento,
+                'cnt_excelente':        cnt_excelente,
+                'pct_excelente':        pct_excelente,
+            },
+            'distribution': {
+                'excelente':   cnt_excelente,
+                'seguimiento': cnt_seguimiento,
+                'critico':     cnt_critico,
+            },
+            'criteria':   criteria,
+            'puestos':    puestos,
+            'criticos':   criticos,
+            'seguimiento_list': seguimiento,
+            'trend': {
+                'labels':    [r['period_label'] for r in trend_rows],
+                'avg_score': [float(r['avg_score']) if r['avg_score'] else None for r in trend_rows],
+                'counts':    [int(r['cnt']) for r in trend_rows],
+            },
+            'trend_turno': {
+                'labels':  turno_periods,
+                'series':  turno_series,
+            },
+        })
+    except Exception as e:
+        app_logger.error(f"api_supervision_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/supervision/detalles')
+@jwt_required()
+def api_supervision_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        where, params = _sup_where(cliente, year, month, day)
+
+        def _safe(col):
+            return f"""CASE
+                WHEN TRIM({col}::TEXT) ~ '^[0-9]+(\.[0-9]+)?$' THEN TRIM({col}::TEXT)::NUMERIC
+                WHEN LOWER(TRIM({col}::TEXT)) = 'excelente'            THEN 5
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('bueno','bien')       THEN 4
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('regular','aceptable')THEN 3
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('malo','deficiente')  THEN 2
+                WHEN LOWER(TRIM({col}::TEXT)) IN ('pesimo','pésimo','muy malo') THEN 1
+                ELSE NULL
+            END"""
+
+        score_expr = " + ".join(f"COALESCE(({_safe(f)}),0)" for f, _ in _SUP_CRITERIA)
+
+        cur.execute(f"""
+            SELECT
+                id_supervision,
+                fecha_hora,
+                cliente,
+                supervisor,
+                numero_empleado,
+                nombre_guardia,
+                rol_aplicador,
+                ({score_expr})                AS total_score
+            FROM supervision_puesto
+            {where}
+            ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
+            LIMIT 500
+        """, params)
+        rows = cur.fetchall()
+
+        detalles = []
+        for r in rows:
+            fh = r['fecha_hora']
+            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
+            if fh_str == 'None': fh_str = '—'
+            score = float(r['total_score']) if r['total_score'] else 0
+            detalles.append({
+                'id':          r['id_supervision'] or 0,
+                'fecha_hora':  fh_str,
+                'cliente':     r['cliente']          or '—',
+                'supervisor':  r['supervisor']        or '—',
+                'emp_numero':  r['numero_empleado']   or '—',
+                'guardia':     r['nombre_guardia']    or '—',
+                'turno':       r['rol_aplicador']     or '—',
+                'score':       score,
+                'score_label': _sup_score_label(score),
+                'score_color': _sup_score_color(score),
+            })
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_supervision_detalles error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
         if cur: cur.close()

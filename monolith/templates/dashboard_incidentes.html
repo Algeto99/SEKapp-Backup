@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incidentes — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Base ─────────────────────────────────────────────────────────── */
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
+
+        /* ── Nav ──────────────────────────────────────────────────────────── */
+        .header-nav {
+            position: fixed; top:0; left:0; right:0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1280px; margin:0 auto;
+            display:flex; justify-content:space-between;
+            align-items:center; flex-wrap:wrap; gap:0.75rem;
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
+        .user-greeting { font-size:0.875rem; color:#9ca3af; }
+        .user-name { color:#60a5fa; font-weight:bold; }
+        .admin-badge { color:#a855f7; font-weight:bold; }
+
+        /* ── Theme toggle ─────────────────────────────────────────────────── */
+        .theme-toggle {
+            position:fixed; top:1.25rem; left:1.25rem; z-index:100;
+            background-color:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+            border-radius:0.5rem; padding:0.5rem; cursor:pointer; color:#e2e8f0;
+            transition:all 0.2s;
+        }
+        .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+
+        /* ── Layout ───────────────────────────────────────────────────────── */
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+
+        /* ── Module header ────────────────────────────────────────────────── */
+        .module-header {
+            display:flex; align-items:center; gap:1rem;
+            margin-bottom:1.75rem; padding-bottom:1.5rem;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        .module-icon {
+            width:50px; height:50px; border-radius:12px; flex-shrink:0;
+            background-color:rgba(239,68,68,0.15); color:#f87171;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 0.2rem; }
+        .module-header p { font-family:'Roboto',sans-serif; font-size:0.875rem; color:#64748b; margin:0; }
+
+        /* ── Cards ────────────────────────────────────────────────────────── */
+        .card {
+            background-color:#2d3748;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:14px; padding:1.5rem;
+        }
+        .card-title {
+            font-family:'Roboto',sans-serif; font-size:0.6875rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; color:#6b7280;
+            margin-bottom:0.875rem;
+        }
+
+        /* ── KPI Cards ────────────────────────────────────────────────────── */
+        .kpi-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
+            margin-bottom:1.25rem;
+        }
+        .kpi-value {
+            font-family:'Merriweather',serif; font-size:2.5rem; font-weight:700;
+            line-height:1; margin-bottom:0.375rem;
+        }
+        .kpi-label { font-size:0.8125rem; color:#94a3b8; margin-bottom:0.75rem; font-family:'Roboto',sans-serif; }
+        .kpi-change {
+            display:inline-flex; align-items:center; gap:0.3rem;
+            font-size:0.8125rem; font-weight:600; font-family:'Roboto',sans-serif;
+            padding:0.2rem 0.5rem; border-radius:999px;
+        }
+        /* For incidents, up (more incidents) is bad = red, down is good = green */
+        .kpi-change.up   { background-color:rgba(239,68,68,0.12);   color:#f87171; }
+        .kpi-change.down { background-color:rgba(34,197,94,0.12);   color:#4ade80; }
+        .kpi-change.flat { background-color:rgba(100,116,139,0.12); color:#94a3b8; }
+        .kpi-compare { font-size:0.75rem; color:#4b5563; margin-top:0.3rem; font-family:'Roboto',sans-serif; }
+
+        /* Traffic light dot */
+        .tl-dot {
+            display:inline-block; width:12px; height:12px;
+            border-radius:50%; margin-right:0.375rem; vertical-align:middle;
+        }
+
+        /* ── Charts grid ──────────────────────────────────────────────────── */
+        .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full { margin-bottom:1rem; }
+        .charts-bottom { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+
+        .chart-wrap { position:relative; }
+        .chart-canvas { width:100% !important; }
+
+        /* ── Loading overlay ──────────────────────────────────────────────── */
+        .loading-overlay {
+            position:absolute; inset:0; border-radius:14px;
+            background-color:rgba(26,32,44,0.75);
+            display:flex; align-items:center; justify-content:center;
+            z-index:10; pointer-events:none; opacity:0; transition:opacity 0.2s;
+        }
+        .loading-overlay.active { opacity:1; pointer-events:all; }
+        .spinner {
+            width:28px; height:28px; border:3px solid rgba(255,255,255,0.1);
+            border-top-color:#f87171; border-radius:50%;
+            animation:spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* ── Empty state ──────────────────────────────────────────────────── */
+        .empty-state { text-align:center; padding:3rem 1rem; }
+        .empty-state svg { width:40px; height:40px; color:#4b5563; margin:0 auto 0.75rem; display:block; }
+        .empty-state p { font-size:0.875rem; color:#4b5563; }
+
+        /* ── Traffic light legend ─────────────────────────────────────────── */
+        .tl-legend {
+            display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;
+            font-size:0.75rem; font-family:'Roboto',sans-serif;
+        }
+        .tl-legend-item { display:flex; align-items:center; gap:0.375rem; color:#9ca3af; }
+        .tl-swatch { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+
+        /* ── Light mode ───────────────────────────────────────────────────── */
+        body.light-mode { background-color:#f1f5f9; color:#1e293b; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,
+        body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav {
+            background-color:rgba(255,255,255,0.97);
+            border-bottom:1px solid rgba(0,0,0,0.08);
+        }
+        body.light-mode .user-greeting { color:#475569; }
+        body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
+        body.light-mode .card { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+        body.light-mode .card-title { color:#94a3b8; }
+        body.light-mode .kpi-label { color:#64748b; }
+        body.light-mode .kpi-compare { color:#94a3b8; }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color:#94a3b8; }
+        body.light-mode .tl-legend-item { color:#64748b; }
+        body.light-mode .empty-state p { color:#94a3b8; }
+        body.light-mode .empty-state svg { color:#cbd5e1; }
+        body.light-mode .loading-overlay { background-color:rgba(241,245,249,0.75); }
+
+        /* ── Responsive ───────────────────────────────────────────────────── */
+        @media (max-width:900px) {
+            .charts-row, .charts-bottom { grid-template-columns:1fr; }
+        }
+        @media (max-width:700px) {
+            .kpi-grid { grid-template-columns:1fr; }
+            body { padding-top:110px; }
+            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+        }
+        @media (max-width:500px) {
+            .kpi-value { font-size:2rem; }
+        }
+
+        /* ── Modal ────────────────────────────────────────────────────────── */
+        .modal-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: 100; display: none; align-items: center; justify-content: center;
+        }
+        .modal-backdrop.active { display: flex; }
+        .modal-container {
+            background-color: #2d3748; border-radius: 12px; width: 95%; max-width: 1000px;
+            max-height: 90vh; display: flex; flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: 'Roboto', sans-serif;
+        }
+        body.light-mode .modal-container { background-color: #fff; }
+        .modal-header {
+            padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        body.light-mode .modal-header { border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .modal-title { font-family: 'Merriweather', serif; font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; }
+        body.light-mode .modal-title { color: #1e293b; }
+        .modal-close {
+            background: none; border: none; color: #94a3b8; font-size: 1.5rem;
+            cursor: pointer; line-height: 1; padding: 0.2rem; transition: color 0.2s;
+        }
+        .modal-close:hover { color: #fff; }
+        body.light-mode .modal-close:hover { color: #1e293b; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; }
+
+        .modal-table-wrapper { overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+        .modal-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; text-align: left; }
+        .modal-table th { padding: 0.75rem; color: #94a3b8; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap; position: sticky; top: 0; background-color: #2d3748; z-index: 10; }
+        .modal-table td { padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; }
+        body.light-mode .modal-table th { color: #64748b; border-bottom: 1px solid rgba(0,0,0,0.1); background-color: #fff; }
+        body.light-mode .modal-table td { color: #334155; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .modal-table tr:hover td { background-color: rgba(255,255,255,0.03); }
+        body.light-mode .modal-table tr:hover td { background-color: rgba(0,0,0,0.03); }
+
+        .clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-color: #f87171; }
+        body.light-mode .clickable-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: #ef4444; }
+
+        /* ── Severity badge ───────────────────────────────────────────────── */
+        .sev-badge {
+            display:inline-block; padding:0.15rem 0.5rem; border-radius:999px;
+            font-size:0.75rem; font-weight:600;
+        }
+        .sev-alto   { background:rgba(239,68,68,0.15);   color:#f87171; }
+        .sev-medio  { background:rgba(234,179,8,0.15);   color:#facc15; }
+        .sev-bajo   { background:rgba(34,197,94,0.15);   color:#4ade80; }
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+    </button>
+
+    <!-- Nav -->
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Reporte de Incidentes</h1>
+                <p>Análisis de incidentes por severidad, categoría, turno y tendencia temporal</p>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        {% include '_dashboard_filters.html' %}
+
+        <!-- ── KPI Row ──────────────────────────────────────────────────── -->
+        <div class="kpi-grid" id="kpiSection">
+
+            <!-- KPI 1: Total Incidentes -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Total Incidentes</div>
+                <div class="kpi-value" id="kpiTotalVal" style="color:#f87171">—</div>
+                <div class="kpi-label">Incidentes en el período</div>
+                <div id="kpiTotalChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+
+            <!-- KPI 2: Alta Severidad -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Alta Severidad</div>
+                <div class="kpi-value" id="kpiAltoVal" style="color:#fbbf24">—</div>
+                <div class="kpi-label" id="kpiAltoLabel">incidentes de nivel alto</div>
+                <div id="kpiAltoChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+
+            <!-- KPI 3: Tiempo Promedio de Resolución -->
+            <div class="card">
+                <div class="card-title">Tiempo Promedio Resolución</div>
+                <div class="kpi-value" id="kpiResolucionVal" style="color:#60a5fa">—</div>
+                <div class="kpi-label">minutos promedio</div>
+                <div id="kpiResolucionChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+
+        </div>
+
+        <!-- ── Charts row 1: Categorías (left) + Severidad (right) ─────── -->
+        <div class="charts-row">
+
+            <!-- Categorías bar chart -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">Incidentes por Categoría</div>
+                <div class="chart-wrap" style="min-height:260px;">
+                    <canvas id="catChart" class="chart-canvas"></canvas>
+                    <div id="catEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="catLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Severidad distribution bar chart -->
+            <div class="card" style="position:relative;">
+                <div class="card-title">Distribución por Severidad</div>
+                <div class="tl-legend">
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#22c55e"></span>Bajo</span>
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#eab308"></span>Medio</span>
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#ef4444"></span>Alto</span>
+                </div>
+                <div class="chart-wrap" style="min-height:220px;">
+                    <canvas id="sevChart" class="chart-canvas"></canvas>
+                    <div id="sevEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="sevLoading"><div class="spinner"></div></div>
+            </div>
+
+        </div>
+
+        <!-- ── Chart row 2: Trend (full width) ──────────────────────────── -->
+        <div class="chart-full">
+            <div class="card" style="position:relative;">
+                <div class="card-title">Tendencia de Incidentes</div>
+                <div class="chart-wrap" style="height:220px;">
+                    <canvas id="trendChart" class="chart-canvas" style="height:220px!important;"></canvas>
+                    <div id="trendEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                        <p>Sin datos de tendencia para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="trendLoading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- ── Chart row 3: Turno donut (left) + Severity table (right) ── -->
+        <div class="charts-bottom">
+
+            <!-- Turno donut -->
+            <div class="card" style="position:relative;">
+                <div class="card-title">Distribución por Turno</div>
+                <div class="chart-wrap" style="max-height:260px; display:flex; align-items:center; justify-content:center;">
+                    <canvas id="turnoChart" class="chart-canvas" style="max-height:240px;"></canvas>
+                    <div id="turnoEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <p>Sin datos de turno</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="turnoLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Severity reference table -->
+            <div class="card">
+                <div class="card-title">Tabla de Referencia de Severidad</div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.8125rem;font-family:'Roboto',sans-serif;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
+                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Nivel</th>
+                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Descripción</th>
+                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Acción recomendada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#22c55e"></span><span style="color:#4ade80;">Bajo</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Impacto mínimo en operaciones</td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Documentar y monitorear</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#eab308"></span><span style="color:#facc15;">Medio</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Impacto moderado, requiere atención</td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Asignar responsable y seguimiento</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#ef4444"></span><span style="color:#f87171;">Alto</span></td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Impacto significativo en seguridad</td>
+                            <td style="padding:0.5rem;color:#94a3b8;">Escalamiento y plan de acción inmediato</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+    </div><!-- /main-container -->
+
+    <!-- ── Interactive Modal ────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) this.classList.remove('active')">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Registros de Incidentes</h3>
+                <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailsLoading" style="display:none; text-align:center; color:#94a3b8; padding: 2rem;">Cargando detalles...</div>
+                <div class="modal-table-wrapper">
+                    <table class="modal-table" id="detailsTable">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Instalación</th>
+                                <th>Categoría</th>
+                                <th>Tipo</th>
+                                <th>Severidad</th>
+                                <th>Turno</th>
+                                <th>Estado</th>
+                                <th>Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let currentQS = '';
+
+    // ── Theme ─────────────────────────────────────────────────────────────
+    const themeToggle   = document.getElementById('themeToggle');
+    const darkModeIcon  = document.getElementById('darkModeIcon');
+    const lightModeIcon = document.getElementById('lightModeIcon');
+    function setDarkMode()  { document.body.classList.remove('light-mode'); darkModeIcon.style.display='block';  lightModeIcon.style.display='none';  localStorage.setItem('theme','dark');  updateChartTheme(false); }
+    function setLightMode() { document.body.classList.add('light-mode');    darkModeIcon.style.display='none';   lightModeIcon.style.display='block'; localStorage.setItem('theme','light'); updateChartTheme(true);  }
+    function initTheme()    { const s=localStorage.getItem('theme'); (s==='light'||(!s&&!window.matchMedia('(prefers-color-scheme: dark)').matches)) ? setLightMode() : setDarkMode(); }
+    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+
+    // ── Chart.js global defaults ──────────────────────────────────────────
+    Chart.register(ChartDataLabels);
+
+    const CHART_DARK  = { tick:'#94a3b8', grid:'rgba(255,255,255,0.05)', label:'#e2e8f0' };
+    const CHART_LIGHT = { tick:'#64748b', grid:'rgba(0,0,0,0.06)',       label:'#0f172a' };
+    let chartTheme = CHART_DARK;
+
+    function updateChartTheme(isLight) {
+        chartTheme = isLight ? CHART_LIGHT : CHART_DARK;
+        [catChart, sevChart, trendChart, turnoChart].forEach(c => {
+            if (!c) return;
+            if (c.options.scales) {
+                Object.values(c.options.scales).forEach(axis => {
+                    if (axis.ticks) axis.ticks.color = chartTheme.tick;
+                    if (axis.grid)  axis.grid.color  = chartTheme.grid;
+                });
+            }
+            if (c.options.plugins?.legend?.labels)
+                c.options.plugins.legend.labels.color = chartTheme.label;
+            c.update('none');
+        });
+    }
+
+    // ── Chart instances ───────────────────────────────────────────────────
+    let catChart = null, sevChart = null, trendChart = null, turnoChart = null;
+
+    // ── Loading helpers ───────────────────────────────────────────────────
+    function setLoading(id, on) {
+        document.getElementById(id)?.classList.toggle('active', on);
+    }
+
+    // ── KPI helpers ───────────────────────────────────────────────────────
+    function renderChange(containerId, pct) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (pct === null || pct === undefined) {
+            el.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">N/A</span>';
+            return;
+        }
+        const dir   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+        const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+        el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
+    }
+
+    // For resolution time: down (faster) is good = green, up (slower) is bad = red
+    function renderChangeResolucion(containerId, pct) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (pct === null || pct === undefined) {
+            el.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">N/A</span>';
+            return;
+        }
+        // Invert: up (more time) = bad = red, down (less time) = good = green
+        const dir   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+        const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+        // Use same class names but the CSS for kpi-change.up on incidentes is red (already set)
+        el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
+    }
+
+    function renderKPI(data) {
+        const k = data.kpi;
+
+        // Total
+        document.getElementById('kpiTotalVal').textContent = k.total ?? '—';
+        renderChange('kpiTotalChange', k.pct_change_total);
+
+        // Alta Severidad
+        const altoEl = document.getElementById('kpiAltoVal');
+        altoEl.textContent = k.total_alto ?? '—';
+        if (k.pct_alto !== null && k.pct_alto !== undefined) {
+            document.getElementById('kpiAltoLabel').textContent = `${k.pct_alto}% del total son de nivel alto`;
+        }
+        renderChange('kpiAltoChange', k.pct_change_alto);
+
+        // Resolución
+        const resEl = document.getElementById('kpiResolucionVal');
+        if (k.avg_resolucion !== null && k.avg_resolucion !== undefined) {
+            resEl.textContent = k.avg_resolucion + ' min';
+        } else {
+            resEl.textContent = '—';
+        }
+        renderChangeResolucion('kpiResolucionChange', k.pct_change_resolucion);
+    }
+
+    // ── Category horizontal bar chart ─────────────────────────────────────
+    function renderCatChart(categorias) {
+        const canvas = document.getElementById('catChart');
+        const empty  = document.getElementById('catEmpty');
+        if (!categorias || categorias.length === 0) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const CAT_COLORS = [
+            '#f87171', '#fb923c', '#fbbf24', '#a3e635',
+            '#34d399', '#38bdf8', '#818cf8', '#e879f9',
+            '#f472b6', '#94a3b8'
+        ];
+
+        const labels = categorias.map(c => c.label);
+        const values = categorias.map(c => c.count);
+        const colors = categorias.map((_, i) => CAT_COLORS[i % CAT_COLORS.length]);
+
+        if (catChart) catChart.destroy();
+        catChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    barThickness: 22,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: chartTheme.tick, precision: 0 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.parsed.x} incidente${ctx.parsed.x !== 1 ? 's' : ''}`
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '600' },
+                        formatter: v => v || ''
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(220, categorias.length * 34 + 40) + 'px';
+    }
+
+    // ── Severity distribution bar chart ───────────────────────────────────
+    function renderSevChart(sev) {
+        const canvas = document.getElementById('sevChart');
+        const empty  = document.getElementById('sevEmpty');
+        const total  = (sev.bajo || 0) + (sev.medio || 0) + (sev.alto || 0);
+        if (!total) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = ['Bajo', 'Medio', 'Alto'];
+        const values = [sev.bajo, sev.medio, sev.alto];
+        const colors = ['#22c55e', '#eab308', '#ef4444'];
+
+        if (sevChart) sevChart.destroy();
+        sevChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 6,
+                    barThickness: 40,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        ticks: { color: chartTheme.label, font: { size: 13 } },
+                        grid:  { display: false },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.tick, precision: 0 },
+                        grid:  { color: chartTheme.grid },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed.y;
+                                const pct = total ? ((v / total) * 100).toFixed(1) : 0;
+                                return ` ${v} incidente${v !== 1 ? 's' : ''} (${pct}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 12, weight: '700' },
+                        formatter: (v) => {
+                            if (!v) return '';
+                            const pct = ((v / total) * 100).toFixed(0);
+                            return `${v}\n(${pct}%)`;
+                        }
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = '220px';
+    }
+
+    // ── Trend line chart ──────────────────────────────────────────────────
+    function renderTrendChart(trend) {
+        const canvas = document.getElementById('trendChart');
+        const empty  = document.getElementById('trendEmpty');
+        if (!trend.labels?.length) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: trend.labels,
+                datasets: [{
+                    label: 'Incidentes',
+                    data: trend.counts,
+                    borderColor: '#f87171',
+                    backgroundColor: 'rgba(239,68,68,0.08)',
+                    tension: 0.35,
+                    fill: true,
+                    pointBackgroundColor: '#f87171',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: chartTheme.tick, precision: 0 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    x: {
+                        ticks: { color: chartTheme.tick, maxRotation: 45 },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { color: chartTheme.label, usePointStyle: true, boxWidth: 8, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.parsed.y} incidente${ctx.parsed.y !== 1 ? 's' : ''}`
+                        }
+                    },
+                    datalabels: { display: false }
+                }
+            }
+        });
+    }
+
+    // ── Turno doughnut ────────────────────────────────────────────────────
+    function renderTurnoChart(turno) {
+        const canvas = document.getElementById('turnoChart');
+        const empty  = document.getElementById('turnoEmpty');
+        const total  = (turno.diurno || 0) + (turno.nocturno || 0);
+        if (!total) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        if (turnoChart) turnoChart.destroy();
+        turnoChart = new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: ['Turno Diurno', 'Turno Nocturno'],
+                datasets: [{
+                    data: [turno.diurno, turno.nocturno],
+                    backgroundColor: ['#fbbf24', '#818cf8'],
+                    borderColor: document.body.classList.contains('light-mode') ? '#fff' : '#2d3748',
+                    borderWidth: 3,
+                    hoverOffset: 6,
+                }]
+            },
+            options: {
+                cutout: '62%',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: chartTheme.label, padding: 16, font: { size: 12 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                                return ` ${ctx.parsed} incidente${ctx.parsed !== 1 ? 's' : ''} (${pct}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#fff', font: { size: 13, weight: '700' },
+                        formatter: (v) => {
+                            if (!v) return '';
+                            const pct = ((v / total) * 100).toFixed(1);
+                            return `${pct}%`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Error toast ───────────────────────────────────────────────────────
+    function showError(msg) {
+        let toast = document.getElementById('df-error-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'df-error-toast';
+            toast.style.cssText = [
+                'position:fixed','bottom:1.5rem','left:50%','transform:translateX(-50%)',
+                'background:#7f1d1d','color:#fca5a5','border:1px solid #ef4444',
+                'border-radius:10px','padding:0.75rem 1.25rem','font-size:0.8125rem',
+                'font-family:Roboto,sans-serif','z-index:9999','max-width:90vw',
+                'box-shadow:0 8px 24px rgba(0,0,0,0.4)','white-space:pre-wrap',
+            ].join(';');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = '⚠️  ' + msg;
+        toast.style.display = 'block';
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 8000);
+    }
+
+    // ── Severity badge helper ─────────────────────────────────────────────
+    function sevBadge(sev) {
+        const cls = sev === 'Alto' ? 'sev-alto' : sev === 'Medio' ? 'sev-medio' : sev === 'Bajo' ? 'sev-bajo' : '';
+        return cls ? `<span class="sev-badge ${cls}">${sev}</span>` : sev;
+    }
+
+    // ── Details Modal Loader ──────────────────────────────────────────────
+    async function openDetailsModal() {
+        const modal   = document.getElementById('detailsModal');
+        const tBody   = document.getElementById('detailsTableBody');
+        const loading = document.getElementById('detailsLoading');
+
+        modal.classList.add('active');
+        tBody.innerHTML = '';
+        loading.style.display = 'block';
+
+        try {
+            const url = `/dashboard/api/incidentes/detalles${currentQS ? '?' + currentQS : ''}`;
+            const res  = await fetch(url);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                showError(`API Error: ${data.error || res.status}`);
+                return;
+            }
+
+            if (!data.detalles || data.detalles.length === 0) {
+                tBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem;">No hay registros para este período.</td></tr>';
+                return;
+            }
+
+            data.detalles.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${r.fecha_hora}</td>
+                    <td>${r.cliente}</td>
+                    <td>${r.categoria}</td>
+                    <td>${r.tipo}</td>
+                    <td>${sevBadge(r.severidad)}</td>
+                    <td>${r.turno}</td>
+                    <td>${r.estado}</td>
+                    <td>${r.responsable}</td>
+                `;
+                tBody.appendChild(tr);
+            });
+        } catch (err) {
+            showError(`Error cargando detalles: ${err.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    // ── Main data loader ──────────────────────────────────────────────────
+    async function loadData(qs = '') {
+        ['catLoading', 'sevLoading', 'trendLoading', 'turnoLoading'].forEach(id => setLoading(id, true));
+        try {
+            const url  = `/dashboard/api/incidentes/data${qs ? '?' + qs : ''}`;
+            const res  = await fetch(url);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                showError(`API Error: ${data.error || `Error HTTP ${res.status}`}`);
+                return;
+            }
+
+            renderKPI(data);
+            renderCatChart(data.categorias);
+            renderSevChart(data.severidad);
+            renderTrendChart(data.trend);
+            renderTurnoChart(data.turno);
+        } catch (err) {
+            showError(`Error de conexión: ${err.message}`);
+        } finally {
+            ['catLoading', 'sevLoading', 'trendLoading', 'turnoLoading'].forEach(id => setLoading(id, false));
+        }
+    }
+
+    // ── Build query string ────────────────────────────────────────────────
+    function buildQS(state) {
+        const p = new URLSearchParams();
+        if (state.propertyId) p.set('cliente', state.propertyId);
+        if (state.year)       p.set('year',    state.year);
+        if (state.month)      p.set('month',   state.month);
+        if (state.day)        p.set('day',     state.day);
+        return p.toString();
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTheme();
+
+        const filters = new DashboardFilters();
+        filters.init();
+
+        // Relabel the property filter for incidentes
+        const propSelect = document.getElementById('df-property');
+        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+        try {
+            const res = await fetch('/dashboard/api/incidentes/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            clientes.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch (e) { console.warn('Could not load clientes', e); }
+
+        document.addEventListener('filtersChanged', (e) => {
+            currentQS = buildQS(e.detail);
+            loadData(currentQS);
+        });
+
+        loadData();
+    });
+    </script>
+</body>
+</html>

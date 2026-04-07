@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisión — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
+
+        .header-nav {
+            position: fixed; top:0; left:0; right:0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1280px; margin:0 auto;
+            display:flex; justify-content:space-between;
+            align-items:center; flex-wrap:wrap; gap:0.75rem;
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
+        .user-greeting { font-size:0.875rem; color:#9ca3af; }
+        .user-name { color:#60a5fa; font-weight:bold; }
+        .admin-badge { color:#a855f7; font-weight:bold; }
+
+        .theme-toggle {
+            position:fixed; top:1.25rem; left:1.25rem; z-index:100;
+            background-color:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+            border-radius:0.5rem; padding:0.5rem; cursor:pointer; color:#e2e8f0;
+            transition:all 0.2s;
+        }
+        .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+
+        .module-header {
+            display:flex; align-items:center; gap:1rem;
+            margin-bottom:1.75rem; padding-bottom:1.5rem;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        .module-icon {
+            width:50px; height:50px; border-radius:12px; flex-shrink:0;
+            background-color:rgba(96,165,250,0.15); color:#60a5fa;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 0.2rem; }
+        .module-header p { font-family:'Roboto',sans-serif; font-size:0.875rem; color:#64748b; margin:0; }
+
+        /* ── Alert banners ─────────────────────────────────────────────── */
+        .alert-critico {
+            display:flex; align-items:flex-start; gap:0.875rem;
+            background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4);
+            border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.75rem;
+        }
+        .alert-seguimiento {
+            display:flex; align-items:flex-start; gap:0.875rem;
+            background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.35);
+            border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.75rem;
+        }
+        .alert-icon { width:20px; height:20px; flex-shrink:0; margin-top:2px; }
+        .alert-title-critico    { font-size:0.875rem; font-weight:700; color:#f87171; margin-bottom:0.3rem; }
+        .alert-title-seguimiento{ font-size:0.875rem; font-weight:700; color:#facc15; margin-bottom:0.3rem; }
+        .alert-body { font-size:0.8125rem; line-height:1.55; }
+        .alert-body-critico     { color:#fca5a5; }
+        .alert-body-seguimiento { color:#fde68a; }
+        .alert-badge-critico {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.45);
+            color:#fca5a5; border-radius:999px; padding:0.1rem 0.5rem;
+            font-size:0.72rem; font-weight:700; margin:0 0.2rem;
+        }
+        .alert-badge-seguimiento {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.4);
+            color:#fde68a; border-radius:999px; padding:0.1rem 0.5rem;
+            font-size:0.72rem; font-weight:700; margin:0 0.2rem;
+        }
+
+        /* ── Cards ─────────────────────────────────────────────────────── */
+        .card {
+            background-color:#2d3748;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:14px; padding:1.5rem;
+        }
+        .card-title {
+            font-family:'Roboto',sans-serif; font-size:0.6875rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; color:#6b7280;
+            margin-bottom:0.875rem;
+        }
+
+        /* ── KPI grid ───────────────────────────────────────────────────── */
+        .kpi-grid {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;
+            margin-bottom:1.25rem;
+        }
+        .kpi-value {
+            font-family:'Merriweather',serif; font-size:2.25rem; font-weight:700;
+            line-height:1; margin-bottom:0.375rem;
+        }
+        .kpi-label { font-size:0.8125rem; color:#94a3b8; margin-bottom:0.5rem; font-family:'Roboto',sans-serif; }
+        .kpi-sublabel { font-size:0.75rem; color:#6b7280; margin-bottom:0.5rem; font-family:'Roboto',sans-serif; }
+        .kpi-change {
+            display:inline-flex; align-items:center; gap:0.3rem;
+            font-size:0.8125rem; font-weight:600; font-family:'Roboto',sans-serif;
+            padding:0.2rem 0.5rem; border-radius:999px;
+        }
+        /* For score: up is good, down is bad */
+        .kpi-change.up   { background-color:rgba(34,197,94,0.12);   color:#4ade80; }
+        .kpi-change.down { background-color:rgba(239,68,68,0.12);   color:#f87171; }
+        .kpi-change.flat { background-color:rgba(100,116,139,0.12); color:#94a3b8; }
+        /* Inverted for critico count */
+        .kpi-change.up-bad   { background-color:rgba(239,68,68,0.12);   color:#f87171; }
+        .kpi-change.down-good{ background-color:rgba(34,197,94,0.12);   color:#4ade80; }
+        .kpi-compare { font-size:0.75rem; color:#4b5563; margin-top:0.3rem; font-family:'Roboto',sans-serif; }
+
+        /* ── Score gauge KPI ────────────────────────────────────────────── */
+        .gauge-wrap {
+            display:flex; flex-direction:column;
+            align-items:center; justify-content:center;
+            text-align:center; padding:0.25rem 0 0.5rem;
+        }
+        .gauge-score {
+            font-family:'Merriweather',serif; font-size:3rem; font-weight:700;
+            line-height:1; transition:color 0.3s;
+        }
+        .gauge-max { font-family:'Roboto',sans-serif; font-size:0.9rem; color:#6b7280; margin-bottom:0.4rem; }
+        .gauge-label { font-family:'Roboto',sans-serif; font-size:0.8125rem; font-weight:600; margin-top:0.3rem; }
+
+        /* ── Tl dot ─────────────────────────────────────────────────────── */
+        .tl-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:0.3rem; vertical-align:middle; }
+
+        /* ── Charts ─────────────────────────────────────────────────────── */
+        .charts-row   { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full   { margin-bottom:1rem; }
+        .chart-wrap   { position:relative; }
+        .chart-canvas { width:100% !important; }
+
+        .loading-overlay {
+            position:absolute; inset:0; border-radius:14px;
+            background-color:rgba(26,32,44,0.75);
+            display:flex; align-items:center; justify-content:center;
+            z-index:10; pointer-events:none; opacity:0; transition:opacity 0.2s;
+        }
+        .loading-overlay.active { opacity:1; pointer-events:all; }
+        .spinner {
+            width:28px; height:28px; border:3px solid rgba(255,255,255,0.1);
+            border-top-color:#60a5fa; border-radius:50%;
+            animation:spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        .empty-state { text-align:center; padding:3rem 1rem; }
+        .empty-state svg { width:40px; height:40px; color:#4b5563; margin:0 auto 0.75rem; display:block; }
+        .empty-state p { font-size:0.875rem; color:#4b5563; }
+
+        /* ── Score range table ──────────────────────────────────────────── */
+        .score-ref-table { width:100%; border-collapse:collapse; font-size:0.8rem; font-family:'Roboto',sans-serif; }
+        .score-ref-table td { padding:0.5rem 0.5rem; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .score-ref-table tr:last-child td { border-bottom:none; }
+
+        /* ── Light mode ─────────────────────────────────────────────────── */
+        body.light-mode { background-color:#f1f5f9; color:#1e293b; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,
+        body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav { background-color:rgba(255,255,255,0.97); border-bottom:1px solid rgba(0,0,0,0.08); }
+        body.light-mode .user-greeting { color:#475569; }
+        body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
+        body.light-mode .card { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+        body.light-mode .card-title { color:#94a3b8; }
+        body.light-mode .kpi-label  { color:#64748b; }
+        body.light-mode .kpi-compare{ color:#94a3b8; }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color:#94a3b8; }
+        body.light-mode .empty-state p   { color:#94a3b8; }
+        body.light-mode .empty-state svg { color:#cbd5e1; }
+        body.light-mode .loading-overlay { background-color:rgba(241,245,249,0.75); }
+        body.light-mode .score-ref-table td { border-bottom-color:rgba(0,0,0,0.05); }
+
+        /* ── Responsive ─────────────────────────────────────────────────── */
+        @media (max-width:1024px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:900px)  { .charts-row { grid-template-columns:1fr; } }
+        @media (max-width:700px)  {
+            .kpi-grid { grid-template-columns:1fr 1fr; }
+            body { padding-top:110px; }
+            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+        }
+        @media (max-width:500px) { .kpi-grid { grid-template-columns:1fr; } .gauge-score { font-size:2.25rem; } }
+
+        /* ── Modal ──────────────────────────────────────────────────────── */
+        .modal-backdrop {
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            background-color:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+            z-index:100; display:none; align-items:center; justify-content:center;
+        }
+        .modal-backdrop.active { display:flex; }
+        .modal-container {
+            background-color:#2d3748; border-radius:12px; width:95%; max-width:1050px;
+            max-height:90vh; display:flex; flex-direction:column;
+            box-shadow:0 10px 25px rgba(0,0,0,0.5);
+        }
+        body.light-mode .modal-container { background-color:#fff; }
+        .modal-header {
+            padding:1.5rem; border-bottom:1px solid rgba(255,255,255,0.1);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        body.light-mode .modal-header { border-bottom:1px solid rgba(0,0,0,0.1); }
+        .modal-title { font-family:'Merriweather',serif; font-size:1.2rem; font-weight:700; color:#fff; margin:0; }
+        body.light-mode .modal-title { color:#1e293b; }
+        .modal-close { background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; line-height:1; padding:0.2rem; transition:color 0.2s; }
+        .modal-close:hover { color:#fff; }
+        body.light-mode .modal-close:hover { color:#1e293b; }
+        .modal-body { padding:1.5rem; overflow-y:auto; }
+        .modal-table-wrapper { overflow-x:auto; max-height:60vh; overflow-y:auto; }
+        .modal-table { width:100%; border-collapse:separate; border-spacing:0; font-size:0.875rem; text-align:left; }
+        .modal-table th { padding:0.75rem; color:#94a3b8; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.1); white-space:nowrap; position:sticky; top:0; background-color:#2d3748; z-index:10; }
+        .modal-table td { padding:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05); color:#e2e8f0; }
+        body.light-mode .modal-table th { color:#64748b; border-bottom:1px solid rgba(0,0,0,0.1); background-color:#fff; }
+        body.light-mode .modal-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,0.05); }
+        .modal-table tr:hover td { background-color:rgba(255,255,255,0.03); }
+
+        .clickable-card { cursor:pointer; transition:transform 0.2s,box-shadow 0.2s; }
+        .clickable-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.3); border-color:#60a5fa; }
+        body.light-mode .clickable-card:hover { border-color:#3b82f6; }
+
+        /* ── Score badge ────────────────────────────────────────────────── */
+        .score-badge {
+            display:inline-block; padding:0.15rem 0.6rem; border-radius:999px;
+            font-size:0.75rem; font-weight:700;
+        }
+        .score-excelente   { background:rgba(34,197,94,0.15);   color:#4ade80; }
+        .score-seguimiento { background:rgba(234,179,8,0.15);   color:#facc15; }
+        .score-critico     { background:rgba(239,68,68,0.15);   color:#f87171; }
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Supervisión de Puestos</h1>
+                <p>Calificación e interpretación automática de las inspecciones de puesto de seguridad</p>
+            </div>
+        </div>
+
+        <!-- ── Alert banners (auto-generated by JS) ─────────────────────── -->
+        <div id="alertCritico" style="display:none;" class="alert-critico">
+            <svg class="alert-icon" style="color:#f87171;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <div class="alert-title-critico">Alerta — Requiere acción inmediata (puntaje ≤ 15)</div>
+                <div class="alert-body alert-body-critico" id="alertCriticoBody"></div>
+            </div>
+        </div>
+        <div id="alertSeguimiento" style="display:none;" class="alert-seguimiento">
+            <svg class="alert-icon" style="color:#facc15;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+                <div class="alert-title-seguimiento">Seguimiento requerido (puntaje 16 – 20)</div>
+                <div class="alert-body alert-body-seguimiento" id="alertSeguimientoBody"></div>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        {% include '_dashboard_filters.html' %}
+
+        <!-- ── KPI Row ───────────────────────────────────────────────────── -->
+        <div class="kpi-grid">
+
+            <!-- KPI 1: Calificación Global (gauge) -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Calificación Global Promedio</div>
+                <div class="gauge-wrap">
+                    <div class="gauge-score" id="kpiScoreVal">—</div>
+                    <div class="gauge-max">de 25 puntos</div>
+                    <div class="gauge-label" id="kpiScoreLabel" style="color:#6b7280;">Cargando...</div>
+                </div>
+                <div id="kpiScoreChange" style="text-align:center; margin-top:0.5rem;"></div>
+                <div class="kpi-compare" style="text-align:center;">vs período anterior</div>
+            </div>
+
+            <!-- KPI 2: Total inspecciones -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Total Inspecciones</div>
+                <div class="kpi-value" id="kpiTotalVal" style="color:#60a5fa;">—</div>
+                <div class="kpi-label">Inspecciones en el período</div>
+                <div id="kpiTotalChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+
+            <!-- KPI 3: Puestos críticos -->
+            <div class="card">
+                <div class="card-title">Puestos Críticos (&le;15 pts)</div>
+                <div class="kpi-value" id="kpiCriticoVal" style="color:#f87171;">—</div>
+                <div class="kpi-label" id="kpiCriticoPct">— del total</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" style="background:#ef4444;"></span>
+                    <span style="font-size:0.8rem; color:#94a3b8;">Requiere acción inmediata</span>
+                </div>
+            </div>
+
+            <!-- KPI 4: Puestos en seguimiento -->
+            <div class="card">
+                <div class="card-title">En Seguimiento (16–20 pts)</div>
+                <div class="kpi-value" id="kpiSeguimientoVal" style="color:#facc15;">—</div>
+                <div class="kpi-label" id="kpiSeguimientoPct">— del total</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" style="background:#eab308;"></span>
+                    <span style="font-size:0.8rem; color:#94a3b8;">Con oportunidades de mejora</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── Row 1: Criteria bar (left) + Distribution donut (right) ──── -->
+        <div class="charts-row">
+
+            <!-- Criteria horizontal bar — sorted ascending (worst first) -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">
+                    Promedio por Criterio de Inspección
+                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— ordenado de menor a mayor</span>
+                </div>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.75rem;font-family:'Roboto',sans-serif;">
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#22c55e;"></span>Excelente (≥4.0)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#eab308;"></span>Oportunidad (2.5–3.9)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ef4444;"></span>Crítico (&lt;2.5)</span>
+                </div>
+                <div class="chart-wrap" style="min-height:200px;">
+                    <canvas id="criteriaChart" class="chart-canvas"></canvas>
+                    <div id="criteriaEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="criteriaLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Distribution bar + reference table -->
+            <div class="card" style="position:relative;">
+                <div class="card-title">Distribución por Nivel de Desempeño</div>
+                <div class="chart-wrap" style="min-height:180px;">
+                    <canvas id="distChart" class="chart-canvas"></canvas>
+                    <div id="distEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <!-- Score reference table -->
+                <table class="score-ref-table" style="margin-top:1rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
+                            <th style="padding:0.4rem 0.5rem;text-align:left;color:#6b7280;font-size:0.75rem;font-weight:600;">Rango</th>
+                            <th style="padding:0.4rem 0.5rem;text-align:left;color:#6b7280;font-size:0.75rem;font-weight:600;">Nivel</th>
+                            <th style="padding:0.4rem 0.5rem;text-align:left;color:#6b7280;font-size:0.75rem;font-weight:600;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="padding:0.4rem 0.5rem;color:#94a3b8;">21 – 25</td><td style="padding:0.4rem 0.5rem;"><span class="tl-dot" style="background:#22c55e;"></span><span style="color:#4ade80;">Excelente</span></td><td style="padding:0.4rem 0.5rem;color:#94a3b8;font-size:0.75rem;">Mantener estándares</td></tr>
+                        <tr><td style="padding:0.4rem 0.5rem;color:#94a3b8;">16 – 20</td><td style="padding:0.4rem 0.5rem;"><span class="tl-dot" style="background:#eab308;"></span><span style="color:#facc15;">Seguimiento</span></td><td style="padding:0.4rem 0.5rem;color:#94a3b8;font-size:0.75rem;">Seguimiento requerido</td></tr>
+                        <tr><td style="padding:0.4rem 0.5rem;color:#94a3b8;">0 – 15</td><td style="padding:0.4rem 0.5rem;"><span class="tl-dot" style="background:#ef4444;"></span><span style="color:#f87171;">Crítico</span></td><td style="padding:0.4rem 0.5rem;color:#94a3b8;font-size:0.75rem;">Acción inmediata</td></tr>
+                    </tbody>
+                </table>
+                <div class="loading-overlay" id="distLoading"><div class="spinner"></div></div>
+            </div>
+
+        </div>
+
+        <!-- ── Row 2: Resultado por puesto (full width) ──────────────────── -->
+        <div class="chart-full">
+            <div class="card" style="position:relative;">
+                <div class="card-title">
+                    Resultado por Puesto (# Empleado)
+                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— puestos en rojo requieren atención inmediata</span>
+                </div>
+                <div class="chart-wrap" style="min-height:200px;">
+                    <canvas id="puestosChart" class="chart-canvas"></canvas>
+                    <div id="puestosEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <p>Sin datos de puestos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="puestosLoading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- ── Row 3: Tendencia global (full width) ──────────────────────── -->
+        <div class="chart-full">
+            <div class="card" style="position:relative;">
+                <div class="card-title">Tendencia de la Calificación Global de Inspección</div>
+                <div class="chart-wrap" style="height:220px;">
+                    <canvas id="trendChart" class="chart-canvas" style="height:220px!important;"></canvas>
+                    <div id="trendEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                        <p>Sin datos de tendencia</p>
+                    </div>
+                </div>
+                <!-- Threshold reference lines legend -->
+                <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:0.75rem;font-size:0.75rem;font-family:'Roboto',sans-serif;">
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:18px;height:2px;background:#22c55e;border-radius:2px;"></span>Excelente (21)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:18px;height:2px;background:#eab308;border-radius:2px;"></span>Seguimiento (16)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:18px;height:2px;background:#ef4444;border-radius:2px;"></span>Crítico (15)</span>
+                </div>
+                <div class="loading-overlay" id="trendLoading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+        <!-- ── Row 4: Tendencia por turno (full width) ───────────────────── -->
+        <div class="chart-full">
+            <div class="card" style="position:relative;">
+                <div class="card-title">Tendencia por Rol del Aplicador</div>
+                <div class="chart-wrap" style="height:220px;">
+                    <canvas id="turnoTrendChart" class="chart-canvas" style="height:220px!important;"></canvas>
+                    <div id="turnoTrendEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                        <p>Sin datos de turno para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="turnoTrendLoading"><div class="spinner"></div></div>
+            </div>
+        </div>
+
+    </div><!-- /main-container -->
+
+    <!-- ── Details Modal ─────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) this.classList.remove('active')">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Registros de Supervisión</h3>
+                <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailsLoading" style="display:none;text-align:center;color:#94a3b8;padding:2rem;">Cargando registros...</div>
+                <div class="modal-table-wrapper">
+                    <table class="modal-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>Cliente</th>
+                                <th>Supervisor</th>
+                                <th># Empleado</th>
+                                <th>Guardia</th>
+                                <th>Rol</th>
+                                <th>Puntaje</th>
+                                <th>Nivel</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let currentQS = '';
+
+    // ── Theme ─────────────────────────────────────────────────────────────
+    const themeToggle  = document.getElementById('themeToggle');
+    const darkModeIcon = document.getElementById('darkModeIcon');
+    const lightModeIcon= document.getElementById('lightModeIcon');
+    function setDarkMode()  { document.body.classList.remove('light-mode'); darkModeIcon.style.display='block'; lightModeIcon.style.display='none';  localStorage.setItem('theme','dark');  updateChartTheme(false); }
+    function setLightMode() { document.body.classList.add('light-mode');    darkModeIcon.style.display='none';  lightModeIcon.style.display='block'; localStorage.setItem('theme','light'); updateChartTheme(true); }
+    function initTheme()    { const s=localStorage.getItem('theme'); (s==='light'||(!s&&!window.matchMedia('(prefers-color-scheme: dark)').matches)) ? setLightMode() : setDarkMode(); }
+    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+
+    // ── Chart.js ──────────────────────────────────────────────────────────
+    Chart.register(ChartDataLabels);
+    const CHART_DARK  = { tick:'#94a3b8', grid:'rgba(255,255,255,0.05)', label:'#e2e8f0' };
+    const CHART_LIGHT = { tick:'#64748b', grid:'rgba(0,0,0,0.06)',       label:'#0f172a' };
+    let chartTheme = CHART_DARK;
+
+    function updateChartTheme(isLight) {
+        chartTheme = isLight ? CHART_LIGHT : CHART_DARK;
+        [criteriaChart, distChart, puestosChart, trendChart, turnoTrendChart].forEach(c => {
+            if (!c) return;
+            if (c.options.scales) Object.values(c.options.scales).forEach(ax => {
+                if (ax.ticks) ax.ticks.color = chartTheme.tick;
+                if (ax.grid)  ax.grid.color  = chartTheme.grid;
+            });
+            if (c.options.plugins?.legend?.labels)
+                c.options.plugins.legend.labels.color = chartTheme.label;
+            c.update('none');
+        });
+    }
+
+    let criteriaChart = null, distChart = null, puestosChart = null,
+        trendChart = null, turnoTrendChart = null;
+
+    function setLoading(id, on) { document.getElementById(id)?.classList.toggle('active', on); }
+
+    // ── Score helpers ─────────────────────────────────────────────────────
+    function scoreColor(s) {
+        if (s === null || s === undefined) return '#6b7280';
+        if (s >= 21) return '#22c55e';
+        if (s >= 16) return '#eab308';
+        return '#ef4444';
+    }
+    function scoreLabel(s) {
+        if (s === null || s === undefined) return 'Sin datos';
+        if (s >= 21) return 'Excelente';
+        if (s >= 16) return 'Con oportunidades de mejora';
+        return 'Requiere acción inmediata';
+    }
+    function scoreBadgeClass(s) {
+        if (s >= 21) return 'score-excelente';
+        if (s >= 16) return 'score-seguimiento';
+        return 'score-critico';
+    }
+
+    // ── KPI renderer ──────────────────────────────────────────────────────
+    function renderChange(id, pct, invert = false) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (pct === null || pct === undefined) {
+            el.innerHTML = '<span class="kpi-change flat" style="background:transparent;color:#94a3b8;border:1px solid #475569;">N/A</span>';
+            return;
+        }
+        let dir, arrow;
+        if (invert) {
+            dir   = pct > 0 ? 'up-bad' : pct < 0 ? 'down-good' : 'flat';
+            arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+        } else {
+            dir   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
+            arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
+        }
+        el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
+    }
+
+    function renderKPI(data) {
+        const k = data.kpi;
+
+        // Global score gauge
+        const scoreEl = document.getElementById('kpiScoreVal');
+        scoreEl.textContent = k.avg_score !== null ? k.avg_score : '—';
+        scoreEl.style.color = scoreColor(k.avg_score);
+        document.getElementById('kpiScoreLabel').textContent = k.avg_score_label || '';
+        document.getElementById('kpiScoreLabel').style.color  = scoreColor(k.avg_score);
+        renderChange('kpiScoreChange', k.pct_change_score, false); // up is good
+
+        document.getElementById('kpiTotalVal').textContent = k.total ?? '—';
+        renderChange('kpiTotalChange', k.pct_change_total, false);
+
+        document.getElementById('kpiCriticoVal').textContent    = k.cnt_critico ?? '—';
+        document.getElementById('kpiCriticoPct').textContent    = k.pct_critico != null ? `${k.pct_critico}% del total` : '— del total';
+
+        document.getElementById('kpiSeguimientoVal').textContent = k.cnt_seguimiento ?? '—';
+        document.getElementById('kpiSeguimientoPct').textContent = k.pct_seguimiento != null ? `${k.pct_seguimiento}% del total` : '— del total';
+    }
+
+    // ── Alert banners ─────────────────────────────────────────────────────
+    function renderAlerts(criticos, seguimientoList) {
+        const bc = document.getElementById('alertCritico');
+        const bs = document.getElementById('alertSeguimiento');
+
+        if (criticos && criticos.length > 0) {
+            bc.style.display = 'flex';
+            const items = criticos.map(p => {
+                const lbl = p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia;
+                return `<span class="alert-badge-critico">&#9888; ${lbl} — ${p.avg_score} pts</span>`;
+            }).join(' ');
+            document.getElementById('alertCriticoBody').innerHTML =
+                `Los siguientes puestos tienen puntaje ≤ 15 y requieren acción inmediata: ${items}`;
+        } else {
+            bc.style.display = 'none';
+        }
+
+        if (seguimientoList && seguimientoList.length > 0) {
+            bs.style.display = 'flex';
+            const items = seguimientoList.map(p => {
+                const lbl = p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia;
+                return `<span class="alert-badge-seguimiento">${lbl} — ${p.avg_score} pts</span>`;
+            }).join(' ');
+            document.getElementById('alertSeguimientoBody').innerHTML =
+                `Los siguientes puestos están entre 16 y 20 puntos: ${items}`;
+        } else {
+            bs.style.display = 'none';
+        }
+    }
+
+    // ── Criteria horizontal bar (sorted asc, semáforo) ────────────────────
+    function renderCriteriaChart(criteria) {
+        const canvas = document.getElementById('criteriaChart');
+        const empty  = document.getElementById('criteriaEmpty');
+        if (!criteria || criteria.length === 0 || criteria.every(c => c.avg === null)) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        if (criteriaChart) criteriaChart.destroy();
+        criteriaChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: criteria.map(c => c.label),
+                datasets: [{
+                    data: criteria.map(c => c.avg),
+                    backgroundColor: criteria.map(c => c.color),
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    barThickness: 24,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        min: 0, max: 5,
+                        ticks: { color: chartTheme.tick, stepSize: 1 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: { label: ctx => ` Promedio: ${ctx.parsed.x?.toFixed(2)} / 5` }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '700' },
+                        formatter: v => v != null ? v.toFixed(2) : ''
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(180, criteria.length * 40 + 30) + 'px';
+    }
+
+    // ── Distribution horizontal bar ───────────────────────────────────────
+    function renderDistChart(dist) {
+        const canvas = document.getElementById('distChart');
+        const empty  = document.getElementById('distEmpty');
+        const total  = (dist.excelente || 0) + (dist.seguimiento || 0) + (dist.critico || 0);
+        if (!total) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = ['Crítico (≤15)', 'Seguimiento (16-20)', 'Excelente (21-25)'];
+        const values = [dist.critico, dist.seguimiento, dist.excelente];
+        const colors = ['#ef4444', '#eab308', '#22c55e'];
+
+        if (distChart) distChart.destroy();
+        distChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 5,
+                    barThickness: 26,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: chartTheme.tick, precision: 0 }, grid: { color: chartTheme.grid } },
+                    y: { ticks: { color: chartTheme.label, font: { size: 11 } }, grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed.x;
+                                const pct = total ? ((v / total) * 100).toFixed(1) : 0;
+                                return ` ${v} inspección${v !== 1 ? 'es' : ''} (${pct}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '700' },
+                        formatter: (v) => {
+                            if (!v) return '';
+                            const pct = ((v / total) * 100).toFixed(0);
+                            return `${v}  (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = '170px';
+    }
+
+    // ── Puestos bar chart ─────────────────────────────────────────────────
+    function renderPuestosChart(puestos) {
+        const canvas = document.getElementById('puestosChart');
+        const empty  = document.getElementById('puestosEmpty');
+        if (!puestos || puestos.length === 0) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = puestos.map(p => p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia);
+        const values = puestos.map(p => p.avg_score);
+        const colors = puestos.map(p => p.color);
+
+        if (puestosChart) puestosChart.destroy();
+        puestosChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    barThickness: 24,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        min: 0, max: 25,
+                        ticks: { color: chartTheme.tick, stepSize: 5 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const p = puestos[ctx.dataIndex];
+                                return [
+                                    ` Puntaje promedio: ${ctx.parsed.x} / 25`,
+                                    ` Nivel: ${p.label}`,
+                                    ` Inspecciones: ${p.cnt}`,
+                                ];
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '700' },
+                        formatter: (v, ctx) => {
+                            const p = puestos[ctx.dataIndex];
+                            const pct = ((v / 25) * 100).toFixed(0);
+                            return v != null ? `${v}  (${pct}%)` : '';
+                        }
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(200, puestos.length * 34 + 40) + 'px';
+    }
+
+    // ── Global trend area + threshold annotations ─────────────────────────
+    function renderTrendChart(trend) {
+        const canvas = document.getElementById('trendChart');
+        const empty  = document.getElementById('trendEmpty');
+        if (!trend.labels?.length) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: trend.labels,
+                datasets: [
+                    {
+                        label: 'Calificación Global',
+                        data: trend.avg_score,
+                        borderColor: '#60a5fa',
+                        backgroundColor: 'rgba(96,165,250,0.08)',
+                        tension: 0.35,
+                        fill: true,
+                        pointBackgroundColor: trend.avg_score.map(s => scoreColor(s)),
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        pointBorderColor: 'transparent',
+                    },
+                    // Threshold reference lines
+                    {
+                        label: 'Excelente (21)',
+                        data: Array(trend.labels.length).fill(21),
+                        borderColor: 'rgba(34,197,94,0.5)',
+                        borderDash: [5, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        datalabels: { display: false },
+                    },
+                    {
+                        label: 'Seguimiento (16)',
+                        data: Array(trend.labels.length).fill(16),
+                        borderColor: 'rgba(234,179,8,0.5)',
+                        borderDash: [5, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        datalabels: { display: false },
+                    },
+                    {
+                        label: 'Crítico (15)',
+                        data: Array(trend.labels.length).fill(15),
+                        borderColor: 'rgba(239,68,68,0.5)',
+                        borderDash: [5, 4],
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        datalabels: { display: false },
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0, max: 25,
+                        ticks: { color: chartTheme.tick, stepSize: 5 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    x: {
+                        ticks: { color: chartTheme.tick, maxRotation: 45 },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true, position: 'top',
+                        labels: { color: chartTheme.label, usePointStyle: true, boxWidth: 8, font: { size: 11 },
+                            filter: item => item.datasetIndex === 0 } // only show main line in legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.datasetIndex === 0
+                                ? ` Promedio: ${ctx.parsed.y} / 25 — ${scoreLabel(ctx.parsed.y)}`
+                                : null,
+                            filter: item => item.datasetIndex === 0
+                        }
+                    },
+                    datalabels: {
+                        display: ctx => ctx.datasetIndex === 0,
+                        color: ctx => scoreColor(ctx.dataset.data[ctx.dataIndex]),
+                        font: { size: 10, weight: '700' },
+                        anchor: 'end', align: 'top',
+                        formatter: v => v != null ? v : ''
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Trend by turno multi-line ─────────────────────────────────────────
+    function renderTurnoTrendChart(trendTurno) {
+        const canvas = document.getElementById('turnoTrendChart');
+        const empty  = document.getElementById('turnoTrendEmpty');
+        if (!trendTurno.labels?.length || !trendTurno.series?.length) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const TURNO_COLORS = ['#fbbf24', '#818cf8', '#34d399', '#f87171', '#38bdf8'];
+
+        const datasets = trendTurno.series.map((s, i) => ({
+            label: s.turno,
+            data: s.data,
+            borderColor: TURNO_COLORS[i % TURNO_COLORS.length],
+            backgroundColor: TURNO_COLORS[i % TURNO_COLORS.length] + '14',
+            tension: 0.35,
+            fill: false,
+            pointBackgroundColor: s.data.map(v => scoreColor(v)),
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBorderColor: 'transparent',
+        }));
+
+        if (turnoTrendChart) turnoTrendChart.destroy();
+        turnoTrendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: { labels: trendTurno.labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0, max: 25,
+                        ticks: { color: chartTheme.tick, stepSize: 5 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    x: {
+                        ticks: { color: chartTheme.tick, maxRotation: 45 },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true, position: 'top',
+                        labels: { color: chartTheme.label, usePointStyle: true, boxWidth: 8, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} pts — ${scoreLabel(ctx.parsed.y)}`
+                        }
+                    },
+                    datalabels: {
+                        color: ctx => scoreColor(ctx.dataset.data[ctx.dataIndex]),
+                        font: { size: 9, weight: '700' },
+                        anchor: 'end', align: 'top',
+                        formatter: v => v != null ? v : ''
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Error toast ───────────────────────────────────────────────────────
+    function showError(msg) {
+        let t = document.getElementById('df-error-toast');
+        if (!t) {
+            t = document.createElement('div'); t.id = 'df-error-toast';
+            t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:pre-wrap;';
+            document.body.appendChild(t);
+        }
+        t.textContent = '⚠️  ' + msg;
+        t.style.display = 'block';
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.style.display = 'none', 8000);
+    }
+
+    // ── Details modal ─────────────────────────────────────────────────────
+    async function openDetailsModal() {
+        const modal   = document.getElementById('detailsModal');
+        const tBody   = document.getElementById('detailsTableBody');
+        const loading = document.getElementById('detailsLoading');
+        modal.classList.add('active');
+        tBody.innerHTML = '';
+        loading.style.display = 'block';
+        try {
+            const res  = await fetch(`/dashboard/api/supervision/detalles${currentQS ? '?' + currentQS : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) { showError(`API Error: ${data.error || res.status}`); return; }
+            if (!data.detalles?.length) {
+                tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">No hay registros para este período.</td></tr>';
+                return;
+            }
+            data.detalles.forEach(r => {
+                const cls = r.score >= 21 ? 'score-excelente' : r.score >= 16 ? 'score-seguimiento' : r.score > 0 ? 'score-critico' : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${r.fecha_hora}</td>
+                    <td>${r.cliente}</td>
+                    <td>${r.supervisor}</td>
+                    <td><strong>${r.emp_numero}</strong></td>
+                    <td>${r.guardia}</td>
+                    <td>${r.turno}</td>
+                    <td><strong style="color:${r.score_color}">${r.score} / 25</strong></td>
+                    <td><span class="score-badge ${cls}">${r.score_label}</span></td>
+                `;
+                tBody.appendChild(tr);
+            });
+        } catch (err) {
+            showError(`Error cargando detalles: ${err.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    // ── Main data loader ──────────────────────────────────────────────────
+    async function loadData(qs = '') {
+        ['criteriaLoading','distLoading','puestosLoading','trendLoading','turnoTrendLoading']
+            .forEach(id => setLoading(id, true));
+        try {
+            const res  = await fetch(`/dashboard/api/supervision/data${qs ? '?' + qs : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) { showError(`API Error: ${data.error || `HTTP ${res.status}`}`); return; }
+            renderKPI(data);
+            renderAlerts(data.criticos, data.seguimiento_list);
+            renderCriteriaChart(data.criteria);
+            renderDistChart(data.distribution);
+            renderPuestosChart(data.puestos);
+            renderTrendChart(data.trend);
+            renderTurnoTrendChart(data.trend_turno);
+        } catch (err) {
+            showError(`Error de conexión: ${err.message}`);
+        } finally {
+            ['criteriaLoading','distLoading','puestosLoading','trendLoading','turnoTrendLoading']
+                .forEach(id => setLoading(id, false));
+        }
+    }
+
+    function buildQS(state) {
+        const p = new URLSearchParams();
+        if (state.propertyId) p.set('cliente', state.propertyId);
+        if (state.year)       p.set('year',    state.year);
+        if (state.month)      p.set('month',   state.month);
+        if (state.day)        p.set('day',     state.day);
+        return p.toString();
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTheme();
+        const filters = new DashboardFilters();
+        filters.init();
+
+        const propSelect = document.getElementById('df-property');
+        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+        try {
+            const res = await fetch('/dashboard/api/supervision/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            clientes.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch (e) { console.warn('Could not load clientes', e); }
+
+        document.addEventListener('filtersChanged', e => {
+            currentQS = buildQS(e.detail);
+            loadData(currentQS);
+        });
+
+        loadData();
+    });
+    </script>
+</body>
+</html>
