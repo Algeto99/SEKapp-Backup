@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capacitaciones — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
+
+        .header-nav {
+            position: fixed; top:0; left:0; right:0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1280px; margin:0 auto;
+            display:flex; justify-content:space-between;
+            align-items:center; flex-wrap:wrap; gap:0.75rem;
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
+        .user-greeting { font-size:0.875rem; color:#9ca3af; }
+        .user-name { color:#60a5fa; font-weight:bold; }
+        .admin-badge { color:#a855f7; font-weight:bold; }
+
+        .theme-toggle {
+            position:fixed; top:1.25rem; left:1.25rem; z-index:100;
+            background-color:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+            border-radius:0.5rem; padding:0.5rem; cursor:pointer; color:#e2e8f0;
+            transition:all 0.2s;
+        }
+        .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+
+        .module-header {
+            display:flex; align-items:center; gap:1rem;
+            margin-bottom:1.75rem; padding-bottom:1.5rem;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        .module-icon {
+            width:50px; height:50px; border-radius:12px; flex-shrink:0;
+            background-color:rgba(96,165,250,0.15); color:#60a5fa;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 0.2rem; }
+        .module-header p { font-family:'Roboto',sans-serif; font-size:0.875rem; color:#64748b; margin:0; }
+
+        /* ── Cards ──────────────────────────────────────────────────────── */
+        .card {
+            background-color:#2d3748;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:14px; padding:1.5rem;
+        }
+        .card-title {
+            font-family:'Roboto',sans-serif; font-size:0.6875rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; color:#6b7280;
+            margin-bottom:0.875rem;
+        }
+
+        /* ── KPI grid ───────────────────────────────────────────────────── */
+        .kpi-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
+            margin-bottom:1.25rem;
+        }
+        .kpi-value {
+            font-family:'Merriweather',serif; font-size:2.25rem; font-weight:700;
+            line-height:1; margin-bottom:0.375rem;
+        }
+        .kpi-label { font-size:0.8125rem; color:#94a3b8; margin-bottom:0.5rem; font-family:'Roboto',sans-serif; }
+        .kpi-sublabel { font-size:0.75rem; color:#6b7280; font-family:'Roboto',sans-serif; }
+
+        .tl-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:0.3rem; vertical-align:middle; }
+
+        /* ── Charts ─────────────────────────────────────────────────────── */
+        .charts-row   { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full   { margin-bottom:1rem; }
+        .chart-wrap   { position:relative; }
+        .chart-canvas { width:100% !important; }
+
+        .loading-overlay {
+            position:absolute; inset:0; border-radius:14px;
+            background-color:rgba(26,32,44,0.75);
+            display:flex; align-items:center; justify-content:center;
+            z-index:10; pointer-events:none; opacity:0; transition:opacity 0.2s;
+        }
+        .loading-overlay.active { opacity:1; pointer-events:all; }
+        .spinner {
+            width:28px; height:28px; border:3px solid rgba(255,255,255,0.1);
+            border-top-color:#60a5fa; border-radius:50%;
+            animation:spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        .empty-state { text-align:center; padding:3rem 1rem; }
+        .empty-state svg { width:40px; height:40px; color:#4b5563; margin:0 auto 0.75rem; display:block; }
+        .empty-state p { font-size:0.875rem; color:#4b5563; }
+
+        /* ── Matriz de asistencia ────────────────────────────────────────── */
+        .matrix-table-wrap { overflow-x:auto; }
+        .matrix-table {
+            width:100%; border-collapse:separate; border-spacing:0;
+            font-size:0.875rem; text-align:left;
+        }
+        .matrix-table th {
+            padding:0.75rem; color:#94a3b8; font-weight:600;
+            border-bottom:1px solid rgba(255,255,255,0.1);
+            white-space:nowrap; background-color:#2d3748;
+        }
+        .matrix-table td {
+            padding:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05);
+            color:#e2e8f0; vertical-align:top;
+        }
+        .matrix-table tr:hover td { background-color:rgba(255,255,255,0.03); }
+        .attendee-chip {
+            display:inline-block; background:rgba(96,165,250,0.12);
+            border:1px solid rgba(96,165,250,0.25); color:#93c5fd;
+            border-radius:999px; padding:0.15rem 0.6rem;
+            font-size:0.7rem; margin:0.1rem;
+        }
+        .show-more-btn {
+            background:none; border:none; color:#60a5fa; font-size:0.75rem;
+            cursor:pointer; padding:0.1rem 0.3rem; font-family:'Roboto',sans-serif;
+        }
+        .show-more-btn:hover { color:#93c5fd; text-decoration:underline; }
+
+        /* ── Modal ──────────────────────────────────────────────────────── */
+        .modal-backdrop {
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            background-color:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+            z-index:100; display:none; align-items:center; justify-content:center;
+        }
+        .modal-backdrop.active { display:flex; }
+        .modal-container {
+            background-color:#2d3748; border-radius:12px; width:95%; max-width:860px;
+            max-height:90vh; display:flex; flex-direction:column;
+            box-shadow:0 10px 25px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding:1.5rem; border-bottom:1px solid rgba(255,255,255,0.1);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .modal-title { font-family:'Merriweather',serif; font-size:1.2rem; font-weight:700; color:#fff; margin:0; }
+        .modal-close { background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; line-height:1; padding:0.2rem; transition:color 0.2s; }
+        .modal-close:hover { color:#fff; }
+        .modal-body { padding:1.5rem; overflow-y:auto; }
+        .modal-table-wrapper { overflow-x:auto; max-height:55vh; overflow-y:auto; }
+        .modal-table { width:100%; border-collapse:separate; border-spacing:0; font-size:0.875rem; text-align:left; }
+        .modal-table th { padding:0.75rem; color:#94a3b8; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.1); white-space:nowrap; position:sticky; top:0; background-color:#2d3748; z-index:10; }
+        .modal-table td { padding:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05); color:#e2e8f0; }
+        .modal-table tr:hover td { background-color:rgba(255,255,255,0.03); }
+
+        /* ── Light mode ─────────────────────────────────────────────────── */
+        body.light-mode { background-color:#f1f5f9; color:#1e293b; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,
+        body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav { background-color:rgba(255,255,255,0.97); border-bottom:1px solid rgba(0,0,0,0.08); }
+        body.light-mode .user-greeting { color:#475569; }
+        body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
+        body.light-mode .card { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+        body.light-mode .card-title { color:#94a3b8; }
+        body.light-mode .kpi-label  { color:#64748b; }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color:#94a3b8; }
+        body.light-mode .empty-state p   { color:#94a3b8; }
+        body.light-mode .empty-state svg { color:#cbd5e1; }
+        body.light-mode .loading-overlay { background-color:rgba(241,245,249,0.75); }
+        body.light-mode .modal-container { background-color:#fff; }
+        body.light-mode .modal-header { border-bottom:1px solid rgba(0,0,0,0.1); }
+        body.light-mode .modal-title { color:#1e293b; }
+        body.light-mode .modal-table th { color:#64748b; border-bottom:1px solid rgba(0,0,0,0.1); background-color:#fff; }
+        body.light-mode .modal-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,0.05); }
+        body.light-mode .matrix-table th { color:#64748b; background-color:#fff; border-bottom:1px solid rgba(0,0,0,0.1); }
+        body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,0.05); }
+        body.light-mode .attendee-chip { background:rgba(59,130,246,0.1); border-color:rgba(59,130,246,0.2); color:#3b82f6; }
+
+        /* ── Responsive ─────────────────────────────────────────────────── */
+        @media (max-width:1024px) { .kpi-grid { grid-template-columns:repeat(3,1fr); } }
+        @media (max-width:900px)  { .charts-row { grid-template-columns:1fr; } }
+        @media (max-width:700px)  {
+            .kpi-grid { grid-template-columns:1fr 1fr; }
+            body { padding-top:110px; }
+            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+        }
+        @media (max-width:500px) { .kpi-grid { grid-template-columns:1fr; } }
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Control de Capacitaciones</h1>
+                <p>Seguimiento de actividades de formación, participación del personal y control de asistencia</p>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        {% include '_dashboard_filters.html' %}
+
+        <!-- ── KPI Row ───────────────────────────────────────────────────── -->
+        <div class="kpi-grid" style="margin-bottom:1.25rem;">
+
+            <!-- KPI 1: Total Capacitaciones -->
+            <div class="card">
+                <div class="card-title">Total Capacitaciones</div>
+                <div class="kpi-value" id="kpiTotalCap" style="color:#60a5fa;">—</div>
+                <div class="kpi-label">Sesiones realizadas en el período</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" style="background:#60a5fa;"></span>
+                    <span style="font-size:0.8rem;color:#94a3b8;">Actividades de formación</span>
+                </div>
+            </div>
+
+            <!-- KPI 2: Total Asistentes -->
+            <div class="card">
+                <div class="card-title">Total Asistentes</div>
+                <div class="kpi-value" id="kpiTotalAsist" style="color:#22c55e;">—</div>
+                <div class="kpi-label">Personal que asistió en el período</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" id="kpiAsistDot" style="background:#22c55e;"></span>
+                    <span style="font-size:0.8rem;color:#94a3b8;" id="kpiAsistSub">Cobertura del programa</span>
+                </div>
+            </div>
+
+            <!-- KPI 3: Promedio por capacitación -->
+            <div class="card">
+                <div class="card-title">Promedio por Capacitación</div>
+                <div class="kpi-value" id="kpiPromedio" style="color:#a78bfa;">—</div>
+                <div class="kpi-label">Asistentes promedio por sesión</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" id="kpiPromDot" style="background:#a78bfa;"></span>
+                    <span style="font-size:0.8rem;color:#94a3b8;" id="kpiPromSub">Participación media</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── Tendencia Mensual (full width) ───────────────────────────── -->
+        <div class="card chart-full">
+            <div class="card-title">Tendencia Mensual — Capacitaciones vs Asistentes</div>
+            <div class="loading-overlay" id="loadingTendencia" style="position:relative;min-height:2rem;">
+                <div class="spinner"></div>
+            </div>
+            <div id="tendenciaEmpty" class="empty-state" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                <p>Sin datos de tendencia</p>
+            </div>
+            <div style="position:relative; height:300px;">
+                <canvas id="tendenciaChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Asistentes por Capacitación (chart) ──────────────────────── -->
+        <div class="card chart-full">
+            <div class="card-title">Asistentes por Capacitación</div>
+            <div id="temaChartEmpty" class="empty-state" style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <p>Sin datos para los filtros seleccionados</p>
+            </div>
+            <div style="position:relative; min-height:420px;">
+                <canvas id="temaChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Matriz de Asistencia ──────────────────────────────────────── -->
+        <div class="card chart-full">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div class="card-title" style="margin:0;">Matriz de Asistencia — Detalle por Sesión</div>
+                <button onclick="openMatrizModal()" style="background:rgba(96,165,250,0.15); border:1px solid rgba(96,165,250,0.3); color:#60a5fa; border-radius:8px; padding:0.4rem 0.875rem; font-size:0.8125rem; font-family:'Roboto',sans-serif; cursor:pointer;">
+                    Ver todo
+                </button>
+            </div>
+            <div class="matrix-table-wrap">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tema de Capacitación</th>
+                            <th>Responsable</th>
+                            <th>Cliente / Sitio</th>
+                            <th>Área</th>
+                            <th style="text-align:center;">Asistentes</th>
+                            <th>Personal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrizBody">
+                        <tr><td colspan="7" style="text-align:center; color:#4b5563; padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /main-container -->
+
+    <!-- ── Modal: Detalle Completo ───────────────────────────────────────── -->
+    <div id="modalBackdrop" class="modal-backdrop" onclick="if(event.target===this)closeModal()">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Detalle de Asistencia</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-table-wrapper">
+                    <table class="modal-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Fecha</th>
+                                <th>Tema</th>
+                                <th>Responsable</th>
+                                <th>Cliente</th>
+                                <th>Área</th>
+                                <th style="text-align:center;">N.° Asist.</th>
+                                <th>Nombre</th>
+                                <th>Cargo</th>
+                                <th>Documento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// Theme
+// ────────────────────────────────────────────────────────────────────────────
+(function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') document.body.classList.add('light-mode');
+})();
+document.getElementById('themeToggle').addEventListener('click', () => {
+    const light = document.body.classList.toggle('light-mode');
+    localStorage.setItem('theme', light ? 'light' : 'dark');
+    document.getElementById('darkModeIcon').style.display  = light ? 'none'  : 'block';
+    document.getElementById('lightModeIcon').style.display = light ? 'block' : 'none';
+    if (localStorage.getItem('theme') === 'light') {
+        document.getElementById('darkModeIcon').style.display  = 'none';
+        document.getElementById('lightModeIcon').style.display = 'block';
+    } else {
+        document.getElementById('darkModeIcon').style.display  = 'block';
+        document.getElementById('lightModeIcon').style.display = 'none';
+    }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Chart.js global config
+// ────────────────────────────────────────────────────────────────────────────
+Chart.register(ChartDataLabels);
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.font.family = "'Roboto', sans-serif";
+
+const GRID_COLOR  = 'rgba(255,255,255,0.06)';
+const TICK_COLOR  = '#6b7280';
+
+// ────────────────────────────────────────────────────────────────────────────
+// Chart instances
+// ────────────────────────────────────────────────────────────────────────────
+let tendenciaChart;
+let temaChart;
+let allDetalles = [];
+
+// ────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────────────
+function setLoading(id, on) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', on);
+}
+function destroyChart(inst) { if (inst) { try { inst.destroy(); } catch(_) {} } }
+
+function monthLabelFromKey(key) {
+    if (!key || typeof key !== 'string') return '';
+    const parts = key.split('-');
+    if (parts.length < 2) return key;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return key;
+    return new Date(year, month - 1, 1).toLocaleDateString('es', {
+        month: 'short',
+        year: 'numeric',
+    });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// KPI render
+// ────────────────────────────────────────────────────────────────────────────
+function renderKPI(kpi) {
+    const { total_capacitaciones, total_asistentes, promedio_asistentes } = kpi;
+    document.getElementById('kpiTotalCap').textContent   = total_capacitaciones.toLocaleString('es');
+    document.getElementById('kpiTotalAsist').textContent = total_asistentes.toLocaleString('es');
+    document.getElementById('kpiPromedio').textContent   = promedio_asistentes.toFixed(1);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Chart: Asistentes por Capacitación
+// ────────────────────────────────────────────────────────────────────────────
+function buildTemaRowsFromDetalles(detalles) {
+    const merged = new Map();
+    let missingIndex = 0;
+    (Array.isArray(detalles) ? detalles : []).forEach(r => {
+        const tema = (r?.tema || '').trim();
+        const isMissingTema = !tema || tema === '—' || tema === 'Sin tema registrado';
+        const fecha = (r?.fecha || '').trim();
+        const responsable = (r?.responsable || '').trim();
+        const temaKey = isMissingTema
+            ? `Sin tema ${++missingIndex}${fecha ? ` · ${fecha}` : ''}${responsable ? ` · ${responsable}` : ''}`
+            : tema;
+        const curr = merged.get(temaKey) || { tema: temaKey, asistentes: 0, sesiones: 0 };
+        curr.tema = temaKey;
+        curr.asistentes += isMissingTema ? 0 : (Number(r?.num_asistentes) || 0);
+        curr.sesiones += 1;
+        merged.set(temaKey, curr);
+    });
+    return [...merged.values()];
+}
+
+function renderTemaChart(porTema, detalles = []) {
+    const empty = document.getElementById('temaChartEmpty');
+    const canvas = document.getElementById('temaChart');
+    destroyChart(temaChart);
+
+    const apiRows = (Array.isArray(porTema) ? porTema : [])
+        .map(r => ({
+            tema: ((r.tema || '').trim() && (r.tema || '').trim() !== '—') ? (r.tema || '').trim() : 'Sin tema registrado',
+            asistentes: Number(r.asistentes) || 0,
+            sesiones: Number(r.sesiones) || 0,
+        }))
+        .filter(r => r.asistentes > 0 || r.sesiones > 0);
+
+    const rows = apiRows.length ? apiRows : buildTemaRowsFromDetalles(detalles);
+
+    if (!rows.length) {
+        empty.style.display = 'block';
+        canvas.style.display = 'none';
+        return;
+    }
+
+    empty.style.display = 'none';
+    canvas.style.display = 'block';
+
+    const merged = new Map();
+    rows.forEach(r => {
+        const curr = merged.get(r.tema) || { tema: r.tema, asistentes: 0, sesiones: 0 };
+        curr.asistentes += r.asistentes;
+        curr.sesiones += r.sesiones;
+        merged.set(r.tema, curr);
+    });
+
+    const sorted = [...merged.values()]
+        .sort((a, b) => b.asistentes - a.asistentes || b.sesiones - a.sesiones)
+        .slice(0, 12);
+
+    const labels = sorted.map(r => r.tema.length > 44 ? r.tema.slice(0, 41) + '...' : r.tema);
+    const asistentes = sorted.map(r => r.asistentes);
+    const sesiones = sorted.map(r => r.sesiones);
+    const maxAsist = Math.max(...asistentes, 0);
+    const colors = asistentes.map(v => {
+        if (maxAsist <= 0) return '#94a3b8';
+        if (v <= maxAsist * 0.34) return '#ef4444';
+        if (v <= maxAsist * 0.67) return '#f59e0b';
+        return '#22c55e';
+    });
+
+    temaChart = new Chart(canvas, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels,
+            datasets: [{
+                label: 'Asistentes',
+                data: asistentes,
+                borderRadius: 8,
+                backgroundColor: colors,
+                borderSkipped: false,
+                barThickness: 20,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            layout: { padding: { right: 42 } },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: GRID_COLOR },
+                    ticks: { color: TICK_COLOR, precision: 0 },
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8', font: { size: 11 } },
+                },
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: items => sorted[items[0].dataIndex]?.tema || '',
+                        label: ctx => `  Asistentes: ${ctx.raw}`,
+                        afterLabel: ctx => `  Sesiones: ${sesiones[ctx.dataIndex]}`,
+                    },
+                },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'right',
+                    offset: 4,
+                    color: '#cbd5e1',
+                    font: { size: 11, weight: '700' },
+                    clamp: true,
+                    formatter: (value, ctx) => value > 0 ? `${value}` : `0`,
+                },
+            },
+        },
+    });
+
+    canvas.parentElement.style.height = Math.max(320, sorted.length * 42 + 50) + 'px';
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Chart: Tendencia Mensual (dual line)
+// ────────────────────────────────────────────────────────────────────────────
+function renderTendenciaChart(tendencia) {
+    setLoading('loadingTendencia', false);
+    const empty  = document.getElementById('tendenciaEmpty');
+    const canvas = document.getElementById('tendenciaChart');
+    destroyChart(tendenciaChart);
+
+    const valid = (Array.isArray(tendencia) ? tendencia : [])
+        .filter(d => d && (d.month_start || d.mes || d.mes_label))
+        .map(d => ({
+            label: d.mes_label || monthLabelFromKey(d.mes) || d.month_start || '—',
+            sortKey: d.month_start || `${d.mes || ''}-01`,
+            capacitaciones: Number(d.capacitaciones) || 0,
+            asistentes: Number(d.asistentes) || 0,
+        }))
+        .sort((a, b) => String(a.sortKey).localeCompare(String(b.sortKey)));
+
+    if (!valid.length) {
+        empty.style.display = 'block';
+        canvas.style.display = 'none';
+        return;
+    }
+    empty.style.display = 'none';
+    canvas.style.display = 'block';
+
+    const labels = valid.map(d => d.label);
+    const caps   = valid.map(d => d.capacitaciones);
+    const asists = valid.map(d => d.asistentes);
+
+    tendenciaChart = new Chart(canvas, {
+        type: 'line',
+        plugins: [ChartDataLabels],
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Capacitaciones',
+                    data: caps,
+                    borderColor: '#60a5fa',
+                    borderWidth: 3,
+                    backgroundColor: '#60a5fa',
+                    pointBackgroundColor: '#60a5fa',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.3,
+                    fill: false,
+                },
+                {
+                    label: 'Asistentes',
+                    data: asists,
+                    borderColor: '#4ade80',
+                    borderWidth: 3,
+                    backgroundColor: '#4ade80',
+                    pointBackgroundColor: '#4ade80',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    tension: 0.3,
+                    fill: false,
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { color: '#94a3b8', font: { size: 12 }, boxWidth: 12, padding: 16 },
+                },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `  ${ctx.dataset.label}: ${ctx.raw}`,
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    grid: { color: GRID_COLOR },
+                    ticks: { color: TICK_COLOR, maxRotation: 45 },
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: GRID_COLOR },
+                    ticks: { color: '#94a3b8', precision: 0 },
+                },
+            },
+        },
+    });
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// Matriz de Asistencia (inline table, first 15 rows)
+// ────────────────────────────────────────────────────────────────────────────
+function renderMatriz(detalles, limit = 15) {
+    allDetalles = detalles;
+    const tbody = document.getElementById('matrizBody');
+    if (!detalles || !detalles.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#4b5563;padding:2rem;">Sin registros</td></tr>';
+        return;
+    }
+    const rows = detalles.slice(0, limit);
+    tbody.innerHTML = rows.map(r => {
+        const asistentes = r.asistentes || [];
+        const chips = asistentes.slice(0, 4).map(a =>
+            `<span class="attendee-chip" title="${a.cargo || ''}">${a.nombre || '—'}</span>`
+        ).join('');
+        const extra = asistentes.length > 4
+            ? `<button class="show-more-btn" onclick="openSessionModal(${r.id})">+${asistentes.length - 4} más</button>`
+            : '';
+        return `<tr>
+            <td style="white-space:nowrap;color:#94a3b8;">${r.fecha}</td>
+            <td style="max-width:200px;">${r.tema}</td>
+            <td>${r.responsable}</td>
+            <td>${r.cliente}</td>
+            <td>${r.area}</td>
+            <td style="text-align:center;font-weight:700;color:#60a5fa;">${r.num_asistentes}</td>
+            <td style="min-width:180px;">${chips}${extra}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Modal: full attendance matrix
+// ────────────────────────────────────────────────────────────────────────────
+function openMatrizModal() {
+    const detalles = allDetalles;
+    document.getElementById('modalTitle').textContent = `Matriz de Asistencia — ${detalles.length} sesiones`;
+    const tbody = document.getElementById('modalBody');
+
+    if (!detalles.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#4b5563;padding:2rem;">Sin registros</td></tr>';
+    } else {
+        let rowNum = 0;
+        const rows = [];
+        detalles.forEach(r => {
+            const asistentes = r.asistentes || [];
+            if (!asistentes.length) {
+                rowNum++;
+                rows.push(`<tr>
+                    <td>${rowNum}</td>
+                    <td style="white-space:nowrap;">${r.fecha}</td>
+                    <td>${r.tema}</td>
+                    <td>${r.responsable}</td>
+                    <td>${r.cliente}</td>
+                    <td>${r.area}</td>
+                    <td style="text-align:center;font-weight:700;color:#60a5fa;">0</td>
+                    <td colspan="3" style="color:#4b5563;">—</td>
+                </tr>`);
+            } else {
+                asistentes.forEach((a, i) => {
+                    rowNum++;
+                    rows.push(`<tr>
+                        <td>${rowNum}</td>
+                        <td style="white-space:nowrap;">${i === 0 ? r.fecha : ''}</td>
+                        <td>${i === 0 ? r.tema : ''}</td>
+                        <td>${i === 0 ? r.responsable : ''}</td>
+                        <td>${i === 0 ? r.cliente : ''}</td>
+                        <td>${i === 0 ? r.area : ''}</td>
+                        <td style="text-align:center;font-weight:700;color:#60a5fa;">${i === 0 ? r.num_asistentes : ''}</td>
+                        <td>${a.nombre || '—'}</td>
+                        <td>${a.cargo || '—'}</td>
+                        <td>${a.documento || '—'}</td>
+                    </tr>`);
+                });
+            }
+        });
+        tbody.innerHTML = rows.join('');
+    }
+    document.getElementById('modalBackdrop').classList.add('active');
+}
+
+function openSessionModal(id) {
+    const r = allDetalles.find(d => d.id === id);
+    if (!r) return;
+    document.getElementById('modalTitle').textContent = `${r.tema} — ${r.fecha}`;
+    const tbody = document.getElementById('modalBody');
+    const asistentes = r.asistentes || [];
+    if (!asistentes.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#4b5563;padding:2rem;">Sin asistentes registrados</td></tr>';
+    } else {
+        tbody.innerHTML = asistentes.map((a, i) => `<tr>
+            <td>${i + 1}</td>
+            <td style="white-space:nowrap;">${r.fecha}</td>
+            <td>${r.tema}</td>
+            <td>${r.responsable}</td>
+            <td>${r.cliente}</td>
+            <td>${r.area}</td>
+            <td style="text-align:center;font-weight:700;color:#60a5fa;">${r.num_asistentes}</td>
+            <td>${a.nombre || '—'}</td>
+            <td>${a.cargo || '—'}</td>
+            <td>${a.documento || '—'}</td>
+        </tr>`).join('');
+    }
+    document.getElementById('modalBackdrop').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modalBackdrop').classList.remove('active');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ────────────────────────────────────────────────────────────────────────────
+// Load data
+// ────────────────────────────────────────────────────────────────────────────
+let currentQS = '';
+
+function buildQS(state) {
+    const p = new URLSearchParams();
+    if (state.propertyId) p.set('cliente', state.propertyId);
+    if (state.year)       p.set('year',    state.year);
+    if (state.month)      p.set('month',   state.month);
+    if (state.day)        p.set('day',     state.day);
+    return p.toString();
+}
+
+async function loadData(qs = '') {
+    setLoading('loadingTendencia', true);
+    const q = qs ? '?' + qs : '';
+
+    try {
+        const [dataRes, detallesRes] = await Promise.all([
+            fetch('/dashboard/api/capacitacion/data'     + q),
+            fetch('/dashboard/api/capacitacion/detalles' + q),
+        ]);
+        const data     = await dataRes.json();
+        const detalles = await detallesRes.json();
+
+        if (!dataRes.ok) throw new Error(data.error || 'No se pudo cargar el resumen de capacitaciones');
+        if (!detallesRes.ok) throw new Error(detalles.error || 'No se pudo cargar el detalle de capacitaciones');
+
+        if (data.kpi)       renderKPI(data.kpi);
+        const det = detalles.detalles || [];
+        renderTendenciaChart(data.tendencia || []);
+        renderTemaChart(data.por_tema || [], det);
+        renderMatriz(det);
+    } catch (err) {
+        console.error('loadData error:', err);
+        setLoading('loadingTendencia', false);
+        renderTendenciaChart([]);
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+    const filters = new DashboardFilters();
+    filters.init();
+
+    // Rename property label and populate with capacitacion clients
+    const propSelect = document.getElementById('df-property');
+    const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+    if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+    try {
+        const res = await fetch('/dashboard/api/capacitacion/clientes');
+        const { clientes } = await res.json();
+        while (propSelect.options.length > 1) propSelect.remove(1);
+        clientes.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c; o.textContent = c;
+            propSelect.appendChild(o);
+        });
+    } catch (e) { console.warn('Could not load clientes', e); }
+
+    document.addEventListener('filtersChanged', e => {
+        currentQS = buildQS(e.detail);
+        loadData(currentQS);
+    });
+
+    loadData();
+});
+</script>
+</body>
+</html>

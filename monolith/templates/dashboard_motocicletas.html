@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspección Motocicletas — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
+        h1,h2,h3,h4,h5,h6 { font-family:'Merriweather',serif; color:#fff; }
+        .header-nav { position:fixed; top:0; left:0; right:0; background:rgba(31,41,55,0.96); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.08); padding:1rem 1.5rem; z-index:50; }
+        .nav-content { max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#67e8f9; text-decoration:none; font-size:.875rem; transition:color .2s; }
+        .nav-link:hover { color:#a5f3fc; text-decoration:underline; }
+        .user-greeting { font-size:.875rem; color:#9ca3af; }
+        .user-name { color:#67e8f9; font-weight:700; }
+        .admin-badge { color:#a78bfa; font-weight:700; }
+        .theme-toggle { position:fixed; top:1.25rem; left:1.25rem; z-index:100; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:.5rem; padding:.5rem; cursor:pointer; color:#e5e7eb; }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+        .module-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.75rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .module-icon { width:50px; height:50px; border-radius:12px; flex-shrink:0; background:rgba(244,63,94,0.12); color:#fb7185; display:flex; align-items:center; justify-content:center; }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 .2rem; }
+        .module-header p { font-size:.875rem; color:#94a3b8; margin:0; }
+        .alert-banner { display:flex; gap:1rem; align-items:flex-start; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.24); color:#fecaca; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; }
+        .alert-banner svg { width:22px; height:22px; flex-shrink:0; margin-top:.15rem; }
+        .alert-banner-title { font-weight:700; color:#fca5a5; margin-bottom:.25rem; }
+        .alert-recurrente { display:inline-flex; align-items:center; gap:.35rem; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; color:#fca5a5; margin:.15rem; }
+        .card { background:#374151; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1.5rem; }
+        .card-title { font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:.875rem; }
+        .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1rem; }
+        .kpi-value { font-family:'Merriweather',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:.35rem; }
+        .kpi-label { font-size:.82rem; color:#cbd5e1; }
+        .kpi-sub { font-size:.74rem; color:#94a3b8; margin-top:.35rem; }
+        .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full { margin-bottom:1rem; }
+        .chart-box { position:relative; min-height:320px; }
+        .empty-state { text-align:center; padding:3rem 1rem; color:#6b7280; display:none; }
+        .empty-state svg { width:40px; height:40px; margin:0 auto .75rem; display:block; }
+        .matrix-table-wrap { overflow:auto; max-height:560px; }
+        .matrix-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.875rem; text-align:left; }
+        .matrix-table th { padding:.75rem; color:#cbd5e1; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:#374151; z-index:1; white-space:nowrap; }
+        .matrix-table td { padding:.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#e5e7eb; vertical-align:top; }
+        .matrix-table tr:hover td { background:rgba(255,255,255,0.03); }
+        .badge-critico { display:inline-block; background:rgba(239,68,68,.14); color:#fca5a5; border:1px solid rgba(239,68,68,.28); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; white-space:pre-wrap; word-break:break-word; }
+        .badge-accion { display:inline-block; background:rgba(245,158,11,.1); color:#fcd34d; border:1px solid rgba(245,158,11,.25); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; white-space:pre-wrap; word-break:break-word; }
+        body.light-mode { background:#f1f5f9; color:#0f172a; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav { background:rgba(255,255,255,0.96); border-bottom:1px solid rgba(0,0,0,0.08); }
+        body.light-mode .theme-toggle { background:rgba(0,0,0,0.06); color:#334155; border-color:rgba(0,0,0,0.12); }
+        body.light-mode .card { background:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,.06); }
+        body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
+        body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,.08); }
+        body.light-mode .module-header p { color:#64748b; }
+        @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:900px) { .charts-row { grid-template-columns:1fr; } }
+        @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { padding-top:110px; } .nav-content { flex-direction:column; align-items:flex-start; } }
+    </style>
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">Bienvenido, <span class="user-name">{{ user_name }}</span>{% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}</div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </div>
+            <div>
+                <h1>Inspección Pre-Operacional de Motocicletas</h1>
+                <p>Control del estado de la flota de motocicletas, identificación de fallas y garantía de condiciones óptimas de operación</p>
+            </div>
+        </div>
+
+        <!-- Alert banner -->
+        <div id="alertBanner" class="alert-banner" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+            <div style="flex:1;">
+                <div class="alert-banner-title">Motocicletas con alertas activas</div>
+                <div id="alertBannerBody"></div>
+                <div id="alertPlacas" style="margin-top:.5rem;"></div>
+            </div>
+        </div>
+
+        {% include '_dashboard_filters.html' %}
+
+        <!-- KPI grid -->
+        <div class="kpi-grid">
+            <div class="card">
+                <div class="card-title">Total Inspecciones</div>
+                <div class="kpi-value" id="kpiTotal" style="color:#fb7185;">—</div>
+                <div class="kpi-label">Inspecciones registradas en el período</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Motocicletas Aptas</div>
+                <div class="kpi-value" id="kpiAptos" style="color:#22c55e;">—</div>
+                <div class="kpi-label">Sin fallas detectadas</div>
+                <div class="kpi-sub" id="kpiAptosSub">—</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Motocicletas No Aptas</div>
+                <div class="kpi-value" id="kpiNoAptos" style="color:#ef4444;">—</div>
+                <div class="kpi-label">Con al menos una falla</div>
+                <div class="kpi-sub" id="kpiNoAptosSub">—</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Total Fallas Detectadas</div>
+                <div class="kpi-value" id="kpiFallas" style="color:#f59e0b;">—</div>
+                <div class="kpi-label">Items en estado "Malo"</div>
+                <div class="kpi-sub" id="kpiFallasSub">—</div>
+            </div>
+        </div>
+
+        <!-- Charts row: Componentes + Ubicación -->
+        <div class="charts-row">
+            <div class="card">
+                <div class="card-title">Fallas por Componente (menor a mayor)</div>
+                <div id="compEmpty" class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg>
+                    <p>Sin datos de componentes</p>
+                </div>
+                <div class="chart-box" id="compBox"><canvas id="compChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Fallas por Ubicación / Proyecto (menor a mayor)</div>
+                <div id="ubicEmpty" class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                    <p>Sin datos por ubicación</p>
+                </div>
+                <div class="chart-box" id="ubicBox"><canvas id="ubicChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Tendencia de fallas -->
+        <div class="card chart-full">
+            <div class="card-title">Tendencia de Inspecciones y Fallas en el Tiempo</div>
+            <div id="trendEmpty" class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                <p>Sin datos de tendencia</p>
+            </div>
+            <div class="chart-box" style="min-height:340px;"><canvas id="trendChart"></canvas></div>
+        </div>
+
+        <!-- Novedades críticas matrix -->
+        <div class="card chart-full">
+            <div class="card-title">Matriz de Novedades Críticas y Acciones Inmediatas</div>
+            <div class="matrix-table-wrap">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Cliente / Instalación</th>
+                            <th>Placa</th>
+                            <th>Responsable</th>
+                            <th>Fecha</th>
+                            <th>Novedad Crítica</th>
+                            <th>Acción Inmediata</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrixBody">
+                        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /main-container -->
+
+    <script>
+    Chart.register(ChartDataLabels);
+    Chart.defaults.font.family = "'Roboto', sans-serif";
+    Chart.defaults.color = '#cbd5e1';
+
+    const GRID_COLOR = 'rgba(148,163,184,0.15)';
+    const TICK_COLOR = '#94a3b8';
+    let compChart, ubicChart, trendChart;
+
+    /* ── Theme ──────────────────────────────────────────────────────────── */
+    (function() {
+        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+        syncThemeIcons();
+    })();
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        syncThemeIcons();
+    });
+    function syncThemeIcons() {
+        const light = document.body.classList.contains('light-mode');
+        document.getElementById('darkModeIcon').style.display  = light ? 'none'  : 'block';
+        document.getElementById('lightModeIcon').style.display = light ? 'block' : 'none';
+    }
+
+    /* ── Helpers ────────────────────────────────────────────────────────── */
+    function destroyChart(inst) { if (inst) { try { inst.destroy(); } catch(_) {} } }
+
+    function trafficColor(ratio) {
+        if (ratio <= 0)    return '#22c55e';
+        if (ratio <= 0.15) return '#22c55e';
+        if (ratio <= 0.35) return '#f59e0b';
+        return '#ef4444';
+    }
+
+    function aptosColor(pct) {
+        if (pct >= 80) return '#22c55e';
+        if (pct >= 60) return '#f59e0b';
+        return '#ef4444';
+    }
+
+    function noAptosColor(pct) {
+        if (pct <= 20) return '#22c55e';
+        if (pct <= 40) return '#f59e0b';
+        return '#ef4444';
+    }
+
+    function monthLabel(key) {
+        if (!key || typeof key !== 'string') return '';
+        const [year, month] = key.split('-');
+        if (!year || !month) return key;
+        return new Date(Number(year), Number(month) - 1, 1)
+            .toLocaleDateString('es', { month: 'short', year: 'numeric' });
+    }
+
+    /* ── KPI ────────────────────────────────────────────────────────────── */
+    function renderKPI(kpi) {
+        const total      = kpi.total_inspecciones || 0;
+        const aptas      = kpi.aptas              || 0;
+        const pctAptos   = kpi.pct_aptas          || 0;
+        const noAptas    = kpi.no_aptas           || 0;
+        const pctNoApto  = kpi.pct_no_aptas       || 0;
+        const fallas     = kpi.total_fallas       || 0;
+
+        document.getElementById('kpiTotal').textContent = total.toLocaleString('es');
+
+        const aptosEl = document.getElementById('kpiAptos');
+        aptosEl.textContent = `${pctAptos.toFixed(1)}%`;
+        aptosEl.style.color = aptosColor(pctAptos);
+        document.getElementById('kpiAptosSub').textContent = `${aptas.toLocaleString('es')} inspección(es) sin fallas`;
+
+        const noAptosEl = document.getElementById('kpiNoAptos');
+        noAptosEl.textContent = `${pctNoApto.toFixed(1)}%`;
+        noAptosEl.style.color = noAptosColor(pctNoApto);
+        document.getElementById('kpiNoAptosSub').textContent = `${noAptas.toLocaleString('es')} inspección(es) con fallas`;
+
+        const fallasEl = document.getElementById('kpiFallas');
+        fallasEl.textContent = fallas.toLocaleString('es');
+        const fallaRatio = total > 0 ? fallas / (total * 26) : 0;
+        fallasEl.style.color = trafficColor(fallaRatio);
+        document.getElementById('kpiFallasSub').textContent =
+            total > 0 ? `${(fallas / total).toFixed(1)} fallas prom. por inspección` : '—';
+    }
+
+    /* ── Fallas por componente ──────────────────────────────────────────── */
+    function renderCompChart(rows, total) {
+        const empty  = document.getElementById('compEmpty');
+        const box    = document.getElementById('compBox');
+        const canvas = document.getElementById('compChart');
+        destroyChart(compChart);
+
+        const hasData = rows.some(r => r.fallas > 0);
+        if (!rows.length || !hasData) {
+            empty.style.display = 'block';
+            box.style.display   = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+        box.style.display   = 'block';
+
+        const labels = rows.map(r => r.componente);
+        const values = rows.map(r => r.fallas);
+        const colors = values.map(v => trafficColor(total > 0 ? v / total : 0));
+
+        compChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    barThickness: 18,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 36 } },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
+                    y: { grid: { display: false }, ticks: { color: TICK_COLOR, font: { size: 11 } } },
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `  Fallas: ${ctx.raw}` + (total ? ` (${(ctx.raw/total*100).toFixed(1)}%)` : ''),
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'right', offset: 4, clamp: true,
+                        color: '#e5e7eb', font: { size: 11, weight: '700' },
+                        formatter: v => v > 0 ? `${v}` : '',
+                    }
+                }
+            }
+        });
+        box.style.height = Math.max(320, rows.length * 30 + 60) + 'px';
+    }
+
+    /* ── Análisis por ubicación ─────────────────────────────────────────── */
+    function renderUbicChart(rows) {
+        const empty  = document.getElementById('ubicEmpty');
+        const box    = document.getElementById('ubicBox');
+        const canvas = document.getElementById('ubicChart');
+        destroyChart(ubicChart);
+
+        if (!rows.length) {
+            empty.style.display = 'block';
+            box.style.display   = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+        box.style.display   = 'block';
+
+        const labels   = rows.map(r => r.ubicacion.length > 30 ? r.ubicacion.slice(0,27)+'…' : r.ubicacion);
+        const valFallas = rows.map(r => r.no_aptas);
+        const valTotal  = rows.map(r => r.inspecciones);
+        const colors    = rows.map(r =>
+            trafficColor(r.inspecciones > 0 ? r.no_aptas / r.inspecciones : 0)
+        );
+
+        ubicChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'No Aptas',
+                        data: valFallas,
+                        backgroundColor: colors,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barThickness: 18,
+                    },
+                    {
+                        label: 'Total',
+                        data: valTotal,
+                        backgroundColor: 'rgba(148,163,184,0.18)',
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barThickness: 18,
+                    },
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 40 } },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
+                    y: { grid: { display: false }, ticks: { color: TICK_COLOR, font: { size: 11 } } },
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
+                    tooltip: {
+                        callbacks: {
+                            title: items => rows[items[0].dataIndex]?.ubicacion || '',
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'right', offset: 4, clamp: true,
+                        color: '#e5e7eb', font: { size: 10, weight: '700' },
+                        formatter: v => v > 0 ? `${v}` : '',
+                    }
+                }
+            }
+        });
+        box.style.height = Math.max(280, rows.length * 36 + 70) + 'px';
+    }
+
+    /* ── Tendencia de inspecciones y fallas ─────────────────────────────── */
+    function renderTrendChart(rows) {
+        const empty  = document.getElementById('trendEmpty');
+        const canvas = document.getElementById('trendChart');
+        destroyChart(trendChart);
+
+        const sorted = (rows || [])
+            .filter(r => r.periodo)
+            .sort((a, b) => a.periodo.localeCompare(b.periodo));
+
+        if (!sorted.length) {
+            empty.style.display  = 'block';
+            canvas.style.display = 'none';
+            return;
+        }
+        empty.style.display  = 'none';
+        canvas.style.display = 'block';
+
+        const labels       = sorted.map(r => r.periodo_label || monthLabel(r.periodo));
+        const inspecciones = sorted.map(r => r.inspecciones  || 0);
+        const noAptas      = sorted.map(r => r.no_aptas       || 0);
+        const puntColors   = sorted.map(r => {
+            const ratio = r.inspecciones > 0 ? r.no_aptas / r.inspecciones : 0;
+            return trafficColor(ratio);
+        });
+
+        trendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Inspecciones',
+                        data: inspecciones,
+                        borderColor: '#fb7185',
+                        backgroundColor: 'rgba(251,113,133,0.12)',
+                        fill: true,
+                        tension: 0.28,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: '#fb7185',
+                        pointBorderColor: 'transparent',
+                        order: 2,
+                    },
+                    {
+                        label: 'No Aptas',
+                        data: noAptas,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239,68,68,0.10)',
+                        fill: false,
+                        tension: 0.28,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: puntColors,
+                        pointBorderColor: 'transparent',
+                        borderDash: [4, 3],
+                        order: 1,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
+                    x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxRotation: 40 } },
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
+                    datalabels: {
+                        align: 'top', anchor: 'end',
+                        color: ctx => ctx.datasetIndex === 1 ? '#fca5a5' : '#fda4af',
+                        font: { size: 10, weight: '700' },
+                        formatter: v => v > 0 ? `${v}` : '',
+                    },
+                }
+            }
+        });
+    }
+
+    /* ── Alert banner ───────────────────────────────────────────────────── */
+    function renderAlerta(alertasCount, placasRecurrentes) {
+        const banner = document.getElementById('alertBanner');
+        const body   = document.getElementById('alertBannerBody');
+        const placas = document.getElementById('alertPlacas');
+
+        const msgs = [];
+        if (alertasCount > 0)
+            msgs.push(`${alertasCount} inspección(es) con novedades críticas registradas.`);
+        if (placasRecurrentes && placasRecurrentes.length > 0)
+            msgs.push(`${placasRecurrentes.length} motocicleta(s) con fallas recurrentes (≥2 inspecciones no aptas).`);
+
+        if (!msgs.length) {
+            banner.style.display = 'none';
+            return;
+        }
+        banner.style.display = 'flex';
+        body.innerHTML = msgs.map(m => `<div>${m}</div>`).join('');
+
+        if (placasRecurrentes && placasRecurrentes.length) {
+            placas.innerHTML = '<span style="font-size:.74rem;color:#fca5a5;font-weight:700;margin-right:.35rem;">Placas:</span>' +
+                placasRecurrentes.map(p =>
+                    `<span class="alert-recurrente">${p.placa} · ${p.no_aptas} no apta(s)</span>`
+                ).join('');
+        } else {
+            placas.innerHTML = '';
+        }
+    }
+
+    /* ── Matriz de novedades críticas ───────────────────────────────────── */
+    function renderMatrix(detalles) {
+        const tbody = document.getElementById('matrixBody');
+        if (!detalles.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Sin novedades críticas para los filtros seleccionados.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = detalles.map(r => `<tr>
+            <td>${r.cliente}</td>
+            <td style="white-space:nowrap;font-weight:700;color:#fda4af;">${r.placa}</td>
+            <td>${r.responsable}</td>
+            <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
+            <td><span class="badge-critico">${escHtml(r.novedades_criticas)}</span></td>
+            <td><span class="badge-accion">${escHtml(r.accion_inmediata)}</span></td>
+        </tr>`).join('');
+    }
+
+    function escHtml(str) {
+        if (!str || str === '—') return '—';
+        return String(str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;');
+    }
+
+    /* ── Data loading ───────────────────────────────────────────────────── */
+    async function loadData(qs = '') {
+        const q = qs ? '?' + qs : '';
+        try {
+            const [dataRes, detRes] = await Promise.all([
+                fetch('/dashboard/api/motocicletas/data' + q),
+                fetch('/dashboard/api/motocicletas/detalles' + q),
+            ]);
+            const data = await dataRes.json();
+            const det  = await detRes.json();
+
+            if (!dataRes.ok) throw new Error(data.error || 'Error cargando datos motocicletas');
+            if (!detRes.ok)  throw new Error(det.error  || 'Error cargando detalles motocicletas');
+
+            const total = (data.kpi || {}).total_inspecciones || 0;
+            renderKPI(data.kpi || {});
+            renderCompChart(data.fallas_componente || [], total);
+            renderUbicChart(data.por_ubicacion     || []);
+            renderTrendChart(data.tendencia        || []);
+            renderAlerta(data.alertas_count || 0, data.placas_recurrentes || []);
+            renderMatrix(det.detalles || []);
+        } catch (err) {
+            console.error('motocicletas loadData error:', err);
+        }
+    }
+
+    /* ── Init ───────────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', async () => {
+        const filters = new DashboardFilters();
+        filters.init();
+
+        const propSelect = document.getElementById('df-property');
+        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+        try {
+            const res = await fetch('/dashboard/api/motocicletas/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            (clientes || []).forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch (e) {
+            console.warn('Could not load motocicletas clientes', e);
+        }
+
+        document.addEventListener('filtersChanged', e => {
+            const p = new URLSearchParams();
+            const { propertyId, year, month, day } = e.detail;
+            if (propertyId) p.set('cliente', propertyId);
+            if (year)       p.set('year',    year);
+            if (month)      p.set('month',   month);
+            if (day)        p.set('day',     day);
+            loadData(p.toString());
+        });
+
+        loadData();
+    });
+    </script>
+</body>
+</html>

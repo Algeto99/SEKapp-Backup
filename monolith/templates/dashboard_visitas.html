@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitas a Cliente — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
+        h1,h2,h3,h4,h5,h6 { font-family:'Merriweather',serif; color:#fff; }
+        .header-nav { position:fixed; top:0; left:0; right:0; background:rgba(31,41,55,0.96); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.08); padding:1rem 1.5rem; z-index:50; }
+        .nav-content { max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#67e8f9; text-decoration:none; font-size:.875rem; transition:color .2s; }
+        .nav-link:hover { color:#a5f3fc; text-decoration:underline; }
+        .user-greeting { font-size:.875rem; color:#9ca3af; }
+        .user-name { color:#67e8f9; font-weight:700; }
+        .admin-badge { color:#a78bfa; font-weight:700; }
+        .theme-toggle { position:fixed; top:1.25rem; left:1.25rem; z-index:100; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:.5rem; padding:.5rem; cursor:pointer; color:#e5e7eb; }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+        .module-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.75rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .module-icon { width:50px; height:50px; border-radius:12px; flex-shrink:0; background:rgba(34,211,238,0.12); color:#67e8f9; display:flex; align-items:center; justify-content:center; }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 .2rem; }
+        .module-header p { font-size:.875rem; color:#94a3b8; margin:0; }
+        .alert-banner { display:flex; gap:1rem; align-items:flex-start; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.24); color:#fecaca; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; }
+        .alert-banner svg { width:22px; height:22px; flex-shrink:0; margin-top:.15rem; }
+        .alert-banner-title { font-weight:700; color:#fca5a5; margin-bottom:.2rem; }
+        .card { background:#374151; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1.5rem; }
+        .card-title { font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:.875rem; }
+        .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1rem; }
+        .kpi-value { font-family:'Merriweather',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:.35rem; }
+        .kpi-label { font-size:.82rem; color:#cbd5e1; }
+        .kpi-sub { font-size:.74rem; color:#94a3b8; margin-top:.35rem; }
+        .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full { margin-bottom:1rem; }
+        .chart-box { position:relative; min-height:320px; }
+        .empty-state { text-align:center; padding:3rem 1rem; color:#6b7280; display:none; }
+        .empty-state svg { width:40px; height:40px; margin:0 auto .75rem; display:block; }
+        .matrix-table-wrap { overflow:auto; max-height:520px; }
+        .matrix-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.875rem; text-align:left; }
+        .matrix-table th { padding:.75rem; color:#cbd5e1; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:#374151; z-index:1; white-space:nowrap; }
+        .matrix-table td { padding:.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#e5e7eb; vertical-align:top; }
+        .matrix-table tr:hover td { background:rgba(255,255,255,0.03); }
+        .status-pill { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; }
+        .status-pill::before { content:""; width:8px; height:8px; border-radius:50%; display:inline-block; }
+        .status-cumplido { background:rgba(34,197,94,.12); color:#86efac; }
+        .status-cumplido::before { background:#22c55e; }
+        .status-pendiente { background:rgba(245,158,11,.12); color:#fcd34d; }
+        .status-pendiente::before { background:#f59e0b; }
+        .status-vencido { background:rgba(239,68,68,.12); color:#fca5a5; }
+        .status-vencido::before { background:#ef4444; }
+        body.light-mode { background:#f1f5f9; color:#0f172a; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav { background:rgba(255,255,255,0.96); border-bottom:1px solid rgba(0,0,0,0.08); }
+        body.light-mode .theme-toggle { background:rgba(0,0,0,0.06); color:#334155; border-color:rgba(0,0,0,0.12); }
+        body.light-mode .card { background:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,.06); }
+        body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
+        body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,.08); }
+        body.light-mode .module-header p,.body.light-mode .kpi-sub { color:#64748b; }
+        @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:900px) { .charts-row { grid-template-columns:1fr; } }
+        @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { padding-top:110px; } .nav-content { flex-direction:column; align-items:flex-start; } }
+    </style>
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">Bienvenido, <span class="user-name">{{ user_name }}</span>{% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}</div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z"/></svg>
+            </div>
+            <div>
+                <h1>Actas de Visita a Cliente</h1>
+                <p>Seguimiento comercial y operativo, cobertura de visitas y control de compromisos</p>
+            </div>
+        </div>
+
+        <div id="alertBanner" class="alert-banner" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+            <div>
+                <div class="alert-banner-title">Compromisos vencidos detectados</div>
+                <div id="alertBannerBody"></div>
+            </div>
+        </div>
+
+        {% include '_dashboard_filters.html' %}
+
+        <div class="kpi-grid">
+            <div class="card">
+                <div class="card-title">Total de Visitas</div>
+                <div class="kpi-value" id="kpiTotalVisitas" style="color:#22c55e;">—</div>
+                <div class="kpi-label">Visitas registradas en el período</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Clientes Visitados</div>
+                <div class="kpi-value" id="kpiClientes" style="color:#38bdf8;">—</div>
+                <div class="kpi-label">Clientes con al menos una visita</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Promedio por Cliente</div>
+                <div class="kpi-value" id="kpiPromedio" style="color:#f59e0b;">—</div>
+                <div class="kpi-label">Visitas promedio por cliente</div>
+            </div>
+            <div class="card">
+                <div class="card-title">% Sin Visita</div>
+                <div class="kpi-value" id="kpiSinVisita" style="color:#ef4444;">—</div>
+                <div class="kpi-label">Clientes sin visita en el período</div>
+                <div class="kpi-sub" id="kpiSinVisitaSub">—</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="card">
+                <div class="card-title">Frecuencia de Visitas por Cliente</div>
+                <div id="clienteEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg><p>Sin datos de visitas por cliente</p></div>
+                <div class="chart-box"><canvas id="clienteChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Motivos de la Visita</div>
+                <div id="motivoEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg><p>Sin datos de motivos</p></div>
+                <div class="chart-box"><canvas id="motivoChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card chart-full">
+            <div class="card-title">Tendencia de Visitas</div>
+            <div id="trendEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg><p>Sin datos de tendencia</p></div>
+            <div class="chart-box" style="min-height:340px;"><canvas id="trendChart"></canvas></div>
+        </div>
+
+        <div class="charts-row">
+            <div class="card">
+                <div class="card-title">Estado de Compromisos</div>
+                <div id="estadoEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 17a1 1 0 102 0m-1-2V9m0 12a9 9 0 100-18 9 9 0 000 18z"/></svg><p>Sin compromisos para el período</p></div>
+                <div class="chart-box" style="min-height:300px;"><canvas id="estadoChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Resumen de Compromisos</div>
+                <div id="estadoSummary" style="display:grid; grid-template-columns:1fr; gap:.85rem; margin-top:.75rem;"></div>
+            </div>
+        </div>
+
+        <div class="card chart-full">
+            <div class="card-title">Matriz de Seguimiento de Acuerdos y Compromisos</div>
+            <div class="matrix-table-wrap">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Fecha de visita</th>
+                            <th>Motivo</th>
+                            <th>Acuerdo / compromiso</th>
+                            <th>Responsable</th>
+                            <th>Fecha de cumplimiento</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrixBody">
+                        <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    Chart.register(ChartDataLabels);
+    Chart.defaults.font.family = "'Roboto', sans-serif";
+    Chart.defaults.color = '#cbd5e1';
+
+    const GRID_COLOR = 'rgba(148,163,184,0.15)';
+    const TICK_COLOR = '#94a3b8';
+    let clienteChart, motivoChart, trendChart, estadoChart;
+
+    (function() {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'light') document.body.classList.add('light-mode');
+        syncThemeIcons();
+    })();
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        syncThemeIcons();
+    });
+
+    function syncThemeIcons() {
+        const light = document.body.classList.contains('light-mode');
+        document.getElementById('darkModeIcon').style.display = light ? 'none' : 'block';
+        document.getElementById('lightModeIcon').style.display = light ? 'block' : 'none';
+    }
+
+    function destroyChart(inst) { if (inst) { try { inst.destroy(); } catch(_) {} } }
+
+    function monthLabelFromKey(key) {
+        if (!key || typeof key !== 'string') return '';
+        const parts = key.split('-');
+        if (parts.length < 2) return key;
+        const year = Number(parts[0]);
+        const month = Number(parts[1]);
+        if (!Number.isInteger(year) || !Number.isInteger(month)) return key;
+        return new Date(year, month - 1, 1).toLocaleDateString('es', { month: 'short', year: 'numeric' });
+    }
+
+    function renderKPI(kpi) {
+        document.getElementById('kpiTotalVisitas').textContent = (kpi.total_visitas || 0).toLocaleString('es');
+        document.getElementById('kpiClientes').textContent = (kpi.clientes_visitados || 0).toLocaleString('es');
+        document.getElementById('kpiPromedio').textContent = Number(kpi.promedio_visitas || 0).toFixed(1);
+        document.getElementById('kpiSinVisita').textContent = `${Number(kpi.pct_sin_visita || 0).toFixed(1)}%`;
+        document.getElementById('kpiSinVisitaSub').textContent = `${kpi.clientes_sin_visita || 0} cliente(s) sin visita`;
+    }
+
+    function barColors(values, invert = false) {
+        const max = Math.max(...values, 0);
+        return values.map(v => {
+            if (max <= 0) return '#94a3b8';
+            const ratio = v / max;
+            if (invert) return ratio > 0.67 ? '#ef4444' : ratio > 0.34 ? '#f59e0b' : '#22c55e';
+            return ratio > 0.67 ? '#22c55e' : ratio > 0.34 ? '#f59e0b' : '#ef4444';
+        });
+    }
+
+    function renderHorizontalBars(chartRefName, canvasId, emptyId, rows, labelKey, valueKey, labelTitle) {
+        const empty = document.getElementById(emptyId);
+        const canvas = document.getElementById(canvasId);
+        destroyChart(window[chartRefName]);
+
+        if (!rows.length) {
+            empty.style.display = 'block';
+            canvas.style.display = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+        canvas.style.display = 'block';
+
+        const labels = rows.map(r => (r[labelKey] || '').length > 34 ? r[labelKey].slice(0, 31) + '...' : r[labelKey]);
+        const values = rows.map(r => Number(r[valueKey]) || 0);
+        const colors = barColors(values);
+
+        window[chartRefName] = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderRadius: 8,
+                    borderSkipped: false,
+                    barThickness: 20,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 30 } },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
+                    y: { grid: { display: false }, ticks: { color: TICK_COLOR, font: { size: 11 } } },
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => rows[items[0].dataIndex]?.[labelKey] || '',
+                            label: ctx => `  ${labelTitle}: ${ctx.raw}`,
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'right', offset: 4, clamp: true,
+                        color: '#e5e7eb', font: { size: 11, weight: '700' },
+                        formatter: value => `${value}`,
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(300, rows.length * 38 + 50) + 'px';
+    }
+
+    function renderTrendChart(trend) {
+        const empty = document.getElementById('trendEmpty');
+        const canvas = document.getElementById('trendChart');
+        destroyChart(trendChart);
+
+        const rows = (Array.isArray(trend) ? trend : [])
+            .filter(r => r && (r.month_start || r.periodo))
+            .sort((a, b) => String(a.month_start || '').localeCompare(String(b.month_start || '')));
+        if (!rows.length) {
+            empty.style.display = 'block';
+            canvas.style.display = 'none';
+            return;
+        }
+
+        empty.style.display = 'none';
+        canvas.style.display = 'block';
+
+        const values = rows.map(r => Number(r.visitas) || 0);
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+        trendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: rows.map(r => r.periodo_label || monthLabelFromKey(r.periodo)),
+                datasets: [{
+                    label: 'Visitas',
+                    data: values,
+                    borderColor: '#7dd3fc',
+                    backgroundColor: 'rgba(125,211,252,0.16)',
+                    fill: true,
+                    tension: 0.28,
+                    pointRadius: 6,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: values.map(v => v >= avg ? '#22c55e' : v >= avg * 0.7 ? '#f59e0b' : '#ef4444'),
+                    pointBorderColor: 'transparent',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
+                    x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxRotation: 40 } },
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        align: 'top', anchor: 'end', color: '#cbd5e1', font: { size: 11, weight: '700' },
+                        formatter: v => `${v}`,
+                    },
+                }
+            }
+        });
+    }
+
+    function renderEstadoChart(estado) {
+        const empty = document.getElementById('estadoEmpty');
+        const canvas = document.getElementById('estadoChart');
+        const summary = document.getElementById('estadoSummary');
+        destroyChart(estadoChart);
+
+        const labels = ['Cumplido', 'Pendiente', 'Vencido'];
+        const values = [estado.cumplido || 0, estado.pendiente || 0, estado.vencido || 0];
+        const total = values.reduce((a, b) => a + b, 0);
+        if (!total) {
+            empty.style.display = 'block';
+            canvas.style.display = 'none';
+            summary.innerHTML = '<div style="color:#6b7280;">No hay compromisos registrados para el período seleccionado.</div>';
+            return;
+        }
+        empty.style.display = 'none';
+        canvas.style.display = 'block';
+
+        estadoChart = new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                    borderColor: ['#22c55e', '#f59e0b', '#ef4444'],
+                    borderWidth: 1,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: '700', size: 11 },
+                        formatter: value => value ? `${Math.round((value / total) * 100)}%` : '',
+                    }
+                }
+            }
+        });
+
+        summary.innerHTML = labels.map((label, idx) => {
+            const pct = total ? ((values[idx] / total) * 100).toFixed(1) : '0.0';
+            const cls = idx === 0 ? 'status-cumplido' : idx === 1 ? 'status-pendiente' : 'status-vencido';
+            return `<div class="${cls} status-pill" style="justify-content:space-between;"><span>${label}</span><span>${values[idx]} · ${pct}%</span></div>`;
+        }).join('');
+    }
+
+    function renderMatrix(detalles) {
+        const tbody = document.getElementById('matrixBody');
+        if (!detalles.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin compromisos para los filtros seleccionados</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = detalles.map(r => {
+            const statusClass = r.estado === 'cumplido' ? 'status-cumplido' : r.estado === 'vencido' ? 'status-vencido' : 'status-pendiente';
+            const statusLabel = r.estado === 'cumplido' ? 'Cumplido' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
+            return `<tr>
+                <td>${r.cliente || '—'}</td>
+                <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_visita || '—'}</td>
+                <td>${r.motivo_visita || '—'}</td>
+                <td style="min-width:280px;">${r.acuerdo || '—'}</td>
+                <td>${r.responsable || '—'}</td>
+                <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
+                <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderAlert(vencidosTotal) {
+        const banner = document.getElementById('alertBanner');
+        const body = document.getElementById('alertBannerBody');
+        if (vencidosTotal > 0) {
+            banner.style.display = 'flex';
+            body.textContent = `${vencidosTotal} compromiso(s) fuera de plazo requieren seguimiento inmediato.`;
+        } else {
+            banner.style.display = 'none';
+            body.textContent = '';
+        }
+    }
+
+    let currentQS = '';
+    function buildQS(state) {
+        const p = new URLSearchParams();
+        if (state.propertyId) p.set('cliente', state.propertyId);
+        if (state.year) p.set('year', state.year);
+        if (state.month) p.set('month', state.month);
+        if (state.day) p.set('day', state.day);
+        return p.toString();
+    }
+
+    async function loadData(qs = '') {
+        const q = qs ? '?' + qs : '';
+        try {
+            const [dataRes, detalleRes] = await Promise.all([
+                fetch('/dashboard/api/visitas/data' + q),
+                fetch('/dashboard/api/visitas/detalles' + q)
+            ]);
+            const data = await dataRes.json();
+            const detalles = await detalleRes.json();
+            if (!dataRes.ok) throw new Error(data.error || 'No se pudo cargar el dashboard de visitas');
+            if (!detalleRes.ok) throw new Error(detalles.error || 'No se pudo cargar la matriz de compromisos');
+
+            renderKPI(data.kpi || {});
+            renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', data.frecuencia_clientes || [], 'cliente', 'visitas', 'Visitas');
+            renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', data.motivos || [], 'motivo', 'visitas', 'Visitas');
+            renderTrendChart(data.tendencia || []);
+            renderEstadoChart(data.estado_compromisos || {});
+            renderMatrix(detalles.detalles || []);
+            renderAlert(data.vencidos_total || 0);
+        } catch (err) {
+            console.error('visitas loadData error:', err);
+            renderMatrix([]);
+            renderAlert(0);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const filters = new DashboardFilters();
+        filters.init();
+
+        const propSelect = document.getElementById('df-property');
+        const propLabel = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE';
+
+        try {
+            const res = await fetch('/dashboard/api/visitas/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            (clientes || []).forEach(c => {
+                const o = document.createElement('option');
+                o.value = c;
+                o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch (e) {
+            console.warn('Could not load visitas clientes', e);
+        }
+
+        document.addEventListener('filtersChanged', e => {
+            currentQS = buildQS(e.detail);
+            loadData(currentQS);
+        });
+
+        loadData();
+    });
+    </script>
+</body>
+</html>

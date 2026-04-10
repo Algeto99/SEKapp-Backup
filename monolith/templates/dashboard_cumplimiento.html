@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cumplimiento Normativo — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
+
+        .header-nav {
+            position: fixed; top:0; left:0; right:0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1280px; margin:0 auto;
+            display:flex; justify-content:space-between;
+            align-items:center; flex-wrap:wrap; gap:0.75rem;
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
+        .user-greeting { font-size:0.875rem; color:#9ca3af; }
+        .user-name { color:#60a5fa; font-weight:bold; }
+        .admin-badge { color:#a855f7; font-weight:bold; }
+
+        .theme-toggle {
+            position:fixed; top:1.25rem; left:1.25rem; z-index:100;
+            background-color:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+            border-radius:0.5rem; padding:0.5rem; cursor:pointer; color:#e2e8f0;
+            transition:all 0.2s;
+        }
+        .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+
+        .module-header {
+            display:flex; align-items:center; gap:1rem;
+            margin-bottom:1.75rem; padding-bottom:1.5rem;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        .module-icon {
+            width:50px; height:50px; border-radius:12px; flex-shrink:0;
+            background-color:rgba(96,165,250,0.15); color:#60a5fa;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 0.2rem; }
+        .module-header p { font-family:'Roboto',sans-serif; font-size:0.875rem; color:#64748b; margin:0; }
+
+        /* ── Alert banners ─────────────────────────────────────────────── */
+        .alert-critico {
+            display:flex; align-items:flex-start; gap:0.875rem;
+            background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.4);
+            border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.75rem;
+        }
+        .alert-seguimiento {
+            display:flex; align-items:flex-start; gap:0.875rem;
+            background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.35);
+            border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.75rem;
+        }
+        .alert-icon { width:20px; height:20px; flex-shrink:0; margin-top:2px; }
+        .alert-title-critico    { font-size:0.875rem; font-weight:700; color:#f87171; margin-bottom:0.3rem; }
+        .alert-title-seguimiento{ font-size:0.875rem; font-weight:700; color:#facc15; margin-bottom:0.3rem; }
+        .alert-body { font-size:0.8125rem; line-height:1.6; }
+        .alert-body-critico     { color:#fca5a5; }
+        .alert-body-seguimiento { color:#fde68a; }
+        .alert-badge-critico {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.45);
+            color:#fca5a5; border-radius:999px; padding:0.1rem 0.5rem;
+            font-size:0.72rem; font-weight:700; margin:0.15rem;
+        }
+        .alert-badge-seguimiento {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.4);
+            color:#fde68a; border-radius:999px; padding:0.1rem 0.5rem;
+            font-size:0.72rem; font-weight:700; margin:0.15rem;
+        }
+
+        /* ── Cards ─────────────────────────────────────────────────────── */
+        .card {
+            background-color:#2d3748;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:14px; padding:1.5rem;
+        }
+        .card-title {
+            font-family:'Roboto',sans-serif; font-size:0.6875rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:1px; color:#6b7280;
+            margin-bottom:0.875rem;
+        }
+
+        /* ── KPI grid ───────────────────────────────────────────────────── */
+        .kpi-grid {
+            display:grid; grid-template-columns:repeat(4,1fr); gap:1rem;
+            margin-bottom:1.25rem;
+        }
+        .kpi-value {
+            font-family:'Merriweather',serif; font-size:2.25rem; font-weight:700;
+            line-height:1; margin-bottom:0.375rem;
+        }
+        .kpi-label { font-size:0.8125rem; color:#94a3b8; margin-bottom:0.5rem; font-family:'Roboto',sans-serif; }
+        .kpi-sublabel { font-size:0.75rem; color:#6b7280; font-family:'Roboto',sans-serif; }
+
+        /* ── Tl dot ─────────────────────────────────────────────────────── */
+        .tl-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:0.3rem; vertical-align:middle; }
+
+        /* ── Charts ─────────────────────────────────────────────────────── */
+        .charts-row   { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full   { margin-bottom:1rem; }
+        .chart-wrap   { position:relative; }
+        .chart-canvas { width:100% !important; }
+
+        .loading-overlay {
+            position:absolute; inset:0; border-radius:14px;
+            background-color:rgba(26,32,44,0.75);
+            display:flex; align-items:center; justify-content:center;
+            z-index:10; pointer-events:none; opacity:0; transition:opacity 0.2s;
+        }
+        .loading-overlay.active { opacity:1; pointer-events:all; }
+        .spinner {
+            width:28px; height:28px; border:3px solid rgba(255,255,255,0.1);
+            border-top-color:#60a5fa; border-radius:50%;
+            animation:spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        .empty-state { text-align:center; padding:3rem 1rem; }
+        .empty-state svg { width:40px; height:40px; color:#4b5563; margin:0 auto 0.75rem; display:block; }
+        .empty-state p { font-size:0.875rem; color:#4b5563; }
+
+        /* ── Score badge ────────────────────────────────────────────────── */
+        .badge {
+            display:inline-block; padding:0.15rem 0.6rem; border-radius:999px;
+            font-size:0.75rem; font-weight:700;
+        }
+        .badge-cumple    { background:rgba(34,197,94,0.15);   color:#4ade80; }
+        .badge-hallazgos { background:rgba(234,179,8,0.15);   color:#facc15; }
+        .badge-nocumple  { background:rgba(239,68,68,0.15);   color:#f87171; }
+        .badge-vencido   { background:rgba(239,68,68,0.15);   color:#f87171; }
+        .badge-proximo   { background:rgba(234,179,8,0.15);   color:#facc15; }
+        .badge-vigente   { background:rgba(34,197,94,0.15);   color:#4ade80; }
+
+        .clickable-card { cursor:pointer; transition:transform 0.2s,box-shadow 0.2s; }
+        .clickable-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.3); border-color:#60a5fa; }
+
+        /* ── Modal ──────────────────────────────────────────────────────── */
+        .modal-backdrop {
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            background-color:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+            z-index:100; display:none; align-items:center; justify-content:center;
+        }
+        .modal-backdrop.active { display:flex; }
+        .modal-container {
+            background-color:#2d3748; border-radius:12px; width:95%; max-width:1100px;
+            max-height:90vh; display:flex; flex-direction:column;
+            box-shadow:0 10px 25px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding:1.5rem; border-bottom:1px solid rgba(255,255,255,0.1);
+            display:flex; justify-content:space-between; align-items:center;
+        }
+        .modal-title { font-family:'Merriweather',serif; font-size:1.2rem; font-weight:700; color:#fff; margin:0; }
+        .modal-close { background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; line-height:1; padding:0.2rem; transition:color 0.2s; }
+        .modal-close:hover { color:#fff; }
+        .modal-body { padding:1.5rem; overflow-y:auto; }
+        .modal-table-wrapper { overflow-x:auto; max-height:60vh; overflow-y:auto; }
+        .modal-table { width:100%; border-collapse:separate; border-spacing:0; font-size:0.875rem; text-align:left; }
+        .modal-table th { padding:0.75rem; color:#94a3b8; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.1); white-space:nowrap; position:sticky; top:0; background-color:#2d3748; z-index:10; }
+        .modal-table td { padding:0.75rem; border-bottom:1px solid rgba(255,255,255,0.05); color:#e2e8f0; }
+        .modal-table tr:hover td { background-color:rgba(255,255,255,0.03); }
+
+        /* ── Light mode ─────────────────────────────────────────────────── */
+        body.light-mode { background-color:#f1f5f9; color:#1e293b; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,
+        body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav { background-color:rgba(255,255,255,0.97); border-bottom:1px solid rgba(0,0,0,0.08); }
+        body.light-mode .user-greeting { color:#475569; }
+        body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
+        body.light-mode .card { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,0.07); }
+        body.light-mode .card-title { color:#94a3b8; }
+        body.light-mode .kpi-label  { color:#64748b; }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color:#94a3b8; }
+        body.light-mode .empty-state p   { color:#94a3b8; }
+        body.light-mode .empty-state svg { color:#cbd5e1; }
+        body.light-mode .loading-overlay { background-color:rgba(241,245,249,0.75); }
+        body.light-mode .modal-container { background-color:#fff; }
+        body.light-mode .modal-header { border-bottom:1px solid rgba(0,0,0,0.1); }
+        body.light-mode .modal-title { color:#1e293b; }
+        body.light-mode .modal-close:hover { color:#1e293b; }
+        body.light-mode .modal-table th { color:#64748b; border-bottom:1px solid rgba(0,0,0,0.1); background-color:#fff; }
+        body.light-mode .modal-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,0.05); }
+        body.light-mode .clickable-card:hover { border-color:#3b82f6; }
+
+        /* ── Responsive ─────────────────────────────────────────────────── */
+        @media (max-width:1024px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:900px)  { .charts-row { grid-template-columns:1fr; } }
+        @media (max-width:700px)  {
+            .kpi-grid { grid-template-columns:1fr 1fr; }
+            body { padding-top:110px; }
+            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+        }
+        @media (max-width:500px) { .kpi-grid { grid-template-columns:1fr; } }
+    </style>
+</head>
+
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Cumplimiento Normativo</h1>
+                <p>Seguimiento y control de certificaciones y requisitos del personal de seguridad</p>
+            </div>
+        </div>
+
+        <!-- ── Alert banners (JS-generated) ─────────────────────────────── -->
+        <div id="alertVencidos" style="display:none;" class="alert-critico">
+            <svg class="alert-icon" style="color:#f87171;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <div class="alert-title-critico">Incumplimiento Crítico — Certificados Vencidos</div>
+                <div class="alert-body alert-body-critico" id="alertVencidosBody"></div>
+            </div>
+        </div>
+        <div id="alertProximos" style="display:none;" class="alert-seguimiento">
+            <svg class="alert-icon" style="color:#facc15;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+                <div class="alert-title-seguimiento">Alerta Preventiva — Próximos a Vencer (&lt; 30 días)</div>
+                <div class="alert-body alert-body-seguimiento" id="alertProximosBody"></div>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        {% include '_dashboard_filters.html' %}
+
+        <!-- ── KPI Row ───────────────────────────────────────────────────── -->
+        <div class="kpi-grid">
+
+            <!-- KPI 1: % Cumplimiento -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">% Cumplimiento</div>
+                <div class="kpi-value" id="kpiPctCumple" style="color:#22c55e;">—%</div>
+                <div class="kpi-label" id="kpiCntCumple">— verificaciones cumplen</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" style="background:#22c55e;"></span>
+                    <span style="font-size:0.8rem;color:#94a3b8;">Cumple: ≥90% recomendado</span>
+                </div>
+            </div>
+
+            <!-- KPI 2: % No Cumplimiento -->
+            <div class="card">
+                <div class="card-title">% No Cumplimiento</div>
+                <div class="kpi-value" id="kpiPctNoCumple" style="color:#f87171;">—%</div>
+                <div class="kpi-label" id="kpiCntNoCumple">— verificaciones no cumplen</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" style="background:#ef4444;"></span>
+                    <span style="font-size:0.8rem;color:#94a3b8;">Requiere acción inmediata</span>
+                </div>
+            </div>
+
+            <!-- KPI 3: Total verificaciones -->
+            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+                <div class="card-title">Total Verificaciones</div>
+                <div class="kpi-value" id="kpiTotal" style="color:#60a5fa;">—</div>
+                <div class="kpi-label">Checklists en el período</div>
+                <div class="kpi-sublabel" id="kpiCntHallazgos" style="margin-top:0.25rem;">— con hallazgos menores</div>
+            </div>
+
+            <!-- KPI 4: % Certificaciones vencidas -->
+            <div class="card">
+                <div class="card-title">% Certificaciones Vencidas</div>
+                <div class="kpi-value" id="kpiPctVencidos" style="color:#f87171;">—%</div>
+                <div class="kpi-label" id="kpiCntVencidos">— certificados vencidos</div>
+                <div style="margin-top:0.5rem;">
+                    <span class="tl-dot" style="background:#eab308;"></span>
+                    <span style="font-size:0.8rem;color:#94a3b8;" id="kpiCntProximos">— próximos a vencer</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ── Row 1: Criteria bar (left) + Certification donut (right) ─── -->
+        <div class="charts-row">
+
+            <!-- Cumplimiento por criterio (horizontal stacked bar, sorted asc) -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">
+                    Cumplimiento por Criterio de Verificación
+                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— ordenado de menor a mayor</span>
+                </div>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.75rem;font-family:'Roboto',sans-serif;">
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#22c55e;"></span>Cumple (Sí)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ef4444;"></span>No cumple (No)</span>
+                </div>
+                <div class="chart-wrap" style="min-height:200px;">
+                    <canvas id="criteriaChart" class="chart-canvas"></canvas>
+                    <div id="criteriaEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="criteriaLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Estado de certificaciones (donut) -->
+            <div class="card" style="position:relative;">
+                <div class="card-title">Estado de Certificaciones</div>
+                <div class="chart-wrap" style="min-height:220px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="certDonutChart" class="chart-canvas" style="max-height:260px;"></canvas>
+                    <div id="certDonutEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos de vigencia para el período</p>
+                    </div>
+                </div>
+                <!-- Legend -->
+                <div style="display:flex;justify-content:center;gap:1.5rem;margin-top:1rem;flex-wrap:wrap;font-size:0.8125rem;font-family:'Roboto',sans-serif;" id="certDonutLegend"></div>
+                <div class="loading-overlay" id="certDonutLoading"><div class="spinner"></div></div>
+            </div>
+
+        </div>
+
+        <!-- ── Row 2: Por empleado (left) + Por sitio (right) ────────────── -->
+        <div class="charts-row">
+
+            <!-- Cumplimiento por empleado (ranking, sorted asc) -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">
+                    Cumplimiento por Empleado (# Documento)
+                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— menor a mayor</span>
+                </div>
+                <div style="display:flex;gap:1.25rem;flex-wrap:wrap;margin-bottom:0.5rem;font-size:0.75rem;font-family:'Roboto',sans-serif;">
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;"></span>≥90% Cumple</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#eab308;"></span>70–89% Riesgo</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;"></span>&lt;70% No cumple</span>
+                </div>
+                <div class="chart-wrap" style="min-height:200px;">
+                    <canvas id="empleadoChart" class="chart-canvas"></canvas>
+                    <div id="empleadoEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <p>Sin datos de empleados para el período</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="empleadoLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Cumplimiento por sitio (ranking, sorted asc) -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">
+                    Cumplimiento por Sitio / Cliente
+                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— menor a mayor</span>
+                </div>
+                <div class="chart-wrap" style="min-height:200px;">
+                    <canvas id="sitioChart" class="chart-canvas"></canvas>
+                    <div id="sitioEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                        <p>Sin datos de sitio para el período</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="sitioLoading"><div class="spinner"></div></div>
+            </div>
+
+        </div>
+
+    </div><!-- /main-container -->
+
+    <!-- ── Details Modal ─────────────────────────────────────────────────── -->
+    <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) this.classList.remove('active')">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title">Registros de Cumplimiento Normativo</h3>
+                <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="detailsLoading" style="display:none;text-align:center;color:#94a3b8;padding:2rem;">Cargando registros...</div>
+                <div class="modal-table-wrapper">
+                    <table class="modal-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Sitio / Cliente</th>
+                                <th>Auditor</th>
+                                <th># Doc</th>
+                                <th>Agente</th>
+                                <th>Curso</th>
+                                <th>Nivel</th>
+                                <th>Vigencia Hasta</th>
+                                <th>Copia Física</th>
+                                <th>Cargado Sist.</th>
+                                <th>Coincide HV</th>
+                                <th>Vigente</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let currentQS = '';
+
+    // ── Theme ─────────────────────────────────────────────────────────────
+    const themeToggle   = document.getElementById('themeToggle');
+    const darkModeIcon  = document.getElementById('darkModeIcon');
+    const lightModeIcon = document.getElementById('lightModeIcon');
+    function setDarkMode()  { document.body.classList.remove('light-mode'); darkModeIcon.style.display='block'; lightModeIcon.style.display='none';  localStorage.setItem('theme','dark');  updateChartTheme(false); }
+    function setLightMode() { document.body.classList.add('light-mode');    darkModeIcon.style.display='none';  lightModeIcon.style.display='block'; localStorage.setItem('theme','light'); updateChartTheme(true);  }
+    function initTheme()    { const s=localStorage.getItem('theme'); (s==='light'||(!s&&!window.matchMedia('(prefers-color-scheme: dark)').matches)) ? setLightMode() : setDarkMode(); }
+    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+
+    // ── Chart.js ──────────────────────────────────────────────────────────
+    Chart.register(ChartDataLabels);
+    const CHART_DARK  = { tick:'#94a3b8', grid:'rgba(255,255,255,0.05)', label:'#e2e8f0' };
+    const CHART_LIGHT = { tick:'#64748b', grid:'rgba(0,0,0,0.06)',       label:'#0f172a' };
+    let chartTheme = CHART_DARK;
+
+    let criteriaChart = null, certDonutChart = null,
+        empleadoChart = null, sitioChart = null;
+
+    function updateChartTheme(isLight) {
+        chartTheme = isLight ? CHART_LIGHT : CHART_DARK;
+        [criteriaChart, empleadoChart, sitioChart].forEach(c => {
+            if (!c) return;
+            if (c.options.scales) Object.values(c.options.scales).forEach(ax => {
+                if (ax.ticks) ax.ticks.color = chartTheme.tick;
+                if (ax.grid)  ax.grid.color  = chartTheme.grid;
+            });
+            if (c.options.plugins?.legend?.labels)
+                c.options.plugins.legend.labels.color = chartTheme.label;
+            c.update('none');
+        });
+        if (certDonutChart) {
+            if (certDonutChart.options.plugins?.legend?.labels)
+                certDonutChart.options.plugins.legend.labels.color = chartTheme.label;
+            certDonutChart.update('none');
+        }
+    }
+
+    function setLoading(id, on) { document.getElementById(id)?.classList.toggle('active', on); }
+
+    // ── Color helpers ─────────────────────────────────────────────────────
+    function pctColor(pct) {
+        if (pct === null || pct === undefined) return '#6b7280';
+        if (pct >= 90) return '#22c55e';
+        if (pct >= 70) return '#eab308';
+        return '#ef4444';
+    }
+
+    function nivelBadge(nivel) {
+        if (!nivel || nivel === '—') return nivel;
+        const l = nivel.toLowerCase();
+        if (l === 'cumple') return `<span class="badge badge-cumple">${nivel}</span>`;
+        if (l === 'no cumple') return `<span class="badge badge-nocumple">${nivel}</span>`;
+        return `<span class="badge badge-hallazgos">${nivel}</span>`;
+    }
+
+    function checkBadge(val) {
+        if (!val || val === '—') return val;
+        const l = val.toLowerCase();
+        if (l === 'si') return `<span class="badge badge-vigente">Sí</span>`;
+        if (l === 'no') return `<span class="badge badge-vencido">No</span>`;
+        return val;
+    }
+
+    // ── KPI renderer ──────────────────────────────────────────────────────
+    function renderKPI(kpi) {
+        const pctCumpleColor = pctColor(kpi.pct_cumple);
+        const pctNoColor     = kpi.pct_no_cumple > 0 ? '#f87171' : '#22c55e';
+
+        document.getElementById('kpiPctCumple').textContent  = kpi.pct_cumple != null  ? `${kpi.pct_cumple}%`    : '—%';
+        document.getElementById('kpiPctCumple').style.color  = pctCumpleColor;
+        document.getElementById('kpiCntCumple').textContent  = kpi.cnt_cumple != null  ? `${kpi.cnt_cumple} verificaciones cumplen` : '— verificaciones cumplen';
+
+        document.getElementById('kpiPctNoCumple').textContent = kpi.pct_no_cumple != null ? `${kpi.pct_no_cumple}%`  : '—%';
+        document.getElementById('kpiPctNoCumple').style.color = pctNoColor;
+        document.getElementById('kpiCntNoCumple').textContent = kpi.cnt_no_cumple != null ? `${kpi.cnt_no_cumple} verificaciones no cumplen` : '— verificaciones no cumplen';
+
+        document.getElementById('kpiTotal').textContent       = kpi.total ?? '—';
+        document.getElementById('kpiCntHallazgos').textContent= kpi.cnt_hallazgos != null ? `${kpi.cnt_hallazgos} con hallazgos menores` : '';
+
+        const pctVenc = kpi.pct_vencidos ?? 0;
+        document.getElementById('kpiPctVencidos').textContent = `${pctVenc}%`;
+        document.getElementById('kpiPctVencidos').style.color = pctVenc > 0 ? '#f87171' : '#4ade80';
+        document.getElementById('kpiCntVencidos').textContent = kpi.cnt_vencidos != null ? `${kpi.cnt_vencidos} certificados vencidos` : '—';
+        document.getElementById('kpiCntProximos').textContent = kpi.cnt_proximos != null ? `${kpi.cnt_proximos} próximos a vencer` : '';
+    }
+
+    // ── Alert banners ─────────────────────────────────────────────────────
+    function renderAlerts(vencidos, proximos) {
+        const bv = document.getElementById('alertVencidos');
+        const bp = document.getElementById('alertProximos');
+
+        if (vencidos && vencidos.length > 0) {
+            bv.style.display = 'flex';
+            const items = vencidos.map(a => {
+                const label = a.num_doc !== '—' && a.num_doc ? `#${a.num_doc}` : a.nombre;
+                return `<span class="alert-badge-critico">&#9888; ${label} — ${a.curso} (vencido hace ${a.dias_vencido}d)</span>`;
+            }).join(' ');
+            document.getElementById('alertVencidosBody').innerHTML =
+                `Los siguientes certificados están vencidos y requieren renovación inmediata: <br>${items}`;
+        } else {
+            bv.style.display = 'none';
+        }
+
+        if (proximos && proximos.length > 0) {
+            bp.style.display = 'flex';
+            const items = proximos.map(a => {
+                const label = a.num_doc !== '—' && a.num_doc ? `#${a.num_doc}` : a.nombre;
+                return `<span class="alert-badge-seguimiento">${label} — ${a.curso} (vence en ${a.dias_restantes}d)</span>`;
+            }).join(' ');
+            document.getElementById('alertProximosBody').innerHTML =
+                `Los siguientes certificados vencen en menos de 30 días: <br>${items}`;
+        } else {
+            bp.style.display = 'none';
+        }
+    }
+
+    // ── Criteria horizontal stacked bar ───────────────────────────────────
+    function renderCriteriaChart(criteria) {
+        const canvas = document.getElementById('criteriaChart');
+        const empty  = document.getElementById('criteriaEmpty');
+        if (!criteria || criteria.length === 0) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        if (criteriaChart) criteriaChart.destroy();
+        criteriaChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels: criteria.map(c => c.label),
+                datasets: [
+                    {
+                        label: 'No cumple',
+                        data: criteria.map(c => c.no),
+                        backgroundColor: '#ef4444',
+                        borderWidth: 0,
+                        borderRadius: 0,
+                        barThickness: 26,
+                        datalabels: {
+                            anchor: 'center', align: 'center',
+                            color: '#fff', font: { size: 11, weight: '700' },
+                            formatter: v => v > 0 ? v : ''
+                        }
+                    },
+                    {
+                        label: 'Cumple',
+                        data: criteria.map(c => c.si),
+                        backgroundColor: '#22c55e',
+                        borderWidth: 0,
+                        borderRadius: 4,
+                        barThickness: 26,
+                        datalabels: {
+                            anchor: 'end', align: 'end',
+                            color: chartTheme.tick, font: { size: 11, weight: '700' },
+                            formatter: (v, ctx) => {
+                                const tot = criteria[ctx.dataIndex].si + criteria[ctx.dataIndex].no;
+                                const pct = tot ? ((criteria[ctx.dataIndex].si / tot) * 100).toFixed(0) : 0;
+                                return v > 0 ? `${v} (${pct}%)` : '';
+                            }
+                        }
+                    },
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { color: chartTheme.tick, precision: 0 },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const c = criteria[ctx.dataIndex];
+                                const tot = c.si + c.no;
+                                const pct = tot ? ((ctx.parsed.x / tot) * 100).toFixed(1) : 0;
+                                return ` ${ctx.dataset.label}: ${ctx.parsed.x} (${pct}%)`;
+                            }
+                        }
+                    },
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(180, criteria.length * 50 + 30) + 'px';
+    }
+
+    // ── Certification status donut ─────────────────────────────────────────
+    function renderCertDonut(certStatus) {
+        const canvas = document.getElementById('certDonutChart');
+        const empty  = document.getElementById('certDonutEmpty');
+        const legend = document.getElementById('certDonutLegend');
+        const total  = (certStatus.vigente || 0) + (certStatus.proximo || 0) + (certStatus.vencido || 0);
+
+        if (!total) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; legend.innerHTML = ''; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = ['Vigente', 'Próximo a vencer', 'Vencido'];
+        const values = [certStatus.vigente, certStatus.proximo, certStatus.vencido];
+        const colors = ['#22c55e', '#eab308', '#ef4444'];
+
+        // Custom legend
+        legend.innerHTML = labels.map((l, i) => {
+            const pct = total ? ((values[i] / total) * 100).toFixed(1) : 0;
+            return `<span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;">
+                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colors[i]};"></span>
+                <span>${l}:</span>
+                <strong style="color:${colors[i]};">${values[i]}</strong>
+                <span>(${pct}%)</span>
+            </span>`;
+        }).join('');
+
+        if (certDonutChart) certDonutChart.destroy();
+        certDonutChart = new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 3,
+                    borderColor: document.body.classList.contains('light-mode') ? '#fff' : '#2d3748',
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '60%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.parsed;
+                                const pct = total ? ((v / total) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${v} (${pct}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#fff',
+                        font: { size: 12, weight: '700' },
+                        formatter: (v) => {
+                            if (!v) return '';
+                            const pct = ((v / total) * 100).toFixed(0);
+                            return `${pct}%`;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ── Empleado bar (horizontal ranking, sorted asc) ─────────────────────
+    function renderEmpleadoChart(empleados) {
+        const canvas = document.getElementById('empleadoChart');
+        const empty  = document.getElementById('empleadoEmpty');
+        if (!empleados || empleados.length === 0) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = empleados.map(e => e.num_doc !== 'Sin ID' ? `#${e.num_doc}` : e.nombre);
+        const values = empleados.map(e => e.pct_cumple);
+        const colors = empleados.map(e => e.color);
+
+        if (empleadoChart) empleadoChart.destroy();
+        empleadoChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    barThickness: 22,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        ticks: { color: chartTheme.tick, callback: v => `${v}%` },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const e = empleados[ctx.dataIndex];
+                                return ` Cumplimiento: ${ctx.parsed.x}% (${e.total} verificaciones)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '700' },
+                        formatter: v => v != null ? `${v}%` : ''
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(180, empleados.length * 40 + 30) + 'px';
+    }
+
+    // ── Sitio bar (horizontal ranking, sorted asc) ────────────────────────
+    function renderSitioChart(sitios) {
+        const canvas = document.getElementById('sitioChart');
+        const empty  = document.getElementById('sitioEmpty');
+        if (!sitios || sitios.length === 0) {
+            canvas.style.display = 'none'; empty.style.display = 'block'; return;
+        }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = sitios.map(s => s.sitio);
+        const values = sitios.map(s => s.pct_cumple);
+        const colors = sitios.map(s => s.color);
+
+        if (sitioChart) sitioChart.destroy();
+        sitioChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    borderRadius: 4,
+                    barThickness: 22,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        ticks: { color: chartTheme.tick, callback: v => `${v}%` },
+                        grid:  { color: chartTheme.grid },
+                    },
+                    y: {
+                        ticks: { color: chartTheme.label, font: { size: 11 } },
+                        grid:  { display: false },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const s = sitios[ctx.dataIndex];
+                                return ` Cumplimiento: ${ctx.parsed.x}% (${s.total} verificaciones)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'end',
+                        color: chartTheme.tick, font: { size: 11, weight: '700' },
+                        formatter: v => v != null ? `${v}%` : ''
+                    }
+                }
+            }
+        });
+        canvas.parentElement.style.height = Math.max(180, sitios.length * 40 + 30) + 'px';
+    }
+
+    // ── Error toast ───────────────────────────────────────────────────────
+    function showError(msg) {
+        let t = document.getElementById('df-error-toast');
+        if (!t) {
+            t = document.createElement('div'); t.id = 'df-error-toast';
+            t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:pre-wrap;';
+            document.body.appendChild(t);
+        }
+        t.textContent = '⚠️  ' + msg;
+        t.style.display = 'block';
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.style.display = 'none', 8000);
+    }
+
+    // ── Details modal ─────────────────────────────────────────────────────
+    async function openDetailsModal() {
+        const modal   = document.getElementById('detailsModal');
+        const tBody   = document.getElementById('detailsTableBody');
+        const loading = document.getElementById('detailsLoading');
+        modal.classList.add('active');
+        tBody.innerHTML = '';
+        loading.style.display = 'block';
+        try {
+            const res  = await fetch(`/dashboard/api/cumplimiento/detalles${currentQS ? '?' + currentQS : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) { showError(`API Error: ${data.error || res.status}`); return; }
+            if (!data.detalles?.length) {
+                tBody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;">No hay registros para este período.</td></tr>';
+                return;
+            }
+            data.detalles.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="white-space:nowrap;">${r.fecha_hora}</td>
+                    <td>${r.cliente}</td>
+                    <td>${r.auditor}</td>
+                    <td><strong>${r.num_doc}</strong></td>
+                    <td>${r.agente}</td>
+                    <td style="font-size:0.8rem;">${r.curso}</td>
+                    <td>${nivelBadge(r.nivel)}</td>
+                    <td style="white-space:nowrap;">${r.vigencia_hasta}</td>
+                    <td style="text-align:center;">${checkBadge(r.copia_fisica)}</td>
+                    <td style="text-align:center;">${checkBadge(r.cargado_sistema)}</td>
+                    <td style="text-align:center;">${checkBadge(r.coincide_hv)}</td>
+                    <td style="text-align:center;">${checkBadge(r.vigente)}</td>
+                `;
+                tBody.appendChild(tr);
+            });
+        } catch (err) {
+            showError(`Error cargando detalles: ${err.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    // ── Main data loader ──────────────────────────────────────────────────
+    async function loadData(qs = '') {
+        ['criteriaLoading','certDonutLoading','empleadoLoading','sitioLoading']
+            .forEach(id => setLoading(id, true));
+        try {
+            const res  = await fetch(`/dashboard/api/cumplimiento/data${qs ? '?' + qs : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) { showError(`API Error: ${data.error || `HTTP ${res.status}`}`); return; }
+
+            renderKPI(data.kpi);
+            renderAlerts(data.alertas_vencidos, data.alertas_proximos);
+            renderCriteriaChart(data.criteria);
+            renderCertDonut(data.cert_status);
+            renderEmpleadoChart(data.por_empleado);
+            renderSitioChart(data.por_sitio);
+        } catch (err) {
+            showError(`Error de conexión: ${err.message}`);
+        } finally {
+            ['criteriaLoading','certDonutLoading','empleadoLoading','sitioLoading']
+                .forEach(id => setLoading(id, false));
+        }
+    }
+
+    function buildQS(state) {
+        const p = new URLSearchParams();
+        if (state.propertyId) p.set('cliente', state.propertyId);
+        if (state.year)       p.set('year',    state.year);
+        if (state.month)      p.set('month',   state.month);
+        if (state.day)        p.set('day',     state.day);
+        return p.toString();
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTheme();
+        const filters    = new DashboardFilters();
+        filters.init();
+
+        const propSelect = document.getElementById('df-property');
+        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+        try {
+            const res = await fetch('/dashboard/api/cumplimiento/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            clientes.forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch (e) { console.warn('Could not load clientes', e); }
+
+        document.addEventListener('filtersChanged', e => {
+            currentQS = buildQS(e.detail);
+            loadData(currentQS);
+        });
+
+        loadData();
+    });
+    </script>
+</body>
+</html>

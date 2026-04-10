@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confiabilidad de Equipos — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
+        h1,h2,h3,h4,h5,h6 { font-family:'Merriweather',serif; color:#fff; }
+        .header-nav { position:fixed; top:0; left:0; right:0; background:rgba(31,41,55,0.96); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,0.08); padding:1rem 1.5rem; z-index:50; }
+        .nav-content { max-width:1280px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.75rem; }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#67e8f9; text-decoration:none; font-size:.875rem; transition:color .2s; }
+        .nav-link:hover { color:#a5f3fc; text-decoration:underline; }
+        .user-greeting { font-size:.875rem; color:#9ca3af; }
+        .user-name { color:#67e8f9; font-weight:700; }
+        .admin-badge { color:#a78bfa; font-weight:700; }
+        .theme-toggle { position:fixed; top:1.25rem; left:1.25rem; z-index:100; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:.5rem; padding:.5rem; cursor:pointer; color:#e5e7eb; }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+        .module-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.75rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.08); }
+        .module-icon { width:50px; height:50px; border-radius:12px; flex-shrink:0; background:rgba(100,116,139,0.15); color:#94a3b8; display:flex; align-items:center; justify-content:center; }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 .2rem; }
+        .module-header p { font-size:.875rem; color:#94a3b8; margin:0; }
+        /* Alerts */
+        .alert-banner { display:flex; gap:1rem; align-items:flex-start; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.24); color:#fecaca; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; }
+        .alert-banner svg { width:22px; height:22px; flex-shrink:0; margin-top:.15rem; }
+        .alert-banner-title { font-weight:700; color:#fca5a5; margin-bottom:.25rem; }
+        .alert-warn { display:flex; gap:1rem; align-items:flex-start; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.24); color:#fde68a; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; }
+        .alert-warn svg { width:22px; height:22px; flex-shrink:0; margin-top:.15rem; }
+        .alert-warn-title { font-weight:700; color:#fcd34d; margin-bottom:.25rem; }
+        /* Cards */
+        .card { background:#374151; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1.5rem; }
+        .card-title { font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:.875rem; }
+        .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1rem; }
+        .kpi-value { font-family:'Merriweather',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:.35rem; }
+        .kpi-label { font-size:.82rem; color:#cbd5e1; }
+        .kpi-sub { font-size:.74rem; color:#94a3b8; margin-top:.35rem; }
+        /* KPI estado badge */
+        .estado-badge { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.25rem .75rem; font-size:.75rem; font-weight:700; margin-top:.5rem; }
+        .estado-verde   { background:rgba(34,197,94,.14);  color:#86efac; }
+        .estado-amarillo { background:rgba(234,179,8,.14); color:#fef08a; }
+        .estado-naranja { background:rgba(249,115,22,.14); color:#fed7aa; }
+        .estado-rojo    { background:rgba(239,68,68,.14);  color:#fca5a5; }
+        /* Progress bar */
+        .progress-bar-bg { background:rgba(255,255,255,0.08); border-radius:999px; height:8px; margin-top:.75rem; overflow:hidden; }
+        .progress-bar-fill { height:100%; border-radius:999px; transition:width .5s ease; }
+        /* Charts */
+        .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+        .chart-full { margin-bottom:1rem; }
+        .chart-box { position:relative; min-height:320px; }
+        .empty-state { text-align:center; padding:3rem 1rem; color:#6b7280; display:none; }
+        .empty-state svg { width:40px; height:40px; margin:0 auto .75rem; display:block; }
+        /* Tables */
+        .matrix-table-wrap { overflow:auto; max-height:560px; }
+        .matrix-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.875rem; text-align:left; }
+        .matrix-table th { padding:.75rem; color:#cbd5e1; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:#374151; z-index:1; white-space:nowrap; }
+        .matrix-table td { padding:.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#e5e7eb; vertical-align:middle; }
+        .matrix-table tr:hover td { background:rgba(255,255,255,0.03); }
+        /* Estado pills */
+        .pill { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.2rem .65rem; font-size:.74rem; font-weight:700; white-space:nowrap; }
+        .pill::before { content:''; width:8px; height:8px; border-radius:50%; }
+        .pill-verde    { background:rgba(34,197,94,.12);  color:#86efac; }
+        .pill-verde::before  { background:#22c55e; }
+        .pill-amarillo { background:rgba(234,179,8,.12);  color:#fef08a; }
+        .pill-amarillo::before { background:#eab308; }
+        .pill-naranja  { background:rgba(249,115,22,.12); color:#fed7aa; }
+        .pill-naranja::before  { background:#f97316; }
+        .pill-rojo     { background:rgba(239,68,68,.12);  color:#fca5a5; }
+        .pill-rojo::before     { background:#ef4444; }
+        /* Pct cell color */
+        .pct-verde    { color:#22c55e; font-weight:700; }
+        .pct-amarillo { color:#eab308; font-weight:700; }
+        .pct-naranja  { color:#f97316; font-weight:700; }
+        .pct-rojo     { color:#ef4444; font-weight:700; }
+        /* Light mode */
+        body.light-mode { background:#f1f5f9; color:#0f172a; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3 { color:#0f172a; }
+        body.light-mode .header-nav { background:rgba(255,255,255,0.96); border-bottom:1px solid rgba(0,0,0,0.08); }
+        body.light-mode .theme-toggle { background:rgba(0,0,0,0.06); color:#334155; border-color:rgba(0,0,0,0.12); }
+        body.light-mode .card { background:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,.06); }
+        body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
+        body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,.08); }
+        body.light-mode .module-header p { color:#64748b; }
+        body.light-mode .progress-bar-bg { background:rgba(0,0,0,0.08); }
+        @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+        @media (max-width:900px)  { .charts-row { grid-template-columns:1fr; } }
+        @media (max-width:640px)  { .kpi-grid { grid-template-columns:1fr; } body { padding-top:110px; } .nav-content { flex-direction:column; align-items:flex-start; } }
+    </style>
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">Bienvenido, <span class="user-name">{{ user_name }}</span>{% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}</div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">← Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+            </div>
+            <div>
+                <h1>Confiabilidad de Equipos</h1>
+                <p>Evaluación del estado y desempeño de los sistemas de seguridad — cámaras, monitores, grabadores, alarmas y más</p>
+            </div>
+        </div>
+
+        <!-- Alert banners -->
+        <div id="alertRojo" class="alert-banner" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+            <div>
+                <div class="alert-banner-title">Sistemas no confiables detectados</div>
+                <div id="alertRojoBody"></div>
+            </div>
+        </div>
+        <div id="alertDeterio" class="alert-warn" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>
+            <div>
+                <div class="alert-warn-title">Deterioro de confiabilidad detectado</div>
+                <div id="alertDeterioBody"></div>
+            </div>
+        </div>
+
+        {% include '_dashboard_filters.html' %}
+
+        <!-- KPI grid -->
+        <div class="kpi-grid">
+            <!-- Main KPI: confiabilidad general -->
+            <div class="card">
+                <div class="card-title">Confiabilidad General</div>
+                <div class="kpi-value" id="kpiPct" style="color:#94a3b8;">—</div>
+                <div class="kpi-label">del total de equipos monitoreados</div>
+                <div id="kpiEstadoBadge"></div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="kpiProgressBar" style="width:0%; background:#94a3b8;"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Total Inspecciones</div>
+                <div class="kpi-value" id="kpiRegistros" style="color:#94a3b8;">—</div>
+                <div class="kpi-label">Registros en el período</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Equipos Monitoreados</div>
+                <div class="kpi-value" id="kpiTotal" style="color:#94a3b8;">—</div>
+                <div class="kpi-label">Unidades totales registradas</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Tipos No Confiables</div>
+                <div class="kpi-value" id="kpiNoConf" style="color:#ef4444;">—</div>
+                <div class="kpi-label">Tipos de equipo con &lt; 70%</div>
+                <div class="kpi-sub" id="kpiNoConfSub">—</div>
+            </div>
+        </div>
+
+        <!-- Charts row: donut + bar -->
+        <div class="charts-row">
+            <!-- Donut: distribution by estado -->
+            <div class="card">
+                <div class="card-title">Distribución de Inspecciones por Estado</div>
+                <div id="donutEmpty" class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/></svg>
+                    <p>Sin datos suficientes</p>
+                </div>
+                <div class="chart-box" style="min-height:300px;"><canvas id="donutChart"></canvas></div>
+                <div id="donutLeyenda" style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-top:.75rem;"></div>
+            </div>
+            <!-- Bar: confiabilidad por tipo, sorted asc -->
+            <div class="card">
+                <div class="card-title">Confiabilidad por Tipo de Equipo (menor a mayor)</div>
+                <div id="tipoEmpty" class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg>
+                    <p>Sin datos de equipos</p>
+                </div>
+                <div class="chart-box" id="tipoBox"><canvas id="tipoChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Tendencia de confiabilidad -->
+        <div class="card chart-full">
+            <div class="card-title">Tendencia de Confiabilidad en el Tiempo</div>
+            <div id="trendEmpty" class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                <p>Sin datos de tendencia</p>
+            </div>
+            <div class="chart-box" style="min-height:340px;"><canvas id="trendChart"></canvas></div>
+        </div>
+
+        <!-- Consolidated matrix by tipo -->
+        <div class="card chart-full">
+            <div class="card-title">Consolidado de Confiabilidad por Tipo de Equipo</div>
+            <div class="matrix-table-wrap">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo de Equipo</th>
+                            <th style="text-align:right;">Total</th>
+                            <th style="text-align:right;">Funcionando</th>
+                            <th style="text-align:right;">% Confiabilidad</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consolidadoBody">
+                        <tr><td colspan="5" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Individual inspection records -->
+        <div class="card chart-full">
+            <div class="card-title">Últimas Inspecciones</div>
+            <div class="matrix-table-wrap">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Cliente / Instalación</th>
+                            <th>Sitio</th>
+                            <th>Técnico</th>
+                            <th style="text-align:right;">% Confiabilidad</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registrosBody">
+                        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div><!-- /main-container -->
+
+    <script>
+    Chart.register(ChartDataLabels);
+    Chart.defaults.font.family = "'Roboto', sans-serif";
+    Chart.defaults.color = '#cbd5e1';
+
+    const GRID_COLOR = 'rgba(148,163,184,0.15)';
+    const TICK_COLOR = '#94a3b8';
+    let donutChart, tipoChart, trendChart;
+
+    /* ── Theme ──────────────────────────────────────────────────────────── */
+    (function() {
+        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+        syncThemeIcons();
+    })();
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+        syncThemeIcons();
+    });
+    function syncThemeIcons() {
+        const light = document.body.classList.contains('light-mode');
+        document.getElementById('darkModeIcon').style.display  = light ? 'none'  : 'block';
+        document.getElementById('lightModeIcon').style.display = light ? 'block' : 'none';
+    }
+
+    /* ── Semaphore helpers ──────────────────────────────────────────────── */
+    function destroyChart(inst) { if (inst) { try { inst.destroy(); } catch(_) {} } }
+
+    function eqColor(pct) {
+        if (pct === null || pct === undefined) return '#94a3b8';
+        if (pct >= 95) return '#22c55e';
+        if (pct >= 85) return '#eab308';
+        if (pct >= 70) return '#f97316';
+        return '#ef4444';
+    }
+
+    function eqEstado(pct) {
+        if (pct === null || pct === undefined) return 'Sin datos';
+        if (pct >= 95) return 'Operativo';
+        if (pct >= 85) return 'Operativo c/obs.';
+        if (pct >= 70) return 'Riesgo operativo';
+        return 'No confiable';
+    }
+
+    function eqPillClass(pct) {
+        if (pct === null || pct === undefined) return '';
+        if (pct >= 95) return 'pill pill-verde';
+        if (pct >= 85) return 'pill pill-amarillo';
+        if (pct >= 70) return 'pill pill-naranja';
+        return 'pill pill-rojo';
+    }
+
+    function eqPctClass(pct) {
+        if (pct === null || pct === undefined) return '';
+        if (pct >= 95) return 'pct-verde';
+        if (pct >= 85) return 'pct-amarillo';
+        if (pct >= 70) return 'pct-naranja';
+        return 'pct-rojo';
+    }
+
+    function eqBadgeClass(pct) {
+        if (pct === null || pct === undefined) return '';
+        if (pct >= 95) return 'estado-badge estado-verde';
+        if (pct >= 85) return 'estado-badge estado-amarillo';
+        if (pct >= 70) return 'estado-badge estado-naranja';
+        return 'estado-badge estado-rojo';
+    }
+
+    function monthLabel(key) {
+        if (!key) return '';
+        const [y, m] = key.split('-');
+        return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('es', { month: 'short', year: 'numeric' });
+    }
+
+    /* ── KPI ────────────────────────────────────────────────────────────── */
+    function renderKPI(kpi) {
+        const pct       = kpi.pct_general;
+        const registros = kpi.total_registros  || 0;
+        const total     = kpi.total_equipos    || 0;
+        const noConf    = kpi.tipos_no_conf    || 0;
+        const estado    = kpi.estado_general   || '—';
+        const color     = eqColor(pct);
+
+        const pctEl = document.getElementById('kpiPct');
+        pctEl.textContent = pct !== null ? `${pct.toFixed(1)}%` : '—';
+        pctEl.style.color = color;
+
+        const badge = document.getElementById('kpiEstadoBadge');
+        badge.innerHTML = pct !== null
+            ? `<span class="${eqBadgeClass(pct)}">${estado}</span>`
+            : '';
+
+        const bar = document.getElementById('kpiProgressBar');
+        bar.style.width   = pct !== null ? `${Math.min(pct, 100)}%` : '0%';
+        bar.style.background = color;
+
+        document.getElementById('kpiRegistros').textContent = registros.toLocaleString('es');
+        document.getElementById('kpiTotal').textContent     = total.toLocaleString('es');
+
+        const noEl = document.getElementById('kpiNoConf');
+        noEl.textContent  = noConf.toLocaleString('es');
+        noEl.style.color  = noConf > 0 ? '#ef4444' : '#22c55e';
+        document.getElementById('kpiNoConfSub').textContent =
+            noConf > 0 ? `${noConf} tipo(s) por debajo del 70%` : 'Todos los tipos operativos';
+    }
+
+    /* ── Donut distribution ─────────────────────────────────────────────── */
+    function renderDonutChart(dist) {
+        const empty  = document.getElementById('donutEmpty');
+        const canvas = document.getElementById('donutChart');
+        const leyenda = document.getElementById('donutLeyenda');
+        destroyChart(donutChart);
+
+        const total = dist.total || 0;
+        if (!total) {
+            empty.style.display  = 'block';
+            canvas.style.display = 'none';
+            leyenda.innerHTML    = '';
+            return;
+        }
+        empty.style.display  = 'none';
+        canvas.style.display = 'block';
+
+        const labels  = ['Operativo (≥95%)', 'C/Observaciones (≥85%)', 'Riesgo Operativo (≥70%)', 'No Confiable (<70%)'];
+        const values  = [dist.verde, dist.amarillo, dist.naranja, dist.rojo];
+        const colors  = ['#22c55e', '#eab308', '#f97316', '#ef4444'];
+
+        donutChart = new Chart(canvas, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: colors, borderWidth: 1, hoverOffset: 6 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '68%',
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: '700', size: 11 },
+                        formatter: (v, ctx) => {
+                            if (!v) return '';
+                            const pct = ((v / total) * 100).toFixed(1);
+                            return `${pct}%`;
+                        },
+                    }
+                }
+            }
+        });
+
+        // Custom legend
+        leyenda.innerHTML = labels.map((lbl, i) => {
+            if (!values[i]) return '';
+            const pct = ((values[i] / total) * 100).toFixed(1);
+            return `<div style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;">
+                <span style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0;"></span>
+                <span style="color:#cbd5e1;">${lbl}</span>
+                <span style="margin-left:auto;font-weight:700;color:${colors[i]};">${values[i]} (${pct}%)</span>
+            </div>`;
+        }).filter(Boolean).join('');
+    }
+
+    /* ── Bar chart: confiabilidad por tipo (sorted asc = least reliable top) */
+    function renderTipoChart(rows) {
+        const empty  = document.getElementById('tipoEmpty');
+        const box    = document.getElementById('tipoBox');
+        const canvas = document.getElementById('tipoChart');
+        destroyChart(tipoChart);
+
+        const valid = rows.filter(r => r.pct !== null);
+        if (!valid.length) {
+            empty.style.display = 'block';
+            box.style.display   = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+        box.style.display   = 'block';
+
+        const labels = valid.map(r => r.tipo);
+        const values = valid.map(r => r.pct);
+        const colors = values.map(v => eqColor(v));
+
+        tipoChart = new Chart(canvas, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: '% Confiabilidad',
+                        data: values,
+                        backgroundColor: colors,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        barThickness: 22,
+                    },
+                    // Reference line at 70%
+                    {
+                        type: 'line',
+                        label: 'Mínimo (70%)',
+                        data: labels.map(() => 70),
+                        borderColor: 'rgba(239,68,68,0.6)',
+                        borderWidth: 1.5,
+                        borderDash: [5,4],
+                        pointRadius: 0,
+                        fill: false,
+                        datalabels: { display: false },
+                    },
+                ]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: { right: 50 } },
+                scales: {
+                    x: {
+                        min: 0, max: 100,
+                        grid: { color: GRID_COLOR },
+                        ticks: { color: TICK_COLOR, callback: v => v + '%' }
+                    },
+                    y: { grid: { display: false }, ticks: { color: TICK_COLOR, font: { size: 11 } } },
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: items => valid[items[0].dataIndex]?.tipo || '',
+                            label: ctx => ctx.datasetIndex === 0
+                                ? `  Confiabilidad: ${ctx.raw.toFixed(1)}%  (${valid[ctx.dataIndex]?.func}/${valid[ctx.dataIndex]?.total})`
+                                : '',
+                        }
+                    },
+                    datalabels: {
+                        anchor: 'end', align: 'right', offset: 4, clamp: true,
+                        color: ctx => ctx.datasetIndex === 0 ? '#e5e7eb' : 'transparent',
+                        font: { size: 11, weight: '700' },
+                        formatter: (v, ctx) => ctx.datasetIndex === 0 ? `${v.toFixed(1)}%` : '',
+                    }
+                }
+            }
+        });
+        box.style.height = Math.max(280, valid.length * 44 + 60) + 'px';
+    }
+
+    /* ── Tendencia ──────────────────────────────────────────────────────── */
+    function renderTrendChart(rows) {
+        const empty  = document.getElementById('trendEmpty');
+        const canvas = document.getElementById('trendChart');
+        destroyChart(trendChart);
+
+        const sorted = (rows || []).filter(r => r.periodo).sort((a,b) => a.periodo.localeCompare(b.periodo));
+        if (!sorted.length) {
+            empty.style.display  = 'block';
+            canvas.style.display = 'none';
+            return;
+        }
+        empty.style.display  = 'none';
+        canvas.style.display = 'block';
+
+        const labels = sorted.map(r => r.periodo_label || monthLabel(r.periodo));
+        const values = sorted.map(r => r.pct);
+        const ptColors = values.map(v => eqColor(v));
+        const n = labels.length;
+
+        trendChart = new Chart(canvas, {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: '% Confiabilidad',
+                        data: values,
+                        borderColor: '#94a3b8',
+                        backgroundColor: 'rgba(148,163,184,0.1)',
+                        fill: true,
+                        tension: 0.28,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: ptColors,
+                        pointBorderColor: 'transparent',
+                        segment: {
+                            borderColor: ctx => {
+                                const v = values[ctx.p1DataIndex];
+                                return eqColor(v);
+                            }
+                        },
+                    },
+                    // Threshold lines
+                    {
+                        label: 'Umbral mínimo (70%)',
+                        data: labels.map(() => 70),
+                        borderColor: 'rgba(239,68,68,0.55)',
+                        borderWidth: 1.5,
+                        borderDash: [5,4],
+                        pointRadius: 0,
+                        fill: false,
+                        datalabels: { display: false },
+                    },
+                    {
+                        label: 'Objetivo (95%)',
+                        data: labels.map(() => 95),
+                        borderColor: 'rgba(34,197,94,0.45)',
+                        borderWidth: 1.5,
+                        borderDash: [4,4],
+                        pointRadius: 0,
+                        fill: false,
+                        datalabels: { display: false },
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: {
+                        min: 0, max: 100,
+                        grid: { color: GRID_COLOR },
+                        ticks: { color: TICK_COLOR, callback: v => v + '%' }
+                    },
+                    x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxRotation: 40 } },
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
+                    datalabels: {
+                        align: 'top', anchor: 'end',
+                        color: (ctx) => ctx.datasetIndex === 0 ? eqColor(values[ctx.dataIndex]) : 'transparent',
+                        font: { size: 10, weight: '700' },
+                        formatter: (v, ctx) => ctx.datasetIndex === 0 && v !== null ? `${v.toFixed(1)}%` : '',
+                    }
+                }
+            }
+        });
+    }
+
+    /* ── Alert banners ──────────────────────────────────────────────────── */
+    function renderAlertas(alertas) {
+        const rojoEl     = document.getElementById('alertRojo');
+        const rojoBody   = document.getElementById('alertRojoBody');
+        const deterEl    = document.getElementById('alertDeterio');
+        const deterBody  = document.getElementById('alertDeterioBody');
+
+        if (alertas.no_conf_tipos > 0) {
+            rojoEl.style.display = 'flex';
+            rojoBody.textContent = `${alertas.no_conf_tipos} tipo(s) de equipo con confiabilidad menor al 70% — se requiere intervención inmediata.`;
+        } else {
+            rojoEl.style.display = 'none';
+        }
+
+        if (alertas.deterioro) {
+            deterEl.style.display = 'flex';
+            deterBody.textContent = alertas.detalle || 'La confiabilidad bajó respecto al período anterior.';
+        } else {
+            deterEl.style.display = 'none';
+        }
+    }
+
+    /* ── Consolidated matrix ────────────────────────────────────────────── */
+    function renderConsolidado(consolidado) {
+        const tbody = document.getElementById('consolidadoBody');
+        if (!consolidado.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:2rem;">Sin datos para los filtros seleccionados.</td></tr>';
+            return;
+        }
+        // Summary totals row
+        const sumTotal = consolidado.reduce((a, r) => a + r.total, 0);
+        const sumFunc  = consolidado.reduce((a, r) => a + r.func,  0);
+        const sumPct   = sumTotal > 0 ? (sumFunc / sumTotal * 100) : null;
+
+        tbody.innerHTML = consolidado.map(r => `<tr>
+            <td style="font-weight:600;">${r.tipo}</td>
+            <td style="text-align:right;">${r.total.toLocaleString('es')}</td>
+            <td style="text-align:right;">${r.func.toLocaleString('es')}</td>
+            <td style="text-align:right;"><span class="${eqPctClass(r.pct)}">${r.pct !== null ? r.pct.toFixed(1) + '%' : '—'}</span></td>
+            <td><span class="${eqPillClass(r.pct)}">${r.estado}</span></td>
+        </tr>`).join('') + `<tr style="border-top:2px solid rgba(255,255,255,0.12);">
+            <td style="font-weight:700;color:#94a3b8;">TOTAL GENERAL</td>
+            <td style="text-align:right;font-weight:700;">${sumTotal.toLocaleString('es')}</td>
+            <td style="text-align:right;font-weight:700;">${sumFunc.toLocaleString('es')}</td>
+            <td style="text-align:right;"><span class="${eqPctClass(sumPct)}" style="font-weight:700;">${sumPct !== null ? sumPct.toFixed(1) + '%' : '—'}</span></td>
+            <td><span class="${eqPillClass(sumPct)}">${eqEstado(sumPct)}</span></td>
+        </tr>`;
+    }
+
+    /* ── Individual records ─────────────────────────────────────────────── */
+    function renderRegistros(registros) {
+        const tbody = document.getElementById('registrosBody');
+        if (!registros.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para los filtros seleccionados.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = registros.map(r => `<tr>
+            <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
+            <td>${r.cliente}</td>
+            <td>${r.sitio}</td>
+            <td>${r.tecnico}</td>
+            <td style="text-align:right;"><span class="${eqPctClass(r.pct_general)}">${r.pct_general !== null ? r.pct_general.toFixed(1) + '%' : '—'}</span></td>
+            <td><span class="${eqPillClass(r.pct_general)}">${r.estado}</span></td>
+        </tr>`).join('');
+    }
+
+    /* ── Data loading ───────────────────────────────────────────────────── */
+    async function loadData(qs = '') {
+        const q = qs ? '?' + qs : '';
+        try {
+            const [dataRes, detRes] = await Promise.all([
+                fetch('/dashboard/api/equipos/data'    + q),
+                fetch('/dashboard/api/equipos/detalles' + q),
+            ]);
+            const data = await dataRes.json();
+            const det  = await detRes.json();
+
+            if (!dataRes.ok) throw new Error(data.error || 'Error cargando datos equipos');
+            if (!detRes.ok)  throw new Error(det.error  || 'Error cargando detalles equipos');
+
+            renderKPI(data.kpi            || {});
+            renderDonutChart(data.distribucion || {});
+            renderTipoChart(data.por_tipo      || []);
+            renderTrendChart(data.tendencia    || []);
+            renderAlertas(data.alertas         || {});
+            renderConsolidado(det.consolidado  || []);
+            renderRegistros(det.registros      || []);
+        } catch (err) {
+            console.error('equipos loadData error:', err);
+        }
+    }
+
+    /* ── Init ───────────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', async () => {
+        const filters = new DashboardFilters();
+        filters.init();
+
+        const propSelect = document.getElementById('df-property');
+        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
+        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
+
+        try {
+            const res = await fetch('/dashboard/api/equipos/clientes');
+            const { clientes } = await res.json();
+            while (propSelect.options.length > 1) propSelect.remove(1);
+            (clientes || []).forEach(c => {
+                const o = document.createElement('option');
+                o.value = c; o.textContent = c;
+                propSelect.appendChild(o);
+            });
+        } catch (e) {
+            console.warn('Could not load equipos clientes', e);
+        }
+
+        document.addEventListener('filtersChanged', e => {
+            const p = new URLSearchParams();
+            const { propertyId, year, month, day } = e.detail;
+            if (propertyId) p.set('cliente', propertyId);
+            if (year)       p.set('year',    year);
+            if (month)      p.set('month',   month);
+            if (day)        p.set('day',     day);
+            loadData(p.toString());
+        });
+
+        loadData();
+    });
+    </script>
+</body>
+</html>

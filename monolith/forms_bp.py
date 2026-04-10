@@ -718,15 +718,22 @@ def submit_registro_de_capacitaciones():
 
         lista_asistencia_json = _json.dumps(lista_manual)
 
+        fecha_hora = request.form.get('fecha_hora') or None
+        if not fecha_hora:
+            fecha = (request.form.get('fecha') or '').strip()
+            hora_inicio = (request.form.get('hora_inicio') or '').strip()
+            if fecha:
+                fecha_hora = f"{fecha} {hora_inicio or '00:00'}"
+
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
-            'fecha_hora': request.form.get('fecha_hora') or None,
+            'fecha_hora': fecha_hora,
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
             'nombre_responsable': request.form.get('nombre_responsable'),
             'firma_responsable': request.form.get('firma_responsable'),
-            'nombre_capacitacion': request.form.get('nombre_capacitacion'),
+            'nombre_capacitacion': request.form.get('nombre_capacitacion') or request.form.get('tema_capacitacion'),
             'objetivo_capacitacion': request.form.get('objetivo_capacitacion'),
             'observaciones_retroalimentacion': request.form.get('observaciones_retroalimentacion'),
             'lista_asistencia': lista_asistencia_json,

@@ -1611,13 +1611,25 @@ def dashboard_supervision():
 @jwt_required()
 @admin_required
 def dashboard_cumplimiento():
-    return _module_view('cumplimiento')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing cumplimiento dashboard")
+    return render_template("dashboard_cumplimiento.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/capacitacion/')
 @jwt_required()
 @admin_required
 def dashboard_capacitacion():
-    return _module_view('capacitacion')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing capacitacion dashboard")
+    return render_template("dashboard_capacitacion.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/disciplina/')
 @jwt_required()
@@ -1635,19 +1647,49 @@ def dashboard_disciplina():
 @jwt_required()
 @admin_required
 def dashboard_visitas():
-    return _module_view('visitas')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing visitas dashboard")
+    return render_template("dashboard_visitas.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/vehiculos/')
 @jwt_required()
 @admin_required
 def dashboard_vehiculos():
-    return _module_view('vehiculos')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing vehiculos dashboard")
+    return render_template("dashboard_vehiculos.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
+
+@dashboard_bp.route('/motocicletas/')
+@jwt_required()
+@admin_required
+def dashboard_motocicletas():
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing motocicletas dashboard")
+    return render_template("dashboard_motocicletas.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/equipos/')
 @jwt_required()
 @admin_required
 def dashboard_equipos():
-    return _module_view('equipos')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing equipos dashboard")
+    return render_template("dashboard_equipos.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
 
 @dashboard_bp.route('/gestion/')
 @jwt_required()
@@ -3004,6 +3046,1802 @@ def api_supervision_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_supervision_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Cumplimiento Dashboard ─────────────────────────────────────────────────────
+
+_CUMPL_CRITERIA = [
+    ('copia_certificados_fisica',     'Copia de Certificado'),
+    ('certificados_cargados_sistema', 'Certificados Cargados'),
+    ('documentacion_coincide_hv',     'Coincide Documentación'),
+    ('fechas_vigentes',               'Vigente'),
+]
+
+def _cumpl_conds(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append('cliente_instalacion = %s'); params.append(cliente)
+    if year:
+        conds.append('EXTRACT(YEAR  FROM fecha_hora) = %s'); params.append(year)
+    if month:
+        conds.append('EXTRACT(MONTH FROM fecha_hora) = %s'); params.append(month)
+    if day:
+        conds.append('EXTRACT(DAY   FROM fecha_hora) = %s'); params.append(day)
+    return conds, params
+
+def _cumpl_where(conds):
+    return ('WHERE ' + ' AND '.join(conds)) if conds else ''
+
+
+@dashboard_bp.route('/api/cumplimiento/clientes')
+@jwt_required()
+def api_cumplimiento_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM checklist_cumplimiento
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_cumplimiento_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/cumplimiento/data')
+@jwt_required()
+def api_cumplimiento_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day)
+        where = _cumpl_where(base_conds)
+
+        # ── KPI summary ────────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                                                                AS total,
+                SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple'
+                         THEN 1 ELSE 0 END)                                             AS cnt_cumple,
+                SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'no cumple'
+                         THEN 1 ELSE 0 END)                                             AS cnt_no_cumple,
+                SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) LIKE 'cumple con%%'
+                         THEN 1 ELSE 0 END)                                             AS cnt_hallazgos,
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL
+                              AND vigencia_hasta < CURRENT_DATE
+                         THEN 1 ELSE 0 END)                                             AS cnt_vencidos,
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL
+                              AND vigencia_hasta >= CURRENT_DATE
+                              AND vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'
+                         THEN 1 ELSE 0 END)                                             AS cnt_proximos
+            FROM checklist_cumplimiento
+            {where}
+        """, base_params)
+        row = cur.fetchone()
+
+        total         = int(row['total'])         if row['total']         else 0
+        cnt_cumple    = int(row['cnt_cumple'])    if row['cnt_cumple']    else 0
+        cnt_no_cumple = int(row['cnt_no_cumple']) if row['cnt_no_cumple'] else 0
+        cnt_hallazgos = int(row['cnt_hallazgos']) if row['cnt_hallazgos'] else 0
+        cnt_vencidos  = int(row['cnt_vencidos'])  if row['cnt_vencidos']  else 0
+        cnt_proximos  = int(row['cnt_proximos'])  if row['cnt_proximos']  else 0
+
+        pct_cumple    = round(cnt_cumple    / total * 100, 1) if total else 0
+        pct_no_cumple = round(cnt_no_cumple / total * 100, 1) if total else 0
+        pct_vencidos  = round(cnt_vencidos  / total * 100, 1) if total else 0
+
+        # ── Per-criterion Si/No counts ─────────────────────────────────────
+        crit_select = ", ".join(
+            f"SUM(CASE WHEN LOWER(TRIM({col})) = 'si' THEN 1 ELSE 0 END) AS si_{col},"
+            f" SUM(CASE WHEN LOWER(TRIM({col})) = 'no' THEN 1 ELSE 0 END) AS no_{col}"
+            for col, _ in _CUMPL_CRITERIA
+        )
+        cur.execute(f"SELECT {crit_select} FROM checklist_cumplimiento {where}", base_params)
+        crit_row = cur.fetchone()
+        criteria = []
+        for col, label in _CUMPL_CRITERIA:
+            si  = int(crit_row[f'si_{col}']) if crit_row[f'si_{col}'] else 0
+            no  = int(crit_row[f'no_{col}']) if crit_row[f'no_{col}'] else 0
+            tot = si + no
+            pct = round(si / tot * 100, 1) if tot else 0
+            criteria.append({'label': label, 'si': si, 'no': no, 'pct': pct})
+        criteria.sort(key=lambda x: x['pct'])  # ascending — worst first
+
+        # ── Certification status (donut) ───────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL
+                              AND vigencia_hasta >= CURRENT_DATE + INTERVAL '30 days'
+                         THEN 1 ELSE 0 END)                                             AS vigente,
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL
+                              AND vigencia_hasta >= CURRENT_DATE
+                              AND vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'
+                         THEN 1 ELSE 0 END)                                             AS proximo,
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL
+                              AND vigencia_hasta < CURRENT_DATE
+                         THEN 1 ELSE 0 END)                                             AS vencido
+            FROM checklist_cumplimiento
+            {where}
+        """, base_params)
+        cert_row   = cur.fetchone()
+        cert_status = {
+            'vigente': int(cert_row['vigente']) if cert_row['vigente'] else 0,
+            'proximo': int(cert_row['proximo']) if cert_row['proximo'] else 0,
+            'vencido': int(cert_row['vencido']) if cert_row['vencido'] else 0,
+        }
+
+        # ── Compliance by employee (numero_documento, sorted asc) ──────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(agente_numero_documento), ''), 'Sin ID') AS num_doc,
+                MAX(agente_nombre_completo)                                    AS nombre,
+                COUNT(*)                                                        AS total,
+                SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple'
+                         THEN 1 ELSE 0 END)                                    AS cumple
+            FROM checklist_cumplimiento
+            {where}
+            GROUP BY num_doc
+            ORDER BY
+                ROUND(COALESCE(SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple'
+                               THEN 1 ELSE 0 END), 0)::NUMERIC
+                      / NULLIF(COUNT(*), 0) * 100, 1) ASC
+            LIMIT 30
+        """, base_params)
+        empleados = []
+        for r in cur.fetchall():
+            tot    = int(r['total'])
+            cumple = int(r['cumple']) if r['cumple'] else 0
+            pct    = round(cumple / tot * 100, 1) if tot else 0
+            color  = '#22c55e' if pct >= 90 else '#eab308' if pct >= 70 else '#ef4444'
+            empleados.append({
+                'num_doc':    r['num_doc'],
+                'nombre':     r['nombre'] or '—',
+                'total':      tot,
+                'pct_cumple': pct,
+                'color':      color,
+            })
+
+        # ── Compliance by site ──────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(cliente_instalacion), ''), 'Sin sitio') AS sitio,
+                COUNT(*)                                                       AS total,
+                SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple'
+                         THEN 1 ELSE 0 END)                                   AS cumple
+            FROM checklist_cumplimiento
+            {where}
+            GROUP BY sitio
+            ORDER BY
+                ROUND(COALESCE(SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple'
+                               THEN 1 ELSE 0 END), 0)::NUMERIC
+                      / NULLIF(COUNT(*), 0) * 100, 1) ASC
+            LIMIT 20
+        """, base_params)
+        sitios = []
+        for r in cur.fetchall():
+            tot    = int(r['total'])
+            cumple = int(r['cumple']) if r['cumple'] else 0
+            pct    = round(cumple / tot * 100, 1) if tot else 0
+            color  = '#22c55e' if pct >= 90 else '#eab308' if pct >= 70 else '#ef4444'
+            sitios.append({
+                'sitio':      r['sitio'],
+                'total':      tot,
+                'pct_cumple': pct,
+                'color':      color,
+            })
+
+        # ── Alert: vencidos ────────────────────────────────────────────────
+        v_conds = base_conds + ['vigencia_hasta IS NOT NULL', 'vigencia_hasta < CURRENT_DATE']
+        cur.execute(f"""
+            SELECT agente_nombre_completo, agente_numero_documento, curso_certificacion,
+                   vigencia_hasta, cliente_instalacion,
+                   (CURRENT_DATE - vigencia_hasta) AS dias_vencido
+            FROM checklist_cumplimiento
+            {_cumpl_where(v_conds)}
+            ORDER BY dias_vencido DESC
+            LIMIT 20
+        """, base_params)
+        alertas_vencidos = [{
+            'nombre':        r['agente_nombre_completo'] or '—',
+            'num_doc':       r['agente_numero_documento'] or '—',
+            'curso':         r['curso_certificacion'] or '—',
+            'vigencia_hasta':r['vigencia_hasta'].isoformat() if r['vigencia_hasta'] else None,
+            'sitio':         r['cliente_instalacion'] or '—',
+            'dias_vencido':  int(r['dias_vencido']) if r['dias_vencido'] else 0,
+        } for r in cur.fetchall()]
+
+        # ── Alert: próximos a vencer (<30 days) ────────────────────────────
+        p_conds = base_conds + [
+            'vigencia_hasta IS NOT NULL',
+            'vigencia_hasta >= CURRENT_DATE',
+            "vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'",
+        ]
+        cur.execute(f"""
+            SELECT agente_nombre_completo, agente_numero_documento, curso_certificacion,
+                   vigencia_hasta, cliente_instalacion,
+                   (vigencia_hasta - CURRENT_DATE) AS dias_restantes
+            FROM checklist_cumplimiento
+            {_cumpl_where(p_conds)}
+            ORDER BY dias_restantes ASC
+            LIMIT 20
+        """, base_params)
+        alertas_proximos = [{
+            'nombre':         r['agente_nombre_completo'] or '—',
+            'num_doc':        r['agente_numero_documento'] or '—',
+            'curso':          r['curso_certificacion'] or '—',
+            'vigencia_hasta': r['vigencia_hasta'].isoformat() if r['vigencia_hasta'] else None,
+            'sitio':          r['cliente_instalacion'] or '—',
+            'dias_restantes': int(r['dias_restantes']) if r['dias_restantes'] else 0,
+        } for r in cur.fetchall()]
+
+        return jsonify({
+            'kpi': {
+                'total':         total,
+                'cnt_cumple':    cnt_cumple,
+                'cnt_no_cumple': cnt_no_cumple,
+                'cnt_hallazgos': cnt_hallazgos,
+                'cnt_vencidos':  cnt_vencidos,
+                'cnt_proximos':  cnt_proximos,
+                'pct_cumple':    pct_cumple,
+                'pct_no_cumple': pct_no_cumple,
+                'pct_vencidos':  pct_vencidos,
+            },
+            'criteria':         criteria,
+            'cert_status':      cert_status,
+            'por_empleado':     empleados,
+            'por_sitio':        sitios,
+            'alertas_vencidos': alertas_vencidos,
+            'alertas_proximos': alertas_proximos,
+        })
+    except Exception as e:
+        app_logger.error(f"api_cumplimiento_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/cumplimiento/detalles')
+@jwt_required()
+def api_cumplimiento_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day)
+        where = _cumpl_where(base_conds)
+
+        cur.execute(f"""
+            SELECT fecha_hora, cliente_instalacion, nombre_auditor,
+                   agente_numero_documento, agente_nombre_completo,
+                   curso_certificacion, nivel_cumplimiento, vigencia_hasta,
+                   copia_certificados_fisica, certificados_cargados_sistema,
+                   documentacion_coincide_hv, fechas_vigentes
+            FROM checklist_cumplimiento
+            {where}
+            ORDER BY fecha_hora DESC
+            LIMIT 200
+        """, base_params)
+        detalles = [{
+            'fecha_hora':      r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            'cliente':         r['cliente_instalacion'] or '—',
+            'auditor':         r['nombre_auditor'] or '—',
+            'num_doc':         r['agente_numero_documento'] or '—',
+            'agente':          r['agente_nombre_completo'] or '—',
+            'curso':           r['curso_certificacion'] or '—',
+            'nivel':           r['nivel_cumplimiento'] or '—',
+            'vigencia_hasta':  r['vigencia_hasta'].isoformat() if r['vigencia_hasta'] else '—',
+            'copia_fisica':    r['copia_certificados_fisica'] or '—',
+            'cargado_sistema': r['certificados_cargados_sistema'] or '—',
+            'coincide_hv':     r['documentacion_coincide_hv'] or '—',
+            'vigente':         r['fechas_vigentes'] or '—',
+        } for r in cur.fetchall()]
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_cumplimiento_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Capacitaciones Dashboard ───────────────────────────────────────────────────
+
+def _capac_safe_len(col='lista_asistencia'):
+    """SQL expression for safe JSON array length."""
+    return (
+        f"CASE WHEN {col} IS NOT NULL AND {col} NOT IN ('', '[]', 'null') "
+        f"THEN json_array_length({col}::json) ELSE 0 END"
+    )
+
+def _capac_date_expr():
+    """Normalized timestamp used by filters and trends.
+
+    Older training rows may have `fecha_hora` empty because the form posted
+    separate date/time fields, but `creado_en` is still present.
+    """
+    return "COALESCE(fecha_hora, creado_en::timestamp)"
+
+def _capac_conds(cliente, year, month, day):
+    conds, params = [], []
+    date_expr = _capac_date_expr()
+    if cliente: conds.append('cliente_instalacion = %s'); params.append(cliente)
+    if year:    conds.append(f'EXTRACT(YEAR  FROM {date_expr}) = %s'); params.append(year)
+    if month:   conds.append(f'EXTRACT(MONTH FROM {date_expr}) = %s'); params.append(month)
+    if day:     conds.append(f'EXTRACT(DAY   FROM {date_expr}) = %s'); params.append(day)
+    return conds, params
+
+def _capac_where(conds):
+    return ('WHERE ' + ' AND '.join(conds)) if conds else ''
+
+
+@dashboard_bp.route('/api/capacitacion/clientes')
+@jwt_required()
+def api_capacitacion_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM registro_de_capacitaciones
+            WHERE cliente_instalacion IS NOT NULL
+            ORDER BY cliente_instalacion
+        """)
+        clientes = [r['cliente_instalacion'] for r in cur.fetchall()]
+        return jsonify({'clientes': clientes})
+    except Exception as e:
+        app_logger.error(f"api_capacitacion_clientes error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/capacitacion/data')
+@jwt_required()
+def api_capacitacion_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _capac_conds(cliente, year, month, day)
+        where = _capac_where(base_conds)
+        safe_len = _capac_safe_len()
+        date_expr = _capac_date_expr()
+
+        # ── KPIs ──────────────────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                       AS total_capacitaciones,
+                COALESCE(SUM({safe_len}), 0)   AS total_asistentes,
+                ROUND(COALESCE(AVG(
+                    NULLIF({safe_len}, 0)
+                ), 0), 1)                      AS promedio_asistentes
+            FROM registro_de_capacitaciones
+            {where}
+        """, base_params)
+        kpi = cur.fetchone()
+        total_cap   = int(kpi['total_capacitaciones'])   if kpi else 0
+        total_asist = int(kpi['total_asistentes'])       if kpi else 0
+        promedio    = float(kpi['promedio_asistentes'])  if kpi else 0.0
+
+        # ── Asistentes por capacitación (sorted ASC for chart) ────────────────
+        tema_conds = base_conds + ['nombre_capacitacion IS NOT NULL']
+        cur.execute(f"""
+            SELECT
+                nombre_capacitacion,
+                COUNT(*)                     AS total_sesiones,
+                COALESCE(SUM({safe_len}), 0) AS total_asistentes
+            FROM registro_de_capacitaciones
+            {_capac_where(tema_conds)}
+            GROUP BY nombre_capacitacion
+            ORDER BY total_asistentes ASC
+            LIMIT 20
+        """, base_params)
+        por_tema = [{
+            'tema':      r['nombre_capacitacion'],
+            'sesiones':  int(r['total_sesiones']),
+            'asistentes': int(r['total_asistentes']),
+        } for r in cur.fetchall()]
+
+        # ── Tendencia mensual ─────────────────────────────────────────────────
+        trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
+        cur.execute(f"""
+            SELECT
+                DATE_TRUNC('month', {date_expr})            AS month_start,
+                TO_CHAR(DATE_TRUNC('month', {date_expr}), 'YYYY-MM')   AS mes,
+                TO_CHAR(DATE_TRUNC('month', {date_expr}), 'Mon YYYY')  AS mes_label,
+                COUNT(*)                                    AS capacitaciones,
+                COALESCE(SUM({safe_len}), 0)                AS asistentes
+            FROM registro_de_capacitaciones
+            {_capac_where(trend_conds)}
+            GROUP BY DATE_TRUNC('month', {date_expr})
+            ORDER BY DATE_TRUNC('month', {date_expr})
+        """, base_params)
+        tendencia = [{
+            'mes':            r['mes'],
+            'mes_label':      r['mes_label'].strip() if r['mes_label'] else r['mes'],
+            'month_start':    r['month_start'].strftime('%Y-%m-%d') if r['month_start'] else None,
+            'capacitaciones': int(r['capacitaciones']),
+            'asistentes':     int(r['asistentes']),
+        } for r in cur.fetchall()]
+
+        # ── Por área/puesto ───────────────────────────────────────────────────
+        area_conds = base_conds + ['puesto_area_especifica IS NOT NULL']
+        cur.execute(f"""
+            SELECT
+                puesto_area_especifica       AS area,
+                COUNT(*)                     AS total_sesiones,
+                COALESCE(SUM({safe_len}), 0) AS total_asistentes
+            FROM registro_de_capacitaciones
+            {_capac_where(area_conds)}
+            GROUP BY puesto_area_especifica
+            ORDER BY total_asistentes ASC
+            LIMIT 15
+        """, base_params)
+        por_area = [{
+            'area':      r['area'],
+            'sesiones':  int(r['total_sesiones']),
+            'asistentes': int(r['total_asistentes']),
+        } for r in cur.fetchall()]
+
+        # ── Por cliente/sitio ─────────────────────────────────────────────────
+        sitio_conds = base_conds + ['cliente_instalacion IS NOT NULL']
+        cur.execute(f"""
+            SELECT
+                cliente_instalacion          AS sitio,
+                COUNT(*)                     AS total_sesiones,
+                COALESCE(SUM({safe_len}), 0) AS total_asistentes
+            FROM registro_de_capacitaciones
+            {_capac_where(sitio_conds)}
+            GROUP BY cliente_instalacion
+            ORDER BY total_asistentes ASC
+            LIMIT 15
+        """, base_params)
+        por_sitio = [{
+            'sitio':     r['sitio'],
+            'sesiones':  int(r['total_sesiones']),
+            'asistentes': int(r['total_asistentes']),
+        } for r in cur.fetchall()]
+
+        # ── Top asistentes (JSON expansion via lateral) ───────────────────────
+        top_conds = base_conds + [
+            "lista_asistencia IS NOT NULL",
+            "lista_asistencia NOT IN ('', '[]', 'null')",
+        ]
+        cur.execute(f"""
+            SELECT
+                att->>'nombre' AS nombre,
+                att->>'cargo'  AS cargo,
+                COUNT(*)       AS sesiones
+            FROM (
+                SELECT lista_asistencia
+                FROM registro_de_capacitaciones
+                {_capac_where(top_conds)}
+            ) sub,
+            LATERAL json_array_elements(sub.lista_asistencia::json) AS att
+            WHERE (att->>'nombre') IS NOT NULL AND (att->>'nombre') != ''
+            GROUP BY att->>'nombre', att->>'cargo'
+            ORDER BY sesiones DESC
+            LIMIT 15
+        """, base_params)
+        top_asistentes = [{
+            'nombre':  r['nombre'],
+            'cargo':   r['cargo'] or '—',
+            'sesiones': int(r['sesiones']),
+        } for r in cur.fetchall()]
+
+        return jsonify({
+            'kpi': {
+                'total_capacitaciones': total_cap,
+                'total_asistentes':     total_asist,
+                'promedio_asistentes':  promedio,
+            },
+            'por_tema':       por_tema,
+            'tendencia':      tendencia,
+            'por_area':       por_area,
+            'por_sitio':      por_sitio,
+            'top_asistentes': top_asistentes,
+        })
+    except Exception as e:
+        app_logger.error(f"api_capacitacion_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/capacitacion/detalles')
+@jwt_required()
+def api_capacitacion_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _capac_conds(cliente, year, month, day)
+        where = _capac_where(base_conds)
+        safe_len = _capac_safe_len()
+        date_expr = _capac_date_expr()
+
+        cur.execute(f"""
+            SELECT
+                id_capacitacion,
+                {date_expr} AS fecha_evento,
+                cliente_instalacion,
+                puesto_area_especifica,
+                nombre_responsable,
+                nombre_capacitacion,
+                lista_asistencia,
+                {safe_len} AS num_asistentes
+            FROM registro_de_capacitaciones
+            {where}
+            ORDER BY {date_expr} DESC NULLS LAST, id_capacitacion DESC
+            LIMIT 200
+        """, base_params)
+
+        import json as _json
+        detalles = []
+        for r in cur.fetchall():
+            raw = r['lista_asistencia']
+            try:
+                asistentes = _json.loads(raw) if raw and raw not in ('', '[]', 'null') else []
+            except Exception:
+                asistentes = []
+            detalles.append({
+                'id':            r['id_capacitacion'],
+                'fecha':         r['fecha_evento'].strftime('%Y-%m-%d %H:%M') if r['fecha_evento'] else '—',
+                'cliente':       r['cliente_instalacion'] or '—',
+                'area':          r['puesto_area_especifica'] or '—',
+                'responsable':   r['nombre_responsable'] or '—',
+                'tema':          r['nombre_capacitacion'] or '—',
+                'num_asistentes': int(r['num_asistentes']),
+                'asistentes':    [
+                    {'nombre': a.get('nombre',''), 'cargo': a.get('cargo',''), 'documento': a.get('documento','')}
+                    for a in asistentes
+                ],
+            })
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_capacitacion_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Visitas Dashboard ───────────────────────────────────────────────────────────
+
+def _visita_date_expr():
+    return "COALESCE(fecha_hora, creado_en::timestamp)"
+
+def _visita_conds(cliente, year, month, day):
+    conds, params = [], []
+    date_expr = _visita_date_expr()
+    if cliente:
+        conds.append('cliente_instalacion = %s'); params.append(cliente)
+    if year:
+        conds.append(f'EXTRACT(YEAR FROM {date_expr}) = %s'); params.append(year)
+    if month:
+        conds.append(f'EXTRACT(MONTH FROM {date_expr}) = %s'); params.append(month)
+    if day:
+        conds.append(f'EXTRACT(DAY FROM {date_expr}) = %s'); params.append(day)
+    return conds, params
+
+def _visita_where(conds):
+    return ('WHERE ' + ' AND '.join(conds)) if conds else ''
+
+def _visita_split_blocks(raw_value):
+    if not raw_value:
+        return []
+    return [part.strip() for part in re.split(r'\n\s*---\s*\n', raw_value) if part and part.strip()]
+
+def _visita_parse_responsables(raw_value):
+    if not raw_value:
+        return []
+    import json as _json
+    try:
+        parsed = _json.loads(raw_value)
+        return parsed if isinstance(parsed, list) else []
+    except Exception:
+        return []
+
+def _visita_status(acuerdo_text, fecha_limite):
+    text = (acuerdo_text or '').lower()
+    done_markers = ('cumplido', 'completado', 'realizado', 'ejecutado', 'cerrado', 'finalizado')
+    if any(marker in text for marker in done_markers):
+        return 'cumplido'
+    if fecha_limite and fecha_limite < datetime.now().date():
+        return 'vencido'
+    return 'pendiente'
+
+def _visita_parse_compromisos(rows):
+    compromisos = []
+    for row in rows:
+        acuerdos = _visita_split_blocks(row['acuerdos_compromisos'])
+        responsables = _visita_parse_responsables(row['compromisos_responsable'])
+        temas = _visita_split_blocks(row['temas_tratados'])
+
+        max_len = max(len(acuerdos), len(responsables), len(temas), 1)
+        for idx in range(max_len):
+            acuerdo = acuerdos[idx] if idx < len(acuerdos) else ''
+            responsable_item = responsables[idx] if idx < len(responsables) and isinstance(responsables[idx], dict) else {}
+            responsable = (
+                responsable_item.get('nombre')
+                or row.get('nombre_responsable')
+                or row.get('nombre_visitante')
+                or 'Por definir'
+            )
+
+            fecha_limite = None
+            raw_fecha = responsable_item.get('fecha') if responsable_item else None
+            if raw_fecha:
+                try:
+                    fecha_limite = datetime.fromisoformat(raw_fecha).date()
+                except Exception:
+                    fecha_limite = None
+            if not fecha_limite and row.get('fecha_cumplimiento'):
+                fecha_limite = row['fecha_cumplimiento']
+            if not fecha_limite and row.get('compromisos_fecha_limite'):
+                fecha_limite = row['compromisos_fecha_limite']
+
+            tema = temas[idx] if idx < len(temas) else (temas[0] if temas else 'Sin tema registrado')
+            if not acuerdo and not tema and not fecha_limite and not responsable_item:
+                continue
+
+            estado = _visita_status(acuerdo, fecha_limite)
+            compromisos.append({
+                'id_visita': row['id_visita'],
+                'cliente': row['cliente_instalacion'] or 'Sin cliente',
+                'fecha_visita': row['fecha_evento'].strftime('%Y-%m-%d %H:%M') if row['fecha_evento'] else '—',
+                'fecha_sort': row['fecha_evento'].strftime('%Y-%m-%dT%H:%M:%S') if row['fecha_evento'] else '',
+                'motivo_visita': row['motivo_visita'] or 'Sin motivo',
+                'tema': tema or 'Sin tema registrado',
+                'acuerdo': acuerdo or 'Sin acuerdo detallado',
+                'responsable': responsable,
+                'fecha_cumplimiento': fecha_limite.isoformat() if fecha_limite else '—',
+                'estado': estado,
+            })
+    return compromisos
+
+
+@dashboard_bp.route('/api/visitas/clientes')
+@jwt_required()
+def api_visitas_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM registro_y_acta_de_visita
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_visitas_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/visitas/data')
+@jwt_required()
+def api_visitas_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        date_expr = _visita_date_expr()
+        base_conds, base_params = _visita_conds(cliente, year, month, day)
+        where = _visita_where(base_conds)
+
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total_visitas,
+                COUNT(DISTINCT NULLIF(TRIM(cliente_instalacion), '')) AS clientes_visitados
+            FROM registro_y_acta_de_visita
+            {where}
+        """, base_params)
+        kpi_row = cur.fetchone()
+        total_visitas = int(kpi_row['total_visitas']) if kpi_row and kpi_row['total_visitas'] else 0
+        clientes_visitados = int(kpi_row['clientes_visitados']) if kpi_row and kpi_row['clientes_visitados'] else 0
+        promedio_visitas = round(total_visitas / clientes_visitados, 1) if clientes_visitados else 0
+
+        total_clientes_base = 0
+        if cliente:
+            total_clientes_base = 1
+        else:
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM propiedades
+                WHERE activa = TRUE
+            """)
+            total_clientes_base = int(cur.fetchone()[0] or 0)
+            if total_clientes_base == 0:
+                cur.execute("""
+                    SELECT COUNT(DISTINCT NULLIF(TRIM(cliente_instalacion), ''))
+                    FROM registro_y_acta_de_visita
+                """)
+                total_clientes_base = int(cur.fetchone()[0] or 0)
+
+        clientes_sin_visita = max(total_clientes_base - clientes_visitados, 0)
+        pct_sin_visita = round((clientes_sin_visita / total_clientes_base) * 100, 1) if total_clientes_base else 0
+
+        freq_conds = base_conds + ["cliente_instalacion IS NOT NULL", "cliente_instalacion <> ''"]
+        cur.execute(f"""
+            SELECT
+                cliente_instalacion AS cliente,
+                COUNT(*) AS visitas
+            FROM registro_y_acta_de_visita
+            {_visita_where(freq_conds)}
+            GROUP BY cliente_instalacion
+            ORDER BY visitas DESC, cliente_instalacion
+            LIMIT 12
+        """, base_params)
+        frecuencia_clientes = [{
+            'cliente': r['cliente'] or 'Sin cliente',
+            'visitas': int(r['visitas']),
+        } for r in cur.fetchall()]
+
+        trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
+        cur.execute(f"""
+            SELECT
+                DATE_TRUNC('month', {date_expr}) AS month_start,
+                TO_CHAR(DATE_TRUNC('month', {date_expr}), 'YYYY-MM') AS periodo,
+                TO_CHAR(DATE_TRUNC('month', {date_expr}), 'Mon YYYY') AS periodo_label,
+                COUNT(*) AS visitas
+            FROM registro_y_acta_de_visita
+            {_visita_where(trend_conds)}
+            GROUP BY DATE_TRUNC('month', {date_expr})
+            ORDER BY DATE_TRUNC('month', {date_expr})
+        """, base_params)
+        tendencia = [{
+            'periodo': r['periodo'],
+            'periodo_label': r['periodo_label'].strip() if r['periodo_label'] else r['periodo'],
+            'month_start': r['month_start'].strftime('%Y-%m-%d') if r['month_start'] else None,
+            'visitas': int(r['visitas']),
+        } for r in cur.fetchall()]
+
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(motivo_visita), ''), 'Sin motivo') AS motivo,
+                COUNT(*) AS visitas
+            FROM registro_y_acta_de_visita
+            {where}
+            GROUP BY motivo
+            ORDER BY visitas DESC, motivo
+        """, base_params)
+        motivos = [{
+            'motivo': r['motivo'],
+            'visitas': int(r['visitas']),
+        } for r in cur.fetchall()]
+
+        cur.execute(f"""
+            SELECT
+                id_visita,
+                cliente_instalacion,
+                {date_expr} AS fecha_evento,
+                motivo_visita,
+                temas_tratados,
+                acuerdos_compromisos,
+                compromisos_responsable,
+                compromisos_fecha_limite,
+                nombre_responsable,
+                fecha_cumplimiento,
+                nombre_visitante
+            FROM registro_y_acta_de_visita
+            {_visita_where(trend_conds)}
+            ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
+        """, base_params)
+        compromisos = _visita_parse_compromisos(cur.fetchall())
+
+        estado_counts = {'cumplido': 0, 'pendiente': 0, 'vencido': 0}
+        for item in compromisos:
+            estado_counts[item['estado']] = estado_counts.get(item['estado'], 0) + 1
+
+        return jsonify({
+            'kpi': {
+                'total_visitas': total_visitas,
+                'clientes_visitados': clientes_visitados,
+                'promedio_visitas': promedio_visitas,
+                'pct_sin_visita': pct_sin_visita,
+                'clientes_sin_visita': clientes_sin_visita,
+            },
+            'frecuencia_clientes': frecuencia_clientes,
+            'tendencia': tendencia,
+            'motivos': motivos,
+            'estado_compromisos': estado_counts,
+            'vencidos_total': estado_counts['vencido'],
+        })
+    except Exception as e:
+        app_logger.error(f"api_visitas_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/visitas/detalles')
+@jwt_required()
+def api_visitas_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        date_expr = _visita_date_expr()
+        base_conds, base_params = _visita_conds(cliente, year, month, day)
+        trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
+
+        cur.execute(f"""
+            SELECT
+                id_visita,
+                cliente_instalacion,
+                {date_expr} AS fecha_evento,
+                motivo_visita,
+                temas_tratados,
+                acuerdos_compromisos,
+                compromisos_responsable,
+                compromisos_fecha_limite,
+                nombre_responsable,
+                fecha_cumplimiento,
+                nombre_visitante
+            FROM registro_y_acta_de_visita
+            {_visita_where(trend_conds)}
+            ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
+            LIMIT 200
+        """, base_params)
+        compromisos = _visita_parse_compromisos(cur.fetchall())
+        compromisos.sort(key=lambda item: (item['fecha_sort'], item['cliente']), reverse=True)
+        return jsonify({'detalles': compromisos})
+    except Exception as e:
+        app_logger.error(f"api_visitas_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Motocicletas Dashboard ────────────────────────────────────────────────────
+
+_MOTO_COMPONENTS = [
+    ('estado_neumaticos',                    'Estado Neumáticos'),
+    ('estado_rines',                         'Estado Rines'),
+    ('equipo_carretera',                     'Equipo Carretera'),
+    ('estado_kit_arrastre',                  'Kit Arrastre'),
+    ('estado_palanca_soporte',               'Palanca Soporte'),
+    ('estado_forro_asiento',                 'Forro Asiento'),
+    ('estado_tapas_derecha',                 'Tapas Derecha'),
+    ('estado_luces_direccionales_derecha',   'Luces Dir. Derecha'),
+    ('estado_luces_delanteras',              'Luces Delanteras'),
+    ('estado_guarda_fango_delantero',        'Guarda Fango Del.'),
+    ('estado_sistema_freno_delantero',       'Freno Delantero'),
+    ('estado_manillar_embrague',             'Manillar Embrague'),
+    ('estado_manillar_freno_delantero',      'Manillar Freno Del.'),
+    ('estado_manometros_indicadores',        'Manómetros'),
+    ('estado_tanque_combustible',            'Tanque Combustible'),
+    ('tapa_tanque_combustible',              'Tapa Tanque'),
+    ('espejos_retrovisores',                 'Espejos Retrovisores'),
+    ('tapa_aceite_motor',                    'Tapa Aceite'),
+    ('bateria_tapa',                         'Batería'),
+    ('estado_luces_izquierda',               'Luces Izquierda'),
+    ('estado_luces_direccionales_izquierda', 'Luces Dir. Izquierda'),
+    ('estado_luz_trasera',                   'Luz Trasera'),
+    ('estado_guarda_fango_trasero',          'Guarda Fango Tras.'),
+    ('estado_tubo_escape',                   'Tubo Escape'),
+    ('estado_palanca_freno',                 'Palanca Freno'),
+    ('estado_palanca_cambios',               'Palanca Cambios'),
+]
+
+_MOTO_FAULT_EXPR = " OR ".join(
+    [f"LOWER(COALESCE({col},''))='malo'" for col, _ in _MOTO_COMPONENTS]
+)
+_MOTO_FAULT_SUM = " + ".join(
+    [f"CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END"
+     for col, _ in _MOTO_COMPONENTS]
+)
+
+
+def _moto_date_expr():
+    return "COALESCE(fecha_hora, creado_en)"
+
+
+def _moto_conds(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    de = _moto_date_expr()
+    if year:
+        conds.append(f"EXTRACT(YEAR  FROM {de}) = %s")
+        params.append(year)
+    if month:
+        conds.append(f"EXTRACT(MONTH FROM {de}) = %s")
+        params.append(month)
+    if day:
+        conds.append(f"EXTRACT(DAY   FROM {de}) = %s")
+        params.append(day)
+    return conds, params
+
+
+def _moto_where(conds):
+    return ("WHERE " + " AND ".join(conds)) if conds else ""
+
+
+@dashboard_bp.route('/api/motocicletas/clientes')
+@jwt_required()
+def api_motocicletas_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM planilla_motocicletas
+            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_motocicletas_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/motocicletas/data')
+@jwt_required()
+def api_motocicletas_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _moto_conds(cliente, year, month, day)
+        where = _moto_where(base_conds)
+
+        # ── KPIs ──────────────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                                                      AS total,
+                SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END)         AS no_aptas,
+                SUM({_MOTO_FAULT_SUM})                                        AS total_fallas
+            FROM planilla_motocicletas {where}
+        """, base_params)
+        kpi = cur.fetchone()
+        total        = int(kpi['total']        or 0)
+        no_aptas     = int(kpi['no_aptas']     or 0)
+        total_fallas = int(kpi['total_fallas'] or 0)
+        aptas        = total - no_aptas
+        pct_aptas    = round(aptas    / total * 100, 1) if total else 0
+        pct_no_aptas = round(no_aptas / total * 100, 1) if total else 0
+
+        # ── Fallas por componente ──────────────────────────────────────────
+        comp_cases = ", ".join([
+            f"SUM(CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END) AS \"{col}\""
+            for col, _ in _MOTO_COMPONENTS
+        ])
+        cur.execute(f"SELECT {comp_cases} FROM planilla_motocicletas {where}", base_params)
+        comp_row = cur.fetchone()
+        fallas_comp = [
+            {'componente': label, 'fallas': int(comp_row[col] or 0)}
+            for col, label in _MOTO_COMPONENTS
+        ]
+        fallas_comp.sort(key=lambda x: x['fallas'])   # ascending: fewest first
+
+        # ── Tendencia mensual ──────────────────────────────────────────────
+        de = _moto_date_expr()
+        tend_conds = base_conds + [f"{de} IS NOT NULL"]
+        cur.execute(f"""
+            SELECT
+                TO_CHAR(DATE_TRUNC('month', {de}), 'YYYY-MM')   AS periodo,
+                TO_CHAR(DATE_TRUNC('month', {de}), 'Mon YYYY')  AS periodo_label,
+                COUNT(*)                                          AS inspecciones,
+                SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_motocicletas
+            {_moto_where(tend_conds)}
+            GROUP BY DATE_TRUNC('month', {de})
+            ORDER BY DATE_TRUNC('month', {de})
+        """, base_params)
+        tendencia = [
+            {
+                'periodo':       r['periodo'],
+                'periodo_label': (r['periodo_label'] or '').strip(),
+                'inspecciones':  int(r['inspecciones'] or 0),
+                'no_aptas':      int(r['no_aptas']     or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # ── Análisis por ubicación ─────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente') AS ubicacion,
+                COUNT(*) AS inspecciones,
+                SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_motocicletas {where}
+            GROUP BY COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente')
+            ORDER BY no_aptas ASC, inspecciones ASC
+            LIMIT 15
+        """, base_params)
+        por_ubicacion = [
+            {
+                'ubicacion':    r['ubicacion'],
+                'inspecciones': int(r['inspecciones'] or 0),
+                'no_aptas':     int(r['no_aptas']     or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # ── Alertas ────────────────────────────────────────────────────────
+        alertas_conds = base_conds + [
+            "novedades_criticas_detectadas IS NOT NULL",
+            "TRIM(novedades_criticas_detectadas) <> ''"
+        ]
+        cur.execute(f"""
+            SELECT COUNT(*) FROM planilla_motocicletas {_moto_where(alertas_conds)}
+        """, base_params)
+        alertas_count = int(cur.fetchone()[0] or 0)
+
+        # ── Placas recurrentes ─────────────────────────────────────────────
+        placa_conds = base_conds + [
+            "placa_motocicleta IS NOT NULL",
+            "TRIM(placa_motocicleta) <> ''"
+        ]
+        cur.execute(f"""
+            SELECT placa_motocicleta AS placa,
+                   COUNT(*) AS inspecciones,
+                   SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_motocicletas {_moto_where(placa_conds)}
+            GROUP BY placa_motocicleta
+            HAVING SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) >= 2
+            ORDER BY no_aptas DESC, inspecciones DESC
+            LIMIT 5
+        """, base_params)
+        placas_recurrentes = [
+            {
+                'placa':        r['placa'],
+                'inspecciones': int(r['inspecciones'] or 0),
+                'no_aptas':     int(r['no_aptas']     or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        return jsonify({
+            'kpi': {
+                'total_inspecciones': total,
+                'aptas':              aptas,
+                'pct_aptas':          pct_aptas,
+                'no_aptas':           no_aptas,
+                'pct_no_aptas':       pct_no_aptas,
+                'total_fallas':       total_fallas,
+            },
+            'fallas_componente':  fallas_comp,
+            'tendencia':          tendencia,
+            'por_ubicacion':      por_ubicacion,
+            'alertas_count':      alertas_count,
+            'placas_recurrentes': placas_recurrentes,
+        })
+    except Exception as e:
+        app_logger.error(f"api_motocicletas_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/motocicletas/detalles')
+@jwt_required()
+def api_motocicletas_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        de = _moto_date_expr()
+        base_conds, base_params = _moto_conds(cliente, year, month, day)
+        nov_conds = base_conds + [
+            "novedades_criticas_detectadas IS NOT NULL",
+            "TRIM(novedades_criticas_detectadas) <> ''"
+        ]
+        cur.execute(f"""
+            SELECT
+                id,
+                COALESCE(NULLIF(TRIM(cliente_instalacion),''), '—') AS cliente,
+                COALESCE(NULLIF(TRIM(placa_motocicleta),''), '—')   AS placa,
+                COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
+                {de} AS fecha_evento,
+                novedades_criticas_detectadas,
+                accion_inmediata_tomada
+            FROM planilla_motocicletas
+            {_moto_where(nov_conds)}
+            ORDER BY {de} DESC NULLS LAST, id DESC
+            LIMIT 200
+        """, base_params)
+        rows = cur.fetchall()
+        detalles = [
+            {
+                'id':                 r['id'],
+                'cliente':            r['cliente'],
+                'placa':              r['placa'],
+                'responsable':        r['responsable'],
+                'fecha':              r['fecha_evento'].strftime('%d/%m/%Y %H:%M') if r['fecha_evento'] else '—',
+                'novedades_criticas': r['novedades_criticas_detectadas'] or '—',
+                'accion_inmediata':   r['accion_inmediata_tomada']       or '—',
+            }
+            for r in rows
+        ]
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_motocicletas_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Vehiculos Dashboard ───────────────────────────────────────────────────────
+
+_VEH_COMPONENTS = [
+    ('estado_rines',                  'Estado Rines'),
+    ('juego_senales_carretera',       'Señales Carretera'),
+    ('gato_hidraulico',               'Gato Hidráulico'),
+    ('palanca_gato',                  'Palanca Gato'),
+    ('estado_asientos',               'Estado Asientos'),
+    ('estado_tapetes_alfombras',      'Tapetes/Alfombras'),
+    ('limpieza_carroceria',           'Limpieza Carrocería'),
+    ('luces_delanteras',              'Luces Delanteras'),
+    ('luces_direccionales',           'Luces Direccionales'),
+    ('luces_traseras',                'Luces Traseras'),
+    ('parabrisas_delantero',          'Parabrisas Del.'),
+    ('parabrisas_trasero',            'Parabrisas Tras.'),
+    ('defensa_delantera',             'Defensa Delantera'),
+    ('defensa_trasera',               'Defensa Trasera'),
+    ('puertas_vidrios',               'Puertas/Vidrios'),
+    ('tapa_radiador',                 'Tapa Radiador'),
+    ('tapa_aceite_motor',             'Tapa Aceite'),
+    ('bateria_tapa',                  'Batería'),
+    ('espejo_retrovisor_interno',     'Retrovisor Interno'),
+    ('espejos_retrovisores_externos', 'Retrovisores Ext.'),
+    ('limpia_brisas',                 'Limpia Brisas'),
+    ('antena_radio',                  'Antena/Radio'),
+    ('radio_funciona',                'Radio'),
+    ('llanta_repuesto',               'Llanta Repuesto'),
+    ('aire_acondicionado',            'Aire Acondicionado'),
+]
+
+_VEH_FAULT_EXPR = " OR ".join(
+    [f"LOWER(COALESCE({col},''))='malo'" for col, _ in _VEH_COMPONENTS]
+)
+_VEH_FAULT_SUM = " + ".join(
+    [f"CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END"
+     for col, _ in _VEH_COMPONENTS]
+)
+
+
+def _veh_date_expr():
+    return "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
+
+
+def _veh_conds(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("cliente_instalacion = %s")
+        params.append(cliente)
+    de = _veh_date_expr()
+    if year:
+        conds.append(f"EXTRACT(YEAR  FROM {de}) = %s")
+        params.append(year)
+    if month:
+        conds.append(f"EXTRACT(MONTH FROM {de}) = %s")
+        params.append(month)
+    if day:
+        conds.append(f"EXTRACT(DAY   FROM {de}) = %s")
+        params.append(day)
+    return conds, params
+
+
+def _veh_where(conds):
+    return ("WHERE " + " AND ".join(conds)) if conds else ""
+
+
+@dashboard_bp.route('/api/vehiculos/clientes')
+@jwt_required()
+def api_vehiculos_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM planilla_vehicular
+            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_vehiculos_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/vehiculos/data')
+@jwt_required()
+def api_vehiculos_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _veh_conds(cliente, year, month, day)
+        where = _veh_where(base_conds)
+
+        # ── KPIs ──────────────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                                                      AS total,
+                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END)          AS no_aptas,
+                SUM({_VEH_FAULT_SUM})                                         AS total_fallas
+            FROM planilla_vehicular {where}
+        """, base_params)
+        kpi = cur.fetchone()
+        total        = int(kpi['total']        or 0)
+        no_aptas     = int(kpi['no_aptas']     or 0)
+        total_fallas = int(kpi['total_fallas'] or 0)
+        aptas        = total - no_aptas
+        pct_aptas    = round(aptas    / total * 100, 1) if total else 0
+        pct_no_aptas = round(no_aptas / total * 100, 1) if total else 0
+
+        # ── Fallas por componente ──────────────────────────────────────────
+        comp_cases = ", ".join([
+            f"SUM(CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END) AS \"{col}\""
+            for col, _ in _VEH_COMPONENTS
+        ])
+        cur.execute(f"SELECT {comp_cases} FROM planilla_vehicular {where}", base_params)
+        comp_row = cur.fetchone()
+        fallas_comp = [
+            {'componente': label, 'fallas': int(comp_row[col] or 0)}
+            for col, label in _VEH_COMPONENTS
+        ]
+        fallas_comp.sort(key=lambda x: x['fallas'])   # ascending: fewest first
+
+        # ── Tendencia mensual ──────────────────────────────────────────────
+        de = _veh_date_expr()
+        tend_conds = base_conds + [f"{de} IS NOT NULL"]
+        cur.execute(f"""
+            SELECT
+                TO_CHAR(DATE_TRUNC('month', {de}), 'YYYY-MM')   AS periodo,
+                TO_CHAR(DATE_TRUNC('month', {de}), 'Mon YYYY')  AS periodo_label,
+                COUNT(*)                                          AS inspecciones,
+                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_vehicular
+            {_veh_where(tend_conds)}
+            GROUP BY DATE_TRUNC('month', {de})
+            ORDER BY DATE_TRUNC('month', {de})
+        """, base_params)
+        tendencia = [
+            {
+                'periodo':       r['periodo'],
+                'periodo_label': (r['periodo_label'] or '').strip(),
+                'inspecciones':  int(r['inspecciones'] or 0),
+                'no_aptas':      int(r['no_aptas']     or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # ── Análisis por ubicación (sorted asc for chart) ──────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente') AS ubicacion,
+                COUNT(*) AS inspecciones,
+                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_vehicular {where}
+            GROUP BY COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente')
+            ORDER BY no_aptas ASC, inspecciones ASC
+            LIMIT 15
+        """, base_params)
+        por_ubicacion = [
+            {
+                'ubicacion':    r['ubicacion'],
+                'inspecciones': int(r['inspecciones'] or 0),
+                'no_aptas':     int(r['no_aptas']     or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # ── Alertas: inspecciones con novedades críticas ───────────────────
+        alertas_conds = base_conds + [
+            "novedades_criticas IS NOT NULL",
+            "TRIM(novedades_criticas) <> ''"
+        ]
+        cur.execute(f"""
+            SELECT COUNT(*) FROM planilla_vehicular {_veh_where(alertas_conds)}
+        """, base_params)
+        alertas_count = int(cur.fetchone()[0] or 0)
+
+        # ── Placas con fallas recurrentes ──────────────────────────────────
+        placa_conds = base_conds + [
+            "placa_vehiculo IS NOT NULL",
+            "TRIM(placa_vehiculo) <> ''"
+        ]
+        cur.execute(f"""
+            SELECT placa_vehiculo AS placa,
+                   COUNT(*) AS inspecciones,
+                   SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_vehicular {_veh_where(placa_conds)}
+            GROUP BY placa_vehiculo
+            HAVING SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) >= 2
+            ORDER BY no_aptas DESC, inspecciones DESC
+            LIMIT 5
+        """, base_params)
+        placas_recurrentes = [
+            {
+                'placa':        r['placa'],
+                'inspecciones': int(r['inspecciones'] or 0),
+                'no_aptas':     int(r['no_aptas']     or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        return jsonify({
+            'kpi': {
+                'total_inspecciones': total,
+                'aptas':              aptas,
+                'pct_aptas':          pct_aptas,
+                'no_aptas':           no_aptas,
+                'pct_no_aptas':       pct_no_aptas,
+                'total_fallas':       total_fallas,
+            },
+            'fallas_componente':  fallas_comp,
+            'tendencia':          tendencia,
+            'por_ubicacion':      por_ubicacion,
+            'alertas_count':      alertas_count,
+            'placas_recurrentes': placas_recurrentes,
+        })
+    except Exception as e:
+        app_logger.error(f"api_vehiculos_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/vehiculos/detalles')
+@jwt_required()
+def api_vehiculos_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        de = _veh_date_expr()
+        base_conds, base_params = _veh_conds(cliente, year, month, day)
+        nov_conds = base_conds + [
+            "novedades_criticas IS NOT NULL",
+            "TRIM(novedades_criticas) <> ''"
+        ]
+        cur.execute(f"""
+            SELECT
+                id_planilla_vehicular,
+                COALESCE(NULLIF(TRIM(cliente_instalacion),''), '—') AS cliente,
+                COALESCE(NULLIF(TRIM(placa_vehiculo),''), '—')      AS placa,
+                COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
+                {de} AS fecha_evento,
+                novedades_criticas,
+                accion_inmediata
+            FROM planilla_vehicular
+            {_veh_where(nov_conds)}
+            ORDER BY {de} DESC NULLS LAST, id_planilla_vehicular DESC
+            LIMIT 200
+        """, base_params)
+        rows = cur.fetchall()
+        detalles = [
+            {
+                'id':                 r['id_planilla_vehicular'],
+                'cliente':            r['cliente'],
+                'placa':              r['placa'],
+                'responsable':        r['responsable'],
+                'fecha':              r['fecha_evento'].strftime('%d/%m/%Y %H:%M') if r['fecha_evento'] else '—',
+                'novedades_criticas': r['novedades_criticas'] or '—',
+                'accion_inmediata':   r['accion_inmediata']   or '—',
+            }
+            for r in rows
+        ]
+        return jsonify({'detalles': detalles})
+    except Exception as e:
+        app_logger.error(f"api_vehiculos_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Equipos / Confiabilidad Dashboard ────────────────────────────────────────
+
+# Safe int extraction from JSONB text fields
+_EQ_TOTAL_SQL = "CASE WHEN elem->>'total' ~ '^[0-9]+$' THEN (elem->>'total')::int ELSE 0 END"
+_EQ_FUNC_SQL  = "CASE WHEN elem->>'funcionando' ~ '^[0-9]+$' THEN (elem->>'funcionando')::int ELSE 0 END"
+
+_EQ_BASE = [
+    "c.inventario IS NOT NULL",
+    "c.inventario != 'null'::jsonb",
+    "jsonb_array_length(c.inventario) > 0",
+]
+
+
+def _eq_conds(cliente, year, month, day):
+    conds, params = [], []
+    if cliente:
+        conds.append("c.cliente_instalacion = %s")
+        params.append(cliente)
+    if year:
+        conds.append("EXTRACT(YEAR  FROM c.fecha) = %s")
+        params.append(year)
+    if month:
+        conds.append("EXTRACT(MONTH FROM c.fecha) = %s")
+        params.append(month)
+    if day:
+        conds.append("EXTRACT(DAY   FROM c.fecha) = %s")
+        params.append(day)
+    return conds, params
+
+
+def _eq_where(extra=None):
+    parts = list(_EQ_BASE) + (extra or [])
+    return "WHERE " + " AND ".join(parts)
+
+
+def _eq_estado(pct):
+    if pct is None: return 'Sin datos'
+    f = float(pct)
+    if f >= 95: return 'Operativo'
+    if f >= 85: return 'Operativo c/obs.'
+    if f >= 70: return 'Riesgo operativo'
+    return 'No confiable'
+
+
+@dashboard_bp.route('/api/equipos/clientes')
+@jwt_required()
+def api_equipos_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT DISTINCT cliente_instalacion
+            FROM confiabilidad_equipos
+            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> ''
+            ORDER BY cliente_instalacion
+        """)
+        return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_equipos_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/equipos/data')
+@jwt_required()
+def api_equipos_data():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _eq_conds(cliente, year, month, day)
+        where = _eq_where(base_conds)
+        lateral = f"""
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(c.inventario) AS elem
+            {where}
+        """
+
+        # ── KPIs ──────────────────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COUNT(DISTINCT c.id)          AS total_registros,
+                SUM({_EQ_TOTAL_SQL})           AS sum_total,
+                SUM({_EQ_FUNC_SQL})            AS sum_func
+            {lateral}
+        """, base_params)
+        krow = cur.fetchone()
+        total_registros = int(krow['total_registros'] or 0)
+        sum_total       = int(krow['sum_total'] or 0)
+        sum_func        = int(krow['sum_func']  or 0)
+        pct_general     = round(sum_func / sum_total * 100, 1) if sum_total else None
+
+        # ── Distribution per record (for donut) ───────────────────────────
+        cur.execute(f"""
+            WITH per_rec AS (
+                SELECT c.id,
+                    ROUND(SUM({_EQ_FUNC_SQL})::numeric
+                        / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
+                {lateral}
+                GROUP BY c.id
+                HAVING SUM({_EQ_TOTAL_SQL}) > 0
+            )
+            SELECT
+                COUNT(*) FILTER (WHERE pct >= 95)             AS verde,
+                COUNT(*) FILTER (WHERE pct >= 85 AND pct < 95) AS amarillo,
+                COUNT(*) FILTER (WHERE pct >= 70 AND pct < 85) AS naranja,
+                COUNT(*) FILTER (WHERE pct < 70)               AS rojo,
+                COUNT(*)                                        AS total
+            FROM per_rec WHERE pct IS NOT NULL
+        """, base_params)
+        dist = cur.fetchone()
+        distribucion = {
+            'verde':    int(dist['verde']    or 0),
+            'amarillo': int(dist['amarillo'] or 0),
+            'naranja':  int(dist['naranja']  or 0),
+            'rojo':     int(dist['rojo']     or 0),
+            'total':    int(dist['total']    or 0),
+        }
+
+        # ── Confiabilidad por tipo (bar chart, sorted asc) ─────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
+                SUM({_EQ_TOTAL_SQL})  AS sum_total,
+                SUM({_EQ_FUNC_SQL})   AS sum_func,
+                ROUND(SUM({_EQ_FUNC_SQL})::numeric
+                    / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
+            {lateral}
+              AND NULLIF(TRIM(elem->>'tipo'), '') IS NOT NULL
+            GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
+            HAVING SUM({_EQ_TOTAL_SQL}) > 0
+            ORDER BY pct ASC NULLS LAST
+        """, base_params)
+        por_tipo = [
+            {
+                'tipo':      r['tipo'],
+                'total':     int(r['sum_total'] or 0),
+                'func':      int(r['sum_func']  or 0),
+                'pct':       float(r['pct'])    if r['pct'] is not None else None,
+                'estado':    _eq_estado(r['pct']),
+            }
+            for r in cur.fetchall()
+        ]
+        tipos_no_conf = sum(1 for t in por_tipo if t['pct'] is not None and t['pct'] < 70)
+
+        # ── Tendencia mensual ──────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                TO_CHAR(DATE_TRUNC('month', c.fecha::timestamp), 'YYYY-MM')  AS periodo,
+                TO_CHAR(DATE_TRUNC('month', c.fecha::timestamp), 'Mon YYYY') AS periodo_label,
+                ROUND(SUM({_EQ_FUNC_SQL})::numeric
+                    / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct,
+                COUNT(DISTINCT c.id)                                          AS registros
+            {lateral}
+            GROUP BY DATE_TRUNC('month', c.fecha::timestamp)
+            ORDER BY DATE_TRUNC('month', c.fecha::timestamp)
+        """, base_params)
+        tendencia = [
+            {
+                'periodo':       r['periodo'],
+                'periodo_label': (r['periodo_label'] or '').strip(),
+                'pct':           float(r['pct']) if r['pct'] is not None else None,
+                'registros':     int(r['registros'] or 0),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # ── Alertas ────────────────────────────────────────────────────────
+        alertas = {'no_conf_tipos': tipos_no_conf, 'deterioro': False, 'detalle': ''}
+        if len(tendencia) >= 2:
+            last, prev = tendencia[-1], tendencia[-2]
+            if last['pct'] is not None and prev['pct'] is not None:
+                if last['pct'] < prev['pct']:
+                    alertas['deterioro'] = True
+                    alertas['detalle'] = (
+                        f"De {prev['pct']}% ({prev['periodo_label']}) "
+                        f"a {last['pct']}% ({last['periodo_label']})"
+                    )
+
+        return jsonify({
+            'kpi': {
+                'total_registros':  total_registros,
+                'pct_general':      pct_general,
+                'estado_general':   _eq_estado(pct_general),
+                'total_equipos':    sum_total,
+                'tipos_no_conf':    tipos_no_conf,
+            },
+            'distribucion': distribucion,
+            'por_tipo':     por_tipo,
+            'tendencia':    tendencia,
+            'alertas':      alertas,
+        })
+    except Exception as e:
+        app_logger.error(f"api_equipos_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/equipos/detalles')
+@jwt_required()
+def api_equipos_detalles():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        base_conds, base_params = _eq_conds(cliente, year, month, day)
+        where  = _eq_where(base_conds)
+        lateral = f"""
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(c.inventario) AS elem
+            {where}
+        """
+
+        # ── Consolidated matrix (by tipo, over filter period) ─────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
+                SUM({_EQ_TOTAL_SQL})  AS sum_total,
+                SUM({_EQ_FUNC_SQL})   AS sum_func,
+                ROUND(SUM({_EQ_FUNC_SQL})::numeric
+                    / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
+            {lateral}
+              AND NULLIF(TRIM(elem->>'tipo'), '') IS NOT NULL
+            GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
+            HAVING SUM({_EQ_TOTAL_SQL}) > 0
+            ORDER BY pct ASC NULLS LAST
+        """, base_params)
+        consolidado = [
+            {
+                'tipo':   r['tipo'],
+                'total':  int(r['sum_total'] or 0),
+                'func':   int(r['sum_func']  or 0),
+                'pct':    float(r['pct']) if r['pct'] is not None else None,
+                'estado': _eq_estado(r['pct']),
+            }
+            for r in cur.fetchall()
+        ]
+
+        # ── Individual inspection records ──────────────────────────────────
+        where_rec = _eq_where(base_conds)
+        cur.execute(f"""
+            SELECT
+                c.id,
+                COALESCE(NULLIF(TRIM(c.cliente_instalacion),''),'—') AS cliente,
+                COALESCE(NULLIF(TRIM(c.sitio),''),'—')               AS sitio,
+                c.fecha,
+                COALESCE(NULLIF(TRIM(c.tecnico_mantenimiento),''),'—') AS tecnico,
+                ROUND(SUM({_EQ_FUNC_SQL})::numeric
+                    / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct_general
+            {lateral}
+            GROUP BY c.id, c.cliente_instalacion, c.sitio, c.fecha, c.tecnico_mantenimiento
+            HAVING SUM({_EQ_TOTAL_SQL}) > 0
+            ORDER BY c.fecha DESC NULLS LAST, c.id DESC
+            LIMIT 100
+        """, base_params)
+        registros = [
+            {
+                'id':          r['id'],
+                'cliente':     r['cliente'],
+                'sitio':       r['sitio'],
+                'fecha':       r['fecha'].strftime('%d/%m/%Y') if r['fecha'] else '—',
+                'tecnico':     r['tecnico'],
+                'pct_general': float(r['pct_general']) if r['pct_general'] is not None else None,
+                'estado':      _eq_estado(r['pct_general']),
+            }
+            for r in cur.fetchall()
+        ]
+
+        return jsonify({'consolidado': consolidado, 'registros': registros})
+    except Exception as e:
+        app_logger.error(f"api_equipos_detalles error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
         if cur: cur.close()
