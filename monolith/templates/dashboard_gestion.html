@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión y Resultados — Dashboard · Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+
+        h1, h2, h3, h4, h5, h6 { font-family: 'Merriweather', serif; color: #ffffff; }
+
+        .header-nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+
+        .nav-content {
+            max-width: 1280px; margin: 0 auto;
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 0.75rem;
+        }
+
+        .nav-links { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+        .nav-link { color: #60a5fa; text-decoration: none; font-size: 0.875rem; transition: color 0.2s; }
+        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
+        .user-greeting { font-size: 0.875rem; color: #9ca3af; }
+        .user-name { color: #60a5fa; font-weight: bold; }
+        .admin-badge { color: #a855f7; font-weight: bold; }
+
+        .theme-toggle {
+            position: fixed; top: 1.25rem; left: 1.25rem; z-index: 100;
+            background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.5rem; padding: 0.5rem; cursor: pointer; color: #e2e8f0;
+            transition: all 0.2s;
+        }
+        .theme-toggle:hover { background-color: rgba(255,255,255,0.2); transform: scale(1.05); }
+        .theme-toggle svg { width: 1.25rem; height: 1.25rem; }
+
+        .main-container { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+        .module-header {
+            display: flex; align-items: center; gap: 1rem;
+            margin-bottom: 1.75rem; padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .module-icon {
+            width: 50px; height: 50px; border-radius: 12px; flex-shrink: 0;
+            background: linear-gradient(135deg, rgba(29,78,216,0.25), rgba(109,40,217,0.25));
+            color: #a5b4fc;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .module-icon svg { width: 24px; height: 24px; }
+        .module-header h1 { font-size: 1.5rem; margin: 0 0 0.2rem; }
+        .module-header p { font-size: 0.875rem; color: #64748b; margin: 0; }
+
+        .card {
+            background-color: #2d3748;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #6b7280;
+            margin-bottom: 0.875rem;
+        }
+
+        .filters-bar {
+            background-color: #2d3748;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
+            padding: 1.1rem 1.2rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 0.8rem;
+            align-items: end;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-bottom: 0.4rem;
+        }
+
+        .filter-select, .filter-btn {
+            width: 100%;
+            min-height: 42px;
+            appearance: none;
+            -webkit-appearance: none;
+            background-color: #374151;
+            color: #e2e8f0;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 0.55rem 0.875rem;
+            font-size: 0.875rem;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .filter-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1rem;
+            padding-right: 2rem;
+        }
+
+        .filter-select:disabled { opacity: 0.55; cursor: not-allowed; }
+        .filter-btn { cursor: pointer; font-weight: 600; }
+        .helper-text { font-size: 0.72rem; color: #64748b; margin-top: 0.35rem; }
+
+        .kpi-grid {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .kpi-value {
+            font-family: 'Merriweather', serif; font-size: 2.4rem; font-weight: 700;
+            line-height: 1; margin-bottom: 0.375rem;
+        }
+        .kpi-label { font-size: 0.8125rem; color: #94a3b8; margin-bottom: 0.6rem; }
+        .kpi-sub { font-size: 0.75rem; color: #4b5563; line-height: 1.45; }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            font-size: 0.75rem; font-weight: 700;
+            border-radius: 999px; padding: 0.2rem 0.55rem;
+            border: 1px solid currentColor;
+            margin-bottom: 0.65rem;
+        }
+        .status-badge::before {
+            content: '';
+            width: 9px; height: 9px; border-radius: 50%; background: currentColor;
+        }
+
+        .status-green { color: #4ade80; }
+        .status-yellow { color: #facc15; }
+        .status-orange { color: #fb923c; }
+        .status-red { color: #f87171; }
+        .status-slate { color: #94a3b8; }
+
+        .score-main {
+            display: flex; align-items: center; gap: 1rem;
+        }
+        .score-ring {
+            --pct: 0;
+            --ring-color: #94a3b8;
+            width: 96px; height: 96px; border-radius: 50%;
+            background: conic-gradient(var(--ring-color) calc(var(--pct) * 1%), rgba(148,163,184,0.18) 0);
+            position: relative; flex-shrink: 0;
+        }
+        .score-ring::after {
+            content: '';
+            position: absolute; inset: 10px; border-radius: 50%;
+            background-color: #2d3748;
+        }
+        .score-ring-inner {
+            position: absolute; inset: 0; z-index: 1;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+        }
+        .score-ring-num { font-family: 'Merriweather', serif; font-size: 1.55rem; line-height: 1; }
+        .score-ring-text { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.2rem; }
+
+        .layout-grid {
+            display: grid; grid-template-columns: 1.55fr 1fr; gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .side-grid { display: grid; grid-template-rows: 1fr 1fr; gap: 1rem; }
+        .chart-wrap { position: relative; min-height: 280px; }
+        .chart-canvas { width: 100% !important; }
+
+        .analysis-list { display: grid; gap: 0.85rem; }
+        .analysis-item {
+            border-radius: 12px; padding: 1rem 1.1rem;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-left-width: 4px;
+            background-color: rgba(15,23,42,0.12);
+        }
+        .analysis-item h4 { font-size: 0.95rem; margin: 0 0 0.25rem; }
+        .analysis-item p { margin: 0; color: #94a3b8; font-size: 0.84rem; line-height: 1.55; }
+        .analysis-link { display: inline-block; margin-top: 0.6rem; font-size: 0.82rem; color: #93c5fd; text-decoration: none; font-weight: 700; }
+        .analysis-link:hover { text-decoration: underline; }
+        .analysis-danger { border-left-color: #ef4444; }
+        .analysis-warning { border-left-color: #eab308; }
+        .analysis-success { border-left-color: #22c55e; }
+        .analysis-neutral { border-left-color: #64748b; }
+
+        .modules-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+        }
+        .module-card {
+            background-color: #2d3748;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 1.15rem;
+        }
+        .module-top { display: flex; justify-content: space-between; gap: 0.8rem; margin-bottom: 0.8rem; }
+        .module-name { font-size: 1rem; margin-bottom: 0.2rem; }
+        .module-score { font-size: 0.84rem; color: #94a3b8; font-weight: 700; }
+        .module-value { font-family: 'Merriweather', serif; font-size: 1.6rem; line-height: 1; margin-bottom: 0.25rem; }
+        .module-label, .module-secondary { color: #94a3b8; font-size: 0.82rem; line-height: 1.45; }
+        .module-progress { width: 100%; height: 8px; border-radius: 999px; overflow: hidden; background-color: rgba(148,163,184,0.15); margin: 0.85rem 0; }
+        .module-progress-fill { height: 100%; border-radius: 999px; }
+        .module-footer { display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; }
+        .module-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            background-color: #1d4ed8; color: #ffffff; text-decoration: none;
+            border-radius: 10px; padding: 0.6rem 0.85rem; font-size: 0.83rem; font-weight: 700;
+        }
+        .module-btn:hover { background-color: #2563eb; }
+
+        .alert-banner {
+            display: none;
+            margin-bottom: 1rem;
+            padding: 0.95rem 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(248,113,113,0.3);
+            background: rgba(239,68,68,0.12);
+            color: #fca5a5;
+            font-size: 0.88rem;
+        }
+        .alert-banner.active { display: block; }
+
+        .loading-overlay {
+            position: absolute; inset: 0; border-radius: 14px;
+            background-color: rgba(26,32,44,0.75);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .loading-overlay.active { opacity: 1; pointer-events: all; }
+        .spinner {
+            width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #60a5fa; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        body.light-mode { background-color: #f1f5f9; color: #1e293b; }
+        body.light-mode h1, body.light-mode h2, body.light-mode h3,
+        body.light-mode h4, body.light-mode h5, body.light-mode h6 { color: #0f172a; }
+        body.light-mode .header-nav {
+            background-color: rgba(255,255,255,0.97);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        body.light-mode .user-greeting { color: #475569; }
+        body.light-mode .theme-toggle {
+            background-color: rgba(0,0,0,0.07); border-color: rgba(0,0,0,0.15); color: #374151;
+        }
+        body.light-mode .module-header { border-bottom-color: rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color: #94a3b8; }
+        body.light-mode .card,
+        body.light-mode .filters-bar,
+        body.light-mode .module-card {
+            background-color: #ffffff;
+            border-color: rgba(0,0,0,0.07);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+        }
+        body.light-mode .card-title { color: #94a3b8; }
+        body.light-mode .filter-select,
+        body.light-mode .filter-btn {
+            background-color: #f8fafc; color: #1e293b; border-color: rgba(0,0,0,0.12);
+        }
+        body.light-mode .kpi-label,
+        body.light-mode .module-label,
+        body.light-mode .module-secondary,
+        body.light-mode .analysis-item p,
+        body.light-mode .helper-text { color: #64748b; }
+        body.light-mode .kpi-sub { color: #94a3b8; }
+        body.light-mode .score-ring::after { background-color: #ffffff; }
+        body.light-mode .analysis-item {
+            background-color: rgba(148,163,184,0.06);
+            border-color: rgba(0,0,0,0.07);
+        }
+        body.light-mode .loading-overlay { background-color: rgba(241,245,249,0.75); }
+
+        @media (max-width: 1100px) {
+            .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+            .layout-grid { grid-template-columns: 1fr; }
+            .filters-grid { grid-template-columns: repeat(3, 1fr); }
+            .modules-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 700px) {
+            body { padding-top: 110px; }
+            .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+            .kpi-grid, .filters-grid, .modules-grid { grid-template-columns: 1fr; }
+            .side-grid { grid-template-rows: auto; }
+        }
+    </style>
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            </div>
+            <div>
+                <h1>Gestión y Resultados</h1>
+                <p>Vista ejecutiva consolidada de todos los módulos, con indicadores clave, tendencias y navegación directa al detalle.</p>
+            </div>
+        </div>
+
+        <div id="dataError" class="alert-banner"></div>
+
+        <div class="filters-bar">
+            <div class="filters-grid">
+                <div>
+                    <label class="filter-label" for="filterCliente">Cliente</label>
+                    <select id="filterCliente" class="filter-select"></select>
+                </div>
+                <div>
+                    <label class="filter-label" for="filterYear">Año</label>
+                    <select id="filterYear" class="filter-select"></select>
+                </div>
+                <div>
+                    <label class="filter-label" for="filterMonth">Mes</label>
+                    <select id="filterMonth" class="filter-select"></select>
+                </div>
+                <div>
+                    <label class="filter-label" for="filterDay">Día</label>
+                    <select id="filterDay" class="filter-select"></select>
+                </div>
+                <div>
+                    <label class="filter-label" for="filterProyecto">Proyecto</label>
+                    <select id="filterProyecto" class="filter-select" disabled>
+                        <option>Próximamente</option>
+                    </select>
+                    <div class="helper-text">Pendiente de homologación entre módulos.</div>
+                </div>
+                <div>
+                    <label class="filter-label" for="filterPais">País</label>
+                    <select id="filterPais" class="filter-select" disabled>
+                        <option>Próximamente</option>
+                    </select>
+                    <div class="helper-text">Aún no existe una columna común.</div>
+                </div>
+                <div>
+                    <label class="filter-label" for="resetFilters">Acciones</label>
+                    <button id="resetFilters" class="filter-btn">Limpiar filtros</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="layout-grid">
+            <div class="card">
+                <div class="card-title">Tendencia Ejecutiva</div>
+                <div class="chart-wrap">
+                    <canvas id="trendChart" class="chart-canvas" style="height:320px!important;"></canvas>
+                    <div class="loading-overlay active" id="trendLoading"><div class="spinner"></div></div>
+                </div>
+            </div>
+
+            <div class="side-grid">
+                <div class="card">
+                    <div class="card-title">Ranking Semáforo</div>
+                    <div class="chart-wrap">
+                        <canvas id="rankingChart" class="chart-canvas" style="height:260px!important;"></canvas>
+                        <div class="loading-overlay active" id="rankingLoading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Distribución General</div>
+                    <div class="chart-wrap">
+                        <canvas id="distributionChart" class="chart-canvas" style="height:260px!important;"></canvas>
+                        <div class="loading-overlay active" id="distributionLoading"><div class="spinner"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-title">Análisis Automático</div>
+            <div id="analysisList" class="analysis-list"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Resumen Por Módulo</div>
+            <div id="modulesGrid" class="modules-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        const ENDPOINTS = {
+            satisfaccion: { data: '/dashboard/api/satisfaccion/data', route: '/dashboard/satisfaccion/', title: 'Satisfacción' },
+            incidentes: { data: '/dashboard/api/incidentes/data', route: '/dashboard/incidentes/', title: 'Incidentes' },
+            supervision: { data: '/dashboard/api/supervision/data', route: '/dashboard/supervision/', title: 'Supervisión' },
+            cumplimiento: { data: '/dashboard/api/cumplimiento/data', route: '/dashboard/cumplimiento/', title: 'Cumplimiento' },
+            capacitacion: { data: '/dashboard/api/capacitacion/data', route: '/dashboard/capacitacion/', title: 'Capacitación' },
+            disciplina: { data: '/dashboard/api/disciplina/data', route: '/dashboard/disciplina/', title: 'Disciplina' },
+            visitas: { data: '/dashboard/api/visitas/data', route: '/dashboard/visitas/', title: 'Visitas' },
+            vehiculos: { data: '/dashboard/api/vehiculos/data', route: '/dashboard/vehiculos/', title: 'Vehículos' },
+            equipos: { data: '/dashboard/api/equipos/data', route: '/dashboard/equipos/', title: 'Equipos' }
+        };
+
+        const colors = {
+            green: '#22c55e',
+            yellow: '#eab308',
+            orange: '#f97316',
+            red: '#ef4444',
+            slate: '#94a3b8'
+        };
+
+        const themeToggle = document.getElementById('themeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+        const dataError = document.getElementById('dataError');
+        const kpiGrid = document.getElementById('kpiGrid');
+        const analysisList = document.getElementById('analysisList');
+        const modulesGrid = document.getElementById('modulesGrid');
+
+        const filterCliente = document.getElementById('filterCliente');
+        const filterYear = document.getElementById('filterYear');
+        const filterMonth = document.getElementById('filterMonth');
+        const filterDay = document.getElementById('filterDay');
+        const resetFilters = document.getElementById('resetFilters');
+
+        let trendChart = null;
+        let rankingChart = null;
+        let distributionChart = null;
+
+        function setDarkMode() {
+            document.body.classList.remove('light-mode');
+            darkModeIcon.style.display = 'block';
+            lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+        }
+
+        function setLightMode() {
+            document.body.classList.add('light-mode');
+            darkModeIcon.style.display = 'none';
+            lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+        }
+
+        function initializeTheme() {
+            const saved = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (saved === 'light' || (!saved && !prefersDark)) setLightMode();
+            else setDarkMode();
+        }
+
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode();
+        });
+
+        function setLoading(id, active) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('active', active);
+        }
+
+        function statusFromScore(score) {
+            if (score === null || score === undefined || Number.isNaN(score)) {
+                return { label: 'Sin datos', tone: 'slate', color: colors.slate };
+            }
+            if (score >= 85) return { label: 'Saludable', tone: 'green', color: colors.green };
+            if (score >= 70) return { label: 'Seguimiento', tone: 'yellow', color: colors.yellow };
+            if (score >= 55) return { label: 'Alerta', tone: 'orange', color: colors.orange };
+            return { label: 'Crítico', tone: 'red', color: colors.red };
+        }
+
+        function clamp(num, min = 0, max = 100) {
+            if (num === null || num === undefined || Number.isNaN(num)) return null;
+            return Math.max(min, Math.min(max, num));
+        }
+
+        function safeAvg(values) {
+            const valid = values.filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+            if (!valid.length) return null;
+            return +(valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1);
+        }
+
+        function fillSelect(select, options, placeholder) {
+            select.innerHTML = `<option value="">${placeholder}</option>`;
+            options.forEach(option => {
+                const el = document.createElement('option');
+                el.value = option;
+                el.textContent = option;
+                select.appendChild(el);
+            });
+        }
+
+        function buildDateFilters() {
+            const currentYear = new Date().getFullYear();
+            const years = [];
+            for (let y = currentYear; y >= 2022; y--) years.push(String(y));
+            fillSelect(filterYear, years, 'Todos');
+            fillSelect(filterMonth, Array.from({ length: 12 }, (_, i) => String(i + 1)), 'Todos');
+            fillSelect(filterDay, Array.from({ length: 31 }, (_, i) => String(i + 1)), 'Todos');
+        }
+
+        function readFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            filterCliente.value = params.get('cliente') || '';
+            filterYear.value = params.get('year') || '';
+            filterMonth.value = params.get('month') || '';
+            filterDay.value = params.get('day') || '';
+        }
+
+        function updateUrl() {
+            const params = new URLSearchParams();
+            if (filterCliente.value) params.set('cliente', filterCliente.value);
+            if (filterYear.value) params.set('year', filterYear.value);
+            if (filterMonth.value) params.set('month', filterMonth.value);
+            if (filterDay.value) params.set('day', filterDay.value);
+            const query = params.toString();
+            window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+        }
+
+        function queryString() {
+            const params = new URLSearchParams();
+            if (filterCliente.value) params.set('cliente', filterCliente.value);
+            if (filterYear.value) params.set('year', filterYear.value);
+            if (filterMonth.value) params.set('month', filterMonth.value);
+            if (filterDay.value) params.set('day', filterDay.value);
+            return params.toString();
+        }
+
+        async function loadClientes() {
+            try {
+                const res = await fetch('/dashboard/api/gestion/filtros');
+                const data = await res.json();
+                fillSelect(filterCliente, data.clientes || [], 'Todos');
+            } catch (err) {
+                fillSelect(filterCliente, [], 'Todos');
+            }
+        }
+
+        async function fetchJsonSafe(url) {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return await res.json();
+            } catch (err) {
+                console.error(`Failed loading ${url}`, err);
+                return null;
+            }
+        }
+
+        function buildCards(results) {
+            const sat = results.satisfaccion;
+            const satScore = clamp(sat?.kpi?.avg_global != null ? (sat.kpi.avg_global / 40) * 100 : null);
+
+            const inc = results.incidentes;
+            const incPctAlto = inc?.kpi?.pct_alto ?? 0;
+            const incScore = clamp(inc ? 100 - Math.min((inc.kpi?.total || 0) * 4, 60) - Math.min(incPctAlto * 1.2, 40) : null);
+
+            const sup = results.supervision;
+            const supScore = clamp(sup?.kpi?.avg_score != null ? (sup.kpi.avg_score / 25) * 100 : null);
+
+            const cum = results.cumplimiento;
+            const cumScore = clamp(cum?.kpi?.pct_cumple ?? null);
+
+            const cap = results.capacitacion;
+            const capScore = clamp(cap?.kpi?.promedio_asistentes != null ? cap.kpi.promedio_asistentes * 5 : null);
+
+            const disc = results.disciplina;
+            const discScore = clamp(disc ? 100 - ((disc.kpi?.pct_reincidencia || 0) * 1.1) - ((disc.kpi?.criticos || 0) * 8) : null);
+
+            const vis = results.visitas;
+            const visScore = clamp(vis && vis.kpi?.total_visitas ? 55 + ((vis.kpi?.promedio_visitas || 0) * 15) : null);
+
+            const veh = results.vehiculos;
+            const vehScore = clamp(veh?.kpi?.pct_aptas ?? null);
+
+            const eq = results.equipos;
+            const eqScore = clamp(eq?.kpi?.pct_general ?? null);
+
+            return [
+                {
+                    key: 'satisfaccion',
+                    title: ENDPOINTS.satisfaccion.title,
+                    route: ENDPOINTS.satisfaccion.route,
+                    score: satScore,
+                    status: statusFromScore(satScore),
+                    primaryValue: sat?.kpi?.avg_global != null ? sat.kpi.avg_global : '—',
+                    primaryLabel: 'Promedio global NPS',
+                    secondaryValue: sat?.kpi?.pct_recomienda != null ? `${sat.kpi.pct_recomienda}%` : '—',
+                    secondaryLabel: '% recomienda'
+                },
+                {
+                    key: 'incidentes',
+                    title: ENDPOINTS.incidentes.title,
+                    route: ENDPOINTS.incidentes.route,
+                    score: incScore,
+                    status: statusFromScore(incScore),
+                    primaryValue: inc?.kpi?.total ?? 0,
+                    primaryLabel: 'Incidentes',
+                    secondaryValue: inc?.kpi?.pct_alto != null ? `${inc.kpi.pct_alto}%` : '—',
+                    secondaryLabel: 'Severidad alta'
+                },
+                {
+                    key: 'supervision',
+                    title: ENDPOINTS.supervision.title,
+                    route: ENDPOINTS.supervision.route,
+                    score: supScore,
+                    status: statusFromScore(supScore),
+                    primaryValue: sup?.kpi?.avg_score != null ? sup.kpi.avg_score : '—',
+                    primaryLabel: 'Score promedio',
+                    secondaryValue: sup?.kpi?.cnt_critico ?? 0,
+                    secondaryLabel: 'Puestos críticos'
+                },
+                {
+                    key: 'cumplimiento',
+                    title: ENDPOINTS.cumplimiento.title,
+                    route: ENDPOINTS.cumplimiento.route,
+                    score: cumScore,
+                    status: statusFromScore(cumScore),
+                    primaryValue: cum?.kpi?.pct_cumple != null ? `${cum.kpi.pct_cumple}%` : '—',
+                    primaryLabel: 'Cumplimiento',
+                    secondaryValue: cum?.kpi?.cnt_vencidos ?? 0,
+                    secondaryLabel: 'Vencidos'
+                },
+                {
+                    key: 'capacitacion',
+                    title: ENDPOINTS.capacitacion.title,
+                    route: ENDPOINTS.capacitacion.route,
+                    score: capScore,
+                    status: statusFromScore(capScore),
+                    primaryValue: cap?.kpi?.total_capacitaciones ?? 0,
+                    primaryLabel: 'Sesiones',
+                    secondaryValue: cap?.kpi?.total_asistentes ?? 0,
+                    secondaryLabel: 'Asistentes'
+                },
+                {
+                    key: 'disciplina',
+                    title: ENDPOINTS.disciplina.title,
+                    route: ENDPOINTS.disciplina.route,
+                    score: discScore,
+                    status: statusFromScore(discScore),
+                    primaryValue: disc?.kpi?.total ?? 0,
+                    primaryLabel: 'Novedades',
+                    secondaryValue: disc?.kpi?.pct_reincidencia != null ? `${disc.kpi.pct_reincidencia}%` : '—',
+                    secondaryLabel: 'Reincidencia'
+                },
+                {
+                    key: 'visitas',
+                    title: ENDPOINTS.visitas.title,
+                    route: ENDPOINTS.visitas.route,
+                    score: visScore,
+                    status: statusFromScore(visScore),
+                    primaryValue: vis?.kpi?.total_visitas ?? 0,
+                    primaryLabel: 'Visitas',
+                    secondaryValue: vis?.kpi?.clientes_visitados ?? 0,
+                    secondaryLabel: 'Clientes visitados'
+                },
+                {
+                    key: 'vehiculos',
+                    title: ENDPOINTS.vehiculos.title,
+                    route: ENDPOINTS.vehiculos.route,
+                    score: vehScore,
+                    status: statusFromScore(vehScore),
+                    primaryValue: veh?.kpi?.pct_aptas != null ? `${veh.kpi.pct_aptas}%` : '—',
+                    primaryLabel: '% aptas',
+                    secondaryValue: veh?.kpi?.total_fallas ?? 0,
+                    secondaryLabel: 'Fallas'
+                },
+                {
+                    key: 'equipos',
+                    title: ENDPOINTS.equipos.title,
+                    route: ENDPOINTS.equipos.route,
+                    score: eqScore,
+                    status: statusFromScore(eqScore),
+                    primaryValue: eq?.kpi?.pct_general != null ? `${eq.kpi.pct_general}%` : '—',
+                    primaryLabel: 'Confiabilidad',
+                    secondaryValue: eq?.kpi?.total_equipos ?? 0,
+                    secondaryLabel: 'Equipos evaluados'
+                }
+            ];
+        }
+
+        function renderKpis(cards) {
+            const validScores = cards.map(c => c.score).filter(v => v !== null);
+            const executiveScore = safeAvg(validScores);
+            const executiveStatus = statusFromScore(executiveScore);
+            const healthy = cards.filter(c => c.status.tone === 'green').length;
+            const alerts = cards.filter(c => ['orange', 'red'].includes(c.status.tone)).length;
+
+            const personalScores = cards.filter(c => ['supervision', 'disciplina'].includes(c.key)).map(c => c.score).filter(v => v !== null);
+            const personalScore = safeAvg(personalScores);
+            const personalStatus = statusFromScore(personalScore);
+
+            const strip = [
+                {
+                    title: 'Resultado Ejecutivo',
+                    badge: executiveStatus,
+                    custom: `
+                        <div class="score-main">
+                            <div class="score-ring" style="--pct:${executiveScore || 0}; --ring-color:${executiveStatus.color};">
+                                <div class="score-ring-inner">
+                                    <div class="score-ring-num">${executiveScore ?? '—'}</div>
+                                    <div class="score-ring-text">Indice</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="kpi-label">Promedio consolidado de módulos</div>
+                                <div class="kpi-sub">${healthy} saludables · ${alerts} en alerta</div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: 'Satisfacción Cliente',
+                    badge: statusFromScore(cards.find(c => c.key === 'satisfaccion')?.score),
+                    value: cards.find(c => c.key === 'satisfaccion')?.primaryValue ?? '—',
+                    label: cards.find(c => c.key === 'satisfaccion')?.primaryLabel ?? '',
+                    sub: `${cards.find(c => c.key === 'satisfaccion')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'satisfaccion')?.secondaryLabel ?? ''}`
+                },
+                {
+                    title: 'Incidentes',
+                    badge: statusFromScore(cards.find(c => c.key === 'incidentes')?.score),
+                    value: cards.find(c => c.key === 'incidentes')?.primaryValue ?? 0,
+                    label: cards.find(c => c.key === 'incidentes')?.primaryLabel ?? '',
+                    sub: `${cards.find(c => c.key === 'incidentes')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'incidentes')?.secondaryLabel ?? ''}`
+                },
+                {
+                    title: 'Cumplimiento',
+                    badge: statusFromScore(cards.find(c => c.key === 'cumplimiento')?.score),
+                    value: cards.find(c => c.key === 'cumplimiento')?.primaryValue ?? '—',
+                    label: cards.find(c => c.key === 'cumplimiento')?.primaryLabel ?? '',
+                    sub: `${cards.find(c => c.key === 'cumplimiento')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'cumplimiento')?.secondaryLabel ?? ''}`
+                },
+                {
+                    title: 'Confiabilidad Equipos',
+                    badge: statusFromScore(cards.find(c => c.key === 'equipos')?.score),
+                    value: cards.find(c => c.key === 'equipos')?.primaryValue ?? '—',
+                    label: cards.find(c => c.key === 'equipos')?.primaryLabel ?? '',
+                    sub: `${cards.find(c => c.key === 'equipos')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'equipos')?.secondaryLabel ?? ''}`
+                },
+                {
+                    title: 'Gestión del Personal',
+                    badge: personalStatus,
+                    value: personalScore != null ? `${personalScore}%` : '—',
+                    label: 'Supervisión + disciplina',
+                    sub: 'Indicador combinado de desempeño y control'
+                }
+            ];
+
+            kpiGrid.innerHTML = strip.map(item => `
+                <div class="card">
+                    <div class="card-title">${item.title}</div>
+                    <div class="status-badge status-${item.badge.tone}">${item.badge.label}</div>
+                    ${item.custom || `
+                        <div class="kpi-value">${item.value}</div>
+                        <div class="kpi-label">${item.label}</div>
+                        <div class="kpi-sub">${item.sub}</div>
+                    `}
+                </div>
+            `).join('');
+        }
+
+        function renderAnalysis(cards, results, failures) {
+            const items = [];
+            const sat = cards.find(c => c.key === 'satisfaccion');
+            const inc = cards.find(c => c.key === 'incidentes');
+            const cum = cards.find(c => c.key === 'cumplimiento');
+            const veh = cards.find(c => c.key === 'vehiculos');
+            const eq = cards.find(c => c.key === 'equipos');
+            const disc = cards.find(c => c.key === 'disciplina');
+
+            if (sat?.score !== null && sat.score < 70) {
+                items.push({
+                    cls: 'warning',
+                    title: 'Satisfacción por debajo del umbral esperado',
+                    text: `La satisfacción global se ubica en ${sat.primaryValue}/40 y la recomendación en ${sat.secondaryValue}.`,
+                    route: sat.route
+                });
+            }
+            if ((results.incidentes?.kpi?.total || 0) > 0) {
+                items.push({
+                    cls: (results.incidentes?.kpi?.pct_alto || 0) >= 25 ? 'danger' : 'warning',
+                    title: 'Se requiere seguimiento a incidentes',
+                    text: `Se registran ${results.incidentes.kpi.total} incidentes, con ${results.incidentes.kpi.total_alto || 0} de severidad alta.`,
+                    route: inc.route
+                });
+            }
+            if ((results.cumplimiento?.kpi?.cnt_vencidos || 0) > 0) {
+                items.push({
+                    cls: 'danger',
+                    title: 'Existen certificados vencidos',
+                    text: `Hay ${results.cumplimiento.kpi.cnt_vencidos} registros vencidos y ${results.cumplimiento.kpi.cnt_proximos || 0} próximos a vencer.`,
+                    route: cum.route
+                });
+            }
+            if ((results.disciplina?.kpi?.criticos || 0) > 0) {
+                items.push({
+                    cls: 'warning',
+                    title: 'Se detectan reincidencias disciplinarias críticas',
+                    text: `Se identifican ${results.disciplina.kpi.criticos} casos críticos y una reincidencia de ${results.disciplina.kpi.pct_reincidencia || 0}%.`,
+                    route: disc.route
+                });
+            }
+            if ((results.vehiculos?.kpi?.no_aptas || 0) > 0) {
+                items.push({
+                    cls: 'warning',
+                    title: 'La flota presenta unidades no aptas',
+                    text: `Se registran ${results.vehiculos.kpi.no_aptas} inspecciones no aptas y ${results.vehiculos.kpi.total_fallas || 0} fallas acumuladas.`,
+                    route: veh.route
+                });
+            }
+            if (eq?.score !== null && eq.score < 85) {
+                items.push({
+                    cls: 'warning',
+                    title: 'La confiabilidad de equipos necesita seguimiento',
+                    text: `La confiabilidad general se ubica en ${eq.primaryValue} para el período filtrado.`,
+                    route: eq.route
+                });
+            }
+            if (failures.length > 0) {
+                items.push({
+                    cls: 'neutral',
+                    title: 'Algunos módulos no respondieron',
+                    text: `No fue posible consolidar: ${failures.join(', ')}. El dashboard sigue mostrando la información disponible.`,
+                    route: '/dashboard/'
+                });
+            }
+            if (!items.length) {
+                items.push({
+                    cls: 'success',
+                    title: 'Sin alertas críticas en los datos disponibles',
+                    text: 'Los módulos consolidados no muestran desviaciones severas con los filtros actuales.',
+                    route: '/dashboard/'
+                });
+            }
+
+            analysisList.innerHTML = items.map(item => `
+                <div class="analysis-item analysis-${item.cls}">
+                    <h4>${item.title}</h4>
+                    <p>${item.text}</p>
+                    <a href="${item.route}" class="analysis-link">Abrir detalle</a>
+                </div>
+            `).join('');
+        }
+
+        function renderModules(cards) {
+            const sorted = [...cards].sort((a, b) => (a.score ?? -1) - (b.score ?? -1));
+            modulesGrid.innerHTML = sorted.map(card => `
+                <div class="module-card">
+                    <div class="module-top">
+                        <div>
+                            <div class="module-name">${card.title}</div>
+                            <div class="status-badge status-${card.status.tone}">${card.status.label}</div>
+                        </div>
+                        <div class="module-score">${card.score != null ? `${card.score}%` : '—'}</div>
+                    </div>
+                    <div class="module-value">${card.primaryValue}</div>
+                    <div class="module-label">${card.primaryLabel}</div>
+                    <div class="module-progress">
+                        <div class="module-progress-fill" style="width:${card.score || 0}%; background:${card.status.color};"></div>
+                    </div>
+                    <div class="module-secondary">${card.secondaryValue} · ${card.secondaryLabel}</div>
+                    <div class="module-footer">
+                        <span class="helper-text">Ordenado de menor a mayor</span>
+                        <a href="${card.route}" class="module-btn">Ver dashboard</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function buildTrend(results) {
+            const labels = new Set();
+
+            const satLabels = results.satisfaccion?.trend?.labels || [];
+            satLabels.forEach(l => labels.add(l));
+
+            const incLabels = results.incidentes?.trend?.labels || [];
+            incLabels.forEach(l => labels.add(l));
+
+            const supLabels = results.supervision?.trend?.labels || [];
+            supLabels.forEach(l => labels.add(l));
+
+            const vehLabels = (results.vehiculos?.tendencia || []).map(item => item.periodo || item.periodo_label);
+            vehLabels.forEach(l => labels.add(l));
+
+            const eqLabels = (results.equipos?.tendencia || []).map(item => item.periodo || item.periodo_label);
+            eqLabels.forEach(l => labels.add(l));
+
+            const capLabels = (results.capacitacion?.tendencia || []).map(item => item.mes || item.mes_label);
+            capLabels.forEach(l => labels.add(l));
+
+            const orderedLabels = Array.from(labels);
+
+            function mapByLabels(sourceLabels, values, transform = (v) => v) {
+                return orderedLabels.map(label => {
+                    const idx = sourceLabels.indexOf(label);
+                    return idx >= 0 ? transform(values[idx]) : null;
+                });
+            }
+
+            const satSeries = mapByLabels(satLabels, results.satisfaccion?.trend?.global || [], value => value != null ? +((value / 40) * 100).toFixed(1) : null);
+            const supSeries = mapByLabels(supLabels, results.supervision?.trend?.avg_score || [], value => value != null ? +((value / 25) * 100).toFixed(1) : null);
+            const incSeries = mapByLabels(incLabels, results.incidentes?.trend?.counts || [], value => value ?? 0);
+            const capSeries = mapByLabels(capLabels, (results.capacitacion?.tendencia || []).map(item => item.capacitaciones), value => value != null ? clamp(50 + (value * 8)) : null);
+
+            const vehSourceLabels = (results.vehiculos?.tendencia || []).map(item => item.periodo || item.periodo_label);
+            const vehValues = (results.vehiculos?.tendencia || []).map(item => {
+                if (!item.inspecciones) return null;
+                return +(((item.inspecciones - item.no_aptas) / item.inspecciones) * 100).toFixed(1);
+            });
+            const vehSeries = mapByLabels(vehSourceLabels, vehValues);
+
+            const eqSourceLabels = (results.equipos?.tendencia || []).map(item => item.periodo || item.periodo_label);
+            const eqSeries = mapByLabels(eqSourceLabels, (results.equipos?.tendencia || []).map(item => item.pct));
+
+            return {
+                labels: orderedLabels,
+                satSeries,
+                supSeries,
+                capSeries,
+                vehSeries,
+                eqSeries,
+                incSeries
+            };
+        }
+
+        function renderTrendChart(trend) {
+            if (trendChart) trendChart.destroy();
+            trendChart = new Chart(document.getElementById('trendChart'), {
+                data: {
+                    labels: trend.labels,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Satisfacción',
+                            data: trend.satSeries,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34,197,94,0.12)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            yAxisID: 'y',
+                            datalabels: {
+                                color: '#4ade80',
+                                align: 'top',
+                                anchor: 'end',
+                                formatter: value => value == null ? '' : `${value}%`
+                            }
+                        },
+                        {
+                            type: 'line',
+                            label: 'Supervisión',
+                            data: trend.supSeries,
+                            borderColor: '#60a5fa',
+                            backgroundColor: 'rgba(96,165,250,0.12)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            yAxisID: 'y',
+                            datalabels: {
+                                color: '#93c5fd',
+                                align: 'top',
+                                anchor: 'end',
+                                formatter: value => value == null ? '' : `${value}%`
+                            }
+                        },
+                        {
+                            type: 'line',
+                            label: 'Capacitación',
+                            data: trend.capSeries,
+                            borderColor: '#fbbf24',
+                            backgroundColor: 'rgba(251,191,36,0.12)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            yAxisID: 'y',
+                            datalabels: {
+                                color: '#fcd34d',
+                                align: 'top',
+                                anchor: 'end',
+                                formatter: value => value == null ? '' : `${value}%`
+                            }
+                        },
+                        {
+                            type: 'line',
+                            label: 'Vehículos aptos',
+                            data: trend.vehSeries,
+                            borderColor: '#818cf8',
+                            backgroundColor: 'rgba(129,140,248,0.12)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            yAxisID: 'y',
+                            datalabels: {
+                                color: '#a5b4fc',
+                                align: 'top',
+                                anchor: 'end',
+                                formatter: value => value == null ? '' : `${value}%`
+                            }
+                        },
+                        {
+                            type: 'line',
+                            label: 'Equipos',
+                            data: trend.eqSeries,
+                            borderColor: '#94a3b8',
+                            backgroundColor: 'rgba(148,163,184,0.12)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            yAxisID: 'y',
+                            datalabels: {
+                                color: '#cbd5e1',
+                                align: 'top',
+                                anchor: 'end',
+                                formatter: value => value == null ? '' : `${value}%`
+                            }
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Incidentes',
+                            data: trend.incSeries,
+                            backgroundColor: 'rgba(248,113,113,0.28)',
+                            borderColor: '#ef4444',
+                            borderWidth: 1.2,
+                            yAxisID: 'y1',
+                            datalabels: {
+                                color: '#fca5a5',
+                                anchor: 'end',
+                                align: 'end',
+                                formatter: value => value || value === 0 ? value : ''
+                            }
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            grid: { color: 'rgba(148,163,184,0.08)' },
+                            ticks: { callback: value => `${value}%` }
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false }
+                        },
+                        x: {
+                            grid: { color: 'rgba(148,163,184,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRankingChart(cards) {
+            if (rankingChart) rankingChart.destroy();
+            const sorted = [...cards].sort((a, b) => (a.score ?? -1) - (b.score ?? -1));
+            rankingChart = new Chart(document.getElementById('rankingChart'), {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(card => card.title),
+                    datasets: [{
+                        data: sorted.map(card => card.score),
+                        backgroundColor: sorted.map(card => card.status.color),
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            color: document.body.classList.contains('light-mode') ? '#1e293b' : '#e2e8f0',
+                            anchor: 'end',
+                            align: 'right',
+                            formatter: value => value != null ? `${value}%` : '—',
+                            font: { weight: '700' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 100,
+                            ticks: { callback: value => `${value}%` },
+                            grid: { color: 'rgba(148,163,184,0.08)' }
+                        },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderDistributionChart(cards) {
+            if (distributionChart) distributionChart.destroy();
+            const distribution = { green: 0, yellow: 0, orange: 0, red: 0, slate: 0 };
+            cards.forEach(card => { distribution[card.status.tone] += 1; });
+
+            distributionChart = new Chart(document.getElementById('distributionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Saludable', 'Seguimiento', 'Alerta', 'Crítico', 'Sin datos'],
+                    datasets: [{
+                        data: [distribution.green, distribution.yellow, distribution.orange, distribution.red, distribution.slate],
+                        backgroundColor: [colors.green, colors.yellow, colors.orange, colors.red, colors.slate],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: '700' },
+                            formatter: value => value > 0 ? value : ''
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadDashboard() {
+            updateUrl();
+            dataError.classList.remove('active');
+            dataError.textContent = '';
+            ['trendLoading', 'rankingLoading', 'distributionLoading'].forEach(id => setLoading(id, true));
+
+            const qs = queryString();
+            const settled = await Promise.allSettled(
+                Object.entries(ENDPOINTS).map(async ([key, cfg]) => [key, await fetchJsonSafe(`${cfg.data}${qs ? `?${qs}` : ''}`)])
+            );
+
+            const results = {};
+            const failures = [];
+
+            settled.forEach((item, index) => {
+                const key = Object.keys(ENDPOINTS)[index];
+                if (item.status === 'fulfilled' && item.value[1]) {
+                    results[key] = item.value[1];
+                } else {
+                    results[key] = null;
+                    failures.push(ENDPOINTS[key].title);
+                }
+            });
+
+            const cards = buildCards(results);
+            const availableCards = cards.filter(card => card.score !== null);
+
+            if (!availableCards.length) {
+                dataError.classList.add('active');
+                dataError.textContent = 'No se pudo consolidar información en este momento. Revisa conexión, sesión o respuesta de los módulos.';
+            } else if (failures.length) {
+                dataError.classList.add('active');
+                dataError.textContent = `Se cargó información parcial. Módulos sin respuesta: ${failures.join(', ')}.`;
+            }
+
+            renderKpis(cards);
+            renderAnalysis(cards, results, failures);
+            renderModules(cards);
+            renderTrendChart(buildTrend(results));
+            renderRankingChart(cards);
+            renderDistributionChart(cards);
+
+            ['trendLoading', 'rankingLoading', 'distributionLoading'].forEach(id => setLoading(id, false));
+        }
+
+        function bindEvents() {
+            [filterCliente, filterYear, filterMonth, filterDay].forEach(el => {
+                el.addEventListener('change', () => loadDashboard());
+            });
+            resetFilters.addEventListener('click', () => {
+                filterCliente.value = '';
+                filterYear.value = '';
+                filterMonth.value = '';
+                filterDay.value = '';
+                loadDashboard();
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            initializeTheme();
+            buildDateFilters();
+            await loadClientes();
+            readFromUrl();
+            bindEvents();
+            await loadDashboard();
+        });
+    </script>
+</body>
+</html>

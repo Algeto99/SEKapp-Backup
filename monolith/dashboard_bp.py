@@ -1695,7 +1695,761 @@ def dashboard_equipos():
 @jwt_required()
 @admin_required
 def dashboard_gestion():
-    return _module_view('gestion')
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing gestion dashboard")
+    return render_template("dashboard_gestion.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
+
+
+def _gestion_clamp(value, lo=0, hi=100):
+    if value is None:
+        return None
+    return max(lo, min(hi, value))
+
+
+def _gestion_status(score):
+    if score is None:
+        return {
+            'label': 'Sin datos',
+            'color': '#64748b',
+            'tone': 'slate',
+            'rank': 0,
+        }
+    score = float(score)
+    if score >= 85:
+        return {'label': 'Saludable', 'color': '#16a34a', 'tone': 'green', 'rank': 3}
+    if score >= 70:
+        return {'label': 'En seguimiento', 'color': '#eab308', 'tone': 'yellow', 'rank': 2}
+    if score >= 55:
+        return {'label': 'Alerta', 'color': '#f97316', 'tone': 'orange', 'rank': 1}
+    return {'label': 'Crítico', 'color': '#dc2626', 'tone': 'red', 'rank': 0}
+
+
+def _gestion_date_prefix(year, month, day):
+    if not year:
+        return None
+    prefix = f"{year}"
+    if month:
+        prefix += f"-{month:02d}"
+        if day:
+            prefix += f"-{day:02d}"
+    return prefix
+
+
+def _gestion_add_like_date_filter(conds, params, text_expr, year, month, day):
+    prefix = _gestion_date_prefix(year, month, day)
+    if prefix:
+        conds.append(f"{text_expr} LIKE %s")
+        params.append(prefix + "%")
+
+
+def _gestion_add_extract_date_filter(conds, params, date_expr, year, month, day):
+    if year:
+        conds.append(f"EXTRACT(YEAR FROM {date_expr}) = %s")
+        params.append(year)
+    if month:
+        conds.append(f"EXTRACT(MONTH FROM {date_expr}) = %s")
+        params.append(month)
+    if day:
+        conds.append(f"EXTRACT(DAY FROM {date_expr}) = %s")
+        params.append(day)
+
+
+def _gestion_where(conds):
+    return ('WHERE ' + ' AND '.join(conds)) if conds else ''
+
+
+def _gestion_score_payload(module_key, title, route, score, primary_value, primary_label,
+                           secondary_value=None, secondary_label=None):
+    score = round(score, 1) if score is not None else None
+    status = _gestion_status(score)
+    return {
+        'key': module_key,
+        'title': title,
+        'route': route,
+        'score': score,
+        'status': status,
+        'primary_value': primary_value,
+        'primary_label': primary_label,
+        'secondary_value': secondary_value,
+        'secondary_label': secondary_label,
+    }
+
+
+@dashboard_bp.route('/api/gestion/filtros')
+@jwt_required()
+@admin_required
+def api_gestion_filtros():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
+
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("""
+            SELECT DISTINCT cliente FROM (
+                SELECT TRIM(cliente_instalacion) AS cliente FROM medicion_experiencia_cliente
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM reportes_incidentes
+                UNION
+                SELECT TRIM(cliente)             AS cliente FROM supervision_puesto
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM checklist_cumplimiento
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_de_capacitaciones
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM informe_novedades_disciplinario
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_y_acta_de_visita
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM planilla_vehicular
+                UNION
+                SELECT TRIM(cliente_instalacion) AS cliente FROM confiabilidad_equipos
+            ) q
+            WHERE cliente IS NOT NULL AND cliente <> ''
+            ORDER BY cliente
+        """)
+        clientes = [r['cliente'] for r in cur.fetchall()]
+
+        cur.execute("""
+            SELECT DISTINCT proyecto FROM (
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM reportes_incidentes
+                UNION
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM checklist_cumplimiento
+                UNION
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM registro_de_capacitaciones
+                UNION
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM informe_novedades_disciplinario
+                UNION
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM registro_y_acta_de_visita
+                UNION
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM planilla_vehicular
+                UNION
+                SELECT TRIM(sitio) AS proyecto FROM confiabilidad_equipos
+            ) q
+            WHERE proyecto IS NOT NULL AND proyecto <> ''
+            ORDER BY proyecto
+        """)
+        proyectos = [r['proyecto'] for r in cur.fetchall()]
+
+        cur.execute("""
+            SELECT DISTINCT turno FROM (
+                SELECT TRIM(turno) AS turno FROM reportes_incidentes
+                UNION
+                SELECT TRIM(turno) AS turno FROM checklist_cumplimiento
+                UNION
+                SELECT TRIM(turno) AS turno FROM registro_de_capacitaciones
+                UNION
+                SELECT TRIM(turno) AS turno FROM informe_novedades_disciplinario
+                UNION
+                SELECT TRIM(turno) AS turno FROM registro_y_acta_de_visita
+                UNION
+                SELECT TRIM(turno) AS turno FROM planilla_vehicular
+            ) q
+            WHERE turno IS NOT NULL AND turno <> ''
+            ORDER BY turno
+        """)
+        turnos = [r['turno'] for r in cur.fetchall()] or ['Diurno', 'Nocturno']
+
+        return jsonify({
+            'clientes': clientes,
+            'proyectos': proyectos,
+            'paises': [],
+            'turnos': turnos,
+        })
+    except Exception as e:
+        app_logger.error(f"api_gestion_filtros error: {e}", exc_info=True)
+        return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/gestion/data')
+@jwt_required()
+@admin_required
+def api_gestion_data():
+    cliente = request.args.get('cliente') or None
+    proyecto = request.args.get('proyecto') or None
+    turno = request.args.get('turno') or None
+    year = int(request.args.get('year')) if request.args.get('year') else None
+    month = int(request.args.get('month')) if request.args.get('month') else None
+    day = int(request.args.get('day')) if request.args.get('day') else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        sat_conds, sat_params = [], []
+        if cliente:
+            sat_conds.append("cliente_instalacion = %s")
+            sat_params.append(cliente)
+        if turno:
+            sat_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
+            sat_params.append(turno.lower())
+        _gestion_add_like_date_filter(sat_conds, sat_params, "fecha_hora::TEXT", year, month, day)
+        sat_where = _gestion_where(sat_conds)
+        cur.execute(f"""
+            SELECT
+                AVG(NULLIF(calificacion_global_nps::TEXT, '')::NUMERIC) AS avg_global,
+                COUNT(*) AS total,
+                SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT, '')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda
+            FROM medicion_experiencia_cliente
+            {sat_where}
+        """, sat_params)
+        sat_row = cur.fetchone()
+        sat_avg = float(sat_row['avg_global']) if sat_row and sat_row['avg_global'] is not None else None
+        sat_total = int(sat_row['total'] or 0) if sat_row else 0
+        sat_recomienda = int(sat_row['recomienda'] or 0) if sat_row else 0
+        sat_recomienda_pct = round(sat_recomienda / sat_total * 100, 1) if sat_total else None
+        sat_score = _gestion_clamp((sat_avg / 40) * 100 if sat_avg is not None else None)
+
+        inc_conds, inc_params = [], []
+        if cliente:
+            inc_conds.append("cliente_instalacion = %s")
+            inc_params.append(cliente)
+        if proyecto:
+            inc_conds.append("puesto_area_especifica = %s")
+            inc_params.append(proyecto)
+        if turno:
+            inc_conds.append("LOWER(COALESCE(turno, '')) = %s")
+            inc_params.append(turno.lower())
+        _gestion_add_like_date_filter(inc_conds, inc_params, "fecha_hora::TEXT", year, month, day)
+        inc_where = _gestion_where(inc_conds)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN LOWER(COALESCE(nivel_severidad, '')) = 'alto' THEN 1 ELSE 0 END) AS alto,
+                AVG(CASE WHEN tiempo_resolucion_min IS NOT NULL AND tiempo_resolucion_min > 0 THEN tiempo_resolucion_min END) AS resolucion
+            FROM reportes_incidentes
+            {inc_where}
+        """, inc_params)
+        inc_row = cur.fetchone()
+        inc_total = int(inc_row['total'] or 0) if inc_row else 0
+        inc_alto = int(inc_row['alto'] or 0) if inc_row else 0
+        inc_res = float(inc_row['resolucion']) if inc_row and inc_row['resolucion'] is not None else None
+        inc_pct_alto = round(inc_alto / inc_total * 100, 1) if inc_total else 0
+        inc_score = _gestion_clamp(100 - min(inc_total * 4, 60) - min(inc_pct_alto * 1.2, 40))
+
+        sup_safe = r"""CASE
+            WHEN TRIM(%s::TEXT) ~ '^[0-9]+(\\.[0-9]+)?$' THEN TRIM(%s::TEXT)::NUMERIC
+            WHEN LOWER(TRIM(%s::TEXT)) = 'excelente' THEN 5
+            WHEN LOWER(TRIM(%s::TEXT)) IN ('bueno','bien') THEN 4
+            WHEN LOWER(TRIM(%s::TEXT)) IN ('regular','aceptable') THEN 3
+            WHEN LOWER(TRIM(%s::TEXT)) IN ('malo','deficiente') THEN 2
+            WHEN LOWER(TRIM(%s::TEXT)) IN ('pesimo','pésimo','muy malo') THEN 1
+            ELSE NULL
+        END"""
+        def _sup_expr(col):
+            return sup_safe % (col, col, col, col, col, col)
+        sup_score_expr = " + ".join(f"COALESCE(({_sup_expr(f)}),0)" for f, _ in _SUP_CRITERIA)
+        sup_conds, sup_params = [], []
+        if cliente:
+            sup_conds.append("cliente = %s")
+            sup_params.append(cliente)
+        if turno:
+            sup_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
+            sup_params.append(turno.lower())
+        _gestion_add_like_date_filter(sup_conds, sup_params, "fecha_hora::TEXT", year, month, day)
+        sup_where = _gestion_where(sup_conds)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                AVG({sup_score_expr}) AS avg_score,
+                SUM(CASE WHEN ({sup_score_expr}) <= 15 AND ({sup_score_expr}) > 0 THEN 1 ELSE 0 END) AS criticos
+            FROM supervision_puesto
+            {sup_where}
+        """, sup_params)
+        sup_row = cur.fetchone()
+        sup_total = int(sup_row['total'] or 0) if sup_row else 0
+        sup_avg = float(sup_row['avg_score']) if sup_row and sup_row['avg_score'] is not None else None
+        sup_criticos = int(sup_row['criticos'] or 0) if sup_row else 0
+        sup_score = _gestion_clamp((sup_avg / 25) * 100 if sup_avg is not None else None)
+
+        cum_conds, cum_params = [], []
+        if cliente:
+            cum_conds.append("cliente_instalacion = %s")
+            cum_params.append(cliente)
+        if proyecto:
+            cum_conds.append("puesto_area_especifica = %s")
+            cum_params.append(proyecto)
+        if turno:
+            cum_conds.append("LOWER(COALESCE(turno, '')) = %s")
+            cum_params.append(turno.lower())
+        _gestion_add_extract_date_filter(cum_conds, cum_params, "fecha_hora", year, month, day)
+        cum_where = _gestion_where(cum_conds)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END) AS cumple,
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < CURRENT_DATE THEN 1 ELSE 0 END) AS vencidos
+            FROM checklist_cumplimiento
+            {cum_where}
+        """, cum_params)
+        cum_row = cur.fetchone()
+        cum_total = int(cum_row['total'] or 0) if cum_row else 0
+        cum_cumple = int(cum_row['cumple'] or 0) if cum_row else 0
+        cum_vencidos = int(cum_row['vencidos'] or 0) if cum_row else 0
+        cum_pct = round(cum_cumple / cum_total * 100, 1) if cum_total else None
+        cum_score = cum_pct
+
+        cap_date_expr = _capac_date_expr()
+        cap_safe_len = _capac_safe_len()
+        cap_conds, cap_params = [], []
+        if cliente:
+            cap_conds.append("cliente_instalacion = %s")
+            cap_params.append(cliente)
+        if proyecto:
+            cap_conds.append("puesto_area_especifica = %s")
+            cap_params.append(proyecto)
+        if turno:
+            cap_conds.append("LOWER(COALESCE(turno, '')) = %s")
+            cap_params.append(turno.lower())
+        _gestion_add_extract_date_filter(cap_conds, cap_params, cap_date_expr, year, month, day)
+        cap_where = _gestion_where(cap_conds)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM({cap_safe_len}), 0) AS asistentes,
+                ROUND(COALESCE(AVG(NULLIF({cap_safe_len}, 0)), 0), 1) AS promedio
+            FROM registro_de_capacitaciones
+            {cap_where}
+        """, cap_params)
+        cap_row = cur.fetchone()
+        cap_total = int(cap_row['total'] or 0) if cap_row else 0
+        cap_asist = int(cap_row['asistentes'] or 0) if cap_row else 0
+        cap_prom = float(cap_row['promedio'] or 0) if cap_row else 0
+        cap_score = _gestion_clamp(cap_prom * 5 if cap_total else 0)
+
+        disc_conds, disc_params = [], []
+        if cliente:
+            disc_conds.append("cliente_instalacion = %s")
+            disc_params.append(cliente)
+        if proyecto:
+            disc_conds.append("puesto_area_especifica = %s")
+            disc_params.append(proyecto)
+        if turno:
+            disc_conds.append("LOWER(COALESCE(turno, '')) = %s")
+            disc_params.append(turno.lower())
+        _gestion_add_like_date_filter(disc_conds, disc_params, "fecha_hora::TEXT", year, month, day)
+        disc_where = _gestion_where(disc_conds)
+        cur.execute(f"""
+            WITH emp_counts AS (
+                SELECT COALESCE(NULLIF(TRIM(empleado_numero), ''), empleado_nombre) AS emp_key,
+                       COUNT(*) AS cnt
+                FROM informe_novedades_disciplinario
+                {disc_where}
+                GROUP BY emp_key
+            )
+            SELECT
+                COALESCE(SUM(cnt), 0) AS total,
+                COUNT(*) AS total_empleados,
+                COALESCE(ROUND(
+                    100.0 * SUM(CASE WHEN cnt > 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0)
+                , 1), 0) AS pct_reincidencia,
+                SUM(CASE WHEN cnt > 3 THEN 1 ELSE 0 END) AS criticos
+            FROM emp_counts
+        """, disc_params)
+        disc_row = cur.fetchone()
+        disc_total = int(disc_row['total'] or 0) if disc_row else 0
+        disc_reinc = float(disc_row['pct_reincidencia'] or 0) if disc_row else 0
+        disc_crit = int(disc_row['criticos'] or 0) if disc_row else 0
+        disc_score = _gestion_clamp(100 - (disc_reinc * 1.1) - (disc_crit * 8))
+
+        vis_date_expr = _visita_date_expr()
+        vis_conds, vis_params = [], []
+        if cliente:
+            vis_conds.append("cliente_instalacion = %s")
+            vis_params.append(cliente)
+        if proyecto:
+            vis_conds.append("puesto_area_especifica = %s")
+            vis_params.append(proyecto)
+        if turno:
+            vis_conds.append("LOWER(COALESCE(turno, '')) = %s")
+            vis_params.append(turno.lower())
+        _gestion_add_extract_date_filter(vis_conds, vis_params, vis_date_expr, year, month, day)
+        vis_where = _gestion_where(vis_conds)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total_visitas,
+                COUNT(DISTINCT NULLIF(TRIM(cliente_instalacion), '')) AS clientes_visitados
+            FROM registro_y_acta_de_visita
+            {vis_where}
+        """, vis_params)
+        vis_row = cur.fetchone()
+        vis_total = int(vis_row['total_visitas'] or 0) if vis_row else 0
+        vis_clientes = int(vis_row['clientes_visitados'] or 0) if vis_row else 0
+        vis_promedio = round(vis_total / vis_clientes, 1) if vis_clientes else 0
+        vis_score = _gestion_clamp(55 + (vis_promedio * 15) if vis_total else 0)
+
+        veh_date_expr = _veh_date_expr()
+        veh_conds, veh_params = [], []
+        if cliente:
+            veh_conds.append("cliente_instalacion = %s")
+            veh_params.append(cliente)
+        if proyecto:
+            veh_conds.append("puesto_area_especifica = %s")
+            veh_params.append(proyecto)
+        if turno:
+            veh_conds.append("LOWER(COALESCE(turno, '')) = %s")
+            veh_params.append(turno.lower())
+        _gestion_add_extract_date_filter(veh_conds, veh_params, veh_date_expr, year, month, day)
+        veh_where = _gestion_where(veh_conds)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas,
+                SUM({_VEH_FAULT_SUM}) AS total_fallas
+            FROM planilla_vehicular
+            {veh_where}
+        """, veh_params)
+        veh_row = cur.fetchone()
+        veh_total = int(veh_row['total'] or 0) if veh_row else 0
+        veh_no_aptas = int(veh_row['no_aptas'] or 0) if veh_row else 0
+        veh_fallas = int(veh_row['total_fallas'] or 0) if veh_row else 0
+        veh_aptas_pct = round((veh_total - veh_no_aptas) / veh_total * 100, 1) if veh_total else None
+        veh_score = veh_aptas_pct
+
+        eq_conds, eq_params = [], []
+        if cliente:
+            eq_conds.append("c.cliente_instalacion = %s")
+            eq_params.append(cliente)
+        if proyecto:
+            eq_conds.append("c.sitio = %s")
+            eq_params.append(proyecto)
+        if year:
+            eq_conds.append("EXTRACT(YEAR FROM c.fecha) = %s")
+            eq_params.append(year)
+        if month:
+            eq_conds.append("EXTRACT(MONTH FROM c.fecha) = %s")
+            eq_params.append(month)
+        if day:
+            eq_conds.append("EXTRACT(DAY FROM c.fecha) = %s")
+            eq_params.append(day)
+        eq_where = _eq_where(eq_conds)
+        eq_lateral = f"""
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(c.inventario) AS elem
+            {eq_where}
+        """
+        cur.execute(f"""
+            SELECT
+                COUNT(DISTINCT c.id) AS total_registros,
+                SUM({_EQ_TOTAL_SQL}) AS total_equipos,
+                SUM({_EQ_FUNC_SQL}) AS funcionando
+            {eq_lateral}
+        """, eq_params)
+        eq_row = cur.fetchone()
+        eq_regs = int(eq_row['total_registros'] or 0) if eq_row else 0
+        eq_total = int(eq_row['total_equipos'] or 0) if eq_row else 0
+        eq_func = int(eq_row['funcionando'] or 0) if eq_row else 0
+        eq_pct = round(eq_func / eq_total * 100, 1) if eq_total else None
+        eq_score = eq_pct
+
+        personal_score = None
+        if sup_score is not None or disc_score is not None:
+            vals = [v for v in [sup_score, disc_score] if v is not None]
+            personal_score = round(sum(vals) / len(vals), 1) if vals else None
+
+        cards = [
+            _gestion_score_payload('satisfaccion', 'Satisfacción', '/dashboard/satisfaccion/', sat_score,
+                                   round(sat_avg, 1) if sat_avg is not None else '—', 'Promedio global NPS',
+                                   f"{sat_recomienda_pct}%" if sat_recomienda_pct is not None else '—', '% recomienda'),
+            _gestion_score_payload('incidentes', 'Incidentes', '/dashboard/incidentes/', inc_score,
+                                   inc_total, 'Total incidentes',
+                                   f"{inc_pct_alto}%", 'Severidad alta'),
+            _gestion_score_payload('supervision', 'Supervisión', '/dashboard/supervision/', sup_score,
+                                   round(sup_avg, 1) if sup_avg is not None else '—', 'Score promedio',
+                                   sup_criticos, 'Puestos críticos'),
+            _gestion_score_payload('cumplimiento', 'Cumplimiento', '/dashboard/cumplimiento/', cum_score,
+                                   f"{cum_pct}%" if cum_pct is not None else '—', '% cumplimiento',
+                                   cum_vencidos, 'Certificados vencidos'),
+            _gestion_score_payload('capacitacion', 'Capacitación', '/dashboard/capacitacion/', cap_score,
+                                   cap_total, 'Sesiones',
+                                   cap_asist, 'Asistentes'),
+            _gestion_score_payload('disciplina', 'Disciplina', '/dashboard/disciplina/', disc_score,
+                                   disc_total, 'Novedades',
+                                   f"{disc_reinc}%", 'Reincidencia'),
+            _gestion_score_payload('visitas', 'Visitas', '/dashboard/visitas/', vis_score,
+                                   vis_total, 'Visitas',
+                                   vis_clientes, 'Clientes visitados'),
+            _gestion_score_payload('vehiculos', 'Vehículos', '/dashboard/vehiculos/', veh_score,
+                                   f"{veh_aptas_pct}%" if veh_aptas_pct is not None else '—', '% aptas',
+                                   veh_fallas, 'Fallas registradas'),
+            _gestion_score_payload('equipos', 'Equipos', '/dashboard/equipos/', eq_score,
+                                   f"{eq_pct}%" if eq_pct is not None else '—', 'Confiabilidad',
+                                   eq_total, 'Equipos evaluados'),
+        ]
+        ranking = sorted(cards, key=lambda item: item['score'] if item['score'] is not None else -1)
+
+        executive_values = [c['score'] for c in cards if c['score'] is not None]
+        executive_score = round(sum(executive_values) / len(executive_values), 1) if executive_values else None
+        executive_status = _gestion_status(executive_score)
+
+        status_distribution = {'green': 0, 'yellow': 0, 'orange': 0, 'red': 0, 'slate': 0}
+        for item in cards:
+            tone = item['status']['tone']
+            status_distribution[tone] = status_distribution.get(tone, 0) + 1
+
+        highlights = []
+        if sat_score is not None and sat_score < 70:
+            highlights.append({
+                'level': 'warning',
+                'module': 'Satisfacción',
+                'title': 'Percepción del cliente por debajo del objetivo',
+                'detail': f"El promedio global es {round(sat_avg, 1) if sat_avg is not None else 's/d'} y la recomendación llega a {sat_recomienda_pct if sat_recomienda_pct is not None else 's/d'}%.",
+                'route': '/dashboard/satisfaccion/',
+            })
+        if inc_total > 0:
+            highlights.append({
+                'level': 'danger' if inc_pct_alto >= 25 else 'warning',
+                'module': 'Incidentes',
+                'title': 'Se requiere seguimiento de incidentes',
+                'detail': f"Se registran {inc_total} incidentes y {inc_alto} de severidad alta para el período filtrado.",
+                'route': '/dashboard/incidentes/',
+            })
+        if cum_vencidos > 0:
+            highlights.append({
+                'level': 'danger',
+                'module': 'Cumplimiento',
+                'title': 'Hay certificados vencidos',
+                'detail': f"Se identifican {cum_vencidos} registros vencidos que impactan el cumplimiento normativo.",
+                'route': '/dashboard/cumplimiento/',
+            })
+        if disc_crit > 0:
+            highlights.append({
+                'level': 'warning',
+                'module': 'Disciplina',
+                'title': 'Existen reincidencias críticas',
+                'detail': f"Se detectan {disc_crit} colaboradores con más de tres novedades disciplinarias.",
+                'route': '/dashboard/disciplina/',
+            })
+        if veh_no_aptas > 0:
+            highlights.append({
+                'level': 'warning',
+                'module': 'Vehículos',
+                'title': 'La flota presenta unidades no aptas',
+                'detail': f"Hay {veh_no_aptas} inspecciones con resultado no apto y {veh_fallas} fallas acumuladas.",
+                'route': '/dashboard/vehiculos/',
+            })
+        if eq_pct is not None and eq_pct < 85:
+            highlights.append({
+                'level': 'warning',
+                'module': 'Equipos',
+                'title': 'Confiabilidad técnica en seguimiento',
+                'detail': f"La confiabilidad general de equipos se ubica en {eq_pct}%.",
+                'route': '/dashboard/equipos/',
+            })
+        if cap_total > 0 and cap_score >= 85:
+            highlights.append({
+                'level': 'success',
+                'module': 'Capacitación',
+                'title': 'Buen ritmo de formación',
+                'detail': f"Se reportan {cap_total} sesiones y {cap_asist} asistentes en total.",
+                'route': '/dashboard/capacitacion/',
+            })
+        if not highlights:
+            highlights.append({
+                'level': 'neutral',
+                'module': 'General',
+                'title': 'Sin alertas críticas para el período',
+                'detail': 'Los indicadores consolidados no muestran desvíos relevantes con los filtros aplicados.',
+                'route': '/dashboard/gestion/',
+            })
+
+        trend_labels = []
+        sat_trend_map = {}
+        inc_trend_map = {}
+        cum_trend_map = {}
+        sup_trend_map = {}
+        veh_trend_map = {}
+        eq_trend_map = {}
+
+        if month and year:
+            sat_period_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+            sat_period_label = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+            sat_period_order = "SUBSTRING(fecha_hora::TEXT, 9, 2)"
+            extract_period_expr = "LPAD(EXTRACT(DAY FROM {expr})::TEXT, 2, '0')"
+            extract_period_label = extract_period_expr
+            extract_period_order = extract_period_expr
+        else:
+            sat_period_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            sat_period_label = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            sat_period_order = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            extract_period_expr = "TO_CHAR(DATE_TRUNC('month', {expr}), 'YYYY-MM')"
+            extract_period_label = extract_period_expr
+            extract_period_order = extract_period_expr
+
+        cur.execute(f"""
+            SELECT {sat_period_label} AS label,
+                   ROUND(AVG(NULLIF(calificacion_global_nps::TEXT, '')::NUMERIC)::NUMERIC, 2) AS value
+            FROM medicion_experiencia_cliente
+            {sat_where}
+            GROUP BY {sat_period_expr}
+            ORDER BY {sat_period_order}
+            LIMIT 24
+        """, sat_params)
+        for row in cur.fetchall():
+            label = row['label']
+            sat_trend_map[label] = round((_gestion_clamp((float(row['value']) / 40) * 100)), 1) if row['value'] is not None else None
+            trend_labels.append(label)
+
+        cur.execute(f"""
+            SELECT {sat_period_label} AS label,
+                   COUNT(*) AS value
+            FROM reportes_incidentes
+            {inc_where}
+            GROUP BY {sat_period_expr}
+            ORDER BY {sat_period_order}
+            LIMIT 24
+        """, inc_params)
+        for row in cur.fetchall():
+            label = row['label']
+            inc_trend_map[label] = int(row['value'] or 0)
+            if label not in trend_labels:
+                trend_labels.append(label)
+
+        cum_period_expr = extract_period_expr.format(expr="fecha_hora")
+        cur.execute(f"""
+            SELECT {cum_period_label.format(expr="fecha_hora")} AS label,
+                   ROUND(
+                       100.0 * SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END)
+                       / NULLIF(COUNT(*), 0)
+                   , 1) AS value
+            FROM checklist_cumplimiento
+            {cum_where}
+            GROUP BY {cum_period_expr}
+            ORDER BY {cum_period_order.format(expr="fecha_hora")}
+            LIMIT 24
+        """, cum_params)
+        for row in cur.fetchall():
+            label = row['label']
+            cum_trend_map[label] = float(row['value']) if row['value'] is not None else None
+            if label not in trend_labels:
+                trend_labels.append(label)
+
+        cur.execute(f"""
+            SELECT {sat_period_label} AS label,
+                   ROUND(AVG({sup_score_expr})::NUMERIC, 2) AS value
+            FROM supervision_puesto
+            {sup_where}
+            GROUP BY {sat_period_expr}
+            ORDER BY {sat_period_order}
+            LIMIT 24
+        """, sup_params)
+        for row in cur.fetchall():
+            label = row['label']
+            sup_trend_map[label] = round((_gestion_clamp((float(row['value']) / 25) * 100)), 1) if row['value'] is not None else None
+            if label not in trend_labels:
+                trend_labels.append(label)
+
+        cur.execute(f"""
+            SELECT {extract_period_label.format(expr=veh_date_expr)} AS label,
+                   ROUND(
+                       100.0 * SUM(CASE WHEN NOT ({_VEH_FAULT_EXPR}) THEN 1 ELSE 0 END)
+                       / NULLIF(COUNT(*), 0)
+                   , 1) AS value
+            FROM planilla_vehicular
+            {veh_where}
+            GROUP BY {extract_period_expr.format(expr=veh_date_expr)}
+            ORDER BY {extract_period_order.format(expr=veh_date_expr)}
+            LIMIT 24
+        """, veh_params)
+        for row in cur.fetchall():
+            label = row['label']
+            veh_trend_map[label] = float(row['value']) if row['value'] is not None else None
+            if label not in trend_labels:
+                trend_labels.append(label)
+
+        cur.execute(f"""
+            SELECT {extract_period_label.format(expr='c.fecha')} AS label,
+                   ROUND(SUM({_EQ_FUNC_SQL})::numeric / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS value
+            {eq_lateral}
+            GROUP BY {extract_period_expr.format(expr='c.fecha')}
+            ORDER BY {extract_period_order.format(expr='c.fecha')}
+            LIMIT 24
+        """, eq_params)
+        for row in cur.fetchall():
+            label = row['label']
+            eq_trend_map[label] = float(row['value']) if row['value'] is not None else None
+            if label not in trend_labels:
+                trend_labels.append(label)
+
+        trend_labels = sorted(set(trend_labels))
+
+        return jsonify({
+            'filters_meta': {
+                'cliente': cliente,
+                'proyecto': proyecto,
+                'pais': request.args.get('pais') or None,
+                'turno': turno,
+                'year': year,
+                'month': month,
+                'day': day,
+                'country_supported': False,
+                'project_supported_as_site_area': True,
+            },
+            'executive': {
+                'score': executive_score,
+                'status': executive_status,
+                'total_modules': len(cards),
+                'healthy_modules': sum(1 for c in cards if c['status']['tone'] == 'green'),
+                'critical_modules': sum(1 for c in cards if c['status']['tone'] in ('red', 'orange')),
+                'satisfaccion': {
+                    'value': round(sat_avg, 1) if sat_avg is not None else None,
+                    'recommendation': sat_recomienda_pct,
+                },
+                'incidentes': {
+                    'value': inc_total,
+                    'alto_pct': inc_pct_alto,
+                },
+                'cumplimiento': {
+                    'value': cum_pct,
+                    'vencidos': cum_vencidos,
+                },
+                'equipos': {
+                    'value': eq_pct,
+                    'total': eq_total,
+                },
+                'capacitacion': {
+                    'value': cap_total,
+                    'asistentes': cap_asist,
+                },
+                'gestion_personal': {
+                    'value': personal_score,
+                    'criticos': disc_crit + sup_criticos,
+                },
+            },
+            'cards': cards,
+            'ranking': ranking,
+            'status_distribution': status_distribution,
+            'highlights': highlights,
+            'trend': {
+                'labels': trend_labels,
+                'series': [
+                    {'label': 'Satisfacción', 'data': [sat_trend_map.get(label) for label in trend_labels], 'type': 'line', 'color': '#16a34a'},
+                    {'label': 'Cumplimiento', 'data': [cum_trend_map.get(label) for label in trend_labels], 'type': 'line', 'color': '#0f766e'},
+                    {'label': 'Supervisión', 'data': [sup_trend_map.get(label) for label in trend_labels], 'type': 'line', 'color': '#2563eb'},
+                    {'label': 'Vehículos aptos', 'data': [veh_trend_map.get(label) for label in trend_labels], 'type': 'line', 'color': '#7c3aed'},
+                    {'label': 'Equipos confiables', 'data': [eq_trend_map.get(label) for label in trend_labels], 'type': 'line', 'color': '#475569'},
+                ],
+                'incidentes': [inc_trend_map.get(label, 0) for label in trend_labels],
+            },
+        })
+    except Exception as e:
+        app_logger.error(f"api_gestion_data error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 # ── Satisfacción Dashboard ────────────────────────────────────────────────────
@@ -2786,7 +3540,7 @@ def api_supervision_data():
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
         # Some records store 'Excelente'/'Bueno'/etc. instead of 1-5.
         def _safe(col):
-            return f"""CASE
+            return fr"""CASE
                 WHEN TRIM({col}::TEXT) ~ '^[0-9]+(\.[0-9]+)?$' THEN TRIM({col}::TEXT)::NUMERIC
                 WHEN LOWER(TRIM({col}::TEXT)) = 'excelente'            THEN 5
                 WHEN LOWER(TRIM({col}::TEXT)) IN ('bueno','bien')       THEN 4
@@ -2996,7 +3750,7 @@ def api_supervision_detalles():
         where, params = _sup_where(cliente, year, month, day)
 
         def _safe(col):
-            return f"""CASE
+            return fr"""CASE
                 WHEN TRIM({col}::TEXT) ~ '^[0-9]+(\.[0-9]+)?$' THEN TRIM({col}::TEXT)::NUMERIC
                 WHEN LOWER(TRIM({col}::TEXT)) = 'excelente'            THEN 5
                 WHEN LOWER(TRIM({col}::TEXT)) IN ('bueno','bien')       THEN 4
