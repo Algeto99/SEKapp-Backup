@@ -59,6 +59,169 @@ def get_db_connection():
         app_logger.error(f"Database connection error: {e}", exc_info=True)
         raise
 
+
+_SCHEMA_CACHE = {}
+
+
+def _get_table_columns(cur, table_name):
+    cache_key = table_name
+    if cache_key not in _SCHEMA_CACHE:
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = %s
+        """, (table_name,))
+        _SCHEMA_CACHE[cache_key] = {row[0] for row in cur.fetchall()}
+    return _SCHEMA_CACHE[cache_key]
+
+
+def _table_has_column(cur, table_name, column_name):
+    return column_name in _get_table_columns(cur, table_name)
+
+
+def _table_exists(cur, table_name):
+    cur.execute("""
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = %s
+    """, (table_name,))
+    return cur.fetchone() is not None
+
+
+def _filter_existing_columns(cur, table_name, data):
+    table_columns = _get_table_columns(cur, table_name)
+    return {
+        key: value for key, value in data.items()
+        if key in table_columns and value is not None and value != ''
+    }
+
+
+def _get_user_company_id(cur, user_email):
+    if not user_email or not _table_has_column(cur, 'users', 'company_id'):
+        return None
+    cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+    row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
+def _ensure_default_customer_company(cur, company_id):
+    if company_id is None or not _table_exists(cur, 'customer_companies'):
+        return None
+
+    cur.execute("""
+        SELECT id, name
+        FROM customer_companies
+        WHERE company_id = %s
+        ORDER BY id
+        LIMIT 1
+    """, (company_id,))
+    row = cur.fetchone()
+    if row:
+        return {'id': row[0], 'name': row[1]}
+
+    cur.execute("SELECT name FROM companies WHERE id = %s", (company_id,))
+    company_row = cur.fetchone()
+    company_name = company_row[0] if company_row and company_row[0] else f'Company {company_id}'
+    default_name = f"{company_name} - Cliente Principal"
+
+    cur.execute("""
+        INSERT INTO customer_companies (company_id, name, code, is_active)
+        VALUES (%s, %s, %s, TRUE)
+        RETURNING id, name
+    """, (company_id, default_name, 'DEFAULT'))
+    row = cur.fetchone()
+    return {'id': row[0], 'name': row[1]} if row else None
+
+
+def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_id=None, customer_company_id=None):
+    scope = {}
+    company_id = _get_user_company_id(cur, user_email)
+    if company_id is not None:
+        scope['company_id'] = company_id
+
+    if not (_table_exists(cur, 'customer_companies') and _table_has_column(cur, 'propiedades', 'customer_company_id')):
+        if company_id is not None and _table_exists(cur, 'customer_companies'):
+            default_customer = _ensure_default_customer_company(cur, company_id)
+            if default_customer:
+                scope['customer_company_id'] = default_customer['id']
+                if not legacy_customer_value:
+                    scope['cliente_instalacion'] = default_customer['name']
+        return scope
+
+    property_name = None
+    customer_name = None
+
+    if property_id and str(property_id).isdigit():
+        cur.execute("""
+            SELECT p.id_propiedad, p.nombre, p.customer_company_id, cc.name
+            FROM propiedades p
+            LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+            WHERE p.id_propiedad = %s
+              AND (%s IS NULL OR cc.company_id = %s)
+        """, (int(property_id), company_id, company_id))
+        row = cur.fetchone()
+        if row:
+            scope['id_propiedad'] = row[0]
+            if row[2] is not None:
+                scope['customer_company_id'] = row[2]
+            property_name = row[1]
+            customer_name = row[3]
+
+    if 'customer_company_id' not in scope and customer_company_id and str(customer_company_id).isdigit():
+        cur.execute("""
+            SELECT id, name
+            FROM customer_companies
+            WHERE id = %s
+              AND (%s IS NULL OR company_id = %s)
+        """, (int(customer_company_id), company_id, company_id))
+        row = cur.fetchone()
+        if row:
+            scope['customer_company_id'] = row[0]
+            customer_name = row[1]
+
+    if 'id_propiedad' not in scope and legacy_customer_value:
+        cur.execute("""
+            SELECT p.id_propiedad, p.nombre, p.customer_company_id, cc.name
+            FROM propiedades p
+            LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+            WHERE LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s))
+              AND (%s IS NULL OR cc.company_id = %s)
+            LIMIT 1
+        """, (legacy_customer_value, company_id, company_id))
+        row = cur.fetchone()
+        if row:
+            scope['id_propiedad'] = row[0]
+            if row[2] is not None:
+                scope['customer_company_id'] = row[2]
+            property_name = row[1]
+            customer_name = row[3]
+
+    if 'customer_company_id' not in scope and legacy_customer_value:
+        cur.execute("""
+            SELECT id, name
+            FROM customer_companies
+            WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))
+              AND (%s IS NULL OR company_id = %s)
+            LIMIT 1
+        """, (legacy_customer_value, company_id, company_id))
+        row = cur.fetchone()
+        if row:
+            scope['customer_company_id'] = row[0]
+            customer_name = row[1]
+
+    if 'customer_company_id' not in scope and company_id is not None:
+        default_customer = _ensure_default_customer_company(cur, company_id)
+        if default_customer:
+            scope['customer_company_id'] = default_customer['id']
+            customer_name = customer_name or default_customer['name']
+
+    if property_name:
+        scope['cliente_instalacion'] = property_name
+    elif customer_name:
+        scope['cliente_instalacion'] = customer_name
+
+    return scope
+
 # --- Helper Functions ---
 def upload_file_to_gcs(file, bucket_name):
     """Uploads a file to Google Cloud Storage."""
@@ -169,6 +332,64 @@ def select_form():
         **get_service_urls()
     )
 
+
+@forms_bp.route('/api/customer-hierarchy')
+@jwt_required()
+def customer_hierarchy():
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        company_id = _get_user_company_id(cur, user_email)
+        if company_id is None or not _table_exists(cur, 'customer_companies'):
+            return jsonify({'company_id': company_id, 'customers': []})
+
+        has_property_customer_link = _table_has_column(cur, 'propiedades', 'customer_company_id')
+        customers = []
+
+        cur.execute("""
+            SELECT id, name
+            FROM customer_companies
+            WHERE company_id = %s
+              AND COALESCE(is_active, TRUE) = TRUE
+            ORDER BY name
+        """, (company_id,))
+        customer_rows = cur.fetchall()
+
+        for customer in customer_rows:
+            properties = []
+            if has_property_customer_link:
+                cur.execute("""
+                    SELECT id_propiedad, nombre
+                    FROM propiedades
+                    WHERE customer_company_id = %s
+                      AND COALESCE(activa, TRUE) = TRUE
+                    ORDER BY nombre
+                """, (customer['id'],))
+                properties = [
+                    {'id': row['id_propiedad'], 'name': row['nombre']}
+                    for row in cur.fetchall()
+                ]
+
+            customers.append({
+                'id': customer['id'],
+                'name': customer['name'],
+                'properties': properties,
+            })
+
+        return jsonify({'company_id': company_id, 'customers': customers})
+    except Exception as e:
+        app_logger.error(f"customer_hierarchy error: {e}", exc_info=True)
+        return jsonify({'company_id': None, 'customers': []}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 # --- REPORTE DE INCIDENTE ---
 @forms_bp.route('/reporte_incidente', methods=['GET'])
 @jwt_required()
@@ -215,13 +436,14 @@ def submit_incident_report():
             'foto_evidencia_url': foto_url,
             'user_email': user_email
         }
-
-        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
-
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'reportes_incidentes'")
-        table_columns = [row[0] for row in cur.fetchall()]
-
-        valid_form_data = {k: v for k, v in form_data.items() if k in table_columns}
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        valid_form_data = _filter_existing_columns(cur, 'reportes_incidentes', form_data)
 
         columns = ', '.join(valid_form_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_form_data))
@@ -283,21 +505,18 @@ def submit_medicion_experiencia_cliente():
             'firma_encuestado': request.form.get('firma_encuestado'),
             'submitted_by_email': user_email
         }
-
-
-        app_logger.info(f"Submitting customer experience survey for user: {user_email}")
-
-        app_logger.info("Connecting to DB...")
         conn = get_db_connection()
         cur = conn.cursor()
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
 
-        # Validate columns against the database to prevent errors if schema drifts
-        app_logger.info("Fetching schema columns...")
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'medicion_experiencia_cliente'")
-        table_columns = [row[0] for row in cur.fetchall()]
-        app_logger.info(f"Found {len(table_columns)} columns in schema.")
-
-        valid_form_data = {k: v for k, v in form_data.items() if k in table_columns}
+        app_logger.info(f"Submitting customer experience survey for user: {user_email}")
+        valid_form_data = _filter_existing_columns(cur, 'medicion_experiencia_cliente', form_data)
         
         # Log keys for debugging (avoid logging sensitive values or large base64 strings)
         app_logger.debug(f"Inserting into medicion_experiencia_cliente with keys: {list(valid_form_data.keys())}")
@@ -358,6 +577,15 @@ def submit_supervision_puesto():
             'firma_supervisor': request.form.get('firma_supervisor'),
             'submitted_by_email': user_email
         }
+        global_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=global_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        if global_data.get('cliente_instalacion'):
+            global_data['cliente'] = global_data['cliente_instalacion']
 
         # 2. Parse Dynamic Supervisions from request.form
         # Keys are in format: supervisions[index][field_name]
@@ -408,8 +636,7 @@ def submit_supervision_puesto():
 
             # Reflection to get valid columns (Safety)
             if column_cache is None:
-                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'supervision_puesto'")
-                column_cache = [row[0] for row in cur.fetchall()]
+                column_cache = _get_table_columns(cur, 'supervision_puesto')
             
             valid_row_data = {k: v for k, v in filtered_data.items() if k in column_cache}
             
@@ -456,6 +683,8 @@ def submit_informe_novedades_disciplinario():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         # [DEBUG] Start of execution
         content_length = request.content_length
         app_logger.info(f"[DEBUG] submit_informe_novedades_disciplinario started. Content-Length: {content_length}")
@@ -533,16 +762,17 @@ def submit_informe_novedades_disciplinario():
             'nombre_testigo': request.form.get('nombre_testigo'),
             'firma_testigo': request.form.get('firma_testigo'),
         }
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
 
         app_logger.info(f"Submitting disciplinary report for {user_email}, Employee: {form_data.get('empleado_nombre')}")
 
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'informe_novedades_disciplinario'")
-        table_columns = [row[0] for row in cur.fetchall()]
-
-        valid_form_data = {k: v for k, v in form_data.items() if k in table_columns}
+        valid_form_data = _filter_existing_columns(cur, 'informe_novedades_disciplinario', form_data)
 
         columns = ', '.join(valid_form_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_form_data))
@@ -606,6 +836,9 @@ def submit_log_de_patrullas():
 
         conn = get_db_connection()
         cur = conn.cursor()
+        company_scope = _resolve_scope_fields(cur, user_email)
+        form_data.update(company_scope)
+        form_data = _filter_existing_columns(cur, 'log_de_patrullas', form_data)
 
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
@@ -742,7 +975,14 @@ def submit_registro_de_capacitaciones():
             'recomendaciones': request.form.get('recomendaciones'),
             'submitted_by_email': user_email
         }
-
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        form_data = _filter_existing_columns(cur, 'registro_de_capacitaciones', form_data)
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO registro_de_capacitaciones ({columns}) VALUES ({placeholders})"
@@ -782,6 +1022,8 @@ def submit_registro_y_acta_de_visita():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         # Process dynamic participants
         detalles_participantes = []
         
@@ -843,11 +1085,14 @@ def submit_registro_y_acta_de_visita():
             'compromisos_responsable': responsables_json,
             'submitted_by_email': user_email
         }
-
-        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
-
-        conn = get_db_connection()
-        cur = conn.cursor()
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        form_data = _filter_existing_columns(cur, 'registro_y_acta_de_visita', form_data)
 
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
@@ -890,6 +1135,8 @@ def submit_planilla_vehicular():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
@@ -934,10 +1181,14 @@ def submit_planilla_vehicular():
             'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
             'submitted_by_email': user_email
         }
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
         sql = f"INSERT INTO planilla_vehicular ({columns}) VALUES ({placeholders})"
@@ -977,6 +1228,8 @@ def submit_planilla_motocicletas():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        conn = get_db_connection()
+        cur = conn.cursor()
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'puesto_area_especifica': request.form.get('puesto_area_especifica'),
@@ -996,6 +1249,13 @@ def submit_planilla_motocicletas():
             'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
             'submitted_by_email': user_email
         }
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
 
         # Add dynamic checklist items
         for key in request.form.keys():
@@ -1003,15 +1263,9 @@ def submit_planilla_motocicletas():
                 form_data[key] = request.form.get(key)
 
         app_logger.info(f"Submitting motorcycle form for {user_email}")
-        
-        conn = get_db_connection()
-        cur = conn.cursor()
 
         app_logger.info("Fetching schema columns for planilla_motocicletas...")
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'planilla_motocicletas'")
-        table_columns = [row[0] for row in cur.fetchall()]
-
-        valid_form_data = {k: v for k, v in form_data.items() if k in table_columns and v is not None and v != ''}
+        valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         columns = ', '.join(valid_form_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_form_data))
@@ -1068,6 +1322,13 @@ def submit_checklist_cumplimiento():
             'firma_auditor': request.form.get('firma_auditor'),
              # 'turno' is removed/ignored
         }
+        header_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=header_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
 
         # Row Data - Sections 2-5 (Lists)
         # We assume 'agente_nombre_completo[]' exists and controls the number of rows
@@ -1115,7 +1376,7 @@ def submit_checklist_cumplimiento():
             })
 
             # Filter None/Empty
-            row_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
+            row_data = _filter_existing_columns(cur, 'checklist_cumplimiento', row_data)
 
             columns = row_data.keys()
             values = [row_data[col] for col in columns]
@@ -1161,6 +1422,8 @@ def submit_confiabilidad_equipos():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        conn = get_db_connection()
+        cur  = conn.cursor()
         # Parse dynamic inventario rows from form data
         # Keys follow the pattern: inventario[N][field]
         inventario_map = {}
@@ -1195,16 +1458,15 @@ def submit_confiabilidad_equipos():
             'firma_supervisor':     request.form.get('firma_supervisor'),
             'submitted_by_email':   user_email,
         }
-        # Remove None/empty values
-        form_data = {k: v for k, v in form_data.items() if v is not None and v != ''}
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
 
-        conn = get_db_connection()
-        cur  = conn.cursor()
-
-        # Validate columns against DB schema (safety)
-        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'confiabilidad_equipos'")
-        table_columns = [row[0] for row in cur.fetchall()]
-        valid_data = {k: v for k, v in form_data.items() if k in table_columns}
+        valid_data = _filter_existing_columns(cur, 'confiabilidad_equipos', form_data)
 
         columns      = ', '.join(valid_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_data))

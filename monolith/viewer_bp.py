@@ -119,6 +119,40 @@ def get_db_connection():
         return None
 
 
+_SCHEMA_CACHE = {}
+
+
+def _get_table_columns(cur, table_name):
+    if table_name not in _SCHEMA_CACHE:
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = %s
+        """, (table_name,))
+        _SCHEMA_CACHE[table_name] = {row[0] for row in cur.fetchall()}
+    return _SCHEMA_CACHE[table_name]
+
+
+def _table_has_column(cur, table_name, column_name):
+    return column_name in _get_table_columns(cur, table_name)
+
+
+def _get_current_user_email():
+    try:
+        identity = get_jwt_identity()
+        return identity if isinstance(identity, str) else identity.get('email')
+    except Exception:
+        return None
+
+
+def _get_user_company_id(cur, user_email):
+    if not user_email or not _table_has_column(cur, 'users', 'company_id'):
+        return None
+    cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+    row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 # --- Form Configurations ---
 FORM_CONFIGS = {
     'reporte_incidente': {
@@ -502,6 +536,8 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
 
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        user_email = _get_current_user_email()
+        company_id = _get_user_company_id(cur, user_email)
         
         total_count = 0
         
@@ -536,6 +572,10 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                 if filters.get('end_date'):
                     where_conditions.append(f"t.{config['date_col']} <= %s")
                     query_params.append(filters['end_date'])
+
+                if company_id is not None and _table_has_column(cur, config['table'], 'company_id'):
+                    where_conditions.append("t.company_id = %s")
+                    query_params.append(company_id)
                     
                 # Property/Location filters (Only for reporte_incidente for now)
                 if f_type == 'reporte_incidente':
@@ -673,6 +713,8 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
             return reports
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        user_email = _get_current_user_email()
+        company_id = _get_user_company_id(cur, user_email)
         
         # Log the raw report_ids before cleaning
         app_logger.info(f"Raw report_ids received by fetch_reports_by_ids: {report_ids}")
@@ -695,8 +737,15 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
             WHERE t.{config['id_col']} IN ({placeholders})
             ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
         """
+        params = list(clean_ids)
+        if company_id is not None and _table_has_column(cur, config['table'], 'company_id'):
+            query = query.replace(
+                f"WHERE t.{config['id_col']} IN ({placeholders})",
+                f"WHERE t.{config['id_col']} IN ({placeholders}) AND t.company_id = %s"
+            )
+            params.append(company_id)
         app_logger.info(f"Executing fetch_reports_by_ids query for IDs: {clean_ids} with form_type: {form_type}.")
-        cur.execute(query, clean_ids)
+        cur.execute(query, params)
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} specific reports.")
         
@@ -974,16 +1023,29 @@ def get_properties():
             return jsonify({"error": "Database connection failed", "properties": []}), 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        user_email = _get_current_user_email()
+        company_id = _get_user_company_id(cur, user_email)
         
-        query = """
-            SELECT DISTINCT id_propiedad, nombre 
-            FROM propiedades 
-            WHERE nombre IS NOT NULL 
-            ORDER BY nombre
-        """
+        if company_id is not None and _table_has_column(cur, 'propiedades', 'customer_company_id'):
+            query = """
+                SELECT DISTINCT p.id_propiedad, p.nombre
+                FROM propiedades p
+                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+                WHERE p.nombre IS NOT NULL
+                  AND cc.company_id = %s
+                ORDER BY p.nombre
+            """
+            cur.execute(query, (company_id,))
+        else:
+            query = """
+                SELECT DISTINCT id_propiedad, nombre 
+                FROM propiedades 
+                WHERE nombre IS NOT NULL 
+                ORDER BY nombre
+            """
+            cur.execute(query)
         
         app_logger.info("Fetching properties from database")
-        cur.execute(query)
         rows = cur.fetchall()
         
         for row in rows:
