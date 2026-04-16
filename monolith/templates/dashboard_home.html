@@ -296,6 +296,7 @@
         .accent-indigo { background-color: rgba(99, 102, 241, 0.15); color: #818cf8; }
         .accent-slate  { background-color: rgba(100, 116, 139, 0.15); color: #94a3b8; }
         .accent-rose   { background-color: rgba(244, 63,  94, 0.15);  color: #fb7185; }
+        .accent-cyan   { background-color: rgba(6, 182, 212, 0.15);   color: #22d3ee; }
 
         .module-card:hover.card-green  { border-color: rgba(52, 211, 153, 0.35); }
         .module-card:hover.card-red    { border-color: rgba(248, 113, 113, 0.35); }
@@ -307,6 +308,7 @@
         .module-card:hover.card-indigo { border-color: rgba(129, 140, 248, 0.35); }
         .module-card:hover.card-slate  { border-color: rgba(148, 163, 184, 0.35); }
         .module-card:hover.card-rose   { border-color: rgba(251, 113, 133, 0.35); }
+        .module-card:hover.card-cyan   { border-color: rgba(34, 211, 238, 0.35); }
 
         /* Light mode */
         body.light-mode {
@@ -608,6 +610,25 @@
                     <span class="module-name">Equipos</span>
                 </div>
                 <p class="module-desc">Evaluación del estado y confiabilidad de los equipos del sistema de seguridad.</p>
+                <div class="module-arrow">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </a>
+
+            <!-- Bases de Datos -->
+            <a href="/dashboard/bases_de_datos/" class="module-card card-cyan">
+                <div class="module-card-header">
+                    <div class="module-icon accent-cyan">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3M4 7v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 7c0 1.657 3.582 3 8 3s8-1.343 8-3M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" />
+                        </svg>
+                    </div>
+                    <span class="module-name">Bases de Datos</span>
+                </div>
+                <p class="module-desc">Consulta de inventarios de armas, radios y personal con historial de capacitaciones.</p>
                 <div class="module-arrow">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />

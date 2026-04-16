@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bases de Datos — Kanan Sentinel SecApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding-top: 80px;
+            padding-bottom: 3rem;
+        }
+        h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
+
+        .header-nav {
+            position: fixed; top:0; left:0; right:0;
+            background-color: rgba(45,55,72,0.97);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content {
+            max-width: 1280px; margin:0 auto;
+            display:flex; justify-content:space-between;
+            align-items:center; flex-wrap:wrap; gap:0.75rem;
+        }
+        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
+        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
+        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
+        .user-greeting { font-size:0.875rem; color:#9ca3af; }
+        .user-name { color:#60a5fa; font-weight:bold; }
+        .admin-badge { color:#a855f7; font-weight:bold; }
+
+        .theme-toggle {
+            position:fixed; top:1.25rem; left:1.25rem; z-index:100;
+            background-color:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2);
+            border-radius:0.5rem; padding:0.5rem; cursor:pointer; color:#e2e8f0;
+            transition:all 0.2s;
+        }
+        .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
+        .theme-toggle svg { width:1.25rem; height:1.25rem; }
+
+        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+
+        /* Module header */
+        .module-header {
+            display:flex; align-items:center; gap:1rem;
+            margin-bottom:1.75rem; padding-bottom:1.5rem;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        .module-icon {
+            width:50px; height:50px; border-radius:12px; flex-shrink:0;
+            background-color:rgba(6,182,212,0.15); color:#22d3ee;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .module-icon svg { width:24px; height:24px; }
+        .module-header h1 { font-size:1.5rem; margin:0 0 0.2rem; }
+        .module-header p { font-family:'Roboto',sans-serif; font-size:0.875rem; color:#64748b; margin:0; }
+
+        /* Tabs */
+        .tabs {
+            display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,0.1);
+            margin-bottom:1.5rem; flex-wrap:wrap;
+        }
+        .tab-btn {
+            padding:0.65rem 1.25rem; font-size:0.875rem; font-weight:600;
+            color:#94a3b8; background:transparent; border:none;
+            border-bottom:2px solid transparent; cursor:pointer;
+            transition:all 0.2s; white-space:nowrap;
+        }
+        .tab-btn:hover { color:#e2e8f0; }
+        .tab-btn.active { color:#22d3ee; border-bottom-color:#22d3ee; }
+
+        /* Filter bar */
+        .filter-bar {
+            background-color:#2d3748;
+            border:1px solid rgba(255,255,255,0.07);
+            border-radius:12px; padding:1.25rem 1.5rem;
+            margin-bottom:1.5rem;
+            display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;
+        }
+        .filter-group { display:flex; flex-direction:column; gap:0.35rem; flex:1; min-width:150px; }
+        .filter-label { font-size:0.75rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; }
+        .filter-select, .filter-input {
+            background-color:#374151; border:1px solid rgba(255,255,255,0.1);
+            color:#e2e8f0; border-radius:8px; padding:0.5rem 0.75rem;
+            font-size:0.875rem; outline:none; transition:border-color 0.2s;
+        }
+        .filter-select:focus, .filter-input:focus { border-color:#22d3ee; }
+
+        .btn-primary {
+            background-color:#0e7490; color:#fff; border:none;
+            border-radius:8px; padding:0.55rem 1.25rem;
+            font-size:0.875rem; font-weight:600; cursor:pointer;
+            transition:background-color 0.2s; white-space:nowrap;
+        }
+        .btn-primary:hover { background-color:#0891b2; }
+
+        .btn-export {
+            background-color:rgba(255,255,255,0.07); color:#94a3b8;
+            border:1px solid rgba(255,255,255,0.12);
+            border-radius:8px; padding:0.55rem 1.1rem;
+            font-size:0.8125rem; font-weight:500; cursor:pointer;
+            transition:all 0.2s; white-space:nowrap; display:inline-flex; align-items:center; gap:0.4rem;
+        }
+        .btn-export:hover { background-color:rgba(255,255,255,0.12); color:#e2e8f0; }
+
+        /* Results summary */
+        .results-summary {
+            font-size:0.8125rem; color:#64748b;
+            margin-bottom:0.875rem;
+        }
+        .results-summary strong { color:#94a3b8; }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x:auto;
+            border-radius:12px;
+            border:1px solid rgba(255,255,255,0.07);
+        }
+        table {
+            width:100%; border-collapse:collapse;
+            font-size:0.8125rem;
+        }
+        thead { background-color:#2d3748; }
+        th {
+            text-align:left; padding:0.75rem 1rem;
+            font-size:0.75rem; font-weight:600; text-transform:uppercase;
+            letter-spacing:0.05em; color:#64748b; white-space:nowrap;
+            border-bottom:1px solid rgba(255,255,255,0.07);
+        }
+        td {
+            padding:0.7rem 1rem; color:#cbd5e1;
+            border-bottom:1px solid rgba(255,255,255,0.04);
+            vertical-align:middle;
+        }
+        tr:last-child td { border-bottom:none; }
+        tbody tr { background-color:#1e2533; }
+        tbody tr:nth-child(even) { background-color:#232d3f; }
+        tbody tr:hover { background-color:#2d3748; }
+
+        /* Badge */
+        .badge {
+            display:inline-block; padding:0.2rem 0.55rem;
+            border-radius:9999px; font-size:0.75rem; font-weight:600;
+        }
+        .badge-good  { background:rgba(16,185,129,0.15); color:#34d399; }
+        .badge-warn  { background:rgba(245,158,11,0.15);  color:#fbbf24; }
+        .badge-bad   { background:rgba(239,68,68,0.15);   color:#f87171; }
+        .badge-info  { background:rgba(6,182,212,0.15);   color:#22d3ee; }
+        .badge-gray  { background:rgba(100,116,139,0.15); color:#94a3b8; }
+
+        /* Expandable training rows */
+        .expand-btn {
+            background:transparent; border:none; cursor:pointer;
+            color:#22d3ee; font-size:0.75rem; font-weight:600;
+            padding:0.2rem 0.5rem; border-radius:6px;
+            transition:background 0.15s;
+        }
+        .expand-btn:hover { background:rgba(6,182,212,0.1); }
+
+        .training-detail {
+            display:none; background-color:#111827;
+            border-top:1px solid rgba(255,255,255,0.05);
+        }
+        .training-detail.open { display:table-row; }
+        .training-detail td { padding:0.75rem 1rem 1rem 2.5rem; }
+        .training-inner-table {
+            width:100%; border-collapse:collapse; font-size:0.75rem;
+        }
+        .training-inner-table th {
+            font-size:0.7rem; padding:0.4rem 0.75rem;
+            background:rgba(255,255,255,0.04); color:#64748b;
+        }
+        .training-inner-table td {
+            padding:0.45rem 0.75rem; color:#94a3b8;
+            border-bottom:1px solid rgba(255,255,255,0.04);
+        }
+        .training-inner-table tr:last-child td { border-bottom:none; }
+
+        /* Empty state */
+        .empty-state {
+            text-align:center; padding:3rem 1rem; color:#4b5563;
+        }
+        .empty-state svg { width:48px; height:48px; margin:0 auto 1rem; opacity:0.4; }
+        .empty-state p { font-size:0.9rem; }
+
+        /* Loading */
+        .loading {
+            display:none; text-align:center;
+            padding:2.5rem; color:#64748b; font-size:0.875rem;
+        }
+        .loading.active { display:block; }
+
+        /* Light mode */
+        body.light-mode { background-color:#f1f5f9; color:#1e293b; }
+        body.light-mode h1,body.light-mode h2,body.light-mode h3,
+        body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
+        body.light-mode .header-nav { background-color:rgba(255,255,255,0.97); border-bottom-color:rgba(0,0,0,0.08); }
+        body.light-mode .user-greeting { color:#475569; }
+        body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
+        body.light-mode .module-header { border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode .module-header p { color:#64748b; }
+        body.light-mode .tabs { border-bottom-color:rgba(0,0,0,0.1); }
+        body.light-mode .tab-btn { color:#64748b; }
+        body.light-mode .tab-btn:hover { color:#0f172a; }
+        body.light-mode .filter-bar { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+        body.light-mode .filter-label { color:#94a3b8; }
+        body.light-mode .filter-select, body.light-mode .filter-input { background-color:#f8fafc; border-color:rgba(0,0,0,0.1); color:#1e293b; }
+        body.light-mode .results-summary { color:#94a3b8; }
+        body.light-mode .results-summary strong { color:#475569; }
+        body.light-mode .table-wrapper { border-color:rgba(0,0,0,0.07); }
+        body.light-mode thead { background-color:#f8fafc; }
+        body.light-mode th { color:#94a3b8; border-bottom-color:rgba(0,0,0,0.07); }
+        body.light-mode td { color:#374151; border-bottom-color:rgba(0,0,0,0.05); }
+        body.light-mode tbody tr { background-color:#fff; }
+        body.light-mode tbody tr:nth-child(even) { background-color:#f8fafc; }
+        body.light-mode tbody tr:hover { background-color:#f1f5f9; }
+        body.light-mode .training-detail { background-color:#f8fafc; }
+        body.light-mode .training-inner-table th { background:rgba(0,0,0,0.03); color:#94a3b8; }
+        body.light-mode .training-inner-table td { color:#64748b; border-bottom-color:rgba(0,0,0,0.05); }
+        body.light-mode .btn-export { background-color:rgba(0,0,0,0.04); color:#64748b; border-color:rgba(0,0,0,0.1); }
+        body.light-mode .btn-export:hover { background-color:rgba(0,0,0,0.08); color:#1e293b; }
+        body.light-mode .empty-state { color:#94a3b8; }
+
+        @media (max-width:768px) {
+            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+            body { padding-top:110px; }
+            .filter-bar { flex-direction:column; }
+            .filter-group { min-width:100%; }
+        }
+    </style>
+</head>
+<body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+
+    <div class="header-nav">
+        <div class="nav-content">
+            <div class="flex items-center gap-3">
+                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo"
+                    class="w-8 h-8 rounded-md shadow-sm">
+                <div class="user-greeting">
+                    Bienvenido, <span class="user-name">{{ user_name }}</span>
+                    {% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}
+                </div>
+            </div>
+            <div class="nav-links">
+                <a href="/landing/" class="nav-link">Inicio</a>
+                <a href="/dashboard/" class="nav-link">Dashboards</a>
+                <a href="/viewer/" class="nav-link">Reportes</a>
+                <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <!-- Module header -->
+        <div class="module-header">
+            <div class="module-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3M4 7v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 7c0 1.657 3.582 3 8 3s8-1.343 8-3M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" />
+                </svg>
+            </div>
+            <div>
+                <h1>Bases de Datos</h1>
+                <p>Consulta de inventarios de armas, radios y personal con historial de capacitaciones.</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="armas">
+                Inventario de Armas
+            </button>
+            <button class="tab-btn" data-tab="radios">
+                Inventario de Radios
+            </button>
+            <button class="tab-btn" data-tab="personal">
+                Inventario de Personal
+            </button>
+        </div>
+
+        <!-- ── TAB: Armas ──────────────────────────────────────────────── -->
+        <div id="tab-armas" class="tab-content">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <span class="filter-label">Cliente</span>
+                    <select id="armas-cliente" class="filter-select">
+                        <option value="">Todos los clientes</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="max-width:130px;">
+                    <span class="filter-label">Año</span>
+                    <select id="armas-year" class="filter-select"></select>
+                </div>
+                <div class="filter-group" style="max-width:150px;">
+                    <span class="filter-label">Mes</span>
+                    <select id="armas-month" class="filter-select">
+                        <option value="">Todos</option>
+                        <option value="1">Enero</option><option value="2">Febrero</option>
+                        <option value="3">Marzo</option><option value="4">Abril</option>
+                        <option value="5">Mayo</option><option value="6">Junio</option>
+                        <option value="7">Julio</option><option value="8">Agosto</option>
+                        <option value="9">Septiembre</option><option value="10">Octubre</option>
+                        <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="loadArmas()">Consultar</button>
+                <button class="btn-export" onclick="exportCSV('armas')">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Exportar CSV
+                </button>
+            </div>
+            <div id="armas-loading" class="loading">Cargando datos...</div>
+            <div id="armas-summary" class="results-summary" style="display:none;"></div>
+            <div id="armas-container"></div>
+        </div>
+
+        <!-- ── TAB: Radios ─────────────────────────────────────────────── -->
+        <div id="tab-radios" class="tab-content" style="display:none;">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <span class="filter-label">Cliente</span>
+                    <select id="radios-cliente" class="filter-select">
+                        <option value="">Todos los clientes</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="max-width:130px;">
+                    <span class="filter-label">Año</span>
+                    <select id="radios-year" class="filter-select"></select>
+                </div>
+                <div class="filter-group" style="max-width:150px;">
+                    <span class="filter-label">Mes</span>
+                    <select id="radios-month" class="filter-select">
+                        <option value="">Todos</option>
+                        <option value="1">Enero</option><option value="2">Febrero</option>
+                        <option value="3">Marzo</option><option value="4">Abril</option>
+                        <option value="5">Mayo</option><option value="6">Junio</option>
+                        <option value="7">Julio</option><option value="8">Agosto</option>
+                        <option value="9">Septiembre</option><option value="10">Octubre</option>
+                        <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="loadRadios()">Consultar</button>
+                <button class="btn-export" onclick="exportCSV('radios')">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Exportar CSV
+                </button>
+            </div>
+            <div id="radios-loading" class="loading">Cargando datos...</div>
+            <div id="radios-summary" class="results-summary" style="display:none;"></div>
+            <div id="radios-container"></div>
+        </div>
+
+        <!-- ── TAB: Personal ──────────────────────────────────────────── -->
+        <div id="tab-personal" class="tab-content" style="display:none;">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <span class="filter-label">Cliente</span>
+                    <select id="personal-cliente" class="filter-select">
+                        <option value="">Todos los clientes</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="max-width:130px;">
+                    <span class="filter-label">Año (supervisión)</span>
+                    <select id="personal-year" class="filter-select"></select>
+                </div>
+                <div class="filter-group" style="max-width:150px;">
+                    <span class="filter-label">Mes (supervisión)</span>
+                    <select id="personal-month" class="filter-select">
+                        <option value="">Todos</option>
+                        <option value="1">Enero</option><option value="2">Febrero</option>
+                        <option value="3">Marzo</option><option value="4">Abril</option>
+                        <option value="5">Mayo</option><option value="6">Junio</option>
+                        <option value="7">Julio</option><option value="8">Agosto</option>
+                        <option value="9">Septiembre</option><option value="10">Octubre</option>
+                        <option value="11">Noviembre</option><option value="12">Diciembre</option>
+                    </select>
+                </div>
+                <button class="btn-primary" onclick="loadPersonal()">Consultar</button>
+                <button class="btn-export" onclick="exportCSV('personal')">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Exportar CSV
+                </button>
+            </div>
+            <div id="personal-loading" class="loading">Cargando datos...</div>
+            <div id="personal-summary" class="results-summary" style="display:none;"></div>
+            <div id="personal-container"></div>
+        </div>
+
+    </div>
+
+    <script>
+    // ── Cached data for export ────────────────────────────────────────
+    const _cache = { armas: [], radios: [], personal: [] };
+
+    // ── Theme toggle ─────────────────────────────────────────────────
+    const themeToggle = document.getElementById('themeToggle');
+    const darkModeIcon = document.getElementById('darkModeIcon');
+    const lightModeIcon = document.getElementById('lightModeIcon');
+    function setDarkMode()  { document.body.classList.remove('light-mode'); darkModeIcon.style.display='block'; lightModeIcon.style.display='none'; localStorage.setItem('theme','dark'); }
+    function setLightMode() { document.body.classList.add('light-mode'); darkModeIcon.style.display='none'; lightModeIcon.style.display='block'; localStorage.setItem('theme','light'); }
+    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+    (function() {
+        const saved = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        (saved === 'light' || (!saved && !prefersDark)) ? setLightMode() : setDarkMode();
+    })();
+
+    // ── Tabs ─────────────────────────────────────────────────────────
+    const _tabLoaded = { armas: false, radios: false, personal: false };
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            document.getElementById('tab-' + tab).style.display = 'block';
+            // Auto-load each tab the first time it is opened
+            if (!_tabLoaded[tab]) {
+                _tabLoaded[tab] = true;
+                if (tab === 'armas')    loadArmas();
+                if (tab === 'radios')   loadRadios();
+                if (tab === 'personal') loadPersonal();
+            }
+        });
+    });
+
+    // ── Year selects ─────────────────────────────────────────────────
+    function populateYears(selectId) {
+        const sel = document.getElementById(selectId);
+        const cur = new Date().getFullYear();
+        sel.innerHTML = '<option value="">Todos</option>';
+        for (let y = cur; y >= cur - 5; y--) {
+            const opt = document.createElement('option');
+            opt.value = y; opt.textContent = y;
+            if (y === cur) opt.selected = true;
+            sel.appendChild(opt);
+        }
+    }
+    ['armas-year','radios-year','personal-year'].forEach(populateYears);
+
+    // ── Load clients then auto-load the active tab ───────────────────
+    fetch('/dashboard/api/bases_de_datos/clientes')
+        .then(r => r.json())
+        .then(data => {
+            ['armas-cliente','radios-cliente','personal-cliente'].forEach(id => {
+                const sel = document.getElementById(id);
+                data.clientes.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c; opt.textContent = c;
+                    sel.appendChild(opt);
+                });
+            });
+            // Auto-load the default (armas) tab after clients are ready
+            _tabLoaded.armas = true;
+            loadArmas();
+        });
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function buildParams(prefix) {
+        const p = new URLSearchParams();
+        const c = document.getElementById(prefix + '-cliente').value;
+        const y = document.getElementById(prefix + '-year').value;
+        const m = document.getElementById(prefix + '-month').value;
+        if (c) p.set('cliente', c);
+        if (y) p.set('year', y);
+        if (m) p.set('month', m);
+        return p;
+    }
+
+    // equipamiento_completo stores 1–5 (1=Muy Deficiente, 5=Excelente)
+    const EQUIP_LABELS = { '1': 'Muy Deficiente', '2': 'Deficiente', '3': 'Regular', '4': 'Bueno', '5': 'Excelente' };
+    function equipBadge(val) {
+        const v = String(val || '').trim();
+        const n = parseInt(v, 10);
+        const label = EQUIP_LABELS[v] ? `${v} – ${EQUIP_LABELS[v]}` : v;
+        if (!isNaN(n)) {
+            if (n >= 4) return `<span class="badge badge-good">${label}</span>`;
+            if (n === 3) return `<span class="badge badge-warn">${label}</span>`;
+            if (n <= 2) return `<span class="badge badge-bad">${label}</span>`;
+        }
+        // Fallback for text values
+        const lv = v.toLowerCase();
+        if (lv.includes('buen') || lv.includes('excel')) return `<span class="badge badge-good">${v}</span>`;
+        if (lv.includes('regular'))                      return `<span class="badge badge-warn">${v}</span>`;
+        if (lv.includes('mal') || lv.includes('defic'))  return `<span class="badge badge-bad">${v}</span>`;
+        return `<span class="badge badge-gray">${v}</span>`;
+    }
+
+    function emptyState(msg) {
+        return `<div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p>${msg}</p>
+        </div>`;
+    }
+
+    // ── ARMAS ─────────────────────────────────────────────────────────
+    function loadArmas() {
+        const loading = document.getElementById('armas-loading');
+        const container = document.getElementById('armas-container');
+        const summary = document.getElementById('armas-summary');
+        loading.classList.add('active');
+        container.innerHTML = '';
+        summary.style.display = 'none';
+
+        fetch('/dashboard/api/bases_de_datos/armas?' + buildParams('armas'))
+            .then(r => r.json())
+            .then(data => {
+                loading.classList.remove('active');
+                _cache.armas = data.rows;
+                if (!data.rows.length) {
+                    container.innerHTML = emptyState('No se encontraron registros de armas con los filtros seleccionados.');
+                    return;
+                }
+                summary.textContent = `Mostrando ${data.rows.length} registro${data.rows.length !== 1 ? 's' : ''} encontrado${data.rows.length !== 1 ? 's' : ''}.`;
+                summary.style.display = 'block';
+
+                let html = `<div class="table-wrapper"><table>
+                    <thead><tr>
+                        <th>N° Empleado</th>
+                        <th>Guardia</th>
+                        <th>Documento</th>
+                        <th>Cliente</th>
+                        <th>Supervisor</th>
+                        <th>Serie Arma</th>
+                        <th>Munición</th>
+                        <th>Fecha</th>
+                    </tr></thead><tbody>`;
+                data.rows.forEach(r => {
+                    html += `<tr>
+                        <td><span class="badge badge-info">${r.numero_empleado}</span></td>
+                        <td>${r.nombre_guardia}</td>
+                        <td>${r.documento_guardia}</td>
+                        <td>${r.cliente}</td>
+                        <td>${r.supervisor}</td>
+                        <td><strong>${r.serie_arma}</strong></td>
+                        <td>${r.cantidad_municion}</td>
+                        <td>${r.fecha_hora}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                loading.classList.remove('active');
+                container.innerHTML = emptyState('Error al cargar los datos. Intente nuevamente.');
+            });
+    }
+
+    // ── RADIOS ────────────────────────────────────────────────────────
+    function loadRadios() {
+        const loading = document.getElementById('radios-loading');
+        const container = document.getElementById('radios-container');
+        const summary = document.getElementById('radios-summary');
+        loading.classList.add('active');
+        container.innerHTML = '';
+        summary.style.display = 'none';
+
+        fetch('/dashboard/api/bases_de_datos/radios?' + buildParams('radios'))
+            .then(r => r.json())
+            .then(data => {
+                loading.classList.remove('active');
+                _cache.radios = data.rows;
+                if (!data.rows.length) {
+                    container.innerHTML = emptyState('No se encontraron registros de equipamiento con los filtros seleccionados.');
+                    return;
+                }
+                summary.textContent = `Mostrando ${data.rows.length} registro${data.rows.length !== 1 ? 's' : ''} encontrado${data.rows.length !== 1 ? 's' : ''}.`;
+                summary.style.display = 'block';
+
+                let html = `<div class="table-wrapper"><table>
+                    <thead><tr>
+                        <th>N° Empleado</th>
+                        <th>Guardia</th>
+                        <th>Documento</th>
+                        <th>Cliente</th>
+                        <th>Supervisor</th>
+                        <th>Estado Equipamiento (Radio)</th>
+                        <th>Fecha</th>
+                    </tr></thead><tbody>`;
+                data.rows.forEach(r => {
+                    html += `<tr>
+                        <td><span class="badge badge-info">${r.numero_empleado}</span></td>
+                        <td>${r.nombre_guardia}</td>
+                        <td>${r.documento_guardia}</td>
+                        <td>${r.cliente}</td>
+                        <td>${r.supervisor}</td>
+                        <td>${equipBadge(r.equipamiento)}</td>
+                        <td>${r.fecha_hora}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                loading.classList.remove('active');
+                container.innerHTML = emptyState('Error al cargar los datos. Intente nuevamente.');
+            });
+    }
+
+    // ── PERSONAL ──────────────────────────────────────────────────────
+    function loadPersonal() {
+        const loading = document.getElementById('personal-loading');
+        const container = document.getElementById('personal-container');
+        const summary = document.getElementById('personal-summary');
+        loading.classList.add('active');
+        container.innerHTML = '';
+        summary.style.display = 'none';
+
+        fetch('/dashboard/api/bases_de_datos/personal?' + buildParams('personal'))
+            .then(r => r.json())
+            .then(data => {
+                loading.classList.remove('active');
+                _cache.personal = data.rows;
+                if (!data.rows.length) {
+                    container.innerHTML = emptyState('No se encontraron registros de personal con los filtros seleccionados.');
+                    return;
+                }
+                summary.textContent = `Mostrando ${data.rows.length} colaborador${data.rows.length !== 1 ? 'es' : ''} encontrado${data.rows.length !== 1 ? 's' : ''}.`;
+                summary.style.display = 'block';
+
+                let html = `<div class="table-wrapper"><table>
+                    <thead><tr>
+                        <th>N° Empleado</th>
+                        <th>Nombre</th>
+                        <th>Documento</th>
+                        <th>Cliente</th>
+                        <th>Última Supervisión</th>
+                        <th>Capacitaciones</th>
+                        <th>Detalle</th>
+                    </tr></thead><tbody>`;
+                data.rows.forEach((r, idx) => {
+                    const hasCap = r.capacitaciones && r.capacitaciones.length > 0;
+                    const capBadge = r.total_capacitaciones > 0
+                        ? `<span class="badge badge-good">${r.total_capacitaciones}</span>`
+                        : `<span class="badge badge-gray">0</span>`;
+                    html += `<tr id="person-row-${idx}">
+                        <td><span class="badge badge-info">${r.numero_empleado}</span></td>
+                        <td><strong>${r.nombre_guardia}</strong></td>
+                        <td>${r.documento_guardia}</td>
+                        <td>${r.cliente}</td>
+                        <td>${r.ultima_supervision}</td>
+                        <td>${capBadge}</td>
+                        <td>${hasCap ? `<button class="expand-btn" onclick="toggleTraining(${idx})" id="expand-btn-${idx}">▶ Ver</button>` : '<span style="color:#4b5563;font-size:0.75rem;">—</span>'}</td>
+                    </tr>`;
+                    if (hasCap) {
+                        html += `<tr class="training-detail" id="training-detail-${idx}">
+                            <td colspan="8">
+                                <table class="training-inner-table">
+                                    <thead><tr>
+                                        <th>Capacitación</th>
+                                        <th>Objetivo</th>
+                                        <th>Nivel Comprensión</th>
+                                        <th>Fecha</th>
+                                        <th>Responsable</th>
+                                    </tr></thead>
+                                    <tbody>`;
+                        r.capacitaciones.forEach(cap => {
+                            html += `<tr>
+                                <td>${cap.capacitacion}</td>
+                                <td>${cap.objetivo}</td>
+                                <td>${cap.nivel}</td>
+                                <td>${cap.fecha}</td>
+                                <td>${cap.responsable}</td>
+                            </tr>`;
+                        });
+                        html += `</tbody></table></td></tr>`;
+                    }
+                });
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                loading.classList.remove('active');
+                container.innerHTML = emptyState('Error al cargar los datos. Intente nuevamente.');
+            });
+    }
+
+    function toggleTraining(idx) {
+        const detail = document.getElementById('training-detail-' + idx);
+        const btn = document.getElementById('expand-btn-' + idx);
+        if (detail.classList.contains('open')) {
+            detail.classList.remove('open');
+            btn.textContent = '▶ Ver';
+        } else {
+            detail.classList.add('open');
+            btn.textContent = '▼ Ocultar';
+        }
+    }
+
+    // ── CSV Export ───────────────────────────────────────────────────
+    function exportCSV(type) {
+        const rows = _cache[type];
+        if (!rows || !rows.length) { alert('Primero realice una consulta.'); return; }
+
+        let headers, rowMapper;
+        if (type === 'armas') {
+            headers = ['N° Empleado','Guardia','Documento','Cliente','Supervisor','Serie Arma','Munición','Fecha'];
+            rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.serie_arma, r.cantidad_municion, r.fecha_hora];
+        } else if (type === 'radios') {
+            headers = ['N° Empleado','Guardia','Documento','Cliente','Supervisor','Estado Equipamiento','Fecha'];
+            rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.equipamiento, r.fecha_hora];
+        } else {
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Última Supervisión','Total Capacitaciones','Capacitaciones (nombres)'];
+            rowMapper = r => [
+                r.numero_empleado, r.nombre_guardia, r.documento_guardia,
+                r.cliente, r.ultima_supervision,
+                r.total_capacitaciones,
+                (r.capacitaciones || []).map(c => c.capacitacion).join(' | ')
+            ];
+        }
+
+        const esc = v => `"${String(v).replace(/"/g, '""')}"`;
+        const csv = [headers.map(esc).join(',')]
+            .concat(rows.map(r => rowMapper(r).map(esc).join(',')))
+            .join('\n');
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `inventario_${type}_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    </script>
+</body>
+</html>

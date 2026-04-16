@@ -329,6 +329,10 @@
                     📈 Dashboards (Admin)
                 </button>
 
+                <button id="databases-button" class="base-button-style btn-admin-special hidden">
+                    🗄️ Bases de Datos (Admin)
+                </button>
+
                 <button id="logout-button" class="base-button-style btn-logout hidden">
                     Cerrar Sesión
                 </button>
@@ -359,6 +363,7 @@
         const welcomeMessageElement = document.getElementById('welcome-message');
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
+        const databasesButton = document.getElementById('databases-button');
         const reportsButton = document.getElementById('reports-button');
         const logoutButton = document.getElementById('logout-button');
         const topBar = document.getElementById('topBar');
@@ -424,9 +429,11 @@
                 if (currentUserIsAdmin) {
                     reportsButton.classList.remove('hidden');
                     dashboardButton.classList.remove('hidden');
+                    databasesButton.classList.remove('hidden');
                 } else {
                     reportsButton.classList.add('hidden');
                     dashboardButton.classList.add('hidden');
+                    databasesButton.classList.add('hidden');
                 }
 
                 logoutButton.classList.remove('hidden');
@@ -468,6 +475,18 @@
                     }
                     if (DASHBOARD_SERVICE_URL) {
                         window.location.href = DASHBOARD_SERVICE_URL + '/';
+                    }
+                });
+            }
+
+            if (databasesButton) {
+                databasesButton.addEventListener('click', function () {
+                    if (!currentUserIsAdmin) {
+                        alert('Acceso denegado: Solo los administradores pueden acceder a las bases de datos.');
+                        return;
+                    }
+                    if (DASHBOARD_SERVICE_URL) {
+                        window.location.href = DASHBOARD_SERVICE_URL + '/bases_de_datos/';
                     }
                 });
             }

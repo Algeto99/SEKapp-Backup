@@ -5993,6 +5993,288 @@ def api_reports_for_period_range():
         if conn:
             conn.close()
 
+@dashboard_bp.route('/bases_de_datos/')
+@jwt_required()
+@admin_required
+def dashboard_bases_de_datos():
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    app_logger.info(f"Admin user {user_email} accessing bases_de_datos")
+    return render_template("bases_de_datos.html",
+                           current_user=user_email,
+                           user_name=user_name,
+                           is_admin=is_admin)
+
+
+@dashboard_bp.route('/api/bases_de_datos/clientes')
+@jwt_required()
+def api_bases_de_datos_clientes():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'clientes': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT cliente
+            FROM supervision_puesto
+            WHERE cliente IS NOT NULL AND cliente <> ''
+            ORDER BY cliente
+        """)
+        return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_bases_de_datos_clientes error: {e}", exc_info=True)
+        return jsonify({'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/bases_de_datos/armas')
+@jwt_required()
+def api_bases_de_datos_armas():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'rows': [], 'total': 0}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        conds, params = [], []
+        conds.append("LOWER(TRIM(COALESCE(porta_arma,''))) = 'si'")
+        if cliente:
+            conds.append("cliente = %s")
+            params.append(cliente)
+        if year and month:
+            conds.append("fecha_hora::TEXT LIKE %s")
+            params.append(f"{year}-{month:02d}%")
+        elif year:
+            conds.append("fecha_hora::TEXT LIKE %s")
+            params.append(f"{year}%")
+        where = "WHERE " + " AND ".join(conds)
+
+        cur.execute(f"""
+            SELECT
+                numero_empleado,
+                nombre_guardia,
+                documento_guardia,
+                cliente,
+                supervisor,
+                COALESCE(NULLIF(TRIM(serie_arma), ''), '—') AS serie_arma,
+                cantidad_municion,
+                fecha_hora
+            FROM supervision_puesto
+            {where}
+            ORDER BY fecha_hora DESC
+            LIMIT 500
+        """, params)
+        rows = []
+        for r in cur.fetchall():
+            rows.append({
+                'numero_empleado':   r['numero_empleado']  or '—',
+                'nombre_guardia':    r['nombre_guardia']    or '—',
+                'documento_guardia': r['documento_guardia'] or '—',
+                'cliente':           r['cliente']           or '—',
+                'supervisor':        r['supervisor']        or '—',
+                'serie_arma':        r['serie_arma'],
+                'cantidad_municion': str(r['cantidad_municion']) if r['cantidad_municion'] is not None else '—',
+                'fecha_hora':        r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            })
+        return jsonify({'rows': rows, 'total': len(rows)})
+    except Exception as e:
+        app_logger.error(f"api_bases_de_datos_armas error: {e}", exc_info=True)
+        return jsonify({'rows': [], 'total': 0}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/bases_de_datos/radios')
+@jwt_required()
+def api_bases_de_datos_radios():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'rows': [], 'total': 0}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        conds, params = [], []
+        conds.append("TRIM(COALESCE(equipamiento_completo, '')) <> ''")
+        if cliente:
+            conds.append("cliente = %s")
+            params.append(cliente)
+        if year and month:
+            conds.append("fecha_hora::TEXT LIKE %s")
+            params.append(f"{year}-{month:02d}%")
+        elif year:
+            conds.append("fecha_hora::TEXT LIKE %s")
+            params.append(f"{year}%")
+        where = "WHERE " + " AND ".join(conds)
+
+        cur.execute(f"""
+            SELECT
+                numero_empleado,
+                nombre_guardia,
+                documento_guardia,
+                cliente,
+                supervisor,
+                equipamiento_completo,
+                fecha_hora
+            FROM supervision_puesto
+            {where}
+            ORDER BY fecha_hora DESC
+            LIMIT 500
+        """, params)
+        rows = []
+        for r in cur.fetchall():
+            val = str(r['equipamiento_completo']).strip() if r['equipamiento_completo'] is not None else '—'
+            rows.append({
+                'numero_empleado':   r['numero_empleado']  or '—',
+                'nombre_guardia':    r['nombre_guardia']    or '—',
+                'documento_guardia': r['documento_guardia'] or '—',
+                'cliente':           r['cliente']           or '—',
+                'supervisor':        r['supervisor']        or '—',
+                'equipamiento':      val,
+                'fecha_hora':        r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            })
+        return jsonify({'rows': rows, 'total': len(rows)})
+    except Exception as e:
+        app_logger.error(f"api_bases_de_datos_radios error: {e}", exc_info=True)
+        return jsonify({'rows': [], 'total': 0}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/bases_de_datos/personal')
+@jwt_required()
+def api_bases_de_datos_personal():
+    cliente = request.args.get('cliente') or None
+    year    = int(request.args.get('year'))  if request.args.get('year')  else None
+    month   = int(request.args.get('month')) if request.args.get('month') else None
+
+    conn = cur = cur2 = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'rows': [], 'total': 0}), 500
+        cur  = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur2 = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        sup_conds, params = [], []
+        if cliente:
+            sup_conds.append("cliente = %s")
+            params.append(cliente)
+        if year and month:
+            sup_conds.append("fecha_hora::TEXT LIKE %s")
+            params.append(f"{year}-{month:02d}%")
+        elif year:
+            sup_conds.append("fecha_hora::TEXT LIKE %s")
+            params.append(f"{year}%")
+        base_where = ("WHERE " + " AND ".join(sup_conds)) if sup_conds else ""
+
+        # One row per distinct employee, most recent supervision
+        cur.execute(f"""
+            SELECT
+                emp_key,
+                nombre_guardia,
+                documento_guardia,
+                numero_empleado,
+                cliente,
+                ultima_supervision
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id') AS emp_key,
+                    nombre_guardia,
+                    COALESCE(NULLIF(TRIM(documento_guardia),''), '—') AS documento_guardia,
+                    COALESCE(NULLIF(TRIM(numero_empleado),''),  '—') AS numero_empleado,
+                    cliente,
+                    MAX(creado_en) AS ultima_supervision,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id')
+                        ORDER BY MAX(creado_en) DESC
+                    ) AS rn
+                FROM supervision_puesto
+                {base_where}
+                GROUP BY
+                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id'),
+                    nombre_guardia, documento_guardia, numero_empleado, cliente
+            ) sub
+            WHERE rn = 1
+            ORDER BY nombre_guardia
+        """, params)
+        employees = cur.fetchall()
+
+        rows = []
+        for emp in employees:
+            doc    = emp['documento_guardia'] if emp['documento_guardia'] != '—' else None
+            nombre = (emp['nombre_guardia'] or '').strip()
+            trainings = []
+
+            if doc or nombre:
+                match_parts, train_params = [], []
+                if doc:
+                    match_parts.append(
+                        "EXISTS (SELECT 1 FROM json_array_elements(lista_asistencia::json) e "
+                        "WHERE e->>'documento' = %s)"
+                    )
+                    train_params.append(doc)
+                if nombre:
+                    match_parts.append(
+                        "EXISTS (SELECT 1 FROM json_array_elements(lista_asistencia::json) e "
+                        "WHERE e->>'nombre' ILIKE %s)"
+                    )
+                    train_params.append(f"%{nombre}%")
+
+                match_sql = " OR ".join(match_parts)
+                cur2.execute(f"""
+                    SELECT nombre_capacitacion, objetivo_capacitacion,
+                           nivel_comprension, fecha_hora, nombre_responsable
+                    FROM registro_de_capacitaciones
+                    WHERE lista_asistencia IS NOT NULL
+                      AND lista_asistencia NOT IN ('null', '[]', '')
+                      AND ({match_sql})
+                    ORDER BY fecha_hora DESC
+                    LIMIT 20
+                """, train_params)
+                for t in cur2.fetchall():
+                    trainings.append({
+                        'capacitacion': t['nombre_capacitacion']  or '—',
+                        'objetivo':     t['objetivo_capacitacion'] or '—',
+                        'nivel':        t['nivel_comprension']     or '—',
+                        'fecha':        t['fecha_hora'].strftime('%Y-%m-%d') if t['fecha_hora'] else '—',
+                        'responsable':  t['nombre_responsable']    or '—',
+                    })
+
+            rows.append({
+                'numero_empleado':      emp['numero_empleado'],
+                'nombre_guardia':       emp['nombre_guardia']     or '—',
+                'documento_guardia':    emp['documento_guardia'],
+                'cliente':              emp['cliente']             or '—',
+                'ultima_supervision':   emp['ultima_supervision'].strftime('%Y-%m-%d') if emp['ultima_supervision'] else '—',
+                'total_capacitaciones': len(trainings),
+                'capacitaciones':       trainings,
+            })
+
+        return jsonify({'rows': rows, 'total': len(rows)})
+    except Exception as e:
+        app_logger.error(f"api_bases_de_datos_personal error: {e}", exc_info=True)
+        return jsonify({'rows': [], 'total': 0}), 500
+    finally:
+        if cur:  cur.close()
+        if cur2: cur2.close()
+        if conn: conn.close()
+
+
 @dashboard_bp.route('/logout')
 def logout():
     try:
