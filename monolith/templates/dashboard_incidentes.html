@@ -83,6 +83,10 @@
         /* ── KPI Cards ────────────────────────────────────────────────────── */
         .kpi-grid {
             display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
+            margin-bottom:1rem;
+        }
+        .sev-grid {
+            display:grid; grid-template-columns:repeat(3,1fr); gap:1rem;
             margin-bottom:1.25rem;
         }
         .kpi-value {
@@ -100,6 +104,50 @@
         .kpi-change.down { background-color:rgba(34,197,94,0.12);   color:#4ade80; }
         .kpi-change.flat { background-color:rgba(100,116,139,0.12); color:#94a3b8; }
         .kpi-compare { font-size:0.75rem; color:#4b5563; margin-top:0.3rem; font-family:'Roboto',sans-serif; }
+
+        /* ── Severity KPI cards ───────────────────────────────────────────── */
+        .sev-card {
+            border-radius:14px; padding:1.25rem 1.5rem;
+            cursor:pointer; transition:transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            border:2px solid transparent; position:relative; overflow:hidden;
+        }
+        .sev-card:hover { transform:translateY(-2px); }
+        .sev-card.active-filter { outline:2px solid #fff; outline-offset:2px; }
+        .sev-card-bajo  { background:rgba(34,197,94,0.1);  border-color:rgba(34,197,94,0.3); }
+        .sev-card-medio { background:rgba(234,179,8,0.1);  border-color:rgba(234,179,8,0.3); }
+        .sev-card-alto  { background:rgba(239,68,68,0.1);  border-color:rgba(239,68,68,0.3); }
+        .sev-card-bajo:hover  { border-color:#22c55e; box-shadow:0 4px 16px rgba(34,197,94,0.25); }
+        .sev-card-medio:hover { border-color:#eab308; box-shadow:0 4px 16px rgba(234,179,8,0.25); }
+        .sev-card-alto:hover  { border-color:#ef4444; box-shadow:0 4px 16px rgba(239,68,68,0.25); }
+        .sev-card-label { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem; font-family:'Roboto',sans-serif; }
+        .sev-card-value { font-family:'Merriweather',serif; font-size:2.25rem; font-weight:700; line-height:1; margin-bottom:0.375rem; }
+        .sev-card-hint  { font-size:0.75rem; color:#6b7280; font-family:'Roboto',sans-serif; }
+        .sev-card-bajo  .sev-card-label { color:#4ade80; }
+        .sev-card-medio .sev-card-label { color:#facc15; }
+        .sev-card-alto  .sev-card-label { color:#f87171; }
+        .sev-card-bajo  .sev-card-value { color:#4ade80; }
+        .sev-card-medio .sev-card-value { color:#facc15; }
+        .sev-card-alto  .sev-card-value { color:#f87171; }
+        .sev-filter-icon { position:absolute; top:0.75rem; right:0.75rem; font-size:0.75rem; opacity:0.6; }
+
+        /* ── Active filter banner ─────────────────────────────────────────── */
+        #filterBanner {
+            display:none; align-items:center; gap:0.75rem; flex-wrap:wrap;
+            background:rgba(96,165,250,0.1); border:1px solid rgba(96,165,250,0.3);
+            border-radius:10px; padding:0.75rem 1.25rem; margin-bottom:1rem;
+            font-size:0.875rem; font-family:'Roboto',sans-serif;
+        }
+        #filterBanner.active { display:flex; }
+        .filter-badge {
+            background:rgba(96,165,250,0.2); color:#93c5fd; padding:0.2rem 0.6rem;
+            border-radius:999px; font-weight:600; font-size:0.8125rem;
+        }
+        .clear-filter-btn {
+            background:none; border:1px solid rgba(96,165,250,0.4); color:#60a5fa;
+            border-radius:999px; padding:0.2rem 0.75rem; font-size:0.8125rem;
+            cursor:pointer; transition:all 0.2s; font-family:'Roboto',sans-serif;
+        }
+        .clear-filter-btn:hover { background:rgba(96,165,250,0.1); }
 
         /* Traffic light dot */
         .tl-dot {
@@ -163,21 +211,23 @@
         body.light-mode .empty-state p { color:#94a3b8; }
         body.light-mode .empty-state svg { color:#cbd5e1; }
         body.light-mode .loading-overlay { background-color:rgba(241,245,249,0.75); }
+        body.light-mode .sev-card-hint { color:#94a3b8; }
+        body.light-mode #filterBanner { background:rgba(59,130,246,0.08); border-color:rgba(59,130,246,0.2); }
 
         /* ── Responsive ───────────────────────────────────────────────────── */
         @media (max-width:900px) {
             .charts-row, .charts-bottom { grid-template-columns:1fr; }
         }
         @media (max-width:700px) {
-            .kpi-grid { grid-template-columns:1fr; }
+            .kpi-grid, .sev-grid { grid-template-columns:1fr; }
             body { padding-top:110px; }
             .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
         }
         @media (max-width:500px) {
-            .kpi-value { font-size:2rem; }
+            .kpi-value, .sev-card-value { font-size:2rem; }
         }
 
-        /* ── Modal ────────────────────────────────────────────────────────── */
+        /* ── Modals ───────────────────────────────────────────────────────── */
         .modal-backdrop {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
@@ -185,17 +235,18 @@
         }
         .modal-backdrop.active { display: flex; }
         .modal-container {
-            background-color: #2d3748; border-radius: 12px; width: 95%; max-width: 1000px;
+            background-color: #2d3748; border-radius: 12px; width: 95%; max-width: 1100px;
             max-height: 90vh; display: flex; flex-direction: column;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: 'Roboto', sans-serif;
         }
+        .modal-container.narrow { max-width: 700px; }
         body.light-mode .modal-container { background-color: #fff; }
         .modal-header {
-            padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);
-            display: flex; justify-content: space-between; align-items: center;
+            padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink:0;
         }
         body.light-mode .modal-header { border-bottom: 1px solid rgba(0,0,0,0.1); }
-        .modal-title { font-family: 'Merriweather', serif; font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; }
+        .modal-title { font-family: 'Merriweather', serif; font-size: 1.1rem; font-weight: 700; color: #fff; margin: 0; }
         body.light-mode .modal-title { color: #1e293b; }
         .modal-close {
             background: none; border: none; color: #94a3b8; font-size: 1.5rem;
@@ -203,17 +254,33 @@
         }
         .modal-close:hover { color: #fff; }
         body.light-mode .modal-close:hover { color: #1e293b; }
-        .modal-body { padding: 1.5rem; overflow-y: auto; }
+        .modal-body { padding: 1.5rem; overflow-y: auto; flex:1; }
 
+        /* ── Records table (list modal) ───────────────────────────────────── */
         .modal-table-wrapper { overflow-x: auto; max-height: 60vh; overflow-y: auto; }
-        .modal-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.875rem; text-align: left; }
-        .modal-table th { padding: 0.75rem; color: #94a3b8; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap; position: sticky; top: 0; background-color: #2d3748; z-index: 10; }
-        .modal-table td { padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; }
+        .modal-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; text-align: left; }
+        .modal-table th {
+            padding: 0.65rem 0.75rem; color: #94a3b8; font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap;
+            position: sticky; top: 0; background-color: #2d3748; z-index: 10;
+        }
+        .modal-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: #e2e8f0; }
         body.light-mode .modal-table th { color: #64748b; border-bottom: 1px solid rgba(0,0,0,0.1); background-color: #fff; }
         body.light-mode .modal-table td { color: #334155; border-bottom: 1px solid rgba(0,0,0,0.05); }
         .modal-table tr:hover td { background-color: rgba(255,255,255,0.03); }
         body.light-mode .modal-table tr:hover td { background-color: rgba(0,0,0,0.03); }
 
+        /* ── Record action button ─────────────────────────────────────────── */
+        .btn-ver {
+            background: rgba(96,165,250,0.15); border: 1px solid rgba(96,165,250,0.35);
+            color: #60a5fa; border-radius: 6px; padding: 0.2rem 0.6rem;
+            font-size: 0.75rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; white-space: nowrap; font-family: 'Roboto', sans-serif;
+        }
+        .btn-ver:hover { background: rgba(96,165,250,0.3); border-color: #60a5fa; }
+        body.light-mode .btn-ver { background:rgba(59,130,246,0.1); border-color:rgba(59,130,246,0.3); color:#2563eb; }
+
+        /* ── Clickable card ───────────────────────────────────────────────── */
         .clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-color: #f87171; }
         body.light-mode .clickable-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: #ef4444; }
@@ -226,6 +293,67 @@
         .sev-alto   { background:rgba(239,68,68,0.15);   color:#f87171; }
         .sev-medio  { background:rgba(234,179,8,0.15);   color:#facc15; }
         .sev-bajo   { background:rgba(34,197,94,0.15);   color:#4ade80; }
+
+        /* ── Record detail panel ──────────────────────────────────────────── */
+        .detail-section {
+            background: rgba(255,255,255,0.04); border-radius: 10px;
+            padding: 1rem 1.25rem; margin-bottom: 0.875rem;
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+        body.light-mode .detail-section { background:rgba(0,0,0,0.03); border-color:rgba(0,0,0,0.07); }
+        .detail-section h4 {
+            font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;
+            color:#6b7280; font-family:'Roboto',sans-serif; font-weight:700;
+            margin:0 0 0.75rem;
+        }
+        .detail-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:0.75rem; }
+        @media (max-width:500px) { .detail-grid { grid-template-columns:1fr; } }
+        .detail-field label { font-size:0.75rem; color:#6b7280; display:block; margin-bottom:0.2rem; font-family:'Roboto',sans-serif; }
+        .detail-field p { font-size:0.875rem; color:#e2e8f0; margin:0; font-family:'Roboto',sans-serif; word-break:break-word; }
+        body.light-mode .detail-field p { color:#1e293b; }
+        body.light-mode .detail-field label { color:#94a3b8; }
+
+        /* ── Export / email action buttons ────────────────────────────────── */
+        .action-bar {
+            display:flex; gap:0.75rem; flex-wrap:wrap;
+            padding:1rem 1.5rem; border-top:1px solid rgba(255,255,255,0.07);
+            flex-shrink:0;
+        }
+        body.light-mode .action-bar { border-top-color:rgba(0,0,0,0.08); }
+        .btn-action {
+            display:inline-flex; align-items:center; gap:0.4rem;
+            padding:0.5rem 1rem; border-radius:8px; font-size:0.8125rem; font-weight:600;
+            cursor:pointer; transition:all 0.2s; border:none; font-family:'Roboto',sans-serif;
+        }
+        .btn-pdf   { background:#ef4444; color:#fff; }
+        .btn-excel { background:#16a34a; color:#fff; }
+        .btn-email { background:#2563eb; color:#fff; }
+        .btn-back  { background:rgba(255,255,255,0.07); color:#94a3b8; border:1px solid rgba(255,255,255,0.1); }
+        body.light-mode .btn-back { background:rgba(0,0,0,0.05); border-color:rgba(0,0,0,0.1); color:#64748b; }
+        .btn-action:hover { filter:brightness(1.1); transform:translateY(-1px); }
+        .btn-action:disabled { opacity:0.5; cursor:not-allowed; transform:none; filter:none; }
+
+        /* ── Email prompt overlay ─────────────────────────────────────────── */
+        #emailPrompt {
+            display:none; position:absolute; inset:0; background:rgba(26,32,44,0.9);
+            border-radius:12px; align-items:center; justify-content:center; z-index:10;
+        }
+        #emailPrompt.active { display:flex; }
+        body.light-mode #emailPrompt { background:rgba(241,245,249,0.92); }
+        .email-prompt-box {
+            background:#2d3748; border-radius:12px; padding:2rem;
+            max-width:420px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.5);
+        }
+        body.light-mode .email-prompt-box { background:#fff; }
+        .email-prompt-box h4 { font-size:1rem; margin:0 0 1rem; color:#fff; }
+        body.light-mode .email-prompt-box h4 { color:#1e293b; }
+        .email-input {
+            width:100%; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15);
+            border-radius:8px; padding:0.6rem 0.875rem; color:#e2e8f0; font-size:0.875rem;
+            font-family:'Roboto',sans-serif; margin-bottom:1rem; box-sizing:border-box;
+        }
+        body.light-mode .email-input { background:#f8fafc; border-color:#cbd5e1; color:#1e293b; }
+        .email-input:focus { outline:none; border-color:#60a5fa; }
     </style>
 </head>
 
@@ -277,6 +405,14 @@
         <!-- Filter bar -->
         {% include '_dashboard_filters.html' %}
 
+        <!-- ── Active drilldown banner ──────────────────────────────────── -->
+        <div id="filterBanner">
+            <span style="color:#94a3b8; font-size:0.8125rem;">Filtro activo:</span>
+            <span id="filterBadgeCategoria" class="filter-badge" style="display:none;"></span>
+            <span id="filterBadgeSeveridad" class="filter-badge" style="display:none;"></span>
+            <button class="clear-filter-btn" onclick="clearDrilldown()">✕ Limpiar filtros</button>
+        </div>
+
         <!-- ── KPI Row ──────────────────────────────────────────────────── -->
         <div class="kpi-grid" id="kpiSection">
 
@@ -289,7 +425,7 @@
                 <div class="kpi-compare">vs período anterior</div>
             </div>
 
-            <!-- KPI 2: Alta Severidad -->
+            <!-- KPI 2: Alta Severidad (summary) -->
             <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
                 <div class="card-title">Alta Severidad</div>
                 <div class="kpi-value" id="kpiAltoVal" style="color:#fbbf24">—</div>
@@ -306,7 +442,31 @@
                 <div id="kpiResolucionChange"></div>
                 <div class="kpi-compare">vs período anterior</div>
             </div>
+        </div>
 
+        <!-- ── Severity detail cards ────────────────────────────────────── -->
+        <div class="sev-grid">
+            <div class="sev-card sev-card-bajo" id="sevCardBajo"
+                 onclick="applySeveridadFilter('Bajo')" title="Filtrar: Solo incidentes de severidad baja">
+                <div class="sev-card-label">⬤ Severidad Baja</div>
+                <div class="sev-card-value" id="sevBajoVal">—</div>
+                <div class="sev-card-hint">Clic para ver registros</div>
+                <span class="sev-filter-icon">🔍</span>
+            </div>
+            <div class="sev-card sev-card-medio" id="sevCardMedio"
+                 onclick="applySeveridadFilter('Medio')" title="Filtrar: Solo incidentes de severidad media">
+                <div class="sev-card-label">⬤ Severidad Media</div>
+                <div class="sev-card-value" id="sevMedioVal">—</div>
+                <div class="sev-card-hint">Clic para ver registros</div>
+                <span class="sev-filter-icon">🔍</span>
+            </div>
+            <div class="sev-card sev-card-alto" id="sevCardAlto"
+                 onclick="applySeveridadFilter('Alto')" title="Filtrar: Solo incidentes de severidad alta">
+                <div class="sev-card-label">⬤ Severidad Alta</div>
+                <div class="sev-card-value" id="sevAltoVal">—</div>
+                <div class="sev-card-hint">Clic para ver registros</div>
+                <span class="sev-filter-icon">🔍</span>
+            </div>
         </div>
 
         <!-- ── Charts row 1: Categorías (left) + Severidad (right) ─────── -->
@@ -314,7 +474,7 @@
 
             <!-- Categorías bar chart -->
             <div class="card chart-wrap" style="position:relative;">
-                <div class="card-title">Incidentes por Categoría</div>
+                <div class="card-title">Incidentes por Categoría <span style="font-weight:400;font-size:0.7em;color:#6b7280;">(clic en barra = filtrar)</span></div>
                 <div class="chart-wrap" style="min-height:260px;">
                     <canvas id="catChart" class="chart-canvas"></canvas>
                     <div id="catEmpty" class="empty-state" style="display:none;">
@@ -327,7 +487,7 @@
 
             <!-- Severidad distribution bar chart -->
             <div class="card" style="position:relative;">
-                <div class="card-title">Distribución por Severidad</div>
+                <div class="card-title">Distribución por Severidad <span style="font-weight:400;font-size:0.7em;color:#6b7280;">(clic en barra = filtrar)</span></div>
                 <div class="tl-legend">
                     <span class="tl-legend-item"><span class="tl-swatch" style="background:#22c55e"></span>Bajo</span>
                     <span class="tl-legend-item"><span class="tl-swatch" style="background:#eab308"></span>Medio</span>
@@ -360,7 +520,7 @@
             </div>
         </div>
 
-        <!-- ── Chart row 3: Turno donut (left) + Severity table (right) ── -->
+        <!-- ── Chart row 3: Turno donut (left) + Severity reference (right) -->
         <div class="charts-bottom">
 
             <!-- Turno donut -->
@@ -411,15 +571,15 @@
 
     </div><!-- /main-container -->
 
-    <!-- ── Interactive Modal ────────────────────────────────────────────────── -->
+    <!-- ── Records list modal ─────────────────────────────────────────────── -->
     <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) this.classList.remove('active')">
         <div class="modal-container">
             <div class="modal-header">
-                <h3 class="modal-title">Registros de Incidentes</h3>
+                <h3 class="modal-title" id="detailsModalTitle">Registros de Incidentes</h3>
                 <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
             </div>
             <div class="modal-body">
-                <div id="detailsLoading" style="display:none; text-align:center; color:#94a3b8; padding: 2rem;">Cargando detalles...</div>
+                <div id="detailsLoading" style="display:none; text-align:center; color:#94a3b8; padding: 2rem;">Cargando registros...</div>
                 <div class="modal-table-wrapper">
                     <table class="modal-table" id="detailsTable">
                         <thead>
@@ -432,18 +592,63 @@
                                 <th>Turno</th>
                                 <th>Estado</th>
                                 <th>Responsable</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="detailsTableBody">
-                        </tbody>
+                        <tbody id="detailsTableBody"></tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- ── Individual record detail modal ────────────────────────────────── -->
+    <div class="modal-backdrop" id="recordModal" onclick="if(event.target===this) this.classList.remove('active')">
+        <div class="modal-container narrow" style="position:relative;">
+            <div class="modal-header">
+                <h3 class="modal-title">Detalle del Registro</h3>
+                <button class="modal-close" onclick="closeRecordModal()">×</button>
+            </div>
+            <div class="modal-body" id="recordModalBody">
+                <div id="recordLoading" style="text-align:center; color:#94a3b8; padding: 2rem;">Cargando...</div>
+                <div id="recordContent" style="display:none;"></div>
+            </div>
+            <div class="action-bar" id="recordActionBar" style="display:none;">
+                <button class="btn-action btn-back" onclick="closeRecordModal()">← Volver</button>
+                <button class="btn-action btn-pdf"   id="btnPdf"   onclick="exportRecord('pdf')">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M5.523 10.424c.14-.082.293-.162.459-.238a7.878 7.878 0 0 0-.45.606c-.28.337-.498.516-.635.516a.067.067 0 0 1-.05-.018.232.232 0 0 1-.033-.153c0-.077.014-.15.033-.207a.985.985 0 0 1 .085-.2c.038-.065.08-.123.127-.17.047-.047.097-.084.15-.11.052-.026.106-.042.164-.042zm2.718 2.696c-.012-.018-.028-.04-.047-.065a3.695 3.695 0 0 0-.2-.219c.17-.025.375-.075.573-.135.37-.109.774-.284.97-.521a.37.37 0 0 0 .074-.22.362.362 0 0 0-.068-.22.365.365 0 0 0-.203-.121.4.4 0 0 0-.228.026 2.16 2.16 0 0 0-.343.188c-.108.069-.202.145-.285.225a4.46 4.46 0 0 0-.43.51c-.14.196-.264.416-.35.624l-.019.05c.098.026.196.056.29.087.32.106.594.247.767.418a.4.4 0 0 0 .233.094.39.39 0 0 0 .265-.104.39.39 0 0 0 .1-.266.39.39 0 0 0-.102-.267zm-.76-.29c.055-.14.124-.288.2-.43a4.46 4.46 0 0 1 .35-.506c.084-.096.176-.181.27-.252.09-.068.185-.13.276-.176.09-.044.175-.066.245-.066a.16.16 0 0 1 .1.031c.02.018.032.043.032.075a.22.22 0 0 1-.045.124c-.124.154-.412.288-.73.396a5.167 5.167 0 0 1-.698.204z"/><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/></svg>
+                    Descargar PDF
+                </button>
+                <button class="btn-action btn-excel" id="btnExcel" onclick="exportRecord('excel')">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                    Descargar Excel
+                </button>
+                <button class="btn-action btn-email" id="btnEmail" onclick="showEmailPrompt()">
+                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/></svg>
+                    Enviar por Correo
+                </button>
+            </div>
+            <!-- Email prompt overlay -->
+            <div id="emailPrompt">
+                <div class="email-prompt-box">
+                    <h4>Enviar registro por correo</h4>
+                    <p style="font-size:0.8125rem; color:#94a3b8; margin:0 0 1rem; font-family:'Roboto',sans-serif;">Ingrese la dirección de correo del destinatario:</p>
+                    <input type="email" id="emailInput" class="email-input" placeholder="correo@ejemplo.com">
+                    <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+                        <button class="btn-action btn-back" onclick="hideEmailPrompt()">Cancelar</button>
+                        <button class="btn-action btn-email" onclick="sendEmail()">Enviar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-    let currentQS = '';
+    let currentQS        = '';
+    let activeCatFilter  = null;
+    let activeSevFilter  = null;
+    let currentRecordId  = null;
+    let currentCatLabels = [];
 
     // ── Theme ─────────────────────────────────────────────────────────────
     const themeToggle   = document.getElementById('themeToggle');
@@ -498,7 +703,6 @@
         el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
     }
 
-    // For resolution time: down (faster) is good = green, up (slower) is bad = red
     function renderChangeResolucion(containerId, pct) {
         const el = document.getElementById(containerId);
         if (!el) return;
@@ -506,36 +710,90 @@
             el.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">N/A</span>';
             return;
         }
-        // Invert: up (more time) = bad = red, down (less time) = good = green
         const dir   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
         const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
-        // Use same class names but the CSS for kpi-change.up on incidentes is red (already set)
         el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
     }
 
     function renderKPI(data) {
         const k = data.kpi;
-
         // Total
         document.getElementById('kpiTotalVal').textContent = k.total ?? '—';
         renderChange('kpiTotalChange', k.pct_change_total);
-
         // Alta Severidad
         const altoEl = document.getElementById('kpiAltoVal');
         altoEl.textContent = k.total_alto ?? '—';
-        if (k.pct_alto !== null && k.pct_alto !== undefined) {
+        if (k.pct_alto !== null && k.pct_alto !== undefined)
             document.getElementById('kpiAltoLabel').textContent = `${k.pct_alto}% del total son de nivel alto`;
-        }
         renderChange('kpiAltoChange', k.pct_change_alto);
-
         // Resolución
         const resEl = document.getElementById('kpiResolucionVal');
-        if (k.avg_resolucion !== null && k.avg_resolucion !== undefined) {
-            resEl.textContent = k.avg_resolucion + ' min';
-        } else {
-            resEl.textContent = '—';
-        }
+        resEl.textContent = (k.avg_resolucion !== null && k.avg_resolucion !== undefined) ? k.avg_resolucion + ' min' : '—';
         renderChangeResolucion('kpiResolucionChange', k.pct_change_resolucion);
+
+        // Severity cards
+        const sev = data.severidad || {};
+        document.getElementById('sevBajoVal').textContent  = sev.bajo  ?? '0';
+        document.getElementById('sevMedioVal').textContent = sev.medio ?? '0';
+        document.getElementById('sevAltoVal').textContent  = sev.alto  ?? '0';
+
+        // Highlight active severity card
+        ['Bajo','Medio','Alto'].forEach(s => {
+            const card = document.getElementById('sevCard' + s);
+            if (card) card.classList.toggle('active-filter', activeSevFilter === s);
+        });
+    }
+
+    // ── Drilldown (cross-chart filter) ────────────────────────────────────
+    function applyCategoriaFilter(cat) {
+        if (activeCatFilter === cat) { clearDrilldown(); return; }
+        activeCatFilter = cat;
+        activeSevFilter = null;
+        updateFilterBanner();
+        reloadWithFilters();
+        openDetailsModal();
+    }
+
+    function applySeveridadFilter(sev) {
+        if (activeSevFilter === sev) { clearDrilldown(); return; }
+        activeSevFilter = sev;
+        activeCatFilter = null;
+        updateFilterBanner();
+        reloadWithFilters();
+        openDetailsModal();
+    }
+
+    function clearDrilldown() {
+        activeCatFilter = null;
+        activeSevFilter = null;
+        updateFilterBanner();
+        reloadWithFilters();
+        ['Bajo','Medio','Alto'].forEach(s => {
+            document.getElementById('sevCard' + s)?.classList.remove('active-filter');
+        });
+    }
+
+    function updateFilterBanner() {
+        const banner = document.getElementById('filterBanner');
+        const catBadge = document.getElementById('filterBadgeCategoria');
+        const sevBadge2 = document.getElementById('filterBadgeSeveridad');
+        const hasFilter = activeCatFilter || activeSevFilter;
+        banner.classList.toggle('active', !!hasFilter);
+        if (activeCatFilter) { catBadge.textContent = 'Categoría: ' + activeCatFilter; catBadge.style.display = 'inline'; }
+        else { catBadge.style.display = 'none'; }
+        if (activeSevFilter) { sevBadge2.textContent = 'Severidad: ' + activeSevFilter; sevBadge2.style.display = 'inline'; }
+        else { sevBadge2.style.display = 'none'; }
+    }
+
+    function buildDrillQS() {
+        const base = new URLSearchParams(currentQS);
+        if (activeCatFilter)  base.set('categoria', activeCatFilter);
+        if (activeSevFilter)  base.set('severidad', activeSevFilter);
+        return base.toString();
+    }
+
+    function reloadWithFilters() {
+        loadData(buildDrillQS());
     }
 
     // ── Category horizontal bar chart ─────────────────────────────────────
@@ -547,59 +805,42 @@
         }
         canvas.style.display = 'block'; empty.style.display = 'none';
 
-        const CAT_COLORS = [
-            '#f87171', '#fb923c', '#fbbf24', '#a3e635',
-            '#34d399', '#38bdf8', '#818cf8', '#e879f9',
-            '#f472b6', '#94a3b8'
-        ];
+        currentCatLabels = categorias.map(c => c.label);
 
+        const CAT_COLORS = [
+            '#f87171','#fb923c','#fbbf24','#a3e635',
+            '#34d399','#38bdf8','#818cf8','#e879f9','#f472b6','#94a3b8'
+        ];
         const labels = categorias.map(c => c.label);
         const values = categorias.map(c => c.count);
-        const colors = categorias.map((_, i) => CAT_COLORS[i % CAT_COLORS.length]);
+        const colors = categorias.map((c, i) =>
+            activeCatFilter === c.label ? '#fff' : CAT_COLORS[i % CAT_COLORS.length]
+        );
 
         if (catChart) catChart.destroy();
         catChart = new Chart(canvas, {
             type: 'bar',
             plugins: [ChartDataLabels],
-            data: {
-                labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderWidth: 0,
-                    borderRadius: 4,
-                    barThickness: 22,
-                }]
-            },
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 4, barThickness: 22 }] },
             options: {
-                indexAxis: 'y',
-                responsive: true,
-                maintainAspectRatio: false,
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const cat = currentCatLabels[elements[0].index];
+                    applyCategoriaFilter(cat);
+                },
                 scales: {
-                    x: {
-                        ticks: { color: chartTheme.tick, precision: 0 },
-                        grid:  { color: chartTheme.grid },
-                    },
-                    y: {
-                        ticks: { color: chartTheme.label, font: { size: 11 } },
-                        grid:  { display: false },
-                    }
+                    x: { ticks: { color: chartTheme.tick, precision: 0 }, grid: { color: chartTheme.grid } },
+                    y: { ticks: { color: chartTheme.label, font: { size: 11 } }, grid: { display: false } }
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ` ${ctx.parsed.x} incidente${ctx.parsed.x !== 1 ? 's' : ''}`
-                        }
-                    },
-                    datalabels: {
-                        anchor: 'end', align: 'end',
-                        color: chartTheme.tick, font: { size: 11, weight: '600' },
-                        formatter: v => v || ''
-                    }
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.x} incidente${ctx.parsed.x !== 1 ? 's' : ''}` } },
+                    datalabels: { anchor:'end', align:'end', color: chartTheme.tick, font:{ size:11, weight:'600' }, formatter: v => v || '' }
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(220, categorias.length * 34 + 40) + 'px';
     }
 
@@ -611,60 +852,35 @@
         if (!total) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
         canvas.style.display = 'block'; empty.style.display = 'none';
 
-        const labels = ['Bajo', 'Medio', 'Alto'];
+        const SEV_LABELS = ['Bajo','Medio','Alto'];
+        const SEV_VALS   = ['Bajo','Medio','Alto'];
         const values = [sev.bajo, sev.medio, sev.alto];
-        const colors = ['#22c55e', '#eab308', '#ef4444'];
+        const baseColors = ['#22c55e','#eab308','#ef4444'];
+        const colors = baseColors.map((c, i) => activeSevFilter === SEV_VALS[i] ? '#fff' : c);
 
         if (sevChart) sevChart.destroy();
         sevChart = new Chart(canvas, {
             type: 'bar',
             plugins: [ChartDataLabels],
-            data: {
-                labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderWidth: 0,
-                    borderRadius: 6,
-                    barThickness: 40,
-                }]
-            },
+            data: { labels: SEV_LABELS, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, borderRadius: 6, barThickness: 40 }] },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    applySeveridadFilter(SEV_VALS[elements[0].index]);
+                },
                 scales: {
-                    x: {
-                        ticks: { color: chartTheme.label, font: { size: 13 } },
-                        grid:  { display: false },
-                    },
-                    y: {
-                        ticks: { color: chartTheme.tick, precision: 0 },
-                        grid:  { color: chartTheme.grid },
-                    }
+                    x: { ticks: { color: chartTheme.label, font: { size: 13 } }, grid: { display: false } },
+                    y: { ticks: { color: chartTheme.tick, precision: 0 }, grid: { color: chartTheme.grid } }
                 },
                 plugins: {
                     legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => {
-                                const v = ctx.parsed.y;
-                                const pct = total ? ((v / total) * 100).toFixed(1) : 0;
-                                return ` ${v} incidente${v !== 1 ? 's' : ''} (${pct}%)`;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        anchor: 'end', align: 'end',
-                        color: chartTheme.tick, font: { size: 12, weight: '700' },
-                        formatter: (v) => {
-                            if (!v) return '';
-                            const pct = ((v / total) * 100).toFixed(0);
-                            return `${v}\n(${pct}%)`;
-                        }
-                    }
+                    tooltip: { callbacks: { label: ctx => { const v=ctx.parsed.y; const pct=total?((v/total)*100).toFixed(1):0; return ` ${v} incidente${v!==1?'s':''} (${pct}%)`; } } },
+                    datalabels: { anchor:'end', align:'end', color: chartTheme.tick, font:{size:12,weight:'700'}, formatter:(v)=>{ if(!v)return''; return `${v}\n(${((v/total)*100).toFixed(0)}%)`; } }
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = '220px';
     }
 
@@ -677,47 +893,17 @@
 
         if (trendChart) trendChart.destroy();
         trendChart = new Chart(canvas, {
-            type: 'line',
-            plugins: [ChartDataLabels],
-            data: {
-                labels: trend.labels,
-                datasets: [{
-                    label: 'Incidentes',
-                    data: trend.counts,
-                    borderColor: '#f87171',
-                    backgroundColor: 'rgba(239,68,68,0.08)',
-                    tension: 0.35,
-                    fill: true,
-                    pointBackgroundColor: '#f87171',
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                }]
-            },
+            type: 'line', plugins: [ChartDataLabels],
+            data: { labels: trend.labels, datasets: [{ label:'Incidentes', data:trend.counts, borderColor:'#f87171', backgroundColor:'rgba(239,68,68,0.08)', tension:0.35, fill:true, pointBackgroundColor:'#f87171', pointRadius:4, pointHoverRadius:6 }] },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { color: chartTheme.tick, precision: 0 },
-                        grid:  { color: chartTheme.grid },
-                    },
-                    x: {
-                        ticks: { color: chartTheme.tick, maxRotation: 45 },
-                        grid:  { display: false },
-                    }
+                    y: { beginAtZero:true, ticks:{color:chartTheme.tick,precision:0}, grid:{color:chartTheme.grid} },
+                    x: { ticks:{color:chartTheme.tick,maxRotation:45}, grid:{display:false} }
                 },
                 plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: { color: chartTheme.label, usePointStyle: true, boxWidth: 8, font: { size: 11 } }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => ` ${ctx.parsed.y} incidente${ctx.parsed.y !== 1 ? 's' : ''}`
-                        }
-                    },
+                    legend: { display:true, position:'top', labels:{color:chartTheme.label,usePointStyle:true,boxWidth:8,font:{size:11}} },
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} incidente${ctx.parsed.y!==1?'s':''}` } },
                     datalabels: { display: false }
                 }
             }
@@ -734,43 +920,14 @@
 
         if (turnoChart) turnoChart.destroy();
         turnoChart = new Chart(canvas, {
-            type: 'doughnut',
-            plugins: [ChartDataLabels],
-            data: {
-                labels: ['Turno Diurno', 'Turno Nocturno'],
-                datasets: [{
-                    data: [turno.diurno, turno.nocturno],
-                    backgroundColor: ['#fbbf24', '#818cf8'],
-                    borderColor: document.body.classList.contains('light-mode') ? '#fff' : '#2d3748',
-                    borderWidth: 3,
-                    hoverOffset: 6,
-                }]
-            },
+            type: 'doughnut', plugins: [ChartDataLabels],
+            data: { labels:['Turno Diurno','Turno Nocturno'], datasets:[{ data:[turno.diurno,turno.nocturno], backgroundColor:['#fbbf24','#818cf8'], borderColor: document.body.classList.contains('light-mode')?'#fff':'#2d3748', borderWidth:3, hoverOffset:6 }] },
             options: {
-                cutout: '62%',
-                responsive: true,
-                maintainAspectRatio: true,
+                cutout:'62%', responsive:true, maintainAspectRatio:true,
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: { color: chartTheme.label, padding: 16, font: { size: 12 } }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: ctx => {
-                                const pct = ((ctx.parsed / total) * 100).toFixed(1);
-                                return ` ${ctx.parsed} incidente${ctx.parsed !== 1 ? 's' : ''} (${pct}%)`;
-                            }
-                        }
-                    },
-                    datalabels: {
-                        color: '#fff', font: { size: 13, weight: '700' },
-                        formatter: (v) => {
-                            if (!v) return '';
-                            const pct = ((v / total) * 100).toFixed(1);
-                            return `${pct}%`;
-                        }
-                    }
+                    legend: { position:'bottom', labels:{color:chartTheme.label,padding:16,font:{size:12}} },
+                    tooltip: { callbacks: { label: ctx => { const pct=((ctx.parsed/total)*100).toFixed(1); return ` ${ctx.parsed} incidente${ctx.parsed!==1?'s':''} (${pct}%)`; } } },
+                    datalabels: { color:'#fff', font:{size:13,weight:'700'}, formatter:(v)=>{ if(!v)return''; return `${((v/total)*100).toFixed(1)}%`; } }
                 }
             }
         });
@@ -782,13 +939,7 @@
         if (!toast) {
             toast = document.createElement('div');
             toast.id = 'df-error-toast';
-            toast.style.cssText = [
-                'position:fixed','bottom:1.5rem','left:50%','transform:translateX(-50%)',
-                'background:#7f1d1d','color:#fca5a5','border:1px solid #ef4444',
-                'border-radius:10px','padding:0.75rem 1.25rem','font-size:0.8125rem',
-                'font-family:Roboto,sans-serif','z-index:9999','max-width:90vw',
-                'box-shadow:0 8px 24px rgba(0,0,0,0.4)','white-space:pre-wrap',
-            ].join(';');
+            toast.style.cssText = ['position:fixed','bottom:1.5rem','left:50%','transform:translateX(-50%)','background:#7f1d1d','color:#fca5a5','border:1px solid #ef4444','border-radius:10px','padding:0.75rem 1.25rem','font-size:0.8125rem','font-family:Roboto,sans-serif','z-index:9999','max-width:90vw','box-shadow:0 8px 24px rgba(0,0,0,0.4)','white-space:pre-wrap'].join(';');
             document.body.appendChild(toast);
         }
         toast.textContent = '⚠️  ' + msg;
@@ -797,34 +948,52 @@
         toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 8000);
     }
 
-    // ── Severity badge helper ─────────────────────────────────────────────
-    function sevBadge(sev) {
-        const cls = sev === 'Alto' ? 'sev-alto' : sev === 'Medio' ? 'sev-medio' : sev === 'Bajo' ? 'sev-bajo' : '';
-        return cls ? `<span class="sev-badge ${cls}">${sev}</span>` : sev;
+    function showSuccess(msg) {
+        let toast = document.getElementById('df-success-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'df-success-toast';
+            toast.style.cssText = ['position:fixed','bottom:1.5rem','left:50%','transform:translateX(-50%)','background:#14532d','color:#86efac','border:1px solid #22c55e','border-radius:10px','padding:0.75rem 1.25rem','font-size:0.8125rem','font-family:Roboto,sans-serif','z-index:9999','max-width:90vw','box-shadow:0 8px 24px rgba(0,0,0,0.4)'].join(';');
+            document.body.appendChild(toast);
+        }
+        toast.textContent = '✓  ' + msg;
+        toast.style.display = 'block';
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 5000);
     }
 
-    // ── Details Modal Loader ──────────────────────────────────────────────
+    // ── Severity badge helper ─────────────────────────────────────────────
+    function sevBadge(sev) {
+        const cls = sev==='Alto'?'sev-alto':sev==='Medio'?'sev-medio':sev==='Bajo'?'sev-bajo':'';
+        return cls ? `<span class="sev-badge ${cls}">${sev}</span>` : (sev || '—');
+    }
+
+    // ── Records list modal ────────────────────────────────────────────────
     async function openDetailsModal() {
         const modal   = document.getElementById('detailsModal');
         const tBody   = document.getElementById('detailsTableBody');
         const loading = document.getElementById('detailsLoading');
+        const title   = document.getElementById('detailsModalTitle');
+
+        let titleParts = ['Registros de Incidentes'];
+        if (activeCatFilter)  titleParts.push('— ' + activeCatFilter);
+        if (activeSevFilter)  titleParts.push('— Severidad ' + activeSevFilter);
+        title.textContent = titleParts.join(' ');
 
         modal.classList.add('active');
         tBody.innerHTML = '';
         loading.style.display = 'block';
 
         try {
-            const url = `/dashboard/api/incidentes/detalles${currentQS ? '?' + currentQS : ''}`;
+            const qs  = buildDrillQS();
+            const url = `/dashboard/api/incidentes/detalles${qs ? '?' + qs : ''}`;
             const res  = await fetch(url);
             const data = await res.json();
 
-            if (!res.ok || data.error) {
-                showError(`API Error: ${data.error || res.status}`);
-                return;
-            }
+            if (!res.ok || data.error) { showError(`API Error: ${data.error || res.status}`); return; }
 
             if (!data.detalles || data.detalles.length === 0) {
-                tBody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem;">No hay registros para este período.</td></tr>';
+                tBody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#6b7280;">No hay registros para los criterios seleccionados.</td></tr>';
                 return;
             }
 
@@ -839,6 +1008,7 @@
                     <td>${r.turno}</td>
                     <td>${r.estado}</td>
                     <td>${r.responsable}</td>
+                    <td><button class="btn-ver" onclick="openRecord(${r.id})">Ver ↗</button></td>
                 `;
                 tBody.appendChild(tr);
             });
@@ -849,19 +1019,150 @@
         }
     }
 
+    // ── Individual record modal ───────────────────────────────────────────
+    async function openRecord(id) {
+        currentRecordId = id;
+        const modal      = document.getElementById('recordModal');
+        const body       = document.getElementById('recordContent');
+        const loading    = document.getElementById('recordLoading');
+        const actionBar  = document.getElementById('recordActionBar');
+
+        modal.classList.add('active');
+        body.style.display   = 'none';
+        loading.style.display = 'block';
+        actionBar.style.display = 'none';
+
+        try {
+            const res  = await fetch(`/viewer/api/report/${id}?form_type=reporte_incidente`);
+            const data = await res.json();
+
+            if (!res.ok || !data) { showError('No se encontró el registro.'); return; }
+
+            body.innerHTML = renderRecordDetail(data);
+            body.style.display = 'block';
+            actionBar.style.display = 'flex';
+        } catch (err) {
+            showError(`Error cargando registro: ${err.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
+    function renderRecordDetail(d) {
+        const raw = d.data || d;
+        const rows = Object.entries(raw)
+            .filter(([k]) => !['id','formType','submittedBy','dateSubmitted','title'].includes(k))
+            .map(([k, v]) => {
+                const isSignature = k.toLowerCase().includes('firma');
+                const strVal = v && String(v).trim() ? String(v) : '';
+                const isImgSrc = strVal.startsWith('http') || strVal.startsWith('data:image');
+                let display;
+                if (isSignature && isImgSrc) {
+                    display = `<img src="${strVal}" alt="${k}" style="max-width:220px;max-height:110px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#fff;padding:6px;display:block;">`;
+                } else {
+                    display = strVal || '—';
+                }
+                return `
+                <div class="detail-field">
+                    <label>${k}</label>
+                    <p style="margin:0;">${display}</p>
+                </div>`;
+            }).join('');
+
+        const meta = `
+            <div class="detail-section">
+                <h4>Información del Registro</h4>
+                <div class="detail-grid">
+                    <div class="detail-field"><label>ID</label><p>${d.id || currentRecordId}</p></div>
+                    <div class="detail-field"><label>Enviado por</label><p>${d.submittedBy || '—'}</p></div>
+                    <div class="detail-field"><label>Fecha de envío</label><p>${d.dateSubmitted || '—'}</p></div>
+                    <div class="detail-field"><label>Formulario</label><p>${d.title || 'Reporte de Incidente'}</p></div>
+                </div>
+            </div>`;
+
+        const fields = rows ? `<div class="detail-section"><h4>Datos del Formulario</h4><div class="detail-grid">${rows}</div></div>` : '';
+        return meta + fields;
+    }
+
+    function closeRecordModal() {
+        document.getElementById('recordModal').classList.remove('active');
+        hideEmailPrompt();
+        currentRecordId = null;
+    }
+
+    // ── Export actions ────────────────────────────────────────────────────
+    async function exportRecord(format) {
+        if (!currentRecordId) return;
+        const btn = document.getElementById(format === 'pdf' ? 'btnPdf' : 'btnExcel');
+        btn.disabled = true;
+        try {
+            const endpoint = format === 'pdf' ? '/viewer/api/generate-pdf' : '/viewer/api/export-excel';
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reports: [{ id: currentRecordId, formType: 'reporte_incidente' }] })
+            });
+            if (!res.ok) { let msg = 'Error generando archivo.'; try { const e = await res.json(); msg = e.message || msg; } catch {} showError(msg); return; }
+            const blob = await res.blob();
+            const ext  = format === 'pdf' ? 'pdf' : 'xlsx';
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url; a.download = `incidente_${currentRecordId}.${ext}`;
+            a.click(); URL.revokeObjectURL(url);
+        } catch (err) {
+            showError(`Error al exportar: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function showEmailPrompt() {
+        document.getElementById('emailPrompt').classList.add('active');
+        document.getElementById('emailInput').value = '';
+        document.getElementById('emailInput').focus();
+    }
+
+    function hideEmailPrompt() {
+        document.getElementById('emailPrompt').classList.remove('active');
+    }
+
+    async function sendEmail() {
+        const email = document.getElementById('emailInput').value.trim();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showError('Por favor ingrese un correo electrónico válido.');
+            return;
+        }
+        const btn = document.querySelector('#emailPrompt .btn-email');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/viewer/api/email-reports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reports: [{ id: currentRecordId, formType: 'reporte_incidente' }],
+                    recipient_email: email
+                })
+            });
+            let data = {};
+            try { data = await res.json(); } catch {}
+            if (!res.ok || !data.success) { showError(data.message || 'Error enviando correo.'); return; }
+            showSuccess(`Correo enviado a ${email} exitosamente.`);
+            hideEmailPrompt();
+        } catch (err) {
+            showError(`Error al enviar correo: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     // ── Main data loader ──────────────────────────────────────────────────
     async function loadData(qs = '') {
-        ['catLoading', 'sevLoading', 'trendLoading', 'turnoLoading'].forEach(id => setLoading(id, true));
+        ['catLoading','sevLoading','trendLoading','turnoLoading'].forEach(id => setLoading(id, true));
         try {
             const url  = `/dashboard/api/incidentes/data${qs ? '?' + qs : ''}`;
             const res  = await fetch(url);
             const data = await res.json();
-
-            if (!res.ok || data.error) {
-                showError(`API Error: ${data.error || `Error HTTP ${res.status}`}`);
-                return;
-            }
-
+            if (!res.ok || data.error) { showError(`API Error: ${data.error || `Error HTTP ${res.status}`}`); return; }
             renderKPI(data);
             renderCatChart(data.categorias);
             renderSevChart(data.severidad);
@@ -870,7 +1171,7 @@
         } catch (err) {
             showError(`Error de conexión: ${err.message}`);
         } finally {
-            ['catLoading', 'sevLoading', 'trendLoading', 'turnoLoading'].forEach(id => setLoading(id, false));
+            ['catLoading','sevLoading','trendLoading','turnoLoading'].forEach(id => setLoading(id, false));
         }
     }
 
@@ -891,7 +1192,6 @@
         const filters = new DashboardFilters();
         filters.init();
 
-        // Relabel the property filter for incidentes
         const propSelect = document.getElementById('df-property');
         const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
         if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
@@ -909,6 +1209,9 @@
 
         document.addEventListener('filtersChanged', (e) => {
             currentQS = buildQS(e.detail);
+            activeCatFilter = null;
+            activeSevFilter = null;
+            updateFilterBanner();
             loadData(currentQS);
         });
 

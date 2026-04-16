@@ -115,24 +115,37 @@ csrf = CSRFProtect(app)
 bcrypt = Bcrypt(app)
 
 # --- JWT Error Handlers ---
+def _is_api_request():
+    return '/api/' in request.path
+
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Session expired. Please refresh the page."}), 401
     return redirect('/')
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error_string):
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Invalid session. Please log in again."}), 401
     return redirect('/')
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error_string):
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Authentication required."}), 401
     return redirect('/')
 
 @jwt.revoked_token_loader
 def revoked_token_callback(jwt_header, jwt_payload):
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Session revoked. Please log in again."}), 401
     return redirect('/')
 
 @jwt.needs_fresh_token_loader
 def needs_fresh_token_callback(jwt_header, jwt_payload):
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Fresh authentication required."}), 401
     return redirect('/')
 
 # --- Mount Applications/Blueprints Here ---
@@ -143,6 +156,10 @@ app.register_blueprint(landing_bp, url_prefix='/landing')
 app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 app.register_blueprint(forms_bp, url_prefix='/forms')
 app.register_blueprint(viewer_bp, url_prefix='/viewer')
+
+# JWT-authenticated blueprints use their own auth — exempt from CSRF
+csrf.exempt(viewer_bp)
+csrf.exempt(dashboard_bp)
 
 @app.route('/health')
 def health_check():

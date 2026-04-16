@@ -2865,7 +2865,7 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2874,6 +2874,12 @@ def _inc_where(cliente, year, month, day):
     if prefix:
         conds.append("fecha_hora::TEXT LIKE %s")
         params.append(prefix + "%")
+    if categoria:
+        conds.append("categoria = %s")
+        params.append(categoria)
+    if severidad:
+        conds.append("nivel_severidad = %s")
+        params.append(severidad)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -2930,10 +2936,12 @@ def api_incidentes_clientes():
 @dashboard_bp.route('/api/incidentes/data')
 @jwt_required()
 def api_incidentes_data():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente   = request.args.get('cliente')   or None
+    year      = int(request.args.get('year'))  if request.args.get('year')  else None
+    month     = int(request.args.get('month')) if request.args.get('month') else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
+    categoria = request.args.get('categoria') or None
+    severidad = request.args.get('severidad') or None
 
     conn = cur = None
     try:
@@ -2942,7 +2950,7 @@ def api_incidentes_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params           = _inc_where(cliente, year, month, day)
+        where, params           = _inc_where(cliente, year, month, day, categoria, severidad)
         where_prev, params_prev = _inc_prev_where(cliente, year, month, day)
 
         # ── KPI summary ───────────────────────────────────────────────────
@@ -3063,10 +3071,12 @@ def api_incidentes_data():
 @dashboard_bp.route('/api/incidentes/detalles')
 @jwt_required()
 def api_incidentes_detalles():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente   = request.args.get('cliente')   or None
+    year      = int(request.args.get('year'))  if request.args.get('year')  else None
+    month     = int(request.args.get('month')) if request.args.get('month') else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
+    categoria = request.args.get('categoria') or None
+    severidad = request.args.get('severidad') or None
 
     conn = cur = None
     try:
@@ -3075,7 +3085,7 @@ def api_incidentes_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params = _inc_where(cliente, year, month, day)
+        where, params = _inc_where(cliente, year, month, day, categoria, severidad)
 
         cur.execute(f"""
             SELECT

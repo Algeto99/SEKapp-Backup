@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import re
+import base64
 from datetime import timedelta, datetime, timezone, date, time
 from io import BytesIO
 
@@ -864,13 +865,29 @@ def fetch_reports_mixed(items, skip_signing=False):
     
     return all_reports
 
+def _get_email_password():
+    """Fetch SMTP password from env or Secret Manager."""
+    pw = os.environ.get('EMAIL_PASSWORD')
+    if pw:
+        return pw
+    try:
+        project_id = current_app.config.get('GCP_PROJECT_ID')
+        if not project_id:
+            return None
+        client = secretmanager.SecretManagerServiceClient()
+        name = f"projects/{project_id}/secrets/admin-email-pass/versions/latest"
+        response = client.access_secret_version(request={"name": name})
+        return response.payload.data.decode("UTF-8")
+    except Exception as e:
+        app_logger.error(f"Could not retrieve email password: {e}", exc_info=True)
+        return None
+
+
 def send_reports_email(recipient_email, subject, body, is_html=False):
-    # Retrieve email credentials - using provided values and Secret Manager for password
     _email_username = "no-reply@tzolkintech.com"
     _smtp_server = "tzolkintech.com"
     _smtp_port = 587
-    # FIX: Retrieve password from Secret Manager using the provided secret name
-    _email_password = get_secret(project_id, 'admin-email-pass') 
+    _email_password = _get_email_password()
 
     if not all([_email_username, _email_password, _smtp_server, _smtp_port]):
         app_logger.error("Email sending skipped: Missing one or more email credentials or invalid port.")
@@ -1214,12 +1231,13 @@ def get_single_report(report_id):
 def email_selected_reports_api():
     user_email = get_jwt_identity()
     data = request.get_json()
-    requests_payload = data.get('reports') # New format: list of {id, formType}
-    report_ids = data.get('report_ids') # Old format: list of ids (ints)
+    requests_payload  = data.get('reports')         # New format: list of {id, formType}
+    report_ids        = data.get('report_ids')       # Old format: list of ids (ints)
+    recipient_email   = data.get('recipient_email')  # Recipient address
 
     if not requests_payload and not report_ids:
         return jsonify({"success": False, "message": "No reports provided."}), 400
-        
+
     if not recipient_email or not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", recipient_email):
         return jsonify({"success": False, "message": "Invalid recipient email address."}), 400
 
@@ -1236,84 +1254,123 @@ def email_selected_reports_api():
         app_logger.warning(f"No reports found for the provided items during email request.")
         return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
 
-    subject = f"Reportes de Incidencias Seleccionados ({len(reports_to_email)} Reportes)"
-    
-    html_body_parts = [
-        f"<html><body style='font-family: Arial, sans-serif; color: #333;'>",
-        f"<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>",
-        f"<h2 style='color: #2563eb;'>Reportes de Incidencias Seleccionados - Kanan SecApp</h2>",
-        f"<p>Hola,</p>",
-        f"<p>Adjuntos se encuentran los detalles de los reportes de incidencias seleccionados:</p>"
-    ]
+    subject = f"Reporte de Incidencia — Kanan Sentinel SecApp"
 
-    # Group reports by formType
-    reports_by_type = {}
-    for report in reports_to_email: # Changed from 'reports' to 'reports_to_email'
-        f_type = report.get('formType', 'reporte_incidente')
-        if f_type not in reports_by_type:
-            reports_by_type[f_type] = []
-        reports_by_type[f_type].append(report)
+    SIGNATURE_KEYS = {'Firma Responsable', 'firma_responsable', 'Firma', 'firma'}
+    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url'}
+    logo_src = _get_logo_data_url() or ""
+    logo_tag = f'<img src="{logo_src}" alt="Kanan" width="36" height="36" style="border-radius:6px;background:#fff;padding:3px;vertical-align:middle;">' if logo_src else ''
+    gen_date = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    for f_type, type_reports in reports_by_type.items():
-        config = FORM_CONFIGS.get(f_type)
-        if not config:
-            continue
-            
-        title = config.get('title_prefix', f_type)
-        html_body_parts.append(f"<h2>{title}s</h2>") # Changed from html_parts to html_body_parts
+    p = []
+    p.append(f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 0;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
 
-        for report in type_reports:
-            html_body_parts.append(f"<div class='report-container'>") # Changed from html_parts to html_body_parts
-            html_body_parts.append(f"<div class='report-header'>") # Changed from html_parts to html_body_parts
-            html_body_parts.append(f"<h2>{report['title']}</h2>") # Changed from html_parts to html_body_parts
-            html_body_parts.append(f"<p><strong>Enviado por:</strong> {report['submittedBy']} | <strong>Fecha:</strong> {report['dateSubmitted']}</p>") # Changed from html_parts to html_body_parts
-            html_body_parts.append(f"</div>") # Changed from html_parts to html_body_parts
-            
-            html_body_parts.append(f"<div class='report-body'>") # Changed from html_parts to html_body_parts
-            
-            # Dynamic fields based on config
-            for label, col_name in config['data_mapping'].items():
-                # Get value from report data using label as key
-                value = report['data'].get(label)
-                display_value = value if value and str(value).strip() != 'N/A' and str(value).strip() != 'None' else 'No especificado'
-                
-                # Handle Attachments
-                if label == 'URLs de Imágenes o PDFs' and display_value != 'No especificado':
-                    urls = str(display_value).split('\n')
-                    valid_urls = [u.strip() for u in urls if u.strip()]
-                    
-                    if valid_urls:
-                        html_body_parts.append(f"<p><strong>Archivos Adjuntos:</strong></p><div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;'>") # Changed from html_parts to html_body_parts
-                        for url in valid_urls:
-                            # Generate signed URL for PDF/Email if needed (though PDF generation happens server side, so signed URL is good)
-                            # Note: fetch_reports_by_ids already signed them
-                            
-                            lower_url = url.lower()
-                            filename = url.split('?')[0].split('/')[-1]
-                            
-                            if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
-                                html_body_parts.append(f"""
-                                    <div style='margin-bottom: 10px;'>
-                                        <a href="{url}" target="_blank" style="text-decoration: none;">
-                                            <img src="{url}" alt="Imagen" style="max-width: 200px; height: auto; border-radius: 4px; border: 1px solid #ccc;">
-                                        </a>
-                                    </div>
-                                """)
-                            else:
-                                html_body_parts.append(f"""
-                                    <div style='margin-bottom: 10px;'>
-                                        <p style="margin: 0;">Archivo: <a href="{url}" target="_blank" style="color: #2563eb; text-decoration: none;">{filename}</a></p>
-                                    </div>
-                                """)
-                        html_body_parts.append(f"</div>") # Changed from html_parts to html_body_parts
+  <!-- Header -->
+  <tr>
+    <td style="background:#1e3a8a;padding:16px 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align:middle;">{logo_tag}&nbsp;&nbsp;<span style="color:#ffffff;font-size:15px;font-weight:bold;vertical-align:middle;">Kanan Sentinel SecApp</span><br>
+              <span style="color:#bfdbfe;font-size:11px;margin-left:48px;">Reporte de Incidencias</span></td>
+          <td align="right" style="color:#bfdbfe;font-size:11px;vertical-align:middle;">Generado el<br>{gen_date}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- Intro -->
+  <tr>
+    <td style="padding:20px 24px 8px 24px;color:#374151;font-size:13px;">
+      <p style="margin:0 0 8px 0;">Estimado/a,</p>
+      <p style="margin:0;color:#6b7280;">A continuación se presentan los detalles del reporte de incidencia seleccionado.</p>
+    </td>
+  </tr>
+""")
+
+    for report in reports_to_email:
+        data = report.get('data', {})
+        signature_value = None
+        attachment_urls = []
+
+        p.append(f"""
+  <!-- Report card -->
+  <tr><td style="padding:16px 24px 0 24px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+      <!-- Report title bar -->
+      <tr>
+        <td colspan="2" style="background:#1d4ed8;padding:10px 14px;">
+          <span style="color:#ffffff;font-size:13px;font-weight:bold;">{report['title']}</span><br>
+          <span style="color:#bfdbfe;font-size:10px;">Enviado por: {report['submittedBy']} &nbsp;&middot;&nbsp; {report['dateSubmitted']}</span>
+        </td>
+      </tr>
+""")
+
+        row_idx = 0
+        for key, value in data.items():
+            if not value or str(value).strip() in ('N/A', 'None', ''):
+                continue
+            if key in SKIP_KEYS:
+                for url in str(value).split('\n'):
+                    url = url.strip()
+                    if url:
+                        attachment_urls.append(url)
+                continue
+            val_str = str(value).strip()
+            if key in SIGNATURE_KEYS or val_str.startswith('data:image'):
+                signature_value = val_str
+                continue
+            bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+            clean_val = val_str.replace('\n', '<br>')
+            p.append(f"""      <tr style="background:{bg};">
+        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">{key}</td>
+        <td style="padding:6px 12px;font-size:11px;color:#1f2937;border-bottom:1px solid #f1f5f9;">{clean_val}</td>
+      </tr>
+""")
+            row_idx += 1
+
+        # Signature row
+        if signature_value:
+            p.append(f"""      <tr>
+        <td colspan="2" style="padding:12px 14px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0 0 6px 0;font-size:11px;font-weight:bold;color:#374151;">Firma Responsable</p>
+          <img src="{signature_value}" alt="Firma" style="max-width:200px;max-height:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px;background:#fff;">
+        </td>
+      </tr>
+""")
+
+        # Attachments
+        if attachment_urls:
+            p.append('<tr><td colspan="2" style="padding:12px 14px;border-top:1px solid #e5e7eb;"><p style="margin:0 0 8px 0;font-size:11px;font-weight:bold;color:#374151;">Archivos Adjuntos</p>')
+            for url in attachment_urls:
+                fname = url.split('?')[0].split('/')[-1]
+                lower = url.lower().split('?')[0]
+                if lower.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
+                    p.append(f'<a href="{url}" target="_blank"><img src="{url}" alt="{fname}" style="max-width:180px;max-height:150px;border:1px solid #d1d5db;border-radius:4px;margin:4px 4px 0 0;"></a>')
                 else:
-                    html_body_parts.append(f"<p><strong>{label}:</strong> {display_value}</p>") # Changed from html_parts to html_body_parts
-            
-            html_body_parts.append(f"</div></div>") # Close body and container # Changed from html_parts to html_body_parts
+                    p.append(f'<p style="margin:4px 0;font-size:11px;"><a href="{url}" target="_blank" style="color:#2563eb;">{fname}</a></p>')
+            p.append('</td></tr>')
 
-    html_body_parts.append(f"<p style='margin-top: 20px;'>Generado por {user_email} desde Kanan SecApp.</p>")
-    html_body_parts.append(f"</div></body></html>")
-    email_html_body = "\n".join(html_body_parts)
+        p.append('    </table>\n  </td></tr>')
+
+    # Footer
+    p.append(f"""
+  <tr>
+    <td style="padding:20px 24px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:10px;text-align:center;">
+      Generado por <strong>{user_email}</strong> desde Kanan Sentinel SecApp.<br>
+      Este correo es generado automáticamente, por favor no responder.
+    </td>
+  </tr>
+
+</table>
+</td></tr></table>
+</body></html>""")
+
+    email_html_body = ''.join(p)
 
     success, message = send_reports_email(recipient_email, subject, email_html_body, is_html=True)
 
@@ -1623,239 +1680,184 @@ def generate_pdf():
         return jsonify({"success": False, "message": f"Error generating PDF: {str(e)}"}), 500
 
 
+_LOGO_DATA_URL_CACHE = None
+
+def _get_logo_data_url():
+    global _LOGO_DATA_URL_CACHE
+    if _LOGO_DATA_URL_CACHE:
+        return _LOGO_DATA_URL_CACHE
+    try:
+        resp = requests.get("https://storage.googleapis.com/smt-misc/KananSentinel.png", timeout=5, verify=False)
+        if resp.ok:
+            b64 = base64.b64encode(resp.content).decode()
+            _LOGO_DATA_URL_CACHE = f"data:image/png;base64,{b64}"
+            return _LOGO_DATA_URL_CACHE
+    except Exception:
+        pass
+    return None
+
+
 def generate_reports_html(reports):
-    """Generate HTML content for PDF generation - matching print layout"""
-    html_parts = ["""
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {
-                font-family: 'Roboto', Arial, sans-serif;
-                margin: 40px;
-                color: #333;
-                line-height: 1.6;
-                font-size: 12pt;
-            }
-            .header {
-                text-align: center;
-                margin-bottom: 40px;
-                border-bottom: 2px solid #1d4ed8;
-                padding-bottom: 20px;
-            }
-            .header h1 {
-                color: #1d4ed8;
-                font-size: 24px;
-                margin: 0;
-                font-family: 'Merriweather', serif;
-            }
-            .report-block {
-                page-break-before: always;
-                margin-bottom: 2rem;
-                padding: 1rem;
-                background: white;
-                border: 1px solid #ddd;
-            }
-            .report-block:first-child {
-                page-break-before: avoid;
-            }
-            .report-header {
-                margin-bottom: 1rem;
-            }
-            .report-title {
-                font-size: 16pt;
-                font-weight: bold;
-                color: #212529;
-                margin-bottom: 0.5rem;
-                font-family: 'Merriweather', serif;
-            }
-            .report-meta {
-                color: #666;
-                font-size: 11pt;
-                margin-bottom: 1rem;
-            }
-            .report-summary {
-                margin-bottom: 1rem;
-                padding-bottom: 1rem;
-                border-bottom: 1px solid #eee;
-            }
-            .report-summary p {
-                margin-bottom: 0.5rem;
-                color: #212529;
-                font-size: 11pt;
-            }
-            .report-details {
-                margin-top: 1rem;
-                padding-top: 1rem;
-                border-top: 1px solid #eee;
-            }
-            .report-details ul {
-                list-style-type: none;
-                padding: 0;
-                margin: 0;
-            }
-            .report-details li {
-                margin-bottom: 0.5rem;
-                padding: 0;
-                font-size: 11pt;
-                color: #212529;
-            }
-            .report-details strong {
-                font-weight: bold;
-                color: #212529;
-            }
-            .attachment-section {
-                margin: 1rem 0;
-            }
-            .attachment-grid {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-                margin-top: 10px;
-            }
-            .attachment-item {
-                margin-bottom: 10px;
-                text-align: center;
-            }
-            .attachment-item img {
-                max-width: 200px;
-                max-height: 200px;
-                object-fit: contain;
-                border-radius: 4px;
-                border: 1px solid #ccc;
-                page-break-inside: avoid;
-            }
-            .attachment-item p {
-                font-size: 10pt;
-                color: #555;
-                margin-top: 5px;
-                margin-bottom: 0;
-            }
-            .pdf-link {
-                color: #2563eb;
-                text-decoration: none;
-                font-size: 11pt;
-            }
-            .pdf-link:hover {
-                text-decoration: underline;
-            }
-            @page {
-                margin: 2cm;
-                @bottom-center {
-                    content: "Página " counter(page) " - Kanan SecApp";
-                    font-size: 10px;
-                    color: #666;
-                }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>Reportes de Incidencias - Kanan SecApp</h1>
-            <p style="margin: 10px 0 0 0; color: #666;">Generado el """ + datetime.now().strftime("%d/%m/%Y a las %H:%M") + """</p>
-        </div>
-    """]
+    """Generate HTML content for PDF generation."""
+    SIGNATURE_KEYS = {'Firma Responsable', 'firma_responsable', 'Firma', 'firma'}
+    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url'}
+    logo_src = _get_logo_data_url() or ""
 
-    for i, report in enumerate(reports):
-        html_parts.append(f"""
-        <div class="report-block">
-            <div class="report-header">
-                <h2 class="report-title">{report['title']}</h2>
-                <p class="report-meta">Enviado por: {report['submittedBy']} el {report['dateSubmitted']}</p>
-            </div>
-            
-            <div class="report-summary">
-                <p><strong>Título de Incidencia:</strong> {report['data'].get('Título de Incidencia', 'No especificado')}</p>
-                <p><strong>Lugar del Incidente:</strong> {report['data'].get('Lugar del Incidente', 'No especificado')}</p>
-                <p><strong>Fecha del Incidente:</strong> {report['data'].get('Fecha del Incidente', 'No especificado')}</p>
-            </div>
-            
-            <div class="report-details">
-                <ul>
-        """)
+    logo_img = f'<img src="{logo_src}" alt="">' if logo_src else '<span style="font-size:20pt;color:#1d4ed8;">&#9632;</span>'
 
-        # Add all report data except URLs (we'll handle those separately)
-        for key, value in report['data'].items():
-            if value and str(value).strip() not in ['N/A', 'None', ''] and key != 'URLs de Imágenes o PDFs':
-                clean_value = str(value).replace('\n', '<br>')
-                html_parts.append(f"""
-                    <li><strong>{key}:</strong> {clean_value}</li>
-                """)
+    html_parts = ["""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; font-size: 8.5pt; line-height: 1.4; }
+.page-header {
+    background: #1e3a8a;
+    color: white;
+    padding: 10px 16px;
+    display: table;
+    width: 100%;
+}
+.header-left { display: table-cell; vertical-align: middle; }
+.header-logo { display: inline-block; vertical-align: middle; margin-right: 10px; }
+.header-logo img { height: 36px; width: 36px; border-radius: 6px; background: white; padding: 2px; vertical-align: middle; }
+.header-title { display: inline-block; vertical-align: middle; }
+.header-title h1 { font-size: 12pt; font-weight: bold; }
+.header-title p { font-size: 8pt; opacity: 0.8; margin-top: 1px; }
+.header-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 7.5pt; opacity: 0.85; white-space: nowrap; }
+.report-block {
+    background: white;
+    margin: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.report-title-bar {
+    background: #1d4ed8;
+    color: white;
+    padding: 8px 14px;
+    display: table;
+    width: 100%;
+}
+.report-title-bar h2 { font-size: 11pt; font-weight: bold; }
+.report-title-bar .meta { font-size: 7.5pt; opacity: 0.85; margin-top: 2px; }
+.report-body { padding: 10px 14px; }
+table.fields { width: 100%; border-collapse: collapse; }
+table.fields td { padding: 4px 8px; font-size: 8pt; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+table.fields tr:last-child td { border-bottom: none; }
+table.fields tr:nth-child(even) td { background: #f8fafc; }
+td.lbl { width: 36%; font-weight: bold; color: #374151; white-space: nowrap; }
+td.val { color: #1f2937; }
+.bottom-row { display: table; width: 100%; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 8px; }
+.sig-cell { display: table-cell; vertical-align: top; width: 50%; }
+.att-cell { display: table-cell; vertical-align: top; width: 50%; padding-left: 12px; }
+.section-label { font-size: 7.5pt; font-weight: bold; color: #374151; margin-bottom: 4px; }
+.sig-img { max-width: 180px; max-height: 80px; border: 1px solid #d1d5db; border-radius: 3px; padding: 3px; object-fit: contain; }
+.att-grid img { max-width: 120px; max-height: 90px; border: 1px solid #d1d5db; border-radius: 3px; object-fit: contain; }
+.pdf-link { color: #2563eb; text-decoration: none; font-size: 8pt; }
+@page {
+    size: A4;
+    margin: 1cm 0.8cm;
+    @bottom-center {
+        content: "Página " counter(page) " — Kanan Sentinel SecApp";
+        font-size: 7pt; color: #9ca3af;
+    }
+}
+</style>
+</head>
+<body>
+<div class="page-header">
+    <div class="header-left">
+        <span class="header-logo">""" + logo_img + """</span>
+        <span class="header-title">
+            <h1>Kanan Sentinel SecApp</h1>
+            <p>Reporte de Incidencias</p>
+        </span>
+    </div>
+    <div class="header-right">Generado el<br>""" + datetime.now().strftime("%d/%m/%Y a las %H:%M") + """</div>
+</div>
+"""]
 
-        html_parts.append("""
-                </ul>
-        """)
+    for idx, report in enumerate(reports):
+        data = report.get('data', {})
+        pb = '' if idx == 0 else 'page-break-before:always;'
 
-        # Handle attachments separately
-        if report['data'].get('URLs de Imágenes o PDFs') and str(report['data']['URLs de Imágenes o PDFs']).strip() not in ['N/A', 'None', '']:
-            urls = str(report['data']['URLs de Imágenes o PDFs']).split('\n')
-            image_urls = []
-            pdf_urls = []
-            other_urls = []
-            
-            for url in urls:
-                url = url.strip()
-                if url:
-                    lower_url = url.lower()
-                    filename = os.path.basename(url)
-                    if lower_url.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
+        html_parts.append(
+            f'<div class="report-block" style="{pb}">'
+            f'<div class="report-title-bar">'
+            f'<h2>{report["title"]}</h2>'
+            f'<p class="meta">Enviado por: {report["submittedBy"]} &nbsp;&middot;&nbsp; {report["dateSubmitted"]}</p>'
+            f'</div>'
+            f'<div class="report-body">'
+            f'<table class="fields">'
+        )
+
+        signature_value = None
+        image_urls, pdf_urls, other_urls = [], [], []
+
+        for key, value in data.items():
+            if not value or str(value).strip() in ('N/A', 'None', ''):
+                continue
+            if key in SKIP_KEYS:
+                # Parse attachment URLs
+                for url in str(value).split('\n'):
+                    url = url.strip()
+                    if not url:
+                        continue
+                    lower = url.lower()
+                    if lower.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
                         image_urls.append(url)
-                    elif lower_url.endswith('.pdf'):
+                    elif lower.endswith('.pdf'):
                         pdf_urls.append(url)
                     else:
                         other_urls.append(url)
-            
-            if image_urls or pdf_urls or other_urls:
-                html_parts.append("""
-                <div class="attachment-section">
-                    <strong>Archivos Adjuntos:</strong>
-                    <div class="attachment-grid">
-                """)
-                
-                # Add images
+                continue
+
+            val_str = str(value).strip()
+
+            if key in SIGNATURE_KEYS or val_str.startswith('data:image'):
+                signature_value = val_str
+                continue
+
+            clean_value = val_str.replace('\n', '<br>')
+            html_parts.append(f'<tr><td class="lbl">{key}</td><td class="val">{clean_value}</td></tr>')
+
+        html_parts.append('</table>')
+
+        # Signature + attachments side by side
+        has_sig = bool(signature_value)
+        has_att = bool(image_urls or pdf_urls or other_urls)
+
+        if has_sig or has_att:
+            html_parts.append('<div class="bottom-row">')
+
+            if has_sig:
+                html_parts.append(
+                    '<div class="sig-cell">'
+                    '<p class="section-label">Firma Responsable</p>'
+                    f'<img class="sig-img" src="{signature_value}" alt="Firma">'
+                    '</div>'
+                )
+
+            if has_att:
+                html_parts.append('<div class="att-cell"><p class="section-label">Archivos Adjuntos</p><div class="att-grid">')
                 for url in image_urls:
-                    filename = url.split('/')[-1] if '/' in url else url
-                    html_parts.append(f"""
-                        <div class="attachment-item">
-                            <img src="{url}" alt="Imagen del reporte">
-                            <p>{filename}</p>
-                        </div>
-                    """)
-                
-                # Add PDF links
+                    fname = url.split('/')[-1]
+                    html_parts.append(f'<img src="{url}" alt="{fname}">')
                 for url in pdf_urls:
-                    filename = url.split('/')[-1] if '/' in url else url
-                    html_parts.append(f"""
-                        <div class="attachment-item">
-                            <p>PDF: <a href="{url}" class="pdf-link">{filename}</a></p>
-                        </div>
-                    """)
-                
-                # Add other file links
+                    fname = url.split('/')[-1]
+                    html_parts.append(f'<a href="{url}" class="pdf-link">&#128196; {fname}</a><br>')
                 for url in other_urls:
-                    filename = url.split('/')[-1] if '/' in url else url
-                    html_parts.append(f"""
-                        <div class="attachment-item">
-                            <p>Archivo: <a href="{url}" class="pdf-link">{filename}</a></p>
-                        </div>
-                    """)
-                
-                html_parts.append("""
-                    </div>
-                </div>
-                """)
+                    fname = url.split('/')[-1]
+                    html_parts.append(f'<a href="{url}" class="pdf-link">&#128206; {fname}</a><br>')
+                html_parts.append('</div></div>')
 
-        html_parts.append("""
-            </div>
-        </div>
-        """)
+            html_parts.append('</div>')
 
-    html_parts.append("""
-    </body>
-    </html>
-    """)
+        html_parts.append('</div></div>')
 
+    html_parts.append('</body></html>')
     return ''.join(html_parts)
 
 
