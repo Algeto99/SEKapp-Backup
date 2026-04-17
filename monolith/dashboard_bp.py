@@ -4465,11 +4465,20 @@ def _visita_status(acuerdo_text, fecha_limite):
     return 'pendiente'
 
 def _visita_parse_compromisos(rows):
+    import json as _json
     compromisos = []
     for row in rows:
         acuerdos = _visita_split_blocks(row['acuerdos_compromisos'])
         responsables = _visita_parse_responsables(row['compromisos_responsable'])
         temas = _visita_split_blocks(row['temas_tratados'])
+
+        estados_override = {}
+        raw_estados = row.get('compromisos_estados')
+        if raw_estados:
+            try:
+                estados_override = _json.loads(raw_estados)
+            except Exception:
+                pass
 
         max_len = max(len(acuerdos), len(responsables), len(temas), 1)
         for idx in range(max_len):
@@ -4498,9 +4507,10 @@ def _visita_parse_compromisos(rows):
             if not acuerdo and not tema and not fecha_limite and not responsable_item:
                 continue
 
-            estado = _visita_status(acuerdo, fecha_limite)
+            estado = estados_override.get(str(idx)) or _visita_status(acuerdo, fecha_limite)
             compromisos.append({
                 'id_visita': row['id_visita'],
+                'bloque_idx': idx,
                 'cliente': row['cliente_instalacion'] or 'Sin cliente',
                 'fecha_visita': row['fecha_evento'].strftime('%Y-%m-%d %H:%M') if row['fecha_evento'] else '—',
                 'fecha_sort': row['fecha_evento'].strftime('%Y-%m-%dT%H:%M:%S') if row['fecha_evento'] else '',
@@ -4649,7 +4659,8 @@ def api_visitas_data():
                 compromisos_fecha_limite,
                 nombre_responsable,
                 fecha_cumplimiento,
-                nombre_visitante
+                nombre_visitante,
+                compromisos_estados
             FROM registro_y_acta_de_visita
             {_visita_where(trend_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
@@ -4712,7 +4723,8 @@ def api_visitas_detalles():
                 compromisos_fecha_limite,
                 nombre_responsable,
                 fecha_cumplimiento,
-                nombre_visitante
+                nombre_visitante,
+                compromisos_estados
             FROM registro_y_acta_de_visita
             {_visita_where(trend_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
@@ -4723,6 +4735,57 @@ def api_visitas_detalles():
         return jsonify({'detalles': compromisos})
     except Exception as e:
         app_logger.error(f"api_visitas_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/visitas/<int:id_visita>/estado', methods=['PUT'])
+@jwt_required()
+def api_visitas_update_estado(id_visita):
+    import json as _json
+    body = request.get_json(silent=True) or {}
+    bloque_idx = body.get('bloque_idx')
+    nuevo_estado = body.get('estado', '').strip().lower()
+
+    if bloque_idx is None or nuevo_estado not in ('cumplido', 'pendiente', 'vencido'):
+        return jsonify({'error': 'Parámetros inválidos'}), 400
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute(
+            "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s",
+            (id_visita,)
+        )
+        row = cur.fetchone()
+        if row is None:
+            return jsonify({'error': 'Registro no encontrado'}), 404
+
+        estados = {}
+        if row['compromisos_estados']:
+            try:
+                estados = _json.loads(row['compromisos_estados'])
+            except Exception:
+                pass
+
+        estados[str(bloque_idx)] = nuevo_estado
+
+        cur.execute(
+            "UPDATE registro_y_acta_de_visita SET compromisos_estados = %s WHERE id_visita = %s",
+            (_json.dumps(estados), id_visita)
+        )
+        conn.commit()
+        return jsonify({'ok': True, 'estado': nuevo_estado})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"api_visitas_update_estado error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
         if cur: cur.close()

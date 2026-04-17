@@ -75,6 +75,9 @@ CREATE INDEX IF NOT EXISTS idx_informe_novedades_disciplinario_company_id ON inf
 CREATE INDEX IF NOT EXISTS idx_log_de_patrullas_company_id ON log_de_patrullas(company_id);
 CREATE INDEX IF NOT EXISTS idx_registro_de_capacitaciones_company_id ON registro_de_capacitaciones(company_id);
 CREATE INDEX IF NOT EXISTS idx_registro_y_acta_de_visita_company_id ON registro_y_acta_de_visita(company_id);
+
+-- Commitment status overrides: JSON object {"block_idx": "cumplido|pendiente|vencido"}
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS compromisos_estados TEXT DEFAULT NULL;
 CREATE INDEX IF NOT EXISTS idx_planilla_vehicular_company_id ON planilla_vehicular(company_id);
 CREATE INDEX IF NOT EXISTS idx_planilla_motocicletas_company_id ON planilla_motocicletas(company_id);
 CREATE INDEX IF NOT EXISTS idx_checklist_cumplimiento_company_id ON checklist_cumplimiento(company_id);

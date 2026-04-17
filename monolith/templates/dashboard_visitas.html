@@ -66,6 +66,32 @@
         @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
         @media (max-width:900px) { .charts-row { grid-template-columns:1fr; } }
         @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { padding-top:110px; } .nav-content { flex-direction:column; align-items:flex-start; } }
+
+        /* Commitment edit modal */
+        .matrix-table tr.clickable-row { cursor:pointer; }
+        .matrix-table tr.clickable-row:hover td { background:rgba(103,232,249,0.06); }
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:200; align-items:center; justify-content:center; padding:1rem; }
+        .modal-overlay.open { display:flex; }
+        .modal-box { background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:16px; width:100%; max-width:520px; padding:1.75rem; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
+        .modal-title { font-family:'Merriweather',serif; font-size:1.1rem; color:#fff; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:.875rem; }
+        .modal-field { margin-bottom:1rem; }
+        .modal-label { font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; margin-bottom:.35rem; }
+        .modal-value { font-size:.875rem; color:#e5e7eb; line-height:1.5; }
+        .modal-select { width:100%; background:#374151; border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:.55rem .75rem; color:#e5e7eb; font-size:.875rem; cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .65rem center; background-size:1rem; }
+        .modal-select:focus { outline:2px solid #67e8f9; outline-offset:1px; }
+        .modal-actions { display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.5rem; }
+        .btn-cancel { background:transparent; border:1px solid rgba(255,255,255,0.15); color:#94a3b8; border-radius:8px; padding:.5rem 1.1rem; font-size:.875rem; cursor:pointer; }
+        .btn-cancel:hover { border-color:rgba(255,255,255,0.3); color:#e5e7eb; }
+        .btn-save { background:#0ea5e9; border:none; color:#fff; border-radius:8px; padding:.5rem 1.25rem; font-size:.875rem; font-weight:700; cursor:pointer; }
+        .btn-save:hover { background:#38bdf8; }
+        .btn-save:disabled { opacity:.5; cursor:not-allowed; }
+        .modal-msg { font-size:.8rem; margin-top:.6rem; min-height:1.1em; }
+        .modal-msg.error { color:#fca5a5; }
+        .modal-msg.success { color:#86efac; }
+        body.light-mode .modal-box { background:#fff; border-color:rgba(0,0,0,0.1); }
+        body.light-mode .modal-title { color:#0f172a; border-bottom-color:rgba(0,0,0,0.08); }
+        body.light-mode .modal-value { color:#334155; }
+        body.light-mode .modal-select { background:#f1f5f9; border-color:rgba(0,0,0,0.12); color:#0f172a; }
     </style>
 </head>
 <body>
@@ -412,26 +438,40 @@
         }).join('');
     }
 
+    let _matrixData = [];
+
     function renderMatrix(detalles) {
+        _matrixData = detalles;
         const tbody = document.getElementById('matrixBody');
         if (!detalles.length) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin compromisos para los filtros seleccionados</td></tr>';
             return;
         }
 
-        tbody.innerHTML = detalles.map(r => {
+        tbody.innerHTML = detalles.map((r, i) => {
             const statusClass = r.estado === 'cumplido' ? 'status-cumplido' : r.estado === 'vencido' ? 'status-vencido' : 'status-pendiente';
             const statusLabel = r.estado === 'cumplido' ? 'Cumplido' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
-            return `<tr>
+            const editHint = r.estado !== 'cumplido'
+                ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px;opacity:.55;margin-left:.3rem;vertical-align:middle;"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>`
+                : '';
+            return `<tr class="clickable-row" data-row-idx="${i}" title="Clic para actualizar estado">
                 <td>${r.cliente || '—'}</td>
                 <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_visita || '—'}</td>
                 <td>${r.motivo_visita || '—'}</td>
                 <td style="min-width:280px;">${r.acuerdo || '—'}</td>
                 <td>${r.responsable || '—'}</td>
                 <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
-                <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+                <td><span class="status-pill ${statusClass}">${statusLabel}${editHint}</span></td>
             </tr>`;
         }).join('');
+
+        tbody.querySelectorAll('tr.clickable-row').forEach(tr => {
+            tr.addEventListener('click', () => {
+                const idx = parseInt(tr.dataset.rowIdx, 10);
+                const r = _matrixData[idx];
+                if (r && window._openCompromisoModal) window._openCompromisoModal(r);
+            });
+        });
     }
 
     function renderAlert(vencidosTotal) {
@@ -511,6 +551,108 @@
 
         loadData();
     });
+    </script>
+
+    <!-- Commitment Status Edit Modal -->
+    <div id="estadoModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-box">
+            <div class="modal-title" id="modalTitle">Actualizar Estado del Compromiso</div>
+            <div class="modal-field">
+                <div class="modal-label">Cliente</div>
+                <div class="modal-value" id="modalCliente">—</div>
+            </div>
+            <div class="modal-field">
+                <div class="modal-label">Acuerdo / Compromiso</div>
+                <div class="modal-value" id="modalAcuerdo" style="max-height:6em;overflow-y:auto;background:rgba(255,255,255,0.04);border-radius:6px;padding:.5rem .65rem;">—</div>
+            </div>
+            <div class="modal-field">
+                <div class="modal-label">Responsable</div>
+                <div class="modal-value" id="modalResponsable">—</div>
+            </div>
+            <div class="modal-field">
+                <div class="modal-label">Fecha límite</div>
+                <div class="modal-value" id="modalFecha">—</div>
+            </div>
+            <div class="modal-field" style="margin-top:1.25rem;">
+                <div class="modal-label">Nuevo estado</div>
+                <select id="modalEstadoSelect" class="modal-select">
+                    <option value="pendiente">Pendiente</option>
+                    <option value="cumplido">Cumplido</option>
+                    <option value="vencido">Vencido</option>
+                </select>
+            </div>
+            <div id="modalMsg" class="modal-msg"></div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="modalCancelBtn">Cancelar</button>
+                <button class="btn-save" id="modalSaveBtn">Guardar cambio</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        let _activeId = null;
+        let _activeBloqueIdx = null;
+
+        const overlay  = document.getElementById('estadoModal');
+        const cancelBtn = document.getElementById('modalCancelBtn');
+        const saveBtn  = document.getElementById('modalSaveBtn');
+        const msgEl    = document.getElementById('modalMsg');
+
+        function openModal(r) {
+            _activeId = r.id_visita;
+            _activeBloqueIdx = r.bloque_idx;
+            document.getElementById('modalCliente').textContent = r.cliente || '—';
+            document.getElementById('modalAcuerdo').textContent = r.acuerdo || '—';
+            document.getElementById('modalResponsable').textContent = r.responsable || '—';
+            document.getElementById('modalFecha').textContent = r.fecha_cumplimiento || '—';
+            document.getElementById('modalEstadoSelect').value = r.estado || 'pendiente';
+            msgEl.textContent = '';
+            msgEl.className = 'modal-msg';
+            saveBtn.disabled = false;
+            overlay.classList.add('open');
+            document.getElementById('modalEstadoSelect').focus();
+        }
+
+        function closeModal() {
+            overlay.classList.remove('open');
+            _activeId = null;
+            _activeBloqueIdx = null;
+        }
+
+        cancelBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+        saveBtn.addEventListener('click', async () => {
+            if (_activeId === null) return;
+            const nuevoEstado = document.getElementById('modalEstadoSelect').value;
+            saveBtn.disabled = true;
+            msgEl.textContent = 'Guardando…';
+            msgEl.className = 'modal-msg';
+            try {
+                const resp = await fetch(`/dashboard/api/visitas/${_activeId}/estado`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bloque_idx: _activeBloqueIdx, estado: nuevoEstado })
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.error || 'Error al guardar');
+                msgEl.textContent = 'Estado actualizado correctamente.';
+                msgEl.className = 'modal-msg success';
+                setTimeout(() => {
+                    closeModal();
+                    loadData(typeof currentQS !== 'undefined' ? currentQS : '');
+                }, 900);
+            } catch (err) {
+                msgEl.textContent = err.message || 'Error al guardar. Intente de nuevo.';
+                msgEl.className = 'modal-msg error';
+                saveBtn.disabled = false;
+            }
+        });
+
+        window._openCompromisoModal = openModal;
+    })();
     </script>
 </body>
 </html>
