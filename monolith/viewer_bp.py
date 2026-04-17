@@ -1124,30 +1124,30 @@ def get_locations():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         if property_id:
-            # Get locations for specific property by checking reports
             query = """
-                SELECT DISTINCT li.id_lugar_incidente, li.nombre 
-                FROM lugar_incidente li
-                INNER JOIN reportes_incidentes ri ON li.id_lugar_incidente = ri.id_lugar_incidente
-                WHERE ri.id_propiedad = %s AND li.nombre IS NOT NULL
-                ORDER BY li.nombre
+                SELECT DISTINCT TRIM(puesto_area_especifica) AS nombre
+                FROM reportes_incidentes
+                WHERE id_propiedad = %s
+                  AND puesto_area_especifica IS NOT NULL
+                  AND TRIM(puesto_area_especifica) <> ''
+                ORDER BY nombre
             """
             cur.execute(query, (property_id,))
         else:
-            # Get all locations
             query = """
-                SELECT DISTINCT id_lugar_incidente, nombre 
-                FROM lugar_incidente 
-                WHERE nombre IS NOT NULL 
+                SELECT DISTINCT TRIM(puesto_area_especifica) AS nombre
+                FROM reportes_incidentes
+                WHERE puesto_area_especifica IS NOT NULL
+                  AND TRIM(puesto_area_especifica) <> ''
                 ORDER BY nombre
             """
             cur.execute(query)
         
         rows = cur.fetchall()
         
-        for row in rows:
+        for idx, row in enumerate(rows, start=1):
             locations.append({
-                "id": row["id_lugar_incidente"],
+                "id": idx,
                 "name": row["nombre"]
             })
         

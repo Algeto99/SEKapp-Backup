@@ -1,0 +1,4156 @@
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+ORDER BY table_name;
+
+[
+  {
+    "table_name": "admin_users"
+  },
+  {
+    "table_name": "authorized_emails"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417"
+  },
+  {
+    "table_name": "capacitacion_asistencia"
+  },
+  {
+    "table_name": "checklist_cumplimiento"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417"
+  },
+  {
+    "table_name": "companies"
+  },
+  {
+    "table_name": "confiabilidad_equipos"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417"
+  },
+  {
+    "table_name": "customer_companies"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417"
+  },
+  {
+    "table_name": "log_de_patrullas"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417"
+  },
+  {
+    "table_name": "password_reset_tokens"
+  },
+  {
+    "table_name": "planilla_motocicletas"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417"
+  },
+  {
+    "table_name": "planilla_vehicular"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417"
+  },
+  {
+    "table_name": "propiedades"
+  },
+  {
+    "table_name": "propiedades_backup_20260417"
+  },
+  {
+    "table_name": "registro_de_capacitaciones"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417"
+  },
+  {
+    "table_name": "regular_users"
+  },
+  {
+    "table_name": "reportes_incidentes"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417"
+  },
+  {
+    "table_name": "supervision_puesto"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417"
+  },
+  {
+    "table_name": "users"
+  },
+  {
+    "table_name": "users_backup_20260417"
+  }
+]
+
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public'
+ORDER BY table_name, ordinal_position;
+
+[
+  {
+    "table_name": "admin_users",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "admin_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "authorized_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "authorized_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "notes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "is_admin",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "authorized_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "authorized_by",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "notes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "is_admin",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "authorized_emails_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "session_token",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "nombre",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "nombre_auditor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "firma_auditor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_nombre_completo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_tipo_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_numero_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_cargo_rol",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "curso_certificacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "academia_certifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "nro_resolucion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "fecha_resolucion",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "vigencia_desde",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "vigencia_hasta",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "nivel_cumplimiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "copia_certificados_fisica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "certificados_cargados_sistema",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "documentacion_coincide_hv",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "fechas_vigentes",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "firma_guarda_supervisado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "nombre_auditor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "firma_auditor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "agente_nombre_completo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "agente_tipo_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "agente_numero_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "agente_cargo_rol",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "agente_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "curso_certificacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "academia_certifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "nro_resolucion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "fecha_resolucion",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "vigencia_desde",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "vigencia_hasta",
+    "data_type": "date"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "nivel_cumplimiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "copia_certificados_fisica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "certificados_cargados_sistema",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "documentacion_coincide_hv",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "fechas_vigentes",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "firma_guarda_supervisado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "checklist_cumplimiento_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "companies",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "companies",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "companies",
+    "column_name": "slug",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "companies",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "companies",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "cliente_instalacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "sitio",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "inventario",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "tecnico_mantenimiento",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "firma_tecnico",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "supervisor_seguridad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "submitted_by_email",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "sitio",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "inventario",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "tecnico_mantenimiento",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "firma_tecnico",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "supervisor_seguridad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "confiabilidad_equipos_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "customer_companies",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "customer_companies",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "customer_companies",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "customer_companies",
+    "column_name": "code",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "customer_companies",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "customer_companies",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "id_informe",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "realizado_por_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "dirigido_a",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "tipo_novedad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "sitio_ocurrencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "descripcion_novedad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "otras_personas_involucradas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "anexos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "firma_recibido_revisado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "recibido_revisado_por_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "recibido_revisado_por_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_numero",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "nombre_testigo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "firma_testigo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "empleado_niega_firmar",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "id_informe",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "realizado_por_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "hora",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "dirigido_a",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "empleado_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "empleado_documento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "empleado_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "tipo_novedad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "sitio_ocurrencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "descripcion_novedad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "otras_personas_involucradas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "anexos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "firma_recibido_revisado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "recibido_revisado_por_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "recibido_revisado_por_cargo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "empleado_numero",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "nombre_testigo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "firma_testigo",
+    "data_type": "text"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "empleado_niega_firmar",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_patrulla",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_guardia_nombre_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "sitio_ubicacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_patrulla_consecutivo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "hora_inicio",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "hora_fin",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "detalles_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "riesgo_detectado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "nivel_riesgo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "estado_patrulla",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "contexto_observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "firma_guardia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "id_patrulla",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "id_guardia_nombre_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "sitio_ubicacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "id_patrulla_consecutivo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "fecha",
+    "data_type": "date"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "hora_inicio",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "hora_fin",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "detalles_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "riesgo_detectado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "nivel_riesgo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "estado_patrulla",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "contexto_observaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "firma_guardia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "log_de_patrullas_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "id_encuesta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "calificacion_global_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "recomendaria_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "observaciones_cliente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "categoria_evaluada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "puntuacion_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "encuestado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "firma_encuestado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "atencion_cliente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "comunicacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "confiabilidad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "capacidad_reaccion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "cumplimiento",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "competencia_personal",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "actitud_servicio",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "atencion_quejas",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "id_encuesta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "calificacion_global_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "recomendaria_servicio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "observaciones_cliente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "firma_usuario",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "categoria_evaluada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "puntuacion_nps",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "encuestado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "firma_encuestado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "atencion_cliente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "comunicacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "confiabilidad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "capacidad_reaccion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "cumplimiento",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "competencia_personal",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "actitud_servicio",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "atencion_quejas",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "token_hash",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "expires_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "password_reset_tokens",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "placa_motocicleta",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "kilometraje_entrega",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "kilometraje_salida",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_neumaticos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_rines",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "equipo_carretera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_kit_arrastre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_palanca_soporte",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_forro_asiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_tapas_derecha",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_direccionales_derecha",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_delanteras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_guarda_fango_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_sistema_freno_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_manillar_embrague",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_manillar_freno_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_manometros_indicadores",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_tanque_combustible",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "tapa_tanque_combustible",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "espejos_retrovisores",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "tapa_aceite_motor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "bateria_tapa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_izquierda",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luces_direccionales_izquierda",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_luz_trasera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_guarda_fango_trasero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_tubo_escape",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_palanca_freno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "estado_palanca_cambios",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "novedades_criticas_detectadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "accion_inmediata_tomada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "firma_entrega",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "firma_recibe",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "creado_en",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "oficial_operaciones_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "oficial_operaciones_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "kilometraje_motocicleta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "placa_motocicleta",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "kilometraje_entrega",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "kilometraje_salida",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_neumaticos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_rines",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "equipo_carretera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_kit_arrastre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_palanca_soporte",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_forro_asiento",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_tapas_derecha",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_luces_direccionales_derecha",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_luces_delanteras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_guarda_fango_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_sistema_freno_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_manillar_embrague",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_manillar_freno_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_manometros_indicadores",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_tanque_combustible",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "tapa_tanque_combustible",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "espejos_retrovisores",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "tapa_aceite_motor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "bateria_tapa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_luces_izquierda",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_luces_direccionales_izquierda",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_luz_trasera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_guarda_fango_trasero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_tubo_escape",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_palanca_freno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "estado_palanca_cambios",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "novedades_criticas_detectadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "accion_inmediata_tomada",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "firma_entrega",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "firma_recibe",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "oficial_operaciones_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "oficial_operaciones_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "kilometraje_motocicleta",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_motocicletas_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "id_planilla_vehicular",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "placa_vehiculo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "kilometraje_entrega",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "kilometraje_salida",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "estado_rines",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "juego_senales_carretera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "gato_hidraulico",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "palanca_gato",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "estado_asientos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "estado_tapetes_alfombras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "limpieza_carroceria",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "luces_delanteras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "luces_direccionales",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "luces_traseras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "parabrisas_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "parabrisas_trasero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "defensa_delantera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "defensa_trasera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "puertas_vidrios",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "tapa_radiador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "tapa_aceite_motor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "bateria_tapa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "espejo_retrovisor_interno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "espejos_retrovisores_externos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "limpia_brisas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "antena_radio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "radio_funciona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "llanta_repuesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "aire_acondicionado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "diagrama_danos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "novedades_criticas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "accion_inmediata",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "firma_entrega",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "firma_recibe",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "oficial_operaciones_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "oficial_operaciones_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "kilometraje_vehiculo",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "id_planilla_vehicular",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "placa_vehiculo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "kilometraje_entrega",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "kilometraje_salida",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "estado_rines",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "juego_senales_carretera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "gato_hidraulico",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "palanca_gato",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "estado_asientos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "estado_tapetes_alfombras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "limpieza_carroceria",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "luces_delanteras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "luces_direccionales",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "luces_traseras",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "parabrisas_delantero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "parabrisas_trasero",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "defensa_delantera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "defensa_trasera",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "puertas_vidrios",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "tapa_radiador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "tapa_aceite_motor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "bateria_tapa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "espejo_retrovisor_interno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "espejos_retrovisores_externos",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "limpia_brisas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "antena_radio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "radio_funciona",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "llanta_repuesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "aire_acondicionado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "diagrama_danos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "novedades_criticas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "accion_inmediata",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "firma_entrega",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "firma_recibe",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "oficial_operaciones_nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "oficial_operaciones_firma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "kilometraje_vehiculo",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "planilla_vehicular_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "descripcion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "activa",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "descripcion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "direccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "activa",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "propiedades_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "id_capacitacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "nombre_capacitacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "objetivo_capacitacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "observaciones_retroalimentacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "lista_asistencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "practica_simulacro_realizado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "nivel_comprension",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "recomendaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "id_capacitacion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "nombre_capacitacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "objetivo_capacitacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "observaciones_retroalimentacion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "lista_asistencia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "practica_simulacro_realizado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "nivel_comprension",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "recomendaciones",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_de_capacitaciones_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "id_visita",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "visita_realizada_por",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "firma_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "motivo_visita",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "objetivo_reunion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "actividades_realizadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "satisfaccion_cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "comentarios_satisfaccion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "compromisos_adquiridos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "compromisos_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "compromisos_fecha_limite",
+    "data_type": "date"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "persona_atendio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "cargo_atendio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "telefono_contacto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "detalles_participantes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "nombre_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "cargo_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "temas_tratados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "acuerdos_compromisos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "nombre_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "fecha_cumplimiento",
+    "data_type": "date"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "compromisos_estados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "id_visita",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "visita_realizada_por",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "firma_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "motivo_visita",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "objetivo_reunion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "actividades_realizadas",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "satisfaccion_cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "comentarios_satisfaccion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "compromisos_adquiridos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "compromisos_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "compromisos_fecha_limite",
+    "data_type": "date"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "persona_atendio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "cargo_atendio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "telefono_contacto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "detalles_participantes",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "nombre_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "cargo_visitante",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "temas_tratados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "acuerdos_compromisos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "fecha_cumplimiento",
+    "data_type": "date"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita_backup_20260417",
+    "column_name": "compromisos_estados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "regular_users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "categoria",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "tipo_incidente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "nivel_severidad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "impacto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "tiempo_resolucion_min",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "responsable_asignado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "user_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "descripcion_impacto",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "puesto_area_especifica",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "turno",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "nombre_responsable",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "firma_responsable",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "categoria",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "tipo_incidente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "descripcion_incidente",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "nivel_severidad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "impacto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "tiempo_resolucion_min",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "responsable_asignado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "user_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "descripcion_impacto",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "id_supervision",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "supervisor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "nombre_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "documento_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "serie_arma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "cantidad_municion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "realiza_induccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "asistencia_puntualidad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "presentacion_uniforme",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "estado_limpieza_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "equipamiento_completo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "estado_bitacora",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "observaciones_novedades",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "firma_guardia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "conoce_ordenes_consignas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "horario_detalles_claros",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "nombre_guardia_firma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "detalles_puestos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "porta_arma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "numero_empleado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "id_supervision",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "supervisor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "cliente",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "nombre_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "documento_guardia",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "serie_arma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "cantidad_municion",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "realiza_induccion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "asistencia_puntualidad",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "presentacion_uniforme",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "estado_limpieza_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "equipamiento_completo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "estado_bitacora",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "observaciones_novedades",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "submitted_by_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "firma_supervisor",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "rol_aplicador",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "firma_guardia",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "conoce_ordenes_consignas",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "horario_detalles_claros",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "nombre_guardia_firma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "detalles_puestos",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "porta_arma",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "numero_empleado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "supervision_puesto_backup_20260417",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "users",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "password_hash",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "users",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_admin",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "users",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "username",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "password_hash",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "phone_number",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "is_admin",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "users_backup_20260417",
+    "column_name": "company_id",
+    "data_type": "integer"
+  }
+]
+
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('tipo_incidencia', 'tipo_cliente', 'lugar_incidente', 'supervisor');
+
+[No rows to display]
+
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'reportes_incidentes'
+  AND column_name IN (
+    'fecha_incidente',
+    'hora_incidente',
+    'id_tipo_incidencia',
+    'id_tipo_cliente',
+    'id_lugar_incidente',
+    'id_supervisor',
+    'nombre_persona',
+    'telefono_persona',
+    'numero_identidad_persona',
+    'numero_local',
+    'direccion',
+    'valor_aproximado',
+    'pertenencias_sustraidas',
+    'descripcion_zona_comun',
+    'imagenes_pdfs'
+  )
+ORDER BY column_name;
+
+[No rows to display]
+
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('companies', 'customer_companies');
+
+[
+  {
+    "table_name": "companies"
+  },
+  {
+    "table_name": "customer_companies"
+  }
+]
+
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND (
+    (table_name = 'users' AND column_name = 'company_id') OR
+    (table_name = 'authorized_emails' AND column_name = 'company_id') OR
+    (table_name = 'propiedades' AND column_name = 'customer_company_id') OR
+    (table_name = 'reportes_incidentes' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'medicion_experiencia_cliente' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'supervision_puesto' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'informe_novedades_disciplinario' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'registro_de_capacitaciones' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'registro_y_acta_de_visita' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'planilla_vehicular' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'planilla_motocicletas' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'checklist_cumplimiento' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'confiabilidad_equipos' AND column_name IN ('company_id','customer_company_id','id_propiedad')) OR
+    (table_name = 'log_de_patrullas' AND column_name = 'company_id')
+  )
+ORDER BY table_name, column_name;
+
+[
+  {
+    "table_name": "authorized_emails",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "company_id"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "customer_company_id"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "id_propiedad"
+  },
+  {
+    "table_name": "users",
+    "column_name": "company_id"
+  }
+]
+
+BEGIN;
+
+CREATE TABLE IF NOT EXISTS companies (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS customer_companies (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(100),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (company_id, name)
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE authorized_emails ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE propiedades ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+
+ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+
+ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE log_de_patrullas ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS customer_company_id INTEGER REFERENCES customer_companies(id);
+ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS id_propiedad INTEGER REFERENCES propiedades(id_propiedad);
+
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS compromisos_estados TEXT DEFAULT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id);
+CREATE INDEX IF NOT EXISTS idx_authorized_emails_company_id ON authorized_emails(company_id);
+CREATE INDEX IF NOT EXISTS idx_customer_companies_company_id ON customer_companies(company_id);
+CREATE INDEX IF NOT EXISTS idx_propiedades_customer_company_id ON propiedades(customer_company_id);
+
+CREATE INDEX IF NOT EXISTS idx_reportes_incidentes_company_id ON reportes_incidentes(company_id);
+CREATE INDEX IF NOT EXISTS idx_medicion_experiencia_cliente_company_id ON medicion_experiencia_cliente(company_id);
+CREATE INDEX IF NOT EXISTS idx_supervision_puesto_company_id ON supervision_puesto(company_id);
+CREATE INDEX IF NOT EXISTS idx_informe_novedades_disciplinario_company_id ON informe_novedades_disciplinario(company_id);
+CREATE INDEX IF NOT EXISTS idx_log_de_patrullas_company_id ON log_de_patrullas(company_id);
+CREATE INDEX IF NOT EXISTS idx_registro_de_capacitaciones_company_id ON registro_de_capacitaciones(company_id);
+CREATE INDEX IF NOT EXISTS idx_registro_y_acta_de_visita_company_id ON registro_y_acta_de_visita(company_id);
+CREATE INDEX IF NOT EXISTS idx_planilla_vehicular_company_id ON planilla_vehicular(company_id);
+CREATE INDEX IF NOT EXISTS idx_planilla_motocicletas_company_id ON planilla_motocicletas(company_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_cumplimiento_company_id ON checklist_cumplimiento(company_id);
+CREATE INDEX IF NOT EXISTS idx_confiabilidad_equipos_company_id ON confiabilidad_equipos(company_id);
+
+COMMIT;
+
+[Statement executed successfully
+]
+
+SELECT * FROM companies ORDER BY id;
+
+[
+  {
+    "id": "1",
+    "name": "Company A",
+    "slug": "company-a",
+    "is_active": "true",
+    "created_at": "2026-04-10T22:42:01.623755Z"
+  }
+]
+
+SELECT * FROM customer_companies ORDER BY company_id, id;
+
+[
+  {
+    "id": "1",
+    "company_id": "1",
+    "name": "Company B",
+    "code": "B",
+    "is_active": "true",
+    "created_at": "2026-04-10T22:42:01.623755Z"
+  },
+  {
+    "id": "2",
+    "company_id": "1",
+    "name": "Company C",
+    "code": "C",
+    "is_active": "true",
+    "created_at": "2026-04-10T22:42:01.623755Z"
+  }
+]
+
+INSERT INTO companies (name, slug)
+VALUES ('Your Real Company Name', 'your-real-company')
+ON CONFLICT (slug) DO UPDATE
+SET name = EXCLUDED.name;
+
+[Need to do]
+
+INSERT INTO customer_companies (company_id, name, code, is_active)
+SELECT c.id, x.name, x.code, TRUE
+FROM companies c
+CROSS JOIN (
+  VALUES
+    ('Real Customer 1', 'RC1'),
+    ('Real Customer 2', 'RC2')
+) AS x(name, code)
+WHERE c.slug = 'your-real-company'
+ON CONFLICT (company_id, name) DO NOTHING;
+
+[Need to do]
+
+UPDATE users
+SET company_id = c.id
+FROM companies c
+WHERE c.slug = 'your-real-company'
+  AND email IN ('realuser1@yourcompany.com', 'realuser2@yourcompany.com');
+
+UPDATE authorized_emails
+SET company_id = c.id
+FROM companies c
+WHERE c.slug = 'your-real-company'
+  AND email IN ('realuser1@yourcompany.com', 'realuser2@yourcompany.com');
+
+  [Need to do]
+
+  

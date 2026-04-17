@@ -170,7 +170,7 @@ def get_email_password():
         return None
 
 def send_email(to_email, subject, body, is_html=False):
-    email_username = current_app.config.get('SENDER_EMAIL')
+    email_username = current_app.config.get('SENDER_EMAIL') or current_app.config.get('EMAIL_USERNAME')
     smtp_server = current_app.config.get('SMTP_SERVER')
     smtp_port = current_app.config.get('SMTP_PORT')
     email_password = get_email_password()
@@ -288,7 +288,7 @@ def register():
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
-        phone = request.form.get('phone')
+        phone = request.form.get('phone_number') or request.form.get('phone')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
@@ -315,7 +315,7 @@ def register():
                 return redirect(url_for('login_bp.register'))
 
             cur.execute(
-                'INSERT INTO "users" ("name", "email", "phone", "password_hash", "is_admin") VALUES (%s, %s, %s, %s, %s)',
+                'INSERT INTO "users" ("name", "email", "phone_number", "password_hash", "is_admin") VALUES (%s, %s, %s, %s, %s)',
                 (name, email, phone, hashed_password, False)
             )
             conn.commit()
