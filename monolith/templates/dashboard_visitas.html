@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
@@ -73,7 +74,10 @@
         .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:200; align-items:center; justify-content:center; padding:1rem; }
         .modal-overlay.open { display:flex; }
         .modal-box { background:#1f2937; border:1px solid rgba(255,255,255,0.1); border-radius:16px; width:100%; max-width:520px; padding:1.75rem; box-shadow:0 20px 60px rgba(0,0,0,0.5); }
-        .modal-title { font-family:'Merriweather',serif; font-size:1.1rem; color:#fff; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:.875rem; }
+        .modal-header-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:.875rem; }
+        .modal-title { font-family:'Merriweather',serif; font-size:1.1rem; color:#fff; margin:0; }
+        .modal-close { background:none; border:none; color:#94a3b8; font-size:1.5rem; line-height:1; cursor:pointer; padding:.15rem; transition:color .2s; }
+        .modal-close:hover { color:#e5e7eb; }
         .modal-field { margin-bottom:1rem; }
         .modal-label { font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; margin-bottom:.35rem; }
         .modal-value { font-size:.875rem; color:#e5e7eb; line-height:1.5; }
@@ -89,9 +93,11 @@
         .modal-msg.error { color:#fca5a5; }
         .modal-msg.success { color:#86efac; }
         body.light-mode .modal-box { background:#fff; border-color:rgba(0,0,0,0.1); }
-        body.light-mode .modal-title { color:#0f172a; border-bottom-color:rgba(0,0,0,0.08); }
+        body.light-mode .modal-header-row { border-bottom-color:rgba(0,0,0,0.08); }
+        body.light-mode .modal-title { color:#0f172a; }
         body.light-mode .modal-value { color:#334155; }
         body.light-mode .modal-select { background:#f1f5f9; border-color:rgba(0,0,0,0.12); color:#0f172a; }
+        body.light-mode .modal-close:hover { color:#0f172a; }
     </style>
 </head>
 <body>
@@ -205,6 +211,7 @@
                             <th>Responsable</th>
                             <th>Fecha de cumplimiento</th>
                             <th>Estado</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="matrixBody">
@@ -223,6 +230,10 @@
     const GRID_COLOR = 'rgba(148,163,184,0.15)';
     const TICK_COLOR = '#94a3b8';
     let clienteChart, motivoChart, trendChart, estadoChart;
+    const recordViewer = createDashboardRecordViewer({
+        formType: 'registro_y_acta_de_visita',
+        recordTitle: 'Detalle de Visita'
+    });
 
     (function() {
         const saved = localStorage.getItem('theme');
@@ -272,7 +283,7 @@
         });
     }
 
-    function renderHorizontalBars(chartRefName, canvasId, emptyId, rows, labelKey, valueKey, labelTitle) {
+    function renderHorizontalBars(chartRefName, canvasId, emptyId, rows, labelKey, valueKey, labelTitle, onBarClick = null) {
         const empty = document.getElementById(emptyId);
         const canvas = document.getElementById(canvasId);
         destroyChart(window[chartRefName]);
@@ -306,6 +317,10 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length || !onBarClick) return;
+                    onBarClick(rows[elements[0].index]);
+                },
                 layout: { padding: { right: 30 } },
                 scales: {
                     x: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
@@ -327,6 +342,7 @@
                 }
             }
         });
+        canvas.style.cursor = onBarClick ? 'pointer' : 'default';
         canvas.parentElement.style.height = Math.max(300, rows.length * 38 + 50) + 'px';
     }
 
@@ -370,6 +386,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const row = rows[elements[0].index];
+                    if (row?.periodo_label) openDetailListModal(filterVisitasDetalles({ periodLabel: row.periodo_label }), `Compromisos — ${row.periodo_label}`);
+                },
                 scales: {
                     y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
                     x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxRotation: 40 } },
@@ -383,6 +404,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     function renderEstadoChart(estado) {
@@ -420,6 +442,16 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '65%',
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const states = ['cumplido', 'pendiente', 'vencido'];
+                    const labels = ['Cumplido', 'Pendiente', 'Vencido'];
+                    const idx = elements[0].index;
+                    openDetailListModal(
+                        filterVisitasDetalles({ estado: states[idx] }),
+                        `Compromisos — ${labels[idx]}`
+                    );
+                },
                 plugins: {
                     legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
                     datalabels: {
@@ -430,6 +462,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
 
         summary.innerHTML = labels.map((label, idx) => {
             const pct = total ? ((values[idx] / total) * 100).toFixed(1) : '0.0';
@@ -440,11 +473,57 @@
 
     let _matrixData = [];
 
+    function filterVisitasDetalles(filters = {}) {
+        return _matrixData.filter(detail => {
+            if (filters.cliente && detail.cliente !== filters.cliente) return false;
+            if (filters.motivo && detail.motivo_visita !== filters.motivo) return false;
+            if (filters.estado && detail.estado !== filters.estado) return false;
+            if (filters.periodLabel) {
+                const monthKey = (detail.fecha_visita || '').slice(0, 7);
+                const monthLabel = monthKey ? monthLabelFromKey(monthKey).toLowerCase() : '';
+                const target = String(filters.periodLabel).toLowerCase();
+                if (target !== monthLabel && target !== monthKey.toLowerCase()) return false;
+            }
+            return true;
+        });
+    }
+
+    function openDetailListModal(rows, title) {
+        const overlay = document.getElementById('detailListModal');
+        const titleEl = document.getElementById('detailListTitle');
+        const tbody = document.getElementById('detailListBody');
+        titleEl.textContent = title || 'Detalle de compromisos';
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Sin compromisos para esta selección.</td></tr>';
+        } else {
+            tbody.innerHTML = rows.map((r, i) => `
+                <tr class="clickable-row" data-row-idx="${i}">
+                    <td>${r.cliente || '—'}</td>
+                    <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_visita || '—'}</td>
+                    <td>${r.motivo_visita || '—'}</td>
+                    <td style="min-width:280px;">${r.acuerdo || '—'}</td>
+                    <td>${r.responsable || '—'}</td>
+                    <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
+                    <td>${r.estado || '—'}</td>
+                    <td>${recordViewer.actionButtonHtml(r.id_visita)}</td>
+                </tr>
+            `).join('');
+            tbody.querySelectorAll('tr.clickable-row').forEach((tr, idx) => {
+                tr.addEventListener('click', () => {
+                    overlay.classList.remove('open');
+                    if (window._openCompromisoModal) window._openCompromisoModal(rows[idx]);
+                });
+            });
+            recordViewer.wireActionButtons(tbody);
+        }
+        overlay.classList.add('open');
+    }
+
     function renderMatrix(detalles) {
         _matrixData = detalles;
         const tbody = document.getElementById('matrixBody');
         if (!detalles.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin compromisos para los filtros seleccionados</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Sin compromisos para los filtros seleccionados</td></tr>';
             return;
         }
 
@@ -462,6 +541,7 @@
                 <td>${r.responsable || '—'}</td>
                 <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
                 <td><span class="status-pill ${statusClass}">${statusLabel}${editHint}</span></td>
+                <td>${recordViewer.actionButtonHtml(r.id_visita)}</td>
             </tr>`;
         }).join('');
 
@@ -472,6 +552,7 @@
                 if (r && window._openCompromisoModal) window._openCompromisoModal(r);
             });
         });
+        recordViewer.wireActionButtons(tbody);
     }
 
     function renderAlert(vencidosTotal) {
@@ -509,8 +590,12 @@
             if (!detalleRes.ok) throw new Error(detalles.error || 'No se pudo cargar la matriz de compromisos');
 
             renderKPI(data.kpi || {});
-            renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', data.frecuencia_clientes || [], 'cliente', 'visitas', 'Visitas');
-            renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', data.motivos || [], 'motivo', 'visitas', 'Visitas');
+            renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', data.frecuencia_clientes || [], 'cliente', 'visitas', 'Visitas', row => {
+                openDetailListModal(filterVisitasDetalles({ cliente: row.cliente }), `Compromisos — ${row.cliente}`);
+            });
+            renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', data.motivos || [], 'motivo', 'visitas', 'Visitas', row => {
+                openDetailListModal(filterVisitasDetalles({ motivo: row.motivo }), `Compromisos — ${row.motivo}`);
+            });
             renderTrendChart(data.tendencia || []);
             renderEstadoChart(data.estado_compromisos || {});
             renderMatrix(detalles.detalles || []);
@@ -553,10 +638,42 @@
     });
     </script>
 
+    <div id="detailListModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="detailListTitle">
+        <div class="modal-box" style="max-width:1100px;">
+            <div class="modal-header-row">
+                <div class="modal-title" id="detailListTitle">Detalle de compromisos</div>
+                <button class="modal-close" type="button" onclick="document.getElementById('detailListModal').classList.remove('open')">×</button>
+            </div>
+            <div style="max-height:65vh; overflow:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:.84rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
+                            <th style="padding:.65rem; text-align:left;">Cliente</th>
+                            <th style="padding:.65rem; text-align:left;">Fecha</th>
+                            <th style="padding:.65rem; text-align:left;">Motivo</th>
+                            <th style="padding:.65rem; text-align:left;">Compromiso</th>
+                            <th style="padding:.65rem; text-align:left;">Responsable</th>
+                            <th style="padding:.65rem; text-align:left;">Fecha límite</th>
+                            <th style="padding:.65rem; text-align:left;">Estado</th>
+                            <th style="padding:.65rem; text-align:left;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailListBody"></tbody>
+                </table>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="document.getElementById('detailListModal').classList.remove('open')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Commitment Status Edit Modal -->
     <div id="estadoModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-box">
-            <div class="modal-title" id="modalTitle">Actualizar Estado del Compromiso</div>
+            <div class="modal-header-row">
+                <div class="modal-title" id="modalTitle">Actualizar Estado del Compromiso</div>
+                <button class="modal-close" type="button" id="modalHeaderClose">×</button>
+            </div>
             <div class="modal-field">
                 <div class="modal-label">Cliente</div>
                 <div class="modal-value" id="modalCliente">—</div>
@@ -595,6 +712,7 @@
         let _activeBloqueIdx = null;
 
         const overlay  = document.getElementById('estadoModal');
+        const detailOverlay = document.getElementById('detailListModal');
         const cancelBtn = document.getElementById('modalCancelBtn');
         const saveBtn  = document.getElementById('modalSaveBtn');
         const msgEl    = document.getElementById('modalMsg');
@@ -621,8 +739,14 @@
         }
 
         cancelBtn.addEventListener('click', closeModal);
+        document.getElementById('modalHeaderClose').addEventListener('click', closeModal);
         overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+        detailOverlay.addEventListener('click', e => { if (e.target === detailOverlay) detailOverlay.classList.remove('open'); });
+        document.addEventListener('keydown', e => {
+            if (e.key !== 'Escape') return;
+            closeModal();
+            detailOverlay.classList.remove('open');
+        });
 
         saveBtn.addEventListener('click', async () => {
             if (_activeId === null) return;

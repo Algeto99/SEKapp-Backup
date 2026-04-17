@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -496,6 +497,7 @@
                                 <th>Rol</th>
                                 <th>Puntaje</th>
                                 <th>Nivel</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="detailsTableBody"></tbody>
@@ -507,6 +509,10 @@
 
     <script>
     let currentQS = '';
+    const recordViewer = createDashboardRecordViewer({
+        formType: 'supervision_puesto',
+        recordTitle: 'Detalle de Supervisión'
+    });
 
     // ── Theme ─────────────────────────────────────────────────────────────
     const themeToggle  = document.getElementById('themeToggle');
@@ -539,6 +545,8 @@
 
     let criteriaChart = null, distChart = null, puestosChart = null,
         trendChart = null, turnoTrendChart = null;
+    let currentPuestosData   = [];
+    let currentTurnoTrendSeries = [];
 
     function setLoading(id, on) { document.getElementById(id)?.classList.toggle('active', on); }
 
@@ -658,6 +666,9 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (elements.length) openDetailsModal({}, 'Registros de Supervisión');
+                },
                 scales: {
                     x: {
                         min: 0, max: 5,
@@ -672,7 +683,7 @@
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        callbacks: { label: ctx => ` Promedio: ${ctx.parsed.x?.toFixed(2)} / 5` }
+                        callbacks: { label: ctx => ` Promedio: ${ctx.parsed.x?.toFixed(2)} / 5 — clic para ver registros` }
                     },
                     datalabels: {
                         anchor: 'end', align: 'end',
@@ -682,6 +693,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(180, criteria.length * 40 + 30) + 'px';
     }
 
@@ -697,6 +709,8 @@
         const values = [dist.critico, dist.seguimiento, dist.excelente];
         const colors = ['#ef4444', '#eab308', '#22c55e'];
 
+        const NIVEL_KEYS = ['critico', 'seguimiento', 'excelente'];
+        const NIVEL_LABELS_MAP = ['Crítico', 'Seguimiento', 'Excelente'];
         if (distChart) distChart.destroy();
         distChart = new Chart(canvas, {
             type: 'bar',
@@ -715,6 +729,11 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const idx = elements[0].index;
+                    openDetailsModal({ nivel: NIVEL_KEYS[idx] }, `Registros — Nivel ${NIVEL_LABELS_MAP[idx]}`);
+                },
                 scales: {
                     x: { ticks: { color: chartTheme.tick, precision: 0 }, grid: { color: chartTheme.grid } },
                     y: { ticks: { color: chartTheme.label, font: { size: 11 } }, grid: { display: false } }
@@ -726,7 +745,7 @@
                             label: ctx => {
                                 const v = ctx.parsed.x;
                                 const pct = total ? ((v / total) * 100).toFixed(1) : 0;
-                                return ` ${v} inspección${v !== 1 ? 'es' : ''} (${pct}%)`;
+                                return ` ${v} inspección${v !== 1 ? 'es' : ''} (${pct}%) — clic para ver registros`;
                             }
                         }
                     },
@@ -742,6 +761,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = '170px';
     }
 
@@ -758,6 +778,7 @@
         const values = puestos.map(p => p.avg_score);
         const colors = puestos.map(p => p.color);
 
+        currentPuestosData = puestos;
         if (puestosChart) puestosChart.destroy();
         puestosChart = new Chart(canvas, {
             type: 'bar',
@@ -776,6 +797,14 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const p = currentPuestosData[elements[0].index];
+                    if (!p) return;
+                    const empNum = p.emp_key !== 'Sin ID' ? p.emp_key : null;
+                    const titleStr = empNum ? `Inspecciones — Empleado #${empNum}` : `Inspecciones — ${p.guardia}`;
+                    openDetailsModal(empNum ? { empleado_num: empNum } : {}, titleStr);
+                },
                 scales: {
                     x: {
                         min: 0, max: 25,
@@ -797,6 +826,7 @@
                                     ` Puntaje promedio: ${ctx.parsed.x} / 25`,
                                     ` Nivel: ${p.label}`,
                                     ` Inspecciones: ${p.cnt}`,
+                                    ` Clic para ver registros`,
                                 ];
                             }
                         }
@@ -813,6 +843,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(200, puestos.length * 34 + 40) + 'px';
     }
 
@@ -834,6 +865,7 @@
                         label: 'Calificación Global',
                         data: trend.avg_score,
                         borderColor: '#60a5fa',
+                        cursor: 'pointer',
                         backgroundColor: 'rgba(96,165,250,0.08)',
                         tension: 0.35,
                         fill: true,
@@ -878,6 +910,9 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (elements.length) openDetailsModal({}, 'Registros de Supervisión — Tendencia');
+                },
                 scales: {
                     y: {
                         min: 0, max: 25,
@@ -898,7 +933,7 @@
                     tooltip: {
                         callbacks: {
                             label: ctx => ctx.datasetIndex === 0
-                                ? ` Promedio: ${ctx.parsed.y} / 25 — ${scoreLabel(ctx.parsed.y)}`
+                                ? ` Promedio: ${ctx.parsed.y} / 25 — ${scoreLabel(ctx.parsed.y)} — clic para ver registros`
                                 : null,
                             filter: item => item.datasetIndex === 0
                         }
@@ -913,6 +948,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     // ── Trend by turno multi-line ─────────────────────────────────────────
@@ -925,6 +961,7 @@
         canvas.style.display = 'block'; empty.style.display = 'none';
 
         const TURNO_COLORS = ['#fbbf24', '#818cf8', '#34d399', '#f87171', '#38bdf8'];
+        currentTurnoTrendSeries = trendTurno.series;
 
         const datasets = trendTurno.series.map((s, i) => ({
             label: s.turno,
@@ -947,6 +984,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const turnoVal = currentTurnoTrendSeries[elements[0].datasetIndex]?.turno;
+                    if (turnoVal) openDetailsModal({ turno: turnoVal }, `Registros — Rol: ${turnoVal}`);
+                },
                 scales: {
                     y: {
                         min: 0, max: 25,
@@ -965,7 +1007,7 @@
                     },
                     tooltip: {
                         callbacks: {
-                            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} pts — ${scoreLabel(ctx.parsed.y)}`
+                            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} pts — ${scoreLabel(ctx.parsed.y)} — clic para ver registros`
                         }
                     },
                     datalabels: {
@@ -977,6 +1019,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     // ── Error toast ───────────────────────────────────────────────────────
@@ -994,15 +1037,19 @@
     }
 
     // ── Details modal ─────────────────────────────────────────────────────
-    async function openDetailsModal() {
+    async function openDetailsModal(extraFilters = {}, title = null) {
         const modal   = document.getElementById('detailsModal');
         const tBody   = document.getElementById('detailsTableBody');
         const loading = document.getElementById('detailsLoading');
+        const titleEl = modal.querySelector('.modal-title');
+        if (title && titleEl) titleEl.textContent = title;
         modal.classList.add('active');
         tBody.innerHTML = '';
         loading.style.display = 'block';
         try {
-            const res  = await fetch(`/dashboard/api/supervision/detalles${currentQS ? '?' + currentQS : ''}`);
+            const qs = new URLSearchParams(currentQS);
+            Object.entries(extraFilters).forEach(([k, v]) => v && qs.set(k, v));
+            const res  = await fetch(`/dashboard/api/supervision/detalles${qs.toString() ? '?' + qs.toString() : ''}`);
             const data = await res.json();
             if (!res.ok || data.error) { showError(`API Error: ${data.error || res.status}`); return; }
             if (!data.detalles?.length) {
@@ -1021,9 +1068,11 @@
                     <td>${r.turno}</td>
                     <td><strong style="color:${r.score_color}">${r.score} / 25</strong></td>
                     <td><span class="score-badge ${cls}">${r.score_label}</span></td>
+                    <td>${recordViewer.actionButtonHtml(r.id)}</td>
                 `;
                 tBody.appendChild(tr);
             });
+            recordViewer.wireActionButtons(tBody);
         } catch (err) {
             showError(`Error cargando detalles: ${err.message}`);
         } finally {

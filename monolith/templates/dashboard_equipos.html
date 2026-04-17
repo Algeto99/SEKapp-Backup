@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
@@ -244,10 +245,11 @@
                             <th>Técnico</th>
                             <th style="text-align:right;">% Confiabilidad</th>
                             <th>Estado</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="registrosBody">
-                        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                        <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -255,9 +257,38 @@
 
     </div><!-- /main-container -->
 
+    <div id="recordsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this) closeRecordsModal()">
+        <div style="width:min(1050px,100%);max-height:80vh;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.1);border-radius:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);">
+                <h3 id="recordsModalTitle" style="margin:0;font-family:'Merriweather',serif;color:#fff;">Detalle de registros</h3>
+                <button onclick="closeRecordsModal()" style="background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer;">×</button>
+            </div>
+            <div style="padding:1rem;overflow:auto;max-height:calc(80vh - 70px);">
+                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
+                            <th style="padding:.65rem;text-align:left;">Fecha</th>
+                            <th style="padding:.65rem;text-align:left;">Cliente</th>
+                            <th style="padding:.65rem;text-align:left;">Sitio</th>
+                            <th style="padding:.65rem;text-align:left;">Técnico</th>
+                            <th style="padding:.65rem;text-align:right;">% Confiabilidad</th>
+                            <th style="padding:.65rem;text-align:left;">Estado</th>
+                            <th style="padding:.65rem;text-align:left;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsModalBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
     Chart.register(ChartDataLabels);
     Chart.defaults.font.family = "'Roboto', sans-serif";
+    const recordViewer = createDashboardRecordViewer({
+        formType: 'confiabilidad_equipos',
+        recordTitle: 'Detalle de Confiabilidad de Equipo'
+    });
     Chart.defaults.color = '#cbd5e1';
 
     const GRID_COLOR = 'rgba(148,163,184,0.15)';
@@ -361,6 +392,42 @@
             noConf > 0 ? `${noConf} tipo(s) por debajo del 70%` : 'Todos los tipos operativos';
     }
 
+    let allRecordRows = [];
+
+    function recordTone(pct) {
+        if (pct == null) return 'slate';
+        if (pct >= 95) return 'green';
+        if (pct >= 85) return 'yellow';
+        if (pct >= 70) return 'orange';
+        return 'red';
+    }
+
+    function openRecordsModal(rows, title) {
+        const modal = document.getElementById('recordsModal');
+        const titleEl = document.getElementById('recordsModalTitle');
+        const body = document.getElementById('recordsModalBody');
+        titleEl.textContent = title || 'Detalle de registros';
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para esta selección.</td></tr>';
+        } else {
+            body.innerHTML = rows.map(r => `<tr>
+                <td>${r.fecha}</td>
+                <td>${r.cliente}</td>
+                <td>${r.sitio}</td>
+                <td>${r.tecnico}</td>
+                <td style="text-align:right;">${r.pct_general != null ? r.pct_general.toFixed(1) + '%' : '—'}</td>
+                <td>${r.estado}</td>
+                <td>${recordViewer.actionButtonHtml(r.id)}</td>
+            </tr>`).join('');
+            recordViewer.wireActionButtons(body);
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeRecordsModal() {
+        document.getElementById('recordsModal').style.display = 'none';
+    }
+
     /* ── Donut distribution ─────────────────────────────────────────────── */
     function renderDonutChart(dist) {
         const empty  = document.getElementById('donutEmpty');
@@ -390,6 +457,16 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '68%',
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const tones = ['green', 'yellow', 'orange', 'red'];
+                    const titles = ['Operativo', 'Con observaciones', 'Riesgo operativo', 'No confiable'];
+                    const idx = elements[0].index;
+                    openRecordsModal(
+                        allRecordRows.filter(r => recordTone(r.pct_general) === tones[idx]),
+                        `Registros — ${titles[idx]}`
+                    );
+                },
                 plugins: {
                     legend: { display: false },
                     datalabels: {
@@ -404,6 +481,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
 
         // Custom legend
         leyenda.innerHTML = labels.map((lbl, i) => {
@@ -469,6 +547,16 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const tipo = valid[elements[0].index]?.tipo;
+                    openRecordsModal(
+                        tipo
+                            ? allRecordRows.filter(r => Array.isArray(r.tipos) && r.tipos.includes(tipo))
+                            : allRecordRows,
+                        tipo ? `Registros — ${tipo}` : 'Detalle de registros'
+                    );
+                },
                 layout: { padding: { right: 50 } },
                 scales: {
                     x: {
@@ -497,6 +585,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         box.style.height = Math.max(280, valid.length * 44 + 60) + 'px';
     }
 
@@ -571,6 +660,19 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const row = sorted[elements[0].index];
+                    if (!row?.periodo) return;
+                    openRecordsModal(
+                        allRecordRows.filter(r => {
+                            const parts = (r.fecha || '').split('/');
+                            const monthKey = parts.length === 3 ? `${parts[2]}-${parts[1]}` : '';
+                            return monthKey === row.periodo;
+                        }),
+                        `Registros — ${row.periodo_label || monthLabel(row.periodo)}`
+                    );
+                },
                 scales: {
                     y: {
                         min: 0, max: 100,
@@ -590,6 +692,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     /* ── Alert banners ──────────────────────────────────────────────────── */
@@ -645,7 +748,7 @@
     function renderRegistros(registros) {
         const tbody = document.getElementById('registrosBody');
         if (!registros.length) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para los filtros seleccionados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para los filtros seleccionados.</td></tr>';
             return;
         }
         tbody.innerHTML = registros.map(r => `<tr>
@@ -655,7 +758,9 @@
             <td>${r.tecnico}</td>
             <td style="text-align:right;"><span class="${eqPctClass(r.pct_general)}">${r.pct_general !== null ? r.pct_general.toFixed(1) + '%' : '—'}</span></td>
             <td><span class="${eqPillClass(r.pct_general)}">${r.estado}</span></td>
+            <td>${recordViewer.actionButtonHtml(r.id)}</td>
         </tr>`).join('');
+        recordViewer.wireActionButtons(tbody);
     }
 
     /* ── Data loading ───────────────────────────────────────────────────── */
@@ -677,6 +782,7 @@
             renderTipoChart(data.por_tipo      || []);
             renderTrendChart(data.tendencia    || []);
             renderAlertas(data.alertas         || {});
+            allRecordRows = det.registros || [];
             renderConsolidado(det.consolidado  || []);
             renderRegistros(det.registros      || []);
         } catch (err) {

@@ -2820,6 +2820,15 @@ def api_satisfaccion_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         where, params = _sat_where(cliente, year, month, day)
+        cur.execute("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'medicion_experiencia_cliente'
+        """)
+        available_columns = {r['column_name'] for r in cur.fetchall()}
+        detail_criteria = [(col, label) for col, label in _SAT_CRITERIA if col in available_columns]
+        criteria_select = ",\n                ".join(col for col, _ in detail_criteria)
+        criteria_select_sql = f",\n                {criteria_select}" if criteria_select else ""
 
         cur.execute(f"""
             SELECT 
@@ -2828,7 +2837,8 @@ def api_satisfaccion_detalles():
                 cliente_instalacion, 
                 encuestado,
                 recomendaria_servicio,
-                calificacion_global_nps 
+                calificacion_global_nps
+                {criteria_select_sql}
             FROM medicion_experiencia_cliente 
             {where}
             ORDER BY fecha_hora DESC NULLS LAST, id_encuesta DESC
@@ -2841,17 +2851,50 @@ def api_satisfaccion_detalles():
             fh = r['fecha_hora']
             fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
             if fh_str == 'None': fh_str = '—'
-            
+
             calc = r['calificacion_global_nps']
             calc_str = str(calc) if calc is not None and str(calc).strip() != '' else '—'
-            
+            try:
+                calc_val = float(calc) if calc is not None and str(calc).strip() != '' else None
+            except (TypeError, ValueError):
+                calc_val = None
+
+            if calc_val is None:
+                calc_bucket = 'sin_dato'
+            elif calc_val >= 34:
+                calc_bucket = 'satisfecho'
+            elif calc_val >= 26:
+                calc_bucket = 'oportunidad'
+            elif calc_val >= 18:
+                calc_bucket = 'baja'
+            else:
+                calc_bucket = 'insatisfecho'
+
+            recomienda_raw = (r['recomendaria_servicio'] or '').strip()
+            recomienda_norm = recomienda_raw.lower()
+
+            criterios = {}
+            for col, label in _SAT_CRITERIA:
+                if col not in available_columns:
+                    criterios[label] = None
+                    continue
+                raw_val = r[col]
+                try:
+                    criterios[label] = float(raw_val) if raw_val is not None and str(raw_val).strip() != '' else None
+                except (TypeError, ValueError):
+                    criterios[label] = None
+
             detalles.append({
                 'id': r['id'] if r['id'] else 0,
                 'fecha_hora': fh_str,
                 'cliente': r['cliente_instalacion'] if r['cliente_instalacion'] else '—',
                 'encuestado': r['encuestado'] if 'encuestado' in r and r['encuestado'] else '—',
                 'recomendaria': r['recomendaria_servicio'] if r['recomendaria_servicio'] else '—',
-                'calificacion': calc_str
+                'recomienda_bool': recomienda_norm in ('si', 'sí', 'yes', 's'),
+                'calificacion': calc_str,
+                'calificacion_valor': calc_val,
+                'calificacion_bucket': calc_bucket,
+                'criterios': criterios,
             })
             
         return jsonify({'detalles': detalles})
@@ -2865,7 +2908,7 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2880,6 +2923,9 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None):
     if severidad:
         conds.append("nivel_severidad = %s")
         params.append(severidad)
+    if turno:
+        conds.append("turno = %s")
+        params.append(turno)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -3077,6 +3123,7 @@ def api_incidentes_detalles():
     day       = int(request.args.get('day'))   if request.args.get('day')   else None
     categoria = request.args.get('categoria') or None
     severidad = request.args.get('severidad') or None
+    turno     = request.args.get('turno')     or None
 
     conn = cur = None
     try:
@@ -3085,7 +3132,7 @@ def api_incidentes_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params = _inc_where(cliente, year, month, day, categoria, severidad)
+        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno)
 
         cur.execute(f"""
             SELECT
@@ -3132,7 +3179,7 @@ def api_incidentes_detalles():
 
 # ── Disciplina Dashboard ─────────────────────────────────────────────────────
 
-def _disc_where(cliente, year, month, day):
+def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -3141,6 +3188,12 @@ def _disc_where(cliente, year, month, day):
     if prefix:
         conds.append("fecha_hora::TEXT LIKE %s")
         params.append(prefix + "%")
+    if tipo:
+        conds.append("tipo_novedad = %s")
+        params.append(tipo)
+    if empleado_num:
+        conds.append("empleado_numero = %s")
+        params.append(empleado_num)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -3385,10 +3438,12 @@ def api_disciplina_data():
 @dashboard_bp.route('/api/disciplina/detalles')
 @jwt_required()
 def api_disciplina_detalles():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente      = request.args.get('cliente') or None
+    year         = int(request.args.get('year'))  if request.args.get('year')  else None
+    month        = int(request.args.get('month')) if request.args.get('month') else None
+    day          = int(request.args.get('day'))   if request.args.get('day')   else None
+    tipo         = request.args.get('tipo')         or None
+    empleado_num = request.args.get('empleado_num') or None
 
     conn = cur = None
     try:
@@ -3397,7 +3452,7 @@ def api_disciplina_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params = _disc_where(cliente, year, month, day)
+        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num)
 
         cur.execute(f"""
             SELECT
@@ -3745,10 +3800,13 @@ def api_supervision_data():
 @dashboard_bp.route('/api/supervision/detalles')
 @jwt_required()
 def api_supervision_detalles():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente      = request.args.get('cliente') or None
+    year         = int(request.args.get('year'))  if request.args.get('year')  else None
+    month        = int(request.args.get('month')) if request.args.get('month') else None
+    day          = int(request.args.get('day'))   if request.args.get('day')   else None
+    nivel        = request.args.get('nivel')         or None
+    empleado_num = request.args.get('empleado_num') or None
+    turno_filter = request.args.get('turno')         or None
 
     conn = cur = None
     try:
@@ -3758,6 +3816,12 @@ def api_supervision_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         where, params = _sup_where(cliente, year, month, day)
+        if empleado_num:
+            where = (where + " AND " if where else "WHERE ") + "numero_empleado = %s"
+            params = list(params) + [empleado_num]
+        if turno_filter:
+            where = (where + " AND " if where else "WHERE ") + "rol_aplicador = %s"
+            params = list(params) + [turno_filter]
 
         def _safe(col):
             return fr"""CASE
@@ -3807,6 +3871,12 @@ def api_supervision_detalles():
                 'score_label': _sup_score_label(score),
                 'score_color': _sup_score_color(score),
             })
+        if nivel == 'critico':
+            detalles = [d for d in detalles if d['score'] <= 15]
+        elif nivel == 'seguimiento':
+            detalles = [d for d in detalles if 16 <= d['score'] <= 20]
+        elif nivel == 'excelente':
+            detalles = [d for d in detalles if d['score'] >= 21]
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_supervision_detalles error: {e}", exc_info=True)
@@ -4105,7 +4175,7 @@ def api_cumplimiento_detalles():
         where = _cumpl_where(base_conds)
 
         cur.execute(f"""
-            SELECT fecha_hora, cliente_instalacion, nombre_auditor,
+            SELECT id, fecha_hora, cliente_instalacion, nombre_auditor,
                    agente_numero_documento, agente_nombre_completo,
                    curso_certificacion, nivel_cumplimiento, vigencia_hasta,
                    copia_certificados_fisica, certificados_cargados_sistema,
@@ -4116,6 +4186,7 @@ def api_cumplimiento_detalles():
             LIMIT 200
         """, base_params)
         detalles = [{
+            'id':              r['id'],
             'fecha_hora':      r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
             'cliente':         r['cliente_instalacion'] or '—',
             'auditor':         r['nombre_auditor'] or '—',
@@ -5076,7 +5147,41 @@ def api_motocicletas_detalles():
             }
             for r in rows
         ]
-        return jsonify({'detalles': detalles})
+
+        all_cols = ",\n                ".join(
+            [f"COALESCE(NULLIF(TRIM({col}), ''), '—') AS {col}" for col, _ in _MOTO_COMPONENTS]
+        )
+        cur.execute(f"""
+            SELECT
+                id,
+                COALESCE(NULLIF(TRIM(cliente_instalacion),''), '—') AS cliente,
+                COALESCE(NULLIF(TRIM(placa_motocicleta),''), '—')   AS placa,
+                COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
+                {de} AS fecha_evento,
+                {all_cols}
+            FROM planilla_motocicletas
+            {_moto_where(base_conds)}
+            ORDER BY {de} DESC NULLS LAST, id DESC
+            LIMIT 300
+        """, base_params)
+        inspecciones = []
+        for r in cur.fetchall():
+            componentes_malos = [
+                label for col, label in _MOTO_COMPONENTS
+                if (r[col] or '').strip().lower() == 'malo'
+            ]
+            inspecciones.append({
+                'id': r['id'],
+                'cliente': r['cliente'],
+                'placa': r['placa'],
+                'responsable': r['responsable'],
+                'fecha': r['fecha_evento'].strftime('%d/%m/%Y %H:%M') if r['fecha_evento'] else '—',
+                'periodo': r['fecha_evento'].strftime('%Y-%m') if r['fecha_evento'] else '',
+                'no_apta': len(componentes_malos) > 0,
+                'fallas': len(componentes_malos),
+                'componentes_malos': componentes_malos,
+            })
+        return jsonify({'detalles': detalles, 'inspecciones': inspecciones})
     except Exception as e:
         app_logger.error(f"api_motocicletas_detalles error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -5368,7 +5473,41 @@ def api_vehiculos_detalles():
             }
             for r in rows
         ]
-        return jsonify({'detalles': detalles})
+
+        all_cols = ",\n                ".join(
+            [f"COALESCE(NULLIF(TRIM({col}), ''), '—') AS {col}" for col, _ in _VEH_COMPONENTS]
+        )
+        cur.execute(f"""
+            SELECT
+                id_planilla_vehicular,
+                COALESCE(NULLIF(TRIM(cliente_instalacion),''), '—') AS cliente,
+                COALESCE(NULLIF(TRIM(placa_vehiculo),''), '—')      AS placa,
+                COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
+                {de} AS fecha_evento,
+                {all_cols}
+            FROM planilla_vehicular
+            {_veh_where(base_conds)}
+            ORDER BY {de} DESC NULLS LAST, id_planilla_vehicular DESC
+            LIMIT 300
+        """, base_params)
+        inspecciones = []
+        for r in cur.fetchall():
+            componentes_malos = [
+                label for col, label in _VEH_COMPONENTS
+                if (r[col] or '').strip().lower() == 'malo'
+            ]
+            inspecciones.append({
+                'id': r['id_planilla_vehicular'],
+                'cliente': r['cliente'],
+                'placa': r['placa'],
+                'responsable': r['responsable'],
+                'fecha': r['fecha_evento'].strftime('%d/%m/%Y %H:%M') if r['fecha_evento'] else '—',
+                'periodo': r['fecha_evento'].strftime('%Y-%m') if r['fecha_evento'] else '',
+                'no_apta': len(componentes_malos) > 0,
+                'fallas': len(componentes_malos),
+                'componentes_malos': componentes_malos,
+            })
+        return jsonify({'detalles': detalles, 'inspecciones': inspecciones})
     except Exception as e:
         app_logger.error(f"api_vehiculos_detalles error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -5645,6 +5784,7 @@ def api_equipos_detalles():
                 COALESCE(NULLIF(TRIM(c.sitio),''),'—')               AS sitio,
                 c.fecha,
                 COALESCE(NULLIF(TRIM(c.tecnico_mantenimiento),''),'—') AS tecnico,
+                ARRAY_AGG(DISTINCT COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')) AS tipos,
                 ROUND(SUM({_EQ_FUNC_SQL})::numeric
                     / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct_general
             {lateral}
@@ -5660,6 +5800,7 @@ def api_equipos_detalles():
                 'sitio':       r['sitio'],
                 'fecha':       r['fecha'].strftime('%d/%m/%Y') if r['fecha'] else '—',
                 'tecnico':     r['tecnico'],
+                'tipos':       list(r['tipos'] or []),
                 'pct_general': float(r['pct_general']) if r['pct_general'] is not None else None,
                 'estado':      _eq_estado(r['pct_general']),
             }

@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -430,6 +431,7 @@
                     <table class="modal-table">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>Fecha</th>
                                 <th>Sitio / Cliente</th>
                                 <th>Auditor</th>
@@ -442,6 +444,7 @@
                                 <th>Cargado Sist.</th>
                                 <th>Coincide HV</th>
                                 <th>Vigente</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="detailsTableBody"></tbody>
@@ -453,6 +456,10 @@
 
     <script>
     let currentQS = '';
+    const recordViewer = createDashboardRecordViewer({
+        formType: 'checklist_cumplimiento',
+        recordTitle: 'Detalle de Cumplimiento'
+    });
 
     // ── Theme ─────────────────────────────────────────────────────────────
     const themeToggle   = document.getElementById('themeToggle');
@@ -471,6 +478,42 @@
 
     let criteriaChart = null, certDonutChart = null,
         empleadoChart = null, sitioChart = null;
+    let allDetails = [];
+
+    function normalizeSiNo(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function certStatusForDetail(detail) {
+        if (detail.vigencia_hasta === '—') return 'sin_fecha';
+        const target = new Date(detail.vigencia_hasta + 'T00:00:00');
+        if (Number.isNaN(target.getTime())) return 'sin_fecha';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+        if (diffDays < 0) return 'vencido';
+        if (diffDays < 30) return 'proximo';
+        return 'vigente';
+    }
+
+    function filterCumplimientoDetails(filters = {}) {
+        return allDetails.filter(detail => {
+            if (filters.criterionLabel) {
+                const fieldMap = {
+                    'Copia de Certificado': 'copia_fisica',
+                    'Certificados Cargados': 'cargado_sistema',
+                    'Coincide Documentación': 'coincide_hv',
+                    'Vigente': 'vigente',
+                };
+                const key = fieldMap[filters.criterionLabel];
+                if (key && normalizeSiNo(detail[key]) !== normalizeSiNo(filters.expectedValue)) return false;
+            }
+            if (filters.certStatus && certStatusForDetail(detail) !== filters.certStatus) return false;
+            if (filters.empleado && detail.num_doc !== filters.empleado) return false;
+            if (filters.sitio && detail.cliente !== filters.sitio) return false;
+            return true;
+        });
+    }
 
     function updateChartTheme(isLight) {
         chartTheme = isLight ? CHART_LIGHT : CHART_DARK;
@@ -622,6 +665,15 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const criterion = criteria[elements[0].index];
+                    const expectedValue = elements[0].datasetIndex === 0 ? 'no' : 'si';
+                    openDetailsModal(
+                        { criterionLabel: criterion.label, expectedValue },
+                        `Registros — ${criterion.label} (${expectedValue === 'si' ? 'Cumple' : 'No cumple'})`
+                    );
+                },
                 scales: {
                     x: {
                         stacked: true,
@@ -651,6 +703,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(180, criteria.length * 50 + 30) + 'px';
     }
 
@@ -699,6 +752,13 @@
                 responsive: true,
                 maintainAspectRatio: true,
                 cutout: '60%',
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const statuses = ['vigente', 'proximo', 'vencido'];
+                    const titles = ['Registros — Vigente', 'Registros — Próximo a vencer', 'Registros — Vencido'];
+                    const idx = elements[0].index;
+                    openDetailsModal({ certStatus: statuses[idx] }, titles[idx]);
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -722,6 +782,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     // ── Empleado bar (horizontal ranking, sorted asc) ─────────────────────
@@ -755,6 +816,11 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const empleado = empleados[elements[0].index];
+                    if (empleado?.num_doc) openDetailsModal({ empleado: empleado.num_doc }, `Registros — ${empleado.nombre}`);
+                },
                 scales: {
                     x: {
                         min: 0, max: 100,
@@ -784,6 +850,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(180, empleados.length * 40 + 30) + 'px';
     }
 
@@ -818,6 +885,11 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const sitio = sitios[elements[0].index];
+                    if (sitio?.sitio) openDetailsModal({ sitio: sitio.sitio }, `Registros — ${sitio.sitio}`);
+                },
                 scales: {
                     x: {
                         min: 0, max: 100,
@@ -847,6 +919,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(180, sitios.length * 40 + 30) + 'px';
     }
 
@@ -865,24 +938,25 @@
     }
 
     // ── Details modal ─────────────────────────────────────────────────────
-    async function openDetailsModal() {
+    async function openDetailsModal(filters = {}, title = null) {
         const modal   = document.getElementById('detailsModal');
         const tBody   = document.getElementById('detailsTableBody');
         const loading = document.getElementById('detailsLoading');
+        const titleEl = modal.querySelector('.modal-title');
         modal.classList.add('active');
         tBody.innerHTML = '';
         loading.style.display = 'block';
+        if (titleEl) titleEl.textContent = title || 'Registros de Cumplimiento Normativo';
         try {
-            const res  = await fetch(`/dashboard/api/cumplimiento/detalles${currentQS ? '?' + currentQS : ''}`);
-            const data = await res.json();
-            if (!res.ok || data.error) { showError(`API Error: ${data.error || res.status}`); return; }
-            if (!data.detalles?.length) {
+            const filtered = filterCumplimientoDetails(filters);
+            if (!filtered.length) {
                 tBody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;">No hay registros para este período.</td></tr>';
                 return;
             }
-            data.detalles.forEach(r => {
+            filtered.forEach(r => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
+                    <td><strong>${r.id}</strong></td>
                     <td style="white-space:nowrap;">${r.fecha_hora}</td>
                     <td>${r.cliente}</td>
                     <td>${r.auditor}</td>
@@ -895,9 +969,11 @@
                     <td style="text-align:center;">${checkBadge(r.cargado_sistema)}</td>
                     <td style="text-align:center;">${checkBadge(r.coincide_hv)}</td>
                     <td style="text-align:center;">${checkBadge(r.vigente)}</td>
+                    <td>${recordViewer.actionButtonHtml(r.id)}</td>
                 `;
                 tBody.appendChild(tr);
             });
+            recordViewer.wireActionButtons(tBody);
         } catch (err) {
             showError(`Error cargando detalles: ${err.message}`);
         } finally {
@@ -910,9 +986,16 @@
         ['criteriaLoading','certDonutLoading','empleadoLoading','sitioLoading']
             .forEach(id => setLoading(id, true));
         try {
-            const res  = await fetch(`/dashboard/api/cumplimiento/data${qs ? '?' + qs : ''}`);
+            const q = qs ? `?${qs}` : '';
+            const [res, detailsRes] = await Promise.all([
+                fetch(`/dashboard/api/cumplimiento/data${q}`),
+                fetch(`/dashboard/api/cumplimiento/detalles${q}`),
+            ]);
             const data = await res.json();
+            const details = await detailsRes.json();
             if (!res.ok || data.error) { showError(`API Error: ${data.error || `HTTP ${res.status}`}`); return; }
+            if (!detailsRes.ok || details.error) { showError(`API Error: ${details.error || `HTTP ${detailsRes.status}`}`); return; }
+            allDetails = details.detalles || [];
 
             renderKPI(data.kpi);
             renderAlerts(data.alertas_vencidos, data.alertas_proximos);

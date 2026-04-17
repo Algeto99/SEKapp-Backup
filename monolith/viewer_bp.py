@@ -512,6 +512,26 @@ FORM_CONFIGS = {
             "Fechas Vigentes": "fechas_vigentes",
             "Firma Guardia": "firma_guarda_supervisado"
         }
+    },
+    'confiabilidad_equipos': {
+        'table': 'confiabilidad_equipos',
+        'id_col': 'id',
+        'date_col': 'fecha',
+        'user_col': 'submitted_by_email',
+        'title_prefix': 'Confiabilidad Equipos',
+        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        'columns': "t.fecha, t.*, u.name as user_name",
+        'data_mapping': {
+            "Cliente": "cliente_instalacion",
+            "Fecha": "fecha",
+            "Hora": "hora",
+            "Sitio": "sitio",
+            "Inventario": "inventario",
+            "Técnico Mantenimiento": "tecnico_mantenimiento",
+            "Firma Técnico": "firma_tecnico",
+            "Supervisor Seguridad": "supervisor_seguridad",
+            "Firma Supervisor": "firma_supervisor"
+        }
     }
 }
 

@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
@@ -186,10 +187,11 @@
                             <th>Fecha</th>
                             <th>Novedad Crítica</th>
                             <th>Acción Inmediata</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="matrixBody">
-                        <tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                        <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -197,10 +199,39 @@
 
     </div><!-- /main-container -->
 
+    <div id="inspectionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this) closeInspectionModal()">
+        <div style="width:min(1100px,100%);max-height:80vh;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.1);border-radius:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);">
+                <h3 id="inspectionModalTitle" style="margin:0;font-family:'Merriweather',serif;color:#fff;">Detalle de inspecciones</h3>
+                <button onclick="closeInspectionModal()" style="background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer;">×</button>
+            </div>
+            <div style="padding:1rem;overflow:auto;max-height:calc(80vh - 70px);">
+                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
+                            <th style="padding:.65rem;text-align:left;">Fecha</th>
+                            <th style="padding:.65rem;text-align:left;">Cliente</th>
+                            <th style="padding:.65rem;text-align:left;">Placa</th>
+                            <th style="padding:.65rem;text-align:left;">Responsable</th>
+                            <th style="padding:.65rem;text-align:center;">Fallas</th>
+                            <th style="padding:.65rem;text-align:left;">Componentes</th>
+                            <th style="padding:.65rem;text-align:left;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inspectionModalBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
     Chart.register(ChartDataLabels);
     Chart.defaults.font.family = "'Roboto', sans-serif";
     Chart.defaults.color = '#cbd5e1';
+    const recordViewer = createDashboardRecordViewer({
+        formType: 'planilla_vehicular',
+        recordTitle: 'Detalle de Planilla Vehicular'
+    });
 
     const GRID_COLOR = 'rgba(148,163,184,0.15)';
     const TICK_COLOR = '#94a3b8';
@@ -281,6 +312,34 @@
     }
 
     /* ── Fallas por componente ──────────────────────────────────────────── */
+    let allInspectionRows = [];
+
+    function openInspectionModal(rows, title) {
+        const modal = document.getElementById('inspectionModal');
+        const titleEl = document.getElementById('inspectionModalTitle');
+        const body = document.getElementById('inspectionModalBody');
+        titleEl.textContent = title || 'Detalle de inspecciones';
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin inspecciones para esta selección.</td></tr>';
+        } else {
+            body.innerHTML = rows.map(r => `<tr>
+                <td>${r.fecha}</td>
+                <td>${r.cliente}</td>
+                <td style="font-weight:700;color:#a5b4fc;">${r.placa}</td>
+                <td>${r.responsable}</td>
+                <td style="text-align:center;">${r.fallas}</td>
+                <td>${(r.componentes_malos || []).join(', ') || 'Sin fallas'}</td>
+                <td>${recordViewer.actionButtonHtml(r.id)}</td>
+            </tr>`).join('');
+            recordViewer.wireActionButtons(body);
+        }
+        modal.style.display = 'flex';
+    }
+
+    function closeInspectionModal() {
+        document.getElementById('inspectionModal').style.display = 'none';
+    }
+
     function renderCompChart(rows, total) {
         const empty  = document.getElementById('compEmpty');
         const box    = document.getElementById('compBox');
@@ -318,6 +377,15 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const componente = rows[elements[0].index]?.componente;
+                    if (!componente) return;
+                    openInspectionModal(
+                        allInspectionRows.filter(r => (r.componentes_malos || []).includes(componente)),
+                        `Inspecciones — ${componente}`
+                    );
+                },
                 layout: { padding: { right: 36 } },
                 scales: {
                     x: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
@@ -338,6 +406,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         box.style.height = Math.max(320, rows.length * 30 + 60) + 'px';
     }
 
@@ -391,6 +460,15 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const ubicacion = rows[elements[0].index]?.ubicacion;
+                    if (!ubicacion) return;
+                    openInspectionModal(
+                        allInspectionRows.filter(r => r.cliente === ubicacion),
+                        `Inspecciones — ${ubicacion}`
+                    );
+                },
                 layout: { padding: { right: 40 } },
                 scales: {
                     x: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
@@ -411,6 +489,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         box.style.height = Math.max(280, rows.length * 36 + 70) + 'px';
     }
 
@@ -479,6 +558,15 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const row = sorted[elements[0].index];
+                    if (!row?.periodo) return;
+                    openInspectionModal(
+                        allInspectionRows.filter(r => r.periodo === row.periodo),
+                        `Inspecciones — ${row.periodo_label || monthLabel(row.periodo)}`
+                    );
+                },
                 scales: {
                     y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
                     x: { grid: { display: false }, ticks: { color: TICK_COLOR, maxRotation: 40 } },
@@ -494,6 +582,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     /* ── Alert banner ───────────────────────────────────────────────────── */
@@ -529,7 +618,7 @@
     function renderMatrix(detalles) {
         const tbody = document.getElementById('matrixBody');
         if (!detalles.length) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:2rem;">Sin novedades críticas para los filtros seleccionados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin novedades críticas para los filtros seleccionados.</td></tr>';
             return;
         }
         tbody.innerHTML = detalles.map(r => `<tr>
@@ -539,7 +628,9 @@
             <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
             <td><span class="badge-critico">${escHtml(r.novedades_criticas)}</span></td>
             <td><span class="badge-accion">${escHtml(r.accion_inmediata)}</span></td>
+            <td>${recordViewer.actionButtonHtml(r.id)}</td>
         </tr>`).join('');
+        recordViewer.wireActionButtons(tbody);
     }
 
     function escHtml(str) {
@@ -568,6 +659,7 @@
             renderCompChart(data.fallas_componente || [], total);
             renderUbicChart(data.por_ubicacion     || []);
             renderTrendChart(data.tendencia        || []);
+            allInspectionRows = det.inspecciones || [];
             renderAlerta(data.alertas_count || 0, data.placas_recurrentes || []);
             renderMatrix(det.detalles || []);
         } catch (err) {

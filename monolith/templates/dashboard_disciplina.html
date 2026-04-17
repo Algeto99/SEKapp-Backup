@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         /* ── Base ─────────────────────────────────────────────────────────── */
@@ -423,6 +424,7 @@
                                 <th>Cliente / Sitio</th>
                                 <th>Turno</th>
                                 <th>Responsable</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="detailsTableBody"></tbody>
@@ -434,6 +436,10 @@
 
     <script>
     let currentQS = '';
+    const recordViewer = createDashboardRecordViewer({
+        formType: 'informe_novedades_disciplinario',
+        recordTitle: 'Detalle Disciplinario'
+    });
 
     // ── Theme ─────────────────────────────────────────────────────────────
     const themeToggle   = document.getElementById('themeToggle');
@@ -465,6 +471,33 @@
     }
 
     let tipoChart = null, clienteChart = null, trendChart = null, empChart = null;
+    let allDetails = [];
+
+    function normalizeDisciplinaPeriod(label) {
+        const raw = String(label || '').trim();
+        if (/^\d{2}$/.test(raw)) return raw;
+        const match = raw.match(/^(\d{4})-(\d{2})/);
+        return match ? `${match[1]}-${match[2]}` : raw.toLowerCase();
+    }
+
+    function detailDisciplinaPeriod(detail) {
+        const fh = detail?.fecha_hora || '';
+        if (/^\d{4}-\d{2}-\d{2}/.test(fh)) return fh.slice(0, 7);
+        return '';
+    }
+
+    function filterDisciplinaDetails(filters = {}) {
+        return allDetails.filter(detail => {
+            if (filters.tipo && detail.tipo !== filters.tipo) return false;
+            if (filters.cliente && detail.cliente !== filters.cliente) return false;
+            if (filters.empleado_num && detail.emp_numero !== filters.empleado_num) return false;
+            if (filters.periodLabel) {
+                const target = normalizeDisciplinaPeriod(filters.periodLabel);
+                if (target !== normalizeDisciplinaPeriod(detailDisciplinaPeriod(detail))) return false;
+            }
+            return true;
+        });
+    }
 
     function setLoading(id, on) { document.getElementById(id)?.classList.toggle('active', on); }
 
@@ -556,6 +589,11 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const tipo = sorted[elements[0].index]?.label;
+                    if (tipo) openDetailsModal({ tipo }, `Registros — ${tipo}`);
+                },
                 scales: {
                     x: {
                         ticks: { color: chartTheme.tick, precision: 0 },
@@ -579,6 +617,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(260, sorted.length * 30 + 50) + 'px';
     }
 
@@ -620,6 +659,11 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const cliente = sorted[elements[0].index]?.label;
+                    if (cliente) openDetailsModal({ cliente }, `Registros — ${cliente}`);
+                },
                 scales: {
                     x: {
                         ticks: { color: chartTheme.tick, precision: 0 },
@@ -643,6 +687,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(260, sorted.length * 30 + 50) + 'px';
     }
 
@@ -677,6 +722,11 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const label = trend.labels?.[elements[0].index];
+                    if (label) openDetailsModal({ periodLabel: label }, `Registros — ${label}`);
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -705,6 +755,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     // ── Employee ranking horizontal bar (semáforo per bar) ────────────────
@@ -744,6 +795,11 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    const empleado = sorted[elements[0].index];
+                    if (empleado?.numero) openDetailsModal({ empleado_num: empleado.numero }, `Registros — ${empleado.nombre}`);
+                },
                 scales: {
                     x: {
                         ticks: { color: chartTheme.tick, precision: 0 },
@@ -779,6 +835,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
         canvas.parentElement.style.height = Math.max(200, sorted.length * 32 + 50) + 'px';
     }
 
@@ -797,22 +854,22 @@
     }
 
     // ── Details modal ─────────────────────────────────────────────────────
-    async function openDetailsModal() {
+    async function openDetailsModal(filters = {}, title = null) {
         const modal   = document.getElementById('detailsModal');
         const tBody   = document.getElementById('detailsTableBody');
         const loading = document.getElementById('detailsLoading');
+        const titleEl = modal.querySelector('.modal-title');
         modal.classList.add('active');
         tBody.innerHTML = '';
         loading.style.display = 'block';
+        if (titleEl) titleEl.textContent = title || 'Registros de Novedades Disciplinarias';
         try {
-            const res  = await fetch(`/dashboard/api/disciplina/detalles${currentQS ? '?' + currentQS : ''}`);
-            const data = await res.json();
-            if (!res.ok || data.error) { showError(`API Error: ${data.error || res.status}`); return; }
-            if (!data.detalles?.length) {
+            const filtered = filterDisciplinaDetails(filters);
+            if (!filtered.length) {
                 tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">No hay registros para este período.</td></tr>';
                 return;
             }
-            data.detalles.forEach(r => {
+            filtered.forEach(r => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${r.fecha_hora}</td>
@@ -823,9 +880,11 @@
                     <td>${r.cliente}</td>
                     <td>${r.turno}</td>
                     <td>${r.responsable}</td>
+                    <td>${recordViewer.actionButtonHtml(r.id)}</td>
                 `;
                 tBody.appendChild(tr);
             });
+            recordViewer.wireActionButtons(tBody);
         } catch (err) {
             showError(`Error cargando detalles: ${err.message}`);
         } finally {
@@ -837,9 +896,16 @@
     async function loadData(qs = '') {
         ['tipoLoading','clienteLoading','trendLoading','empLoading'].forEach(id => setLoading(id, true));
         try {
-            const res  = await fetch(`/dashboard/api/disciplina/data${qs ? '?' + qs : ''}`);
+            const q = qs ? `?${qs}` : '';
+            const [res, detailsRes] = await Promise.all([
+                fetch(`/dashboard/api/disciplina/data${q}`),
+                fetch(`/dashboard/api/disciplina/detalles${q}`),
+            ]);
             const data = await res.json();
+            const details = await detailsRes.json();
             if (!res.ok || data.error) { showError(`API Error: ${data.error || `HTTP ${res.status}`}`); return; }
+            if (!detailsRes.ok || details.error) { showError(`API Error: ${details.error || `HTTP ${detailsRes.status}`}`); return; }
+            allDetails = details.detalles || [];
             renderKPI(data);
             renderAlertBanner(data.criticos_list);
             renderTipoChart(data.por_tipo);

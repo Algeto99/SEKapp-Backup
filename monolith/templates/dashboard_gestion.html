@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -236,6 +237,14 @@
             border-radius: 10px; padding: 0.6rem 0.85rem; font-size: 0.83rem; font-weight: 700;
         }
         .module-btn:hover { background-color: #2563eb; }
+        .module-btn.secondary {
+            background-color: rgba(96,165,250,0.12);
+            color: #bfdbfe;
+            border: 1px solid rgba(96,165,250,0.24);
+        }
+        .module-btn.secondary:hover {
+            background-color: rgba(96,165,250,0.2);
+        }
 
         .alert-banner {
             display: none;
@@ -262,6 +271,114 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        .detail-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 260;
+            background: rgba(15,23,42,0.78);
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .detail-modal-overlay.open { display: flex; }
+        .detail-modal {
+            width: min(1120px, 100%);
+            max-height: 84vh;
+            overflow: hidden;
+            background: #1f2937;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+            display: flex;
+            flex-direction: column;
+        }
+        .detail-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .detail-modal-title {
+            margin: 0;
+            font-size: 1.05rem;
+            color: #fff;
+        }
+        .detail-modal-close {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .detail-modal-body {
+            padding: 1rem 1.2rem;
+            overflow: auto;
+            flex: 1;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+        }
+        .detail-table th {
+            text-align: left;
+            padding: 0.72rem 0.65rem;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            position: sticky;
+            top: 0;
+            background: #1f2937;
+        }
+        .detail-table td {
+            padding: 0.72rem 0.65rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            vertical-align: top;
+            color: #e2e8f0;
+        }
+        .detail-table tbody tr[data-record-id] {
+            cursor: pointer;
+        }
+        .detail-table tbody tr[data-record-id]:hover td {
+            background: rgba(255,255,255,0.03);
+        }
+        .detail-muted {
+            color: #94a3b8;
+            font-size: 0.78rem;
+        }
+        .detail-status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.24rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 1px solid rgba(148,163,184,0.24);
+            color: #cbd5e1;
+            background: rgba(148,163,184,0.12);
+        }
+        .detail-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.9rem 1.2rem;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .detail-footer-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .detail-empty {
+            text-align: center;
+            color: #94a3b8;
+            padding: 2.4rem 1rem;
+        }
 
         body.light-mode { background-color: #f1f5f9; color: #1e293b; }
         body.light-mode h1, body.light-mode h2, body.light-mode h3,
@@ -300,6 +417,22 @@
             border-color: rgba(0,0,0,0.07);
         }
         body.light-mode .loading-overlay { background-color: rgba(241,245,249,0.75); }
+        body.light-mode .detail-modal {
+            background: #ffffff;
+            border-color: rgba(0,0,0,0.08);
+        }
+        body.light-mode .detail-table th {
+            background: #ffffff;
+            color: #64748b;
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        body.light-mode .detail-table td {
+            color: #1e293b;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        body.light-mode .detail-modal-title {
+            color: #0f172a;
+        }
 
         @media (max-width: 1100px) {
             .kpi-grid { grid-template-columns: repeat(3, 1fr); }
@@ -442,6 +575,28 @@
         </div>
     </div>
 
+    <div id="gestionDetailModal" class="detail-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="gestionDetailTitle">
+        <div class="detail-modal">
+            <div class="detail-modal-header">
+                <div>
+                    <h3 id="gestionDetailTitle" class="detail-modal-title">Detalle del módulo</h3>
+                    <div id="gestionDetailSubtitle" class="detail-muted"></div>
+                </div>
+                <button id="gestionDetailClose" class="detail-modal-close" type="button">×</button>
+            </div>
+            <div class="detail-modal-body">
+                <div id="gestionDetailContent" class="detail-empty">Cargando registros...</div>
+            </div>
+            <div class="detail-modal-footer">
+                <div id="gestionDetailCount" class="detail-muted"></div>
+                <div class="detail-footer-actions">
+                    <a id="gestionDetailDashboardLink" href="/dashboard/" class="module-btn">Ir al dashboard del módulo</a>
+                    <button id="gestionDetailDismiss" class="module-btn secondary" type="button">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         Chart.register(ChartDataLabels);
 
@@ -455,6 +610,135 @@
             visitas: { data: '/dashboard/api/visitas/data', route: '/dashboard/visitas/', title: 'Visitas' },
             vehiculos: { data: '/dashboard/api/vehiculos/data', route: '/dashboard/vehiculos/', title: 'Vehículos' },
             equipos: { data: '/dashboard/api/equipos/data', route: '/dashboard/equipos/', title: 'Equipos' }
+        };
+
+        const MODULE_DRILLDOWN = {
+            satisfaccion: {
+                endpoint: '/dashboard/api/satisfaccion/detalles',
+                route: ENDPOINTS.satisfaccion.route,
+                title: 'Satisfacción',
+                responseKey: 'detalles',
+                viewer: createDashboardRecordViewer({ formType: 'medicion_experiencia_cliente', recordTitle: 'Detalle de Encuesta' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha_hora || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.encuestado || 'Sin encuestado'} · NPS ${row.calificacion || '—'}`,
+                    status: row.recomienda_bool ? 'Recomienda' : 'No recomienda'
+                })
+            },
+            incidentes: {
+                endpoint: '/dashboard/api/incidentes/detalles',
+                route: ENDPOINTS.incidentes.route,
+                title: 'Incidentes',
+                responseKey: 'detalles',
+                viewer: createDashboardRecordViewer({ formType: 'reporte_incidente', recordTitle: 'Detalle de Incidente' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha_hora || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.categoria || '—'} · ${row.tipo || '—'}`,
+                    status: `${row.severidad || '—'} · ${row.estado || '—'}`
+                })
+            },
+            supervision: {
+                endpoint: '/dashboard/api/supervision/detalles',
+                route: ENDPOINTS.supervision.route,
+                title: 'Supervisión',
+                responseKey: 'detalles',
+                viewer: createDashboardRecordViewer({ formType: 'supervision_puesto', recordTitle: 'Detalle de Supervisión' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha_hora || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.guardia || '—'} (${row.emp_numero || '—'})`,
+                    status: `${row.score_label || '—'} · ${row.score != null ? row.score : '—'}`
+                })
+            },
+            cumplimiento: {
+                endpoint: '/dashboard/api/cumplimiento/detalles',
+                route: ENDPOINTS.cumplimiento.route,
+                title: 'Cumplimiento',
+                responseKey: 'detalles',
+                viewer: createDashboardRecordViewer({ formType: 'checklist_cumplimiento', recordTitle: 'Detalle de Cumplimiento' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha_hora || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.agente || '—'} · ${row.curso || '—'}`,
+                    status: `${row.nivel || '—'} · ${row.vigente || '—'}`
+                })
+            },
+            capacitacion: {
+                endpoint: '/dashboard/api/capacitacion/detalles',
+                route: ENDPOINTS.capacitacion.route,
+                title: 'Capacitación',
+                responseKey: 'detalles',
+                viewer: createDashboardRecordViewer({ formType: 'registro_de_capacitaciones', recordTitle: 'Detalle de Capacitación' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.tema || 'Sin tema'} · ${row.responsable || '—'}`,
+                    status: `${row.num_asistentes || 0} asistentes`
+                })
+            },
+            disciplina: {
+                endpoint: '/dashboard/api/disciplina/detalles',
+                route: ENDPOINTS.disciplina.route,
+                title: 'Disciplina',
+                responseKey: 'detalles',
+                viewer: createDashboardRecordViewer({ formType: 'informe_novedades_disciplinario', recordTitle: 'Detalle Disciplinario' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha_hora || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.emp_nombre || '—'} (${row.emp_numero || '—'})`,
+                    status: `${row.tipo || '—'} · ${row.turno || '—'}`
+                })
+            },
+            visitas: {
+                endpoint: '/dashboard/api/visitas/detalles',
+                route: ENDPOINTS.visitas.route,
+                responseKey: 'detalles',
+                title: 'Visitas',
+                viewer: createDashboardRecordViewer({ formType: 'registro_y_acta_de_visita', recordTitle: 'Detalle de Visita' }),
+                normalize: row => ({
+                    id: row.id_visita,
+                    date: row.fecha_visita || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.motivo_visita || '—'} · ${row.acuerdo || '—'}`,
+                    status: `${row.estado || '—'} · ${row.fecha_cumplimiento || '—'}`
+                })
+            },
+            vehiculos: {
+                endpoint: '/dashboard/api/vehiculos/detalles',
+                route: ENDPOINTS.vehiculos.route,
+                responseKey: 'inspecciones',
+                title: 'Vehículos',
+                viewer: createDashboardRecordViewer({ formType: 'planilla_vehicular', recordTitle: 'Detalle de Planilla Vehicular' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.placa || '—'} · ${row.responsable || '—'}`,
+                    status: row.no_apta ? `No apta · ${row.fallas || 0} fallas` : 'Apta'
+                })
+            },
+            equipos: {
+                endpoint: '/dashboard/api/equipos/detalles',
+                route: ENDPOINTS.equipos.route,
+                responseKey: 'registros',
+                title: 'Equipos',
+                viewer: createDashboardRecordViewer({ formType: 'confiabilidad_equipos', recordTitle: 'Detalle de Confiabilidad de Equipo' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.sitio || '—'} · ${row.tecnico || '—'}`,
+                    status: row.pct_general != null ? `${row.pct_general}% · ${row.estado || '—'}` : (row.estado || '—')
+                })
+            }
         };
 
         const colors = {
@@ -478,10 +762,19 @@
         const filterMonth = document.getElementById('filterMonth');
         const filterDay = document.getElementById('filterDay');
         const resetFilters = document.getElementById('resetFilters');
+        const gestionDetailModal = document.getElementById('gestionDetailModal');
+        const gestionDetailTitle = document.getElementById('gestionDetailTitle');
+        const gestionDetailSubtitle = document.getElementById('gestionDetailSubtitle');
+        const gestionDetailContent = document.getElementById('gestionDetailContent');
+        const gestionDetailCount = document.getElementById('gestionDetailCount');
+        const gestionDetailDashboardLink = document.getElementById('gestionDetailDashboardLink');
+        const gestionDetailClose = document.getElementById('gestionDetailClose');
+        const gestionDetailDismiss = document.getElementById('gestionDetailDismiss');
 
         let trendChart = null;
         let rankingChart = null;
         let distributionChart = null;
+        let latestCards = [];
 
         function setDarkMode() {
             document.body.classList.remove('light-mode');
@@ -579,6 +872,132 @@
             if (filterMonth.value) params.set('month', filterMonth.value);
             if (filterDay.value) params.set('day', filterDay.value);
             return params.toString();
+        }
+
+        function buildModuleUrl(moduleKey, extraFilters = {}) {
+            const params = new URLSearchParams(queryString());
+            Object.entries(extraFilters || {}).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== '') {
+                    params.set(key, value);
+                }
+            });
+            const cfg = MODULE_DRILLDOWN[moduleKey];
+            const base = cfg?.route || '/dashboard/';
+            const qs = params.toString();
+            return `${base}${qs ? `?${qs}` : ''}`;
+        }
+
+        function renderGestionActionButton(moduleKey, id) {
+            if (!id) return '';
+            return `<button type="button" class="drv-action-btn gestion-record-btn" data-module-key="${moduleKey}" data-record-id="${id}">Ver ↗</button>`;
+        }
+
+        function wireGestionRecordButtons(root) {
+            if (!root) return;
+            root.querySelectorAll('.gestion-record-btn').forEach(btn => {
+                if (btn.dataset.bound === 'true') return;
+                btn.dataset.bound = 'true';
+                btn.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const moduleKey = btn.getAttribute('data-module-key');
+                    const recordId = btn.getAttribute('data-record-id');
+                    const viewer = MODULE_DRILLDOWN[moduleKey]?.viewer;
+                    if (viewer && recordId) viewer.openRecord(recordId);
+                });
+            });
+        }
+
+        function closeGestionDetailModal() {
+            gestionDetailModal.classList.remove('open');
+        }
+
+        function parseTrendFilters(label) {
+            const year = filterYear.value;
+            const month = filterMonth.value;
+            const clean = String(label || '').trim();
+            if (year && month && /^\d{1,2}$/.test(clean)) {
+                return { year, month, day: String(Number(clean)) };
+            }
+            const ym = clean.match(/^(\d{4})-(\d{2})$/);
+            if (ym) {
+                return { year: ym[1], month: String(Number(ym[2])) };
+            }
+            return {};
+        }
+
+        async function fetchModuleDrilldown(moduleKey, extraFilters = {}) {
+            const cfg = MODULE_DRILLDOWN[moduleKey];
+            if (!cfg) return [];
+            const params = new URLSearchParams(queryString());
+            Object.entries(extraFilters || {}).forEach(([key, value]) => {
+                if (value !== null && value !== undefined && value !== '') {
+                    params.set(key, value);
+                }
+            });
+            const qs = params.toString();
+            const res = await fetch(`${cfg.endpoint}${qs ? `?${qs}` : ''}`);
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || `Error cargando detalles de ${cfg.title}`);
+            }
+            const rows = data[cfg.responseKey] || [];
+            return rows.map(cfg.normalize).filter(row => row && row.id);
+        }
+
+        async function openGestionDetailModal(moduleKey, options = {}) {
+            const cfg = MODULE_DRILLDOWN[moduleKey];
+            if (!cfg) return;
+            const extraFilters = options.extraFilters || {};
+            const suffix = options.titleSuffix ? ` — ${options.titleSuffix}` : '';
+            gestionDetailTitle.textContent = `Detalle de ${cfg.title}${suffix}`;
+            gestionDetailSubtitle.textContent = 'Registros filtrados con el mismo contexto aplicado en Gestión y Resultados';
+            gestionDetailCount.textContent = 'Cargando...';
+            gestionDetailDashboardLink.href = buildModuleUrl(moduleKey, extraFilters);
+            gestionDetailContent.innerHTML = '<div class="detail-empty">Cargando registros...</div>';
+            gestionDetailModal.classList.add('open');
+
+            try {
+                const rows = await fetchModuleDrilldown(moduleKey, extraFilters);
+                gestionDetailCount.textContent = `${rows.length} registro(s) encontrados`;
+                if (!rows.length) {
+                    gestionDetailContent.innerHTML = '<div class="detail-empty">No hay registros disponibles para esta selección.</div>';
+                    return;
+                }
+                gestionDetailContent.innerHTML = `
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Resumen</th>
+                                <th>Estado</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(row => `
+                                <tr data-module-key="${moduleKey}" data-record-id="${row.id}">
+                                    <td style="white-space:nowrap;">${row.date || '—'}</td>
+                                    <td>${row.client || '—'}</td>
+                                    <td>${row.summary || '—'}</td>
+                                    <td><span class="detail-status-pill">${row.status || '—'}</span></td>
+                                    <td>${renderGestionActionButton(moduleKey, row.id)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                gestionDetailContent.querySelectorAll('tbody tr[data-record-id]').forEach(tr => {
+                    tr.addEventListener('click', () => {
+                        const recordId = tr.getAttribute('data-record-id');
+                        if (recordId) cfg.viewer.openRecord(recordId);
+                    });
+                });
+                wireGestionRecordButtons(gestionDetailContent);
+            } catch (err) {
+                gestionDetailCount.textContent = 'Sin resultados';
+                gestionDetailContent.innerHTML = `<div class="detail-empty">${err.message}</div>`;
+            }
         }
 
         async function loadClientes() {
@@ -916,10 +1335,16 @@
                     <div class="module-secondary">${card.secondaryValue} · ${card.secondaryLabel}</div>
                     <div class="module-footer">
                         <span class="helper-text">Ordenado de menor a mayor</span>
-                        <a href="${card.route}" class="module-btn">Ver dashboard</a>
+                        <div class="detail-footer-actions">
+                            <button type="button" class="module-btn secondary gestion-module-detail-btn" data-module-key="${card.key}">Ver registros</button>
+                            <a href="${card.route}" class="module-btn">Ver dashboard</a>
+                        </div>
                     </div>
                 </div>
             `).join('');
+            modulesGrid.querySelectorAll('.gestion-module-detail-btn').forEach(btn => {
+                btn.addEventListener('click', () => openGestionDetailModal(btn.dataset.moduleKey));
+            });
         }
 
         function buildTrend(results) {
@@ -986,6 +1411,7 @@
                     datasets: [
                         {
                             type: 'line',
+                            moduleKey: 'satisfaccion',
                             label: 'Satisfacción',
                             data: trend.satSeries,
                             borderColor: '#22c55e',
@@ -1002,6 +1428,7 @@
                         },
                         {
                             type: 'line',
+                            moduleKey: 'supervision',
                             label: 'Supervisión',
                             data: trend.supSeries,
                             borderColor: '#60a5fa',
@@ -1018,6 +1445,7 @@
                         },
                         {
                             type: 'line',
+                            moduleKey: 'capacitacion',
                             label: 'Capacitación',
                             data: trend.capSeries,
                             borderColor: '#fbbf24',
@@ -1034,6 +1462,7 @@
                         },
                         {
                             type: 'line',
+                            moduleKey: 'vehiculos',
                             label: 'Vehículos aptos',
                             data: trend.vehSeries,
                             borderColor: '#818cf8',
@@ -1050,6 +1479,7 @@
                         },
                         {
                             type: 'line',
+                            moduleKey: 'equipos',
                             label: 'Equipos',
                             data: trend.eqSeries,
                             borderColor: '#94a3b8',
@@ -1066,6 +1496,7 @@
                         },
                         {
                             type: 'bar',
+                            moduleKey: 'incidentes',
                             label: 'Incidentes',
                             data: trend.incSeries,
                             backgroundColor: 'rgba(248,113,113,0.28)',
@@ -1084,6 +1515,18 @@
                 options: {
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
+                    onClick(_evt, elements, chart) {
+                        if (!elements.length) return;
+                        const point = elements[0];
+                        const dataset = chart.data.datasets[point.datasetIndex];
+                        const moduleKey = dataset.moduleKey;
+                        const label = chart.data.labels[point.index];
+                        if (!moduleKey) return;
+                        openGestionDetailModal(moduleKey, {
+                            titleSuffix: label,
+                            extraFilters: parseTrendFilters(label)
+                        });
+                    },
                     plugins: {
                         legend: { position: 'bottom' }
                     },
@@ -1105,6 +1548,7 @@
                     }
                 }
             });
+            document.getElementById('trendChart').style.cursor = 'pointer';
         }
 
         function renderRankingChart(cards) {
@@ -1123,6 +1567,11 @@
                 options: {
                     indexAxis: 'y',
                     maintainAspectRatio: false,
+                    onClick(_evt, elements) {
+                        if (!elements.length) return;
+                        const card = sorted[elements[0].index];
+                        if (card?.key) openGestionDetailModal(card.key);
+                    },
                     plugins: {
                         legend: { display: false },
                         datalabels: {
@@ -1144,6 +1593,7 @@
                     }
                 }
             });
+            document.getElementById('rankingChart').style.cursor = 'pointer';
         }
 
         function renderDistributionChart(cards) {
@@ -1201,6 +1651,7 @@
 
             const cards = buildCards(results);
             const availableCards = cards.filter(card => card.score !== null);
+            latestCards = cards;
 
             if (!availableCards.length) {
                 dataError.classList.add('active');
@@ -1230,6 +1681,14 @@
                 filterMonth.value = '';
                 filterDay.value = '';
                 loadDashboard();
+            });
+            gestionDetailClose.addEventListener('click', closeGestionDetailModal);
+            gestionDetailDismiss.addEventListener('click', closeGestionDetailModal);
+            gestionDetailModal.addEventListener('click', event => {
+                if (event.target === gestionDetailModal) closeGestionDetailModal();
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeGestionDetailModal();
             });
         }
 

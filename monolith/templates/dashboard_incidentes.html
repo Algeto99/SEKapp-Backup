@@ -572,11 +572,11 @@
     </div><!-- /main-container -->
 
     <!-- ── Records list modal ─────────────────────────────────────────────── -->
-    <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) this.classList.remove('active')">
+    <div class="modal-backdrop" id="detailsModal" onclick="if(event.target===this) closeDetailsModal()">
         <div class="modal-container">
             <div class="modal-header">
                 <h3 class="modal-title" id="detailsModalTitle">Registros de Incidentes</h3>
-                <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
+                <button class="modal-close" onclick="closeDetailsModal()">×</button>
             </div>
             <div class="modal-body">
                 <div id="detailsLoading" style="display:none; text-align:center; color:#94a3b8; padding: 2rem;">Cargando registros...</div>
@@ -645,10 +645,11 @@
 
     <script>
     let currentQS        = '';
-    let activeCatFilter  = null;
-    let activeSevFilter  = null;
-    let currentRecordId  = null;
-    let currentCatLabels = [];
+    let activeCatFilter   = null;
+    let activeSevFilter   = null;
+    let activeTurnoFilter = null;
+    let currentRecordId   = null;
+    let currentCatLabels  = [];
 
     // ── Theme ─────────────────────────────────────────────────────────────
     const themeToggle   = document.getElementById('themeToggle');
@@ -764,8 +765,9 @@
     }
 
     function clearDrilldown() {
-        activeCatFilter = null;
-        activeSevFilter = null;
+        activeCatFilter   = null;
+        activeSevFilter   = null;
+        activeTurnoFilter = null;
         updateFilterBanner();
         reloadWithFilters();
         ['Bajo','Medio','Alto'].forEach(s => {
@@ -774,22 +776,39 @@
     }
 
     function updateFilterBanner() {
-        const banner = document.getElementById('filterBanner');
-        const catBadge = document.getElementById('filterBadgeCategoria');
+        const banner    = document.getElementById('filterBanner');
+        const catBadge  = document.getElementById('filterBadgeCategoria');
         const sevBadge2 = document.getElementById('filterBadgeSeveridad');
-        const hasFilter = activeCatFilter || activeSevFilter;
+        let turnoBadge  = document.getElementById('filterBadgeTurno');
+        if (!turnoBadge) {
+            turnoBadge = document.createElement('span');
+            turnoBadge.id = 'filterBadgeTurno';
+            turnoBadge.className = 'filter-badge';
+            sevBadge2.after(turnoBadge);
+        }
+        const hasFilter = activeCatFilter || activeSevFilter || activeTurnoFilter;
         banner.classList.toggle('active', !!hasFilter);
-        if (activeCatFilter) { catBadge.textContent = 'Categoría: ' + activeCatFilter; catBadge.style.display = 'inline'; }
-        else { catBadge.style.display = 'none'; }
-        if (activeSevFilter) { sevBadge2.textContent = 'Severidad: ' + activeSevFilter; sevBadge2.style.display = 'inline'; }
-        else { sevBadge2.style.display = 'none'; }
+        if (activeCatFilter)   { catBadge.textContent  = 'Categoría: '  + activeCatFilter;   catBadge.style.display  = 'inline'; } else { catBadge.style.display  = 'none'; }
+        if (activeSevFilter)   { sevBadge2.textContent = 'Severidad: '  + activeSevFilter;   sevBadge2.style.display = 'inline'; } else { sevBadge2.style.display = 'none'; }
+        if (activeTurnoFilter) { turnoBadge.textContent= 'Turno: '      + activeTurnoFilter; turnoBadge.style.display= 'inline'; } else { turnoBadge.style.display= 'none'; }
     }
 
     function buildDrillQS() {
         const base = new URLSearchParams(currentQS);
-        if (activeCatFilter)  base.set('categoria', activeCatFilter);
-        if (activeSevFilter)  base.set('severidad', activeSevFilter);
+        if (activeCatFilter)   base.set('categoria', activeCatFilter);
+        if (activeSevFilter)   base.set('severidad',  activeSevFilter);
+        if (activeTurnoFilter) base.set('turno',      activeTurnoFilter);
         return base.toString();
+    }
+
+    function applyTurnoFilter(turno) {
+        if (activeTurnoFilter === turno) { clearDrilldown(); return; }
+        activeTurnoFilter = turno;
+        activeCatFilter   = null;
+        activeSevFilter   = null;
+        updateFilterBanner();
+        reloadWithFilters();
+        openDetailsModal();
     }
 
     function reloadWithFilters() {
@@ -897,6 +916,9 @@
             data: { labels: trend.labels, datasets: [{ label:'Incidentes', data:trend.counts, borderColor:'#f87171', backgroundColor:'rgba(239,68,68,0.08)', tension:0.35, fill:true, pointBackgroundColor:'#f87171', pointRadius:4, pointHoverRadius:6 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                onClick(evt, elements) {
+                    if (elements.length) openDetailsModal();
+                },
                 scales: {
                     y: { beginAtZero:true, ticks:{color:chartTheme.tick,precision:0}, grid:{color:chartTheme.grid} },
                     x: { ticks:{color:chartTheme.tick,maxRotation:45}, grid:{display:false} }
@@ -908,6 +930,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     // ── Turno doughnut ────────────────────────────────────────────────────
@@ -919,11 +942,16 @@
         canvas.style.display = 'block'; empty.style.display = 'none';
 
         if (turnoChart) turnoChart.destroy();
+        const TURNO_VALS = ['Diurno', 'Nocturno'];
         turnoChart = new Chart(canvas, {
             type: 'doughnut', plugins: [ChartDataLabels],
             data: { labels:['Turno Diurno','Turno Nocturno'], datasets:[{ data:[turno.diurno,turno.nocturno], backgroundColor:['#fbbf24','#818cf8'], borderColor: document.body.classList.contains('light-mode')?'#fff':'#2d3748', borderWidth:3, hoverOffset:6 }] },
             options: {
                 cutout:'62%', responsive:true, maintainAspectRatio:true,
+                onClick(evt, elements) {
+                    if (!elements.length) return;
+                    applyTurnoFilter(TURNO_VALS[elements[0].index]);
+                },
                 plugins: {
                     legend: { position:'bottom', labels:{color:chartTheme.label,padding:16,font:{size:12}} },
                     tooltip: { callbacks: { label: ctx => { const pct=((ctx.parsed/total)*100).toFixed(1); return ` ${ctx.parsed} incidente${ctx.parsed!==1?'s':''} (${pct}%)`; } } },
@@ -931,6 +959,7 @@
                 }
             }
         });
+        canvas.style.cursor = 'pointer';
     }
 
     // ── Error toast ───────────────────────────────────────────────────────
@@ -969,6 +998,13 @@
     }
 
     // ── Records list modal ────────────────────────────────────────────────
+    function closeDetailsModal() {
+        document.getElementById('detailsModal').classList.remove('active');
+        if (activeCatFilter || activeSevFilter || activeTurnoFilter) {
+            clearDrilldown();
+        }
+    }
+
     async function openDetailsModal() {
         const modal   = document.getElementById('detailsModal');
         const tBody   = document.getElementById('detailsTableBody');
@@ -1048,24 +1084,86 @@
         }
     }
 
+    function looksLikeJson(value) {
+        if (typeof value !== 'string') return false;
+        const trimmed = value.trim();
+        return (trimmed.startsWith('{') && trimmed.endsWith('}'))
+            || (trimmed.startsWith('[') && trimmed.endsWith(']'));
+    }
+
+    function tryParseJson(value) {
+        if (!looksLikeJson(value)) return value;
+        try {
+            return JSON.parse(value);
+        } catch (_) {
+            return value;
+        }
+    }
+
+    function isImageLikeKey(key) {
+        const lower = String(key || '').toLowerCase();
+        return ['firma', 'signature', 'imagen', 'image', 'foto', 'photo', 'evidencia', 'diagram'].some(token => lower.includes(token));
+    }
+
+    function isImageSource(value) {
+        const str = String(value || '').trim();
+        return str.startsWith('data:image')
+            || /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(str)
+            || str.startsWith('http://')
+            || str.startsWith('https://');
+    }
+
+    function renderNestedValue(key, value, depth = 0) {
+        if (depth > 4 || value === null || value === undefined) {
+            return '<span>—</span>';
+        }
+
+        if (typeof value === 'string') {
+            const parsed = tryParseJson(value);
+            if (parsed !== value) {
+                return renderNestedValue(key, parsed, depth + 1);
+            }
+            const trimmed = value.trim();
+            if (!trimmed) return '<span>—</span>';
+            if (isImageLikeKey(key) && isImageSource(trimmed)) {
+                return `<img src="${trimmed}" alt="${key}" style="max-width:220px;max-height:110px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#fff;padding:6px;display:block;">`;
+            }
+            return `<span style="white-space:pre-wrap;">${trimmed}</span>`;
+        }
+
+        if (Array.isArray(value)) {
+            if (!value.length) return '<span>—</span>';
+            return `<div style="display:grid;gap:.7rem;">${value.map((item, index) => `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:.8rem;">
+                    <div style="margin:0 0 .65rem 0;color:#cbd5e1;font-size:.84rem;font-weight:700;">${key} ${index + 1}</div>
+                    ${renderNestedValue(`${key}_${index + 1}`, item, depth + 1)}
+                </div>
+            `).join('')}</div>`;
+        }
+
+        if (typeof value === 'object') {
+            const entries = Object.entries(value);
+            if (!entries.length) return '<span>—</span>';
+            return `<div style="display:grid;gap:.65rem;">${entries.map(([subKey, subVal]) => `
+                <div>
+                    <label style="display:block;color:#94a3b8;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.28rem;font-weight:700;">${subKey}</label>
+                    <div style="color:#e5e7eb;font-size:.88rem;word-break:break-word;">${renderNestedValue(subKey, subVal, depth + 1)}</div>
+                </div>
+            `).join('')}</div>`;
+        }
+
+        return `<span>${String(value)}</span>`;
+    }
+
     function renderRecordDetail(d) {
         const raw = d.data || d;
         const rows = Object.entries(raw)
             .filter(([k]) => !['id','formType','submittedBy','dateSubmitted','title'].includes(k))
             .map(([k, v]) => {
-                const isSignature = k.toLowerCase().includes('firma');
-                const strVal = v && String(v).trim() ? String(v) : '';
-                const isImgSrc = strVal.startsWith('http') || strVal.startsWith('data:image');
-                let display;
-                if (isSignature && isImgSrc) {
-                    display = `<img src="${strVal}" alt="${k}" style="max-width:220px;max-height:110px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#fff;padding:6px;display:block;">`;
-                } else {
-                    display = strVal || '—';
-                }
                 return `
                 <div class="detail-field">
                     <label>${k}</label>
-                    <p style="margin:0;">${display}</p>
+                    <div style="margin:0;">${renderNestedValue(k, v)}</div>
                 </div>`;
             }).join('');
 

@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -368,6 +369,7 @@
                                 <th>Nombre</th>
                                 <th>Cargo</th>
                                 <th>Documento</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="modalBody"></tbody>
@@ -415,6 +417,26 @@ const TICK_COLOR  = '#6b7280';
 let tendenciaChart;
 let temaChart;
 let allDetalles = [];
+const recordViewer = createDashboardRecordViewer({
+    formType: 'registro_de_capacitaciones',
+    recordTitle: 'Detalle de Capacitación'
+});
+
+function filterCapacitacionDetalles(filters = {}) {
+    return allDetalles.filter(detail => {
+        if (filters.tema) {
+            const tema = ((detail.tema || '').trim() || 'Sin tema registrado');
+            if (tema !== filters.tema) return false;
+        }
+        if (filters.periodLabel) {
+            const target = String(filters.periodLabel || '').trim().toLowerCase();
+            const monthKey = (detail.fecha || '').slice(0, 7);
+            const monthLabel = monthKey ? monthLabelFromKey(monthKey).toLowerCase() : '';
+            if (target !== monthLabel && target !== monthKey.toLowerCase()) return false;
+        }
+        return true;
+    });
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -537,6 +559,11 @@ function renderTemaChart(porTema, detalles = []) {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            onClick(evt, elements) {
+                if (!elements.length) return;
+                const tema = sorted[elements[0].index]?.tema;
+                if (tema) openMatrizModal({ tema }, `Detalle — ${tema}`);
+            },
             layout: { padding: { right: 42 } },
             scales: {
                 x: {
@@ -571,6 +598,7 @@ function renderTemaChart(porTema, detalles = []) {
         },
     });
 
+    canvas.style.cursor = 'pointer';
     canvas.parentElement.style.height = Math.max(320, sorted.length * 42 + 50) + 'px';
 }
 
@@ -641,6 +669,11 @@ function renderTendenciaChart(tendencia) {
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
+            onClick(evt, elements) {
+                if (!elements.length) return;
+                const label = valid[elements[0].index]?.label;
+                if (label) openMatrizModal({ periodLabel: label }, `Detalle — ${label}`);
+            },
             plugins: {
                 legend: {
                     display: true,
@@ -667,6 +700,7 @@ function renderTendenciaChart(tendencia) {
             },
         },
     });
+    canvas.style.cursor = 'pointer';
 }
 
 
@@ -704,13 +738,13 @@ function renderMatriz(detalles, limit = 15) {
 // ────────────────────────────────────────────────────────────────────────────
 // Modal: full attendance matrix
 // ────────────────────────────────────────────────────────────────────────────
-function openMatrizModal() {
-    const detalles = allDetalles;
-    document.getElementById('modalTitle').textContent = `Matriz de Asistencia — ${detalles.length} sesiones`;
+function openMatrizModal(filters = {}, customTitle = null) {
+    const detalles = filterCapacitacionDetalles(filters);
+    document.getElementById('modalTitle').textContent = customTitle || `Matriz de Asistencia — ${detalles.length} sesiones`;
     const tbody = document.getElementById('modalBody');
 
     if (!detalles.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#4b5563;padding:2rem;">Sin registros</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#4b5563;padding:2rem;">Sin registros</td></tr>';
     } else {
         let rowNum = 0;
         const rows = [];
@@ -727,6 +761,7 @@ function openMatrizModal() {
                     <td>${r.area}</td>
                     <td style="text-align:center;font-weight:700;color:#60a5fa;">0</td>
                     <td colspan="3" style="color:#4b5563;">—</td>
+                    <td>${recordViewer.actionButtonHtml(r.id)}</td>
                 </tr>`);
             } else {
                 asistentes.forEach((a, i) => {
@@ -742,11 +777,13 @@ function openMatrizModal() {
                         <td>${a.nombre || '—'}</td>
                         <td>${a.cargo || '—'}</td>
                         <td>${a.documento || '—'}</td>
+                        <td>${i === 0 ? recordViewer.actionButtonHtml(r.id) : ''}</td>
                     </tr>`);
                 });
             }
         });
         tbody.innerHTML = rows.join('');
+        recordViewer.wireActionButtons(tbody);
     }
     document.getElementById('modalBackdrop').classList.add('active');
 }
@@ -758,7 +795,7 @@ function openSessionModal(id) {
     const tbody = document.getElementById('modalBody');
     const asistentes = r.asistentes || [];
     if (!asistentes.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#4b5563;padding:2rem;">Sin asistentes registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#4b5563;padding:2rem;">Sin asistentes registrados</td></tr>';
     } else {
         tbody.innerHTML = asistentes.map((a, i) => `<tr>
             <td>${i + 1}</td>
@@ -771,8 +808,10 @@ function openSessionModal(id) {
             <td>${a.nombre || '—'}</td>
             <td>${a.cargo || '—'}</td>
             <td>${a.documento || '—'}</td>
+            <td>${i === 0 ? recordViewer.actionButtonHtml(r.id) : ''}</td>
         </tr>`).join('');
     }
+    recordViewer.wireActionButtons(tbody);
     document.getElementById('modalBackdrop').classList.add('active');
 }
 
