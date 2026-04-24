@@ -414,7 +414,7 @@
         </div>
 
         <!-- ── KPI Row ──────────────────────────────────────────────────── -->
-        <div class="kpi-grid" id="kpiSection">
+        <div class="kpi-grid" id="kpiSection" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
 
             <!-- KPI 1: Total Incidentes -->
             <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
@@ -425,47 +425,40 @@
                 <div class="kpi-compare">vs período anterior</div>
             </div>
 
-            <!-- KPI 2: Alta Severidad (summary) -->
-            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
-                <div class="card-title">Alta Severidad</div>
+            <!-- KPI 2: Alta Severidad -->
+            <div class="card clickable-card" onclick="applySeveridadFilter('Alto')" title="Filtrar: Solo incidentes de severidad alta">
+                <div class="card-title">Severidad Alta</div>
                 <div class="kpi-value" id="kpiAltoVal" style="color:#fbbf24">—</div>
                 <div class="kpi-label" id="kpiAltoLabel">incidentes de nivel alto</div>
                 <div id="kpiAltoChange"></div>
                 <div class="kpi-compare">vs período anterior</div>
             </div>
 
-            <!-- KPI 3: Tiempo Promedio de Resolución -->
+            <!-- KPI 3: Media Severidad -->
+            <div class="card clickable-card" onclick="applySeveridadFilter('Medio')" title="Filtrar: Solo incidentes de severidad media">
+                <div class="card-title">Severidad Media</div>
+                <div class="kpi-value" id="kpiMedioVal" style="color:#eab308">—</div>
+                <div class="kpi-label" id="kpiMedioLabel">incidentes de nivel medio</div>
+                <div id="kpiMedioChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+
+            <!-- KPI 4: Baja Severidad -->
+            <div class="card clickable-card" onclick="applySeveridadFilter('Bajo')" title="Filtrar: Solo incidentes de severidad baja">
+                <div class="card-title">Severidad Baja</div>
+                <div class="kpi-value" id="kpiBajoVal" style="color:#22c55e">—</div>
+                <div class="kpi-label" id="kpiBajoLabel">incidentes de nivel bajo</div>
+                <div id="kpiBajoChange"></div>
+                <div class="kpi-compare">vs período anterior</div>
+            </div>
+
+            <!-- KPI 5: Tiempo Promedio de Resolución -->
             <div class="card">
                 <div class="card-title">Tiempo Promedio Resolución</div>
                 <div class="kpi-value" id="kpiResolucionVal" style="color:#60a5fa">—</div>
                 <div class="kpi-label">minutos promedio</div>
                 <div id="kpiResolucionChange"></div>
                 <div class="kpi-compare">vs período anterior</div>
-            </div>
-        </div>
-
-        <!-- ── Severity detail cards ────────────────────────────────────── -->
-        <div class="sev-grid">
-            <div class="sev-card sev-card-bajo" id="sevCardBajo"
-                 onclick="applySeveridadFilter('Bajo')" title="Filtrar: Solo incidentes de severidad baja">
-                <div class="sev-card-label">⬤ Severidad Baja</div>
-                <div class="sev-card-value" id="sevBajoVal">—</div>
-                <div class="sev-card-hint">Clic para ver registros</div>
-                <span class="sev-filter-icon">🔍</span>
-            </div>
-            <div class="sev-card sev-card-medio" id="sevCardMedio"
-                 onclick="applySeveridadFilter('Medio')" title="Filtrar: Solo incidentes de severidad media">
-                <div class="sev-card-label">⬤ Severidad Media</div>
-                <div class="sev-card-value" id="sevMedioVal">—</div>
-                <div class="sev-card-hint">Clic para ver registros</div>
-                <span class="sev-filter-icon">🔍</span>
-            </div>
-            <div class="sev-card sev-card-alto" id="sevCardAlto"
-                 onclick="applySeveridadFilter('Alto')" title="Filtrar: Solo incidentes de severidad alta">
-                <div class="sev-card-label">⬤ Severidad Alta</div>
-                <div class="sev-card-value" id="sevAltoVal">—</div>
-                <div class="sev-card-hint">Clic para ver registros</div>
-                <span class="sev-filter-icon">🔍</span>
             </div>
         </div>
 
@@ -727,22 +720,29 @@
         if (k.pct_alto !== null && k.pct_alto !== undefined)
             document.getElementById('kpiAltoLabel').textContent = `${k.pct_alto}% del total son de nivel alto`;
         renderChange('kpiAltoChange', k.pct_change_alto);
+
+        // Media Severidad
+        const medioEl = document.getElementById('kpiMedioVal');
+        if (medioEl) {
+            medioEl.textContent = k.total_medio ?? '—';
+            if (k.pct_medio !== null && k.pct_medio !== undefined)
+                document.getElementById('kpiMedioLabel').textContent = `${k.pct_medio}% del total son de nivel medio`;
+            renderChange('kpiMedioChange', k.pct_change_medio);
+        }
+
+        // Baja Severidad
+        const bajoEl = document.getElementById('kpiBajoVal');
+        if (bajoEl) {
+            bajoEl.textContent = k.total_bajo ?? '—';
+            if (k.pct_bajo !== null && k.pct_bajo !== undefined)
+                document.getElementById('kpiBajoLabel').textContent = `${k.pct_bajo}% del total son de nivel bajo`;
+            renderChange('kpiBajoChange', k.pct_change_bajo);
+        }
+
         // Resolución
         const resEl = document.getElementById('kpiResolucionVal');
         resEl.textContent = (k.avg_resolucion !== null && k.avg_resolucion !== undefined) ? k.avg_resolucion + ' min' : '—';
         renderChangeResolucion('kpiResolucionChange', k.pct_change_resolucion);
-
-        // Severity cards
-        const sev = data.severidad || {};
-        document.getElementById('sevBajoVal').textContent  = sev.bajo  ?? '0';
-        document.getElementById('sevMedioVal').textContent = sev.medio ?? '0';
-        document.getElementById('sevAltoVal').textContent  = sev.alto  ?? '0';
-
-        // Highlight active severity card
-        ['Bajo','Medio','Alto'].forEach(s => {
-            const card = document.getElementById('sevCard' + s);
-            if (card) card.classList.toggle('active-filter', activeSevFilter === s);
-        });
     }
 
     // ── Drilldown (cross-chart filter) ────────────────────────────────────
@@ -752,7 +752,6 @@
         activeSevFilter = null;
         updateFilterBanner();
         reloadWithFilters();
-        openDetailsModal();
     }
 
     function applySeveridadFilter(sev) {
@@ -808,7 +807,6 @@
         activeSevFilter   = null;
         updateFilterBanner();
         reloadWithFilters();
-        openDetailsModal();
     }
 
     function reloadWithFilters() {

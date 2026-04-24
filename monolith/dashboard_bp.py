@@ -2978,6 +2978,8 @@ def api_incidentes_data():
                 SELECT
                     COUNT(*) AS total,
                     SUM(CASE WHEN nivel_severidad = 'Alto' THEN 1 ELSE 0 END) AS total_alto,
+                    SUM(CASE WHEN nivel_severidad = 'Medio' THEN 1 ELSE 0 END) AS total_medio,
+                    SUM(CASE WHEN nivel_severidad = 'Bajo' THEN 1 ELSE 0 END) AS total_bajo,
                     AVG(CASE WHEN tiempo_resolucion_min IS NOT NULL AND tiempo_resolucion_min > 0
                              THEN tiempo_resolucion_min END) AS avg_resolucion
                 FROM reportes_incidentes
@@ -2987,6 +2989,8 @@ def api_incidentes_data():
             if prev:
                 total_prev          = int(prev['total'])           if prev['total']          else 0
                 total_alto_prev     = int(prev['total_alto'])      if prev['total_alto']     else 0
+                total_medio_prev    = int(prev['total_medio'])     if prev['total_medio']    else 0
+                total_bajo_prev     = int(prev['total_bajo'])      if prev['total_bajo']     else 0
                 avg_resolucion_prev = float(prev['avg_resolucion']) if prev['avg_resolucion'] else None
 
         def pct_change(curr, prev_val):
@@ -2995,6 +2999,12 @@ def api_incidentes_data():
 
         pct_alto      = round(total_alto / total * 100, 1) if total else None
         pct_alto_prev = round(total_alto_prev / total_prev * 100, 1) if total_prev else None
+
+        pct_medio      = round(int(row['sev_medio']) / total * 100, 1) if total else None
+        pct_medio_prev = round(total_medio_prev / total_prev * 100, 1) if total_prev else None
+
+        pct_bajo      = round(int(row['sev_bajo']) / total * 100, 1) if total else None
+        pct_bajo_prev = round(total_bajo_prev / total_prev * 100, 1) if total_prev else None
 
         # ── Category breakdown ────────────────────────────────────────────
         cur.execute(f"""
@@ -3037,6 +3047,12 @@ def api_incidentes_data():
                 'total_alto':            total_alto,
                 'pct_alto':              pct_alto,
                 'pct_change_alto':       pct_change(pct_alto, pct_alto_prev),
+                'total_medio':           int(row['sev_medio']) if row['sev_medio'] else 0,
+                'pct_medio':             pct_medio,
+                'pct_change_medio':      pct_change(pct_medio, pct_medio_prev),
+                'total_bajo':            int(row['sev_bajo']) if row['sev_bajo'] else 0,
+                'pct_bajo':              pct_bajo,
+                'pct_change_bajo':       pct_change(pct_bajo, pct_bajo_prev),
                 'avg_resolucion':        round(avg_resolucion, 0) if avg_resolucion is not None else None,
                 'pct_change_resolucion': pct_change(avg_resolucion, avg_resolucion_prev),
             },
