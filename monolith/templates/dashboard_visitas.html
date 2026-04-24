@@ -667,113 +667,94 @@
         </div>
     </div>
 
-    <!-- Commitment Status Edit Modal -->
-    <div id="estadoModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal-box">
-            <div class="modal-header-row">
-                <div class="modal-title" id="modalTitle">Actualizar Estado del Compromiso</div>
-                <button class="modal-close" type="button" id="modalHeaderClose">×</button>
-            </div>
-            <div class="modal-field">
-                <div class="modal-label">Cliente</div>
-                <div class="modal-value" id="modalCliente">—</div>
-            </div>
-            <div class="modal-field">
-                <div class="modal-label">Acuerdo / Compromiso</div>
-                <div class="modal-value" id="modalAcuerdo" style="max-height:6em;overflow-y:auto;background:rgba(255,255,255,0.04);border-radius:6px;padding:.5rem .65rem;">—</div>
-            </div>
-            <div class="modal-field">
-                <div class="modal-label">Responsable</div>
-                <div class="modal-value" id="modalResponsable">—</div>
-            </div>
-            <div class="modal-field">
-                <div class="modal-label">Fecha límite</div>
-                <div class="modal-value" id="modalFecha">—</div>
-            </div>
-            <div class="modal-field" style="margin-top:1.25rem;">
-                <div class="modal-label">Nuevo estado</div>
-                <select id="modalEstadoSelect" class="modal-select">
-                    <option value="pendiente">Pendiente</option>
-                    <option value="cumplido">Cumplido</option>
-                    <option value="vencido">Vencido</option>
-                </select>
-            </div>
-            <div id="modalMsg" class="modal-msg"></div>
-            <div class="modal-actions">
-                <button class="btn-cancel" id="modalCancelBtn">Cancelar</button>
-                <button class="btn-save" id="modalSaveBtn">Guardar cambio</button>
-            </div>
-        </div>
-    </div>
-
     <script>
     (function() {
-        let _activeId = null;
-        let _activeBloqueIdx = null;
-
-        const overlay  = document.getElementById('estadoModal');
         const detailOverlay = document.getElementById('detailListModal');
-        const cancelBtn = document.getElementById('modalCancelBtn');
-        const saveBtn  = document.getElementById('modalSaveBtn');
-        const msgEl    = document.getElementById('modalMsg');
-
-        function openModal(r) {
-            _activeId = r.id_visita;
-            _activeBloqueIdx = r.bloque_idx;
-            document.getElementById('modalCliente').textContent = r.cliente || '—';
-            document.getElementById('modalAcuerdo').textContent = r.acuerdo || '—';
-            document.getElementById('modalResponsable').textContent = r.responsable || '—';
-            document.getElementById('modalFecha').textContent = r.fecha_cumplimiento || '—';
-            document.getElementById('modalEstadoSelect').value = r.estado || 'pendiente';
-            msgEl.textContent = '';
-            msgEl.className = 'modal-msg';
-            saveBtn.disabled = false;
-            overlay.classList.add('open');
-            document.getElementById('modalEstadoSelect').focus();
-        }
-
-        function closeModal() {
-            overlay.classList.remove('open');
-            _activeId = null;
-            _activeBloqueIdx = null;
-        }
-
-        cancelBtn.addEventListener('click', closeModal);
-        document.getElementById('modalHeaderClose').addEventListener('click', closeModal);
-        overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+        
         detailOverlay.addEventListener('click', e => { if (e.target === detailOverlay) detailOverlay.classList.remove('open'); });
         document.addEventListener('keydown', e => {
             if (e.key !== 'Escape') return;
-            closeModal();
             detailOverlay.classList.remove('open');
         });
 
-        saveBtn.addEventListener('click', async () => {
-            if (_activeId === null) return;
-            const nuevoEstado = document.getElementById('modalEstadoSelect').value;
-            saveBtn.disabled = true;
-            msgEl.textContent = 'Guardando…';
-            msgEl.className = 'modal-msg';
-            try {
-                const resp = await fetch(`/dashboard/api/visitas/${_activeId}/estado`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bloque_idx: _activeBloqueIdx, estado: nuevoEstado })
-                });
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error || 'Error al guardar');
-                msgEl.textContent = 'Estado actualizado correctamente.';
-                msgEl.className = 'modal-msg success';
-                setTimeout(() => {
-                    closeModal();
+        async function openModal(r) {
+            // 1. Open original record modal
+            await recordViewer.openRecord(r.id_visita);
+            
+            // 2. Find the content element where we can inject our editor
+            const modal = document.getElementById('drv-record-modal');
+            const contentEl = modal.querySelector('.drv-record-content');
+            
+            // 3. Inject editor at the top
+            const editorDiv = document.createElement('div');
+            editorDiv.className = 'drv-detail-section';
+            editorDiv.style.borderColor = '#0ea5e9';
+            editorDiv.style.background = 'rgba(14, 165, 233, 0.05)';
+            editorDiv.innerHTML = `
+                <h4 style="color:#38bdf8; display:flex; justify-content:space-between; align-items:center;">
+                    Gestión de Estado de Compromiso
+                    <span class="status-pill status-${r.estado}" style="font-size:0.7rem; margin-left:0.5rem;">${r.estado.toUpperCase()}</span>
+                </h4>
+                <div style="margin-bottom:0.75rem;">
+                    <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Compromiso Seleccionado</span>
+                    <p style="margin:0.25rem 0 1rem; color:#e5e7eb; font-size:0.9rem; font-style:italic;">${r.acuerdo || '—'}</p>
+                </div>
+                <div style="display:flex; gap:1rem; align-items:flex-end;">
+                    <div style="flex:1;">
+                        <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Nuevo estado:</span>
+                        <select id="inlineEstadoSelect" class="modal-select" style="margin-top:0.25rem; background:#1f2937;">
+                            <option value="pendiente" ${r.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                            <option value="cumplido" ${r.estado === 'cumplido' ? 'selected' : ''}>Cumplido</option>
+                            <option value="vencido" ${r.estado === 'vencido' ? 'selected' : ''}>Vencido</option>
+                        </select>
+                    </div>
+                    <button class="btn-save" id="inlineSaveBtn" style="white-space:nowrap;">Actualizar Estado</button>
+                </div>
+                <div id="inlineModalMsg" class="modal-msg" style="margin-top:0.5rem;"></div>
+            `;
+            
+            contentEl.insertBefore(editorDiv, contentEl.firstChild);
+            
+            // 4. Bind save event
+            const saveBtn = document.getElementById('inlineSaveBtn');
+            const msgEl = document.getElementById('inlineModalMsg');
+            
+            saveBtn.onclick = async () => {
+                const nuevoEstado = document.getElementById('inlineEstadoSelect').value;
+                saveBtn.disabled = true;
+                msgEl.textContent = 'Guardando…';
+                msgEl.className = 'modal-msg';
+                try {
+                    const resp = await fetch('/dashboard/api/visitas/' + r.id_visita + '/estado', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bloque_idx: r.bloque_idx, estado: nuevoEstado })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error || 'Error al guardar');
+                    msgEl.textContent = 'Estado actualizado correctamente.';
+                    msgEl.className = 'modal-msg success';
+                    
+                    // Update UI state badge
+                    const badge = editorDiv.querySelector('.status-pill');
+                    badge.className = 'status-pill status-' + nuevoEstado;
+                    badge.textContent = nuevoEstado.toUpperCase();
+                    r.estado = nuevoEstado; // Update local state representation
+                    
+                    // Reload matrix data in background
                     loadData(typeof currentQS !== 'undefined' ? currentQS : '');
-                }, 900);
-            } catch (err) {
-                msgEl.textContent = err.message || 'Error al guardar. Intente de nuevo.';
-                msgEl.className = 'modal-msg error';
-                saveBtn.disabled = false;
-            }
-        });
+                    
+                    setTimeout(() => {
+                        msgEl.textContent = '';
+                    }, 2500);
+                } catch (err) {
+                    msgEl.textContent = err.message || 'Error al guardar.';
+                    msgEl.className = 'modal-msg error';
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            };
+        }
 
         window._openCompromisoModal = openModal;
     })();
