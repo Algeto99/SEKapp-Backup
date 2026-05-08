@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seleccionar Formulario - Kanan Sentinel SecApp</title>
+    <link rel="manifest" href="/forms/manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
@@ -305,6 +306,40 @@
                 font-size: 1.125rem;
             }
         }
+
+        /* Offline sync banner */
+        .offline-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 200;
+            background: linear-gradient(90deg, #1e40af, #2563eb);
+            color: #fff;
+            padding: 0.6rem 1.25rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            font-size: 0.875rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,.3);
+            flex-wrap: wrap;
+        }
+        .offline-banner .sync-icon { font-size: 1.1rem; flex-shrink: 0; }
+        .offline-banner .sync-text { flex: 1; min-width: 0; }
+        .sync-now-btn {
+            background: rgba(255,255,255,.2);
+            border: 1px solid rgba(255,255,255,.4);
+            color: #fff;
+            padding: 0.3rem 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            transition: background .2s;
+        }
+        .sync-now-btn:hover { background: rgba(255,255,255,.35); }
+        .sync-now-btn:disabled { opacity: .6; cursor: default; }
     </style>
 </head>
 
@@ -343,6 +378,13 @@
                 <a href="/logout" class="nav-link">Cerrar Sesión</a>
             </div>
         </div>
+    </div>
+
+    <!-- Offline sync banner — shown when there are pending offline submissions -->
+    <div id="offline-sync-banner" class="offline-banner" role="status" aria-live="polite">
+        <span class="sync-icon">📋</span>
+        <span class="sync-text" id="sync-pending-count">Formularios pendientes de sincronización</span>
+        <button id="sync-now-btn" class="sync-now-btn">Sincronizar Ahora</button>
     </div>
 
     <div class="container-card text-center">
@@ -470,6 +512,10 @@
             }
         });
     </script>
+
+    <!-- Offline queue sync manager -->
+    <script src="/static/js/offline-sync.js"></script>
+    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 
 </html>

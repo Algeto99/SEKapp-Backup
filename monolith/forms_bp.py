@@ -2,6 +2,7 @@ import os
 import logging
 from flask import Blueprint, current_app, Flask, render_template, request, redirect, flash, jsonify, url_for, send_from_directory
 from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
+from flask_wtf.csrf import generate_csrf
 from google.cloud import storage, secretmanager
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -94,6 +95,13 @@ def _filter_existing_columns(cur, table_name, data):
         key: value for key, value in data.items()
         if key in table_columns and value is not None and value != ''
     }
+
+
+def _parse_float(val):
+    try:
+        return float(val) if val not in (None, '') else None
+    except (ValueError, TypeError):
+        return None
 
 
 def _get_user_company_id(cur, user_email):
@@ -434,7 +442,10 @@ def submit_incident_report():
             'impacto': ", ".join(request.form.getlist('impacto')),
             'descripcion_impacto': request.form.get('descripcion_impacto'),
             'foto_evidencia_url': foto_url,
-            'user_email': user_email
+            'user_email': user_email,
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
         }
         form_data.update(_resolve_scope_fields(
             cur,
@@ -503,7 +514,10 @@ def submit_medicion_experiencia_cliente():
             'observaciones_cliente': request.form.get('observaciones_cliente'),
             'encuestado': request.form.get('encuestado'),
             'firma_encuestado': request.form.get('firma_encuestado'),
-            'submitted_by_email': user_email
+            'submitted_by_email': user_email,
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
         }
         conn = get_db_connection()
         cur = conn.cursor()
@@ -575,7 +589,10 @@ def submit_supervision_puesto():
             'supervisor': request.form.get('supervisor'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'firma_supervisor': request.form.get('firma_supervisor'),
-            'submitted_by_email': user_email
+            'submitted_by_email': user_email,
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
         }
         global_data.update(_resolve_scope_fields(
             cur,
@@ -761,6 +778,9 @@ def submit_informe_novedades_disciplinario():
             'empleado_niega_firmar': True if request.form.get('empleado_niega_firmar') else False,
             'nombre_testigo': request.form.get('nombre_testigo'),
             'firma_testigo': request.form.get('firma_testigo'),
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
         }
         form_data.update(_resolve_scope_fields(
             cur,
@@ -1083,7 +1103,10 @@ def submit_registro_y_acta_de_visita():
             'temas_tratados': temas_combined,
             'acuerdos_compromisos': acuerdos_combined,
             'compromisos_responsable': responsables_json,
-            'submitted_by_email': user_email
+            'submitted_by_email': user_email,
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
         }
         form_data.update(_resolve_scope_fields(
             cur,
@@ -1457,6 +1480,9 @@ def submit_confiabilidad_equipos():
             'supervisor_seguridad': request.form.get('supervisor_seguridad'),
             'firma_supervisor':     request.form.get('firma_supervisor'),
             'submitted_by_email':   user_email,
+            'latitude':             _parse_float(request.form.get('latitude')),
+            'longitude':            _parse_float(request.form.get('longitude')),
+            'location_accuracy':    _parse_float(request.form.get('location_accuracy')),
         }
         form_data.update(_resolve_scope_fields(
             cur,
@@ -1495,7 +1521,7 @@ def offline():
 
 @forms_bp.route('/sw.js')
 def service_worker():
-    response = send_from_directory('.', 'sw.js')
+    response = send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'sw.js')
     response.headers['Content-Type'] = 'application/javascript'
     response.headers['Service-Worker-Allowed'] = '/'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -1546,6 +1572,13 @@ def manifest():
         "categories": ["business", "productivity"],
         "prefer_related_applications": False
     })
+
+@forms_bp.route('/api/csrf_token')
+@jwt_required()
+def get_csrf_token():
+    """Returns a fresh CSRF token for the current session.
+    Used by the offline-sync client to replay queued form submissions."""
+    return jsonify({'csrf_token': generate_csrf()})
 
 # --- API (Example - Keep as is or adapt as needed) ---
 @forms_bp.route('/api/my_reports', methods=['GET'])
