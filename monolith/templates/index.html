@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reportes de Seguridad - Kanan Sentinel SecApp</title>
+    <title>Reportes de Seguridad - Kanan Sentinel SekApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap"
@@ -336,6 +336,22 @@
             color: #e2e8f0 !important;
         }
 
+        /* Dark mode for saved filters panel */
+        body.dark-mode #saved-filters-panel {
+            background-color: #1e3a5f !important;
+            border-color: #2d6a9f !important;
+        }
+        body.dark-mode #saved-filters-panel span,
+        body.dark-mode #saved-filters-panel label {
+            color: #93c5fd !important;
+        }
+        body.dark-mode #savedFiltersSelect,
+        body.dark-mode #filterNameInput {
+            background-color: #374151 !important;
+            border-color: #4b5563 !important;
+            color: #e2e8f0 !important;
+        }
+
         /* Dark mode for checkboxes */
         body.dark-mode input[type="checkbox"] {
             background-color: #374151;
@@ -483,6 +499,18 @@
                 page-break-inside: avoid !important;
             }
 
+            .report-block.print-me .map-tile-img {
+                max-width: none !important;
+                max-height: none !important;
+                width: 256px !important;
+                height: 256px !important;
+            }
+
+            .report-block.print-me .report-map-thumb a {
+                display: block !important;
+                overflow: hidden !important;
+            }
+
             .report-block.print-me a {
                 color: black !important;
                 text-decoration: underline !important;
@@ -611,6 +639,46 @@
             </div>
         </div>
 
+        <!-- Saved Filters Panel -->
+        <div id="saved-filters-panel" class="mb-4 p-3 border border-blue-200 rounded-lg bg-blue-50 flex flex-wrap items-center gap-3">
+            <span class="text-sm font-semibold text-blue-700 whitespace-nowrap">⭐ Filtros favoritos:</span>
+            <select id="savedFiltersSelect"
+                class="px-3 py-2 border border-blue-300 rounded-md shadow-sm text-sm bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[200px]">
+                <option value="">— Seleccionar favorito —</option>
+            </select>
+            <button id="loadFilterBtn" disabled
+                class="px-3 py-2 text-sm font-medium rounded-md border border-blue-400 text-blue-700 bg-white hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                Cargar
+            </button>
+            <button id="saveFilterBtn"
+                class="px-3 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition">
+                Guardar filtros actuales
+            </button>
+            <button id="updateFilterBtn" disabled
+                class="px-3 py-2 text-sm font-medium rounded-md border border-yellow-400 text-yellow-700 bg-white hover:bg-yellow-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                Actualizar seleccionado
+            </button>
+            <button id="deleteFilterBtn" disabled
+                class="px-3 py-2 text-sm font-medium rounded-md border border-red-400 text-red-600 bg-white hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                Eliminar
+            </button>
+            <!-- Inline name form (hidden by default) -->
+            <div id="saveFilterForm" class="hidden flex flex-wrap items-center gap-2 w-full mt-2 pt-2 border-t border-blue-200">
+                <span id="saveFilterFormLabel" class="text-sm text-blue-700 font-medium whitespace-nowrap">Nombre del filtro:</span>
+                <input type="text" id="filterNameInput" maxlength="100" placeholder="Ej: Incidentes enero 2026"
+                    class="px-3 py-2 text-sm border border-blue-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 flex-grow min-w-[200px]">
+                <button id="confirmSaveBtn"
+                    class="px-3 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition">
+                    Confirmar
+                </button>
+                <button id="cancelSaveBtn"
+                    class="px-3 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition">
+                    Cancelar
+                </button>
+                <span id="saveFilterError" class="text-xs text-red-600 hidden"></span>
+            </div>
+        </div>
+
         <!-- Updated search controls section -->
         <div
             class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50 flex flex-col md:flex-row items-end space-y-4 md:space-y-0 md:space-x-4">
@@ -687,15 +755,20 @@
         <div id="reports-container" class="space-y-6">
             {% for form in forms %}
             <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}"
-                data-form-type="{{ form.formType }}">
+                data-form-type="{{ form.formType }}"
+                data-lat="{{ form.data.get('Latitude', '') }}"
+                data-lng="{{ form.data.get('Longitude', '') }}">
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
                         <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}
                         </p>
                     </div>
-                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded"
-                        data-report-id="{{ form.id }}">
+                    <div class="flex items-start gap-2">
+                        <div class="report-map-thumb"></div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded"
+                            data-report-id="{{ form.id }}">
+                    </div>
                 </div>
 
                 <div class="text-sm text-gray-500 mt-4 md:mt-0">
@@ -861,6 +934,44 @@
             });
         }
 
+        function _buildCardMapThumb(block) {
+            const lat = parseFloat(block.dataset.lat);
+            const lng = parseFloat(block.dataset.lng);
+            const container = block.querySelector('.report-map-thumb');
+            if (!container || isNaN(lat) || isNaN(lng)) return;
+            if (container.dataset.rendered) return; // already done
+            container.dataset.rendered = '1';
+
+            const zoom = 17, n = Math.pow(2, zoom);
+            const latRad = lat * Math.PI / 180;
+            const fracX = (lng + 180) / 360 * n;
+            const fracY = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+            const tileX = Math.floor(fracX - 0.5), tileY = Math.floor(fracY - 0.5);
+            const pixX = Math.round((fracX - tileX) * 256);
+            const pixY = Math.round((fracY - tileY) * 256);
+            const W = 96, H = 58;
+            const left = (W / 2) - pixX, top = (H / 2) - pixY;
+            const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=19`;
+
+            const t = (dx, dy) => `https://tile.openstreetmap.org/${zoom}/${tileX+dx}/${tileY+dy}.png`;
+            container.innerHTML = `
+              <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
+                 class="block rounded overflow-hidden border border-gray-300 dark:border-gray-500 hover:border-blue-500 transition-colors shadow-sm"
+                 style="width:${W}px;height:${H}px;position:relative;" title="Ver en Google Maps">
+                <div style="position:absolute;width:512px;height:512px;left:${left}px;top:${top}px;">
+                  <img src="${t(0,0)}" class="map-tile-img" style="position:absolute;left:0;top:0;width:256px;height:256px;" draggable="false">
+                  <img src="${t(1,0)}" class="map-tile-img" style="position:absolute;left:256px;top:0;width:256px;height:256px;" draggable="false">
+                  <img src="${t(0,1)}" class="map-tile-img" style="position:absolute;left:0;top:256px;width:256px;height:256px;" draggable="false">
+                  <img src="${t(1,1)}" class="map-tile-img" style="position:absolute;left:256px;top:256px;width:256px;height:256px;" draggable="false">
+                  <div style="position:absolute;left:${pixX}px;top:${pixY}px;transform:translate(-50%,-100%);font-size:16px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.7));">📍</div>
+                </div>
+              </a>`;
+        }
+
+        function initMapThumbnails() {
+            document.querySelectorAll('.report-block[data-lat]').forEach(_buildCardMapThumb);
+        }
+
         async function openReportDetailsModal(event) {
             const button = event.target;
             const reportBlock = button.closest('.report-block');
@@ -894,18 +1005,57 @@
 
                 let detailsHtml = '<div class="grid grid-cols-1 gap-4">';
 
-                // Group fields if needed, or just list them nicely
-                detailsHtml += '<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-600">';
+                // Extract coordinates for map thumbnail
+                const _lat = parseFloat(reportDetails.data['Latitude']);
+                const _lng = parseFloat(reportDetails.data['Longitude']);
+                const _hasCoords = !isNaN(_lat) && !isNaN(_lng);
+
+                // Header block: submitter info + optional map thumbnail
+                detailsHtml += '<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-600 flex justify-between items-start gap-4">';
+                detailsHtml += '<div>';
                 detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Enviado por:</strong> ${reportDetails.submittedBy}</p>`;
                 detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Fecha:</strong> ${reportDetails.dateSubmitted}</p>`;
+                detailsHtml += '</div>';
+                if (_hasCoords) {
+                    const _mapsUrl = `https://www.google.com/maps?q=${_lat},${_lng}&z=19`;
+                    const _zoom    = 17;
+                    const _n       = Math.pow(2, _zoom);
+                    const _latRad  = _lat * Math.PI / 180;
+                    // Fractional tile position of the coordinate
+                    const _fracX   = (_lng + 180) / 360 * _n;
+                    const _fracY   = (1 - Math.log(Math.tan(_latRad) + 1 / Math.cos(_latRad)) / Math.PI) / 2 * _n;
+                    // Top-left tile of a 2×2 grid centered on the point
+                    const _tileX   = Math.floor(_fracX - 0.5);
+                    const _tileY   = Math.floor(_fracY - 0.5);
+                    // Pixel position of the point inside the 512×512 grid
+                    const _pixX    = Math.round((_fracX - _tileX) * 256);
+                    const _pixY    = Math.round((_fracY - _tileY) * 256);
+                    // Shift grid so the point lands at center of the 160×96 container
+                    const _left    = 80  - _pixX;
+                    const _top     = 48  - _pixY;
+                    const _t = (dx, dy) => `https://tile.openstreetmap.org/${_zoom}/${_tileX+dx}/${_tileY+dy}.png`;
+                    detailsHtml += `<div class="relative flex-shrink-0 rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-500 hover:border-blue-500 dark:hover:border-blue-400 transition-colors shadow-sm" style="width:160px;height:96px;" title="Ver en Google Maps">
+                        <div style="position:absolute;width:512px;height:512px;left:${_left}px;top:${_top}px;">
+                            <img src="${_t(0,0)}" style="position:absolute;left:0;top:0;width:256px;height:256px;" draggable="false">
+                            <img src="${_t(1,0)}" style="position:absolute;left:256px;top:0;width:256px;height:256px;" draggable="false">
+                            <img src="${_t(0,1)}" style="position:absolute;left:0;top:256px;width:256px;height:256px;" draggable="false">
+                            <img src="${_t(1,1)}" style="position:absolute;left:256px;top:256px;width:256px;height:256px;" draggable="false">
+                            <div style="position:absolute;left:${_pixX}px;top:${_pixY}px;transform:translate(-50%,-100%);font-size:22px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7));">📍</div>
+                        </div>
+                        <a href="${_mapsUrl}" target="_blank" rel="noopener noreferrer" class="absolute inset-0" aria-label="Ver en Google Maps"></a>
+                    </div>`;
+                }
                 detailsHtml += '</div>';
 
                 detailsHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
 
                 for (const key in reportDetails.data) {
                     if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
-                        if (key === 'URLs de Imágenes o PDFs') {
+                        if (key === 'URLs de Imágenes o PDFs' || key === 'Foto Evidencia' || key === 'Anexos') {
                             // Handle images/PDFs separately at the bottom or full width
+                            continue;
+                        }
+                        if (key === 'Latitude' || key === 'Longitude') {
                             continue;
                         }
                         const rawValue = String(reportDetails.data[key]);
@@ -974,45 +1124,44 @@
                 }
                 detailsHtml += '</div>'; // End grid
 
-                // Handle Attachments
-                if (reportDetails.data['URLs de Imágenes o PDFs']) {
-                    const rawUrls = String(reportDetails.data['URLs de Imágenes o PDFs']);
-                    // Check if it's N/A, None, or empty
-                    if (rawUrls && rawUrls.trim() !== 'N/A' && rawUrls.trim() !== 'None' && rawUrls.trim() !== '') {
-                        const urls = rawUrls.split('\n').filter(url => url.trim() !== '');
-
-                        if (urls.length > 0) {
-                            detailsHtml += `<div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
-                                <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-3">Archivos Adjuntos</h3>
-                                <div class="flex flex-wrap gap-4">`;
-
-                            urls.forEach(url => {
-                                url = url.trim();
-                                if (url) {
-                                    const lowerUrl = url.toLowerCase();
-                                    // Extract filename from URL (handling signed URLs which have query params)
-                                    let filename = url.split('?')[0].substring(url.lastIndexOf('/') + 1);
-                                    if (!filename) filename = "Archivo Adjunto";
-
-                                    if (lowerUrl.includes('.jpeg') || lowerUrl.includes('.jpg') || lowerUrl.includes('.png') || lowerUrl.includes('.gif') || lowerUrl.includes('.webp')) {
-                                        detailsHtml += `
-                                            <div class="relative group">
-                                                <a href="${url}" target="_blank" class="block">
-                                                    <img src="${url}" alt="Evidencia" class="h-32 w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
-                                                </a>
-                                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-32" title="${filename}">${filename}</p>
-                                            </div>`;
-                                    } else {
-                                        detailsHtml += `
-                                            <a href="${url}" target="_blank" class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800">
-                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                                <span class="truncate max-w-xs">${filename}</span>
-                                            </a>`;
-                                    }
-                                }
-                            });
-                            detailsHtml += `</div></div>`;
+                // Handle Attachments — collect from all image/file URL fields
+                {
+                    const attachmentFields = ['URLs de Imágenes o PDFs', 'Foto Evidencia', 'Anexos'];
+                    let allAttachmentUrls = [];
+                    attachmentFields.forEach(field => {
+                        const rawUrls = reportDetails.data[field] ? String(reportDetails.data[field]) : '';
+                        if (rawUrls && rawUrls.trim() !== 'N/A' && rawUrls.trim() !== 'None' && rawUrls.trim() !== '') {
+                            rawUrls.split('\n').forEach(u => { if (u.trim()) allAttachmentUrls.push(u.trim()); });
                         }
+                    });
+
+                    if (allAttachmentUrls.length > 0) {
+                        detailsHtml += `<div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-3">Archivos Adjuntos</h3>
+                            <div class="flex flex-wrap gap-4">`;
+
+                        allAttachmentUrls.forEach(url => {
+                            const lowerUrl = url.toLowerCase();
+                            let filename = url.split('?')[0].substring(url.lastIndexOf('/') + 1);
+                            if (!filename) filename = "Archivo Adjunto";
+
+                            if (lowerUrl.includes('.jpeg') || lowerUrl.includes('.jpg') || lowerUrl.includes('.png') || lowerUrl.includes('.gif') || lowerUrl.includes('.webp')) {
+                                detailsHtml += `
+                                    <div class="relative group">
+                                        <a href="${url}" target="_blank" class="block">
+                                            <img src="${url}" alt="Evidencia" class="h-32 w-32 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm hover:shadow-md transition-shadow">
+                                        </a>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate w-32" title="${filename}">${filename}</p>
+                                    </div>`;
+                            } else {
+                                detailsHtml += `
+                                    <a href="${url}" target="_blank" class="flex items-center p-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                        <span class="truncate max-w-xs">${filename}</span>
+                                    </a>`;
+                            }
+                        });
+                        detailsHtml += `</div></div>`;
                     }
                 }
 
@@ -1050,7 +1199,9 @@
             const reportBlock = document.createElement('div');
             reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
             reportBlock.setAttribute('data-report-id', form.id);
-            reportBlock.setAttribute('data-form-type', form.formType); // Store form type
+            reportBlock.setAttribute('data-form-type', form.formType);
+            reportBlock.setAttribute('data-lat', form.data['Latitude'] || '');
+            reportBlock.setAttribute('data-lng', form.data['Longitude'] || '');
 
             let dataHtml = '';
             let count = 0;
@@ -1058,11 +1209,9 @@
             for (const key in form.data) {
                 if (count >= 4) break;
                 const value = form.data[key];
-
                 const lowerKey = key.toLowerCase();
                 const isComplexField = lowerKey.includes('firma') || lowerKey.includes('lista') || lowerKey.includes('json') || lowerKey.includes('foto') || lowerKey.includes('participantes');
-
-                if (!isComplexField && key !== 'URLs de Imágenes o PDFs' && value && value !== 'N/A' && value !== 'None' && value !== 'No especificado') {
+                if (!isComplexField && key !== 'URLs de Imágenes o PDFs' && key !== 'Latitude' && key !== 'Longitude' && value && value !== 'N/A' && value !== 'None' && value !== 'No especificado') {
                     dataHtml += `<p><strong>${key}:</strong> ${value}</p>`;
                     count++;
                 }
@@ -1074,13 +1223,16 @@
                         <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
                         <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
                     </div>
-                    <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                    <div class="flex items-start gap-2">
+                        <div class="report-map-thumb"></div>
+                        <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded" data-report-id="${form.id}">
+                    </div>
                 </div>
 
                 <div class="text-gray-700 mb-4">
                     ${dataHtml}
                 </div>
-                
+
                 <button class="toggle-details-button base-button-style btn-primary-professional" data-report-id="${form.id}">
                     Ver Detalles
                 </button>
@@ -1125,6 +1277,7 @@
                     const reportBlock = createReportBlock(form);
                     reportsContainer.appendChild(reportBlock);
                 });
+                initMapThumbnails();
 
                 offset += data.reports.length;
                 totalReports = data.total_count;
@@ -1140,6 +1293,10 @@
                 loadMoreButton.textContent = `Cargar Más Reportes (${totalReports - offset} restantes)`;
             }
         }
+
+        // Resolved once loadProperties() finishes, so saved-filter restore can await it
+        let propertiesLoadedResolve;
+        const propertiesLoaded = new Promise(res => { propertiesLoadedResolve = res; });
 
         // Load properties from database
         async function loadProperties() {
@@ -1176,6 +1333,8 @@
             } catch (error) {
                 console.error('Error loading properties:', error);
                 showFlashMessage(`Error al cargar las propiedades: ${error.message}`, 'error');
+            } finally {
+                propertiesLoadedResolve();
             }
         }
 
@@ -1295,6 +1454,7 @@
                             const reportBlock = createReportBlock(form);
                             reportsContainer.appendChild(reportBlock);
                         });
+                        initMapThumbnails();
                     }
                     offset = data.reports.length;
                     totalReports = data.total_count;
@@ -1551,7 +1711,7 @@
             if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: 'Reportes de Seguridad - Kanan Sentinel SecApp',
+                        title: 'Reportes de Seguridad - Kanan Sentinel SekApp',
                         text: `${reportCount} reportes seleccionados: ${reportIds.join(', ')}`,
                         url: window.location.href
                     });
@@ -1681,6 +1841,214 @@
             updateActionButtonsState();
         }
 
+        // =====================================================================
+        // SAVED FILTERS
+        // =====================================================================
+        let savedFilters = [];   // in-memory cache
+        let activeSavedFilterId = null;
+
+        function setSavedFilterDropdown(filters) {
+            savedFilters = filters;
+            const sel = document.getElementById('savedFiltersSelect');
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">— Seleccionar favorito —</option>';
+            filters.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.textContent = f.name;
+                sel.appendChild(opt);
+            });
+            // Restore selection if still present
+            if (currentVal && filters.find(f => String(f.id) === currentVal)) {
+                sel.value = currentVal;
+            }
+            updateSavedFilterButtons();
+        }
+
+        function updateSavedFilterButtons() {
+            const sel = document.getElementById('savedFiltersSelect');
+            const hasSelection = !!sel.value;
+            document.getElementById('loadFilterBtn').disabled   = !hasSelection;
+            document.getElementById('updateFilterBtn').disabled = !hasSelection;
+            document.getElementById('deleteFilterBtn').disabled = !hasSelection;
+            activeSavedFilterId = hasSelection ? parseInt(sel.value) : null;
+        }
+
+        async function fetchSavedFilters() {
+            try {
+                const res = await fetch('/viewer/api/saved-filters', { headers: { Accept: 'application/json' } });
+                if (!res.ok) return;
+                const data = await res.json();
+                setSavedFilterDropdown(data.saved_filters || []);
+            } catch (e) {
+                console.error('Error fetching saved filters:', e);
+            }
+        }
+
+        async function applyFavoriteFilter() {
+            if (!activeSavedFilterId) return;
+            const saved = savedFilters.find(f => f.id === activeSavedFilterId);
+            if (!saved) return;
+            const f = saved.filters;
+
+            // Set simple fields immediately
+            document.getElementById('formTypeSelect').value   = f.form_type    || '';
+            document.getElementById('reportIdSearch').value   = f.report_id    || '';
+            document.getElementById('submittedBySearch').value = f.submitted_by || '';
+            document.getElementById('startDateFilter').value  = f.start_date   || '';
+            document.getElementById('endDateFilter').value    = f.end_date     || '';
+
+            // Wait for properties dropdown to be populated, then set property + location
+            await propertiesLoaded;
+            const propSel = document.getElementById('propertySelect');
+            const locSel  = document.getElementById('locationSelect');
+
+            if (f.property_id) {
+                // Inject option if not present (edge case: new property added after filter was saved)
+                if (!propSel.querySelector(`option[value="${f.property_id}"]`)) {
+                    const opt = document.createElement('option');
+                    opt.value = f.property_id;
+                    opt.textContent = f.property_label || f.property_id;
+                    propSel.appendChild(opt);
+                }
+                propSel.value = f.property_id;
+
+                // Load locations then restore location value
+                await loadLocations(f.property_id);
+                if (f.location_id) {
+                    if (!locSel.querySelector(`option[value="${f.location_id}"]`)) {
+                        const opt = document.createElement('option');
+                        opt.value = f.location_id;
+                        opt.textContent = f.location_label || f.location_id;
+                        locSel.appendChild(opt);
+                    }
+                    locSel.value = f.location_id;
+                }
+            } else {
+                propSel.value = '';
+                locSel.disabled = true;
+                locSel.innerHTML = '<option value="">Primero seleccione una propiedad...</option>';
+            }
+
+            applyFilters();
+            showFlashMessage(`Filtro "${saved.name}" cargado.`, 'success');
+        }
+
+        function captureFiltersForSave() {
+            const propSel = document.getElementById('propertySelect');
+            const locSel  = document.getElementById('locationSelect');
+            const selectedPropOpt = propSel.options[propSel.selectedIndex];
+            const selectedLocOpt  = locSel.options[locSel.selectedIndex];
+            return {
+                form_type:      document.getElementById('formTypeSelect').value,
+                report_id:      document.getElementById('reportIdSearch').value,
+                property_id:    propSel.value,
+                property_label: propSel.value ? (selectedPropOpt ? selectedPropOpt.textContent : '') : '',
+                location_id:    locSel.value,
+                location_label: locSel.value ? (selectedLocOpt ? selectedLocOpt.textContent : '') : '',
+                submitted_by:   document.getElementById('submittedBySearch').value,
+                start_date:     document.getElementById('startDateFilter').value,
+                end_date:       document.getElementById('endDateFilter').value,
+            };
+        }
+
+        function showSaveFilterForm(prefillName) {
+            document.getElementById('filterNameInput').value = prefillName || '';
+            document.getElementById('saveFilterError').classList.add('hidden');
+            document.getElementById('saveFilterError').textContent = '';
+            document.getElementById('saveFilterForm').classList.remove('hidden');
+            document.getElementById('filterNameInput').focus();
+        }
+
+        function hideSaveFilterForm() {
+            document.getElementById('saveFilterForm').classList.add('hidden');
+        }
+
+        async function persistSaveFilter() {
+            const name = document.getElementById('filterNameInput').value.trim();
+            const errEl = document.getElementById('saveFilterError');
+            if (!name) {
+                errEl.textContent = 'El nombre es requerido.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+            const filters = captureFiltersForSave();
+            const btn = document.getElementById('confirmSaveBtn');
+            btn.disabled = true;
+            btn.textContent = 'Guardando…';
+            errEl.classList.add('hidden');
+
+            try {
+                // Check if a saved filter with this name already exists for this user
+                const existing = savedFilters.find(f => f.name === name);
+                let res, data;
+                if (existing) {
+                    // Update existing
+                    res = await fetch(`/viewer/api/saved-filters/${existing.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, filters })
+                    });
+                } else {
+                    // Create new
+                    res = await fetch('/viewer/api/saved-filters', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, filters })
+                    });
+                }
+                data = await res.json();
+                if (!res.ok) {
+                    errEl.textContent = data.error || 'Error al guardar.';
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+                hideSaveFilterForm();
+                await fetchSavedFilters();
+                // Select the newly saved filter in dropdown
+                const newId = data.saved_filter.id;
+                document.getElementById('savedFiltersSelect').value = newId;
+                activeSavedFilterId = newId;
+                updateSavedFilterButtons();
+                showFlashMessage(`Filtro "${name}" guardado.`, 'success');
+            } catch (e) {
+                errEl.textContent = 'Error de conexión.';
+                errEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Confirmar';
+            }
+        }
+
+        async function updateSelectedFilter() {
+            if (!activeSavedFilterId) return;
+            const saved = savedFilters.find(f => f.id === activeSavedFilterId);
+            if (!saved) return;
+            // Show the form pre-filled with current name so user can optionally rename too
+            showSaveFilterForm(saved.name);
+        }
+
+        async function deleteSelectedFilter() {
+            if (!activeSavedFilterId) return;
+            const saved = savedFilters.find(f => f.id === activeSavedFilterId);
+            if (!saved) return;
+            if (!confirm(`¿Eliminar el filtro favorito "${saved.name}"?`)) return;
+            try {
+                const res = await fetch(`/viewer/api/saved-filters/${activeSavedFilterId}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const d = await res.json();
+                    showFlashMessage(d.error || 'Error al eliminar.', 'error');
+                    return;
+                }
+                activeSavedFilterId = null;
+                await fetchSavedFilters();
+                showFlashMessage(`Filtro "${saved.name}" eliminado.`, 'success');
+            } catch (e) {
+                showFlashMessage('Error de conexión.', 'error');
+            }
+        }
+        // =====================================================================
+
         // --- DOMContentLoaded ---
         document.addEventListener('DOMContentLoaded', () => {
             initializeTheme();
@@ -1691,6 +2059,24 @@
 
             // Load initial data
             loadProperties();
+            fetchSavedFilters();
+
+            // Saved filter event listeners
+            document.getElementById('savedFiltersSelect').addEventListener('change', updateSavedFilterButtons);
+            document.getElementById('loadFilterBtn').addEventListener('click', applyFavoriteFilter);
+            document.getElementById('saveFilterBtn').addEventListener('click', () => {
+                hideSaveFilterForm(); // reset if already open
+                const sel = document.getElementById('savedFiltersSelect');
+                const prefill = sel.value ? (savedFilters.find(f => f.id === parseInt(sel.value)) || {}).name : '';
+                showSaveFilterForm(prefill || '');
+            });
+            document.getElementById('updateFilterBtn').addEventListener('click', updateSelectedFilter);
+            document.getElementById('deleteFilterBtn').addEventListener('click', deleteSelectedFilter);
+            document.getElementById('confirmSaveBtn').addEventListener('click', persistSaveFilter);
+            document.getElementById('cancelSaveBtn').addEventListener('click', hideSaveFilterForm);
+            document.getElementById('filterNameInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') persistSaveFilter();
+            });
 
             const loadMoreButton = document.getElementById('load-more-button');
             if (loadMoreButton) {
@@ -1698,6 +2084,7 @@
             }
             checkLoadMoreButtonVisibility();
             attachEventListenersToNewReports();
+            initMapThumbnails();
             updateActionButtonsState();
 
             // Get form elements

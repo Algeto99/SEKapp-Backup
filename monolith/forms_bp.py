@@ -1536,9 +1536,9 @@ def install_instructions():
 @forms_bp.route('/manifest.json')
 def manifest():
     return jsonify({
-        "name": "Kanan SecApp Forms", # Slightly updated name
+        "name": "Kanan SekApp Forms", # Slightly updated name
         "short_name": "Kanan Forms",
-        "description": "Aplicación para completar formularios de Kanan SecApp",
+        "description": "Aplicación para completar formularios de Kanan SekApp",
         "start_url": "/select", # Start at selection
         "display": "standalone",
         "background_color": "#1a202c",

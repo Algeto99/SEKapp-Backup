@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Supervisión — Dashboard · Kanan Sentinel SecApp</title>
+    <title>Supervisión — Dashboard · Kanan Sentinel SekApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -86,12 +86,22 @@
             background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.45);
             color:#fca5a5; border-radius:999px; padding:0.1rem 0.5rem;
             font-size:0.72rem; font-weight:700; margin:0 0.2rem;
+            cursor:pointer; transition:opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+        }
+        .alert-badge-critico:hover {
+            opacity:0.85; transform:scale(1.05);
+            box-shadow:0 0 0 2px rgba(239,68,68,0.5);
         }
         .alert-badge-seguimiento {
             display:inline-flex; align-items:center; gap:0.25rem;
             background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.4);
             color:#fde68a; border-radius:999px; padding:0.1rem 0.5rem;
             font-size:0.72rem; font-weight:700; margin:0 0.2rem;
+            cursor:pointer; transition:opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+        }
+        .alert-badge-seguimiento:hover {
+            opacity:0.85; transform:scale(1.05);
+            box-shadow:0 0 0 2px rgba(234,179,8,0.5);
         }
 
         /* ── Cards ─────────────────────────────────────────────────────── */
@@ -618,7 +628,8 @@
             bc.style.display = 'flex';
             const items = criticos.map(p => {
                 const lbl = p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia;
-                return `<span class="alert-badge-critico">&#9888; ${lbl} — ${p.avg_score} pts</span>`;
+                const empAttr = p.emp_key !== 'Sin ID' ? `data-emp="${p.emp_key}"` : '';
+                return `<span class="alert-badge-critico" ${empAttr} data-lbl="${lbl.replace(/"/g,'&quot;')}" title="Ver reportes de ${lbl.replace(/"/g,'&quot;')}">&#9888; ${lbl} — ${p.avg_score} pts</span>`;
             }).join(' ');
             document.getElementById('alertCriticoBody').innerHTML =
                 `Los siguientes puestos tienen puntaje ≤ 15 y requieren acción inmediata: ${items}`;
@@ -630,7 +641,8 @@
             bs.style.display = 'flex';
             const items = seguimientoList.map(p => {
                 const lbl = p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia;
-                return `<span class="alert-badge-seguimiento">${lbl} — ${p.avg_score} pts</span>`;
+                const empAttr = p.emp_key !== 'Sin ID' ? `data-emp="${p.emp_key}"` : '';
+                return `<span class="alert-badge-seguimiento" ${empAttr} data-lbl="${lbl.replace(/"/g,'&quot;')}" title="Ver reportes de ${lbl.replace(/"/g,'&quot;')}">${lbl} — ${p.avg_score} pts</span>`;
             }).join(' ');
             document.getElementById('alertSeguimientoBody').innerHTML =
                 `Los siguientes puestos están entre 16 y 20 puntos: ${items}`;
@@ -638,6 +650,16 @@
             bs.style.display = 'none';
         }
     }
+
+    // ── Alert badge click — drill down to that employee's records ─────────
+    document.addEventListener('click', e => {
+        const badge = e.target.closest('.alert-badge-critico, .alert-badge-seguimiento');
+        if (!badge) return;
+        const empKey = badge.dataset.emp;
+        const lbl    = badge.dataset.lbl || 'Supervisión';
+        const filters = empKey ? { empleado_num: empKey } : {};
+        openDetailsModal(filters, `Supervisión — ${lbl}`);
+    });
 
     // ── Criteria horizontal bar (sorted asc, semáforo) ────────────────────
     function renderCriteriaChart(criteria) {

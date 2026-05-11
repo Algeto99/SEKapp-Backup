@@ -1725,6 +1725,36 @@
     "data_type": "integer"
   },
   {
+    "table_name": "saved_filters",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "saved_filters",
+    "column_name": "user_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "saved_filters",
+    "column_name": "name",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "saved_filters",
+    "column_name": "filters",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "saved_filters",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "saved_filters",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "supervision_puesto",
     "column_name": "id_supervision",
     "data_type": "integer"

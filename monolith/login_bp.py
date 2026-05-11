@@ -207,12 +207,12 @@ def send_email(to_email, subject, body, is_html=False):
 
 def send_password_reset_email(email, reset_token):
     reset_url = url_for('login_bp.reset_password', token=reset_token, _external=True)
-    subject = "Restablecer Contraseña - Kanan SecApp"
+    subject = "Restablecer Contraseña - Kanan SekApp"
     html_body = f"""<div style="font-family: sans-serif;"><a href="{reset_url}">Restablecer</a></div>"""
     return send_email(email, subject, html_body, is_html=True)
 
 def send_welcome_email(user_email, user_name, is_admin=False):
-    subject = "¡Bienvenido a Kanan SecApp!"
+    subject = "¡Bienvenido a Kanan SekApp!"
     login_url = url_for('login_bp.login', _external=True)
     html_body = f"""<div style="font-family: sans-serif;">¡Hola {user_name}! <a href="{login_url}">Iniciar Sesión</a></div>"""
     return send_email(user_email, subject, html_body, is_html=True)

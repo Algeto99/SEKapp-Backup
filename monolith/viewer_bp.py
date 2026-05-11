@@ -3,6 +3,9 @@ import sys
 import logging
 import re
 import base64
+import math
+import hmac
+import hashlib
 from datetime import timedelta, datetime, timezone, date, time
 from io import BytesIO
 
@@ -69,6 +72,46 @@ def generate_signed_url(gcs_url):
     except Exception as e:
         app_logger.error(f"Error generating signed URL for {gcs_url}: {e}", exc_info=True)
         return gcs_url
+
+
+def _make_media_token(gcs_base_url):
+    """Return a URL-safe token encoding a GCS base URL with an HMAC signature."""
+    secret = current_app.config.get('SECRET_KEY', '').encode()
+    encoded = base64.urlsafe_b64encode(gcs_base_url.encode()).decode().rstrip('=')
+    sig = hmac.new(secret, gcs_base_url.encode(), hashlib.sha256).hexdigest()[:24]
+    return f"{encoded}.{sig}"
+
+
+def _media_proxy_url(url):
+    """Convert a GCS URL into a proxy URL that hides bucket and path details."""
+    gcs_base = url.split('?')[0]
+    token = _make_media_token(gcs_base)
+    host = request.host_url.rstrip('/')
+    return f"{host}/api/media?f={token}"
+
+
+@viewer_bp.route('/api/media')
+def serve_media():
+    """Proxy GCS files through a signed-token redirect to hide bucket details."""
+    token = request.args.get('f', '')
+    try:
+        parts = token.rsplit('.', 1)
+        if len(parts) != 2:
+            return 'Invalid request', 400
+        encoded, sig = parts
+        padded = encoded + '=' * (4 - len(encoded) % 4)
+        gcs_url = base64.urlsafe_b64decode(padded).decode()
+        if not gcs_url.startswith('https://storage.googleapis.com/'):
+            return 'Invalid request', 400
+        secret = current_app.config.get('SECRET_KEY', '').encode()
+        expected = hmac.new(secret, gcs_url.encode(), hashlib.sha256).hexdigest()[:24]
+        if not hmac.compare_digest(sig, expected):
+            return 'Forbidden', 403
+        signed_url = generate_signed_url(gcs_url)
+        return redirect(signed_url, 302)
+    except Exception as e:
+        app_logger.warning(f"Media proxy error: {e}")
+        return 'Invalid request', 400
 
 
 # --- Configure Logging ---
@@ -791,7 +834,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 processed_cols.add(col_name)
                 
                 # Generate signed URLs for image/pdf columns
-                if val and (label == "URLs de Imágenes o PDFs" or col_name == 'foto_evidencia_url'):
+                if val and (label == "URLs de Imágenes o PDFs" or col_name in ('foto_evidencia_url', 'anexos')):
                     if not skip_signing:
                         urls = str(val).split('\n')
                         signed_urls = []
@@ -1274,10 +1317,10 @@ def email_selected_reports_api():
         app_logger.warning(f"No reports found for the provided items during email request.")
         return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
 
-    subject = f"Reporte de Incidencia — Kanan Sentinel SecApp"
+    subject = f"Reporte de Incidencia — Kanan Sentinel SekApp"
 
     SIGNATURE_KEYS = {'Firma Responsable', 'firma_responsable', 'Firma', 'firma'}
-    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url'}
+    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
     logo_src = _get_logo_data_url() or ""
     logo_tag = f'<img src="{logo_src}" alt="Kanan" width="36" height="36" style="border-radius:6px;background:#fff;padding:3px;vertical-align:middle;">' if logo_src else ''
     gen_date = datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -1295,7 +1338,7 @@ def email_selected_reports_api():
     <td style="background:#1e3a8a;padding:16px 24px;">
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="vertical-align:middle;">{logo_tag}&nbsp;&nbsp;<span style="color:#ffffff;font-size:15px;font-weight:bold;vertical-align:middle;">Kanan Sentinel SecApp</span><br>
+          <td style="vertical-align:middle;">{logo_tag}&nbsp;&nbsp;<span style="color:#ffffff;font-size:15px;font-weight:bold;vertical-align:middle;">Kanan Sentinel SekApp</span><br>
               <span style="color:#bfdbfe;font-size:11px;margin-left:48px;">Reporte de Incidencias</span></td>
           <td align="right" style="color:#bfdbfe;font-size:11px;vertical-align:middle;">Generado el<br>{gen_date}</td>
         </tr>
@@ -1317,15 +1360,33 @@ def email_selected_reports_api():
         signature_value = None
         attachment_urls = []
 
+        # Build optional map thumbnail for this report
+        email_map_td = ''
+        try:
+            _lat = float(data.get('Latitude', '') or '')
+            _lng = float(data.get('Longitude', '') or '')
+            map_thumb = _map_thumbnail_html(_lat, _lng, width=150, height=90, clickable=True)
+            email_map_td = (f'<td style="padding:0;width:160px;text-align:right;vertical-align:middle;">'
+                            f'{map_thumb}</td>')
+        except (ValueError, TypeError):
+            pass
+
         p.append(f"""
   <!-- Report card -->
   <tr><td style="padding:16px 24px 0 24px;">
     <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
       <!-- Report title bar -->
       <tr>
-        <td colspan="2" style="background:#1d4ed8;padding:10px 14px;">
-          <span style="color:#ffffff;font-size:13px;font-weight:bold;">{report['title']}</span><br>
-          <span style="color:#bfdbfe;font-size:10px;">Enviado por: {report['submittedBy']} &nbsp;&middot;&nbsp; {report['dateSubmitted']}</span>
+        <td colspan="2" style="background:#1d4ed8;padding:0;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding:10px 14px;vertical-align:middle;">
+                <span style="color:#ffffff;font-size:13px;font-weight:bold;">{report['title']}</span><br>
+                <span style="color:#bfdbfe;font-size:10px;">Enviado por: {report['submittedBy']} &nbsp;&middot;&nbsp; {report['dateSubmitted']}</span>
+              </td>
+              {email_map_td}
+            </tr>
+          </table>
         </td>
       </tr>
 """)
@@ -1368,11 +1429,12 @@ def email_selected_reports_api():
             p.append('<tr><td colspan="2" style="padding:12px 14px;border-top:1px solid #e5e7eb;"><p style="margin:0 0 8px 0;font-size:11px;font-weight:bold;color:#374151;">Archivos Adjuntos</p>')
             for url in attachment_urls:
                 fname = url.split('?')[0].split('/')[-1]
+                proxy_url = _media_proxy_url(url)
                 lower = url.lower().split('?')[0]
                 if lower.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
-                    p.append(f'<a href="{url}" target="_blank"><img src="{url}" alt="{fname}" style="max-width:180px;max-height:150px;border:1px solid #d1d5db;border-radius:4px;margin:4px 4px 0 0;"></a>')
+                    p.append(f'<a href="{proxy_url}" target="_blank"><img src="{url}" alt="{fname}" style="max-width:180px;max-height:150px;border:1px solid #d1d5db;border-radius:4px;margin:4px 4px 0 0;"></a>')
                 else:
-                    p.append(f'<p style="margin:4px 0;font-size:11px;"><a href="{url}" target="_blank" style="color:#2563eb;">{fname}</a></p>')
+                    p.append(f'<p style="margin:4px 0;font-size:11px;"><a href="{proxy_url}" target="_blank" style="color:#2563eb;">{fname}</a></p>')
             p.append('</td></tr>')
 
         p.append('    </table>\n  </td></tr>')
@@ -1381,7 +1443,7 @@ def email_selected_reports_api():
     p.append(f"""
   <tr>
     <td style="padding:20px 24px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:10px;text-align:center;">
-      Generado por <strong>{user_email}</strong> desde Kanan Sentinel SecApp.<br>
+      Generado por <strong>{user_email}</strong> desde Kanan Sentinel SekApp.<br>
       Este correo es generado automáticamente, por favor no responder.
     </td>
   </tr>
@@ -1717,10 +1779,43 @@ def _get_logo_data_url():
     return None
 
 
+def _map_thumbnail_html(lat: float, lng: float, width: int = 160, height: int = 96, zoom: int = 17, clickable: bool = True) -> str:
+    """Return an HTML snippet showing a 2×2 OSM tile thumbnail centered on lat/lng."""
+    n = 2 ** zoom
+    lat_rad = math.radians(lat)
+    frac_x = (lng + 180) / 360 * n
+    frac_y = (1 - math.log(math.tan(lat_rad) + 1 / math.cos(lat_rad)) / math.pi) / 2 * n
+    tile_x = int(frac_x - 0.5)
+    tile_y = int(frac_y - 0.5)
+    pix_x = round((frac_x - tile_x) * 256)
+    pix_y = round((frac_y - tile_y) * 256)
+    left = width // 2 - pix_x
+    top  = height // 2 - pix_y
+    maps_url = f"https://www.google.com/maps?q={lat},{lng}&z=19"
+
+    tiles = ''.join(
+        f'<img src="https://tile.openstreetmap.org/{zoom}/{tile_x+dx}/{tile_y+dy}.png"'
+        f' style="position:absolute;left:{dx*256}px;top:{dy*256}px;width:256px;height:256px;">'
+        for dy in range(2) for dx in range(2)
+    )
+    pin = (f'<div style="position:absolute;left:{pix_x}px;top:{pix_y}px;'
+           f'transform:translate(-50%,-100%);font-size:18px;line-height:1;'
+           f'filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7));">&#128205;</div>')
+    inner = (f'<div style="position:absolute;width:512px;height:512px;left:{left}px;top:{top}px;">'
+             f'{tiles}{pin}</div>')
+    container_style = (f'position:relative;width:{width}px;height:{height}px;overflow:hidden;'
+                       f'border-radius:4px;border:1px solid #d1d5db;display:inline-block;'
+                       f'vertical-align:middle;flex-shrink:0;')
+    if clickable:
+        return (f'<a href="{maps_url}" target="_blank" rel="noopener noreferrer"'
+                f' style="{container_style}text-decoration:none;">{inner}</a>')
+    return f'<div style="{container_style}">{inner}</div>'
+
+
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
     SIGNATURE_KEYS = {'Firma Responsable', 'firma_responsable', 'Firma', 'firma'}
-    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url'}
+    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
     logo_src = _get_logo_data_url() or ""
 
     logo_img = f'<img src="{logo_src}" alt="">' if logo_src else '<span style="font-size:20pt;color:#1d4ed8;">&#9632;</span>'
@@ -1776,11 +1871,14 @@ td.val { color: #1f2937; }
 .sig-img { max-width: 180px; max-height: 80px; border: 1px solid #d1d5db; border-radius: 3px; padding: 3px; object-fit: contain; }
 .att-grid img { max-width: 120px; max-height: 90px; border: 1px solid #d1d5db; border-radius: 3px; object-fit: contain; }
 .pdf-link { color: #2563eb; text-decoration: none; font-size: 8pt; }
+.map-thumb-cell { display: table-cell; vertical-align: middle; text-align: right; width: 170px; padding-left: 8px; }
+.map-thumb-cell a { display: inline-block; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.35); }
+.map-thumb-cell img { width: 150px; height: 90px; display: block; }
 @page {
     size: A4;
     margin: 1cm 0.8cm;
     @bottom-center {
-        content: "Página " counter(page) " — Kanan Sentinel SecApp";
+        content: "Página " counter(page) " — Kanan Sentinel SekApp";
         font-size: 7pt; color: #9ca3af;
     }
 }
@@ -1791,7 +1889,7 @@ td.val { color: #1f2937; }
     <div class="header-left">
         <span class="header-logo">""" + logo_img + """</span>
         <span class="header-title">
-            <h1>Kanan Sentinel SecApp</h1>
+            <h1>Kanan Sentinel SekApp</h1>
             <p>Reporte de Incidencias</p>
         </span>
     </div>
@@ -1803,11 +1901,25 @@ td.val { color: #1f2937; }
         data = report.get('data', {})
         pb = '' if idx == 0 else 'page-break-before:always;'
 
+        # Build optional map thumbnail for title bar
+        map_cell = ''
+        try:
+            _lat = float(data.get('Latitude', '') or '')
+            _lng = float(data.get('Longitude', '') or '')
+            maps_url = f"https://www.google.com/maps?q={_lat},{_lng}&z=19"
+            map_thumb = _map_thumbnail_html(_lat, _lng, width=150, height=90, clickable=True)
+            map_cell = f'<div class="map-thumb-cell">{map_thumb}</div>'
+        except (ValueError, TypeError):
+            pass
+
         html_parts.append(
             f'<div class="report-block" style="{pb}">'
-            f'<div class="report-title-bar">'
+            f'<div class="report-title-bar" style="display:table;width:100%;">'
+            f'<div style="display:table-cell;vertical-align:middle;">'
             f'<h2>{report["title"]}</h2>'
             f'<p class="meta">Enviado por: {report["submittedBy"]} &nbsp;&middot;&nbsp; {report["dateSubmitted"]}</p>'
+            f'</div>'
+            f'{map_cell}'
             f'</div>'
             f'<div class="report-body">'
             f'<table class="fields">'
@@ -1825,7 +1937,7 @@ td.val { color: #1f2937; }
                     url = url.strip()
                     if not url:
                         continue
-                    lower = url.lower()
+                    lower = url.lower().split('?')[0]
                     if lower.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
                         image_urls.append(url)
                     elif lower.endswith('.pdf'):
@@ -1863,14 +1975,14 @@ td.val { color: #1f2937; }
             if has_att:
                 html_parts.append('<div class="att-cell"><p class="section-label">Archivos Adjuntos</p><div class="att-grid">')
                 for url in image_urls:
-                    fname = url.split('/')[-1]
-                    html_parts.append(f'<img src="{url}" alt="{fname}">')
+                    fname = url.split('?')[0].split('/')[-1]
+                    html_parts.append(f'<a href="{_media_proxy_url(url)}"><img src="{url}" alt="{fname}"></a>')
                 for url in pdf_urls:
-                    fname = url.split('/')[-1]
-                    html_parts.append(f'<a href="{url}" class="pdf-link">&#128196; {fname}</a><br>')
+                    fname = url.split('?')[0].split('/')[-1]
+                    html_parts.append(f'<a href="{_media_proxy_url(url)}" class="pdf-link">&#128196; {fname}</a><br>')
                 for url in other_urls:
-                    fname = url.split('/')[-1]
-                    html_parts.append(f'<a href="{url}" class="pdf-link">&#128206; {fname}</a><br>')
+                    fname = url.split('?')[0].split('/')[-1]
+                    html_parts.append(f'<a href="{_media_proxy_url(url)}" class="pdf-link">&#128206; {fname}</a><br>')
                 html_parts.append('</div></div>')
 
             html_parts.append('</div>')
@@ -1879,6 +1991,141 @@ td.val { color: #1f2937; }
 
     html_parts.append('</body></html>')
     return ''.join(html_parts)
+
+
+@viewer_bp.route('/api/saved-filters', methods=['GET'])
+@jwt_required()
+@admin_required
+def list_saved_filters():
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        cur.execute(
+            "SELECT id, name, filters, updated_at FROM saved_filters WHERE user_email = %s ORDER BY name ASC",
+            (user_email,)
+        )
+        rows = cur.fetchall()
+        result = [{'id': r['id'], 'name': r['name'], 'filters': r['filters']} for r in rows]
+        return jsonify({'saved_filters': result})
+    except Exception as e:
+        app_logger.error(f"Error listing saved filters: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@viewer_bp.route('/api/saved-filters', methods=['POST'])
+@jwt_required()
+@admin_required
+def create_saved_filter():
+    user_email = get_jwt_identity()
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    filters = data.get('filters')
+    if not name:
+        return jsonify({'error': 'El nombre es requerido.'}), 400
+    if len(name) > 100:
+        return jsonify({'error': 'El nombre no puede superar 100 caracteres.'}), 400
+    if not isinstance(filters, dict):
+        return jsonify({'error': 'Filtros inválidos.'}), 400
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        cur.execute(
+            """INSERT INTO saved_filters (user_email, name, filters)
+               VALUES (%s, %s, %s)
+               RETURNING id, name, filters""",
+            (user_email, name, extras.Json(filters))
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return jsonify({'saved_filter': {'id': row['id'], 'name': row['name'], 'filters': row['filters']}}), 201
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        if 'uq_saved_filter_user_name' in str(e):
+            return jsonify({'error': f'Ya existe un filtro con el nombre "{name}".'}), 409
+        app_logger.error(f"Error creating saved filter: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@viewer_bp.route('/api/saved-filters/<int:filter_id>', methods=['PUT'])
+@jwt_required()
+@admin_required
+def update_saved_filter(filter_id):
+    user_email = get_jwt_identity()
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip() or None
+    filters = data.get('filters')
+    if name and len(name) > 100:
+        return jsonify({'error': 'El nombre no puede superar 100 caracteres.'}), 400
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        # Build dynamic SET clause
+        sets, vals = [], []
+        if name:
+            sets.append("name = %s"); vals.append(name)
+        if isinstance(filters, dict):
+            sets.append("filters = %s"); vals.append(extras.Json(filters))
+        if not sets:
+            return jsonify({'error': 'Nada que actualizar.'}), 400
+        sets.append("updated_at = NOW()")
+        vals += [filter_id, user_email]
+        cur.execute(
+            f"UPDATE saved_filters SET {', '.join(sets)} WHERE id = %s AND user_email = %s RETURNING id, name, filters",
+            vals
+        )
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'error': 'Filtro no encontrado.'}), 404
+        conn.commit()
+        return jsonify({'saved_filter': {'id': row['id'], 'name': row['name'], 'filters': row['filters']}})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        if 'uq_saved_filter_user_name' in str(e):
+            return jsonify({'error': f'Ya existe un filtro con ese nombre.'}), 409
+        app_logger.error(f"Error updating saved filter: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@viewer_bp.route('/api/saved-filters/<int:filter_id>', methods=['DELETE'])
+@jwt_required()
+@admin_required
+def delete_saved_filter(filter_id):
+    user_email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM saved_filters WHERE id = %s AND user_email = %s RETURNING id",
+            (filter_id, user_email)
+        )
+        if not cur.fetchone():
+            return jsonify({'error': 'Filtro no encontrado.'}), 404
+        conn.commit()
+        return jsonify({'ok': True})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error deleting saved filter: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @viewer_bp.route('/logout')
