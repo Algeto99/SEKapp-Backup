@@ -3782,7 +3782,7 @@ def api_supervision_detalles():
 
         where, params = _sup_where(cliente, year, month, day)
         if empleado_num:
-            where = (where + " AND " if where else "WHERE ") + "numero_empleado = %s"
+            where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]
         if turno_filter:
             where = (where + " AND " if where else "WHERE ") + "rol_aplicador = %s"
