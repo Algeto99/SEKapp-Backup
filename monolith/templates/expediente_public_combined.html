@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Expediente · {{ cliente }} · SekApp</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Roboto', sans-serif; background: #f7f8fa; color: #1a202c; min-height: 100vh; }
+
+    /* ── Top bar ── */
+    .topbar {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: .85rem 1.25rem;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .brand { font-size: 1.05rem; font-weight: 700; color: #7c3aed; }
+    .verified-badge {
+      display: flex; align-items: center; gap: .35rem;
+      background: #f0fdf4; border: 1px solid #bbf7d0;
+      color: #16a34a; font-size: .7rem; font-weight: 600;
+      padding: .28rem .65rem; border-radius: 2rem;
+    }
+
+    /* ── Page header ── */
+    .page-header { background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); color: #fff; padding: 1.5rem 1.25rem 1.25rem; }
+    .client-name { font-size: 1.35rem; font-weight: 700; margin-bottom: .35rem; }
+    .meta-row { font-size: .78rem; color: #94a3b8; display: flex; flex-wrap: wrap; gap: .65rem; }
+    .meta-row span { display: flex; align-items: center; gap: .3rem; }
+
+    /* ── Stats bar ── */
+    .stats-bar { background: #fff; border-bottom: 1px solid #e2e8f0; padding: .75rem 1.25rem; }
+    .stats-inner { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+    .stat-item { display: flex; flex-direction: column; align-items: center; }
+    .stat-val  { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+    .stat-lbl  { font-size: .65rem; color: #64748b; text-transform: uppercase; letter-spacing: .04em; margin-top: .15rem; }
+    .stat-blue   { color: #3b82f6; }
+    .stat-amber  { color: #f59e0b; }
+    .stat-purple { color: #7c3aed; }
+    .stat-red    { color: #ef4444; }
+
+    /* ── Content ── */
+    .content { max-width: 700px; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
+
+    /* ── Timeline ── */
+    .timeline { position: relative; }
+    .timeline::before { content: ''; position: absolute; left: 18px; top: 0; bottom: 0; width: 2px; background: #e2e8f0; }
+    .tl-item { position: relative; padding-left: 44px; margin-bottom: .75rem; }
+    .tl-dot { position: absolute; left: 10px; top: 14px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #f7f8fa; }
+    .dot-green { background: #10b981; }
+    .dot-red   { background: #ef4444; }
+    .dot-grey  { background: #94a3b8; }
+
+    .tl-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: .65rem;
+      padding: .85rem 1.1rem;
+      border-left-width: 3px;
+      cursor: pointer;
+      transition: box-shadow .15s, transform .1s;
+    }
+    .tl-card:active { transform: scale(.99); }
+    .tl-card:hover  { box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+    .tl-card-green { border-left-color: #10b981; }
+    .tl-card-red   { border-left-color: #ef4444; }
+    .tl-card-grey  { border-left-color: #94a3b8; }
+
+    .tl-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: .35rem; margin-bottom: .35rem; }
+    .badges { display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+
+    .mod-badge { font-size: .67rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; border-radius: 1rem; padding: .16rem .5rem; }
+    .mod-sup  { background: #eff6ff; color: #3b82f6; }
+    .mod-inc  { background: #fef2f2; color: #ef4444; }
+    .mod-acu  { background: #f5f3ff; color: #7c3aed; }
+    .mod-enc  { background: #fffbeb; color: #b45309; }
+
+    .status-pill { font-size: .67rem; font-weight: 600; border-radius: 1rem; padding: .16rem .5rem; }
+    .pill-green  { background: #d1fae5; color: #065f46; }
+    .pill-red    { background: #fee2e2; color: #991b1b; }
+    .pill-grey   { background: #f1f5f9; color: #475569; }
+    .pill-amber  { background: #fef3c7; color: #92400e; }
+
+    /* ── Card mini-map thumbnail ── */
+    .card-map {
+      height: 110px; width: 100%;
+      border-radius: .45rem; overflow: hidden;
+      margin-top: .6rem; margin-bottom: .35rem;
+      border: 1px solid #e2e8f0;
+      pointer-events: none;
+      /* isolation: isolate creates a new stacking context so Leaflet's internal
+         z-indices (tile pane: 200, marker pane: 600, etc.) are scoped to this
+         element and cannot bleed above the overlay or detail sheet. */
+      isolation: isolate;
+      position: relative;
+    }
+
+    .tl-ts      { font-size: .72rem; color: #94a3b8; white-space: nowrap; }
+    .tl-summary { font-size: .85rem; color: #334155; line-height: 1.4; margin-bottom: .3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tl-meta    { font-size: .72rem; color: #64748b; display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; }
+    .tap-hint   { font-size: .68rem; color: #94a3b8; margin-top: .35rem; display: flex; align-items: center; gap: .25rem; }
+
+    .empty-state { text-align: center; padding: 3rem 1rem; color: #94a3b8; }
+
+    /* ── Bottom sheet overlay ── */
+    .sheet-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 800;
+    }
+    .sheet-overlay.open { display: block; }
+
+    /* ── Detail bottom sheet ── */
+    .detail-sheet {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0;
+      background: #fff; border-radius: 1rem 1rem 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,.15);
+      z-index: 900; max-height: 92vh; overflow-y: auto;
+    }
+    .detail-sheet.open { display: block; }
+
+    .sheet-handle { width: 40px; height: 4px; background: #cbd5e1; border-radius: 2px; margin: .75rem auto .4rem; }
+    .sheet-header { padding: .5rem 1.25rem 1rem; border-bottom: 1px solid #f1f5f9; }
+    .sheet-title  { font-size: 1rem; font-weight: 600; color: #1e293b; margin-top: .3rem; }
+    .sheet-ts     { font-size: .78rem; color: #64748b; margin-top: .2rem; }
+    .sheet-body   { padding: 1rem 1.25rem; }
+
+    /* Status banner inside sheet */
+    .sheet-banner { border-radius: .65rem; padding: .75rem 1rem; display: flex; align-items: center; gap: .65rem; margin-bottom: 1rem; }
+    .banner-verde  { background: #f0fdf4; border: 1px solid #bbf7d0; }
+    .banner-rojo   { background: #fff1f2; border: 1px solid #fecaca; }
+    .banner-neutral{ background: #f8fafc; border: 1px solid #e2e8f0; }
+    .s-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .sdot-verde { background: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.15); }
+    .sdot-rojo  { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+    .sdot-grey  { background: #94a3b8; }
+    .s-banner-text { font-size: .82rem; font-weight: 600; }
+    .s-banner-sub  { font-size: .72rem; color: #64748b; margin-top: .1rem; }
+    .stext-verde { color: #15803d; }
+    .stext-rojo  { color: #dc2626; }
+    .stext-grey  { color: #475569; }
+
+    /* Info grid */
+    .info-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; margin-bottom: 1rem; }
+    .info-item  label { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; display: block; margin-bottom: .18rem; }
+    .info-item  .val  { font-size: .875rem; font-weight: 500; color: #1e293b; line-height: 1.4; }
+    .info-item.full   { grid-column: 1 / -1; }
+
+    /* Map — detail sheet (persistent container) */
+    #detailMapWrap { padding-bottom: 1rem; }
+    #detailMap { height: 230px; width: 100%; border-radius: .5rem; overflow: hidden; }
+    .map-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin-bottom: .35rem; }
+
+    /* Photos */
+    .photos-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; margin-bottom: .45rem; }
+    .photos-grid  { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .ev-photo     { width: 88px; height: 88px; object-fit: cover; border-radius: .45rem; border: 1px solid #e2e8f0; cursor: pointer; }
+
+    /* Lightbox */
+    #lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.9); z-index: 1000; align-items: center; justify-content: center; }
+    #lightbox.open { display: flex; }
+    #lightboxImg { max-width: 92vw; max-height: 88vh; border-radius: .4rem; object-fit: contain; }
+    #lightboxClose { position: absolute; top: 1rem; right: 1.25rem; font-size: 1.75rem; color: #fff; cursor: pointer; opacity: .7; }
+
+    /* Footer */
+    .page-footer { text-align: center; padding: 1.1rem; font-size: .72rem; color: #94a3b8; border-top: 1px solid #e2e8f0; background: #fff; }
+    .verified-footer { display: inline-flex; align-items: center; gap: .3rem; background: #f5f3ff; border: 1px solid #ddd6fe; color: #5b21b6; border-radius: 1rem; padding: .2rem .65rem; font-size: .72rem; font-weight: 600; margin-bottom: .35rem; }
+
+    @media (max-width: 420px) {
+      .client-name { font-size: 1.15rem; }
+      .stats-inner { gap: .85rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <span id="lightboxClose" onclick="closeLightbox()">×</span>
+  <img id="lightboxImg" src="" alt="Evidencia">
+</div>
+
+<!-- Sheet overlay -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeDetail()"></div>
+
+<!-- Detail bottom sheet -->
+<div class="detail-sheet" id="detailSheet">
+  <div class="sheet-handle"></div>
+  <div id="sheetContent"></div>
+  <!-- Persistent map container — lives outside sheetContent so it is never
+       destroyed by innerHTML replacement. JS shows/hides it per event. -->
+  <div id="detailMapWrap" style="display:none; padding:0 1.25rem;">
+    <div class="map-label">Ubicación registrada</div>
+    <div id="detailMap"></div>
+  </div>
+  <div style="padding:0 1.25rem 1.5rem;">
+    <button onclick="closeDetail()"
+      style="width:100%;background:#f1f5f9;border:none;border-radius:.5rem;padding:.65rem;font-size:.875rem;color:#475569;cursor:pointer;">
+      Cerrar
+    </button>
+  </div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <span class="brand">SekApp</span>
+  <span class="verified-badge">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px;">
+      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/>
+    </svg>
+    Verificado · SekApp
+  </span>
+</div>
+
+<!-- Page header -->
+<div class="page-header">
+  <h1 class="client-name">{{ cliente }}</h1>
+  <div class="meta-row">
+    <span>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      Últimos {{ days }} días
+    </span>
+    <span>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+      {{ module_label }}
+    </span>
+    {% if gps_source != 'none' %}
+    <span style="color:#34d399;">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Geocerca activa (100m)
+    </span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item">
+      <span class="stat-val stat-blue">{{ stats.supervisiones }}</span>
+      <span class="stat-lbl">Supervisiones</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-val stat-amber">{{ stats.incidentes }}</span>
+      <span class="stat-lbl">Incidentes</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-val stat-purple">{{ stats.acuerdos }}</span>
+      <span class="stat-lbl">Acuerdos</span>
+    </div>
+    {% if stats.encuestas > 0 %}
+    <div class="stat-item">
+      <span class="stat-val" style="color:#b45309;">{{ stats.encuestas }}</span>
+      <span class="stat-lbl">Encuestas</span>
+    </div>
+    {% endif %}
+    {% if stats.alertas > 0 %}
+    <div class="stat-item">
+      <span class="stat-val stat-red">{{ stats.alertas }}</span>
+      <span class="stat-lbl">Alertas</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Timeline -->
+<div class="content">
+  {% if events %}
+  <div class="timeline">
+    {% for e in events %}
+      {% set idx = loop.index0 %}
+      {% set dot_cls  = 'dot-green'     if e.status == 'GREEN' else ('dot-red'   if e.status == 'RED' else 'dot-grey') %}
+      {% set card_cls = 'tl-card-green' if e.status == 'GREEN' else ('tl-card-red' if e.status == 'RED' else 'tl-card-grey') %}
+    <div class="tl-item">
+      <div class="tl-dot {{ dot_cls }}"></div>
+      <div class="tl-card {{ card_cls }}" onclick="openDetail({{ idx }})">
+        <div class="tl-top">
+          <div class="badges">
+            {% if e.module == 'SUPERVISION' %}
+              <span class="mod-badge mod-sup">Supervisión</span>
+            {% elif e.module == 'INCIDENTE' %}
+              <span class="mod-badge mod-inc">Incidente</span>
+            {% elif e.module == 'ACUERDO' %}
+              <span class="mod-badge mod-acu">Acuerdo</span>
+            {% else %}
+              <span class="mod-badge mod-enc">Encuesta</span>
+            {% endif %}
+            {% if e.status == 'GREEN' %}
+              <span class="status-pill pill-green">● Verde</span>
+            {% elif e.status == 'RED' %}
+              <span class="status-pill pill-red">● Rojo</span>
+            {% elif e.module == 'SUPERVISION' and e.latitude is not none %}
+              <span class="status-pill pill-amber">○ GPS · sin geocerca</span>
+            {% elif e.module == 'SUPERVISION' %}
+              <span class="status-pill pill-grey">○ Sin GPS</span>
+            {% else %}
+              <span class="status-pill pill-grey">—</span>
+            {% endif %}
+            {% if e.module == 'SUPERVISION' and e.distance_m is not none %}
+              <span class="tl-meta {{ 'gps-ok' if e.status == 'GREEN' else 'gps-bad' }}" style="font-size:.68rem;color:{% if e.status == 'GREEN' %}#059669{% else %}#dc2626{% endif %};">{{ e.distance_m }}m</span>
+            {% endif %}
+          </div>
+          <span class="tl-ts">{{ e.timestamp[:16] | replace('T',' ') if e.timestamp else '' }}</span>
+        </div>
+        <p class="tl-summary">{{ e.summary if e.summary else '—' }}</p>
+        <div class="tl-meta">
+          {% if e.actor %}<span>{{ e.actor }}</span>{% endif %}
+          {% if e.module == 'INCIDENTE' and e.nivel_severidad %}
+            <span style="color:#d97706;">{{ e.nivel_severidad }}</span>
+          {% endif %}
+          {% if e.module == 'ACUERDO' and e.compromisos_fecha_limite %}
+            <span>Vence: {{ e.compromisos_fecha_limite }}</span>
+          {% endif %}
+          {% if e.module == 'ENCUESTA' and e.nivel_severidad %}
+            <span style="font-weight:600;color:{% if e.nivel_severidad|int >= 9 %}#059669{% elif e.nivel_severidad|int >= 7 %}#3b82f6{% else %}#dc2626{% endif %};">NPS: {{ e.nivel_severidad }}</span>
+          {% endif %}
+          {% if e.foto_list %}
+            <span style="color:#94a3b8;">📷 {{ e.foto_list | length }} foto{{ 's' if e.foto_list | length > 1 else '' }}</span>
+          {% endif %}
+        </div>
+        {% if e.module == 'SUPERVISION' and e.latitude is not none and e.longitude is not none %}
+        <div class="card-map" id="cmap-{{ idx }}"
+             data-lat="{{ e.latitude }}" data-lng="{{ e.longitude }}"
+             data-status="{{ e.status }}"></div>
+        {% endif %}
+        <div class="tap-hint">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          Toca para ver detalle completo
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:44px;height:44px;margin:0 auto .75rem;opacity:.35;display:block;">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    </svg>
+    <p>No hay eventos registrados en este período</p>
+  </div>
+  {% endif %}
+</div>
+
+<footer class="page-footer">
+  <div><span class="verified-footer">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px;">
+      <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+    </svg>
+    Verificado · SekApp
+  </span></div>
+  <p>Generado el {{ generated_at }}</p>
+</footer>
+
+<script>
+  const EVENTS   = {{ events | tojson }};
+  const PROP_LAT = {{ prop_lat | tojson }};
+  const PROP_LNG = {{ prop_lng | tojson }};
+
+  let detailMap = null;
+
+  // ── Leaflet map — always destroyed and recreated per-open ──────────────────
+  function renderMap(lat, lng, status) {
+    // #detailMap is a persistent div (never replaced by innerHTML), so
+    // remove() always works on a live element. Recreate fresh each time.
+    if (detailMap) {
+      detailMap.remove();
+      detailMap = null;
+    }
+
+    detailMap = L.map(document.getElementById('detailMap'), { zoomControl: true, attributionControl: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(detailMap);
+
+    const color = status === 'GREEN' ? '#22c55e' : status === 'RED' ? '#ef4444' : '#94a3b8';
+    const supIcon = L.divIcon({
+      html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.25);"></div>`,
+      className: '', iconSize: [18,18], iconAnchor: [9,9]
+    });
+    L.marker([lat, lng], { icon: supIcon }).addTo(detailMap)
+     .bindPopup(`<b>Supervisión</b><br>${lat.toFixed(6)}, ${lng.toFixed(6)}`, { offset: [0,-6] });
+
+    if (PROP_LAT && PROP_LNG) {
+      const propIcon = L.divIcon({
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:#7c3aed;border:2px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.25);"></div>`,
+        className: '', iconSize: [14,14], iconAnchor: [7,7]
+      });
+      L.marker([PROP_LAT, PROP_LNG], { icon: propIcon }).addTo(detailMap)
+       .bindPopup('<b>Puesto objetivo</b>');
+      L.circle([PROP_LAT, PROP_LNG], {
+        radius: 100, color: '#7c3aed', weight: 1.5,
+        fillColor: '#7c3aed', fillOpacity: 0.06, dashArray: '5 5'
+      }).addTo(detailMap);
+      detailMap.fitBounds([[lat, lng], [PROP_LAT, PROP_LNG]], { padding: [40, 40] });
+    } else {
+      detailMap.setView([lat, lng], 17);
+    }
+
+    // invalidateSize after the browser has painted the container
+    setTimeout(() => { if (detailMap) detailMap.invalidateSize(); }, 80);
+  }
+
+  // ── Detail sheet builder ───────────────────────────────────────────────────
+  function fmtTs(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric' })
+           + ' ' + d.toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function buildBanner(e) {
+    if (e.module === 'SUPERVISION') {
+      if (e.status === 'GREEN') {
+        const dist = e.distance_m != null ? `Registrado a ${e.distance_m}m del puesto · dentro del rango de 100m` : 'Dentro del rango de geocerca';
+        return `<div class="sheet-banner banner-verde"><div class="s-dot sdot-verde"></div><div><div class="s-banner-text stext-verde">Supervisión verificada</div><div class="s-banner-sub">${esc(dist)}</div></div></div>`;
+      }
+      if (e.status === 'RED') {
+        const dist = e.distance_m != null ? `Registrado a ${e.distance_m}m del puesto · fuera del rango de 100m` : 'Fuera del rango de geocerca';
+        return `<div class="sheet-banner banner-rojo"><div class="s-dot sdot-rojo"></div><div><div class="s-banner-text stext-rojo">Alerta de presencia</div><div class="s-banner-sub">${esc(dist)}</div></div></div>`;
+      }
+      if (e.latitude != null && e.longitude != null) {
+        return `<div class="sheet-banner banner-neutral"><div class="s-dot sdot-grey"></div><div><div class="s-banner-text stext-grey">GPS registrado · sin geocerca</div><div class="s-banner-sub">Coordenadas registradas. La geocerca se activa automáticamente tras 3+ supervisiones con GPS.</div></div></div>`;
+      }
+      return `<div class="sheet-banner banner-neutral"><div class="s-dot sdot-grey"></div><div><div class="s-banner-text stext-grey">Sin datos GPS</div><div class="s-banner-sub">Este registro no incluye coordenadas GPS</div></div></div>`;
+    }
+    if (e.module === 'INCIDENTE') {
+      const isAlert = e.status === 'RED';
+      return `<div class="sheet-banner ${isAlert ? 'banner-rojo' : 'banner-verde'}"><div class="s-dot ${isAlert ? 'sdot-rojo' : 'sdot-verde'}"></div><div><div class="s-banner-text ${isAlert ? 'stext-rojo' : 'stext-verde'}">${isAlert ? 'Incidente crítico abierto' : 'Incidente resuelto / bajo impacto'}</div>${e.nivel_severidad ? `<div class="s-banner-sub">Severidad: ${esc(e.nivel_severidad)}</div>` : ''}</div></div>`;
+    }
+    if (e.module === 'ACUERDO') {
+      const isAlert = e.status === 'RED';
+      return `<div class="sheet-banner ${isAlert ? 'banner-rojo' : 'banner-verde'}"><div class="s-dot ${isAlert ? 'sdot-rojo' : 'sdot-verde'}"></div><div><div class="s-banner-text ${isAlert ? 'stext-rojo' : 'stext-verde'}">${isAlert ? 'Compromiso vencido' : 'Compromisos al día'}</div>${e.compromisos_fecha_limite ? `<div class="s-banner-sub">Fecha límite: ${esc(e.compromisos_fecha_limite)}</div>` : ''}</div></div>`;
+    }
+    if (e.module === 'ENCUESTA') {
+      const nps = e.nivel_severidad != null ? parseInt(e.nivel_severidad, 10) : null;
+      const isGreen = nps != null && nps >= 7;
+      const scoreLabel = nps != null ? `NPS: ${nps}/10` : 'Sin calificación';
+      const subLabel = nps != null ? (nps >= 9 ? 'Promotor' : nps >= 7 ? 'Neutro' : 'Detractor') : '';
+      return `<div class="sheet-banner ${isGreen ? 'banner-verde' : nps != null ? 'banner-rojo' : 'banner-neutral'}"><div class="s-dot ${isGreen ? 'sdot-verde' : nps != null ? 'sdot-rojo' : 'sdot-grey'}"></div><div><div class="s-banner-text ${isGreen ? 'stext-verde' : nps != null ? 'stext-rojo' : 'stext-grey'}">${scoreLabel}</div>${subLabel ? `<div class="s-banner-sub">${subLabel}</div>` : ''}</div></div>`;
+    }
+    return '';
+  }
+
+  function buildInfoGrid(e) {
+    let rows = '';
+    const add = (label, val, full) => {
+      if (!val) return;
+      rows += `<div class="info-item${full ? ' full' : ''}"><label>${label}</label><div class="val">${esc(val)}</div></div>`;
+    };
+    add('Actor / Responsable', e.actor);
+    add('Estado', e.estado);
+    if (e.module === 'SUPERVISION') {
+      add('Observaciones', e.summary, true);
+      if (e.latitude != null && e.longitude != null) {
+        add('GPS registrado', `${Number(e.latitude).toFixed(6)}, ${Number(e.longitude).toFixed(6)}`, false);
+        if (e.location_accuracy != null) add('Precisión GPS', `${Number(e.location_accuracy).toFixed(1)}m`);
+      }
+    } else if (e.module === 'INCIDENTE') {
+      add('Severidad', e.nivel_severidad);
+      add('Descripción', e.summary, true);
+    } else if (e.module === 'ACUERDO') {
+      add('Acuerdos / compromisos', e.summary, true);
+      add('Estado compromisos', e.compromisos_estados);
+      add('Fecha límite', e.compromisos_fecha_limite);
+    } else if (e.module === 'ENCUESTA') {
+      const nps = e.nivel_severidad != null ? parseInt(e.nivel_severidad, 10) : null;
+      if (nps != null) {
+        const color = nps >= 9 ? '#16a34a' : nps >= 7 ? '#2563eb' : '#dc2626';
+        rows += `<div class="info-item"><label>Calificación NPS</label><div class="val" style="font-size:1.2rem;font-weight:700;color:${color};">${nps}<span style="font-size:.75rem;font-weight:400;color:#94a3b8;">/10</span></div></div>`;
+      }
+      add('Encuestado', e.estado);
+      add('Responsable', e.actor);
+      add('Observaciones del cliente', e.summary, true);
+    }
+    return `<div class="info-grid">${rows}</div>`;
+  }
+
+  function openDetail(idx) {
+    const e = EVENTS[idx];
+    if (!e) return;
+
+    const modLabels = { SUPERVISION: 'Supervisión', INCIDENTE: 'Incidente', ACUERDO: 'Acuerdo', ENCUESTA: 'Encuesta' };
+    const modClass  = { SUPERVISION: 'mod-sup', INCIDENTE: 'mod-inc', ACUERDO: 'mod-acu', ENCUESTA: 'mod-enc' };
+
+    const hasMap = e.module === 'SUPERVISION' && e.latitude != null && e.longitude != null;
+
+    let html = `
+      <div class="sheet-header">
+        <div style="display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;">
+          <span class="mod-badge ${modClass[e.module] || ''}">${modLabels[e.module] || e.module}</span>
+          <span class="tl-ts">${fmtTs(e.timestamp)}</span>
+        </div>
+        <div class="sheet-title">${e.module === 'ENCUESTA' ? esc(e.estado || e.actor || 'Encuesta a cliente') : esc(e.summary || '—')}</div>
+      </div>
+      <div class="sheet-body">
+        ${buildBanner(e)}
+        ${buildInfoGrid(e)}`;
+
+    if (e.foto_list && e.foto_list.length) {
+      html += `<div class="photos-label">Evidencia fotográfica (${e.foto_list.length})</div><div class="photos-grid">`;
+      e.foto_list.forEach(url => {
+        html += `<img class="ev-photo" src="${esc(url)}" alt="foto" loading="lazy" onclick="openLightbox('${esc(url)}')">`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+
+    document.getElementById('sheetContent').innerHTML = html;
+
+    // Show or hide the persistent map container (never injected via innerHTML)
+    const mapWrap = document.getElementById('detailMapWrap');
+    mapWrap.style.display = hasMap ? 'block' : 'none';
+
+    document.getElementById('detailSheet').classList.add('open');
+    document.getElementById('sheetOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    if (hasMap) {
+      requestAnimationFrame(() => renderMap(e.latitude, e.longitude, e.status));
+    }
+  }
+
+  function closeDetail() {
+    document.getElementById('detailSheet').classList.remove('open');
+    document.getElementById('sheetOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+
+  // ── Card mini-maps (lazy, non-interactive) ────────────────────────────────
+  const cardMapInstances = {};
+
+  function initCardMap(el) {
+    const id  = el.id;
+    if (cardMapInstances[id]) return;
+
+    const lat    = parseFloat(el.dataset.lat);
+    const lng    = parseFloat(el.dataset.lng);
+    const status = el.dataset.status;
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const m = L.map(el, {
+      zoomControl: false, dragging: false, scrollWheelZoom: false,
+      doubleClickZoom: false, touchZoom: false, keyboard: false,
+      attributionControl: false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
+
+    const color = status === 'GREEN' ? '#22c55e' : status === 'RED' ? '#ef4444' : '#f59e0b';
+    L.circleMarker([lat, lng], {
+      radius: 7, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1
+    }).addTo(m);
+
+    if (PROP_LAT && PROP_LNG) {
+      L.circleMarker([PROP_LAT, PROP_LNG], {
+        radius: 5, color: '#fff', weight: 2, fillColor: '#7c3aed', fillOpacity: 1
+      }).addTo(m);
+      L.circle([PROP_LAT, PROP_LNG], {
+        radius: 100, color: '#7c3aed', weight: 1, fillColor: '#7c3aed', fillOpacity: 0.07, dashArray: '4 4'
+      }).addTo(m);
+      m.fitBounds([[lat, lng], [PROP_LAT, PROP_LNG]], { padding: [16, 16] });
+    } else {
+      m.setView([lat, lng], 16);
+    }
+
+    cardMapInstances[id] = m;
+  }
+
+  // Use IntersectionObserver so maps only init when scrolled into view
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          initCardMap(entry.target);
+          obs.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: '100px' });
+    document.querySelectorAll('.card-map').forEach(el => obs.observe(el));
+  } else {
+    // Fallback: init all immediately
+    document.querySelectorAll('.card-map').forEach(initCardMap);
+  }
+
+  // ── Lightbox ───────────────────────────────────────────────────────────────
+  function openLightbox(url) {
+    document.getElementById('lightboxImg').src = url;
+    document.getElementById('lightbox').classList.add('open');
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    document.getElementById('lightboxImg').src = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+</body>
+</html>

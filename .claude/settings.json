@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(cat)",
+      "Bash(bash /tmp/check_forms.sh)",
+      "Bash(bash /tmp/check_templates.sh)",
+      "Bash(bash /tmp/final_check.sh)",
+      "Bash(xargs ls *)",
+      "Bash(sed --version)",
+      "Bash(sed -V)"
     ]
   }
 }

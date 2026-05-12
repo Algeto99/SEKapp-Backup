@@ -360,6 +360,21 @@
     "data_type": "integer"
   },
   {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "latitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "longitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "location_accuracy",
+    "data_type": "numeric"
+  },
+  {
     "table_name": "customer_companies",
     "column_name": "id",
     "data_type": "integer"
@@ -548,6 +563,21 @@
     "table_name": "informe_novedades_disciplinario",
     "column_name": "id_propiedad",
     "data_type": "integer"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "latitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "longitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "location_accuracy",
+    "data_type": "numeric"
   },
   {
     "table_name": "log_de_patrullas",
@@ -768,6 +798,21 @@
     "table_name": "medicion_experiencia_cliente",
     "column_name": "id_propiedad",
     "data_type": "integer"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "latitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "longitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "location_accuracy",
+    "data_type": "numeric"
   },
   {
     "table_name": "password_reset_tokens",
@@ -1320,6 +1365,16 @@
     "data_type": "integer"
   },
   {
+    "table_name": "propiedades",
+    "column_name": "latitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "propiedades",
+    "column_name": "longitude",
+    "data_type": "numeric"
+  },
+  {
     "table_name": "registro_de_capacitaciones",
     "column_name": "id_capacitacion",
     "data_type": "integer"
@@ -1580,6 +1635,21 @@
     "data_type": "text"
   },
   {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "latitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "longitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "location_accuracy",
+    "data_type": "numeric"
+  },
+  {
     "table_name": "regular_users",
     "column_name": "id",
     "data_type": "integer"
@@ -1723,6 +1793,21 @@
     "table_name": "reportes_incidentes",
     "column_name": "customer_company_id",
     "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "latitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "longitude",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "location_accuracy",
+    "data_type": "numeric"
   },
   {
     "table_name": "saved_filters",
@@ -1967,6 +2052,86 @@
   {
     "table_name": "users",
     "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "source_id",
+    "data_type": "text"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "module",
+    "data_type": "text"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "event_ts",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "latitude",
+    "data_type": "double precision"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "longitude",
+    "data_type": "double precision"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "location_accuracy",
+    "data_type": "double precision"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "foto_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "actor",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "summary",
+    "data_type": "text"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "nivel_severidad",
+    "data_type": "text"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "compromisos_fecha_limite",
+    "data_type": "date"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "compromisos_estados",
+    "data_type": "text"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "v_expediente_feed",
+    "column_name": "customer_company_id",
     "data_type": "integer"
   }
 ]

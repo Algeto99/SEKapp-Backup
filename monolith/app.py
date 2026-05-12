@@ -19,6 +19,7 @@ from landing_bp import landing_bp
 from dashboard_bp import dashboard_bp
 from forms_bp import forms_bp
 from viewer_bp import viewer_bp
+from expediente_bp import expediente_bp
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -156,10 +157,12 @@ app.register_blueprint(landing_bp, url_prefix='/landing')
 app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 app.register_blueprint(forms_bp, url_prefix='/forms')
 app.register_blueprint(viewer_bp, url_prefix='/viewer')
+app.register_blueprint(expediente_bp, url_prefix='')
 
 # JWT-authenticated blueprints use their own auth — exempt from CSRF
 csrf.exempt(viewer_bp)
 csrf.exempt(dashboard_bp)
+csrf.exempt(expediente_bp)
 
 @app.route('/health')
 def health_check():

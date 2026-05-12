@@ -699,7 +699,7 @@
     });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
-
+    <script>
         // --- GEOLOCATION ---
         (function captureLocation() {
             const banner = document.getElementById('geoStatus');
@@ -738,6 +738,7 @@
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
         })();
+    </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 </html>
