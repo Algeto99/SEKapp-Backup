@@ -429,24 +429,6 @@
                             <label class="block text-sm font-medium mb-1">Documento</label>
                             <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Porta arma en el puesto</label>
-                            <select name="supervisions[${index}][porta_arma]" class="form-select porta-arma-select" data-index="${index}">
-                                <option value="">Seleccione...</option>
-                                <option value="Si">Sí</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-                        <div id="armaFields_${index}" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Serie del arma asignada</label>
-                                <input type="text" name="supervisions[${index}][serie_arma]" class="form-input">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                                <input type="number" name="supervisions[${index}][cantidad_municion]" class="form-input">
-                            </div>
-                        </div>
                     </div>
 
                     <!-- Inducción -->
@@ -475,6 +457,76 @@
                                 <option>Sí</option>
                                 <option>No</option>
                             </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-1">Porta arma en el puesto</label>
+                            <select name="supervisions[${index}][porta_arma]" class="form-select porta-arma-select" data-index="${index}">
+                                <option value="">Seleccione...</option>
+                                <option value="Si">Sí</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                        <div id="armaFields_${index}" class="hidden md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Tipo de Arma</label>
+                                <select name="supervisions[${index}][tipo_arma]" class="form-select">
+                                    <option value="">Seleccione...</option>
+                                    <option>Escopeta</option>
+                                    <option>Pistola</option>
+                                    <option>Revolver</option>
+                                    <option>No Aplica</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Serie del Arma</label>
+                                <input type="text" name="supervisions[${index}][serie_arma]" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
+                                <input type="text" name="supervisions[${index}][cantidad_municion]" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
+                                <input type="date" name="supervisions[${index}][fecha_vencimiento_permiso_porte]" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Fecha último mtto (arma)</label>
+                                <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_arma]" class="form-input">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
+                            <input type="text" name="supervisions[${index}][radio_asignado_serial]" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Marca radio</label>
+                            <input type="text" name="supervisions[${index}][marca_radio]" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Tipo de radio</label>
+                            <input type="text" name="supervisions[${index}][tipo_radio]" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Tiempo en el puesto</label>
+                            <select name="supervisions[${index}][tiempo_en_puesto]" class="form-select">
+                                <option value="">Seleccione...</option>
+                                <option>1 mes</option>
+                                <option>2 meses</option>
+                                <option>3 meses</option>
+                                <option>4 meses</option>
+                                <option>5 meses</option>
+                                <option>6 meses</option>
+                                <option>7 meses</option>
+                                <option>8 meses</option>
+                                <option>9 meses</option>
+                                <option>10 meses</option>
+                                <option>11 meses</option>
+                                <option>12 meses o más</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
+                            <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_radio]" class="form-input">
                         </div>
                     </div>
 

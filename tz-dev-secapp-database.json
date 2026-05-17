@@ -1902,7 +1902,7 @@
   {
     "table_name": "supervision_puesto",
     "column_name": "cantidad_municion",
-    "data_type": "integer"
+    "data_type": "character varying"
   },
   {
     "table_name": "supervision_puesto",
@@ -2028,6 +2028,46 @@
     "table_name": "supervision_puesto",
     "column_name": "location_accuracy",
     "data_type": "double precision"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "tipo_arma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "fecha_vencimiento_permiso_porte",
+    "data_type": "date"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "fecha_ultimo_mtto_arma",
+    "data_type": "date"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "radio_asignado_serial",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "marca_radio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "tipo_radio",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "tiempo_en_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "fecha_ultimo_mtto_radio",
+    "data_type": "date"
   },
   {
     "table_name": "users",
