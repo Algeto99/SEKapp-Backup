@@ -1246,6 +1246,8 @@ def submit_planilla_motocicletas():
             'firma_responsable': request.form.get('firma_responsable'),
             'placa_motocicleta': request.form.get('placa_motocicleta'),
             'kilometraje_motocicleta': request.form.get('kilometraje_motocicleta') or None,
+            'numero_empleado': request.form.get('numero_empleado'),
+            'fecha_ultimo_mantenimiento': request.form.get('fecha_ultimo_mantenimiento') or None,
             'diagrama_danos': request.form.get('diagrama_danos'),
             'novedades_criticas_detectadas': request.form.get('novedades_criticas_detectadas'),
             'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),

@@ -387,6 +387,14 @@
                         <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input"
                             value="{{ name }}" required>
                     </div>
+                    <div>
+                        <label for="numero_empleado" class="form-label">Número de Empleado</label>
+                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input">
+                    </div>
+                    <div>
+                        <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
+                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input">
+                    </div>
                     <div class="md:col-span-2">
                         <label class="form-label">Firma del Responsable</label>
                         <canvas id="firma_responsable_pad" class="signature-pad"></canvas>
@@ -502,28 +510,28 @@
         // --- START CONFIGURATION ---
         const motoImageURL = 'https://storage.googleapis.com/smt-misc/Motorcycle.png';
         const checklistItems = [
-            { label: "Estado de los (2) Neumáticos", name: "estado_neumaticos", options: ["Bueno", "Malo"] },
-            { label: "Estado de los 2 Rines", name: "estado_rines", options: ["Bueno", "Malo"] },
-            { label: "Equipo de Carretera", name: "equipo_carretera", options: ["Sí", "No"] },
-            { label: "Estado del Kit de Arrastre", name: "estado_kit_arrastre", options: ["Bueno", "Malo"] },
-            { label: "Estado de la Palanca Soporte", name: "estado_palanca_soporte", options: ["Funciona", "No Funciona"] },
-            { label: "Estado del Forro del Asiento", name: "estado_forro_asiento", options: ["Bueno", "Malo"] },
-            { label: "Luces Direccionales (Derecha)", name: "estado_luces_direccionales_derecha", options: ["Funciona", "No Funciona"] },
-            { label: "Luces Direccionales (Izquierda)", name: "estado_luces_direccionales_izquierda", options: ["Funciona", "No Funciona"] },
-            { label: "Luces Delanteras", name: "estado_luces_delanteras", options: ["Funciona", "No Funciona"] },
-            { label: "Sistema de Freno Delantero", name: "estado_sistema_freno_delantero", options: ["Funciona", "No Funciona"] },
-            { label: "Manillar del Embrague", name: "estado_manillar_embrague", options: ["Funciona", "No Funciona"] },
-            { label: "Manillar del Freno Delantero", name: "estado_manillar_freno_delantero", options: ["Funciona", "No Funciona"] },
-            { label: "Tanque de Combustible", name: "estado_tanque_combustible", options: ["Bueno", "Malo"] },
-            { label: "Espejos Retrovisores", name: "espejos_retrovisores", options: ["Bueno", "Malo"] },
-            { label: "Tapa del Aceite del Motor", name: "tapa_aceite_motor", options: ["Bueno", "Malo"] },
-            { label: "Batería y Tapa", name: "bateria_tapa", options: ["Bueno", "Malo"] },
-            { label: "Luz Trasera", name: "estado_luz_trasera", options: ["Funciona", "No Funciona"] },
-            { label: "Palanca de Cambios", name: "estado_palanca_cambios", options: ["Funciona", "No Funciona"] },
-            { label: "Palanca de Freno", name: "estado_palanca_freno", options: ["Funciona", "No Funciona"] },
-            { label: "Guarda Fango Delantero", name: "estado_guarda_fango_delantero", options: ["Bueno", "Malo"] },
-            { label: "Guarda Fango Trasero", name: "estado_guarda_fango_trasero", options: ["Bueno", "Malo"] },
-            { label: "Tubo de Escape", name: "estado_tubo_escape", options: ["Bueno", "Malo"] }
+            { label: "Estado de los (2) Neumáticos", name: "estado_neumaticos", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Estado de los 2 Rines", name: "estado_rines", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Equipo de Carretera", name: "equipo_carretera", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Estado del Kit de Arrastre", name: "estado_kit_arrastre", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Estado de la Palanca Soporte", name: "estado_palanca_soporte", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Estado del Forro del Asiento", name: "estado_forro_asiento", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Luces Direccionales (Derecha)", name: "estado_luces_direccionales_derecha", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Luces Direccionales (Izquierda)", name: "estado_luces_direccionales_izquierda", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Luces Delanteras", name: "estado_luces_delanteras", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Sistema de Freno Delantero", name: "estado_sistema_freno_delantero", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Manillar del Embrague", name: "estado_manillar_embrague", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Manillar del Freno Delantero", name: "estado_manillar_freno_delantero", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Tanque de Combustible", name: "estado_tanque_combustible", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Espejos Retrovisores", name: "espejos_retrovisores", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Tapa del Aceite del Motor", name: "tapa_aceite_motor", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Batería y Tapa", name: "bateria_tapa", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Luz Trasera", name: "estado_luz_trasera", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Palanca de Cambios", name: "estado_palanca_cambios", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Palanca de Freno", name: "estado_palanca_freno", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Guarda Fango Delantero", name: "estado_guarda_fango_delantero", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Guarda Fango Trasero", name: "estado_guarda_fango_trasero", options: ["Funciona", "No Funciona", "No aplica"] },
+            { label: "Tubo de Escape", name: "estado_tubo_escape", options: ["Funciona", "No Funciona", "No aplica"] }
         ];
         // --- END CONFIGURATION ---
 
