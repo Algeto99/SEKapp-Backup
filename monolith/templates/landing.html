@@ -321,6 +321,10 @@
                     📝 Acceso a Formularios
                 </button>
 
+                <button id="matrices-button" class="base-button-style btn-primary-professional hidden">
+                    📊 Consultar Matrices
+                </button>
+
                 <button id="reports-button" class="base-button-style btn-admin-special hidden">
                     📊 Reportes (Admin)
                 </button>
@@ -363,6 +367,7 @@
         const welcomeMessageElement = document.getElementById('welcome-message');
         const formsButton = document.getElementById('forms-button');
         const dashboardButton = document.getElementById('dashboard-button');
+        const matricesButton = document.getElementById('matrices-button');
         const databasesButton = document.getElementById('databases-button');
         const reportsButton = document.getElementById('reports-button');
         const logoutButton = document.getElementById('logout-button');
@@ -425,6 +430,9 @@
                 const userType = currentUserIsAdmin ? 'Administrador' : 'Usuario';
                 welcomeMessageElement.textContent = `¡Bienvenido, ${userType} ${currentUserName || currentUserEmail}! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
 
+                // Show matrices button for all authenticated users
+                matricesButton.classList.remove('hidden');
+
                 // Show/hide admin buttons
                 if (currentUserIsAdmin) {
                     reportsButton.classList.remove('hidden');
@@ -443,6 +451,7 @@
                 userBadge.classList.add('hidden');
                 logoutButton.classList.add('hidden');
                 topBar.classList.add('hidden');
+                matricesButton.classList.add('hidden');
                 reportsButton.classList.add('hidden');
                 dashboardButton.classList.add('hidden');
             }
@@ -463,6 +472,14 @@
                 formsButton.addEventListener('click', function () {
                     if (FORMS_SERVICE_URL) {
                         window.location.href = FORMS_SERVICE_URL + '/select';
+                    }
+                });
+            }
+
+            if (matricesButton) {
+                matricesButton.addEventListener('click', function () {
+                    if (DASHBOARD_SERVICE_URL) {
+                        window.location.href = DASHBOARD_SERVICE_URL + '/visitas/';
                     }
                 });
             }

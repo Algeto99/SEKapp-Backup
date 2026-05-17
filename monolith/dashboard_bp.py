@@ -1443,11 +1443,10 @@ def dashboard_home():
 
 @dashboard_bp.route('/incidentes/')
 @jwt_required()
-@admin_required
 def dashboard_incidentes():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
-    app_logger.info(f"Admin user {user_email} accessing incidentes dashboard")
+    app_logger.info(f"User {user_email} accessing incidentes dashboard")
     return render_template("dashboard_incidentes.html",
                            current_user=user_email,
                            user_name=user_name,
@@ -1593,11 +1592,10 @@ def dashboard_disciplina():
 
 @dashboard_bp.route('/visitas/')
 @jwt_required()
-@admin_required
 def dashboard_visitas():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
-    app_logger.info(f"Admin user {user_email} accessing visitas dashboard")
+    app_logger.info(f"User {user_email} accessing visitas dashboard")
     return render_template("dashboard_visitas.html",
                            current_user=user_email,
                            user_name=user_name,
