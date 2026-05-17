@@ -382,6 +382,14 @@
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                     <div>
+                        <label for="numero_empleado" class="form-label">Número de Empleado</label>
+                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
+                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input" required>
+                    </div>
+                    <div>
                         <label for="placa_vehiculo" class="form-label">Placa del Vehículo <span
                                 class="text-red-400">*</span></label>
                         <input type="text" name="placa_vehiculo" id="placa_vehiculo" class="form-input" required>
@@ -396,14 +404,15 @@
 
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Matriz de Inspección</h2>
-                <p class="text-sm text-gray-400 mb-4">Equipos del Vehículo - Funciona / Falta</p>
+                <p class="text-sm text-gray-400 mb-4">Equipos del Vehículo - Funciona / No Funciona / No aplica</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="estado_rines" class="form-label">Estado de los 4 Rines</label>
                         <select name="estado_rines" id="estado_rines" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -411,32 +420,36 @@
                         <select name="juego_senales_carretera" id="juego_senales_carretera" class="form-select"
                             required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="gato_hidraulico" class="form-label">Gato Hidráulico</label>
                         <select name="gato_hidraulico" id="gato_hidraulico" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="palanca_gato" class="form-label">Palanca para el Gato Hidráulico</label>
                         <select name="palanca_gato" id="palanca_gato" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="estado_asientos" class="form-label">Estado de los Asientos</label>
                         <select name="estado_asientos" id="estado_asientos" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -445,16 +458,18 @@
                         <select name="estado_tapetes_alfombras" id="estado_tapetes_alfombras" class="form-select"
                             required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="limpieza_carroceria" class="form-label">Limpieza de la Carrocería</label>
                         <select name="limpieza_carroceria" id="limpieza_carroceria" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -463,6 +478,7 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -471,6 +487,7 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -479,6 +496,7 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -487,6 +505,7 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -495,54 +514,61 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="defensa_delantera" class="form-label">Defensa Delantera</label>
                         <select name="defensa_delantera" id="defensa_delantera" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="defensa_trasera" class="form-label">Defensa Trasera</label>
                         <select name="defensa_trasera" id="defensa_trasera" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="puertas_vidrios" class="form-label">Puertas y Vidrios de las Puertas</label>
                         <select name="puertas_vidrios" id="puertas_vidrios" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="tapa_radiador" class="form-label">Tapa del Radiador</label>
                         <select name="tapa_radiador" id="tapa_radiador" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="tapa_aceite_motor" class="form-label">Tapa del Aceite del Motor</label>
                         <select name="tapa_aceite_motor" id="tapa_aceite_motor" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="bateria_tapa" class="form-label">Batería y Tapa de la Batería</label>
                         <select name="bateria_tapa" id="bateria_tapa" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -550,8 +576,9 @@
                         <select name="espejo_retrovisor_interno" id="espejo_retrovisor_interno" class="form-select"
                             required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -560,8 +587,9 @@
                         <select name="espejos_retrovisores_externos" id="espejos_retrovisores_externos"
                             class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Bueno</option>
-                            <option>Malo</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -570,30 +598,34 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="antena_radio" class="form-label">Antena del Radio</label>
                         <select name="antena_radio" id="antena_radio" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="radio_funciona" class="form-label">Radio Existe y Funciona</label>
                         <select name="radio_funciona" id="radio_funciona" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
                         <label for="llanta_repuesto" class="form-label">Llanta de Repuesto</label>
                         <select name="llanta_repuesto" id="llanta_repuesto" class="form-select" required>
                             <option value="">Seleccione...</option>
-                            <option>Sí</option>
-                            <option>No</option>
+                            <option>Funciona</option>
+                            <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                     <div>
@@ -602,6 +634,7 @@
                             <option value="">Seleccione...</option>
                             <option>Funciona</option>
                             <option>No Funciona</option>
+                            <option>No aplica</option>
                         </select>
                     </div>
                 </div>

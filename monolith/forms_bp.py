@@ -1148,6 +1148,8 @@ def submit_planilla_vehicular():
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
             'nombre_responsable': request.form.get('nombre_responsable'),
+            'numero_empleado': request.form.get('numero_empleado'),
+            'fecha_ultimo_mantenimiento': request.form.get('fecha_ultimo_mantenimiento'),
             'firma_responsable': request.form.get('firma_responsable'),
             'placa_vehiculo': request.form.get('placa_vehiculo'),
             'kilometraje_vehiculo': request.form.get('kilometraje_vehiculo'),

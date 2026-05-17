@@ -1330,6 +1330,16 @@
     "data_type": "integer"
   },
   {
+    "table_name": "planilla_vehicular",
+    "column_name": "numero_empleado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "fecha_ultimo_mantenimiento",
+    "data_type": "date"
+  },
+  {
     "table_name": "propiedades",
     "column_name": "id_propiedad",
     "data_type": "integer"
