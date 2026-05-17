@@ -469,7 +469,7 @@
                 </div>
             </div>
 
-            <div class="form-section">
+            <div class="form-section" id="plan-accion-section" style="display: none;">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Plan de Acción</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2">
@@ -672,6 +672,7 @@
                 ausentismoWrapper.style.display = 'block';
                 document.getElementById('razon_ausentismo').setAttribute('required', 'required');
                 document.getElementById('cubre_puesto').setAttribute('required', 'required');
+                document.getElementById('plan-accion-section').style.display = 'block';
                 wrapper.style.display = 'none';
                 select.removeAttribute('required');
                 return;
@@ -679,6 +680,7 @@
                 ausentismoWrapper.style.display = 'none';
                 document.getElementById('razon_ausentismo').removeAttribute('required');
                 document.getElementById('cubre_puesto').removeAttribute('required');
+                document.getElementById('plan-accion-section').style.display = 'none';
             }
 
             // If "Otros" is selected, hide the type dropdown and require nothing
