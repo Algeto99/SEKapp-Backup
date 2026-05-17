@@ -443,7 +443,11 @@
                             <label class="block text-sm font-medium mb-1">Cargo</label>
                             <input type="text" data-field="cargo" class="form-input">
                         </div>
-                        <div class="md:col-span-2">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Número de Empleado</label>
+                            <input type="text" data-field="numero_empleado" class="form-input">
+                        </div>
+                        <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
                             <input type="text" data-field="documento" class="form-input">
                         </div>
@@ -490,10 +494,11 @@
                     const data = {
                         nombre: block.querySelector('[data-field="nombre"]').value,
                         cargo: block.querySelector('[data-field="cargo"]').value,
+                        numero_empleado: block.querySelector('[data-field="numero_empleado"]').value,
                         documento: block.querySelector('[data-field="documento"]').value,
                         firma: pad.isEmpty() ? '' : pad.toDataURL()
                     };
-                    if (data.nombre || data.cargo || data.documento) {
+                    if (data.nombre || data.cargo || data.numero_empleado || data.documento) {
                         attendeesData.push(data);
                     }
                 });

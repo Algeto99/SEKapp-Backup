@@ -105,6 +105,11 @@
     "data_type": "timestamp with time zone"
   },
   {
+    "table_name": "capacitacion_asistencia",
+    "column_name": "numero_empleado",
+    "data_type": "text"
+  },
+  {
     "table_name": "checklist_cumplimiento",
     "column_name": "id",
     "data_type": "integer"

@@ -889,12 +889,13 @@ def submit_asistencia_qr(session_token):
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO capacitacion_asistencia (session_token, nombre, cargo, documento, firma) "
-            "VALUES (%s, %s, %s, %s, %s)",
+            "INSERT INTO capacitacion_asistencia (session_token, nombre, cargo, numero_empleado, documento, firma) "
+            "VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 session_token,
                 nombre,
                 request.form.get('cargo', ''),
+                request.form.get('numero_empleado', ''),
                 request.form.get('documento', ''),
                 request.form.get('firma', '')
             )
@@ -946,15 +947,15 @@ def submit_registro_de_capacitaciones():
         if session_token:
             try:
                 cur.execute(
-                    "SELECT nombre, cargo, documento, firma FROM capacitacion_asistencia WHERE session_token = %s",
+                    "SELECT nombre, cargo, numero_empleado, documento, firma FROM capacitacion_asistencia WHERE session_token = %s",
                     (session_token,)
                 )
                 guest_rows = cur.fetchall()
                 for row in guest_rows:
                     lista_manual.append({
                         'nombre': row[0], 'cargo': row[1],
-                        'documento': row[2], 'firma': row[3],
-                        'via': 'QR'
+                        'numero_empleado': row[2], 'documento': row[3],
+                        'firma': row[4], 'via': 'QR'
                     })
             except Exception as qr_err:
                 app_logger.warning(f"Could not fetch QR attendees: {qr_err}")
