@@ -1052,7 +1052,7 @@ def submit_registro_y_acta_de_visita():
         # Collect all repeatable block data (indexed temas_tratados_N, acuerdos_compromisos_N, etc.)
         bloques = {}
         for key in request.form:
-            for prefix in ('temas_tratados_', 'acuerdos_compromisos_', 'nombre_responsable_', 'fecha_cumplimiento_'):
+            for prefix in ('temas_tratados_', 'acuerdos_compromisos_', 'nombre_responsable_', 'fecha_cumplimiento_', 'estado_seguimiento_'):
                 if key.startswith(prefix):
                     idx = key[len(prefix):]
                     if idx not in bloques:
@@ -1063,7 +1063,7 @@ def submit_registro_y_acta_de_visita():
         temas_list = [bloques[i].get('temas_tratados', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('temas_tratados')]
         acuerdos_list = [bloques[i].get('acuerdos_compromisos', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('acuerdos_compromisos')]
         responsables_list = [
-            {'nombre': bloques[i].get('nombre_responsable', ''), 'fecha': bloques[i].get('fecha_cumplimiento', '')}
+            {'nombre': bloques[i].get('nombre_responsable', ''), 'fecha': bloques[i].get('fecha_cumplimiento', ''), 'estado': bloques[i].get('estado_seguimiento', '')}
             for i in sorted(bloques.keys(), key=lambda x: int(x))
             if bloques[i].get('nombre_responsable') or bloques[i].get('fecha_cumplimiento')
         ]

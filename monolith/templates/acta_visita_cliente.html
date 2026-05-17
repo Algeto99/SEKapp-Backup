@@ -303,6 +303,15 @@
                                 <label class="block text-sm font-medium mb-1">Fecha de Cumplimiento</label>
                                 <input type="date" name="fecha_cumplimiento_0" class="form-input">
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Estado/Seguimiento</label>
+                                <select name="estado_seguimiento_0" class="form-input">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Cerrado">Cerrado (Si ya se ejecuto)</option>
+                                    <option value="Pendiente">Pendiente (Si esta dentro del plazo)</option>
+                                    <option value="Vencido">Vencido (si la fecha ya paso)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -518,6 +527,15 @@
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de Cumplimiento</label>
                                 <input type="date" name="fecha_cumplimiento_${idx}" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Estado/Seguimiento</label>
+                                <select name="estado_seguimiento_${idx}" class="form-input">
+                                    <option value="">-- Seleccionar --</option>
+                                    <option value="Cerrado">Cerrado (Si ya se ejecuto)</option>
+                                    <option value="Pendiente">Pendiente (Si esta dentro del plazo)</option>
+                                    <option value="Vencido">Vencido (si la fecha ya paso)</option>
+                                </select>
                             </div>
                         </div>
                     </div>

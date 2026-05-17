@@ -4543,7 +4543,8 @@ def _visita_parse_compromisos(rows):
             if not acuerdo and not tema and not fecha_limite and not responsable_item:
                 continue
 
-            estado = estados_override.get(str(idx)) or _visita_status(acuerdo, fecha_limite)
+            estado_from_form = responsable_item.get('estado') or ''
+            estado = estados_override.get(str(idx)) or estado_from_form or _visita_status(acuerdo, fecha_limite)
             compromisos.append({
                 'id_visita': row['id_visita'],
                 'bloque_idx': idx,
