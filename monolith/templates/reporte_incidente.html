@@ -309,7 +309,7 @@
                     <div>
                         <label for="nombre_responsable" class="form-label">Nombre</label>
                         <input type="text" id="nombre_responsable" name="nombre_responsable" value="{{ name }}"
-                            class="form-input" required>
+                            class="form-input" required readonly>
                     </div>
                     <div>
                         <label for="numero_empleado" class="form-label">Número de Empleado</label>
@@ -479,7 +479,7 @@
                     </div>
                     <div>
                         <label for="nombre_responsable_plan" class="form-label">Nombre del Responsable</label>
-                        <input type="text" id="nombre_responsable_plan" name="nombre_responsable_plan" class="form-input">
+                        <input type="text" id="nombre_responsable_plan" name="nombre_responsable_plan" class="form-input" value="{{ name }}" readonly>
                     </div>
                     <div>
                         <label for="fecha_cumplimiento_plan" class="form-label">Fecha de Cumplimiento</label>
