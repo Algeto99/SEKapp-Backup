@@ -1375,6 +1375,11 @@
     "data_type": "numeric"
   },
   {
+    "table_name": "propiedades",
+    "column_name": "cliente",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "registro_de_capacitaciones",
     "column_name": "id_capacitacion",
     "data_type": "integer"

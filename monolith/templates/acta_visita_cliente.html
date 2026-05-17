@@ -252,8 +252,11 @@
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales de la Visita</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_visitado" class="block text-sm font-medium mb-1">Cliente Visitado</label>
-                        <input type="text" name="cliente_visitado" id="cliente_visitado" class="form-input" required>
+                        <label for="id_propiedad" class="block text-sm font-medium mb-1">Propiedad / Instalación</label>
+                        <select name="id_propiedad" id="id_propiedad" class="form-input form-select" required>
+                            <option value="" disabled selected>Cargando propiedades...</option>
+                        </select>
+                        <input type="hidden" name="cliente_visitado" id="cliente_visitado">
                     </div>
                     <div>
                         <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>

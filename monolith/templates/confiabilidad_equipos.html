@@ -239,11 +239,13 @@
                 </h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="block text-sm font-medium mb-1">
-                            Cliente / Instalación
+                        <label for="id_propiedad" class="block text-sm font-medium mb-1">
+                            Propiedad / Instalación
                         </label>
-                        <input type="text" name="cliente_instalacion" id="cliente_instalacion"
-                               class="form-input" placeholder="Nombre del cliente o instalación" required>
+                        <select name="id_propiedad" id="id_propiedad" class="form-input form-select" required>
+                            <option value="" disabled selected>Cargando propiedades...</option>
+                        </select>
+                        <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
                     </div>
                     <div>
                         <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>

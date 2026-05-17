@@ -147,86 +147,39 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
     if company_id is not None:
         scope['company_id'] = company_id
 
-    if not (_table_exists(cur, 'customer_companies') and _table_has_column(cur, 'propiedades', 'customer_company_id')):
-        if company_id is not None and _table_exists(cur, 'customer_companies'):
-            default_customer = _ensure_default_customer_company(cur, company_id)
-            if default_customer:
-                scope['customer_company_id'] = default_customer['id']
-                if not legacy_customer_value:
-                    scope['cliente_instalacion'] = default_customer['name']
-        return scope
-
     property_name = None
-    customer_name = None
 
+    # Resolve by property id (preferred path — set by the property selector)
     if property_id and str(property_id).isdigit():
         cur.execute("""
-            SELECT p.id_propiedad, p.nombre, p.customer_company_id, cc.name
-            FROM propiedades p
-            LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
-            WHERE p.id_propiedad = %s
-              AND (%s IS NULL OR cc.company_id = %s)
-        """, (int(property_id), company_id, company_id))
+            SELECT id_propiedad, nombre
+            FROM propiedades
+            WHERE id_propiedad = %s
+              AND COALESCE(activa, TRUE) = TRUE
+        """, (int(property_id),))
         row = cur.fetchone()
         if row:
             scope['id_propiedad'] = row[0]
-            if row[2] is not None:
-                scope['customer_company_id'] = row[2]
             property_name = row[1]
-            customer_name = row[3]
 
-    if 'customer_company_id' not in scope and customer_company_id and str(customer_company_id).isdigit():
-        cur.execute("""
-            SELECT id, name
-            FROM customer_companies
-            WHERE id = %s
-              AND (%s IS NULL OR company_id = %s)
-        """, (int(customer_company_id), company_id, company_id))
-        row = cur.fetchone()
-        if row:
-            scope['customer_company_id'] = row[0]
-            customer_name = row[1]
-
+    # Fallback: match property by name when submitted via legacy text input
     if 'id_propiedad' not in scope and legacy_customer_value:
         cur.execute("""
-            SELECT p.id_propiedad, p.nombre, p.customer_company_id, cc.name
-            FROM propiedades p
-            LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
-            WHERE LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s))
-              AND (%s IS NULL OR cc.company_id = %s)
+            SELECT id_propiedad, nombre
+            FROM propiedades
+            WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(%s))
+              AND COALESCE(activa, TRUE) = TRUE
             LIMIT 1
-        """, (legacy_customer_value, company_id, company_id))
+        """, (legacy_customer_value,))
         row = cur.fetchone()
         if row:
             scope['id_propiedad'] = row[0]
-            if row[2] is not None:
-                scope['customer_company_id'] = row[2]
             property_name = row[1]
-            customer_name = row[3]
-
-    if 'customer_company_id' not in scope and legacy_customer_value:
-        cur.execute("""
-            SELECT id, name
-            FROM customer_companies
-            WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s))
-              AND (%s IS NULL OR company_id = %s)
-            LIMIT 1
-        """, (legacy_customer_value, company_id, company_id))
-        row = cur.fetchone()
-        if row:
-            scope['customer_company_id'] = row[0]
-            customer_name = row[1]
-
-    if 'customer_company_id' not in scope and company_id is not None:
-        default_customer = _ensure_default_customer_company(cur, company_id)
-        if default_customer:
-            scope['customer_company_id'] = default_customer['id']
-            customer_name = customer_name or default_customer['name']
 
     if property_name:
         scope['cliente_instalacion'] = property_name
-    elif customer_name:
-        scope['cliente_instalacion'] = customer_name
+    elif legacy_customer_value:
+        scope['cliente_instalacion'] = legacy_customer_value
 
     return scope
 
@@ -339,6 +292,34 @@ def select_form():
         is_admin=is_admin,
         **get_service_urls()
     )
+
+
+@forms_bp.route('/api/properties')
+@jwt_required()
+def api_form_properties():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT id_propiedad, nombre, COALESCE(cliente, '') AS cliente
+            FROM propiedades
+            WHERE COALESCE(activa, TRUE) = TRUE
+            ORDER BY nombre
+        """)
+        rows = cur.fetchall()
+        return jsonify({
+            'properties': [
+                {'id': r['id_propiedad'], 'name': r['nombre'], 'cliente': r['cliente']}
+                for r in rows
+            ]
+        })
+    except Exception as e:
+        app_logger.error(f"api_form_properties error: {e}", exc_info=True)
+        return jsonify({'properties': []}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @forms_bp.route('/api/customer-hierarchy')

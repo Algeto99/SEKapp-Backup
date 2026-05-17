@@ -337,9 +337,11 @@
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="cliente_instalacion" class="form-label">Cliente / Instalación</label>
-                        <input type="text" name="cliente_instalacion" id="cliente_instalacion" class="form-input"
-                            required>
+                        <label for="id_propiedad" class="form-label">Propiedad / Instalación</label>
+                        <select name="id_propiedad" id="id_propiedad" class="form-input form-select" required>
+                            <option value="" disabled selected>Cargando propiedades...</option>
+                        </select>
+                        <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
                     </div>
                     <div>
                         <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>

@@ -144,11 +144,10 @@ def get_properties():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         query = """
-            SELECT DISTINCT p.id_propiedad, p.nombre
-            FROM propiedades p
-            INNER JOIN reportes_incidentes ri ON p.id_propiedad = ri.id_propiedad
-            WHERE p.activa = TRUE
-            ORDER BY p.nombre;
+            SELECT id_propiedad, nombre
+            FROM propiedades
+            WHERE COALESCE(activa, TRUE) = TRUE
+            ORDER BY nombre;
         """
         
         cur.execute(query)
@@ -3528,6 +3527,7 @@ def _sup_prev_where(cliente, year, month, day):
 @dashboard_bp.route('/api/supervision/clientes')
 @jwt_required()
 def api_supervision_clientes():
+    """Return active properties as the canonical list of supervision sites."""
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -3535,10 +3535,10 @@ def api_supervision_clientes():
             return jsonify({'clientes': []})
         cur = conn.cursor()
         cur.execute("""
-            SELECT DISTINCT cliente
-            FROM supervision_puesto
-            WHERE cliente IS NOT NULL AND cliente <> ''
-            ORDER BY cliente
+            SELECT nombre
+            FROM propiedades
+            WHERE COALESCE(activa, TRUE) = TRUE
+            ORDER BY nombre
         """)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
