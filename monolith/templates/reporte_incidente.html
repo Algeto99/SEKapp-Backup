@@ -311,6 +311,10 @@
                         <input type="text" id="nombre_responsable" name="nombre_responsable" value="{{ name }}"
                             class="form-input" required>
                     </div>
+                    <div>
+                        <label for="numero_empleado" class="form-label">Número de Empleado</label>
+                        <input type="text" id="numero_empleado" name="numero_empleado" class="form-input">
+                    </div>
                     <div class="md:col-span-2">
                         <label class="form-label">Firma</label>
                         <canvas id="firma-pad" class="signature-pad"></canvas>
@@ -334,8 +338,40 @@
                             <option value="Emergencias">Emergencias</option>
                             <option value="Estacionamiento">Estacionamiento</option>
                             <option value="Operativos/administrativos">Operativos / Administrativos</option>
+                            <option value="Ausentismo">Ausentismo</option>
                             <option value="Otros">Otros</option>
                         </select>
+                    </div>
+                    <div class="md:col-span-2" id="ausentismo-wrapper" style="display: none;">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="razon_ausentismo" class="form-label">Razón de Ausentismo</label>
+                                <select id="razon_ausentismo" name="razon_ausentismo" class="form-select">
+                                    <option value="" disabled selected>Seleccione una razón...</option>
+                                    <option value="Permiso">Permiso</option>
+                                    <option value="Incapacidad">Incapacidad</option>
+                                    <option value="Vacaciones">Vacaciones</option>
+                                    <option value="No se presenta">No se presenta</option>
+                                    <option value="Retiro del puesto">Retiro del puesto</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="cubre_puesto" class="form-label">¿Se cubre el puesto?</label>
+                                <select id="cubre_puesto" name="cubre_puesto" class="form-select" onchange="toggleCubrePuesto()">
+                                    <option value="" disabled selected>Seleccione...</option>
+                                    <option value="SI">SI</option>
+                                    <option value="NO">NO</option>
+                                </select>
+                            </div>
+                            <div id="cubre-nombre-wrapper" style="display: none;">
+                                <label for="nombre_persona_cubre" class="form-label">Nombre persona que cubre</label>
+                                <input type="text" id="nombre_persona_cubre" name="nombre_persona_cubre" class="form-input">
+                            </div>
+                            <div id="cubre-empleado-wrapper" style="display: none;">
+                                <label for="numero_empleado_cubre" class="form-label">Número de empleado (persona que cubre)</label>
+                                <input type="text" id="numero_empleado_cubre" name="numero_empleado_cubre" class="form-input">
+                            </div>
+                        </div>
                     </div>
                     <div class="md:col-span-2" id="incident-type-wrapper" style="display: none;">
                         <label for="tipo_incidente" class="form-label">Tipo de incidente</label>
@@ -433,7 +469,33 @@
                 </div>
             </div>
 
-            <!-- Section 3 Removed -->
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Plan de Acción</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label for="plan_accion" class="form-label">Acción</label>
+                        <textarea id="plan_accion" name="plan_accion" rows="4" class="form-textarea"
+                            placeholder="Describa la acción a tomar..."></textarea>
+                    </div>
+                    <div>
+                        <label for="nombre_responsable_plan" class="form-label">Nombre del Responsable</label>
+                        <input type="text" id="nombre_responsable_plan" name="nombre_responsable_plan" class="form-input">
+                    </div>
+                    <div>
+                        <label for="fecha_cumplimiento_plan" class="form-label">Fecha de Cumplimiento</label>
+                        <input type="date" id="fecha_cumplimiento_plan" name="fecha_cumplimiento_plan" class="form-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="estado_seguimiento_plan" class="form-label">Estado / Seguimiento</label>
+                        <select id="estado_seguimiento_plan" name="estado_seguimiento_plan" class="form-select">
+                            <option value="" disabled selected>Seleccione un estado...</option>
+                            <option value="Cerrado">Cerrado (si ya se ejecutó)</option>
+                            <option value="Pendiente">Pendiente (si está dentro del plazo)</option>
+                            <option value="Vencido">Vencido (si la fecha ya pasó)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
             <div class="mt-8 text-center">
                 <button type="submit"
@@ -591,11 +653,33 @@
             ]
         };
 
+        function toggleCubrePuesto() {
+            const val = document.getElementById('cubre_puesto').value;
+            const show = val === 'SI';
+            document.getElementById('cubre-nombre-wrapper').style.display = show ? 'block' : 'none';
+            document.getElementById('cubre-empleado-wrapper').style.display = show ? 'block' : 'none';
+        }
+
         function updateIncidentTypes() {
             const category = document.getElementById('categoria').value;
             const wrapper = document.getElementById('incident-type-wrapper');
+            const ausentismoWrapper = document.getElementById('ausentismo-wrapper');
             const select = document.getElementById('tipo_incidente');
             select.innerHTML = '';
+
+            // Show/hide ausentismo fields
+            if (category === 'Ausentismo') {
+                ausentismoWrapper.style.display = 'block';
+                document.getElementById('razon_ausentismo').setAttribute('required', 'required');
+                document.getElementById('cubre_puesto').setAttribute('required', 'required');
+                wrapper.style.display = 'none';
+                select.removeAttribute('required');
+                return;
+            } else {
+                ausentismoWrapper.style.display = 'none';
+                document.getElementById('razon_ausentismo').removeAttribute('required');
+                document.getElementById('cubre_puesto').removeAttribute('required');
+            }
 
             // If "Otros" is selected, hide the type dropdown and require nothing
             if (category === 'Otros') {

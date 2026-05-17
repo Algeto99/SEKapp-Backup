@@ -1840,6 +1840,51 @@
     "data_type": "numeric"
   },
   {
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_empleado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "razon_ausentismo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "cubre_puesto",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "nombre_persona_cubre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_empleado_cubre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "plan_accion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "nombre_responsable_plan",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "fecha_cumplimiento_plan",
+    "data_type": "date"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "estado_seguimiento_plan",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "saved_filters",
     "column_name": "id",
     "data_type": "integer"
