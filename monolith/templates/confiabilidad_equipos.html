@@ -578,10 +578,10 @@
                                class="form-input inv-func" min="0" placeholder="0">
                     </div>
 
-                    <div>
+                    <div class="inv-falla-wrapper" style="display:none;">
                         <label class="block text-sm font-medium mb-1">Equipos con Falla</label>
                         <input type="number" name="inventario[${index}][equipos_con_falla]"
-                               class="form-input" min="0" placeholder="0">
+                               class="form-input inv-falla" min="0" placeholder="0">
                     </div>
 
                     <div>
@@ -616,6 +616,19 @@
             return div;
         }
 
+        function toggleFallaField(block) {
+            const total = parseInt(block.querySelector('.inv-total')?.value, 10);
+            const func  = parseInt(block.querySelector('.inv-func')?.value,  10);
+            const wrapper = block.querySelector('.inv-falla-wrapper');
+            if (!wrapper) return;
+            const show = !isNaN(total) && !isNaN(func) && total !== func;
+            wrapper.style.display = show ? '' : 'none';
+            if (!show) {
+                const fallaInput = block.querySelector('.inv-falla');
+                if (fallaInput) fallaInput.value = '';
+            }
+        }
+
         function bindInventarioEvents(block) {
             // Remove button
             const removeBtn = block.querySelector('.remove-inv-btn');
@@ -631,6 +644,12 @@
                 el.addEventListener('change', updateConfiabilidadTable);
                 el.addEventListener('input',  updateConfiabilidadTable);
             });
+            // Show/hide equipos con falla based on total vs operativos
+            block.querySelectorAll('.inv-total, .inv-func').forEach(el => {
+                el.addEventListener('change', () => toggleFallaField(block));
+                el.addEventListener('input',  () => toggleFallaField(block));
+            });
+            toggleFallaField(block);
         }
 
         function renumberInventarioBlocks() {
