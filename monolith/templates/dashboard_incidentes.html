@@ -408,14 +408,44 @@
         {% include '_dashboard_filters.html' %}
 
         <!-- ── Active drilldown banner ──────────────────────────────────── -->
+        {% if is_admin %}
         <div id="filterBanner">
             <span style="color:#94a3b8; font-size:0.8125rem;">Filtro activo:</span>
             <span id="filterBadgeCategoria" class="filter-badge" style="display:none;"></span>
             <span id="filterBadgeSeveridad" class="filter-badge" style="display:none;"></span>
             <button class="clear-filter-btn" onclick="clearDrilldown()">✕ Limpiar filtros</button>
         </div>
+        {% endif %}
+
+        {% if not is_admin %}
+        <!-- ── Matriz de seguimiento de incidentes (non-admin view) ───────── -->
+        <div class="card" style="margin-top:1rem;">
+            <div class="card-title">Matriz de Seguimiento de Incidentes</div>
+            <div style="overflow:auto; max-height:620px;">
+                <table id="userMatrixTable" style="width:100%;border-collapse:separate;border-spacing:0;font-size:.875rem;text-align:left;">
+                    <thead>
+                        <tr>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Fecha y Hora</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Instalación</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Categoría</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Tipo</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Severidad</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Turno</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Estado</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Responsable</th>
+                            <th style="padding:.75rem;color:#cbd5e1;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;background:#374151;z-index:1;white-space:nowrap;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userMatrixBody">
+                        <tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- ── KPI Row ──────────────────────────────────────────────────── -->
+        {% if is_admin %}
         <div class="kpi-grid" id="kpiSection" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
 
             <!-- KPI 1: Total Incidentes -->
@@ -563,6 +593,7 @@
             </div>
 
         </div>
+        {% endif %}
 
     </div><!-- /main-container -->
 
@@ -1253,7 +1284,9 @@
         }
     }
 
-    // ── Main data loader ──────────────────────────────────────────────────
+    const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
+    // ── Main data loader (admin only) ─────────────────────────────────────
     async function loadData(qs = '') {
         ['catLoading','sevLoading','trendLoading','turnoLoading'].forEach(id => setLoading(id, true));
         try {
@@ -1270,6 +1303,39 @@
             showError(`Error de conexión: ${err.message}`);
         } finally {
             ['catLoading','sevLoading','trendLoading','turnoLoading'].forEach(id => setLoading(id, false));
+        }
+    }
+
+    // ── User matrix loader (non-admin) ────────────────────────────────────
+    async function loadUserMatrix(qs = '') {
+        const tBody = document.getElementById('userMatrixBody');
+        if (!tBody) return;
+        tBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>';
+        try {
+            const res = await fetch(`/dashboard/api/incidentes/detalles${qs ? '?' + qs : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) { tBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#f87171;padding:2rem;">Error cargando datos.</td></tr>`; return; }
+            const rows = data.detalles || [];
+            if (rows.length === 0) { tBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">No hay registros para los criterios seleccionados.</td></tr>'; return; }
+            tBody.innerHTML = '';
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.06);';
+                tr.innerHTML = `
+                    <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.fecha_hora}</td>
+                    <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.cliente}</td>
+                    <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.categoria}</td>
+                    <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.tipo}</td>
+                    <td style="padding:.75rem;vertical-align:top;">${sevBadge(r.severidad)}</td>
+                    <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.turno}</td>
+                    <td style="padding:.75rem;vertical-align:top;">${r.estado}</td>
+                    <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.responsable}</td>
+                    <td style="padding:.75rem;vertical-align:top;"><button class="btn-ver" onclick="openRecord(${r.id})">Ver ↗</button></td>
+                `;
+                tBody.appendChild(tr);
+            });
+        } catch (err) {
+            tBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#f87171;padding:2rem;">Error: ${err.message}</td></tr>`;
         }
     }
 
@@ -1305,15 +1371,22 @@
             });
         } catch (e) { console.warn('Could not load clientes', e); }
 
-        document.addEventListener('filtersChanged', (e) => {
-            currentQS = buildQS(e.detail);
-            activeCatFilter = null;
-            activeSevFilter = null;
-            updateFilterBanner();
-            loadData(currentQS);
-        });
-
-        loadData();
+        if (IS_ADMIN) {
+            document.addEventListener('filtersChanged', (e) => {
+                currentQS = buildQS(e.detail);
+                activeCatFilter = null;
+                activeSevFilter = null;
+                updateFilterBanner();
+                loadData(currentQS);
+            });
+            loadData();
+        } else {
+            document.addEventListener('filtersChanged', (e) => {
+                currentQS = buildQS(e.detail);
+                loadUserMatrix(currentQS);
+            });
+            loadUserMatrix();
+        }
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

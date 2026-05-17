@@ -145,6 +145,7 @@
 
         {% include '_dashboard_filters.html' %}
 
+        {% if is_admin %}
         <div class="kpi-grid">
             <div class="card">
                 <div class="card-title">Total de Visitas</div>
@@ -199,6 +200,7 @@
                 <div id="estadoSummary" style="display:grid; grid-template-columns:1fr; gap:.85rem; margin-top:.75rem;"></div>
             </div>
         </div>
+        {% endif %}
 
         <div class="card chart-full">
             <div class="card-title">Matriz de Seguimiento de Acuerdos y Compromisos</div>
@@ -579,29 +581,39 @@
         return p.toString();
     }
 
+    const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
     async function loadData(qs = '') {
         const q = qs ? '?' + qs : '';
         try {
-            const [dataRes, detalleRes] = await Promise.all([
-                fetch('/dashboard/api/visitas/data' + q),
-                fetch('/dashboard/api/visitas/detalles' + q)
-            ]);
-            const data = await dataRes.json();
-            const detalles = await detalleRes.json();
-            if (!dataRes.ok) throw new Error(data.error || 'No se pudo cargar el dashboard de visitas');
-            if (!detalleRes.ok) throw new Error(detalles.error || 'No se pudo cargar la matriz de compromisos');
+            if (IS_ADMIN) {
+                const [dataRes, detalleRes] = await Promise.all([
+                    fetch('/dashboard/api/visitas/data' + q),
+                    fetch('/dashboard/api/visitas/detalles' + q)
+                ]);
+                const data = await dataRes.json();
+                const detalles = await detalleRes.json();
+                if (!dataRes.ok) throw new Error(data.error || 'No se pudo cargar el dashboard de visitas');
+                if (!detalleRes.ok) throw new Error(detalles.error || 'No se pudo cargar la matriz de compromisos');
 
-            renderKPI(data.kpi || {});
-            renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', data.frecuencia_clientes || [], 'cliente', 'visitas', 'Visitas', row => {
-                openDetailListModal(filterVisitasDetalles({ cliente: row.cliente }), `Compromisos — ${row.cliente}`);
-            });
-            renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', data.motivos || [], 'motivo', 'visitas', 'Visitas', row => {
-                openDetailListModal(filterVisitasDetalles({ motivo: row.motivo }), `Compromisos — ${row.motivo}`);
-            });
-            renderTrendChart(data.tendencia || []);
-            renderEstadoChart(data.estado_compromisos || {});
-            renderMatrix(detalles.detalles || []);
-            renderAlert(data.vencidos_total || 0);
+                renderKPI(data.kpi || {});
+                renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', data.frecuencia_clientes || [], 'cliente', 'visitas', 'Visitas', row => {
+                    openDetailListModal(filterVisitasDetalles({ cliente: row.cliente }), `Compromisos — ${row.cliente}`);
+                });
+                renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', data.motivos || [], 'motivo', 'visitas', 'Visitas', row => {
+                    openDetailListModal(filterVisitasDetalles({ motivo: row.motivo }), `Compromisos — ${row.motivo}`);
+                });
+                renderTrendChart(data.tendencia || []);
+                renderEstadoChart(data.estado_compromisos || {});
+                renderMatrix(detalles.detalles || []);
+                renderAlert(data.vencidos_total || 0);
+            } else {
+                const detalleRes = await fetch('/dashboard/api/visitas/detalles' + q);
+                const detalles = await detalleRes.json();
+                if (!detalleRes.ok) throw new Error(detalles.error || 'No se pudo cargar la matriz de compromisos');
+                renderMatrix(detalles.detalles || []);
+                renderAlert(detalles.detalles?.filter(d => d.estado === 'vencido').length || 0);
+            }
         } catch (err) {
             console.error('visitas loadData error:', err);
             renderMatrix([]);
