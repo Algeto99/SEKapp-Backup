@@ -260,6 +260,11 @@
     "data_type": "integer"
   },
   {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "agente_numero_empleado",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "companies",
     "column_name": "id",
     "data_type": "integer"

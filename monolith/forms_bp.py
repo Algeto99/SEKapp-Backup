@@ -1361,6 +1361,7 @@ def submit_checklist_cumplimiento():
                 'agente_tipo_documento': request.form.getlist('agente_tipo_documento[]')[i] if len(request.form.getlist('agente_tipo_documento[]')) > i else None,
                 'agente_numero_documento': request.form.getlist('agente_numero_documento[]')[i] if len(request.form.getlist('agente_numero_documento[]')) > i else None,
                 'agente_cargo_rol': request.form.getlist('agente_cargo_rol[]')[i] if len(request.form.getlist('agente_cargo_rol[]')) > i else None,
+                'agente_numero_empleado': request.form.getlist('agente_numero_empleado[]')[i] if len(request.form.getlist('agente_numero_empleado[]')) > i else None,
                 'agente_puesto': request.form.getlist('agente_puesto[]')[i] if len(request.form.getlist('agente_puesto[]')) > i else None,
 
                 # Section 3

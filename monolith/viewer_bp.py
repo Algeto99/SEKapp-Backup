@@ -541,6 +541,7 @@ FORM_CONFIGS = {
             "Agente Tipo Doc": "agente_tipo_documento",
             "Agente Nro Doc": "agente_numero_documento",
             "Agente Cargo": "agente_cargo_rol",
+            "Agente Nro Empleado": "agente_numero_empleado",
             "Agente Puesto": "agente_puesto",
             "Curso Certificación": "curso_certificacion",
             "Academia": "academia_certifica",
