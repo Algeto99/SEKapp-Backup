@@ -1,5 +1,6 @@
 import os
 import logging
+import traceback
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import psycopg2
@@ -15,6 +16,21 @@ bcrypt = None
 def init_admin_bp(app_bcrypt):
     global bcrypt
     bcrypt = app_bcrypt
+
+
+def _error_page(e, context='Panel de Administración'):
+    """Render a user-facing error page with enough detail to report to support."""
+    error_id = os.urandom(4).hex().upper()
+    error_detail = f"{type(e).__name__}: {e}"
+    app_logger.error(f"[{error_id}] Error in {context}: {error_detail}\n{traceback.format_exc()}")
+    claims = get_jwt()
+    return render_template(
+        'admin_error.html',
+        error_id=error_id,
+        error_detail=error_detail,
+        context=context,
+        user_name=claims.get('name', get_jwt_identity()),
+    ), 500
 
 
 def get_db_connection():
@@ -106,13 +122,21 @@ def panel():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
-            SELECT id, name, email, username, phone_number,
-                   is_admin, is_super_admin, is_active, company_id, created_at,
-                   force_password_change
-            FROM users
-            ORDER BY created_at DESC
-        """)
+        try:
+            cur.execute("""
+                SELECT id, name, email, username, phone_number,
+                       is_admin, is_super_admin, is_active, company_id, created_at,
+                       force_password_change
+                FROM users ORDER BY created_at DESC
+            """)
+        except Exception:
+            conn.rollback()
+            cur.execute("""
+                SELECT id, name, email, username, phone_number,
+                       is_admin, is_super_admin, is_active, company_id, created_at,
+                       FALSE AS force_password_change
+                FROM users ORDER BY created_at DESC
+            """)
         users = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT id, name FROM companies WHERE is_active = TRUE ORDER BY name")
         companies = [dict(r) for r in cur.fetchall()]
@@ -121,9 +145,7 @@ def panel():
         return render_template('admin_panel.html', users=users, companies=companies,
                                user_name=claims.get('name', get_jwt_identity()))
     except Exception as e:
-        app_logger.error(f"Admin panel error: {e}", exc_info=True)
-        flash('Error al cargar el panel de administración.', 'error')
-        return redirect('/landing/')
+        return _error_page(e, 'Cargar panel de administración')
     finally:
         if conn:
             conn.close()
@@ -173,7 +195,7 @@ def create_user():
         if conn:
             conn.rollback()
         app_logger.error(f"Error creating user: {e}", exc_info=True)
-        flash('Error al crear el usuario.', 'error')
+        flash(f'Error al crear el usuario: {type(e).__name__}: {e}', 'error')
     finally:
         if conn:
             conn.close()
@@ -209,7 +231,7 @@ def toggle_admin(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error toggling admin: {e}", exc_info=True)
-        flash('Error al actualizar el rol.', 'error')
+        flash(f'Error al actualizar el rol: {type(e).__name__}: {e}', 'error')
     finally:
         if conn:
             conn.close()
@@ -245,7 +267,7 @@ def toggle_active(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error toggling active: {e}", exc_info=True)
-        flash('Error al actualizar el estado.', 'error')
+        flash(f'Error al actualizar el estado: {type(e).__name__}: {e}', 'error')
     finally:
         if conn:
             conn.close()
@@ -277,7 +299,7 @@ def toggle_force_password(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error toggling force_password_change: {e}", exc_info=True)
-        flash('Error al actualizar el usuario.', 'error')
+        flash(f'Error al actualizar cambio de contraseña: {type(e).__name__}: {e}', 'error')
     finally:
         if conn:
             conn.close()
@@ -315,7 +337,7 @@ def reset_password(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error resetting password: {e}", exc_info=True)
-        flash('Error al actualizar la contraseña.', 'error')
+        flash(f'Error al actualizar la contraseña: {type(e).__name__}: {e}', 'error')
     finally:
         if conn:
             conn.close()

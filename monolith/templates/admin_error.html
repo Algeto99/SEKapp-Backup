@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error · Panel de Administración · SekApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #1a202c; color: #e2e8f0; min-height: 100vh; padding-top: 80px; }
+        h1, h2 { font-family: 'Merriweather', serif; color: #fff; }
+        .header-nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            background-color: rgba(45,55,72,0.97); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding: 1rem 1.5rem; z-index: 50;
+        }
+        .nav-content { max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-link { color: #60a5fa; text-decoration: none; font-size: 0.875rem; }
+        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
+        .user-name { color: #60a5fa; font-weight: bold; }
+        .main { max-width: 780px; margin: 3rem auto; padding: 0 1.5rem; }
+        .error-card {
+            background: rgba(69,10,10,0.5); border: 1px solid rgba(220,38,38,0.4);
+            border-radius: 0.75rem; padding: 2rem;
+        }
+        .error-id {
+            font-family: monospace; font-size: 0.8rem;
+            background: rgba(0,0,0,0.3); border-radius: 0.375rem;
+            padding: 0.25rem 0.6rem; color: #fca5a5; display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .error-detail {
+            font-family: monospace; font-size: 0.8rem; background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 0.5rem;
+            padding: 1rem; color: #fca5a5; white-space: pre-wrap; word-break: break-all;
+            margin: 1rem 0;
+        }
+        .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; border: none; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background: #4f46e5; color: #fff; }
+        .btn-ghost { background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.12); }
+    </style>
+</head>
+<body>
+
+<div class="header-nav">
+    <div class="nav-content">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png" alt="Logo" style="width:2rem;height:2rem;border-radius:0.375rem;">
+            <span style="font-size:0.875rem; color:#9ca3af;">Bienvenido, <span class="user-name">{{ user_name }}</span></span>
+        </div>
+        <div class="nav-links">
+            <a href="/admin/" class="nav-link">← Panel de Admin</a>
+            <a href="/landing/" class="nav-link">Inicio</a>
+            <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+        </div>
+    </div>
+</div>
+
+<div class="main">
+    <div style="display:flex; align-items:center; gap:1rem; margin-bottom:2rem;">
+        <div style="width:48px;height:48px;border-radius:12px;background:rgba(220,38,38,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+        </div>
+        <div>
+            <h1 style="font-size:1.4rem; margin-bottom:0.2rem;">Error en el Panel de Administración</h1>
+            <p style="color:#94a3b8; font-size:0.875rem;">{{ context }}</p>
+        </div>
+    </div>
+
+    <div class="error-card">
+        <p style="color:#fca5a5; font-weight:600; margin-bottom:0.5rem;">Ocurrió un error inesperado.</p>
+        <p style="color:#fca5a5; font-size:0.875rem; margin-bottom:1rem;">
+            Por favor contacta a soporte técnico e indica el siguiente código de error y detalle:
+        </p>
+
+        <div>
+            <span style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Código de Error</span>
+            <div class="error-id">ERR-{{ error_id }}</div>
+        </div>
+
+        <div>
+            <span style="font-size:0.75rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Detalle Técnico</span>
+            <div class="error-detail">{{ error_detail }}</div>
+        </div>
+
+        <p style="font-size:0.8rem; color:#94a3b8; margin-top:1rem;">
+            Este error ha sido registrado en el servidor con el código <strong style="color:#fca5a5;">ERR-{{ error_id }}</strong>.
+        </p>
+    </div>
+
+    <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+        <a href="/admin/" class="btn btn-primary">Intentar de nuevo</a>
+        <a href="/landing/" class="btn btn-ghost">Ir al Inicio</a>
+    </div>
+</div>
+
+</body>
+</html>

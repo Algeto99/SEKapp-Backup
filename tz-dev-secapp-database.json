@@ -2120,6 +2120,11 @@
     "data_type": "boolean"
   },
   {
+    "table_name": "users",
+    "column_name": "force_password_change",
+    "data_type": "boolean"
+  },
+  {
     "table_name": "v_expediente_feed",
     "column_name": "source_id",
     "data_type": "text"
