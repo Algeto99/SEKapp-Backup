@@ -246,25 +246,44 @@ def login():
             if user:
                 cur.execute('SELECT "is_admin", "is_active" FROM "authorized_emails" WHERE "email" = %s', (email,))
                 auth_entry = cur.fetchone()
+
+            # Fetch is_super_admin and force_password_change — columns may not exist yet
+            is_super_admin = False
+            force_password_change = False
+            if user:
+                try:
+                    cur.execute('SELECT "is_super_admin", "force_password_change" FROM "users" WHERE "id" = %s', (user['id'],))
+                    row = cur.fetchone()
+                    if row:
+                        is_super_admin = bool(row['is_super_admin'])
+                        force_password_change = bool(row['force_password_change'])
+                except Exception:
+                    conn.rollback()
+
             cur.close()
 
             if user:
                 is_valid = bcrypt.check_password_hash(user['password_hash'], password)
-                
+
                 if is_valid:
                     # Resolve is_admin: prefer authorized_emails.is_admin if present and active
                     is_admin = bool(user.get('is_admin'))
                     if auth_entry and auth_entry.get('is_active'):
                         is_admin = bool(auth_entry.get('is_admin', is_admin))
-
-                    current_app.logger.info(f"User {email} logged in. is_admin={is_admin}")
+                    current_app.logger.info(f"User {email} logged in. is_admin={is_admin}, is_super_admin={is_super_admin}, force_password_change={force_password_change}")
                     access_token = create_access_token(
                         identity=user['email'],
-                        additional_claims={'is_admin': is_admin, 'name': user['name']}
+                        additional_claims={'is_admin': is_admin, 'is_super_admin': is_super_admin, 'name': user['name']}
                     )
                     refresh_token = create_refresh_token(identity=user['email'])
-                    
-                    # In Monolith, route internally to landing_bp rather than an external URL
+
+                    if force_password_change:
+                        flash('Debes cambiar tu contraseña antes de continuar.', 'warning')
+                        response = redirect(url_for('login_bp.change_password') + f'?email={user["email"]}&forced=1')
+                        set_access_cookies(response, access_token)
+                        set_refresh_cookies(response, refresh_token)
+                        return response
+
                     response = redirect(url_for('landing_bp.landing_page'))
                     set_access_cookies(response, access_token)
                     set_refresh_cookies(response, refresh_token)
@@ -425,19 +444,20 @@ def change_password():
         current_password = request.form.get('current_password')
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
+        forced = request.form.get('forced', '0') == '1'
 
         if not all([email, current_password, new_password, confirm_password]):
             flash('Por favor complete todos los campos.', 'warning')
-            return render_template('change_password.html', email=email)
+            return render_template('change_password.html', email=email, forced=forced)
 
         if new_password != confirm_password:
             flash('Las contraseñas nuevas no coinciden.', 'danger')
-            return render_template('change_password.html', email=email)
+            return render_template('change_password.html', email=email, forced=forced)
 
         conn = get_db_connection()
         if not conn:
             flash('Error de conexión a la base de datos.', 'danger')
-            return render_template('change_password.html', email=email)
+            return render_template('change_password.html', email=email, forced=forced)
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
@@ -446,14 +466,20 @@ def change_password():
 
             if not user or not bcrypt.check_password_hash(user['password_hash'], current_password):
                 flash('Correo electrónico o contraseña actual incorrectos.', 'danger')
-                return render_template('change_password.html', email=email)
+                return render_template('change_password.html', email=email, forced=forced)
 
             hashed_new = bcrypt.generate_password_hash(new_password).decode('utf-8')
-            cur.execute('UPDATE "users" SET "password_hash" = %s WHERE "email" = %s', (hashed_new, email))
+            cur.execute(
+                'UPDATE "users" SET "password_hash" = %s, "force_password_change" = FALSE WHERE "email" = %s',
+                (hashed_new, email)
+            )
             conn.commit()
             cur.close()
 
             flash('Contraseña actualizada exitosamente.', 'success')
+            # If this was a forced change, go to landing; otherwise back to login
+            if request.form.get('forced') == '1':
+                return redirect(url_for('landing_bp.landing_page'))
             return redirect(url_for('login_bp.login'))
 
         except Exception as e:
@@ -463,7 +489,8 @@ def change_password():
         finally:
             conn.close()
 
-    return render_template('change_password.html', email=request.args.get('email', ''))
+    forced = request.args.get('forced', '0') == '1'
+    return render_template('change_password.html', email=request.args.get('email', ''), forced=forced)
 
 @login_bp.route('/logout')
 def logout():

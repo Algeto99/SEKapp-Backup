@@ -1,35 +1,5 @@
 [
   {
-    "table_name": "admin_users",
-    "column_name": "id",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "admin_users",
-    "column_name": "username",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "admin_users",
-    "column_name": "email",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "admin_users",
-    "column_name": "name",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "admin_users",
-    "column_name": "phone_number",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "admin_users",
-    "column_name": "created_at",
-    "data_type": "timestamp with time zone"
-  },
-  {
     "table_name": "authorized_emails",
     "column_name": "id",
     "data_type": "integer"
@@ -1685,36 +1655,6 @@
     "data_type": "numeric"
   },
   {
-    "table_name": "regular_users",
-    "column_name": "id",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "regular_users",
-    "column_name": "username",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "regular_users",
-    "column_name": "email",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "regular_users",
-    "column_name": "name",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "regular_users",
-    "column_name": "phone_number",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "regular_users",
-    "column_name": "created_at",
-    "data_type": "timestamp with time zone"
-  },
-  {
     "table_name": "reportes_incidentes",
     "column_name": "id_reporte_incidente",
     "data_type": "integer"
@@ -2173,6 +2113,11 @@
     "table_name": "users",
     "column_name": "company_id",
     "data_type": "integer"
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_super_admin",
+    "data_type": "boolean"
   },
   {
     "table_name": "v_expediente_feed",

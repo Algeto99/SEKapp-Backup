@@ -20,6 +20,7 @@ from dashboard_bp import dashboard_bp
 from forms_bp import forms_bp
 from viewer_bp import viewer_bp
 from expediente_bp import expediente_bp
+from admin_bp import admin_bp, init_admin_bp
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -153,17 +154,31 @@ def needs_fresh_token_callback(jwt_header, jwt_payload):
 # --- Mount Applications/Blueprints Here ---
 # Prefixing them is important to prevent route collisions.
 init_login_bp(bcrypt)
+init_admin_bp(bcrypt)
 app.register_blueprint(login_bp, url_prefix='') # Login mounts at root /
 app.register_blueprint(landing_bp, url_prefix='/landing')
 app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
 app.register_blueprint(forms_bp, url_prefix='/forms')
 app.register_blueprint(viewer_bp, url_prefix='/viewer')
 app.register_blueprint(expediente_bp, url_prefix='')
+app.register_blueprint(admin_bp, url_prefix='/admin')
 
 # JWT-authenticated blueprints use their own auth — exempt from CSRF
 csrf.exempt(viewer_bp)
 csrf.exempt(dashboard_bp)
 csrf.exempt(expediente_bp)
+csrf.exempt(admin_bp)
+
+# Inject is_super_admin into every template from the active JWT
+@app.context_processor
+def inject_super_admin():
+    try:
+        from flask_jwt_extended import get_jwt, verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        claims = get_jwt()
+        return {'is_super_admin': bool(claims.get('is_super_admin', False))}
+    except Exception:
+        return {'is_super_admin': False}
 
 @app.route('/health')
 def health_check():
