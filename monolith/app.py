@@ -109,6 +109,7 @@ app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', None)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+app.config['PASSWORD_RESET_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 jwt = JWTManager(app)
 CORS(app)

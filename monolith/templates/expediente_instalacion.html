@@ -124,10 +124,13 @@
     <div class="nav-links">
       <span style="font-family:'Merriweather',serif;font-weight:700;color:#a78bfa;font-size:1.05rem;">SekApp</span>
       <a href="/landing/" class="nav-link">Inicio</a>
-      <a href="/dashboard/" class="nav-link">Dashboard</a>
+      <a href="/dashboard/" class="nav-link">Dashboards</a>
+      <a href="/viewer/" class="nav-link">Reportes</a>
       <a href="/dashboard/supervision/" class="nav-link">Supervisión</a>
       <a href="/dashboard/incidentes/" class="nav-link">Incidentes</a>
       <a href="/dashboard/visitas/" class="nav-link">Visitas</a>
+      <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
+      <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
     </div>
     <div class="user-greeting">
       Hola, <span class="user-name">{{ user_name }}</span>
