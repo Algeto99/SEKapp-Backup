@@ -7,6 +7,7 @@ import math
 import hmac
 import hashlib
 from datetime import timedelta, datetime, timezone, date, time
+from decimal import Decimal
 from io import BytesIO
 
 from flask import Blueprint, current_app, Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
@@ -710,6 +711,12 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     # Sign signatures if they are GCS URLs
                     elif 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
                          val = generate_signed_url(val)
+
+                    # Ensure JSON serializable
+                    if isinstance(val, (datetime, date, time)):
+                        val = str(val)
+                    elif isinstance(val, Decimal):
+                        val = float(val)
 
                     mapped_data[label] = val
 
