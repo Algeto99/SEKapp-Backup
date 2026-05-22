@@ -280,6 +280,17 @@
         .btn-ver:hover { background: rgba(96,165,250,0.3); border-color: #60a5fa; }
         body.light-mode .btn-ver { background:rgba(59,130,246,0.1); border-color:rgba(59,130,246,0.3); color:#2563eb; }
 
+        /* ── Matrix table ─────────────────────────────────────────────────── */
+        .matrix-table { width:100%; border-collapse:separate; border-spacing:0; font-size:.875rem; text-align:left; }
+        .matrix-table th { padding:.75rem; color:#cbd5e1; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:#374151; z-index:1; white-space:nowrap; }
+        .matrix-table td { padding:.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#e5e7eb; vertical-align:top; }
+        .matrix-table tr:hover td { background:rgba(255,255,255,0.03); }
+        .matrix-table tr.clickable-row { cursor:pointer; }
+        .matrix-table tr.clickable-row:hover td { background:rgba(248,113,113,0.06); }
+        body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
+        body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
+        body.light-mode .matrix-table tr.clickable-row:hover td { background:rgba(239,68,68,0.05); }
+
         /* ── Clickable card ───────────────────────────────────────────────── */
         .clickable-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
         .clickable-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); border-color: #f87171; }
@@ -593,6 +604,30 @@
             </div>
 
         </div>
+
+        <!-- ── Matriz de Seguimiento de Incidentes (admin view) ─────────── -->
+        <div class="card chart-full" style="margin-top:1rem;">
+            <div class="card-title">📋 Matriz de Seguimiento de Incidentes</div>
+            <div style="overflow:auto;max-height:620px;">
+                <table class="matrix-table" id="adminMatrixTable">
+                    <thead>
+                        <tr>
+                            <th>Cliente / Instalación</th>
+                            <th>Fecha y Hora</th>
+                            <th>Categoría</th>
+                            <th>Tipo de Incidente</th>
+                            <th>Severidad</th>
+                            <th>Responsable</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminMatrixBody">
+                        <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
         {% endif %}
 
     </div><!-- /main-container -->
@@ -843,7 +878,9 @@
     }
 
     function reloadWithFilters() {
-        loadData(buildDrillQS());
+        const qs = buildDrillQS();
+        loadData(qs);
+        loadAdminMatrix(qs);
     }
 
     // ── Category horizontal bar chart ─────────────────────────────────────
@@ -1306,6 +1343,52 @@
         }
     }
 
+    // ── Admin matrix loader ───────────────────────────────────────────────
+    function estadoBadge(estado) {
+        const s = (estado || '').toLowerCase();
+        if (s === 'cerrado' || s === 'resuelto')
+            return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>${estado}</span>`;
+        if (s === 'en proceso' || s === 'en revisión')
+            return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(234,179,8,.12);color:#fde047;border:1px solid rgba(234,179,8,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#eab308;display:inline-block;"></span>${estado}</span>`;
+        return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span>${estado || '—'}</span>`;
+    }
+
+    async function loadAdminMatrix(qs = '') {
+        const tBody = document.getElementById('adminMatrixBody');
+        if (!tBody) return;
+        tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>';
+        try {
+            const res  = await fetch(`/dashboard/api/incidentes/detalles${qs ? '?' + qs : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                tBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#f87171;padding:2rem;">Error cargando datos.</td></tr>`;
+                return;
+            }
+            const rows = data.detalles || [];
+            if (!rows.length) {
+                tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">No hay registros para los criterios seleccionados.</td></tr>';
+                return;
+            }
+            tBody.innerHTML = rows.map((r, i) => `
+                <tr class="clickable-row" data-row-idx="${i}" title="Clic para ver detalle">
+                    <td style="white-space:nowrap;font-weight:600;color:#67e8f9;">${r.cliente}</td>
+                    <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_hora}</td>
+                    <td>${r.categoria}</td>
+                    <td>${r.tipo}</td>
+                    <td>${sevBadge(r.severidad)}</td>
+                    <td>${r.responsable}</td>
+                    <td>${estadoBadge(r.estado)}</td>
+                    <td><button class="btn-ver" onclick="event.stopPropagation();openRecord(${r.id})">Ver ↗</button></td>
+                </tr>`).join('');
+            // Wire entire row click → open record detail
+            tBody.querySelectorAll('tr.clickable-row').forEach((tr, idx) => {
+                tr.addEventListener('click', () => openRecord(rows[idx].id));
+            });
+        } catch (err) {
+            tBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#f87171;padding:2rem;">Error: ${err.message}</td></tr>`;
+        }
+    }
+
     // ── User matrix loader (non-admin) ────────────────────────────────────
     async function loadUserMatrix(qs = '') {
         const tBody = document.getElementById('userMatrixBody');
@@ -1378,8 +1461,10 @@
                 activeSevFilter = null;
                 updateFilterBanner();
                 loadData(currentQS);
+                loadAdminMatrix(currentQS);
             });
             loadData();
+            loadAdminMatrix();
         } else {
             document.addEventListener('filtersChanged', (e) => {
                 currentQS = buildQS(e.detail);
