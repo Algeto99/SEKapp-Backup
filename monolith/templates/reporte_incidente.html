@@ -296,6 +296,7 @@
                             <option value="Supervisor/Inspector">Supervisor/Inspector</option>
                             <option value="Coordinador">Coordinador</option>
                             <option value="Jefe de Seguridad">Jefe de Seguridad</option>
+                            <option value="Radio Operador / Control">Radio Operador / Control</option>
                         </select>
                     </div>
                     <div>
@@ -381,6 +382,25 @@
                         <label for="descripcion" class="form-label">Descripción</label>
                         <textarea id="descripcion" name="descripcion" rows="4" class="form-textarea"
                             required></textarea>
+                        <!-- Severity reference legend -->
+                        <div style="display:flex;flex-wrap:wrap;gap:0;margin-top:0.75rem;border-radius:8px;overflow:hidden;font-size:0.75rem;">
+                            <div style="display:flex;align-items:stretch;flex:1;min-width:140px;">
+                                <div style="background:#2d6a2d;color:#fff;font-weight:700;padding:0.5rem 0.75rem;display:flex;align-items:center;white-space:nowrap;">BAJO</div>
+                                <div style="background:rgba(45,106,45,0.15);color:inherit;padding:0.5rem 0.75rem;display:flex;align-items:center;">Sin lesiones ni daños materiales relevantes</div>
+                            </div>
+                            <div style="display:flex;align-items:stretch;flex:1;min-width:140px;">
+                                <div style="background:#b45309;color:#fff;font-weight:700;padding:0.5rem 0.75rem;display:flex;align-items:center;white-space:nowrap;">MEDIO</div>
+                                <div style="background:rgba(180,83,9,0.15);color:inherit;padding:0.5rem 0.75rem;display:flex;align-items:center;">Lesiones leves o daños materiales moderados</div>
+                            </div>
+                            <div style="display:flex;align-items:stretch;flex:1;min-width:140px;">
+                                <div style="background:#b91c1c;color:#fff;font-weight:700;padding:0.5rem 0.75rem;display:flex;align-items:center;white-space:nowrap;">ALTO</div>
+                                <div style="background:rgba(185,28,28,0.15);color:inherit;padding:0.5rem 0.75rem;display:flex;align-items:center;">Lesiones graves, daños severos o impacto reputacional</div>
+                            </div>
+                            <div style="display:flex;align-items:stretch;flex:1;min-width:140px;">
+                                <div style="background:#6b21a8;color:#fff;font-weight:700;padding:0.5rem 0.75rem;display:flex;align-items:center;white-space:nowrap;">CRÍTICO</div>
+                                <div style="background:rgba(107,33,168,0.15);color:inherit;padding:0.5rem 0.75rem;display:flex;align-items:center;">Muerte, heridos graves, crisis operativa o legal</div>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label for="nivel_severidad" class="form-label">Nivel de Severidad</label>
@@ -389,6 +409,7 @@
                             <option value="Bajo">Bajo</option>
                             <option value="Medio">Medio</option>
                             <option value="Alto">Alto</option>
+                            <option value="Crítico">Crítico</option>
                         </select>
                     </div>
                     <div>
