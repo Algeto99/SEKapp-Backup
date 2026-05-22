@@ -105,6 +105,17 @@
         .kpi-change.flat { background-color:rgba(100,116,139,0.12); color:#94a3b8; }
         .kpi-compare { font-size:0.75rem; color:#4b5563; margin-top:0.3rem; font-family:'Roboto',sans-serif; }
 
+        /* ── Amber CSS custom properties (dark default / light override) ── */
+        :root {
+            --amber-text:#facc15; --amber-muted:#fde68a; --amber-strong:#eab308;
+            --amber-bg:rgba(234,179,8,0.08); --amber-border:rgba(234,179,8,0.35);
+            --amber-badge-bg:rgba(234,179,8,0.15); --amber-dot:#eab308;
+        }
+        body.light-mode {
+            --amber-text:#b45309; --amber-muted:#92400e; --amber-strong:#b45309;
+            --amber-bg:rgba(217,119,6,0.08); --amber-border:rgba(180,83,9,0.35);
+            --amber-badge-bg:rgba(217,119,6,0.12); --amber-dot:#d97706;
+        }
         /* ── Severity KPI cards ───────────────────────────────────────────── */
         .sev-card {
             border-radius:14px; padding:1.25rem 1.5rem;
@@ -114,19 +125,19 @@
         .sev-card:hover { transform:translateY(-2px); }
         .sev-card.active-filter { outline:2px solid #fff; outline-offset:2px; }
         .sev-card-bajo  { background:rgba(34,197,94,0.1);  border-color:rgba(34,197,94,0.3); }
-        .sev-card-medio { background:rgba(234,179,8,0.1);  border-color:rgba(234,179,8,0.3); }
+        .sev-card-medio { background:var(--amber-bg);  border-color:var(--amber-border); }
         .sev-card-alto  { background:rgba(239,68,68,0.1);  border-color:rgba(239,68,68,0.3); }
         .sev-card-bajo:hover  { border-color:#22c55e; box-shadow:0 4px 16px rgba(34,197,94,0.25); }
-        .sev-card-medio:hover { border-color:#eab308; box-shadow:0 4px 16px rgba(234,179,8,0.25); }
+        .sev-card-medio:hover { border-color:var(--amber-dot); box-shadow:0 4px 16px rgba(234,179,8,0.25); }
         .sev-card-alto:hover  { border-color:#ef4444; box-shadow:0 4px 16px rgba(239,68,68,0.25); }
         .sev-card-label { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem; font-family:'Roboto',sans-serif; }
         .sev-card-value { font-family:'Merriweather',serif; font-size:2.25rem; font-weight:700; line-height:1; margin-bottom:0.375rem; }
         .sev-card-hint  { font-size:0.75rem; color:#6b7280; font-family:'Roboto',sans-serif; }
         .sev-card-bajo  .sev-card-label { color:#4ade80; }
-        .sev-card-medio .sev-card-label { color:#facc15; }
+        .sev-card-medio .sev-card-label { color:var(--amber-text); }
         .sev-card-alto  .sev-card-label { color:#f87171; }
         .sev-card-bajo  .sev-card-value { color:#4ade80; }
-        .sev-card-medio .sev-card-value { color:#facc15; }
+        .sev-card-medio .sev-card-value { color:var(--amber-text); }
         .sev-card-alto  .sev-card-value { color:#f87171; }
         .sev-filter-icon { position:absolute; top:0.75rem; right:0.75rem; font-size:0.75rem; opacity:0.6; }
 
@@ -302,7 +313,7 @@
             font-size:0.75rem; font-weight:600;
         }
         .sev-alto   { background:rgba(239,68,68,0.15);   color:#f87171; }
-        .sev-medio  { background:rgba(234,179,8,0.15);   color:#facc15; }
+        .sev-medio  { background:var(--amber-badge-bg);   color:var(--amber-text); }
         .sev-bajo   { background:rgba(34,197,94,0.15);   color:#4ade80; }
 
         /* ── Record detail panel ──────────────────────────────────────────── */
@@ -480,7 +491,7 @@
             <!-- KPI 3: Media Severidad -->
             <div class="card clickable-card" onclick="applySeveridadFilter('Medio')" title="Filtrar: Solo incidentes de severidad media">
                 <div class="card-title">Severidad Media</div>
-                <div class="kpi-value" id="kpiMedioVal" style="color:#eab308">—</div>
+                <div class="kpi-value" id="kpiMedioVal" style="color:var(--amber-strong)">—</div>
                 <div class="kpi-label" id="kpiMedioLabel">incidentes de nivel medio</div>
                 <div id="kpiMedioChange"></div>
                 <div class="kpi-compare">vs período anterior</div>
@@ -526,7 +537,7 @@
                 <div class="card-title">Distribución por Severidad <span style="font-weight:400;font-size:0.7em;color:#6b7280;">(clic en barra = filtrar)</span></div>
                 <div class="tl-legend">
                     <span class="tl-legend-item"><span class="tl-swatch" style="background:#22c55e"></span>Bajo</span>
-                    <span class="tl-legend-item"><span class="tl-swatch" style="background:#eab308"></span>Medio</span>
+                    <span class="tl-legend-item"><span class="tl-swatch" style="background:var(--amber-dot)"></span>Medio</span>
                     <span class="tl-legend-item"><span class="tl-swatch" style="background:#ef4444"></span>Alto</span>
                 </div>
                 <div class="chart-wrap" style="min-height:220px;">
@@ -590,7 +601,7 @@
                             <td style="padding:0.5rem;color:#94a3b8;">Documentar y monitorear</td>
                         </tr>
                         <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#eab308"></span><span style="color:#facc15;">Medio</span></td>
+                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:var(--amber-dot)"></span><span style="color:var(--amber-text);">Medio</span></td>
                             <td style="padding:0.5rem;color:#94a3b8;">Impacto moderado, requiere atención</td>
                             <td style="padding:0.5rem;color:#94a3b8;">Asignar responsable y seguimiento</td>
                         </tr>
@@ -1349,7 +1360,7 @@
         if (s === 'cerrado' || s === 'resuelto')
             return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>${estado}</span>`;
         if (s === 'en proceso' || s === 'en revisión')
-            return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(234,179,8,.12);color:#fde047;border:1px solid rgba(234,179,8,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#eab308;display:inline-block;"></span>${estado}</span>`;
+            return `<span class="sev-badge sev-medio">${estado}</span>`;
         return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span>${estado || '—'}</span>`;
     }
 
