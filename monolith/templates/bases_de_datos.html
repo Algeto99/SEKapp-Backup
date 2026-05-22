@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bases de Datos — Kanan Sentinel SekApp</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -322,11 +323,11 @@
                     </select>
                 </div>
                 <button class="btn-primary" onclick="loadArmas()">Consultar</button>
-                <button class="btn-export" onclick="exportCSV('armas')">
+                <button class="btn-export" onclick="exportXLSX('armas')">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Exportar CSV
+                    Exportar Excel
                 </button>
             </div>
             <div id="armas-loading" class="loading">Cargando datos...</div>
@@ -360,11 +361,11 @@
                     </select>
                 </div>
                 <button class="btn-primary" onclick="loadRadios()">Consultar</button>
-                <button class="btn-export" onclick="exportCSV('radios')">
+                <button class="btn-export" onclick="exportXLSX('radios')">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Exportar CSV
+                    Exportar Excel
                 </button>
             </div>
             <div id="radios-loading" class="loading">Cargando datos...</div>
@@ -398,11 +399,11 @@
                     </select>
                 </div>
                 <button class="btn-primary" onclick="loadPersonal()">Consultar</button>
-                <button class="btn-export" onclick="exportCSV('personal')">
+                <button class="btn-export" onclick="exportXLSX('personal')">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Exportar CSV
+                    Exportar Excel
                 </button>
             </div>
             <div id="personal-loading" class="loading">Cargando datos...</div>
@@ -652,6 +653,8 @@
                         <th>Documento</th>
                         <th>Cliente</th>
                         <th>Última Supervisión</th>
+                        <th>Nivel de Desempeño</th>
+                        <th>Novedades Disciplina</th>
                         <th>Capacitaciones</th>
                         <th>Detalle</th>
                     </tr></thead><tbody>`;
@@ -660,12 +663,20 @@
                     const capBadge = r.total_capacitaciones > 0
                         ? `<span class="badge badge-good">${r.total_capacitaciones}</span>`
                         : `<span class="badge badge-gray">0</span>`;
+                    const nivel = r.nivel_desempeno || '—';
+                    const nivelCls = nivel === 'Excelente' ? 'badge-good'
+                        : nivel === 'Con oportunidades de mejora' ? 'badge-warn'
+                        : nivel === 'Requiere acción inmediata' ? 'badge-bad'
+                        : 'badge-gray';
+                    const novCls = (r.novedades_disciplina || 0) > 0 ? 'badge-warn' : 'badge-gray';
                     html += `<tr id="person-row-${idx}">
                         <td><span class="badge badge-info">${r.numero_empleado}</span></td>
                         <td><strong>${r.nombre_guardia}</strong></td>
                         <td>${r.documento_guardia}</td>
                         <td>${r.cliente}</td>
                         <td>${r.ultima_supervision}</td>
+                        <td><span class="badge ${nivelCls}">${nivel}</span></td>
+                        <td><span class="badge ${novCls}">${r.novedades_disciplina ?? 0}</span></td>
                         <td>${capBadge}</td>
                         <td>${hasCap ? `<button class="expand-btn" onclick="toggleTraining(${idx})" id="expand-btn-${idx}">▶ Ver</button>` : '<span style="color:#4b5563;font-size:0.75rem;">—</span>'}</td>
                     </tr>`;
@@ -714,40 +725,46 @@
         }
     }
 
-    // ── CSV Export ───────────────────────────────────────────────────
-    function exportCSV(type) {
+    // ── Excel Export (XLSX) ───────────────────────────────
+    function exportXLSX(type) {
         const rows = _cache[type];
         if (!rows || !rows.length) { alert('Primero realice una consulta.'); return; }
+        if (typeof XLSX === 'undefined') { alert('Librería de exportación no disponible. Recargue la página.'); return; }
 
-        let headers, rowMapper;
+        let headers, rowMapper, sheetName;
         if (type === 'armas') {
-            headers = ['N° Empleado','Guardia','Documento','Cliente','Supervisor','Serie Arma','Munición','Fecha'];
+            sheetName = 'Inventario Armas';
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Supervisor','Serie Arma','Munición','Fecha'];
             rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.serie_arma, r.cantidad_municion, r.fecha_hora];
         } else if (type === 'radios') {
-            headers = ['N° Empleado','Guardia','Documento','Cliente','Supervisor','Estado Equipamiento','Fecha'];
+            sheetName = 'Inventario Radios';
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Supervisor','Estado Equipamiento','Fecha'];
             rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.equipamiento, r.fecha_hora];
         } else {
-            headers = ['N° Empleado','Nombre','Documento','Cliente','Última Supervisión','Total Capacitaciones','Capacitaciones (nombres)'];
+            sheetName = 'Inventario Personal';
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Última Supervisión','Nivel de Desempeño','Novedades Disciplina','Total Capacitaciones','Capacitaciones (nombres)'];
             rowMapper = r => [
                 r.numero_empleado, r.nombre_guardia, r.documento_guardia,
                 r.cliente, r.ultima_supervision,
+                r.nivel_desempeno || '—',
+                r.novedades_disciplina ?? 0,
                 r.total_capacitaciones,
                 (r.capacitaciones || []).map(c => c.capacitacion).join(' | ')
             ];
         }
 
-        const esc = v => `"${String(v).replace(/"/g, '""')}"`;
-        const csv = [headers.map(esc).join(',')]
-            .concat(rows.map(r => rowMapper(r).map(esc).join(',')))
-            .join('\n');
+        const data = [headers, ...rows.map(rowMapper)];
+        const ws = XLSX.utils.aoa_to_sheet(data);
 
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `inventario_${type}_${new Date().toISOString().slice(0,10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // Auto-width columns
+        ws['!cols'] = headers.map((h, ci) => {
+            const maxLen = data.reduce((m, row) => Math.max(m, String(row[ci] ?? '').length), h.length);
+            return { wch: Math.min(maxLen + 2, 60) };
+        });
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        XLSX.writeFile(wb, `inventario_${type}_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

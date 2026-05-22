@@ -6351,6 +6351,18 @@ def api_bases_de_datos_radios():
         if conn: conn.close()
 
 
+_SCORE_COLS = ['asistencia_puntualidad', 'presentacion_uniforme', 'estado_limpieza_puesto',
+               'equipamiento_completo', 'estado_bitacora']
+
+def _bd_score_expr():
+    parts = [
+        f"COALESCE(CASE WHEN TRIM({c}::TEXT) ~ '^[0-9]+(\\.[0-9]+)?$'"
+        f" THEN TRIM({c}::TEXT)::NUMERIC ELSE NULL END, 0)"
+        for c in _SCORE_COLS
+    ]
+    return " + ".join(parts)
+
+
 @dashboard_bp.route('/api/bases_de_datos/personal')
 @jwt_required()
 def api_bases_de_datos_personal():
@@ -6378,7 +6390,9 @@ def api_bases_de_datos_personal():
             params.append(f"{year}%")
         base_where = ("WHERE " + " AND ".join(sup_conds)) if sup_conds else ""
 
-        # One row per distinct employee, most recent supervision
+        score_sql = _bd_score_expr()
+
+        # One row per distinct employee, most recent supervision, with avg score
         cur.execute(f"""
             SELECT
                 emp_key,
@@ -6386,7 +6400,8 @@ def api_bases_de_datos_personal():
                 documento_guardia,
                 numero_empleado,
                 cliente,
-                ultima_supervision
+                ultima_supervision,
+                ROUND(avg_score::NUMERIC, 1) AS avg_score
             FROM (
                 SELECT
                     COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id') AS emp_key,
@@ -6395,6 +6410,7 @@ def api_bases_de_datos_personal():
                     COALESCE(NULLIF(TRIM(numero_empleado),''),  '—') AS numero_empleado,
                     cliente,
                     MAX(creado_en) AS ultima_supervision,
+                    AVG({score_sql})                                  AS avg_score,
                     ROW_NUMBER() OVER (
                         PARTITION BY COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id')
                         ORDER BY MAX(creado_en) DESC
@@ -6415,6 +6431,22 @@ def api_bases_de_datos_personal():
             doc    = emp['documento_guardia'] if emp['documento_guardia'] != '—' else None
             nombre = (emp['nombre_guardia'] or '').strip()
             trainings = []
+            novedades_count = 0
+
+            # Novedades disciplinarias count
+            if doc or nombre:
+                disc_conds, disc_params = [], []
+                if doc:
+                    disc_conds.append("TRIM(COALESCE(empleado_numero::TEXT,'')) = %s")
+                    disc_params.append(doc)
+                if nombre:
+                    disc_conds.append("TRIM(empleado_nombre) ILIKE %s")
+                    disc_params.append(f"%{nombre}%")
+                cur2.execute(
+                    f"SELECT COUNT(*) AS cnt FROM informe_novedades_disciplinario WHERE {' OR '.join(disc_conds)}",
+                    disc_params
+                )
+                novedades_count = int((cur2.fetchone() or {}).get('cnt', 0) or 0)
 
             if doc or nombre:
                 match_parts, train_params = [], []
@@ -6451,12 +6483,16 @@ def api_bases_de_datos_personal():
                         'responsable':  t['nombre_responsable']    or '—',
                     })
 
+            avg_score = float(emp['avg_score']) if emp['avg_score'] is not None else None
             rows.append({
                 'numero_empleado':      emp['numero_empleado'],
                 'nombre_guardia':       emp['nombre_guardia']     or '—',
                 'documento_guardia':    emp['documento_guardia'],
                 'cliente':              emp['cliente']             or '—',
                 'ultima_supervision':   emp['ultima_supervision'].strftime('%Y-%m-%d') if emp['ultima_supervision'] else '—',
+                'avg_score':            avg_score,
+                'nivel_desempeno':      _sup_score_label(avg_score),
+                'novedades_disciplina': novedades_count,
                 'total_capacitaciones': len(trainings),
                 'capacitaciones':       trainings,
             })
