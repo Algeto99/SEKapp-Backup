@@ -455,6 +455,131 @@ def api_feed():
         if conn: conn.close()
 
 
+_EQ_TOTAL = "CASE WHEN elem->>'total_equipos' ~ '^[0-9]+$' THEN (elem->>'total_equipos')::int ELSE 0 END"
+_EQ_FUNC  = "CASE WHEN elem->>'equipos_operativos' ~ '^[0-9]+$' THEN (elem->>'equipos_operativos')::int ELSE 0 END"
+
+
+def _eq_estado_label(pct):
+    if pct is None: return 'Sin datos'
+    f = float(pct)
+    if f >= 95: return 'Operativo'
+    if f >= 85: return 'Operativo c/obs.'
+    if f >= 70: return 'Riesgo operativo'
+    return 'No confiable'
+
+
+def _eq_estado_color(pct):
+    if pct is None: return 'grey'
+    f = float(pct)
+    if f >= 95: return 'green'
+    if f >= 85: return 'yellow'
+    if f >= 70: return 'orange'
+    return 'red'
+
+
+def _fetch_equipos_data(cur, cliente, days=None, company_id=None):
+    """Shared equipment reliability query for both authenticated and public views."""
+    conds = [
+        "c.inventario IS NOT NULL",
+        "c.inventario != 'null'::jsonb",
+        "jsonb_array_length(c.inventario) > 0",
+        "LOWER(TRIM(c.cliente_instalacion)) = LOWER(TRIM(%s))",
+    ]
+    params = [cliente]
+    if days:
+        conds.append("c.fecha >= CURRENT_DATE - INTERVAL '%s days'" % int(days))
+    if company_id is not None:
+        conds.append("c.company_id = %s")
+        params.append(company_id)
+
+    where = "WHERE " + " AND ".join(conds)
+    lateral = f"FROM confiabilidad_equipos c, LATERAL jsonb_array_elements(c.inventario) AS elem {where}"
+
+    cur.execute(f"""
+        SELECT
+            COUNT(DISTINCT c.id)   AS total_registros,
+            MAX(c.fecha)           AS ultima_inspeccion,
+            SUM({_EQ_TOTAL})       AS sum_total,
+            SUM({_EQ_FUNC})        AS sum_func
+        {lateral}
+    """, params)
+    krow = cur.fetchone()
+    if not krow or not krow['total_registros']:
+        return None
+
+    sum_total = int(krow['sum_total'] or 0)
+    sum_func  = int(krow['sum_func']  or 0)
+    pct_gen   = round(sum_func / sum_total * 100, 1) if sum_total else None
+    ultima    = krow['ultima_inspeccion']
+    ultima_str = ultima.strftime('%d/%m/%Y') if ultima and hasattr(ultima, 'strftime') else str(ultima or '—')
+
+    cur.execute(f"""
+        SELECT
+            COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
+            SUM({_EQ_TOTAL})  AS sum_total,
+            SUM({_EQ_FUNC})   AS sum_func,
+            ROUND(SUM({_EQ_FUNC})::numeric / NULLIF(SUM({_EQ_TOTAL}), 0) * 100, 1) AS pct
+        {lateral}
+          AND NULLIF(TRIM(elem->>'tipo'), '') IS NOT NULL
+        GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
+        HAVING SUM({_EQ_TOTAL}) > 0
+        ORDER BY pct ASC NULLS LAST
+    """, params)
+    por_tipo = [
+        {
+            'tipo':   r['tipo'],
+            'total':  int(r['sum_total'] or 0),
+            'func':   int(r['sum_func']  or 0),
+            'pct':    float(r['pct']) if r['pct'] is not None else None,
+            'estado': _eq_estado_label(r['pct']),
+            'color':  _eq_estado_color(r['pct']),
+        }
+        for r in cur.fetchall()
+    ]
+
+    return {
+        'pct_general':      pct_gen,
+        'estado_general':   _eq_estado_label(pct_gen),
+        'color_general':    _eq_estado_color(pct_gen),
+        'total_equipos':    sum_total,
+        'equipos_operativos': sum_func,
+        'total_registros':  int(krow['total_registros']),
+        'ultima_inspeccion': ultima_str,
+        'por_tipo':         por_tipo,
+    }
+
+
+@expediente_bp.route('/expediente/api/equipos')
+@jwt_required()
+@admin_required
+def api_equipos():
+    """Equipment reliability summary for one client. Query params: ?cliente=X&days=N"""
+    user_email = get_jwt_identity()
+    cliente = (request.args.get('cliente') or '').strip()
+    if not cliente:
+        return jsonify({'error': 'Parámetro cliente requerido'}), 400
+    try:
+        days = max(1, min(int(request.args.get('days', 365)), 730))
+    except (ValueError, TypeError):
+        days = 365
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB unavailable'}), 503
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        company_id = _get_user_company_id(cur, user_email)
+        data = _fetch_equipos_data(cur, cliente, days, company_id)
+        return jsonify(data or {})
+    except Exception as e:
+        app_logger.error(f"api_equipos error (cliente '{cliente}'): {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 @expediente_bp.route('/expediente/api/kpi')
 @jwt_required()
 @admin_required
@@ -836,6 +961,12 @@ def public_expediente_viewer(token):
             'alertas':       sum(1 for e in events if e['status'] == 'RED'),
         }
 
+        equipos_data = None
+        try:
+            equipos_data = _fetch_equipos_data(cur, cliente, days=None, company_id=company_id)
+        except Exception as eq_err:
+            app_logger.warning(f"Could not fetch equipos for public viewer: {eq_err}")
+
         MODULE_LABELS = {'ALL': 'Todos los módulos', 'SUPERVISION': 'Supervisiones',
                          'INCIDENTE': 'Incidentes', 'ACUERDO': 'Acuerdos',
                          'ENCUESTA': 'Encuestas a cliente'}
@@ -849,6 +980,7 @@ def public_expediente_viewer(token):
                                gps_source=gps_source,
                                prop_lat=prop_lat,
                                prop_lng=prop_lng,
+                               equipos_data=equipos_data,
                                generated_at=datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC'))
     except Exception as e:
         app_logger.error(f"public_expediente_viewer error: {e}", exc_info=True)

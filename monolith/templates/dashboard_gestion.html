@@ -96,7 +96,7 @@
 
         .filters-grid {
             display: grid;
-            grid-template-columns: repeat(7, minmax(0, 1fr));
+            grid-template-columns: repeat(8, minmax(0, 1fr));
             gap: 0.8rem;
             align-items: end;
         }
@@ -138,9 +138,17 @@
         .helper-text { font-size: 0.72rem; color: #64748b; margin-top: 0.35rem; }
 
         .kpi-grid {
-            display: grid; grid-template-columns: repeat(6, 1fr); gap: 1rem;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
             margin-bottom: 1.25rem;
         }
+        .kpi-alert-icon {
+            font-size: 1.5rem; margin-bottom: 0.4rem; display: block;
+        }
+        .kpi-alert-value {
+            font-family: 'Merriweather', serif; font-size: 2rem; font-weight: 700;
+            line-height: 1; margin-bottom: 0.3rem;
+        }
+        .kpi-alert-meta { font-size: 0.78rem; color: #64748b; line-height: 1.5; margin-top: 0.5rem; }
 
         .kpi-value {
             font-family: 'Merriweather', serif; font-size: 2.4rem; font-weight: 700;
@@ -190,11 +198,13 @@
         .score-ring-num { font-family: 'Merriweather', serif; font-size: 1.55rem; line-height: 1; }
         .score-ring-text { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-top: 0.2rem; }
 
-        .layout-grid {
+        .trend-full {
+            margin-bottom: 1rem;
+        }
+        .bottom-charts-grid {
             display: grid; grid-template-columns: 1.55fr 1fr; gap: 1rem;
             margin-bottom: 1rem;
         }
-        .side-grid { display: grid; grid-template-rows: 1fr 1fr; gap: 1rem; }
         .chart-wrap { position: relative; min-height: 280px; }
         .chart-canvas { width: 100% !important; }
 
@@ -435,8 +445,8 @@
         }
 
         @media (max-width: 1100px) {
-            .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-            .layout-grid { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .bottom-charts-grid { grid-template-columns: 1fr; }
             .filters-grid { grid-template-columns: repeat(3, 1fr); }
             .modules-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -445,7 +455,6 @@
             body { padding-top: 110px; }
             .nav-content { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
             .kpi-grid, .filters-grid, .modules-grid { grid-template-columns: 1fr; }
-            .side-grid { grid-template-rows: auto; }
         }
     </style>
 </head>
@@ -515,18 +524,15 @@
                     <select id="filterDay" class="filter-select"></select>
                 </div>
                 <div>
+                    <label class="filter-label" for="filterResponsable">Responsable / Rol</label>
+                    <select id="filterResponsable" class="filter-select"></select>
+                </div>
+                <div>
                     <label class="filter-label" for="filterProyecto">Proyecto</label>
                     <select id="filterProyecto" class="filter-select" disabled>
                         <option>Próximamente</option>
                     </select>
-                    <div class="helper-text">Pendiente de homologación entre módulos.</div>
-                </div>
-                <div>
-                    <label class="filter-label" for="filterPais">País</label>
-                    <select id="filterPais" class="filter-select" disabled>
-                        <option>Próximamente</option>
-                    </select>
-                    <div class="helper-text">Aún no existe una columna común.</div>
+                    <div class="helper-text">Pendiente de homologación.</div>
                 </div>
                 <div>
                     <label class="filter-label" for="resetFilters">Acciones</label>
@@ -537,29 +543,29 @@
 
         <div class="kpi-grid" id="kpiGrid"></div>
 
-        <div class="layout-grid">
+        <div class="trend-full">
             <div class="card">
                 <div class="card-title">Tendencia Ejecutiva</div>
                 <div class="chart-wrap">
-                    <canvas id="trendChart" class="chart-canvas" style="height:320px!important;"></canvas>
+                    <canvas id="trendChart" class="chart-canvas" style="height:340px!important;"></canvas>
                     <div class="loading-overlay active" id="trendLoading"><div class="spinner"></div></div>
                 </div>
             </div>
+        </div>
 
-            <div class="side-grid">
-                <div class="card">
-                    <div class="card-title">Ranking Semáforo</div>
-                    <div class="chart-wrap">
-                        <canvas id="rankingChart" class="chart-canvas" style="height:260px!important;"></canvas>
-                        <div class="loading-overlay active" id="rankingLoading"><div class="spinner"></div></div>
-                    </div>
+        <div class="bottom-charts-grid">
+            <div class="card">
+                <div class="card-title">Ranking Semáforo</div>
+                <div class="chart-wrap">
+                    <canvas id="rankingChart" class="chart-canvas" style="height:300px!important;"></canvas>
+                    <div class="loading-overlay active" id="rankingLoading"><div class="spinner"></div></div>
                 </div>
-                <div class="card">
-                    <div class="card-title">Distribución General</div>
-                    <div class="chart-wrap">
-                        <canvas id="distributionChart" class="chart-canvas" style="height:260px!important;"></canvas>
-                        <div class="loading-overlay active" id="distributionLoading"><div class="spinner"></div></div>
-                    </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Distribución General</div>
+                <div class="chart-wrap">
+                    <canvas id="distributionChart" class="chart-canvas" style="height:300px!important;"></canvas>
+                    <div class="loading-overlay active" id="distributionLoading"><div class="spinner"></div></div>
                 </div>
             </div>
         </div>
@@ -761,6 +767,7 @@
         const filterYear = document.getElementById('filterYear');
         const filterMonth = document.getElementById('filterMonth');
         const filterDay = document.getElementById('filterDay');
+        const filterResponsable = document.getElementById('filterResponsable');
         const resetFilters = document.getElementById('resetFilters');
         const gestionDetailModal = document.getElementById('gestionDetailModal');
         const gestionDetailTitle = document.getElementById('gestionDetailTitle');
@@ -853,6 +860,7 @@
             filterYear.value = params.get('year') || '';
             filterMonth.value = params.get('month') || '';
             filterDay.value = params.get('day') || '';
+            filterResponsable.value = params.get('responsable') || '';
         }
 
         function updateUrl() {
@@ -861,6 +869,7 @@
             if (filterYear.value) params.set('year', filterYear.value);
             if (filterMonth.value) params.set('month', filterMonth.value);
             if (filterDay.value) params.set('day', filterDay.value);
+            if (filterResponsable.value) params.set('responsable', filterResponsable.value);
             const query = params.toString();
             window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
         }
@@ -871,6 +880,7 @@
             if (filterYear.value) params.set('year', filterYear.value);
             if (filterMonth.value) params.set('month', filterMonth.value);
             if (filterDay.value) params.set('day', filterDay.value);
+            if (filterResponsable.value) params.set('responsable', filterResponsable.value);
             return params.toString();
         }
 
@@ -1005,8 +1015,10 @@
                 const res = await fetch('/dashboard/api/gestion/filtros');
                 const data = await res.json();
                 fillSelect(filterCliente, data.clientes || [], 'Todos');
+                fillSelect(filterResponsable, data.responsables || [], 'Todos');
             } catch (err) {
                 fillSelect(filterCliente, [], 'Todos');
+                fillSelect(filterResponsable, [], 'Todos');
             }
         }
 
@@ -1153,82 +1165,66 @@
             ];
         }
 
-        function renderKpis(cards) {
-            const validScores = cards.map(c => c.score).filter(v => v !== null);
-            const executiveScore = safeAvg(validScores);
-            const executiveStatus = statusFromScore(executiveScore);
-            const healthy = cards.filter(c => c.status.tone === 'green').length;
-            const alerts = cards.filter(c => ['orange', 'red'].includes(c.status.tone)).length;
+        function alertSupervision(results) {
+            const avg = results.supervision?.kpi?.avg_score ?? null;
+            if (avg === null) return { tone: 'slate', label: 'Sin datos', value: '—', meta: 'Sin registros de supervisión' };
+            if (avg >= 21) return { tone: 'green', label: 'Normal', value: avg, meta: `Score promedio ${avg}/25 · Rango normal (21–25)` };
+            if (avg >= 16) return { tone: 'yellow', label: 'Alerta', value: avg, meta: `Score promedio ${avg}/25 · Requiere seguimiento (16–20)` };
+            return { tone: 'red', label: 'Crítico', value: avg, meta: `Score promedio ${avg}/25 · Nivel crítico (≤15)` };
+        }
 
-            const personalScores = cards.filter(c => ['supervision', 'disciplina'].includes(c.key)).map(c => c.score).filter(v => v !== null);
-            const personalScore = safeAvg(personalScores);
-            const personalStatus = statusFromScore(personalScore);
+        function alertEquipos(results) {
+            const pct = results.equipos?.kpi?.pct_general ?? null;
+            if (pct === null) return { tone: 'slate', label: 'Sin datos', value: '—', meta: 'Sin registros de equipos' };
+            if (pct >= 85) return { tone: 'green', label: 'Operativo', value: `${pct}%`, meta: `Confiabilidad ${pct}% · Por encima del umbral (≥85%)` };
+            if (pct >= 70) return { tone: 'yellow', label: 'Monitoreo', value: `${pct}%`, meta: `Confiabilidad ${pct}% · Zona de atención (70–84%)` };
+            return { tone: 'red', label: 'Crítico', value: `${pct}%`, meta: `Confiabilidad ${pct}% · Por debajo del umbral crítico (<70%)` };
+        }
 
-            const strip = [
-                {
-                    title: 'Resultado Ejecutivo',
-                    badge: executiveStatus,
-                    custom: `
-                        <div class="score-main">
-                            <div class="score-ring" style="--pct:${executiveScore || 0}; --ring-color:${executiveStatus.color};">
-                                <div class="score-ring-inner">
-                                    <div class="score-ring-num">${executiveScore ?? '—'}</div>
-                                    <div class="score-ring-text">Indice</div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="kpi-label">Promedio consolidado de módulos</div>
-                                <div class="kpi-sub">${healthy} saludables · ${alerts} en alerta</div>
-                            </div>
-                        </div>
-                    `
-                },
-                {
-                    title: 'Satisfacción Cliente',
-                    badge: statusFromScore(cards.find(c => c.key === 'satisfaccion')?.score),
-                    value: cards.find(c => c.key === 'satisfaccion')?.primaryValue ?? '—',
-                    label: cards.find(c => c.key === 'satisfaccion')?.primaryLabel ?? '',
-                    sub: `${cards.find(c => c.key === 'satisfaccion')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'satisfaccion')?.secondaryLabel ?? ''}`
-                },
-                {
-                    title: 'Incidentes',
-                    badge: statusFromScore(cards.find(c => c.key === 'incidentes')?.score),
-                    value: cards.find(c => c.key === 'incidentes')?.primaryValue ?? 0,
-                    label: cards.find(c => c.key === 'incidentes')?.primaryLabel ?? '',
-                    sub: `${cards.find(c => c.key === 'incidentes')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'incidentes')?.secondaryLabel ?? ''}`
-                },
-                {
-                    title: 'Cumplimiento',
-                    badge: statusFromScore(cards.find(c => c.key === 'cumplimiento')?.score),
-                    value: cards.find(c => c.key === 'cumplimiento')?.primaryValue ?? '—',
-                    label: cards.find(c => c.key === 'cumplimiento')?.primaryLabel ?? '',
-                    sub: `${cards.find(c => c.key === 'cumplimiento')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'cumplimiento')?.secondaryLabel ?? ''}`
-                },
-                {
-                    title: 'Confiabilidad Equipos',
-                    badge: statusFromScore(cards.find(c => c.key === 'equipos')?.score),
-                    value: cards.find(c => c.key === 'equipos')?.primaryValue ?? '—',
-                    label: cards.find(c => c.key === 'equipos')?.primaryLabel ?? '',
-                    sub: `${cards.find(c => c.key === 'equipos')?.secondaryValue ?? '—'} ${cards.find(c => c.key === 'equipos')?.secondaryLabel ?? ''}`
-                },
-                {
-                    title: 'Gestión del Personal',
-                    badge: personalStatus,
-                    value: personalScore != null ? `${personalScore}%` : '—',
-                    label: 'Supervisión + disciplina',
-                    sub: 'Indicador combinado de desempeño y control'
-                }
+        function alertSatisfaccion(results) {
+            const avg = results.satisfaccion?.kpi?.avg_global ?? null;
+            const pctRec = results.satisfaccion?.kpi?.pct_recomienda ?? null;
+            if (avg === null) return { tone: 'slate', label: 'Sin datos', value: '—', meta: 'Sin encuestas de satisfacción' };
+            const avg5 = +(avg / 8).toFixed(2);
+            const noRec = pctRec !== null && pctRec < 50;
+            if (avg5 >= 4.0 && !noRec) return { tone: 'green', label: 'Satisfactorio', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
+            if (avg5 < 4.0 || noRec) {
+                const tone = avg5 < 3.0 || (pctRec !== null && pctRec < 30) ? 'red' : 'yellow';
+                return { tone, label: 'Alerta', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
+            }
+            return { tone: 'yellow', label: 'Seguimiento', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
+        }
+
+        function alertIncidentes(results) {
+            const total = results.incidentes?.kpi?.total ?? null;
+            if (total === null) return { tone: 'slate', label: 'Sin datos', value: '—', meta: 'Sin registros de incidentes' };
+            const pctAlto = results.incidentes?.kpi?.pct_alto ?? 0;
+            const totalAlto = results.incidentes?.kpi?.total_alto ?? 0;
+            if (total === 0) return { tone: 'green', label: 'Sin incidentes', value: '0', meta: 'No se registran incidentes en el período' };
+            if (pctAlto >= 25 || totalAlto > 0) return { tone: 'red', label: 'Crítico', value: total, meta: `${total} incidentes · ${totalAlto} de severidad alta (${pctAlto}%)` };
+            return { tone: 'yellow', label: 'Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
+        }
+
+        function renderKpis(cards, results) {
+            const sup = alertSupervision(results);
+            const eq = alertEquipos(results);
+            const sat = alertSatisfaccion(results);
+            const inc = alertIncidentes(results);
+
+            const alertCards = [
+                { title: 'Alertas Supervisión', icon: '🛡️', key: 'supervision', alert: sup },
+                { title: 'Alertas Confiabilidad', icon: '⚙️', key: 'equipos', alert: eq },
+                { title: 'Alertas Satisfacción', icon: '⭐', key: 'satisfaccion', alert: sat },
+                { title: 'Alertas Incidentes', icon: '⚠️', key: 'incidentes', alert: inc }
             ];
 
-            kpiGrid.innerHTML = strip.map(item => `
-                <div class="card">
+            kpiGrid.innerHTML = alertCards.map(item => `
+                <div class="card" style="cursor:pointer;border-left:4px solid ${colors[item.alert.tone] || colors.slate};"
+                     onclick="openGestionDetailModal('${item.key}')" title="Ver registros de ${item.title}">
                     <div class="card-title">${item.title}</div>
-                    <div class="status-badge status-${item.badge.tone}">${item.badge.label}</div>
-                    ${item.custom || `
-                        <div class="kpi-value">${item.value}</div>
-                        <div class="kpi-label">${item.label}</div>
-                        <div class="kpi-sub">${item.sub}</div>
-                    `}
+                    <div class="status-badge status-${item.alert.tone}">${item.alert.label}</div>
+                    <div class="kpi-alert-value" style="color:${colors[item.alert.tone] || colors.slate};">${item.alert.value}</div>
+                    <div class="kpi-alert-meta">${item.alert.meta}</div>
                 </div>
             `).join('');
         }
@@ -1515,18 +1511,6 @@
                 options: {
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    onClick(_evt, elements, chart) {
-                        if (!elements.length) return;
-                        const point = elements[0];
-                        const dataset = chart.data.datasets[point.datasetIndex];
-                        const moduleKey = dataset.moduleKey;
-                        const label = chart.data.labels[point.index];
-                        if (!moduleKey) return;
-                        openGestionDetailModal(moduleKey, {
-                            titleSuffix: label,
-                            extraFilters: parseTrendFilters(label)
-                        });
-                    },
                     plugins: {
                         legend: { position: 'bottom' }
                     },
@@ -1548,7 +1532,6 @@
                     }
                 }
             });
-            document.getElementById('trendChart').style.cursor = 'pointer';
         }
 
         function renderRankingChart(cards) {
@@ -1567,11 +1550,6 @@
                 options: {
                     indexAxis: 'y',
                     maintainAspectRatio: false,
-                    onClick(_evt, elements) {
-                        if (!elements.length) return;
-                        const card = sorted[elements[0].index];
-                        if (card?.key) openGestionDetailModal(card.key);
-                    },
                     plugins: {
                         legend: { display: false },
                         datalabels: {
@@ -1593,7 +1571,6 @@
                     }
                 }
             });
-            document.getElementById('rankingChart').style.cursor = 'pointer';
         }
 
         function renderDistributionChart(cards) {
@@ -1661,7 +1638,7 @@
                 dataError.textContent = `Se cargó información parcial. Módulos sin respuesta: ${failures.join(', ')}.`;
             }
 
-            renderKpis(cards);
+            renderKpis(cards, results);
             renderAnalysis(cards, results, failures);
             renderModules(cards);
             renderTrendChart(buildTrend(results));
@@ -1672,7 +1649,7 @@
         }
 
         function bindEvents() {
-            [filterCliente, filterYear, filterMonth, filterDay].forEach(el => {
+            [filterCliente, filterYear, filterMonth, filterDay, filterResponsable].forEach(el => {
                 el.addEventListener('change', () => loadDashboard());
             });
             resetFilters.addEventListener('click', () => {
@@ -1680,6 +1657,7 @@
                 filterYear.value = '';
                 filterMonth.value = '';
                 filterDay.value = '';
+                filterResponsable.value = '';
                 loadDashboard();
             });
             gestionDetailClose.addEventListener('click', closeGestionDetailModal);

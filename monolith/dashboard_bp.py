@@ -1802,15 +1802,28 @@ def api_gestion_filtros():
         """)
         turnos = [r['turno'] for r in cur.fetchall()] or ['Diurno', 'Nocturno']
 
+        cur.execute("""
+            SELECT DISTINCT rol_aplicador AS responsable
+            FROM (
+                SELECT TRIM(rol_aplicador) AS rol_aplicador FROM supervision_puesto
+                UNION
+                SELECT TRIM(rol_aplicador) AS rol_aplicador FROM medicion_experiencia_cliente
+            ) q
+            WHERE rol_aplicador IS NOT NULL AND rol_aplicador <> ''
+            ORDER BY rol_aplicador
+        """)
+        responsables = [r['responsable'] for r in cur.fetchall()]
+
         return jsonify({
             'clientes': clientes,
             'proyectos': proyectos,
             'paises': [],
             'turnos': turnos,
+            'responsables': responsables,
         })
     except Exception as e:
         app_logger.error(f"api_gestion_filtros error: {e}", exc_info=True)
-        return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
+        return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'], 'responsables': []})
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -3490,11 +3503,14 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day):
+def _sup_where(cliente, year, month, day, responsable=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente = %s")
         params.append(cliente)
+    if responsable:
+        conds.append("TRIM(rol_aplicador) = %s")
+        params.append(responsable)
     prefix = _sat_date_prefix(year, month, day)
     if prefix:
         conds.append("fecha_hora::TEXT LIKE %s")
@@ -3555,11 +3571,12 @@ def api_supervision_clientes():
 @dashboard_bp.route('/api/supervision/data')
 @jwt_required()
 def api_supervision_data():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
-    nivel   = request.args.get('nivel') or None  # 'excelente' | 'seguimiento' | 'critico'
+    cliente     = request.args.get('cliente') or None
+    year        = int(request.args.get('year'))  if request.args.get('year')  else None
+    month       = int(request.args.get('month')) if request.args.get('month') else None
+    day         = int(request.args.get('day'))   if request.args.get('day')   else None
+    nivel       = request.args.get('nivel') or None  # 'excelente' | 'seguimiento' | 'critico'
+    responsable = request.args.get('responsable') or None
 
     conn = cur = None
     try:
@@ -3568,7 +3585,7 @@ def api_supervision_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params           = _sup_where(cliente, year, month, day)
+        where, params           = _sup_where(cliente, year, month, day, responsable)
         where_prev, params_prev = _sup_prev_where(cliente, year, month, day)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────

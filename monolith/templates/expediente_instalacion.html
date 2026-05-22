@@ -215,6 +215,9 @@
       <button class="filter-btn" data-filter="ENCUESTA">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;"></span>Encuestas
       </button>
+      <button class="filter-btn" data-filter="CONFIABILIDAD" id="btnConfiabilidad">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#a78bfa;margin-right:4px;"></span>Confiabilidad
+      </button>
     </div>
       <div style="display:flex;align-items:center;gap:.75rem;">
         <div id="eventCount" style="font-size:.8rem;color:#9ca3af;"></div>
@@ -224,6 +227,9 @@
         </button>
       </div>
   </div>
+
+  <!-- Confiabilidad panel (shown instead of timeline when that tab is active) -->
+  <div id="confiabilidadPanel" style="display:none;"></div>
 
   <!-- Timeline -->
   <div id="timelineWrap">
@@ -327,7 +333,11 @@
       }
 
       renderKpi(kpi.kpi || []);
-      renderTimeline();
+      if (currentFilter === 'CONFIABILIDAD') {
+        loadConfiabilidad(cliente);
+      } else {
+        renderTimeline();
+      }
     } catch(e) {
       console.error('loadExpediente:', e);
       showError('Error al cargar el expediente.');
@@ -586,11 +596,108 @@
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentFilter = btn.dataset.filter;
-    renderTimeline();
+    if (currentFilter === 'CONFIABILIDAD') {
+      document.getElementById('timelineWrap').style.display = 'none';
+      document.getElementById('confiabilidadPanel').style.display = 'block';
+      if (currentCliente) loadConfiabilidad(currentCliente);
+    } else {
+      document.getElementById('timelineWrap').style.display = 'block';
+      document.getElementById('confiabilidadPanel').style.display = 'none';
+      renderTimeline();
+    }
   });
+
+  // ── Confiabilidad de Equipos ───────────────────────────────────────────────
+  const EQ_COLOR = { green: '#34d399', yellow: '#f59e0b', orange: '#f97316', red: '#f87171' };
+  const EQ_BG    = { green: 'rgba(52,211,153,.1)', yellow: 'rgba(245,158,11,.1)', orange: 'rgba(249,115,22,.1)', red: 'rgba(248,113,113,.1)' };
+  const EQ_BORDER = { green: 'rgba(52,211,153,.3)', yellow: 'rgba(245,158,11,.3)', orange: 'rgba(249,115,22,.3)', red: 'rgba(248,113,113,.3)' };
+
+  async function loadConfiabilidad(cliente) {
+    const panel = document.getElementById('confiabilidadPanel');
+    panel.innerHTML = `<div class="state-placeholder"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:36px;height:36px;margin:0 auto 1rem;opacity:.35;animation:spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg><p>Cargando confiabilidad…</p></div>`;
+    try {
+      const enc = encodeURIComponent(cliente);
+      const res = await fetch(`/expediente/api/equipos?cliente=${enc}&days=${currentDays}`);
+      const data = await res.json();
+      if (data.error || !data.pct_general === undefined) {
+        renderConfiabilidadEmpty(panel, data.error);
+        return;
+      }
+      renderConfiabilidad(panel, data);
+    } catch (e) {
+      renderConfiabilidadEmpty(panel, 'Error al cargar datos de equipos.');
+    }
+  }
+
+  function renderConfiabilidadEmpty(panel, msg) {
+    panel.innerHTML = `<div class="state-placeholder"><p style="color:#9ca3af;">${msg || 'Sin registros de confiabilidad para esta instalación en el período seleccionado.'}</p></div>`;
+  }
+
+  function renderConfiabilidad(panel, d) {
+    if (!d || d.pct_general === undefined) { renderConfiabilidadEmpty(panel); return; }
+    const col = d.color_general || 'grey';
+    const mainColor  = EQ_COLOR[col]  || '#9ca3af';
+    const mainBg     = EQ_BG[col]     || 'rgba(107,114,128,.1)';
+    const mainBorder = EQ_BORDER[col] || 'rgba(107,114,128,.3)';
+
+    const tipoRows = (d.por_tipo || []).map(t => {
+      const tc = EQ_COLOR[t.color] || '#9ca3af';
+      const pct = t.pct !== null ? t.pct : 0;
+      return `
+        <div style="margin-bottom:.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+            <span style="font-size:.8375rem;color:#e2e8f0;">${escHtml(t.tipo)}</span>
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <span style="font-size:.75rem;color:#9ca3af;">${t.func}/${t.total} eq.</span>
+              <span style="font-size:.8375rem;font-weight:700;color:${tc};">${t.pct !== null ? t.pct + '%' : '—'}</span>
+            </div>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;border-radius:3px;background:${tc};transition:width .4s;"></div>
+          </div>
+        </div>`;
+    }).join('');
+
+    panel.innerHTML = `
+      <div style="background:rgba(45,55,72,.65);border:1px solid rgba(255,255,255,.07);border-left:3px solid ${mainColor};border-radius:.75rem;padding:1.25rem;">
+        <!-- Title -->
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.1rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:#a78bfa;flex-shrink:0;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9ca3af;">Confiabilidad de Equipos</span>
+          <span style="font-size:.7rem;color:#4b5563;margin-left:auto;">Últ. inspección: ${escHtml(d.ultima_inspeccion)}</span>
+        </div>
+
+        <!-- KPI cards -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:1.25rem;">
+          <div style="background:${mainBg};border:1px solid ${mainBorder};border-radius:.65rem;padding:.85rem;text-align:center;">
+            <div style="font-size:2rem;font-weight:700;line-height:1;color:${mainColor};">${d.pct_general !== null ? d.pct_general + '%' : '—'}</div>
+            <div style="font-size:.68rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-top:.3rem;">Confiabilidad</div>
+          </div>
+          <div style="background:${mainBg};border:1px solid ${mainBorder};border-radius:.65rem;padding:.85rem;text-align:center;">
+            <div style="font-size:.95rem;font-weight:700;color:${mainColor};line-height:1.2;">${escHtml(d.estado_general)}</div>
+            <div style="font-size:.68rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-top:.3rem;">Estado</div>
+          </div>
+          <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:.65rem;padding:.85rem;text-align:center;">
+            <div style="font-size:1.1rem;font-weight:700;color:#e2e8f0;line-height:1;">${d.equipos_operativos}<span style="font-size:.75rem;color:#6b7280;font-weight:400;">/${d.total_equipos}</span></div>
+            <div style="font-size:.68rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;margin-top:.3rem;">Eq. Operativos</div>
+          </div>
+        </div>
+
+        <!-- Per-type breakdown -->
+        ${d.por_tipo && d.por_tipo.length ? `
+          <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#6b7280;margin-bottom:.75rem;">Por tipo de equipo</div>
+          ${tipoRows}
+        ` : '<p style="font-size:.8rem;color:#6b7280;text-align:center;">Sin desglose por tipo disponible.</p>'}
+      </div>`;
+  }
 
   // ── Utility ───────────────────────────────────────────────────────────────
   function showLoading() {
+    document.getElementById('confiabilidadPanel').style.display = 'none';
+    document.getElementById('timelineWrap').style.display = 'block';
     document.getElementById('timelineWrap').innerHTML = `
       <div class="state-placeholder">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:40px;height:40px;margin:0 auto 1rem;opacity:.4;animation:spin 1s linear infinite;">

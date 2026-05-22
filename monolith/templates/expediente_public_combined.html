@@ -267,6 +267,88 @@
   </div>
 </div>
 
+<!-- Confiabilidad de Equipos section -->
+{% if equipos_data %}
+<div class="content" style="padding-bottom:0;">
+  <div style="background:#fff;border:1px solid #e2e8f0;border-left:4px solid
+    {% if equipos_data.color_general == 'green' %}#10b981
+    {% elif equipos_data.color_general == 'yellow' %}#f59e0b
+    {% elif equipos_data.color_general == 'orange' %}#f97316
+    {% else %}#ef4444{% endif %};
+    border-radius:.65rem;padding:1rem 1.1rem;margin-bottom:1rem;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:#7c3aed;flex-shrink:0;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#475569;">Confiabilidad de Equipos</span>
+      </div>
+      <span style="font-size:.68rem;color:#94a3b8;">Últ. inspección: {{ equipos_data.ultima_inspeccion }}</span>
+    </div>
+
+    <!-- KPI row -->
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.9rem;">
+      <!-- % Confiabilidad -->
+      <div style="flex:1;min-width:120px;background:#f8fafc;border-radius:.5rem;padding:.65rem .85rem;text-align:center;">
+        <div style="font-size:1.75rem;font-weight:700;line-height:1;color:
+          {% if equipos_data.color_general == 'green' %}#10b981
+          {% elif equipos_data.color_general == 'yellow' %}#f59e0b
+          {% elif equipos_data.color_general == 'orange' %}#f97316
+          {% else %}#ef4444{% endif %};">
+          {% if equipos_data.pct_general is not none %}{{ equipos_data.pct_general }}%{% else %}—{% endif %}
+        </div>
+        <div style="font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:.2rem;">Confiabilidad</div>
+      </div>
+      <!-- Estado -->
+      <div style="flex:1;min-width:120px;background:#f8fafc;border-radius:.5rem;padding:.65rem .85rem;text-align:center;">
+        <div style="font-size:.9rem;font-weight:700;color:
+          {% if equipos_data.color_general == 'green' %}#065f46
+          {% elif equipos_data.color_general == 'yellow' %}#92400e
+          {% elif equipos_data.color_general == 'orange' %}#9a3412
+          {% else %}#991b1b{% endif %};">
+          {{ equipos_data.estado_general }}
+        </div>
+        <div style="font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:.2rem;">Estado actual</div>
+      </div>
+      <!-- Equipos -->
+      <div style="flex:1;min-width:120px;background:#f8fafc;border-radius:.5rem;padding:.65rem .85rem;text-align:center;">
+        <div style="font-size:1.1rem;font-weight:700;color:#334155;">{{ equipos_data.equipos_operativos }}<span style="font-size:.75rem;color:#94a3b8;font-weight:400;">/{{ equipos_data.total_equipos }}</span></div>
+        <div style="font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-top:.2rem;">Eq. Operativos</div>
+      </div>
+    </div>
+
+    <!-- Per-type breakdown -->
+    {% if equipos_data.por_tipo %}
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin-bottom:.5rem;">Por tipo de equipo</div>
+    {% for t in equipos_data.por_tipo %}
+    <div style="margin-bottom:.45rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.2rem;">
+        <span style="font-size:.8rem;color:#334155;font-weight:500;">{{ t.tipo }}</span>
+        <span style="font-size:.78rem;font-weight:700;color:
+          {% if t.color == 'green' %}#10b981
+          {% elif t.color == 'yellow' %}#f59e0b
+          {% elif t.color == 'orange' %}#f97316
+          {% else %}#ef4444{% endif %};">
+          {% if t.pct is not none %}{{ t.pct }}%{% else %}—{% endif %}
+        </span>
+      </div>
+      {% if t.pct is not none %}
+      <div style="height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:{{ t.pct }}%;border-radius:3px;background:
+          {% if t.color == 'green' %}#10b981
+          {% elif t.color == 'yellow' %}#f59e0b
+          {% elif t.color == 'orange' %}#f97316
+          {% else %}#ef4444{% endif %};transition:width .4s;"></div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Timeline -->
 <div class="content">
   {% if events %}
