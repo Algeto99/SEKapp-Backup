@@ -698,6 +698,7 @@
                     <option value="planilla_vehicular">Planilla Vehicular</option>
                     <option value="planilla_motocicletas">Planilla Motocicletas</option>
                     <option value="checklist_cumplimiento">Checklist Cumplimiento</option>
+                    <option value="confiabilidad_equipos">Confiabilidad de Equipos</option>
                 </select>
             </div>
             <div class="flex-grow w-full">
@@ -1058,65 +1059,95 @@
                         if (key === 'Latitude' || key === 'Longitude') {
                             continue;
                         }
-                        const rawValue = String(reportDetails.data[key]);
+                        const rawValue = reportDetails.data[key];
                         const lowerKey = key.toLowerCase();
                         let displayContent;
+                        let isFullWidth = false;
 
-                        // Check for JSON List (e.g. Lista Asistencia)
-                        if (rawValue.trim().startsWith('[') && rawValue.trim().endsWith(']')) {
-                            try {
-                                const listData = JSON.parse(rawValue);
-                                if (Array.isArray(listData) && listData.length > 0) {
-                                    // Build Table
-                                    const headers = Object.keys(listData[0]);
-                                    let tableRows = '';
-
-                                    listData.forEach(item => {
-                                        tableRows += '<tr>';
-                                        headers.forEach(h => {
-                                            let cellVal = item[h];
-                                            // Check for signature in cell
-                                            if (h.toLowerCase().includes('firma') && String(cellVal).startsWith('data:image')) {
-                                                cellVal = `<img src="${cellVal}" alt="Firma" class="h-12 w-auto object-contain">`;
-                                            }
-                                            tableRows += `<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${cellVal}</td>`;
-                                        });
-                                        tableRows += '</tr>';
-                                    });
-
-                                    displayContent = `
-                                     <div class="mt-2 overflow-x-auto">
-                                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                            <thead class="bg-gray-50 dark:bg-gray-700">
-                                                <tr>
-                                                    ${headers.map(h => `<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">${h}</th>`).join('')}
-                                                </tr>
-                                            </thead>
-                                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                                ${tableRows}
-                                            </tbody>
-                                        </table>
-                                     </div>`;
-
-                                } else {
-                                    displayContent = `<span class="block text-gray-800 dark:text-gray-100">${rawValue}</span>`;
-                                }
-                            } catch (e) {
-                                // Fallback if parsing fails
-                                displayContent = `<span class="block text-gray-800 dark:text-gray-100">${rawValue.replace(/\n/g, '<br>')}</span>`;
+                        // Identify arrays / lists (either parsed arrays or stringified JSON arrays)
+                        let listData = null;
+                        if (Array.isArray(rawValue)) {
+                            listData = rawValue;
+                        } else if (typeof rawValue === 'string') {
+                            const trimmed = rawValue.trim();
+                            if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                                try {
+                                    listData = JSON.parse(trimmed);
+                                } catch (e) {}
                             }
                         }
-                        // Check for Signatures (Main Form Fields)
-                        else if (lowerKey.includes('firma') && (rawValue.startsWith('http') || rawValue.startsWith('data:image'))) {
-                            displayContent = `<div class="mt-1">
-                                <img src="${rawValue}" alt="Firma" class="h-24 w-auto object-contain border border-gray-300 dark:border-gray-600 rounded bg-white p-1">
-                            </div>`;
+
+                        if (listData && Array.isArray(listData) && listData.length > 0) {
+                            isFullWidth = true;
+                            const allKeys = [...new Set(listData.flatMap(row => Object.keys(row)))];
+                            const isInventario = lowerKey.includes('inventario');
+                            const _INV_LABELS = {
+                                tipo_equipo:           'Tipo de Equipo',
+                                total_equipos:         'Total',
+                                equipos_operativos:    'Operativos',
+                                equipos_con_falla:     'Con Falla',
+                                pendiente_reparacion:  'Pend. Reparación',
+                                pendiente_compra:      'Pend. Compra',
+                                comentario:            'Comentario',
+                            };
+
+                            let headers;
+                            if (isInventario) {
+                                const cols = Object.keys(_INV_LABELS).filter(k => allKeys.includes(k));
+                                const extras = allKeys.filter(k => !_INV_LABELS[k]);
+                                headers = [...cols, ...extras];
+                            } else {
+                                headers = Object.keys(listData[0]);
+                            }
+
+                            let tableRows = '';
+                            listData.forEach(item => {
+                                tableRows += '<tr>';
+                                headers.forEach(h => {
+                                    let cellVal = item[h];
+                                    if (cellVal === null || cellVal === undefined || cellVal === '') {
+                                        cellVal = '—';
+                                    }
+                                    // Check for signature in cell
+                                    if (h.toLowerCase().includes('firma') && String(cellVal).startsWith('data:image')) {
+                                        cellVal = `<img src="${cellVal}" alt="Firma" class="h-12 w-auto object-contain">`;
+                                    }
+                                    tableRows += `<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${cellVal}</td>`;
+                                });
+                                tableRows += '</tr>';
+                            });
+
+                            const headerLabels = isInventario
+                                ? headers.map(h => _INV_LABELS[h] || h.replace(/_/g, ' '))
+                                : headers;
+
+                            displayContent = `
+                             <div class="mt-2 overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            ${headerLabels.map(label => `<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">${label}</th>`).join('')}
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        ${tableRows}
+                                    </tbody>
+                                </table>
+                             </div>`;
                         } else {
-                            // Text fallback
-                            displayContent = `<span class="block text-gray-800 dark:text-gray-100">${rawValue.replace(/\n/g, '<br>')}</span>`;
+                            // Primitive/single value fallback
+                            const valStr = rawValue !== null && rawValue !== undefined ? String(rawValue) : '';
+                            if (lowerKey.includes('firma') && (valStr.startsWith('http') || valStr.startsWith('data:image'))) {
+                                displayContent = `<div class="mt-1">
+                                    <img src="${valStr}" alt="Firma" class="h-24 w-auto object-contain border border-gray-300 dark:border-gray-600 rounded bg-white p-1">
+                                </div>`;
+                            } else {
+                                displayContent = `<span class="block text-gray-800 dark:text-gray-100">${valStr.replace(/\n/g, '<br>')}</span>`;
+                            }
                         }
 
-                        detailsHtml += `<div class="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-sm">
+                        const gridColClass = isFullWidth ? 'md:col-span-2' : '';
+                        detailsHtml += `<div class="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-600 rounded shadow-sm ${gridColClass}">
                             <span class="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">${key}</span>
                             ${displayContent}
                         </div>`;

@@ -6,6 +6,8 @@ import base64
 import math
 import hmac
 import hashlib
+import json
+import ast
 from datetime import timedelta, datetime, timezone, date, time
 from decimal import Decimal
 from io import BytesIO
@@ -580,6 +582,122 @@ FORM_CONFIGS = {
     }
 }
 
+def _ensure_json_serializable(val):
+    """Convert JSONB values that psycopg2 may return as Python str(list/dict) into proper objects."""
+    if isinstance(val, (dict, list)):
+        return val
+    if isinstance(val, str):
+        try:
+            return json.loads(val)
+        except (ValueError, TypeError):
+            pass
+        try:
+            return ast.literal_eval(val)
+        except Exception:
+            pass
+    return val
+
+_INV_LABELS = {
+    'tipo_equipo':           'Tipo de Equipo',
+    'total_equipos':         'Total',
+    'equipos_operativos':    'Operativos',
+    'equipos_con_falla':     'Con Falla',
+    'pendiente_reparacion':  'Pend. Reparación',
+    'pendiente_compra':      'Pend. Compra',
+    'comentario':            'Comentario',
+}
+
+def _format_structured_value_as_text(val):
+    """Convert a structured list/dict into a clean, readable multiline text block (useful for Excel export)."""
+    val = _ensure_json_serializable(val)
+    if isinstance(val, list):
+        items = []
+        for i, item in enumerate(val, 1):
+            if isinstance(item, dict):
+                parts = []
+                for k in ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']:
+                    if k in item:
+                        label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
+                        parts.append(f"{label}: {item[k]}")
+                # Add any other keys not in our preferred ordering
+                for k, v in item.items():
+                    if k not in _INV_LABELS:
+                        parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
+                items.append(f"[{i}] " + ", ".join(parts))
+            else:
+                items.append(str(item))
+        return "\n".join(items)
+    elif isinstance(val, dict):
+        parts = []
+        for k in ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']:
+            if k in val:
+                label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
+                parts.append(f"{label}: {val[k]}")
+        for k, v in val.items():
+            if k not in _INV_LABELS:
+                parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
+        return ", ".join(parts)
+    return str(val)
+
+def _render_inventario_html_table(value, is_email=False):
+    """Generate HTML table for the Inventario field for WeasyPrint PDF or HTML Emails."""
+    items = _ensure_json_serializable(value)
+    if not isinstance(items, list) or not items:
+        return ""
+    
+    headers = ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']
+    
+    # Determine active headers
+    all_keys = set()
+    for item in items:
+        if isinstance(item, dict):
+            all_keys.update(item.keys())
+            
+    active_headers = []
+    for h in headers:
+        if h in all_keys:
+            active_headers.append(h)
+    for k in all_keys:
+        if k not in headers:
+            active_headers.append(k)
+            
+    if not active_headers:
+        return ""
+        
+    # Styles matching standard premium look
+    if is_email:
+        th_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; background-color: #f1f5f9; font-weight: bold; color: #374151; font-size: 11px;"
+        td_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; color: #1f2937; font-size: 11px; vertical-align: top;"
+        table_style = "width: 100%; border-collapse: collapse; margin-top: 8px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;"
+    else:
+        th_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; background-color: #f1f5f9; font-weight: bold; color: #374151; font-size: 7.5pt;"
+        td_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; color: #1f2937; font-size: 7.5pt; vertical-align: top;"
+        table_style = "width: 100%; border-collapse: collapse; margin-top: 5px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;"
+    
+    # Build header
+    table_hdr_cells = []
+    for h in active_headers:
+        lbl = _INV_LABELS.get(h, h.replace('_', ' ').capitalize())
+        table_hdr_cells.append(f'<th style="{th_style}">{lbl}</th>')
+    table_hdr_html = "".join(table_hdr_cells)
+    
+    # Build body
+    table_body_rows = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        row_cells = []
+        for h in active_headers:
+            v = item.get(h, '')
+            v_str = str(v).strip() if v is not None else ''
+            if v_str == '':
+                v_str = '—'
+            row_cells.append(f'<td style="{td_style}">{v_str}</td>')
+        table_body_rows.append(f'<tr>{"".join(row_cells)}</tr>')
+    table_body_html = "".join(table_body_rows)
+    
+    return f'<table style="{table_style}"><thead><tr>{table_hdr_html}</tr></thead><tbody>{table_body_html}</tbody></table>'
+
 def fetch_reports(offset, limit, filters=None, form_type='all'):
     conn = None
     cur = None
@@ -717,6 +835,8 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                         val = str(val)
                     elif isinstance(val, Decimal):
                         val = float(val)
+                    else:
+                        val = _ensure_json_serializable(val)
 
                     mapped_data[label] = val
 
@@ -734,7 +854,9 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                         # Handle Date/Time objects for JSON serialization
                         if isinstance(val, (datetime, date, time)):
                             val = str(val)
-                            
+                        else:
+                            val = _ensure_json_serializable(val)
+
                         mapped_data[display_label] = val
                 
                 report = {
@@ -854,7 +976,15 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                      if not skip_signing:
                         val = generate_signed_url(val)
 
-                data_content[label] = str(val) if val is not None else "N/A"
+                if isinstance(val, (datetime, date, time)):
+                    val = str(val)
+                elif isinstance(val, Decimal):
+                    val = float(val)
+                elif val is not None:
+                    val = _ensure_json_serializable(val)
+                else:
+                    val = "N/A"
+                data_content[label] = val
 
             # 2. Add unmapped fields, filtering out system columns
             system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name'}
@@ -871,8 +1001,14 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                     # Handle Date/Time objects for JSON serialization
                     if isinstance(val, (datetime, date, time)):
                         val = str(val)
+                    elif isinstance(val, Decimal):
+                        val = float(val)
+                    elif val is not None:
+                        val = _ensure_json_serializable(val)
+                    else:
+                        val = "N/A"
 
-                    data_content[display_label] = str(val) if val is not None else "N/A"
+                    data_content[display_label] = val
 
             forms_data = {
                 "id": row_dict[config['id_col']],
@@ -1409,6 +1545,20 @@ def email_selected_reports_api():
                     if url:
                         attachment_urls.append(url)
                 continue
+            if key.lower() == 'inventario':
+                inv_table_html = _render_inventario_html_table(value, is_email=True)
+                if inv_table_html:
+                    bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                    p.append(f"""      <tr style="background:{bg};">
+        <td colspan="2" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;background:#fafafa;">
+          <strong style="font-size:11px;color:#374151;display:block;margin-bottom:6px;">Inventario:</strong>
+          {inv_table_html}
+        </td>
+      </tr>
+""")
+                    row_idx += 1
+                    continue
+
             val_str = str(value).strip()
             if key in SIGNATURE_KEYS or val_str.startswith('data:image'):
                 signature_value = val_str
@@ -1575,7 +1725,11 @@ def export_excel():
                     val = report['data'].get(data_key, '')
                     
                     col_index = 4 + i
-                    cell = ws.cell(row=row, column=col_index, value=str(val) if val else '')
+                    if isinstance(val, (list, dict)):
+                        cell_value = _format_structured_value_as_text(val)
+                    else:
+                        cell_value = str(val) if val is not None else ''
+                    cell = ws.cell(row=row, column=col_index, value=cell_value)
                     cell.border = border
                     cell.alignment = Alignment(wrap_text=True, vertical="top")
 
@@ -1953,6 +2107,17 @@ td.val { color: #1f2937; }
                     else:
                         other_urls.append(url)
                 continue
+
+            if key.lower() == 'inventario':
+                inv_table_html = _render_inventario_html_table(value, is_email=False)
+                if inv_table_html:
+                    html_parts.append(
+                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
+                        f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Inventario:</strong>'
+                        f'{inv_table_html}'
+                        f'</td></tr>'
+                    )
+                    continue
 
             val_str = str(value).strip()
 

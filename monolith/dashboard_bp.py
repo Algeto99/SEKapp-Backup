@@ -5522,8 +5522,8 @@ def api_vehiculos_detalles():
 # ── Equipos / Confiabilidad Dashboard ────────────────────────────────────────
 
 # Safe int extraction from JSONB text fields
-_EQ_TOTAL_SQL = "CASE WHEN elem->>'total' ~ '^[0-9]+$' THEN (elem->>'total')::int ELSE 0 END"
-_EQ_FUNC_SQL  = "CASE WHEN elem->>'funcionando' ~ '^[0-9]+$' THEN (elem->>'funcionando')::int ELSE 0 END"
+_EQ_TOTAL_SQL = "CASE WHEN elem->>'total_equipos' ~ '^[0-9]+$' THEN (elem->>'total_equipos')::int ELSE 0 END"
+_EQ_FUNC_SQL  = "CASE WHEN elem->>'equipos_operativos' ~ '^[0-9]+$' THEN (elem->>'equipos_operativos')::int ELSE 0 END"
 
 _EQ_BASE = [
     "c.inventario IS NOT NULL",

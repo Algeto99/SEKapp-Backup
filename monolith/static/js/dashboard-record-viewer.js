@@ -166,6 +166,39 @@
             .drv-inline-text {
                 white-space: pre-wrap;
             }
+            .drv-inv-table-wrap {
+                overflow-x: auto;
+                width: 100%;
+            }
+            .drv-inv-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 0.83rem;
+                font-family: Roboto, sans-serif;
+            }
+            .drv-inv-table thead tr {
+                background: rgba(99,102,241,0.25);
+            }
+            .drv-inv-table th {
+                padding: 0.45rem 0.75rem;
+                text-align: left;
+                color: #c7d2fe;
+                font-weight: 700;
+                font-size: 0.72rem;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                white-space: nowrap;
+                border-bottom: 1px solid rgba(255,255,255,0.1);
+            }
+            .drv-inv-table td {
+                padding: 0.4rem 0.75rem;
+                color: #e5e7eb;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+                vertical-align: top;
+            }
+            .drv-inv-table tbody tr:hover td {
+                background: rgba(255,255,255,0.04);
+            }
             .drv-action-bar {
                 display: none;
                 gap: 0.75rem;
@@ -324,6 +357,15 @@
         if (!looksLikeJson(value)) return value;
         try {
             return JSON.parse(value);
+        } catch (_) {}
+        // Fallback: handle Python repr format (single quotes, None/True/False literals)
+        try {
+            const jsonStr = value
+                .replace(/'/g, '"')
+                .replace(/\bNone\b/g, 'null')
+                .replace(/\bTrue\b/g, 'true')
+                .replace(/\bFalse\b/g, 'false');
+            return JSON.parse(jsonStr);
         } catch (_) {
             return value;
         }
@@ -394,6 +436,50 @@
         `;
     }
 
+    const _INV_LABELS = {
+        tipo_equipo:           'Tipo de Equipo',
+        total_equipos:         'Total',
+        equipos_operativos:    'Operativos',
+        equipos_con_falla:     'Con Falla',
+        pendiente_reparacion:  'Pend. Reparación',
+        pendiente_compra:      'Pend. Compra',
+        comentario:            'Comentario',
+    };
+
+    function isInventarioArray(key, arr) {
+        if (!arr || !arr.length || !arr[0] || typeof arr[0] !== 'object') return false;
+        return String(key || '').toLowerCase().includes('inventario');
+    }
+
+    function renderInventarioTable(arr) {
+        const allKeys = [...new Set(arr.flatMap(row => Object.keys(row)))];
+        const cols = Object.keys(_INV_LABELS).filter(k => allKeys.includes(k));
+        const extras = allKeys.filter(k => !_INV_LABELS[k]);
+        const headers = [...cols, ...extras];
+
+        const headerRow = headers.map(h =>
+            `<th>${escapeHtml(_INV_LABELS[h] || h.replace(/_/g, ' '))}</th>`
+        ).join('');
+
+        const bodyRows = arr.map(row => {
+            const cells = headers.map(h => {
+                const v = row[h];
+                const text = (v === null || v === undefined || v === '') ? '—' : String(v);
+                return `<td>${escapeHtml(text)}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        return `
+            <div class="drv-inv-table-wrap">
+                <table class="drv-inv-table">
+                    <thead><tr>${headerRow}</tr></thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
     function renderValue(key, value, depth) {
         if (depth > 4) {
             return renderPrimitive(key, value);
@@ -402,6 +488,7 @@
             return '<span class="drv-inline-text">—</span>';
         }
         if (Array.isArray(value)) {
+            if (isInventarioArray(key, value)) return renderInventarioTable(value);
             return renderArray(key, value, depth);
         }
         if (typeof value === 'object') {
