@@ -4987,20 +4987,24 @@ def api_motocicletas_data():
             for r in cur.fetchall()
         ]
 
-        # ── Análisis por ubicación ─────────────────────────────────────────
+        # ── Novedades por número de placa ─────────────────────────────────
+        placa_nov_conds = base_conds + [
+            "placa_motocicleta IS NOT NULL",
+            "TRIM(placa_motocicleta) <> ''"
+        ]
         cur.execute(f"""
             SELECT
-                COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente') AS ubicacion,
+                TRIM(placa_motocicleta) AS placa,
                 COUNT(*) AS inspecciones,
                 SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
-            FROM planilla_motocicletas {where}
-            GROUP BY COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente')
-            ORDER BY no_aptas ASC, inspecciones ASC
+            FROM planilla_motocicletas {_moto_where(placa_nov_conds)}
+            GROUP BY TRIM(placa_motocicleta)
+            ORDER BY no_aptas DESC, inspecciones DESC
             LIMIT 15
         """, base_params)
-        por_ubicacion = [
+        por_placa = [
             {
-                'ubicacion':    r['ubicacion'],
+                'placa':        r['placa'],
                 'inspecciones': int(r['inspecciones'] or 0),
                 'no_aptas':     int(r['no_aptas']     or 0),
             }
@@ -5052,7 +5056,7 @@ def api_motocicletas_data():
             },
             'fallas_componente':  fallas_comp,
             'tendencia':          tendencia,
-            'por_ubicacion':      por_ubicacion,
+            'por_placa':          por_placa,
             'alertas_count':      alertas_count,
             'placas_recurrentes': placas_recurrentes,
         })
@@ -5313,20 +5317,24 @@ def api_vehiculos_data():
             for r in cur.fetchall()
         ]
 
-        # ── Análisis por ubicación (sorted asc for chart) ──────────────────
+        # ── Novedades por número de placa ─────────────────────────────────
+        placa_nov_conds = base_conds + [
+            "placa_vehiculo IS NOT NULL",
+            "TRIM(placa_vehiculo) <> ''"
+        ]
         cur.execute(f"""
             SELECT
-                COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente') AS ubicacion,
+                TRIM(placa_vehiculo) AS placa,
                 COUNT(*) AS inspecciones,
                 SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
-            FROM planilla_vehicular {where}
-            GROUP BY COALESCE(NULLIF(TRIM(cliente_instalacion),''),'Sin cliente')
-            ORDER BY no_aptas ASC, inspecciones ASC
+            FROM planilla_vehicular {_veh_where(placa_nov_conds)}
+            GROUP BY TRIM(placa_vehiculo)
+            ORDER BY no_aptas DESC, inspecciones DESC
             LIMIT 15
         """, base_params)
-        por_ubicacion = [
+        por_placa = [
             {
-                'ubicacion':    r['ubicacion'],
+                'placa':        r['placa'],
                 'inspecciones': int(r['inspecciones'] or 0),
                 'no_aptas':     int(r['no_aptas']     or 0),
             }
@@ -5378,7 +5386,7 @@ def api_vehiculos_data():
             },
             'fallas_componente':  fallas_comp,
             'tendencia':          tendencia,
-            'por_ubicacion':      por_ubicacion,
+            'por_placa':          por_placa,
             'alertas_count':      alertas_count,
             'placas_recurrentes': placas_recurrentes,
         })

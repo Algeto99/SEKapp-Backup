@@ -155,10 +155,10 @@
                 <div class="chart-box" id="compBox"><canvas id="compChart"></canvas></div>
             </div>
             <div class="card">
-                <div class="card-title">Fallas por Ubicación / Proyecto (menor a mayor)</div>
+                <div class="card-title">Novedades por Número de Placa (mayor a menor)</div>
                 <div id="ubicEmpty" class="empty-state">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                    <p>Sin datos por ubicación</p>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg>
+                    <p>Sin datos por placa</p>
                 </div>
                 <div class="chart-box" id="ubicBox"><canvas id="ubicChart"></canvas></div>
             </div>
@@ -410,7 +410,7 @@
         box.style.height = Math.max(320, rows.length * 30 + 60) + 'px';
     }
 
-    /* ── Análisis por ubicación ─────────────────────────────────────────── */
+    /* ── Novedades por placa ────────────────────────────────────────────── */
     function renderUbicChart(rows) {
         const empty  = document.getElementById('ubicEmpty');
         const box    = document.getElementById('ubicBox');
@@ -425,10 +425,10 @@
         empty.style.display = 'none';
         box.style.display   = 'block';
 
-        const labels = rows.map(r => r.ubicacion.length > 30 ? r.ubicacion.slice(0,27)+'…' : r.ubicacion);
+        const labels    = rows.map(r => r.placa);
         const valFallas = rows.map(r => r.no_aptas);
         const valTotal  = rows.map(r => r.inspecciones);
-        const colors = rows.map(r =>
+        const colors    = rows.map(r =>
             trafficColor(r.inspecciones > 0 ? r.no_aptas / r.inspecciones : 0)
         );
 
@@ -462,11 +462,11 @@
                 maintainAspectRatio: false,
                 onClick(evt, elements) {
                     if (!elements.length) return;
-                    const ubicacion = rows[elements[0].index]?.ubicacion;
-                    if (!ubicacion) return;
+                    const placa = rows[elements[0].index]?.placa;
+                    if (!placa) return;
                     openInspectionModal(
-                        allInspectionRows.filter(r => r.cliente === ubicacion),
-                        `Inspecciones — ${ubicacion}`
+                        allInspectionRows.filter(r => r.placa === placa),
+                        `Inspecciones — ${placa}`
                     );
                 },
                 layout: { padding: { right: 40 } },
@@ -478,7 +478,7 @@
                     legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
                     tooltip: {
                         callbacks: {
-                            title: items => rows[items[0].dataIndex]?.ubicacion || '',
+                            title: items => rows[items[0].dataIndex]?.placa || '',
                         }
                     },
                     datalabels: {
@@ -514,10 +514,6 @@
         const labels        = sorted.map(r => r.periodo_label || monthLabel(r.periodo));
         const inspecciones  = sorted.map(r => r.inspecciones  || 0);
         const noAptas       = sorted.map(r => r.no_aptas       || 0);
-        const puntColors    = sorted.map(r => {
-            const ratio = r.inspecciones > 0 ? r.no_aptas / r.inspecciones : 0;
-            return trafficColor(ratio);
-        });
 
         trendChart = new Chart(canvas, {
             type: 'line',
@@ -541,13 +537,13 @@
                     {
                         label: 'No Aptos',
                         data: noAptas,
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239,68,68,0.10)',
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.10)',
                         fill: false,
                         tension: 0.28,
                         pointRadius: 6,
                         pointHoverRadius: 8,
-                        pointBackgroundColor: puntColors,
+                        pointBackgroundColor: '#22c55e',
                         pointBorderColor: 'transparent',
                         borderDash: [4, 3],
                         order: 1,
@@ -575,7 +571,7 @@
                     legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
                     datalabels: {
                         align: 'top', anchor: 'end',
-                        color: ctx => ctx.datasetIndex === 1 ? '#fca5a5' : '#a5b4fc',
+                        color: ctx => ctx.datasetIndex === 1 ? '#86efac' : '#a5b4fc',
                         font: { size: 10, weight: '700' },
                         formatter: v => v > 0 ? `${v}` : '',
                     },
@@ -657,7 +653,7 @@
             const total = (data.kpi || {}).total_inspecciones || 0;
             renderKPI(data.kpi || {});
             renderCompChart(data.fallas_componente || [], total);
-            renderUbicChart(data.por_ubicacion     || []);
+            renderUbicChart(data.por_placa         || []);
             renderTrendChart(data.tendencia        || []);
             allInspectionRows = det.inspecciones || [];
             renderAlerta(data.alertas_count || 0, data.placas_recurrentes || []);
@@ -672,30 +668,21 @@
         const filters = new DashboardFilters();
         filters.init();
 
+        // Hide the Cliente / Instalación filter section
         const propSelect = document.getElementById('df-property');
-        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
-        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
-
-        try {
-            const res = await fetch('/dashboard/api/vehiculos/clientes');
-            const { clientes } = await res.json();
-            while (propSelect.options.length > 1) propSelect.remove(1);
-            (clientes || []).forEach(c => {
-                const o = document.createElement('option');
-                o.value = c; o.textContent = c;
-                propSelect.appendChild(o);
-            });
-        } catch (e) {
-            console.warn('Could not load vehiculos clientes', e);
+        const propSection = propSelect?.closest('.df-section');
+        if (propSection) {
+            propSection.style.display = 'none';
+            const divider = propSection.nextElementSibling;
+            if (divider && divider.classList.contains('df-divider')) divider.style.display = 'none';
         }
 
         document.addEventListener('filtersChanged', e => {
             const p = new URLSearchParams();
-            const { propertyId, year, month, day } = e.detail;
-            if (propertyId) p.set('cliente', propertyId);
-            if (year)       p.set('year',    year);
-            if (month)      p.set('month',   month);
-            if (day)        p.set('day',     day);
+            const { year, month, day } = e.detail;
+            if (year)  p.set('year',  year);
+            if (month) p.set('month', month);
+            if (day)   p.set('day',   day);
             loadData(p.toString());
         });
 
