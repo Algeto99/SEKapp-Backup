@@ -333,8 +333,27 @@
 
         </div>
 
-        <!-- ── Charts row 1: Tipo de falta (left) + Por cliente (right) ── -->
+        <!-- ── Charts row 1: Por cliente (left) + Tipo de falta (right) ── -->
         <div class="charts-row">
+
+            <!-- Por cliente/sitio bar -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.875rem;">
+                    <div class="card-title" style="margin-bottom:0;">Novedades por Cliente / Sitio <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— ordenado de mayor a menor</span></div>
+                    <div id="clienteFilterChip" style="display:none;align-items:center;gap:0.4rem;background:rgba(251,146,60,0.12);border:1px solid #f97316;color:#fb923c;border-radius:999px;padding:0.2rem 0.6rem;font-size:0.75rem;font-family:'Roboto',sans-serif;font-weight:600;cursor:pointer;" onclick="clearClienteFilter()" title="Limpiar filtro">
+                        <span id="clienteFilterChipLabel"></span>
+                        <span style="font-size:1rem;line-height:1;">×</span>
+                    </div>
+                </div>
+                <div class="chart-wrap" style="min-height:280px;">
+                    <canvas id="clienteChart" class="chart-canvas"></canvas>
+                    <div id="clienteEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="clienteLoading"><div class="spinner"></div></div>
+            </div>
 
             <!-- Tipo de novedad bar -->
             <div class="card chart-wrap" style="position:relative;">
@@ -347,19 +366,6 @@
                     </div>
                 </div>
                 <div class="loading-overlay" id="tipoLoading"><div class="spinner"></div></div>
-            </div>
-
-            <!-- Por cliente/sitio bar -->
-            <div class="card chart-wrap" style="position:relative;">
-                <div class="card-title">Novedades por Cliente / Sitio <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— ordenado de mayor a menor</span></div>
-                <div class="chart-wrap" style="min-height:280px;">
-                    <canvas id="clienteChart" class="chart-canvas"></canvas>
-                    <div id="clienteEmpty" class="empty-state" style="display:none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <p>Sin datos para el período seleccionado</p>
-                    </div>
-                </div>
-                <div class="loading-overlay" id="clienteLoading"><div class="spinner"></div></div>
             </div>
 
         </div>
@@ -472,6 +478,8 @@
 
     let tipoChart = null, clienteChart = null, trendChart = null, empChart = null;
     let allDetails = [];
+    let activeClienteFilter = null;
+    let lastFilterBarState = {};
 
     function normalizeDisciplinaPeriod(label) {
         const raw = String(label || '').trim();
@@ -641,6 +649,12 @@
             return '#fbbf24';
         });
 
+        const activeIdx = activeClienteFilter ? sorted.findIndex(d => d.label === activeClienteFilter) : -1;
+        const bgColors = sorted.map((d, i) => {
+            if (activeIdx === -1) return colors[i];
+            return i === activeIdx ? colors[i] : colors[i] + '55';
+        });
+
         if (clienteChart) clienteChart.destroy();
         clienteChart = new Chart(canvas, {
             type: 'bar',
@@ -649,8 +663,9 @@
                 labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: colors,
-                    borderWidth: 0,
+                    backgroundColor: bgColors,
+                    borderWidth: sorted.map((_, i) => i === activeIdx ? 2 : 0),
+                    borderColor: sorted.map((_, i) => i === activeIdx ? '#ffffff' : 'transparent'),
                     borderRadius: 4,
                     barThickness: 20,
                 }]
@@ -662,7 +677,12 @@
                 onClick(evt, elements) {
                     if (!elements.length) return;
                     const cliente = sorted[elements[0].index]?.label;
-                    if (cliente) openDetailsModal({ cliente }, `Registros — ${cliente}`);
+                    if (!cliente) return;
+                    if (activeClienteFilter === cliente) {
+                        clearClienteFilter();
+                    } else {
+                        setClienteFilter(cliente);
+                    }
                 },
                 scales: {
                     x: {
@@ -921,11 +941,30 @@
 
     function buildQS(state) {
         const p = new URLSearchParams();
-        if (state.propertyId) p.set('cliente', state.propertyId);
-        if (state.year)       p.set('year',    state.year);
-        if (state.month)      p.set('month',   state.month);
-        if (state.day)        p.set('day',     state.day);
+        const clienteToUse = activeClienteFilter || state.propertyId;
+        if (clienteToUse) p.set('cliente', clienteToUse);
+        if (state.year)   p.set('year',    state.year);
+        if (state.month)  p.set('month',   state.month);
+        if (state.day)    p.set('day',     state.day);
         return p.toString();
+    }
+
+    function setClienteFilter(cliente) {
+        activeClienteFilter = cliente;
+        const chip = document.getElementById('clienteFilterChip');
+        const chipLabel = document.getElementById('clienteFilterChipLabel');
+        if (chip) { chip.style.display = 'flex'; }
+        if (chipLabel) chipLabel.textContent = cliente;
+        currentQS = buildQS(lastFilterBarState);
+        loadData(currentQS);
+    }
+
+    function clearClienteFilter() {
+        activeClienteFilter = null;
+        const chip = document.getElementById('clienteFilterChip');
+        if (chip) chip.style.display = 'none';
+        currentQS = buildQS(lastFilterBarState);
+        loadData(currentQS);
     }
 
     // ── Init ──────────────────────────────────────────────────────────────
@@ -951,6 +990,10 @@
         } catch (e) { console.warn('Could not load clientes', e); }
 
         document.addEventListener('filtersChanged', e => {
+            lastFilterBarState = e.detail;
+            activeClienteFilter = null;
+            const chip = document.getElementById('clienteFilterChip');
+            if (chip) chip.style.display = 'none';
             currentQS = buildQS(e.detail);
             loadData(currentQS);
         });

@@ -1463,7 +1463,6 @@ def email_selected_reports_api():
 
     subject = f"Reporte de Incidencia — Kanan Sentinel SekApp"
 
-    SIGNATURE_KEYS = {'Firma Responsable', 'firma_responsable', 'Firma', 'firma'}
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
     logo_src = _get_logo_data_url() or ""
     logo_tag = f'<img src="{logo_src}" alt="Kanan" width="36" height="36" style="border-radius:6px;background:#fff;padding:3px;vertical-align:middle;">' if logo_src else ''
@@ -1501,7 +1500,7 @@ def email_selected_reports_api():
 
     for report in reports_to_email:
         data = report.get('data', {})
-        signature_value = None
+        signatures = []  # list of (label, data_url)
         attachment_urls = []
 
         # Build optional map thumbnail for this report
@@ -1560,8 +1559,19 @@ def email_selected_reports_api():
                     continue
 
             val_str = str(value).strip()
-            if key in SIGNATURE_KEYS or val_str.startswith('data:image'):
-                signature_value = val_str
+            if 'firma' in key.lower() or val_str.startswith('data:image'):
+                try:
+                    sig_list = json.loads(val_str) if val_str.startswith('[') else None
+                except Exception:
+                    sig_list = None
+                if isinstance(sig_list, list):
+                    for i, sv in enumerate(sig_list):
+                        sv = str(sv).strip()
+                        if sv and sv not in ('N/A', 'None', ''):
+                            label = f"{key} {i+1}" if len(sig_list) > 1 else key
+                            signatures.append((label, sv))
+                else:
+                    signatures.append((key, val_str))
                 continue
             bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
             clean_val = val_str.replace('\n', '<br>')
@@ -1572,12 +1582,18 @@ def email_selected_reports_api():
 """)
             row_idx += 1
 
-        # Signature row
-        if signature_value:
+        # Signature row(s)
+        if signatures:
+            sigs_html = ''.join(
+                f'<div style="display:inline-block;margin-right:16px;vertical-align:top;">'
+                f'<p style="margin:0 0 4px 0;font-size:11px;font-weight:bold;color:#374151;">{lbl}</p>'
+                f'<img src="{sv}" alt="{lbl}" style="max-width:200px;max-height:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px;background:#fff;">'
+                f'</div>'
+                for lbl, sv in signatures
+            )
             p.append(f"""      <tr>
         <td colspan="2" style="padding:12px 14px;border-top:1px solid #e5e7eb;">
-          <p style="margin:0 0 6px 0;font-size:11px;font-weight:bold;color:#374151;">Firma Responsable</p>
-          <img src="{signature_value}" alt="Firma" style="max-width:200px;max-height:90px;border:1px solid #d1d5db;border-radius:4px;padding:4px;background:#fff;">
+          {sigs_html}
         </td>
       </tr>
 """)
@@ -1976,8 +1992,10 @@ def _map_thumbnail_html(lat: float, lng: float, width: int = 160, height: int = 
 
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
-    SIGNATURE_KEYS = {'Firma Responsable', 'firma_responsable', 'Firma', 'firma'}
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
+
+    def _is_signature(key, val_str):
+        return 'firma' in key.lower() or val_str.startswith('data:image')
     logo_src = _get_logo_data_url() or ""
 
     logo_img = f'<img src="{logo_src}" alt="">' if logo_src else '<span style="font-size:20pt;color:#1d4ed8;">&#9632;</span>'
@@ -2087,7 +2105,7 @@ td.val { color: #1f2937; }
             f'<table class="fields">'
         )
 
-        signature_value = None
+        signatures = []  # list of (label, data_url)
         image_urls, pdf_urls, other_urls = [], [], []
 
         for key, value in data.items():
@@ -2121,8 +2139,20 @@ td.val { color: #1f2937; }
 
             val_str = str(value).strip()
 
-            if key in SIGNATURE_KEYS or val_str.startswith('data:image'):
-                signature_value = val_str
+            if _is_signature(key, val_str):
+                # val may be a JSON array of data URLs (multiple guards)
+                try:
+                    sig_list = json.loads(val_str) if val_str.startswith('[') else None
+                except Exception:
+                    sig_list = None
+                if isinstance(sig_list, list):
+                    for i, sv in enumerate(sig_list):
+                        sv = str(sv).strip()
+                        if sv and sv not in ('N/A', 'None', ''):
+                            label = f"{key} {i+1}" if len(sig_list) > 1 else key
+                            signatures.append((label, sv))
+                else:
+                    signatures.append((key, val_str))
                 continue
 
             clean_value = val_str.replace('\n', '<br>')
@@ -2131,19 +2161,21 @@ td.val { color: #1f2937; }
         html_parts.append('</table>')
 
         # Signature + attachments side by side
-        has_sig = bool(signature_value)
+        has_sig = bool(signatures)
         has_att = bool(image_urls or pdf_urls or other_urls)
 
         if has_sig or has_att:
             html_parts.append('<div class="bottom-row">')
 
             if has_sig:
-                html_parts.append(
-                    '<div class="sig-cell">'
-                    '<p class="section-label">Firma Responsable</p>'
-                    f'<img class="sig-img" src="{signature_value}" alt="Firma">'
-                    '</div>'
+                sigs_html = ''.join(
+                    f'<div style="display:inline-block;margin-right:16px;vertical-align:top;">'
+                    f'<p class="section-label">{lbl}</p>'
+                    f'<img class="sig-img" src="{sv}" alt="{lbl}">'
+                    f'</div>'
+                    for lbl, sv in signatures
                 )
+                html_parts.append(f'<div class="sig-cell">{sigs_html}</div>')
 
             if has_att:
                 html_parts.append('<div class="att-cell"><p class="section-label">Archivos Adjuntos</p><div class="att-grid">')

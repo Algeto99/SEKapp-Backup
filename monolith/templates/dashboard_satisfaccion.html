@@ -355,8 +355,27 @@
             </div>
         </div>
 
-        <!-- ── Charts row 1: Criteria (left) + Distribution (right) ────── -->
+        <!-- ── Charts row 1: Distribution (left) + Criteria (right) ────── -->
         <div class="charts-row">
+
+            <!-- Distribution bar chart -->
+            <div class="card" style="position:relative;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.875rem;">
+                    <div class="card-title" style="margin-bottom:0;">Distribución de Satisfacción</div>
+                    <div id="distFilterChip" style="display:none;align-items:center;gap:0.4rem;background:rgba(96,165,250,0.12);border:1px solid #60a5fa;color:#60a5fa;border-radius:999px;padding:0.2rem 0.6rem;font-size:0.75rem;font-family:'Roboto',sans-serif;font-weight:600;cursor:pointer;" onclick="clearDistFilter()" title="Limpiar filtro">
+                        <span id="distFilterChipLabel"></span>
+                        <span style="font-size:1rem;line-height:1;">×</span>
+                    </div>
+                </div>
+                <div class="chart-wrap" style="min-height:260px;">
+                    <canvas id="distChart" class="chart-canvas"></canvas>
+                    <div id="distEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="distLoading"><div class="spinner"></div></div>
+            </div>
 
             <!-- Criteria bar chart -->
             <div class="card chart-wrap" style="position:relative;">
@@ -377,19 +396,6 @@
                 <div class="loading-overlay" id="criteriaLoading"><div class="spinner"></div></div>
             </div>
 
-            <!-- Distribution bar chart -->
-            <div class="card" style="position:relative;">
-                <div class="card-title">Distribución de Satisfacción</div>
-                <div class="chart-wrap" style="min-height:260px;">
-                    <canvas id="distChart" class="chart-canvas"></canvas>
-                    <div id="distEmpty" class="empty-state" style="display:none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <p>Sin datos para el período seleccionado</p>
-                    </div>
-                </div>
-                <div class="loading-overlay" id="distLoading"><div class="spinner"></div></div>
-            </div>
-
         </div>
 
         <!-- ── Chart row 2: Trend (full width) ──────────────────────────── -->
@@ -407,14 +413,12 @@
             </div>
         </div>
 
-        <!-- ── Chart row 3: Recommendation donut + summary ──────────────── -->
-        <div class="charts-bottom">
-
-            <!-- Recommendation donut -->
+        <!-- ── Chart row 3: Recommendation donut (full width) ──────────── -->
+        <div class="chart-full">
             <div class="card" style="position:relative;">
                 <div class="card-title">¿Recomendaría el Servicio?</div>
-                <div class="chart-wrap" style="max-height:260px; display:flex; align-items:center; justify-content:center;">
-                    <canvas id="recChart" class="chart-canvas" style="max-height:240px;"></canvas>
+                <div class="chart-wrap" style="max-height:280px; display:flex; align-items:center; justify-content:center;">
+                    <canvas id="recChart" class="chart-canvas" style="max-height:260px;"></canvas>
                     <div id="recEmpty" class="empty-state" style="display:none;">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <p>Sin datos de recomendación</p>
@@ -422,48 +426,6 @@
                 </div>
                 <div class="loading-overlay" id="recLoading"><div class="spinner"></div></div>
             </div>
-
-            <!-- Score table summary -->
-            <div class="card">
-                <div class="card-title">Tabla de Interpretación</div>
-                <table style="width:100%;border-collapse:collapse;font-size:0.8125rem;font-family:'Roboto',sans-serif;">
-                    <thead>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,0.08);">
-                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Puntaje</th>
-                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Nivel</th>
-                            <th style="padding:0.5rem;text-align:left;color:#6b7280;font-weight:600;">Acción recomendada</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <td style="padding:0.5rem;color:#94a3b8;">4.5 – 5.0</td>
-                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#22c55e"></span><span style="color:#4ade80;">Totalmente satisfecho</span></td>
-                            <td style="padding:0.5rem;color:#94a3b8;">El servicio se presta correctamente</td>
-                        </tr>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <td style="padding:0.5rem;color:#94a3b8;">3.5 – 4.4</td>
-                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#eab308"></span><span style="color:#facc15;">Satisfecho</span></td>
-                            <td style="padding:0.5rem;color:#94a3b8;">Revisar algunos aspectos</td>
-                        </tr>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <td style="padding:0.5rem;color:#94a3b8;">2.5 – 3.4</td>
-                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#f97316"></span><span style="color:#fb923c;">Oportunidades de mejora</span></td>
-                            <td style="padding:0.5rem;color:#94a3b8;">Implementar acciones de mejora</td>
-                        </tr>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                            <td style="padding:0.5rem;color:#94a3b8;">1.5 – 2.4</td>
-                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#ef4444"></span><span style="color:#f87171;">Insatisfecho</span></td>
-                            <td style="padding:0.5rem;color:#94a3b8;">Generar plan de acción inmediato</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:0.5rem;color:#94a3b8;">1.0 – 1.4</td>
-                            <td style="padding:0.5rem;"><span class="tl-dot" style="background:#e11d48"></span><span style="color:#fda4af;">Muy insatisfecho</span></td>
-                            <td style="padding:0.5rem;color:#94a3b8;">Intervención urgente requerida</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
         </div>
 
     </div><!-- /main-container -->
@@ -540,6 +502,166 @@
     // ── Chart instances ───────────────────────────────────────────────────
     let criteriaChart = null, distChart = null, trendChart = null, recChart = null;
     let allDetails = [];
+    let activeDistFilter = null; // bucket key
+    let lastApiData = null; // full aggregated data for when filter is cleared
+
+    // ── Color helpers (mirror Python backend) ────────────────────────────
+    function _satColorGlobal(avg) {
+        if (avg == null) return '#6b7280';
+        if (avg >= 4.5) return '#22c55e';
+        if (avg >= 3.5) return '#eab308';
+        if (avg >= 2.5) return '#f97316';
+        if (avg >= 1.5) return '#ef4444';
+        return '#e11d48';
+    }
+    function _satLabelGlobal(avg) {
+        if (avg == null) return 'Sin datos';
+        if (avg >= 4.5) return 'Totalmente satisfecho';
+        if (avg >= 3.5) return 'Satisfecho';
+        if (avg >= 2.5) return 'Oportunidades de mejora';
+        if (avg >= 1.5) return 'Insatisfecho';
+        return 'Muy insatisfecho';
+    }
+    function _satColorCriteria(avg) {
+        if (avg == null) return '#6b7280';
+        if (avg >= 4.25) return '#22c55e';
+        if (avg >= 3.25) return '#eab308';
+        if (avg >= 2.25) return '#f97316';
+        return '#ef4444';
+    }
+
+    // ── Distribution bucket from numeric value ────────────────────────────
+    function getDistBucket(val) {
+        if (val == null) return null;
+        if (val >= 4.5) return 'satisfecho';
+        if (val >= 3.5) return 'oportunidad';
+        if (val >= 2.5) return 'baja';
+        if (val >= 1.5) return 'insatisfecho';
+        if (val > 0)    return 'muy_insatisfecho';
+        return null;
+    }
+
+    // ── Compute KPI object from details array ─────────────────────────────
+    function computeKpiFromDetails(details) {
+        const total = details.length;
+        const vals = details.map(d => d.calificacion_valor).filter(v => v != null);
+        const avg_global = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+        const total_si = details.filter(d => d.recomienda_bool).length;
+        const pct_rec = total ? Math.round(total_si / total * 1000) / 10 : null;
+        return {
+            avg_global: avg_global != null ? Math.round(avg_global * 10) / 10 : null,
+            avg_global_color: _satColorGlobal(avg_global),
+            avg_global_label: _satLabelGlobal(avg_global),
+            pct_change_global: null,
+            total,
+            pct_change_total: null,
+            pct_recomienda: pct_rec,
+            pct_change_recomienda: null,
+        };
+    }
+
+    // ── Compute criteria array from details ───────────────────────────────
+    function computeCriteriaFromDetails(details) {
+        if (!details.length) return [];
+        const labels = Object.keys(details[0].criterios || {});
+        return labels.map(label => {
+            const vals = details.map(d => d.criterios[label]).filter(v => v != null);
+            const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+            const counts = {1:0,2:0,3:0,4:0,5:0};
+            vals.forEach(v => { const k = Math.round(v); if (k>=1&&k<=5) counts[k]++; });
+            const totalC = vals.length;
+            const pcts = {};
+            for (let r = 1; r <= 5; r++) pcts[r] = totalC > 0 ? Math.round(counts[r]/totalC*1000)/10 : 0;
+            return {
+                label,
+                avg: avg != null ? Math.round(avg * 100) / 100 : null,
+                color: _satColorCriteria(avg),
+                pcts,
+            };
+        }).sort((a, b) => (a.avg || 0) - (b.avg || 0));
+    }
+
+    // ── Compute trend from details ────────────────────────────────────────
+    function computeTrendFromDetails(details) {
+        if (!details.length) return { labels: [], criteria: [] };
+        const periodMap = {};
+        details.forEach(d => {
+            const period = d.fecha_hora && d.fecha_hora.length >= 7 ? d.fecha_hora.slice(0, 7) : 'sin_fecha';
+            if (!periodMap[period]) periodMap[period] = [];
+            periodMap[period].push(d);
+        });
+        const sortedPeriods = Object.keys(periodMap).sort();
+        const criterionLabels = Object.keys(details[0].criterios || {});
+        return {
+            labels: sortedPeriods,
+            criteria: criterionLabels.map(label => ({
+                label,
+                data: sortedPeriods.map(p => {
+                    const vals = periodMap[p].map(d => d.criterios[label]).filter(v => v != null);
+                    return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*100)/100 : null;
+                }),
+            })),
+        };
+    }
+
+    // ── Compute recommendation from details ───────────────────────────────
+    function computeRecFromDetails(details) {
+        return {
+            si: details.filter(d => d.recomienda_bool).length,
+            no: details.filter(d => !d.recomienda_bool).length,
+        };
+    }
+
+    // ── Set / clear dist filter ───────────────────────────────────────────
+    const DIST_BUCKET_LABELS = {
+        'muy_insatisfecho': 'Muy insatisfecho',
+        'insatisfecho':     'Insatisfecho',
+        'baja':             'Oportunidades de mejora',
+        'oportunidad':      'Satisfecho',
+        'satisfecho':       'Totalmente satisfecho',
+    };
+
+    function setDistFilter(bucketKey) {
+        activeDistFilter = bucketKey;
+        const chip = document.getElementById('distFilterChip');
+        const chipLabel = document.getElementById('distFilterChipLabel');
+        if (chip) chip.style.display = 'flex';
+        if (chipLabel) chipLabel.textContent = DIST_BUCKET_LABELS[bucketKey] || bucketKey;
+        _applyDistFilter();
+    }
+
+    function clearDistFilter() {
+        activeDistFilter = null;
+        const chip = document.getElementById('distFilterChip');
+        if (chip) chip.style.display = 'none';
+        if (lastApiData) {
+            renderKPI(lastApiData);
+            renderCriteriaChart(lastApiData.criteria);
+            renderDistChart(lastApiData.distribution);
+            renderTrendChart(lastApiData.trend);
+            renderRecChart(lastApiData.recommendation);
+        }
+    }
+
+    function _applyDistFilter() {
+        if (!activeDistFilter) return;
+        const filtered = allDetails.filter(d => getDistBucket(d.calificacion_valor) === activeDistFilter);
+        const kpi = computeKpiFromDetails(filtered);
+        renderKPI({ kpi });
+        renderCriteriaChart(computeCriteriaFromDetails(filtered));
+        renderDistChart(activeDistFilter ? _buildDistFromDetails(filtered) : (lastApiData ? lastApiData.distribution : {}));
+        renderTrendChart(computeTrendFromDetails(filtered));
+        renderRecChart(computeRecFromDetails(filtered));
+    }
+
+    function _buildDistFromDetails(details) {
+        const out = { satisfecho: 0, oportunidad: 0, baja: 0, insatisfecho: 0, muy_insatisfecho: 0 };
+        details.forEach(d => {
+            const b = getDistBucket(d.calificacion_valor);
+            if (b && out[b] !== undefined) out[b]++;
+        });
+        return out;
+    }
 
     function normalizePeriodLabel(label) {
         if (!label) return '';
@@ -728,9 +850,12 @@
         if (!total) { canvas.style.display='none'; empty.style.display='block'; return; }
         canvas.style.display='block'; empty.style.display='none';
 
+        const bucketKeys   = ['muy_insatisfecho','insatisfecho','baja','oportunidad','satisfecho'];
         const labels = ['Muy insatisfecho','Insatisfecho','Oportunidades de mejora','Satisfecho','Totalmente satisfecho'];
         const values = [dist.muy_insatisfecho, dist.insatisfecho, dist.baja, dist.oportunidad, dist.satisfecho];
-        const colors = ['#e11d48','#ef4444','#f97316','#eab308','#22c55e'];
+        const baseColors = ['#e11d48','#ef4444','#f97316','#eab308','#22c55e'];
+        const activeIdx = activeDistFilter ? bucketKeys.indexOf(activeDistFilter) : -1;
+        const bgColors = baseColors.map((c, i) => activeIdx === -1 ? c : i === activeIdx ? c : c + '55');
 
         if (distChart) distChart.destroy();
         distChart = new Chart(canvas, {
@@ -740,8 +865,9 @@
                 labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: colors,
-                    borderWidth: 0,
+                    backgroundColor: bgColors,
+                    borderWidth: baseColors.map((_, i) => i === activeIdx ? 2 : 0),
+                    borderColor: baseColors.map((_, i) => i === activeIdx ? '#ffffff' : 'transparent'),
                     borderRadius: 4,
                     barThickness: 22,
                 }]
@@ -752,13 +878,13 @@
                 maintainAspectRatio: false,
                 onClick(evt, elements) {
                     if (!elements.length) return;
-                    const bucketMap = ['muy_insatisfecho', 'insatisfecho', 'baja', 'oportunidad', 'satisfecho'];
-                    const bucketLabels = ['Muy insatisfecho', 'Insatisfecho', 'Oportunidades de mejora', 'Satisfecho', 'Totalmente satisfecho'];
                     const idx = elements[0].index;
-                    openDetailsModal(
-                        { calificacionBucket: bucketMap[idx] },
-                        `Detalle — ${bucketLabels[idx]}`
-                    );
+                    const bucket = bucketKeys[idx];
+                    if (activeDistFilter === bucket) {
+                        clearDistFilter();
+                    } else {
+                        setDistFilter(bucket);
+                    }
                 },
                 scales: {
                     x: {
@@ -1014,11 +1140,16 @@
             }
 
             allDetails = details.detalles || [];
-            renderKPI(data);
-            renderCriteriaChart(data.criteria);
-            renderDistChart(data.distribution);
-            renderTrendChart(data.trend);
-            renderRecChart(data.recommendation);
+            lastApiData = data;
+            if (activeDistFilter) {
+                _applyDistFilter();
+            } else {
+                renderKPI(data);
+                renderCriteriaChart(data.criteria);
+                renderDistChart(data.distribution);
+                renderTrendChart(data.trend);
+                renderRecChart(data.recommendation);
+            }
         } catch (err) {
             showError(`Error de conexión: ${err.message}`);
             console.error('loadData error:', err);
@@ -1063,6 +1194,9 @@
 
         // Listen for filter changes
         document.addEventListener('filtersChanged', (e) => {
+            activeDistFilter = null;
+            const chip = document.getElementById('distFilterChip');
+            if (chip) chip.style.display = 'none';
             currentQS = buildQS(e.detail);
             loadData(currentQS);
         });
