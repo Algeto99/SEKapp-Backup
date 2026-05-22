@@ -248,12 +248,10 @@
                         <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
                     </div>
                     <div>
-                        <label for="fecha" class="block text-sm font-medium mb-1">Fecha</label>
-                        <input type="date" name="fecha" id="fecha" class="form-input" required>
-                    </div>
-                    <div>
-                        <label for="hora" class="block text-sm font-medium mb-1">Hora</label>
-                        <input type="time" name="hora" id="hora" class="form-input" required>
+                        <label for="fecha_hora_display" class="block text-sm font-medium mb-1">Fecha y Hora</label>
+                        <input type="datetime-local" id="fecha_hora_display" class="form-input" required>
+                        <input type="hidden" name="fecha" id="fecha">
+                        <input type="hidden" name="hora"  id="hora">
                     </div>
                     <div>
                         <label for="sitio" class="block text-sm font-medium mb-1">Sitio</label>
@@ -454,8 +452,19 @@
 
         /* ─── Pre-fill date/time ─── */
         const now = new Date();
-        document.getElementById('fecha').value = now.toLocaleDateString('en-CA'); // YYYY-MM-DD
-        document.getElementById('hora').value   = now.toTimeString().slice(0, 5);  // HH:MM
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        const fechaHoraDisplay = document.getElementById('fecha_hora_display');
+        fechaHoraDisplay.value = now.toISOString().slice(0, 16);
+
+        function syncFechaHora() {
+            const val = fechaHoraDisplay.value;
+            if (val) {
+                document.getElementById('fecha').value = val.slice(0, 10);
+                document.getElementById('hora').value  = val.slice(11, 16);
+            }
+        }
+        syncFechaHora();
+        fechaHoraDisplay.addEventListener('change', syncFechaHora);
 
         /* ─── Equipment types (order matches table rows) ─── */
         const TIPOS = [
@@ -578,10 +587,11 @@
                                class="form-input inv-func" min="0" placeholder="0">
                     </div>
 
-                    <div class="inv-falla-wrapper" style="display:none;">
+                    <div>
                         <label class="block text-sm font-medium mb-1">Equipos con Falla</label>
                         <input type="number" name="inventario[${index}][equipos_con_falla]"
-                               class="form-input inv-falla" min="0" placeholder="0">
+                               class="form-input inv-falla" min="0" placeholder="0" readonly
+                               style="background-color:rgba(0,0,0,0.15);cursor:default;">
                     </div>
 
                     <div>
@@ -619,13 +629,14 @@
         function toggleFallaField(block) {
             const total = parseInt(block.querySelector('.inv-total')?.value, 10);
             const func  = parseInt(block.querySelector('.inv-func')?.value,  10);
-            const wrapper = block.querySelector('.inv-falla-wrapper');
-            if (!wrapper) return;
-            const show = !isNaN(total) && !isNaN(func) && total !== func;
-            wrapper.style.display = show ? '' : 'none';
-            if (!show) {
-                const fallaInput = block.querySelector('.inv-falla');
-                if (fallaInput) fallaInput.value = '';
+            const fallaInput = block.querySelector('.inv-falla');
+            if (!fallaInput) return;
+            if (!isNaN(total) && !isNaN(func)) {
+                fallaInput.value = Math.max(0, total - func);
+            } else if (!isNaN(total) && isNaN(func)) {
+                fallaInput.value = total;
+            } else {
+                fallaInput.value = '';
             }
         }
 
@@ -644,7 +655,7 @@
                 el.addEventListener('change', updateConfiabilidadTable);
                 el.addEventListener('input',  updateConfiabilidadTable);
             });
-            // Show/hide equipos con falla based on total vs operativos
+            // Auto-calculate equipos con falla = total - operativos
             block.querySelectorAll('.inv-total, .inv-func').forEach(el => {
                 el.addEventListener('change', () => toggleFallaField(block));
                 el.addEventListener('input',  () => toggleFallaField(block));
