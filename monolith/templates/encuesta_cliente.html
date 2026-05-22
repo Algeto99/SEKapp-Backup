@@ -206,20 +206,22 @@
             color: #9ca3af;
         }
 
-        .score-badge.green  { background-color: #065f46; color: #34d399; border-color: #34d399; }
-        .score-badge.yellow { background-color: #78350f; color: #fcd34d; border-color: #fcd34d; }
-        .score-badge.orange { background-color: #7c2d12; color: #fb923c; border-color: #fb923c; }
-        .score-badge.red    { background-color: #7f1d1d; color: #f87171; border-color: #f87171; }
+        .score-badge.green   { background-color: #065f46; color: #34d399; border-color: #34d399; }
+        .score-badge.yellow  { background-color: #78350f; color: #fcd34d; border-color: #fcd34d; }
+        .score-badge.orange  { background-color: #7c2d12; color: #fb923c; border-color: #fb923c; }
+        .score-badge.red     { background-color: #7f1d1d; color: #f87171; border-color: #f87171; }
+        .score-badge.crimson { background-color: #4c0519; color: #fda4af; border-color: #e11d48; }
 
         .score-label {
             font-size: 0.95rem;
             color: #9ca3af;
             transition: color 0.4s ease;
         }
-        .score-label.green  { color: #34d399; }
-        .score-label.yellow { color: #fcd34d; }
-        .score-label.orange { color: #fb923c; }
-        .score-label.red    { color: #f87171; }
+        .score-label.green   { color: #34d399; }
+        .score-label.yellow  { color: #fcd34d; }
+        .score-label.orange  { color: #fb923c; }
+        .score-label.red     { color: #f87171; }
+        .score-label.crimson { color: #fda4af; }
 
         /* Legend table */
         .legend-table {
@@ -267,10 +269,11 @@
             flex-shrink: 0;
         }
 
-        .dot-green  { background-color: #22c55e; }
-        .dot-yellow { background-color: #eab308; }
-        .dot-orange { background-color: #f97316; }
-        .dot-red    { background-color: #ef4444; }
+        .dot-green   { background-color: #22c55e; }
+        .dot-yellow  { background-color: #eab308; }
+        .dot-orange  { background-color: #f97316; }
+        .dot-red     { background-color: #ef4444; }
+        .dot-crimson { background-color: #e11d48; }
 
         .resultado-cell {
             display: flex;
@@ -282,10 +285,11 @@
             background-color: #e5e7eb;
             color: #6b7280;
         }
-        body.light-mode .score-badge.green  { background-color: #d1fae5; color: #065f46; border-color: #10b981; }
-        body.light-mode .score-badge.yellow { background-color: #fef9c3; color: #854d0e; border-color: #ca8a04; }
-        body.light-mode .score-badge.orange { background-color: #ffedd5; color: #9a3412; border-color: #ea580c; }
-        body.light-mode .score-badge.red    { background-color: #fee2e2; color: #991b1b; border-color: #ef4444; }
+        body.light-mode .score-badge.green   { background-color: #d1fae5; color: #065f46; border-color: #10b981; }
+        body.light-mode .score-badge.yellow  { background-color: #fef9c3; color: #854d0e; border-color: #ca8a04; }
+        body.light-mode .score-badge.orange  { background-color: #ffedd5; color: #9a3412; border-color: #ea580c; }
+        body.light-mode .score-badge.red     { background-color: #fee2e2; color: #991b1b; border-color: #ef4444; }
+        body.light-mode .score-badge.crimson { background-color: #ffe4e6; color: #9f1239; border-color: #e11d48; }
         body.light-mode .score-label { color: #6b7280; }
         body.light-mode .score-label.green  { color: #065f46; }
         body.light-mode .score-label.yellow { color: #854d0e; }
@@ -531,8 +535,8 @@
                 <h2 class="text-xl font-bold mb-4">3. Satisfacción Global</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-medium mb-2">Calificación Global
-                            <span class="text-gray-400 text-xs ml-1">(calculado automáticamente de la sección 2)</span>
+                        <label class="block text-sm font-medium mb-2">Calificación Global — Escala Likert
+                            <span class="text-gray-400 text-xs ml-1">(promedio automático de la sección 2)</span>
                         </label>
                         <!-- Hidden input that gets submitted with the form -->
                         <input type="hidden" name="calificacion_global_nps" id="calificacion_global_nps" value="0">
@@ -544,35 +548,40 @@
                             </div>
                         </div>
 
-                        <!-- Color legend -->
+                        <!-- Color legend — Escala Likert (promedio 1–5) -->
                         <table class="legend-table mt-4">
                             <thead>
                                 <tr>
-                                    <th>Puntaje total</th>
+                                    <th>Promedio</th>
                                     <th>Resultado</th>
                                     <th>Interpretación</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td class="score-range">34 – 40</td>
-                                    <td><div class="resultado-cell"><span class="dot dot-green"></span>Cliente totalmente satisfecho</div></td>
+                                    <td class="score-range">4.5 – 5.0</td>
+                                    <td><div class="resultado-cell"><span class="dot dot-green"></span>Totalmente satisfecho</div></td>
                                     <td>El servicio se presta correctamente</td>
                                 </tr>
                                 <tr>
-                                    <td class="score-range">26 – 33</td>
-                                    <td><div class="resultado-cell"><span class="dot dot-yellow"></span>Satisfecho con oportunidades de mejora</div></td>
+                                    <td class="score-range">3.5 – 4.4</td>
+                                    <td><div class="resultado-cell"><span class="dot dot-yellow"></span>Satisfecho</div></td>
                                     <td>Revisar algunos aspectos</td>
                                 </tr>
                                 <tr>
-                                    <td class="score-range">18 – 25</td>
-                                    <td><div class="resultado-cell"><span class="dot dot-orange"></span>Satisfacción baja</div></td>
+                                    <td class="score-range">2.5 – 3.4</td>
+                                    <td><div class="resultado-cell"><span class="dot dot-orange"></span>Oportunidades de mejora</div></td>
                                     <td>Implementar acciones de mejora</td>
                                 </tr>
                                 <tr>
-                                    <td class="score-range">8 – 17</td>
-                                    <td><div class="resultado-cell"><span class="dot dot-red"></span>Cliente insatisfecho</div></td>
+                                    <td class="score-range">1.5 – 2.4</td>
+                                    <td><div class="resultado-cell"><span class="dot dot-red"></span>Insatisfecho</div></td>
                                     <td>Generar plan de acción inmediato</td>
+                                </tr>
+                                <tr>
+                                    <td class="score-range">1.0 – 1.4</td>
+                                    <td><div class="resultado-cell"><span class="dot dot-crimson"></span>Muy insatisfecho</div></td>
+                                    <td>Intervención urgente requerida</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -667,23 +676,24 @@
             'actitud_servicio', 'atencion_quejas'
         ];
 
+        // Escala Likert — interpretación por promedio (1.0–5.0)
         const SCORE_LEVELS = [
-            { min: 34, max: 40, color: 'green',  label: 'Cliente totalmente satisfecho',       interpretacion: 'El servicio se presta correctamente' },
-            { min: 26, max: 33, color: 'yellow', label: 'Satisfecho con oportunidades de mejora', interpretacion: 'Revisar algunos aspectos' },
-            { min: 18, max: 25, color: 'orange', label: 'Satisfacción baja',                    interpretacion: 'Implementar acciones de mejora' },
-            { min:  8, max: 17, color: 'red',    label: 'Cliente insatisfecho',                 interpretacion: 'Generar plan de acción inmediato' },
+            { minAvg: 4.5, color: 'green',   label: 'Totalmente satisfecho',    interpretacion: 'El servicio se presta correctamente' },
+            { minAvg: 3.5, color: 'yellow',  label: 'Satisfecho',               interpretacion: 'Revisar algunos aspectos' },
+            { minAvg: 2.5, color: 'orange',  label: 'Oportunidades de mejora',  interpretacion: 'Implementar acciones de mejora' },
+            { minAvg: 1.5, color: 'red',     label: 'Insatisfecho',             interpretacion: 'Generar plan de acción inmediato' },
+            { minAvg: 1.0, color: 'crimson', label: 'Muy insatisfecho',         interpretacion: 'Intervención urgente requerida' },
         ];
 
         function updateGlobalScore() {
             let total = 0;
-            let allAnswered = true;
+            let answeredCount = 0;
 
             SCORE_FIELDS.forEach(id => {
                 const val = parseInt(document.getElementById(id).value, 10);
-                if (isNaN(val)) {
-                    allAnswered = false;
-                } else {
+                if (!isNaN(val)) {
                     total += val;
+                    answeredCount++;
                 }
             });
 
@@ -692,27 +702,29 @@
             const interp = document.getElementById('scoreInterpretacion');
             const hidden = document.getElementById('calificacion_global_nps');
 
-            // Remove all color classes
-            badge.classList.remove('green', 'yellow', 'orange', 'red');
-            label.classList.remove('green', 'yellow', 'orange', 'red');
+            badge.classList.remove('green', 'yellow', 'orange', 'red', 'crimson');
+            label.classList.remove('green', 'yellow', 'orange', 'red', 'crimson');
 
-            badge.textContent = total;
-            hidden.value = total;
-
-            if (total === 0 && !allAnswered) {
+            if (answeredCount === 0) {
+                badge.textContent = '—';
+                hidden.value = '';
                 label.textContent = '—';
                 interp.textContent = 'Complete las preguntas de la sección 2';
                 return;
             }
 
-            const level = SCORE_LEVELS.find(l => total >= l.min && total <= l.max);
+            const avg = Math.round((total / answeredCount) * 10) / 10;
+            hidden.value = avg;
+            badge.textContent = avg.toFixed(1) + ' / 5';
+
+            const level = SCORE_LEVELS.find(l => avg >= l.minAvg);
             if (level) {
                 badge.classList.add(level.color);
                 label.classList.add(level.color);
-                label.textContent = level.label;
+                label.textContent = `⭐ ${avg.toFixed(1)} / 5 — ${level.label}`;
                 interp.textContent = level.interpretacion;
             } else {
-                label.textContent = 'Pendiente';
+                label.textContent = '—';
                 interp.textContent = 'Seleccione todas las preguntas';
             }
         }

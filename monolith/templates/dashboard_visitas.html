@@ -33,7 +33,7 @@
         .alert-banner-title { font-weight:700; color:#fca5a5; margin-bottom:.2rem; }
         .card { background:#374151; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1.5rem; }
         .card-title { font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:.875rem; }
-        .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1rem; }
+        .kpi-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:1rem; margin-bottom:1rem; }
         .kpi-value { font-family:'Merriweather',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:.35rem; }
         .kpi-label { font-size:.82rem; color:#cbd5e1; }
         .kpi-sub { font-size:.74rem; color:#94a3b8; margin-top:.35rem; }
@@ -63,7 +63,8 @@
         body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
         body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
         body.light-mode .module-header { border-bottom-color:rgba(0,0,0,.08); }
-        body.light-mode .module-header p,.body.light-mode .kpi-sub { color:#64748b; }
+        body.light-mode .module-header p, body.light-mode .kpi-sub, body.light-mode .kpi-label { color:#64748b; }
+        @media (max-width:1300px) { .kpi-grid { grid-template-columns:repeat(3,1fr); } }
         @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
         @media (max-width:900px) { .charts-row { grid-template-columns:1fr; } }
         @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { padding-top:110px; } .nav-content { flex-direction:column; align-items:flex-start; } }
@@ -167,6 +168,12 @@
                 <div class="kpi-value" id="kpiSinVisita" style="color:#ef4444;">—</div>
                 <div class="kpi-label">Clientes sin visita en el período</div>
                 <div class="kpi-sub" id="kpiSinVisitaSub">—</div>
+            </div>
+            <div class="card">
+                <div class="card-title">⏱ Resolución de Compromisos</div>
+                <div class="kpi-value" id="kpiResolucion" style="color:#a78bfa;">—</div>
+                <div class="kpi-label">Tiempo promedio de resolución</div>
+                <div class="kpi-sub" id="kpiResolucionSub">—</div>
             </div>
         </div>
 
@@ -275,6 +282,14 @@
         document.getElementById('kpiPromedio').textContent = Number(kpi.promedio_visitas || 0).toFixed(1);
         document.getElementById('kpiSinVisita').textContent = `${Number(kpi.pct_sin_visita || 0).toFixed(1)}%`;
         document.getElementById('kpiSinVisitaSub').textContent = `${kpi.clientes_sin_visita || 0} cliente(s) sin visita`;
+        if (kpi.avg_dias_resolucion !== null && kpi.avg_dias_resolucion !== undefined) {
+            const dias = Number(kpi.avg_dias_resolucion);
+            document.getElementById('kpiResolucion').textContent = dias < 1 ? `${Math.round(dias * 24)}h` : `${dias.toFixed(1)} días`;
+            document.getElementById('kpiResolucionSub').textContent = `Basado en ${kpi.resolucion_muestra || 0} compromiso(s) cumplido(s)`;
+        } else {
+            document.getElementById('kpiResolucion').textContent = 'N/D';
+            document.getElementById('kpiResolucionSub').textContent = 'Sin compromisos cumplidos';
+        }
     }
 
     function barColors(values, invert = false) {

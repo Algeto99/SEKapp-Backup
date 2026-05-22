@@ -2419,18 +2419,21 @@ def _sat_color_criteria(avg):
     return '#ef4444'
 
 def _sat_color_global(score):
+    # score is now a Likert average (1.0–5.0)
     if score is None: return '#6b7280'
-    if score >= 34: return '#22c55e'
-    if score >= 26: return '#eab308'
-    if score >= 18: return '#f97316'
-    return '#ef4444'
+    if score >= 4.5: return '#22c55e'
+    if score >= 3.5: return '#eab308'
+    if score >= 2.5: return '#f97316'
+    if score >= 1.5: return '#ef4444'
+    return '#e11d48'
 
 def _sat_label_global(score):
     if score is None: return 'Sin datos'
-    if score >= 34: return 'Totalmente satisfecho'
-    if score >= 26: return 'Con oportunidades de mejora'
-    if score >= 18: return 'Satisfacción baja'
-    return 'Insatisfecho'
+    if score >= 4.5: return 'Totalmente satisfecho'
+    if score >= 3.5: return 'Satisfecho'
+    if score >= 2.5: return 'Oportunidades de mejora'
+    if score >= 1.5: return 'Insatisfecho'
+    return 'Muy insatisfecho'
 
 def _sat_date_prefix(year, month, day):
     """Build an ISO date prefix string for LIKE-based filtering.
@@ -2620,10 +2623,11 @@ def api_satisfaccion_data():
                 {_safe_avg('calificacion_global_nps')}                             AS avg_global,
                 COUNT(*)                                                            AS total,
                 SUM(CASE WHEN {rec_check} THEN 1 ELSE 0 END)                       AS total_si,
-                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 34 THEN 1 ELSE 0 END) AS dist_satisfecho,
-                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 26 AND {_safe_int('calificacion_global_nps')} < 34 THEN 1 ELSE 0 END) AS dist_oportunidad,
-                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 18 AND {_safe_int('calificacion_global_nps')} < 26 THEN 1 ELSE 0 END) AS dist_baja,
-                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} < 18 AND {_safe_int('calificacion_global_nps')} IS NOT NULL THEN 1 ELSE 0 END) AS dist_insatisfecho,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 4.5 THEN 1 ELSE 0 END) AS dist_satisfecho,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 3.5 AND {_safe_int('calificacion_global_nps')} < 4.5 THEN 1 ELSE 0 END) AS dist_oportunidad,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 2.5 AND {_safe_int('calificacion_global_nps')} < 3.5 THEN 1 ELSE 0 END) AS dist_baja,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} >= 1.5 AND {_safe_int('calificacion_global_nps')} < 2.5 THEN 1 ELSE 0 END) AS dist_insatisfecho,
+                SUM(CASE WHEN {_safe_int('calificacion_global_nps')} > 0 AND {_safe_int('calificacion_global_nps')} < 1.5 THEN 1 ELSE 0 END) AS dist_muy_insatisfecho,
                 {criteria_sql}
             FROM medicion_experiencia_cliente
             {where}
@@ -2720,10 +2724,11 @@ def api_satisfaccion_data():
             },
             'criteria': criteria,
             'distribution': {
-                'satisfecho':   int(row['dist_satisfecho'])   if row['dist_satisfecho']   else 0,
-                'oportunidad':  int(row['dist_oportunidad'])  if row['dist_oportunidad']  else 0,
-                'baja':         int(row['dist_baja'])         if row['dist_baja']         else 0,
-                'insatisfecho': int(row['dist_insatisfecho']) if row['dist_insatisfecho'] else 0,
+                'satisfecho':        int(row['dist_satisfecho'])        if row['dist_satisfecho']        else 0,
+                'oportunidad':       int(row['dist_oportunidad'])       if row['dist_oportunidad']       else 0,
+                'baja':              int(row['dist_baja'])              if row['dist_baja']              else 0,
+                'insatisfecho':      int(row['dist_insatisfecho'])      if row['dist_insatisfecho']      else 0,
+                'muy_insatisfecho':  int(row['dist_muy_insatisfecho'])  if row['dist_muy_insatisfecho']  else 0,
             },
             'recommendation': {
                 'si': total_si,
@@ -3554,6 +3559,7 @@ def api_supervision_data():
     year    = int(request.args.get('year'))  if request.args.get('year')  else None
     month   = int(request.args.get('month')) if request.args.get('month') else None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    nivel   = request.args.get('nivel') or None  # 'excelente' | 'seguimiento' | 'critico'
 
     conn = cur = None
     try:
@@ -3582,6 +3588,17 @@ def api_supervision_data():
         avg_criteria = ", ".join(
             f"AVG({_safe(f)}) AS avg_{f}" for f, _ in _SUP_CRITERIA
         )
+
+        # Apply nivel filter if requested — wrap base where with score condition
+        if nivel in ('excelente', 'seguimiento', 'critico'):
+            nivel_cond = {
+                'excelente':   f"({score_expr}) >= 21",
+                'seguimiento': f"({score_expr}) BETWEEN 16 AND 20",
+                'critico':     f"({score_expr}) > 0 AND ({score_expr}) <= 15",
+            }[nivel]
+            connector = "AND" if where else "WHERE"
+            where = f"{where} {connector} {nivel_cond}".strip()
+            # where_prev not filtered by nivel (we keep prev-period unfiltered for comparison)
 
         # ── KPI summary ───────────────────────────────────────────────────
         cur.execute(f"""
@@ -4703,8 +4720,20 @@ def api_visitas_data():
         compromisos = _visita_parse_compromisos(cur.fetchall())
 
         estado_counts = {'cumplido': 0, 'pendiente': 0, 'vencido': 0}
+        resolucion_dias = []
         for item in compromisos:
             estado_counts[item['estado']] = estado_counts.get(item['estado'], 0) + 1
+            if item['estado'] == 'cumplido' and item['fecha_cumplimiento'] != '—' and item['fecha_sort']:
+                try:
+                    from datetime import date as _date
+                    f_creacion = datetime.fromisoformat(item['fecha_sort']).date()
+                    f_cierre = _date.fromisoformat(item['fecha_cumplimiento'])
+                    dias = (f_cierre - f_creacion).days
+                    if dias >= 0:
+                        resolucion_dias.append(dias)
+                except Exception:
+                    pass
+        avg_dias_resolucion = round(sum(resolucion_dias) / len(resolucion_dias), 1) if resolucion_dias else None
 
         return jsonify({
             'kpi': {
@@ -4713,6 +4742,8 @@ def api_visitas_data():
                 'promedio_visitas': promedio_visitas,
                 'pct_sin_visita': pct_sin_visita,
                 'clientes_sin_visita': clientes_sin_visita,
+                'avg_dias_resolucion': avg_dias_resolucion,
+                'resolucion_muestra': len(resolucion_dias),
             },
             'frecuencia_clientes': frecuencia_clientes,
             'tendencia': tendencia,

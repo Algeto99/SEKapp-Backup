@@ -377,33 +377,15 @@
 
         </div>
 
-        <!-- ── Row 1: Criteria bar (left) + Distribution donut (right) ──── -->
+        <!-- ── Row 1: Distribution (left) + Criteria bar (right) ──── -->
         <div class="charts-row">
 
-            <!-- Criteria horizontal bar — sorted ascending (worst first) -->
-            <div class="card chart-wrap" style="position:relative;">
-                <div class="card-title">
-                    Promedio por Criterio de Inspección
-                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— ordenado de menor a mayor</span>
-                </div>
-                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.75rem;font-family:'Roboto',sans-serif;">
-                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#22c55e;"></span>Excelente (≥4.0)</span>
-                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#eab308;"></span>Oportunidad (2.5–3.9)</span>
-                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ef4444;"></span>Crítico (&lt;2.5)</span>
-                </div>
-                <div class="chart-wrap" style="min-height:200px;">
-                    <canvas id="criteriaChart" class="chart-canvas"></canvas>
-                    <div id="criteriaEmpty" class="empty-state" style="display:none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <p>Sin datos para el período seleccionado</p>
-                    </div>
-                </div>
-                <div class="loading-overlay" id="criteriaLoading"><div class="spinner"></div></div>
-            </div>
-
-            <!-- Distribution bar + reference table -->
+            <!-- Distribution bar + reference table — interactive filter -->
             <div class="card" style="position:relative;">
-                <div class="card-title">Distribución por Nivel de Desempeño</div>
+                <div class="card-title" style="display:flex;align-items:center;gap:0.5rem;">
+                    Distribución por Nivel de Desempeño
+                    <span id="distFilterBadge" style="display:none;background:#374151;border:1px solid #4b5563;border-radius:999px;padding:0.15rem 0.6rem;font-size:0.7rem;font-weight:600;color:#94a3b8;cursor:pointer;" title="Clic para limpiar filtro">— filtrado ✕</span>
+                </div>
                 <div class="chart-wrap" style="min-height:180px;">
                     <canvas id="distChart" class="chart-canvas"></canvas>
                     <div id="distEmpty" class="empty-state" style="display:none;">
@@ -427,6 +409,27 @@
                     </tbody>
                 </table>
                 <div class="loading-overlay" id="distLoading"><div class="spinner"></div></div>
+            </div>
+
+            <!-- Criteria horizontal bar — sorted ascending (worst first) -->
+            <div class="card chart-wrap" style="position:relative;">
+                <div class="card-title">
+                    Promedio por Criterio de Inspección
+                    <span style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;">— ordenado de menor a mayor</span>
+                </div>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.75rem;font-family:'Roboto',sans-serif;">
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#22c55e;"></span>Excelente (≥4.0)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#eab308;"></span>Oportunidad (2.5–3.9)</span>
+                    <span style="display:flex;align-items:center;gap:0.35rem;color:#9ca3af;"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#ef4444;"></span>Crítico (&lt;2.5)</span>
+                </div>
+                <div class="chart-wrap" style="min-height:200px;">
+                    <canvas id="criteriaChart" class="chart-canvas"></canvas>
+                    <div id="criteriaEmpty" class="empty-state" style="display:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <p>Sin datos para el período seleccionado</p>
+                    </div>
+                </div>
+                <div class="loading-overlay" id="criteriaLoading"><div class="spinner"></div></div>
             </div>
 
         </div>
@@ -558,6 +561,7 @@
         trendChart = null, turnoTrendChart = null;
     let currentPuestosData   = [];
     let currentTurnoTrendSeries = [];
+    let activeNivelFilter = null; // 'excelente' | 'seguimiento' | 'critico' | null
 
     function setLoading(id, on) { document.getElementById(id)?.classList.toggle('active', on); }
 
@@ -732,8 +736,6 @@
         const values = [dist.critico, dist.seguimiento, dist.excelente];
         const colors = ['#ef4444', '#eab308', '#22c55e'];
 
-        const NIVEL_KEYS = ['critico', 'seguimiento', 'excelente'];
-        const NIVEL_LABELS_MAP = ['Crítico', 'Seguimiento', 'Excelente'];
         if (distChart) distChart.destroy();
         distChart = new Chart(canvas, {
             type: 'bar',
@@ -742,8 +744,9 @@
                 labels,
                 datasets: [{
                     data: values,
-                    backgroundColor: colors,
-                    borderWidth: 0,
+                    backgroundColor: colors.map((c, i) => activeNivelFilter && activeNivelFilter !== NIVEL_KEYS_FILTER[i] ? c + '55' : c),
+                    borderWidth: activeNivelFilter ? colors.map((c, i) => activeNivelFilter === NIVEL_KEYS_FILTER[i] ? 2 : 0) : 0,
+                    borderColor: colors,
                     borderRadius: 5,
                     barThickness: 26,
                 }]
@@ -755,7 +758,9 @@
                 onClick(evt, elements) {
                     if (!elements.length) return;
                     const idx = elements[0].index;
-                    openDetailsModal({ nivel: NIVEL_KEYS[idx] }, `Registros — Nivel ${NIVEL_LABELS_MAP[idx]}`);
+                    const nivelKey = NIVEL_KEYS_FILTER[idx];
+                    // Toggle: clicking the active filter clears it
+                    setNivelFilter(activeNivelFilter === nivelKey ? null : nivelKey);
                 },
                 scales: {
                     x: { ticks: { color: chartTheme.tick, precision: 0 }, grid: { color: chartTheme.grid } },
@@ -768,7 +773,9 @@
                             label: ctx => {
                                 const v = ctx.parsed.x;
                                 const pct = total ? ((v / total) * 100).toFixed(1) : 0;
-                                return ` ${v} inspección${v !== 1 ? 'es' : ''} (${pct}%) — clic para ver registros`;
+                                const nivelKey = NIVEL_KEYS_FILTER[ctx.dataIndex];
+                                const action = activeNivelFilter === nivelKey ? 'clic para quitar filtro' : 'clic para filtrar dashboard';
+                                return ` ${v} inspección${v !== 1 ? 'es' : ''} (${pct}%) — ${action}`;
                             }
                         }
                     },
@@ -1132,8 +1139,33 @@
         if (state.year)       p.set('year',    state.year);
         if (state.month)      p.set('month',   state.month);
         if (state.day)        p.set('day',     state.day);
+        if (activeNivelFilter) p.set('nivel',  activeNivelFilter);
         return p.toString();
     }
+
+    const NIVEL_KEYS_FILTER   = ['critico', 'seguimiento', 'excelente'];
+    const NIVEL_LABELS_FILTER = ['Crítico', 'Seguimiento', 'Excelente'];
+
+    function setNivelFilter(nivel) {
+        activeNivelFilter = nivel;
+        const badge = document.getElementById('distFilterBadge');
+        if (badge) {
+            if (nivel) {
+                const label = NIVEL_LABELS_FILTER[NIVEL_KEYS_FILTER.indexOf(nivel)] || nivel;
+                badge.textContent = `Filtro: ${label}  ✕`;
+                badge.style.display = 'inline-flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        loadData(buildQS(currentFiltersState));
+    }
+
+    document.addEventListener('click', e => {
+        if (e.target.id === 'distFilterBadge') setNivelFilter(null);
+    });
+
+    let currentFiltersState = {};
 
     // ── Init ──────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1157,6 +1189,10 @@
         } catch (e) { console.warn('Could not load clientes', e); }
 
         document.addEventListener('filtersChanged', e => {
+            currentFiltersState = e.detail;
+            activeNivelFilter = null;
+            const badge = document.getElementById('distFilterBadge');
+            if (badge) badge.style.display = 'none';
             currentQS = buildQS(e.detail);
             loadData(currentQS);
         });
