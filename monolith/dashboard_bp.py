@@ -2463,7 +2463,7 @@ def _sat_date_prefix(year, month, day):
     return prefix
 
 
-def _sat_where(cliente, year, month, day):
+def _sat_where(cliente, year, month, day, responsable=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2472,6 +2472,9 @@ def _sat_where(cliente, year, month, day):
     if prefix:
         conds.append("fecha_hora::TEXT LIKE %s")
         params.append(prefix + "%")
+    if responsable:
+        conds.append("TRIM(rol_aplicador) = %s")
+        params.append(responsable)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -2503,6 +2506,30 @@ def _sat_prev_where(cliente, year, month, day):
     params.append(prefix + "%")
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
+
+
+@dashboard_bp.route('/api/satisfaccion/filtros')
+@jwt_required()
+def api_satisfaccion_filtros():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'responsables': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT TRIM(rol_aplicador) AS responsable
+            FROM medicion_experiencia_cliente
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            ORDER BY responsable
+        """)
+        return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_satisfaccion_filtros error: {e}", exc_info=True)
+        return jsonify({'responsables': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @dashboard_bp.route('/api/satisfaccion/clientes')
@@ -2598,10 +2625,11 @@ def api_satisfaccion_debug():
 @dashboard_bp.route('/api/satisfaccion/data')
 @jwt_required()
 def api_satisfaccion_data():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente     = request.args.get('cliente')     or None
+    year        = int(request.args.get('year'))   if request.args.get('year')  else None
+    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    day         = int(request.args.get('day'))    if request.args.get('day')   else None
+    responsable = request.args.get('responsable') or None
 
     conn = cur = None
     try:
@@ -2610,7 +2638,7 @@ def api_satisfaccion_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where,      params      = _sat_where(cliente, year, month, day)
+        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable)
         where_prev, params_prev = _sat_prev_where(cliente, year, month, day)
 
         # ── Main summary ─────────────────────────────────────────────────
@@ -2872,7 +2900,7 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2890,6 +2918,9 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
     if turno:
         conds.append("turno = %s")
         params.append(turno)
+    if responsable:
+        conds.append("TRIM(nombre_responsable) = %s")
+        params.append(responsable)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -2919,6 +2950,30 @@ def _inc_prev_where(cliente, year, month, day):
     return where, params
 
 
+@dashboard_bp.route('/api/incidentes/filtros')
+@jwt_required()
+def api_incidentes_filtros():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'responsables': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT TRIM(nombre_responsable) AS responsable
+            FROM reportes_incidentes
+            WHERE nombre_responsable IS NOT NULL AND TRIM(nombre_responsable) <> ''
+            ORDER BY responsable
+        """)
+        return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_incidentes_filtros error: {e}", exc_info=True)
+        return jsonify({'responsables': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 @dashboard_bp.route('/api/incidentes/clientes')
 @jwt_required()
 def api_incidentes_clientes():
@@ -2946,12 +3001,13 @@ def api_incidentes_clientes():
 @dashboard_bp.route('/api/incidentes/data')
 @jwt_required()
 def api_incidentes_data():
-    cliente   = request.args.get('cliente')   or None
-    year      = int(request.args.get('year'))  if request.args.get('year')  else None
-    month     = int(request.args.get('month')) if request.args.get('month') else None
-    day       = int(request.args.get('day'))   if request.args.get('day')   else None
-    categoria = request.args.get('categoria') or None
-    severidad = request.args.get('severidad') or None
+    cliente     = request.args.get('cliente')     or None
+    year        = int(request.args.get('year'))   if request.args.get('year')  else None
+    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    day         = int(request.args.get('day'))    if request.args.get('day')   else None
+    categoria   = request.args.get('categoria')   or None
+    severidad   = request.args.get('severidad')   or None
+    responsable = request.args.get('responsable') or None
 
     conn = cur = None
     try:
@@ -2960,7 +3016,7 @@ def api_incidentes_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params           = _inc_where(cliente, year, month, day, categoria, severidad)
+        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable)
         where_prev, params_prev = _inc_prev_where(cliente, year, month, day)
 
         # ── KPI summary ───────────────────────────────────────────────────
@@ -3543,6 +3599,30 @@ def _sup_prev_where(cliente, year, month, day):
     return where, params
 
 
+@dashboard_bp.route('/api/supervision/filtros')
+@jwt_required()
+def api_supervision_filtros():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'responsables': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT TRIM(rol_aplicador) AS responsable
+            FROM supervision_puesto
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            ORDER BY responsable
+        """)
+        return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_supervision_filtros error: {e}", exc_info=True)
+        return jsonify({'responsables': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 @dashboard_bp.route('/api/supervision/clientes')
 @jwt_required()
 def api_supervision_clientes():
@@ -3892,7 +3972,7 @@ _CUMPL_CRITERIA = [
     ('fechas_vigentes',               'Vigente'),
 ]
 
-def _cumpl_conds(cliente, year, month, day):
+def _cumpl_conds(cliente, year, month, day, responsable=None):
     conds, params = [], []
     if cliente:
         conds.append('cliente_instalacion = %s'); params.append(cliente)
@@ -3902,10 +3982,36 @@ def _cumpl_conds(cliente, year, month, day):
         conds.append('EXTRACT(MONTH FROM fecha_hora) = %s'); params.append(month)
     if day:
         conds.append('EXTRACT(DAY   FROM fecha_hora) = %s'); params.append(day)
+    if responsable:
+        conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
     return conds, params
 
 def _cumpl_where(conds):
     return ('WHERE ' + ' AND '.join(conds)) if conds else ''
+
+
+@dashboard_bp.route('/api/cumplimiento/filtros')
+@jwt_required()
+def api_cumplimiento_filtros():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'responsables': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT TRIM(rol_aplicador) AS responsable
+            FROM checklist_cumplimiento
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            ORDER BY responsable
+        """)
+        return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_cumplimiento_filtros error: {e}", exc_info=True)
+        return jsonify({'responsables': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @dashboard_bp.route('/api/cumplimiento/clientes')
@@ -3935,10 +4041,11 @@ def api_cumplimiento_clientes():
 @dashboard_bp.route('/api/cumplimiento/data')
 @jwt_required()
 def api_cumplimiento_data():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente     = request.args.get('cliente')     or None
+    year        = int(request.args.get('year'))   if request.args.get('year')  else None
+    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    day         = int(request.args.get('day'))    if request.args.get('day')   else None
+    responsable = request.args.get('responsable') or None
 
     conn = cur = None
     try:
@@ -3947,7 +4054,7 @@ def api_cumplimiento_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day)
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable)
         where = _cumpl_where(base_conds)
 
         # ── KPI summary ────────────────────────────────────────────────────
@@ -5549,7 +5656,7 @@ _EQ_BASE = [
 ]
 
 
-def _eq_conds(cliente, year, month, day):
+def _eq_conds(cliente, year, month, day, responsable=None):
     conds, params = [], []
     if cliente:
         conds.append("c.cliente_instalacion = %s")
@@ -5563,6 +5670,9 @@ def _eq_conds(cliente, year, month, day):
     if day:
         conds.append("EXTRACT(DAY   FROM c.fecha) = %s")
         params.append(day)
+    if responsable:
+        conds.append("TRIM(c.rol_aplicador) = %s")
+        params.append(responsable)
     return conds, params
 
 
@@ -5578,6 +5688,30 @@ def _eq_estado(pct):
     if f >= 85: return 'Operativo c/obs.'
     if f >= 70: return 'Riesgo operativo'
     return 'No confiable'
+
+
+@dashboard_bp.route('/api/equipos/filtros')
+@jwt_required()
+def api_equipos_filtros():
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'responsables': []})
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT TRIM(rol_aplicador) AS responsable
+            FROM confiabilidad_equipos
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            ORDER BY responsable
+        """)
+        return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
+    except Exception as e:
+        app_logger.error(f"api_equipos_filtros error: {e}", exc_info=True)
+        return jsonify({'responsables': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @dashboard_bp.route('/api/equipos/clientes')
@@ -5607,10 +5741,11 @@ def api_equipos_clientes():
 @dashboard_bp.route('/api/equipos/data')
 @jwt_required()
 def api_equipos_data():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente     = request.args.get('cliente')     or None
+    year        = int(request.args.get('year'))   if request.args.get('year')  else None
+    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    day         = int(request.args.get('day'))    if request.args.get('day')   else None
+    responsable = request.args.get('responsable') or None
 
     conn = cur = None
     try:
@@ -5618,7 +5753,7 @@ def api_equipos_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _eq_conds(cliente, year, month, day)
+        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable)
         where = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,

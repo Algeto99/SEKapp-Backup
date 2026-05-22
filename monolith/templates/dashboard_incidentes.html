@@ -839,7 +839,6 @@
         activeCatFilter = null;
         updateFilterBanner();
         reloadWithFilters();
-        openDetailsModal();
     }
 
     function clearDrilldown() {
@@ -965,7 +964,10 @@
                 responsive: true, maintainAspectRatio: false,
                 onClick(evt, elements) {
                     if (!elements.length) return;
-                    applySeveridadFilter(SEV_VALS[elements[0].index]);
+                    const sev = SEV_VALS[elements[0].index];
+                    if (activeSevFilter === sev) { clearDrilldown(); return; }
+                    activeSevFilter = sev; activeCatFilter = null; activeTurnoFilter = null;
+                    updateFilterBanner(); reloadWithFilters();
                 },
                 scales: {
                     x: { ticks: { color: chartTheme.label, font: { size: 13 } }, grid: { display: false } },
@@ -995,9 +997,6 @@
             data: { labels: trend.labels, datasets: [{ label:'Incidentes', data:trend.counts, borderColor:'#f87171', backgroundColor:'rgba(239,68,68,0.08)', tension:0.35, fill:true, pointBackgroundColor:'#f87171', pointRadius:4, pointHoverRadius:6 }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (elements.length) openDetailsModal();
-                },
                 scales: {
                     y: { beginAtZero:true, ticks:{color:chartTheme.tick,precision:0}, grid:{color:chartTheme.grid} },
                     x: { ticks:{color:chartTheme.tick,maxRotation:45}, grid:{display:false} }
@@ -1009,7 +1008,6 @@
                 }
             }
         });
-        canvas.style.cursor = 'pointer';
     }
 
     // ── Turno doughnut ────────────────────────────────────────────────────
@@ -1436,10 +1434,11 @@
     // ── Build query string ────────────────────────────────────────────────
     function buildQS(state) {
         const p = new URLSearchParams();
-        if (state.propertyId) p.set('cliente', state.propertyId);
-        if (state.year)       p.set('year',    state.year);
-        if (state.month)      p.set('month',   state.month);
-        if (state.day)        p.set('day',     state.day);
+        if (state.propertyId)  p.set('cliente',     state.propertyId);
+        if (state.year)        p.set('year',         state.year);
+        if (state.month)       p.set('month',        state.month);
+        if (state.day)         p.set('day',          state.day);
+        if (state.responsable) p.set('responsable',  state.responsable);
         return p.toString();
     }
 
@@ -1464,6 +1463,8 @@
                 propSelect.appendChild(o);
             });
         } catch (e) { console.warn('Could not load clientes', e); }
+
+        filters.activateResponsable({ url: '/dashboard/api/incidentes/filtros' });
 
         if (IS_ADMIN) {
             document.addEventListener('filtersChanged', (e) => {

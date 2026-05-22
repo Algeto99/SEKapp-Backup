@@ -475,16 +475,6 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 cutout: '68%',
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const tones = ['green', 'yellow', 'orange', 'red'];
-                    const titles = ['Operativo', 'Con observaciones', 'Riesgo operativo', 'No confiable'];
-                    const idx = elements[0].index;
-                    openRecordsModal(
-                        allRecordRows.filter(r => recordTone(r.pct_general) === tones[idx]),
-                        `Registros — ${titles[idx]}`
-                    );
-                },
                 plugins: {
                     legend: { display: false },
                     datalabels: {
@@ -565,16 +555,6 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const tipo = valid[elements[0].index]?.tipo;
-                    openRecordsModal(
-                        tipo
-                            ? allRecordRows.filter(r => Array.isArray(r.tipos) && r.tipos.includes(tipo))
-                            : allRecordRows,
-                        tipo ? `Registros — ${tipo}` : 'Detalle de registros'
-                    );
-                },
                 layout: { padding: { right: 50 } },
                 scales: {
                     x: {
@@ -678,19 +658,6 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const row = sorted[elements[0].index];
-                    if (!row?.periodo) return;
-                    openRecordsModal(
-                        allRecordRows.filter(r => {
-                            const parts = (r.fecha || '').split('/');
-                            const monthKey = parts.length === 3 ? `${parts[2]}-${parts[1]}` : '';
-                            return monthKey === row.periodo;
-                        }),
-                        `Registros — ${row.periodo_label || monthLabel(row.periodo)}`
-                    );
-                },
                 scales: {
                     y: {
                         min: 0, max: 100,
@@ -830,13 +797,16 @@
             console.warn('Could not load equipos clientes', e);
         }
 
+        filters.activateResponsable({ url: '/dashboard/api/equipos/filtros' });
+
         document.addEventListener('filtersChanged', e => {
             const p = new URLSearchParams();
-            const { propertyId, year, month, day } = e.detail;
-            if (propertyId) p.set('cliente', propertyId);
-            if (year)       p.set('year',    year);
-            if (month)      p.set('month',   month);
-            if (day)        p.set('day',     day);
+            const { propertyId, year, month, day, responsable } = e.detail;
+            if (propertyId)  p.set('cliente',     propertyId);
+            if (year)        p.set('year',         year);
+            if (month)       p.set('month',        month);
+            if (day)         p.set('day',          day);
+            if (responsable) p.set('responsable',  responsable);
             loadData(p.toString());
         });
 

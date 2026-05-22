@@ -688,15 +688,6 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const criterion = criteria[elements[0].index];
-                    const expectedValue = elements[0].datasetIndex === 0 ? 'no' : 'si';
-                    openDetailsModal(
-                        { criterionLabel: criterion.label, expectedValue },
-                        `Registros — ${criterion.label} (${expectedValue === 'si' ? 'Cumple' : 'No cumple'})`
-                    );
-                },
                 scales: {
                     x: {
                         stacked: true,
@@ -775,13 +766,6 @@
                 responsive: true,
                 maintainAspectRatio: true,
                 cutout: '60%',
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const statuses = ['vigente', 'proximo', 'vencido'];
-                    const titles = ['Registros — Vigente', 'Registros — Próximo a vencer', 'Registros — Vencido'];
-                    const idx = elements[0].index;
-                    openDetailsModal({ certStatus: statuses[idx] }, titles[idx]);
-                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -839,11 +823,6 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const empleado = empleados[elements[0].index];
-                    if (empleado?.num_doc) openDetailsModal({ empleado: empleado.num_doc }, `Registros — ${empleado.nombre}`);
-                },
                 scales: {
                     x: {
                         min: 0, max: 100,
@@ -908,11 +887,6 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const sitio = sitios[elements[0].index];
-                    if (sitio?.sitio) openDetailsModal({ sitio: sitio.sitio }, `Registros — ${sitio.sitio}`);
-                },
                 scales: {
                     x: {
                         min: 0, max: 100,
@@ -1036,10 +1010,11 @@
 
     function buildQS(state) {
         const p = new URLSearchParams();
-        if (state.propertyId) p.set('cliente', state.propertyId);
-        if (state.year)       p.set('year',    state.year);
-        if (state.month)      p.set('month',   state.month);
-        if (state.day)        p.set('day',     state.day);
+        if (state.propertyId)  p.set('cliente',     state.propertyId);
+        if (state.year)        p.set('year',         state.year);
+        if (state.month)       p.set('month',        state.month);
+        if (state.day)         p.set('day',          state.day);
+        if (state.responsable) p.set('responsable',  state.responsable);
         return p.toString();
     }
 
@@ -1063,6 +1038,8 @@
                 propSelect.appendChild(o);
             });
         } catch (e) { console.warn('Could not load clientes', e); }
+
+        filters.activateResponsable({ url: '/dashboard/api/cumplimiento/filtros' });
 
         document.addEventListener('filtersChanged', e => {
             currentQS = buildQS(e.detail);

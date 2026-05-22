@@ -597,11 +597,6 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const tipo = sorted[elements[0].index]?.label;
-                    if (tipo) openDetailsModal({ tipo }, `Registros — ${tipo}`);
-                },
                 scales: {
                     x: {
                         ticks: { color: chartTheme.tick, precision: 0 },
@@ -742,11 +737,6 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const label = trend.labels?.[elements[0].index];
-                    if (label) openDetailsModal({ periodLabel: label }, `Registros — ${label}`);
-                },
                 scales: {
                     y: {
                         beginAtZero: true,
@@ -815,11 +805,6 @@
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                onClick(evt, elements) {
-                    if (!elements.length) return;
-                    const empleado = sorted[elements[0].index];
-                    if (empleado?.numero) openDetailsModal({ empleado_num: empleado.numero }, `Registros — ${empleado.nombre}`);
-                },
                 scales: {
                     x: {
                         ticks: { color: chartTheme.tick, precision: 0 },

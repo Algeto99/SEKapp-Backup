@@ -13,10 +13,11 @@
  *   });
  *
  * Filter state shape:
- *   propertyId : string | null   — null = all properties
- *   year       : number | null   — null = all years
- *   month      : number | null   — 1-12, null = all months
- *   day        : number | null   — 1-31, null = all days
+ *   propertyId  : string | null   — null = all properties
+ *   year        : number | null   — null = all years
+ *   month       : number | null   — 1-12, null = all months
+ *   day         : number | null   — 1-31, null = all days
+ *   responsable : string | null   — null = all; activated via activateResponsable()
  */
 class DashboardFilters {
     constructor() {
@@ -25,16 +26,18 @@ class DashboardFilters {
             year: null,
             month: null,
             day: null,
+            responsable: null,
         };
 
         // DOM refs — populated in init()
-        this._propertySelect = null;
-        this._yearSelect     = null;
-        this._monthBtns      = null;
-        this._dayRow         = null;
-        this._daySelect      = null;
-        this._resetBtn       = null;
-        this._chipsRow       = null;
+        this._propertySelect    = null;
+        this._yearSelect        = null;
+        this._monthBtns         = null;
+        this._dayRow            = null;
+        this._daySelect         = null;
+        this._resetBtn          = null;
+        this._chipsRow          = null;
+        this._responsableSelect = null;
 
         this._MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                              'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -76,11 +79,46 @@ class DashboardFilters {
      */
     toQueryString() {
         const params = new URLSearchParams();
-        if (this.state.propertyId) params.set('property_id', this.state.propertyId);
-        if (this.state.year)       params.set('year',        this.state.year);
-        if (this.state.month)      params.set('month',       this.state.month);
-        if (this.state.day)        params.set('day',         this.state.day);
+        if (this.state.propertyId)  params.set('property_id',  this.state.propertyId);
+        if (this.state.year)        params.set('year',          this.state.year);
+        if (this.state.month)       params.set('month',         this.state.month);
+        if (this.state.day)         params.set('day',           this.state.day);
+        if (this.state.responsable) params.set('responsable',   this.state.responsable);
         return params.toString();
+    }
+
+    /**
+     * Show the Responsable / Rol filter section and load options.
+     * @param {object} opts
+     *   url      — endpoint that returns { responsables: string[] }
+     *   label    — optional label text (default 'Responsable / Rol')
+     */
+    async activateResponsable({ url, label = 'RESPONSABLE / ROL' } = {}) {
+        const wrap = document.getElementById('df-responsable-wrap');
+        const sel  = document.getElementById('df-responsable');
+        if (!wrap || !sel) return;
+        wrap.style.display = 'contents'; // transparent to flex layout
+        this._responsableSelect = sel;
+
+        try {
+            const res  = await fetch(url);
+            const data = await res.json();
+            const list = data.responsables || [];
+            while (sel.options.length > 1) sel.remove(1);
+            list.forEach(r => {
+                const o = document.createElement('option');
+                o.value = r; o.textContent = r;
+                sel.appendChild(o);
+            });
+        } catch (e) { console.warn('DashboardFilters: could not load responsables', e); }
+
+        const labelEl = wrap.querySelector('.df-label');
+        if (labelEl) labelEl.textContent = label;
+
+        sel.addEventListener('change', () => {
+            this.state.responsable = sel.value || null;
+            this._emit();
+        });
     }
 
     // ─── Private ─────────────────────────────────────────────────────────────
@@ -212,11 +250,12 @@ class DashboardFilters {
     }
 
     _reset() {
-        this.state = { propertyId: null, year: null, month: null, day: null };
+        this.state = { propertyId: null, year: null, month: null, day: null, responsable: null };
 
         this._propertySelect.value = '';
         this._yearSelect.value     = '';
         this._daySelect.value      = '';
+        if (this._responsableSelect) this._responsableSelect.value = '';
 
         this._syncMonthButtons();
         this._syncDayRow();
@@ -264,6 +303,9 @@ class DashboardFilters {
         if (this.state.day) {
             chips.push({ key: 'day', label: `Día ${this.state.day}` });
         }
+        if (this.state.responsable) {
+            chips.push({ key: 'responsable', label: `👤 ${this.state.responsable}` });
+        }
 
         if (chips.length === 0) {
             this._chipsRow.classList.add('df-hidden');
@@ -301,6 +343,9 @@ class DashboardFilters {
         } else if (key === 'day') {
             this.state.day = null;
             this._daySelect.value = '';
+        } else if (key === 'responsable') {
+            this.state.responsable = null;
+            if (this._responsableSelect) this._responsableSelect.value = '';
         }
         this._emit();
     }
