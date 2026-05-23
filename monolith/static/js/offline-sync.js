@@ -83,11 +83,17 @@
     // submissions that were entered offline without a real property selection.
     // The hook receives the submission and must return a Promise that resolves
     // to { id_propiedad, cliente_instalacion } or rejects/returns null to skip.
-    async function resolvePropertyIfNeeded(submission) {
+    async function resolvePropertyIfNeeded(submission, options = {}) {
         const hasOfflineFlag = submission.entries.some(
             ([k]) => k === 'property_entered_offline'
         );
         if (!hasOfflineFlag) return submission;
+
+        if (options.forceSubmit) {
+            const patched = submission.entries.filter(([k]) => k !== 'property_entered_offline');
+            await updateItem(submission.id, { ...submission, entries: patched });
+            return { ...submission, entries: patched };
+        }
 
         if (typeof window.secappResolveOfflineProperty !== 'function') {
             const exactResolution = await resolvePropertyFromCachedExactMatch(submission);
@@ -184,9 +190,9 @@
     }
 
     // ── Submit one queued item ────────────────────────────────────────────────
-    async function syncOne(submission, csrfToken) {
+    async function syncOne(submission, csrfToken, options = {}) {
         // May throw 'property_unresolved' — caller handles it
-        const resolved = await resolvePropertyIfNeeded(submission);
+        const resolved = await resolvePropertyIfNeeded(submission, options);
 
         const fd = new FormData();
         fd.append('csrf_token', csrfToken);
@@ -223,20 +229,73 @@
     // ── UI helpers ────────────────────────────────────────────────────────────
     function getBanner() { return document.getElementById('offline-sync-banner'); }
     function getSyncBtn() { return document.getElementById('sync-now-btn'); }
+    function getManageBtn() { return document.getElementById('sync-manage-btn'); }
     function getCountEl() { return document.getElementById('sync-pending-count'); }
 
-    function updateBanner(count, syncing) {
-        const banner = getBanner();
-        if (!banner) return;
+    function ensureBanner() {
+        let banner = getBanner();
+        if (!banner && document.body) {
+            banner = document.createElement('div');
+            banner.id = 'offline-sync-banner';
+            banner.className = 'offline-banner';
+            banner.setAttribute('role', 'status');
+            banner.setAttribute('aria-live', 'polite');
+            banner.style.cssText = [
+                'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:200',
+                'background:linear-gradient(90deg,#1e40af,#2563eb)', 'color:#fff',
+                'padding:.6rem 1.25rem', 'display:none', 'align-items:center',
+                'justify-content:center', 'gap:1rem', 'font-size:.875rem',
+                'box-shadow:0 2px 8px rgba(0,0,0,.3)', 'flex-wrap:wrap',
+            ].join(';');
+            banner.innerHTML = [
+                '<span class="sync-icon" style="font-size:1.1rem;flex-shrink:0;">📋</span>',
+                '<span class="sync-text" id="sync-pending-count" style="flex:1;min-width:0;">Formularios pendientes de sincronización</span>',
+                '<button id="sync-now-btn" class="sync-now-btn" type="button">Sincronizar Ahora</button>',
+                '<button id="sync-manage-btn" class="sync-now-btn" type="button">Gestionar</button>',
+            ].join('');
+            document.body.appendChild(banner);
+        } else if (banner && !getManageBtn()) {
+            const btn = document.createElement('button');
+            btn.id = 'sync-manage-btn';
+            btn.className = 'sync-now-btn';
+            btn.type = 'button';
+            btn.textContent = 'Gestionar';
+            banner.appendChild(btn);
+        }
 
+        bindBannerButtons();
+        return banner;
+    }
+
+    function bindBannerButtons() {
+        const syncBtn = getSyncBtn();
+        if (syncBtn && !syncBtn.dataset.secappBound) {
+            syncBtn.dataset.secappBound = '1';
+            syncBtn.addEventListener('click', () => syncAll());
+        }
+
+        const manageBtn = getManageBtn();
+        if (manageBtn && !manageBtn.dataset.secappBound) {
+            manageBtn.dataset.secappBound = '1';
+            manageBtn.addEventListener('click', openQueueManager);
+        }
+    }
+
+    function updateBanner(count, syncing) {
         if (count === 0) {
+            const banner = getBanner();
+            if (!banner) return;
             banner.style.display = 'none';
             return;
         }
 
+        const banner = ensureBanner();
+        if (!banner) return;
+
         banner.style.display = 'flex';
         const countEl = getCountEl();
         const btn = getSyncBtn();
+        const manageBtn = getManageBtn();
 
         if (countEl) {
             countEl.textContent = count === 1
@@ -246,6 +305,9 @@
         if (btn) {
             btn.disabled = syncing;
             btn.textContent = syncing ? 'Sincronizando…' : 'Sincronizar Ahora';
+        }
+        if (manageBtn) {
+            manageBtn.disabled = syncing;
         }
     }
 
@@ -264,7 +326,7 @@
     }
 
     // ── Sync all pending ──────────────────────────────────────────────────────
-    async function syncAll() {
+    async function syncAll(options = {}) {
         if (syncInFlight) return;
         if (!navigator.onLine) {
             showToast('Sin conexión. Conéctate a internet e intenta de nuevo.', true);
@@ -283,7 +345,7 @@
                 const csrfToken = await fetchCsrfToken();
                 for (const item of pending) {
                     try {
-                        const success = await syncOne(item, csrfToken);
+                        const success = await syncOne(item, csrfToken, options);
                         success ? ok++ : fail++;
                     } catch (err) {
                         if (err.message === 'session_expired') {
@@ -323,7 +385,241 @@
             }
         } finally {
             syncInFlight = false;
+            refreshQueueManager();
         }
+    }
+
+    async function syncQueuedItem(id, options = {}) {
+        if (syncInFlight) return;
+        if (!navigator.onLine) {
+            showToast('Sin conexión. Conéctate a internet e intenta de nuevo.', true);
+            return;
+        }
+
+        syncInFlight = true;
+        try {
+            const item = (await getPending()).find(entry => String(entry.id) === String(id));
+            if (!item) {
+                showToast('Ese formulario ya no está en cola.', false);
+                return;
+            }
+
+            updateBanner(await countPending(), true);
+            const csrfToken = await fetchCsrfToken();
+            const success = await syncOne(item, csrfToken, options);
+            if (success) {
+                showToast('Formulario enviado correctamente.');
+            } else {
+                showToast('No se pudo enviar ese formulario. Intenta forzarlo o elimínalo.', true);
+            }
+        } catch (err) {
+            if (err.message === 'session_expired') {
+                showToast('Sesión expirada. Por favor, inicia sesión nuevamente.', true);
+            } else if (err.message === 'property_unresolved') {
+                showToast('Selecciona la instalación o usa envío forzado.', true);
+            } else {
+                showToast('Error al enviar ese formulario.', true);
+            }
+        } finally {
+            syncInFlight = false;
+            updateBanner(await countPending().catch(() => 0), false);
+            refreshQueueManager();
+        }
+    }
+
+    async function deleteQueuedItem(id) {
+        const ok = window.confirm('¿Eliminar este formulario pendiente? Esta acción no se puede deshacer.');
+        if (!ok) return;
+
+        await removeItem(id);
+        const remaining = await countPending().catch(() => 0);
+        updateBanner(remaining, false);
+        showToast('Formulario pendiente eliminado.');
+        refreshQueueManager();
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatQueuedAt(timestamp) {
+        if (!timestamp) return 'Fecha no disponible';
+        try {
+            return new Date(timestamp).toLocaleString('es-CO', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+            });
+        } catch {
+            return new Date(timestamp).toLocaleString();
+        }
+    }
+
+    function getEntryValue(item, key) {
+        const entry = (item.entries || []).find(([entryKey]) => entryKey === key);
+        return entry ? entry[1] : '';
+    }
+
+    function describeQueuedItem(item) {
+        const fileEntries = item.fileEntries || [];
+        const hasLegacyMissingFiles = item.hasFiles && fileEntries.length === 0;
+        const needsProperty = (item.entries || []).some(([k]) => k === 'property_entered_offline');
+        const propertyName = getEntryValue(item, 'cliente_instalacion') || getEntryValue(item, 'cliente_visitado');
+        const notes = [];
+
+        if (fileEntries.length) notes.push(`${fileEntries.length} archivo${fileEntries.length !== 1 ? 's' : ''} guardado${fileEntries.length !== 1 ? 's' : ''}`);
+        if (hasLegacyMissingFiles) notes.push('Adjunto anterior no recuperable');
+        if (needsProperty) notes.push('Instalación pendiente de resolver');
+        if (propertyName) notes.push(`Instalación: ${propertyName}`);
+
+        return {
+            title: FORM_NAMES[item.formType] || item.formType || 'Formulario',
+            queuedAt: formatQueuedAt(item.timestamp),
+            notes,
+            hasLegacyMissingFiles,
+            needsProperty,
+        };
+    }
+
+    function ensureQueueManager() {
+        let modal = document.getElementById('offline-queue-modal');
+        if (modal || !document.body) return modal;
+
+        const style = document.createElement('style');
+        style.textContent = [
+            '.offline-queue-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:10000;align-items:center;justify-content:center;padding:1rem;}',
+            '.offline-queue-modal.open{display:flex;}',
+            '.offline-queue-panel{width:min(760px,96vw);max-height:86vh;overflow:auto;background:#1f2937;color:#e5e7eb;border:1px solid rgba(255,255,255,.12);border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,.55);}',
+            '.offline-queue-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.25rem 1.35rem;border-bottom:1px solid rgba(255,255,255,.08);}',
+            '.offline-queue-title{font-family:Roboto,sans-serif;font-size:1rem;font-weight:800;margin:0;color:#fff;}',
+            '.offline-queue-subtitle{font-size:.8rem;color:#9ca3af;margin:.25rem 0 0;}',
+            '.offline-queue-close{background:none;border:none;color:#cbd5e1;font-size:1.35rem;line-height:1;cursor:pointer;padding:.15rem;}',
+            '.offline-queue-actions{display:flex;gap:.6rem;flex-wrap:wrap;padding:1rem 1.35rem;border-bottom:1px solid rgba(255,255,255,.08);}',
+            '.offline-queue-list{display:flex;flex-direction:column;gap:.75rem;padding:1rem 1.35rem 1.35rem;}',
+            '.offline-queue-item{border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);padding:1rem;}',
+            '.offline-queue-row{display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;}',
+            '.offline-queue-name{font-weight:800;color:#fff;}',
+            '.offline-queue-date{font-size:.78rem;color:#9ca3af;margin-top:.15rem;}',
+            '.offline-queue-notes{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.65rem;}',
+            '.offline-queue-note{font-size:.72rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:999px;padding:.18rem .5rem;color:#cbd5e1;}',
+            '.offline-queue-note.warn{border-color:#f59e0b;color:#fcd34d;background:rgba(245,158,11,.12);}',
+            '.offline-queue-buttons{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.85rem;}',
+            '.offline-queue-btn{border:1px solid rgba(255,255,255,.16);border-radius:7px;background:rgba(255,255,255,.08);color:#fff;padding:.45rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;}',
+            '.offline-queue-btn.primary{background:#2563eb;border-color:#60a5fa;}',
+            '.offline-queue-btn.warn{background:#92400e;border-color:#f59e0b;color:#fef3c7;}',
+            '.offline-queue-btn.danger{background:#7f1d1d;border-color:#ef4444;color:#fee2e2;}',
+            '.offline-queue-empty{padding:1.5rem;color:#9ca3af;text-align:center;}',
+            '@media(max-width:640px){.offline-queue-head,.offline-queue-actions,.offline-queue-list{padding-left:1rem;padding-right:1rem;}.offline-queue-btn{flex:1 1 auto;}}',
+        ].join('');
+        document.head.appendChild(style);
+
+        modal = document.createElement('div');
+        modal.id = 'offline-queue-modal';
+        modal.className = 'offline-queue-modal';
+        modal.innerHTML = [
+            '<div class="offline-queue-panel" role="dialog" aria-modal="true" aria-labelledby="offline-queue-title">',
+            '<div class="offline-queue-head">',
+            '<div>',
+            '<h2 id="offline-queue-title" class="offline-queue-title">Cola de formularios sin conexión</h2>',
+            '<p class="offline-queue-subtitle">Reintenta, fuerza el envío o elimina formularios pendientes.</p>',
+            '</div>',
+            '<button class="offline-queue-close" type="button" aria-label="Cerrar">×</button>',
+            '</div>',
+            '<div class="offline-queue-actions">',
+            '<button id="offline-queue-retry-all" class="offline-queue-btn primary" type="button">Reintentar todos</button>',
+            '<button id="offline-queue-force-all" class="offline-queue-btn warn" type="button">Forzar todos</button>',
+            '</div>',
+            '<div id="offline-queue-list" class="offline-queue-list"></div>',
+            '</div>',
+        ].join('');
+        document.body.appendChild(modal);
+
+        modal.querySelector('.offline-queue-close').addEventListener('click', closeQueueManager);
+        modal.addEventListener('click', event => {
+            if (event.target === modal) closeQueueManager();
+        });
+        document.getElementById('offline-queue-retry-all').addEventListener('click', () => syncAll());
+        document.getElementById('offline-queue-force-all').addEventListener('click', () => {
+            const ok = window.confirm('¿Forzar el envío de todos los formularios pendientes? Los adjuntos antiguos que no fueron guardados no se podrán recuperar.');
+            if (ok) syncAll({ forceSubmit: true });
+        });
+
+        return modal;
+    }
+
+    async function renderQueueManager() {
+        const modal = ensureQueueManager();
+        const list = document.getElementById('offline-queue-list');
+        if (!modal || !list) return;
+
+        const pending = await getPending().catch(() => []);
+        if (!pending.length) {
+            list.innerHTML = '<div class="offline-queue-empty">No hay formularios pendientes.</div>';
+            updateBanner(0, false);
+            return;
+        }
+
+        list.innerHTML = pending.map(item => {
+            const details = describeQueuedItem(item);
+            const notes = details.notes.length
+                ? `<div class="offline-queue-notes">${details.notes.map(note => {
+                    const warn = /Adjunto anterior|pendiente/.test(note) ? ' warn' : '';
+                    return `<span class="offline-queue-note${warn}">${escapeHtml(note)}</span>`;
+                }).join('')}</div>`
+                : '';
+            const forceLabel = details.hasLegacyMissingFiles ? 'Enviar sin adjunto' : 'Forzar envío';
+
+            return [
+                `<div class="offline-queue-item" data-queue-id="${escapeHtml(item.id)}">`,
+                '<div class="offline-queue-row">',
+                '<div>',
+                `<div class="offline-queue-name">${escapeHtml(details.title)}</div>`,
+                `<div class="offline-queue-date">${escapeHtml(details.queuedAt)}</div>`,
+                '</div>',
+                '</div>',
+                notes,
+                '<div class="offline-queue-buttons">',
+                `<button class="offline-queue-btn primary" type="button" data-retry-id="${escapeHtml(item.id)}">Reintentar</button>`,
+                `<button class="offline-queue-btn warn" type="button" data-force-id="${escapeHtml(item.id)}">${forceLabel}</button>`,
+                `<button class="offline-queue-btn danger" type="button" data-delete-id="${escapeHtml(item.id)}">Eliminar</button>`,
+                '</div>',
+                '</div>',
+            ].join('');
+        }).join('');
+
+        list.querySelectorAll('[data-retry-id]').forEach(btn => {
+            btn.addEventListener('click', () => syncQueuedItem(btn.dataset.retryId));
+        });
+        list.querySelectorAll('[data-force-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const ok = window.confirm('¿Forzar el envío de este formulario? Si el adjunto fue creado antes de la corrección, no se podrá recuperar.');
+                if (ok) syncQueuedItem(btn.dataset.forceId, { forceSubmit: true });
+            });
+        });
+        list.querySelectorAll('[data-delete-id]').forEach(btn => {
+            btn.addEventListener('click', () => deleteQueuedItem(btn.dataset.deleteId));
+        });
+    }
+
+    function openQueueManager() {
+        const modal = ensureQueueManager();
+        if (!modal) return;
+        modal.classList.add('open');
+        renderQueueManager();
+    }
+
+    function closeQueueManager() {
+        const modal = document.getElementById('offline-queue-modal');
+        if (modal) modal.classList.remove('open');
+    }
+
+    function refreshQueueManager() {
+        const modal = document.getElementById('offline-queue-modal');
+        if (modal && modal.classList.contains('open')) renderQueueManager();
     }
 
     async function maybeSyncPending() {
@@ -377,9 +673,8 @@
             if (document.visibilityState === 'visible') scheduleAutoSync();
         });
 
-        // Manual sync button
-        const btn = getSyncBtn();
-        if (btn) btn.addEventListener('click', syncAll);
+        // Manual sync and queue management buttons
+        bindBannerButtons();
 
         // Offline indicator in banner
         window.addEventListener('offline', async () => {
