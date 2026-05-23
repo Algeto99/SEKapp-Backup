@@ -1480,6 +1480,11 @@
     "data_type": "integer"
   },
   {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "foto_evidencia_url",
+    "data_type": "text"
+  },
+  {
     "table_name": "registro_y_acta_de_visita",
     "column_name": "id_visita",
     "data_type": "integer"

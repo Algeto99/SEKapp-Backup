@@ -454,7 +454,15 @@
             </a>
         </div>
 
-        <div class="mt-8">
+        <div class="mt-8 flex flex-col items-center gap-3">
+            <button id="offline-prep-btn" onclick="prepareOffline()" style="
+                background: #2d6a4f; color: #d8f3dc; border: 1px solid #52b788;
+                padding: 0.5rem 1.2rem; border-radius: 8px; cursor: pointer;
+                font-size: 0.82rem; transition: background .2s; display: inline-flex;
+                align-items: center; gap: .4rem;">
+                📥 Preparar modo offline
+            </button>
+            <span id="offline-prep-status" style="font-size:.8rem;color:#68d391;display:none;"></span>
             <a href="/landing/" class="back-link">← Volver al Inicio</a>
         </div>
 
@@ -511,6 +519,306 @@
                 themeToggle.addEventListener('click', toggleTheme);
             }
         });
+    </script>
+
+    <script>
+        const SECAPP_PROPERTIES_URL = '/forms/api/properties';
+        const SECAPP_PROPERTIES_STORAGE_KEY = 'secapp:properties:v1';
+        const SECAPP_CACHE_NAME = 'secapp-v5';
+
+        function secappValidPropertiesPayload(data) {
+            return data && Array.isArray(data.properties) ? data : null;
+        }
+
+        function secappSavePropertiesSnapshot(data) {
+            const payload = secappValidPropertiesPayload(data);
+            if (!payload) return;
+            try {
+                localStorage.setItem(SECAPP_PROPERTIES_STORAGE_KEY, JSON.stringify(payload));
+            } catch {
+                // Some browsers can block localStorage in restricted modes.
+            }
+        }
+
+        function secappReadPropertiesSnapshot() {
+            try {
+                return secappValidPropertiesPayload(
+                    JSON.parse(localStorage.getItem(SECAPP_PROPERTIES_STORAGE_KEY) || 'null')
+                );
+            } catch {
+                return null;
+            }
+        }
+
+        async function secappReadPropertiesFromCache() {
+            if (!('caches' in window)) return null;
+            try {
+                const cached = await caches.match(SECAPP_PROPERTIES_URL, { ignoreVary: true });
+                if (!cached || !cached.ok) return null;
+                const data = secappValidPropertiesPayload(await cached.json());
+                if (data) secappSavePropertiesSnapshot(data);
+                return data;
+            } catch {
+                return null;
+            }
+        }
+
+        async function secappFetchAndStoreProperties() {
+            const propsRes = await fetch(SECAPP_PROPERTIES_URL, { credentials: 'include' });
+            if (!propsRes.ok) throw new Error('properties fetch failed');
+
+            const propsData = secappValidPropertiesPayload(await propsRes.json());
+            if (!propsData) throw new Error('invalid properties payload');
+            secappSavePropertiesSnapshot(propsData);
+
+            if ('caches' in window) {
+                const cache = await caches.open(SECAPP_CACHE_NAME);
+                await cache.put(
+                    SECAPP_PROPERTIES_URL,
+                    new Response(JSON.stringify(propsData), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' },
+                    })
+                );
+            }
+
+            return propsData;
+        }
+
+        window.secappLoadPreparedProperties = async function () {
+            const cached = await secappReadPropertiesFromCache() || secappReadPropertiesSnapshot();
+            if (navigator.onLine === false && cached) return cached;
+
+            try {
+                return await secappFetchAndStoreProperties();
+            } catch (err) {
+                if (cached) return cached;
+                throw err;
+            }
+        };
+
+        async function prepareOffline() {
+            const btn = document.getElementById('offline-prep-btn');
+            const status = document.getElementById('offline-prep-status');
+            if (!navigator.onLine) {
+                status.textContent = '⚠️ Sin conexión — no se puede preparar ahora.';
+                status.style.color = '#f6ad55';
+                status.style.display = 'inline';
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = '⏳ Descargando datos…';
+            status.style.display = 'none';
+            try {
+                // Fetch properties and keep a second localStorage snapshot as a SW-independent fallback.
+                await secappFetchAndStoreProperties();
+
+                if ('serviceWorker' in navigator) {
+                    await Promise.race([
+                        navigator.serviceWorker.ready,
+                        new Promise(resolve => setTimeout(resolve, 1500)),
+                    ]);
+                }
+
+                // Cache the form pages and CDN resources so they load offline
+                if ('caches' in window) {
+                    const cache = await caches.open(SECAPP_CACHE_NAME);
+                    const formPages = [
+                        '/forms/select',
+                        '/forms/reporte_incidente',
+                        '/forms/medicion_experiencia_cliente',
+                        '/forms/supervision_puesto',
+                        '/forms/informe_novedades_disciplinario',
+                        '/forms/log_de_patrullas',
+                        '/forms/registro_de_capacitaciones',
+                        '/forms/registro_y_acta_de_visita',
+                        '/forms/planilla_vehicular',
+                        '/forms/planilla_motocicletas',
+                        '/forms/checklist_cumplimiento',
+                        '/forms/confiabilidad_equipos',
+                    ];
+                    const localAssets = [
+                        '/forms/offline.html',
+                        '/forms/sw.js',
+                        '/static/js/customer-hierarchy.js',
+                        '/static/js/offline-sync.js',
+                        '/static/js/theme-toggle.js',
+                    ];
+                    const cdnResources = [
+                        'https://cdn.tailwindcss.com',
+                        'https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js',
+                        'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+                        'https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js',
+                        'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
+                        'https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap',
+                    ];
+
+                    await Promise.all([
+                        ...formPages.map(url => cache.add(new Request(url, { credentials: 'include' }))),
+                        ...localAssets.map(url => cache.add(url)),
+                    ]);
+
+                    await Promise.allSettled([
+                        ...cdnResources.map(url =>
+                            fetch(url, { mode: 'no-cors' }).then(r => cache.put(url, r)).catch(() => {})
+                        ),
+                    ]);
+                }
+
+                btn.textContent = '✅ Listo para modo offline';
+                btn.style.background = '#1b4332';
+                status.textContent = 'Formularios y datos descargados. Puedes trabajar sin conexión.';
+                status.style.color = '#68d391';
+                status.style.display = 'inline';
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = '📥 Preparar modo offline';
+                status.textContent = 'Error al preparar. Verifica tu conexión.';
+                status.style.color = '#fc8181';
+                status.style.display = 'inline';
+            }
+        }
+
+        // Show offline indicator when no connection
+        function updateOfflineIndicator() {
+            const btn = document.getElementById('offline-prep-btn');
+            if (!btn) return;
+            if (!navigator.onLine) {
+                btn.textContent = '📵 Sin conexión (modo offline activo)';
+                btn.style.background = '#4a5568';
+                btn.style.borderColor = '#718096';
+                btn.disabled = true;
+            }
+        }
+        window.addEventListener('offline', updateOfflineIndicator);
+        document.addEventListener('DOMContentLoaded', updateOfflineIndicator);
+    </script>
+
+    <!-- Property resolution modal — shown when a queued submission needs a real property selection -->
+    <div id="property-resolve-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
+        <div style="background:#2d3748;border-radius:12px;padding:2rem;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.1);">
+            <h2 style="font-family:'Merriweather',serif;color:#fff;font-size:1.1rem;margin-bottom:.5rem;">📍 Seleccionar Instalación</h2>
+            <p style="color:#a0aec0;font-size:.85rem;margin-bottom:1rem;">
+                Este formulario fue completado sin conexión. Selecciona la instalación correcta antes de enviarlo.
+            </p>
+            <p style="color:#f6ad55;font-size:.8rem;margin-bottom:1rem;">
+                Nombre ingresado sin conexión: <strong id="prm-offline-name" style="color:#fbd38d;"></strong>
+            </p>
+            <div id="prm-select-area">
+                <select id="prm-property-select" style="width:100%;padding:.65rem .9rem;border-radius:6px;background:#4a5568;color:#e2e8f0;border:1px solid #718096;font-size:.9rem;margin-bottom:.75rem;">
+                    <option value="" disabled selected>Cargando instalaciones…</option>
+                </select>
+            </div>
+            <p id="prm-load-error" style="display:none;color:#fc8181;font-size:.8rem;margin-bottom:.75rem;">
+                ⚠️ No hay datos en caché. Presiona "Preparar modo offline" cuando tengas conexión para evitar esto.
+            </p>
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;flex-wrap:wrap;">
+                <button id="prm-cancel-btn" style="padding:.6rem 1.25rem;border-radius:6px;background:#4a5568;color:#e2e8f0;border:none;cursor:pointer;font-size:.875rem;">
+                    Dejar para después
+                </button>
+                <button id="prm-skip-btn" style="display:none;padding:.6rem 1.25rem;border-radius:6px;background:#744210;color:#fefcbf;border:1px solid #975a16;cursor:pointer;font-size:.875rem;">
+                    Enviar sin instalación
+                </button>
+                <button id="prm-confirm-btn" style="padding:.6rem 1.25rem;border-radius:6px;background:#2563eb;color:#fff;border:none;cursor:pointer;font-size:.875rem;font-weight:600;" disabled>
+                    Confirmar y Enviar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const modal = document.getElementById('property-resolve-modal');
+        const offlineNameEl = document.getElementById('prm-offline-name');
+        const propSelect = document.getElementById('prm-property-select');
+        const confirmBtn = document.getElementById('prm-confirm-btn');
+        const cancelBtn = document.getElementById('prm-cancel-btn');
+        const skipBtn = document.getElementById('prm-skip-btn');
+        const loadError = document.getElementById('prm-load-error');
+
+        async function loadProperties() {
+            const data = typeof window.secappLoadPreparedProperties === 'function'
+                ? await window.secappLoadPreparedProperties()
+                : await (async () => {
+                    const res = await fetch('/forms/api/properties', { credentials: 'include' });
+                    if (!res.ok) throw new Error('bad response');
+                    return res.json();
+                })();
+            return data.properties || [];
+        }
+
+        function populateSelect(properties, offlineName) {
+            propSelect.innerHTML = '<option value="" disabled selected>Selecciona una instalación…</option>';
+            const lower = (offlineName || '').toLowerCase().trim();
+            properties.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.cliente ? `${p.name} (${p.cliente})` : p.name;
+                if (lower && p.name.toLowerCase().trim() === lower) opt.selected = true;
+                propSelect.appendChild(opt);
+            });
+            confirmBtn.disabled = !propSelect.value;
+        }
+
+        propSelect.addEventListener('change', () => {
+            confirmBtn.disabled = !propSelect.value;
+        });
+
+        // Returns a Promise that resolves to { id_propiedad, cliente_instalacion }
+        // or rejects when the user postpones.
+        window.secappResolveOfflineProperty = function (submission) {
+            return new Promise(async (resolve, reject) => {
+                const offlineName = (submission.entries.find(([k]) => k === 'cliente_instalacion') || [])[1] || '';
+                offlineNameEl.textContent = offlineName || '(sin nombre)';
+
+                modal.style.display = 'flex';
+                loadError.style.display = 'none';
+                propSelect.style.display = '';
+                propSelect.innerHTML = '<option value="" disabled selected>Cargando…</option>';
+                confirmBtn.disabled = true;
+
+                let properties = [];
+                try {
+                    properties = await loadProperties();
+                    populateSelect(properties, offlineName);
+                } catch {
+                    propSelect.style.display = 'none';
+                    confirmBtn.disabled = true;
+                    loadError.style.display = 'block';
+                    skipBtn.style.display = '';
+                }
+
+                function cleanup() {
+                    modal.style.display = 'none';
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    cancelBtn.removeEventListener('click', onCancel);
+                    skipBtn.removeEventListener('click', onSkip);
+                }
+
+                function onConfirm() {
+                    const selectedId = propSelect.value;
+                    if (!selectedId) return;
+                    const prop = properties.find(p => String(p.id) === selectedId);
+                    cleanup();
+                    resolve({ id_propiedad: prop.id, cliente_instalacion: prop.name });
+                }
+
+                function onSkip() {
+                    cleanup();
+                    resolve({ id_propiedad: null, cliente_instalacion: offlineName });
+                }
+
+                function onCancel() {
+                    cleanup();
+                    reject(new Error('property_unresolved'));
+                }
+
+                confirmBtn.addEventListener('click', onConfirm);
+                cancelBtn.addEventListener('click', onCancel);
+                skipBtn.addEventListener('click', onSkip);
+            });
+        };
+    })();
     </script>
 
     <!-- Offline queue sync manager -->

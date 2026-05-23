@@ -1,5 +1,5 @@
 /* SecApp Service Worker - Offline-first form queue */
-const CACHE_VERSION = 'secapp-v1';
+const CACHE_VERSION = 'secapp-v5';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
@@ -27,35 +27,88 @@ self.addEventListener('activate', event => {
 });
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
+const CDN_ORIGINS = ['cdn.tailwindcss.com', 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com'];
+
+// API responses that must be cached for offline form use
+const CACHED_API_PATHS = ['/forms/api/properties'];
+
 self.addEventListener('fetch', event => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Only handle same-origin requests
-    if (url.origin !== location.origin) return;
-
-    // Intercept form POST submissions
-    if (request.method === 'POST' && /\/forms\/submit_/.test(url.pathname)) {
-        event.respondWith(handleFormPost(request));
+    if (request.method !== 'GET') {
+        if (request.method === 'POST' && url.origin === location.origin && /\/forms\/submit_/.test(url.pathname)) {
+            event.respondWith(handleFormPost(request));
+        }
         return;
     }
 
-    // Network-first with dynamic cache for GET navigation requests
-    if (request.method === 'GET' && request.headers.get('accept')?.includes('text/html')) {
+    // Cache-first for CDN resources
+    if (CDN_ORIGINS.includes(url.hostname)) {
+        event.respondWith(
+            caches.match(request).then(cached => {
+                const networkFetch = fetch(request).then(response => {
+                    if (response.ok || response.type === 'opaque') {
+                        caches.open(CACHE_VERSION).then(cache => cache.put(request, response.clone()));
+                    }
+                    return response;
+                }).catch(() => cached);
+                return cached || networkFetch;
+            })
+        );
+        return;
+    }
+
+    if (url.origin !== location.origin) return;
+
+    // Cache-first for API endpoints needed offline — network updates cache in background
+    if (CACHED_API_PATHS.includes(url.pathname)) {
+        event.respondWith(
+            caches.open(CACHE_VERSION).then(cache => cache.match(url.pathname, { ignoreVary: true }).then(cached => {
+                const networkFetch = fetch(request).then(response => {
+                    if (response.ok) {
+                        cache.put(url.pathname, response.clone());
+                    }
+                    return response;
+                }).catch(() => cached || Response.error());
+                // Return cache immediately if available, otherwise wait for network
+                return cached || networkFetch;
+            }))
+        );
+        return;
+    }
+
+    // Network-first for HTML pages — fall back to cache when offline
+    if (request.headers.get('accept')?.includes('text/html')) {
         event.respondWith(
             fetch(request)
                 .then(response => {
                     if (response.ok) {
-                        const clone = response.clone();
-                        caches.open(CACHE_VERSION).then(cache => cache.put(request, clone));
+                        caches.open(CACHE_VERSION).then(cache => cache.put(request, response.clone()));
                     }
                     return response;
                 })
                 .catch(() =>
-                    caches.match(request)
+                    caches.match(request, { ignoreVary: true })
                         .then(cached => cached || caches.match('/forms/offline.html'))
                 )
         );
+        return;
+    }
+
+    // Network-first for JS/CSS so updates are always picked up when online
+    if (/\.(js|css)(\?|$)/.test(url.pathname)) {
+        event.respondWith(
+            fetch(request)
+                .then(response => {
+                    if (response.ok) {
+                        caches.open(CACHE_VERSION).then(cache => cache.put(request, response.clone()));
+                    }
+                    return response;
+                })
+                .catch(() => caches.match(request, { ignoreVary: true }).then(cached => cached || Response.error()))
+        );
+        return;
     }
 });
 
@@ -66,26 +119,31 @@ async function handleFormPost(request) {
         const response = await fetch(request);
         return response;
     } catch {
-        // Offline — capture and queue the submission
         const formData = await requestClone.formData();
         const entries = [];
-        let hasFiles = false;
+        const filePromises = [];
 
         formData.forEach((value, key) => {
-            if (key === 'csrf_token') return; // strip; a fresh token is fetched on sync
-            if (value instanceof File) {
-                hasFiles = true;
-            } else {
+            if (key === 'csrf_token') return;
+            if (value instanceof File && value.size > 0) {
+                filePromises.push(
+                    value.arrayBuffer().then(buffer => ({
+                        key, buffer, name: value.name, type: value.type
+                    }))
+                );
+            } else if (!(value instanceof File)) {
                 entries.push([key, value]);
             }
         });
 
+        const fileEntries = await Promise.all(filePromises);
+        const hasFiles = fileEntries.length > 0;
+
         const url = new URL(request.url);
         const formType = url.pathname.replace('/forms/submit_', '');
 
-        await queueSubmission({ url: url.pathname, formType, entries, hasFiles, timestamp: Date.now() });
+        await queueSubmission({ url: url.pathname, formType, entries, fileEntries, hasFiles, timestamp: Date.now() });
 
-        // Notify any open tab so the banner updates immediately
         const clients = await self.clients.matchAll({ type: 'window' });
         clients.forEach(c => c.postMessage({ type: 'OFFLINE_QUEUED', formType }));
 
@@ -114,9 +172,8 @@ const FORM_NAMES = {
 function buildOfflineSavedHTML(formType, hasFiles) {
     const name = FORM_NAMES[formType] || formType;
     const fileWarning = hasFiles
-        ? `<p style="color:#f6ad55;font-size:.85rem;margin-top:.75rem">
-             ⚠️ Los archivos adjuntos no pudieron guardarse offline.
-             Deberá adjuntarlos nuevamente al sincronizar.
+        ? `<p style="color:#68d391;font-size:.85rem;margin-top:.75rem">
+             📎 Los archivos adjuntos fueron guardados localmente y se enviarán al sincronizar.
            </p>`
         : '';
     return `<!DOCTYPE html>

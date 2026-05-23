@@ -962,6 +962,17 @@ def submit_registro_de_capacitaciones():
 
         lista_asistencia_json = _json.dumps(lista_manual)
 
+        # Upload attached files (photos/documents)
+        capacitacion_urls = []
+        if 'capacitacion_files' in request.files:
+            files = request.files.getlist('capacitacion_files')
+            for file in files:
+                if file and file.filename:
+                    url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                    if url:
+                        capacitacion_urls.append(url)
+        foto_evidencia_url = "\n".join(capacitacion_urls) if capacitacion_urls else None
+
         fecha_hora = request.form.get('fecha_hora') or None
         if not fecha_hora:
             fecha = (request.form.get('fecha') or '').strip()
@@ -984,6 +995,7 @@ def submit_registro_de_capacitaciones():
             'practica_simulacro_realizado': request.form.get('practica_simulacro_realizado'),
             'nivel_comprension': request.form.get('nivel_comprension'),
             'recomendaciones': request.form.get('recomendaciones'),
+            'foto_evidencia_url': foto_evidencia_url,
             'submitted_by_email': user_email
         }
         form_data.update(_resolve_scope_fields(

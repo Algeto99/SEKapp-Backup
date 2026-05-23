@@ -72,15 +72,66 @@
         return json.csrf_token;
     }
 
-    // ── Submit one queued item ────────────────────────────────────────────────
-    async function syncOne(submission, csrfToken) {
-        const fd = new FormData();
-        fd.append('csrf_token', csrfToken);
-        for (const [key, value] of submission.entries) {
-            fd.append(key, value);
+    // ── Property resolution hook ──────────────────────────────────────────────
+    // Pages can register window.secappResolveOfflineProperty to intercept
+    // submissions that were entered offline without a real property selection.
+    // The hook receives the submission and must return a Promise that resolves
+    // to { id_propiedad, cliente_instalacion } or rejects/returns null to skip.
+    async function resolvePropertyIfNeeded(submission) {
+        const hasOfflineFlag = submission.entries.some(
+            ([k]) => k === 'property_entered_offline'
+        );
+        if (!hasOfflineFlag) return submission;
+
+        if (typeof window.secappResolveOfflineProperty !== 'function') {
+            // No resolver registered — block sync and notify
+            throw new Error('property_unresolved');
         }
 
-        const res = await fetch(submission.url, {
+        const resolution = await window.secappResolveOfflineProperty(submission);
+        if (!resolution) throw new Error('property_unresolved');
+
+        // Patch the entries: replace cliente_instalacion, remove flag, optionally set id_propiedad
+        const patched = submission.entries
+            .filter(([k]) => k !== 'cliente_instalacion' && k !== 'property_entered_offline' && k !== 'id_propiedad');
+        patched.push(['cliente_instalacion', resolution.cliente_instalacion]);
+        if (resolution.id_propiedad) {
+            patched.push(['id_propiedad', String(resolution.id_propiedad)]);
+        }
+
+        // Persist the patched entries back to IndexedDB so a page reload doesn't re-prompt
+        await updateItem(submission.id, { ...submission, entries: patched });
+
+        return { ...submission, entries: patched };
+    }
+
+    async function updateItem(id, data) {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).put({ ...data, id });
+            tx.oncomplete = () => resolve();
+            tx.onerror = e => reject(e.target.error);
+        });
+    }
+
+    // ── Submit one queued item ────────────────────────────────────────────────
+    async function syncOne(submission, csrfToken) {
+        // May throw 'property_unresolved' — caller handles it
+        const resolved = await resolvePropertyIfNeeded(submission);
+
+        const fd = new FormData();
+        fd.append('csrf_token', csrfToken);
+        for (const [key, value] of resolved.entries) {
+            fd.append(key, value);
+        }
+        // Reconstruct files stored as ArrayBuffer during offline capture
+        for (const fileEntry of resolved.fileEntries || []) {
+            const blob = new Blob([fileEntry.buffer], { type: fileEntry.type });
+            fd.append(fileEntry.key, blob, fileEntry.name);
+        }
+
+        const res = await fetch(resolved.url, {
             method: 'POST',
             body: fd,
             credentials: 'include',
@@ -90,7 +141,7 @@
         // Success: the server redirected us to the /success page (or we got 200)
         const landed = res.url || '';
         if (res.ok && (landed.includes('/success') || landed.includes('/forms/select'))) {
-            await removeItem(submission.id);
+            await removeItem(resolved.id);
             return true;
         }
         // Auth expired — server redirected to login
@@ -155,7 +206,7 @@
 
         updateBanner(pending.length, true);
 
-        let ok = 0, fail = 0;
+        let ok = 0, fail = 0, unresolved = 0;
         try {
             const csrfToken = await fetchCsrfToken();
             for (const item of pending) {
@@ -167,6 +218,10 @@
                         showToast('Sesión expirada. Por favor, inicia sesión nuevamente.', true);
                         updateBanner(await countPending(), false);
                         return;
+                    }
+                    if (err.message === 'property_unresolved') {
+                        unresolved++;
+                        continue;
                     }
                     fail++;
                 }
@@ -180,7 +235,13 @@
         const remaining = await countPending();
         updateBanner(remaining, false);
 
-        if (ok > 0 && fail === 0) {
+        if (unresolved > 0) {
+            showToast(
+                `${unresolved} formulario${unresolved !== 1 ? 's' : ''} requiere${unresolved === 1 ? '' : 'n'} seleccionar instalación antes de enviar.`,
+                true
+            );
+        }
+        if (ok > 0 && fail === 0 && unresolved === 0) {
             showToast(`✓ ${ok} formulario${ok !== 1 ? 's' : ''} enviado${ok !== 1 ? 's' : ''} correctamente`);
         } else if (fail > 0) {
             showToast(

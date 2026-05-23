@@ -384,7 +384,8 @@ FORM_CONFIGS = {
             "Observaciones": "observaciones_retroalimentacion",
             "Lista Asistencia": "lista_asistencia",
             "Práctica Realizada": "practica_simulacro_realizado",
-            "Recomendaciones": "recomendaciones"
+            "Recomendaciones": "recomendaciones",
+            "URLs de Imágenes o PDFs": "foto_evidencia_url"
         }
     },
     'registro_y_acta_de_visita': {
@@ -1990,6 +1991,62 @@ def _map_thumbnail_html(lat: float, lng: float, width: int = 160, height: int = 
     return f'<div style="{container_style}">{inner}</div>'
 
 
+def _render_lista_asistencia_html(value):
+    """Render a lista_asistencia JSON string as an HTML table for PDF."""
+    try:
+        attendees = json.loads(value) if isinstance(value, str) else value
+    except Exception:
+        return None
+    if not isinstance(attendees, list) or not attendees:
+        return None
+
+    rows = []
+    for a in attendees:
+        if not isinstance(a, dict):
+            continue
+        nombre = a.get('nombre', '')
+        cargo = a.get('cargo', '')
+        num_emp = a.get('numero_empleado', '')
+        doc = a.get('documento', '')
+        firma = a.get('firma', '')
+        via = a.get('via', '')
+
+        firma_html = ''
+        if firma and firma.startswith('data:image'):
+            firma_html = f'<img src="{firma}" style="max-width:90px;max-height:45px;border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">'
+        elif via == 'QR':
+            firma_html = '<span style="font-size:7pt;color:#6b7280;">QR</span>'
+
+        rows.append(
+            f'<tr>'
+            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{nombre}</td>'
+            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{cargo}</td>'
+            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{num_emp}</td>'
+            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{doc}</td>'
+            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">{firma_html}</td>'
+            f'</tr>'
+        )
+
+    if not rows:
+        return None
+
+    header = (
+        '<tr style="background:#f1f5f9;">'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Nombre</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Cargo</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">N° Empleado</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Documento</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:center;border-bottom:1px solid #d1d5db;">Firma</th>'
+        '</tr>'
+    )
+    return (
+        f'<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:3px;">'
+        f'<thead>{header}</thead>'
+        f'<tbody>{"".join(rows)}</tbody>'
+        f'</table>'
+    )
+
+
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
@@ -2133,6 +2190,17 @@ td.val { color: #1f2937; }
                         f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
                         f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Inventario:</strong>'
                         f'{inv_table_html}'
+                        f'</td></tr>'
+                    )
+                    continue
+
+            if key == 'Lista Asistencia':
+                lista_html = _render_lista_asistencia_html(value)
+                if lista_html:
+                    html_parts.append(
+                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
+                        f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Lista Asistencia:</strong>'
+                        f'{lista_html}'
                         f'</td></tr>'
                     )
                     continue
