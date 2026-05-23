@@ -8,7 +8,7 @@ import calendar
 from flask import Blueprint, current_app, Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from flask_cors import CORS
-from google.cloud import secretmanager
+from google.cloud import secretmanager, storage as gcs_storage
 from google.api_core.exceptions import NotFound
 
 import google.auth.transport.requests
@@ -27,6 +27,25 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 app_logger = logging.getLogger(__name__)
+
+_GCS_BUCKET_NAME = 'smt-uploads'
+
+def _upload_file_to_gcs(file_storage):
+    """Upload a werkzeug FileStorage to GCS and return the public URL."""
+    if not file_storage or not file_storage.filename:
+        return None
+    import uuid
+    from werkzeug.utils import secure_filename
+    try:
+        client = gcs_storage.Client()
+        bucket = client.bucket(_GCS_BUCKET_NAME)
+        unique_name = f"{uuid.uuid4()}_{secure_filename(file_storage.filename)}"
+        blob = bucket.blob(unique_name)
+        blob.upload_from_file(file_storage, content_type=file_storage.content_type)
+        return f"https://storage.googleapis.com/{_GCS_BUCKET_NAME}/{unique_name}"
+    except Exception as e:
+        app_logger.error(f"_upload_file_to_gcs error: {e}", exc_info=True)
+        return None
 
 # --- Initialize Flask App ---
 dashboard_bp = Blueprint("dashboard_bp", __name__)
@@ -3170,22 +3189,44 @@ def api_incidentes_detalles():
 
         where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno)
 
-        cur.execute(f"""
-            SELECT
-                id_reporte_incidente,
-                fecha_hora,
-                cliente_instalacion,
-                categoria,
-                tipo_incidente,
-                nivel_severidad,
-                turno,
-                estado,
-                nombre_responsable
-            FROM reportes_incidentes
-            {where}
-            ORDER BY fecha_hora DESC NULLS LAST, id_reporte_incidente DESC
-            LIMIT 500
-        """, params)
+        # Fetch with optional tracking columns (may not exist yet)
+        try:
+            cur.execute(f"""
+                SELECT
+                    id_reporte_incidente,
+                    fecha_hora,
+                    cliente_instalacion,
+                    categoria,
+                    tipo_incidente,
+                    nivel_severidad,
+                    turno,
+                    estado,
+                    nombre_responsable,
+                    accion_seguimiento,
+                    evidencia_seguimiento_url
+                FROM reportes_incidentes
+                {where}
+                ORDER BY fecha_hora DESC NULLS LAST, id_reporte_incidente DESC
+                LIMIT 500
+            """, params)
+        except Exception:
+            conn.rollback()
+            cur.execute(f"""
+                SELECT
+                    id_reporte_incidente,
+                    fecha_hora,
+                    cliente_instalacion,
+                    categoria,
+                    tipo_incidente,
+                    nivel_severidad,
+                    turno,
+                    estado,
+                    nombre_responsable
+                FROM reportes_incidentes
+                {where}
+                ORDER BY fecha_hora DESC NULLS LAST, id_reporte_incidente DESC
+                LIMIT 500
+            """, params)
         rows = cur.fetchall()
 
         detalles = []
@@ -3194,19 +3235,78 @@ def api_incidentes_detalles():
             fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
             if fh_str == 'None': fh_str = '—'
             detalles.append({
-                'id':           r['id_reporte_incidente'] or 0,
-                'fecha_hora':   fh_str,
-                'cliente':      r['cliente_instalacion'] or '—',
-                'categoria':    r['categoria']            or '—',
-                'tipo':         r['tipo_incidente']       or '—',
-                'severidad':    r['nivel_severidad']      or '—',
-                'turno':        r['turno']                or '—',
-                'estado':       r['estado']               or '—',
-                'responsable':  r['nombre_responsable']   or '—',
+                'id':              r['id_reporte_incidente'] or 0,
+                'fecha_hora':      fh_str,
+                'cliente':         r['cliente_instalacion'] or '—',
+                'categoria':       r['categoria']            or '—',
+                'tipo':            r['tipo_incidente']       or '—',
+                'severidad':       r['nivel_severidad']      or '—',
+                'turno':           r['turno']                or '—',
+                'estado':          r['estado']               or 'Reportado',
+                'responsable':     r['nombre_responsable']   or '—',
+                'accion_tomada':   dict(r).get('accion_seguimiento') or '',
+                'evidencia_url':   dict(r).get('evidencia_seguimiento_url') or '',
             })
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_incidentes_detalles error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/incidentes/<int:id_reporte>/estado', methods=['PUT'])
+@jwt_required()
+def api_incidentes_update_estado(id_reporte):
+    """Update estado, accion_seguimiento and evidencia_seguimiento_url on a reportes_incidentes row."""
+    if request.content_type and 'multipart' in request.content_type:
+        nuevo_estado = (request.form.get('estado') or '').strip()
+        accion_seguimiento = (request.form.get('accion_tomada') or '').strip()
+        evidencia_file = request.files.get('evidencia')
+    else:
+        body = request.get_json(silent=True) or {}
+        nuevo_estado = (body.get('estado') or '').strip()
+        accion_seguimiento = (body.get('accion_tomada') or '').strip()
+        evidencia_file = None
+
+    if not nuevo_estado:
+        return jsonify({'error': 'Parámetros inválidos'}), 400
+
+    evidencia_url = _upload_file_to_gcs(evidencia_file) if evidencia_file else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        # Ensure tracking columns exist (idempotent)
+        for col, col_type in [('accion_seguimiento', 'TEXT'), ('evidencia_seguimiento_url', 'TEXT')]:
+            cur.execute("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name='reportes_incidentes' AND column_name=%s
+            """, (col,))
+            if not cur.fetchone():
+                cur.execute(f"ALTER TABLE reportes_incidentes ADD COLUMN {col} {col_type}")
+
+        if evidencia_url:
+            cur.execute(
+                "UPDATE reportes_incidentes SET estado=%s, accion_seguimiento=%s, evidencia_seguimiento_url=%s WHERE id_reporte_incidente=%s",
+                (nuevo_estado, accion_seguimiento, evidencia_url, id_reporte)
+            )
+        else:
+            cur.execute(
+                "UPDATE reportes_incidentes SET estado=%s, accion_seguimiento=%s WHERE id_reporte_incidente=%s",
+                (nuevo_estado, accion_seguimiento, id_reporte)
+            )
+        conn.commit()
+        return jsonify({'ok': True, 'estado': nuevo_estado, 'evidencia_url': evidencia_url})
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"api_incidentes_update_estado error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
         if cur: cur.close()
@@ -4683,7 +4783,15 @@ def _visita_parse_compromisos(rows):
                 continue
 
             estado_from_form = responsable_item.get('estado') or ''
-            estado = estados_override.get(str(idx)) or estado_from_form or _visita_status(acuerdo, fecha_limite)
+            override_val = estados_override.get(str(idx))
+            if isinstance(override_val, dict):
+                estado = override_val.get('estado') or estado_from_form or _visita_status(acuerdo, fecha_limite)
+                accion_tomada = override_val.get('accion_tomada') or ''
+                evidencia_url = override_val.get('evidencia_url') or ''
+            else:
+                estado = override_val or estado_from_form or _visita_status(acuerdo, fecha_limite)
+                accion_tomada = ''
+                evidencia_url = ''
             compromisos.append({
                 'id_visita': row['id_visita'],
                 'bloque_idx': idx,
@@ -4696,6 +4804,8 @@ def _visita_parse_compromisos(rows):
                 'responsable': responsable,
                 'fecha_cumplimiento': fecha_limite.isoformat() if fecha_limite else '—',
                 'estado': estado,
+                'accion_tomada': accion_tomada,
+                'evidencia_url': evidencia_url,
             })
     return compromisos
 
@@ -4935,12 +5045,28 @@ def api_visitas_detalles():
 @jwt_required()
 def api_visitas_update_estado(id_visita):
     import json as _json
-    body = request.get_json(silent=True) or {}
-    bloque_idx = body.get('bloque_idx')
-    nuevo_estado = body.get('estado', '').strip().lower()
+    # Accept either multipart/form-data (with file) or JSON
+    if request.content_type and 'multipart' in request.content_type:
+        bloque_idx = request.form.get('bloque_idx')
+        nuevo_estado = (request.form.get('estado') or '').strip().lower()
+        accion_tomada = (request.form.get('accion_tomada') or '').strip()
+        evidencia_file = request.files.get('evidencia')
+    else:
+        body = request.get_json(silent=True) or {}
+        bloque_idx = body.get('bloque_idx')
+        nuevo_estado = body.get('estado', '').strip().lower()
+        accion_tomada = (body.get('accion_tomada') or '').strip()
+        evidencia_file = None
 
-    if bloque_idx is None or nuevo_estado not in ('cumplido', 'pendiente', 'vencido'):
+    try:
+        bloque_idx = int(bloque_idx)
+    except (TypeError, ValueError):
         return jsonify({'error': 'Parámetros inválidos'}), 400
+
+    if nuevo_estado not in ('cumplido', 'pendiente', 'vencido'):
+        return jsonify({'error': 'Parámetros inválidos'}), 400
+
+    evidencia_url = _upload_file_to_gcs(evidencia_file) if evidencia_file else None
 
     conn = cur = None
     try:
@@ -4964,14 +5090,24 @@ def api_visitas_update_estado(id_visita):
             except Exception:
                 pass
 
-        estados[str(bloque_idx)] = nuevo_estado
+        # Preserve existing evidencia_url if no new file uploaded
+        existing = estados.get(str(bloque_idx))
+        existing_evidencia = ''
+        if isinstance(existing, dict):
+            existing_evidencia = existing.get('evidencia_url') or ''
+
+        estados[str(bloque_idx)] = {
+            'estado': nuevo_estado,
+            'accion_tomada': accion_tomada,
+            'evidencia_url': evidencia_url or existing_evidencia,
+        }
 
         cur.execute(
             "UPDATE registro_y_acta_de_visita SET compromisos_estados = %s WHERE id_visita = %s",
             (_json.dumps(estados), id_visita)
         )
         conn.commit()
-        return jsonify({'ok': True, 'estado': nuevo_estado})
+        return jsonify({'ok': True, 'estado': nuevo_estado, 'evidencia_url': evidencia_url or existing_evidencia})
     except Exception as e:
         if conn:
             conn.rollback()

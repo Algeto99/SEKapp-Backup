@@ -1132,6 +1132,117 @@
         }
     }
 
+    // ── Incidente estado management modal (from matrix row click) ────────
+    async function openIncidenteModal(r) {
+        currentRecordId = r.id;
+        const modal   = document.getElementById('recordModal');
+        const body    = document.getElementById('recordContent');
+        const loading = document.getElementById('recordLoading');
+        const actionBar = document.getElementById('recordActionBar');
+
+        modal.classList.add('active');
+        body.style.display = 'none';
+        loading.style.display = 'block';
+        actionBar.style.display = 'none';
+
+        try {
+            const res  = await fetch(`/viewer/api/report/${r.id}?form_type=reporte_incidente`);
+            const data = await res.json();
+            if (!res.ok || !data) { showError('No se encontró el registro.'); return; }
+
+            body.innerHTML = renderRecordDetail(data);
+            body.style.display = 'block';
+            actionBar.style.display = 'flex';
+
+            // Inject estado update panel at top
+            const editorDiv = document.createElement('div');
+            editorDiv.style.cssText = 'background:rgba(14,165,233,0.05);border:1px solid #0ea5e9;border-radius:10px;padding:1rem;margin-bottom:1rem;';
+            const ESTADOS_INC = ['Reportado', 'En proceso', 'En revisión', 'Cerrado', 'Resuelto'];
+            const currentEstado = r.estado || 'Reportado';
+            editorDiv.innerHTML = `
+                <h4 style="color:#38bdf8;margin:0 0 .75rem;display:flex;justify-content:space-between;align-items:center;">
+                    Gestión de Estado del Incidente
+                    ${estadoBadge(currentEstado)}
+                </h4>
+                <div style="margin-bottom:.65rem;">
+                    <span style="color:#94a3b8;font-size:.75rem;font-weight:700;text-transform:uppercase;">Incidente</span>
+                    <p style="margin:.25rem 0 0;color:#e5e7eb;font-size:.88rem;font-style:italic;">${r.tipo} — ${r.categoria} (${r.cliente})</p>
+                </div>
+                <div style="display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:140px;">
+                        <span style="color:#94a3b8;font-size:.75rem;font-weight:700;text-transform:uppercase;">Nuevo estado:</span>
+                        <select id="incEstadoSelect" style="display:block;width:100%;margin-top:.3rem;padding:.45rem .65rem;background:#1f2937;border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#e5e7eb;font-size:.88rem;">
+                            ${ESTADOS_INC.map(e => `<option value="${e}" ${e === currentEstado ? 'selected' : ''}>${e}</option>`).join('')}
+                        </select>
+                    </div>
+                    <button id="incSaveBtn" style="padding:.5rem 1.1rem;background:#0ea5e9;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;align-self:flex-end;">Actualizar Estado</button>
+                </div>
+                <div style="margin-top:.85rem;">
+                    <span style="color:#94a3b8;font-size:.75rem;font-weight:700;text-transform:uppercase;">Acción tomada:</span>
+                    <textarea id="incAccionInput" rows="3" placeholder="Describa la acción tomada para atender este incidente…"
+                        style="width:100%;margin-top:.35rem;padding:.5rem .65rem;background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e5e7eb;font-size:.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;">${r.accion_tomada || ''}</textarea>
+                </div>
+                <div style="margin-top:.75rem;">
+                    <span style="color:#94a3b8;font-size:.75rem;font-weight:700;text-transform:uppercase;">Evidencia (foto / archivo):</span>
+                    <input type="file" id="incEvidenciaInput" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                        style="display:block;margin-top:.35rem;color:#cbd5e1;font-size:.83rem;width:100%;">
+                    ${r.evidencia_url ? `<a href="${r.evidencia_url}" target="_blank" style="display:inline-block;margin-top:.3rem;font-size:.78rem;color:#60a5fa;">📎 Ver evidencia adjunta</a>` : ''}
+                </div>
+                <div id="incModalMsg" style="margin-top:.5rem;font-size:.83rem;min-height:1.2em;"></div>
+            `;
+            body.insertBefore(editorDiv, body.firstChild);
+
+            document.getElementById('incSaveBtn').onclick = async () => {
+                const nuevoEstado = document.getElementById('incEstadoSelect').value;
+                const accionTomada = document.getElementById('incAccionInput').value.trim();
+                const evidenciaFile = document.getElementById('incEvidenciaInput').files[0];
+                const saveBtn = document.getElementById('incSaveBtn');
+                const msgEl   = document.getElementById('incModalMsg');
+                saveBtn.disabled = true;
+                msgEl.style.color = '#94a3b8';
+                msgEl.textContent = 'Guardando…';
+                try {
+                    const fd = new FormData();
+                    fd.append('estado', nuevoEstado);
+                    fd.append('accion_tomada', accionTomada);
+                    if (evidenciaFile) fd.append('evidencia', evidenciaFile);
+                    const resp = await fetch(`/dashboard/api/incidentes/${r.id}/estado`, { method: 'PUT', body: fd });
+                    const result = await resp.json();
+                    if (!resp.ok) throw new Error(result.error || 'Error al guardar');
+                    msgEl.style.color = '#86efac';
+                    msgEl.textContent = 'Estado actualizado correctamente.';
+                    r.estado = nuevoEstado;
+                    r.accion_tomada = accionTomada;
+                    if (result.evidencia_url) {
+                        r.evidencia_url = result.evidencia_url;
+                        const existingLink = editorDiv.querySelector('a[href]');
+                        if (!existingLink) {
+                            const link = document.createElement('a');
+                            link.href = result.evidencia_url; link.target = '_blank';
+                            link.style.cssText = 'display:inline-block;margin-top:.3rem;font-size:.78rem;color:#60a5fa;';
+                            link.textContent = '📎 Ver evidencia adjunta';
+                            document.getElementById('incEvidenciaInput').insertAdjacentElement('afterend', link);
+                        }
+                    }
+                    // Reload matrices
+                    const qs = typeof currentQS !== 'undefined' ? currentQS : '';
+                    if (IS_ADMIN) loadAdminMatrix(qs);
+                    else loadUserMatrix(qs);
+                    setTimeout(() => { msgEl.textContent = ''; }, 2500);
+                } catch (err) {
+                    msgEl.style.color = '#f87171';
+                    msgEl.textContent = err.message || 'Error al guardar.';
+                } finally {
+                    document.getElementById('incSaveBtn').disabled = false;
+                }
+            };
+        } catch (err) {
+            showError(`Error cargando registro: ${err.message}`);
+        } finally {
+            loading.style.display = 'none';
+        }
+    }
+
     // ── Individual record modal ───────────────────────────────────────────
     async function openRecord(id) {
         currentRecordId = id;
@@ -1362,6 +1473,13 @@
         return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span>${estado || '—'}</span>`;
     }
 
+    const INC_STATUS_ORDER = { 'reportado': 0, 'en proceso': 1, 'en revisión': 1, 'cerrado': 2, 'resuelto': 2 };
+    function incStatusPriority(estado) {
+        return INC_STATUS_ORDER[(estado || '').toLowerCase()] ?? 0;
+    }
+
+    let _adminMatrixRows = [];
+
     async function loadAdminMatrix(qs = '') {
         const tBody = document.getElementById('adminMatrixBody');
         if (!tBody) return;
@@ -1373,13 +1491,15 @@
                 tBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#f87171;padding:2rem;">Error cargando datos.</td></tr>`;
                 return;
             }
-            const rows = data.detalles || [];
+            // Sort: reportado/abierto first, en proceso middle, cerrado/resuelto last
+            const rows = (data.detalles || []).slice().sort((a, b) => incStatusPriority(a.estado) - incStatusPriority(b.estado));
+            _adminMatrixRows = rows;
             if (!rows.length) {
                 tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">No hay registros para los criterios seleccionados.</td></tr>';
                 return;
             }
             tBody.innerHTML = rows.map((r, i) => `
-                <tr class="clickable-row" data-row-idx="${i}" title="Clic para ver detalle">
+                <tr class="clickable-row" data-row-idx="${i}" title="Clic para gestionar estado">
                     <td style="white-space:nowrap;font-weight:600;color:#67e8f9;">${r.cliente}</td>
                     <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_hora}</td>
                     <td>${r.categoria}</td>
@@ -1389,9 +1509,8 @@
                     <td>${estadoBadge(r.estado)}</td>
                     <td><button class="btn-ver" onclick="event.stopPropagation();openRecord(${r.id})">Ver ↗</button></td>
                 </tr>`).join('');
-            // Wire entire row click → open record detail
             tBody.querySelectorAll('tr.clickable-row').forEach((tr, idx) => {
-                tr.addEventListener('click', () => openRecord(rows[idx].id));
+                tr.addEventListener('click', () => openIncidenteModal(rows[idx]));
             });
         } catch (err) {
             tBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#f87171;padding:2rem;">Error: ${err.message}</td></tr>`;
@@ -1399,6 +1518,8 @@
     }
 
     // ── User matrix loader (non-admin) ────────────────────────────────────
+    let _userMatrixRows = [];
+
     async function loadUserMatrix(qs = '') {
         const tBody = document.getElementById('userMatrixBody');
         if (!tBody) return;
@@ -1407,12 +1528,14 @@
             const res = await fetch(`/dashboard/api/incidentes/detalles${qs ? '?' + qs : ''}`);
             const data = await res.json();
             if (!res.ok || data.error) { tBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#f87171;padding:2rem;">Error cargando datos.</td></tr>`; return; }
-            const rows = data.detalles || [];
+            const rows = (data.detalles || []).slice().sort((a, b) => incStatusPriority(a.estado) - incStatusPriority(b.estado));
+            _userMatrixRows = rows;
             if (rows.length === 0) { tBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">No hay registros para los criterios seleccionados.</td></tr>'; return; }
             tBody.innerHTML = '';
-            rows.forEach(r => {
+            rows.forEach((r, idx) => {
                 const tr = document.createElement('tr');
-                tr.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.06);';
+                tr.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.06);cursor:pointer;';
+                tr.title = 'Clic para gestionar estado';
                 tr.innerHTML = `
                     <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.fecha_hora}</td>
                     <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.cliente}</td>
@@ -1420,10 +1543,11 @@
                     <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.tipo}</td>
                     <td style="padding:.75rem;vertical-align:top;">${sevBadge(r.severidad)}</td>
                     <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.turno}</td>
-                    <td style="padding:.75rem;vertical-align:top;">${r.estado}</td>
+                    <td style="padding:.75rem;vertical-align:top;">${estadoBadge(r.estado)}</td>
                     <td style="padding:.75rem;color:#e5e7eb;vertical-align:top;">${r.responsable}</td>
-                    <td style="padding:.75rem;vertical-align:top;"><button class="btn-ver" onclick="openRecord(${r.id})">Ver ↗</button></td>
+                    <td style="padding:.75rem;vertical-align:top;"><button class="btn-ver" onclick="event.stopPropagation();openRecord(${r.id})">Ver ↗</button></td>
                 `;
+                tr.addEventListener('click', () => openIncidenteModal(r));
                 tBody.appendChild(tr);
             });
         } catch (err) {

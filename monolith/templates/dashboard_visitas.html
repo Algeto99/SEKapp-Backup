@@ -538,15 +538,21 @@
         overlay.classList.add('open');
     }
 
+    const STATUS_ORDER = { vencido: 0, pendiente: 1, cumplido: 2 };
+
     function renderMatrix(detalles) {
-        _matrixData = detalles;
+        // Sort: vencido → pendiente → cumplido
+        const sorted = [...detalles].sort((a, b) =>
+            (STATUS_ORDER[a.estado] ?? 1) - (STATUS_ORDER[b.estado] ?? 1)
+        );
+        _matrixData = sorted;
         const tbody = document.getElementById('matrixBody');
-        if (!detalles.length) {
+        if (!sorted.length) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Sin compromisos para los filtros seleccionados</td></tr>';
             return;
         }
 
-        tbody.innerHTML = detalles.map((r, i) => {
+        tbody.innerHTML = sorted.map((r, i) => {
             const statusClass = r.estado === 'cumplido' ? 'status-cumplido' : r.estado === 'vencido' ? 'status-vencido' : 'status-pendiente';
             const statusLabel = r.estado === 'cumplido' ? 'Cumplido' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
             const editHint = r.estado !== 'cumplido'
@@ -728,8 +734,8 @@
                     <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Compromiso Seleccionado</span>
                     <p style="margin:0.25rem 0 1rem; color:#e5e7eb; font-size:0.9rem; font-style:italic;">${r.acuerdo || '—'}</p>
                 </div>
-                <div style="display:flex; gap:1rem; align-items:flex-end;">
-                    <div style="flex:1;">
+                <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:140px;">
                         <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Nuevo estado:</span>
                         <select id="inlineEstadoSelect" class="modal-select" style="margin-top:0.25rem; background:#1f2937;">
                             <option value="pendiente" ${r.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
@@ -737,45 +743,74 @@
                             <option value="vencido" ${r.estado === 'vencido' ? 'selected' : ''}>Vencido</option>
                         </select>
                     </div>
-                    <button class="btn-save" id="inlineSaveBtn" style="white-space:nowrap;">Actualizar Estado</button>
+                    <button class="btn-save" id="inlineSaveBtn" style="white-space:nowrap; align-self:flex-end;">Actualizar Estado</button>
+                </div>
+                <div style="margin-top:0.85rem;">
+                    <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Acción tomada:</span>
+                    <textarea id="inlineAccionInput" rows="3" placeholder="Describa la acción tomada para resolver este compromiso…"
+                        style="width:100%;margin-top:0.35rem;padding:0.5rem 0.65rem;background:#111827;border:1px solid rgba(255,255,255,0.12);border-radius:6px;color:#e5e7eb;font-size:0.85rem;resize:vertical;font-family:inherit;box-sizing:border-box;">${r.accion_tomada || ''}</textarea>
+                </div>
+                <div style="margin-top:0.75rem;">
+                    <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Evidencia (foto / archivo):</span>
+                    <input type="file" id="inlineEvidenciaInput" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                        style="display:block;margin-top:0.35rem;color:#cbd5e1;font-size:0.83rem;width:100%;">
+                    ${r.evidencia_url ? `<a href="${r.evidencia_url}" target="_blank" style="display:inline-block;margin-top:0.3rem;font-size:0.78rem;color:#60a5fa;">📎 Ver evidencia adjunta</a>` : ''}
                 </div>
                 <div id="inlineModalMsg" class="modal-msg" style="margin-top:0.5rem;"></div>
             `;
-            
+
             contentEl.insertBefore(editorDiv, contentEl.firstChild);
-            
+
             // 4. Bind save event
             const saveBtn = document.getElementById('inlineSaveBtn');
             const msgEl = document.getElementById('inlineModalMsg');
-            
+
             saveBtn.onclick = async () => {
                 const nuevoEstado = document.getElementById('inlineEstadoSelect').value;
+                const accionTomada = document.getElementById('inlineAccionInput').value.trim();
+                const evidenciaFile = document.getElementById('inlineEvidenciaInput').files[0];
                 saveBtn.disabled = true;
                 msgEl.textContent = 'Guardando…';
                 msgEl.className = 'modal-msg';
                 try {
+                    const fd = new FormData();
+                    fd.append('bloque_idx', r.bloque_idx);
+                    fd.append('estado', nuevoEstado);
+                    fd.append('accion_tomada', accionTomada);
+                    if (evidenciaFile) fd.append('evidencia', evidenciaFile);
+
                     const resp = await fetch('/dashboard/api/visitas/' + r.id_visita + '/estado', {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ bloque_idx: r.bloque_idx, estado: nuevoEstado })
+                        body: fd
                     });
                     const data = await resp.json();
                     if (!resp.ok) throw new Error(data.error || 'Error al guardar');
                     msgEl.textContent = 'Estado actualizado correctamente.';
                     msgEl.className = 'modal-msg success';
-                    
+
                     // Update UI state badge
                     const badge = editorDiv.querySelector('.status-pill');
                     badge.className = 'status-pill status-' + nuevoEstado;
                     badge.textContent = nuevoEstado.toUpperCase();
-                    r.estado = nuevoEstado; // Update local state representation
-                    
+                    r.estado = nuevoEstado;
+                    r.accion_tomada = accionTomada;
+                    if (data.evidencia_url) {
+                        r.evidencia_url = data.evidencia_url;
+                        const existingLink = editorDiv.querySelector('a[href]');
+                        if (!existingLink) {
+                            const link = document.createElement('a');
+                            link.href = data.evidencia_url;
+                            link.target = '_blank';
+                            link.style.cssText = 'display:inline-block;margin-top:.3rem;font-size:.78rem;color:#60a5fa;';
+                            link.textContent = '📎 Ver evidencia adjunta';
+                            document.getElementById('inlineEvidenciaInput').insertAdjacentElement('afterend', link);
+                        }
+                    }
+
                     // Reload matrix data in background
                     loadData(typeof currentQS !== 'undefined' ? currentQS : '');
-                    
-                    setTimeout(() => {
-                        msgEl.textContent = '';
-                    }, 2500);
+
+                    setTimeout(() => { msgEl.textContent = ''; }, 2500);
                 } catch (err) {
                     msgEl.textContent = err.message || 'Error al guardar.';
                     msgEl.className = 'modal-msg error';
