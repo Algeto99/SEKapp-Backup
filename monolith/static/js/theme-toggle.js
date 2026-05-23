@@ -1,7 +1,37 @@
 (function () {
-    // Override inline position so button starts top-right by default
+    // App-wide layout guard: prevents stray horizontal overflow from revealing
+    // a mismatched root background on mobile while preserving table wrappers.
     var style = document.createElement('style');
     style.textContent = [
+        'html,body{',
+        '  min-width:0;',
+        '  max-width:100%;',
+        '  overflow-x:hidden;',
+        '}',
+        'body{',
+        '  min-height:100vh;',
+        '}',
+        '*,*::before,*::after{',
+        '  box-sizing:border-box;',
+        '}',
+        'img,svg,canvas,video{',
+        '  max-width:100%;',
+        '}',
+        '.container,.main-container,.container-card,.form-section,.card,.modal,.modal-box,.modal-container,.filter-bar{',
+        '  max-width:100%;',
+        '}',
+        '.form-section,.card,.container-card,.modal,.modal-box,.modal-container{',
+        '  overflow-wrap:anywhere;',
+        '}',
+        '.table-wrap,.table-wrapper,.table-container,.matrix-table-wrapper,.modal-table-wrapper,.drv-table-wrap{',
+        '  max-width:100%;',
+        '  overflow-x:auto;',
+        '}',
+        '@media (max-width:640px){',
+        '  .form-section,.container-card{',
+        '    overflow-x:hidden;',
+        '  }',
+        '}',
         '.theme-toggle{',
         '  position:fixed!important;',
         '  top:1.5rem!important;',
@@ -22,7 +52,27 @@
     ].join('');
     document.head.appendChild(style);
 
+    function syncRootBackground() {
+        if (!document.body) return;
+
+        var bg = window.getComputedStyle(document.body).backgroundColor;
+        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+            document.documentElement.style.backgroundColor = bg;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        syncRootBackground();
+        setTimeout(syncRootBackground, 50);
+        setTimeout(syncRootBackground, 300);
+
+        try {
+            new MutationObserver(syncRootBackground).observe(document.body, {
+                attributes: true,
+                attributeFilter: ['class', 'style']
+            });
+        } catch (e) {}
+
         var btn = document.getElementById('themeToggle');
         if (!btn) return;
 

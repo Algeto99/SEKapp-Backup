@@ -5,6 +5,12 @@
     const DB_NAME = 'secapp-offline';
     const DB_VERSION = 1;
     const STORE_NAME = 'pending_submissions';
+    const PROPERTIES_URL = '/forms/api/properties';
+    const PROPERTIES_STORAGE_KEY = 'secapp:properties:v1';
+    const AUTO_SYNC_DELAY_MS = 750;
+
+    let syncInFlight = false;
+    let autoSyncTimer = null;
 
     const FORM_NAMES = {
         incident_report: 'Reporte de Incidente',
@@ -84,13 +90,20 @@
         if (!hasOfflineFlag) return submission;
 
         if (typeof window.secappResolveOfflineProperty !== 'function') {
-            // No resolver registered — block sync and notify
+            const exactResolution = await resolvePropertyFromCachedExactMatch(submission);
+            if (exactResolution) {
+                return patchResolvedProperty(submission, exactResolution);
+            }
             throw new Error('property_unresolved');
         }
 
         const resolution = await window.secappResolveOfflineProperty(submission);
         if (!resolution) throw new Error('property_unresolved');
 
+        return patchResolvedProperty(submission, resolution);
+    }
+
+    async function patchResolvedProperty(submission, resolution) {
         // Patch the entries: replace cliente_instalacion, remove flag, optionally set id_propiedad
         const patched = submission.entries
             .filter(([k]) => k !== 'cliente_instalacion' && k !== 'property_entered_offline' && k !== 'id_propiedad');
@@ -103,6 +116,61 @@
         await updateItem(submission.id, { ...submission, entries: patched });
 
         return { ...submission, entries: patched };
+    }
+
+    function normalizePropertyName(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    async function resolvePropertyFromCachedExactMatch(submission) {
+        const offlineName = (
+            submission.entries.find(([k]) => k === 'cliente_instalacion')
+            || submission.entries.find(([k]) => k === 'cliente_visitado')
+            || []
+        )[1];
+        const wanted = normalizePropertyName(offlineName);
+        if (!wanted) return null;
+
+        const data = await loadCachedProperties();
+        const matches = (data.properties || []).filter(p => normalizePropertyName(p.name) === wanted);
+        if (matches.length !== 1) return null;
+
+        return {
+            id_propiedad: matches[0].id,
+            cliente_instalacion: matches[0].name,
+        };
+    }
+
+    async function loadCachedProperties() {
+        if (typeof window.secappLoadPreparedProperties === 'function') {
+            try {
+                const data = await window.secappLoadPreparedProperties();
+                if (data && Array.isArray(data.properties)) return data;
+            } catch {
+                // Fall through to local cache reads.
+            }
+        }
+
+        if ('caches' in window) {
+            try {
+                const cached = await caches.match(PROPERTIES_URL, { ignoreVary: true });
+                if (cached && cached.ok) {
+                    const data = await cached.json();
+                    if (data && Array.isArray(data.properties)) return data;
+                }
+            } catch {
+                // Fall through to localStorage.
+            }
+        }
+
+        try {
+            const data = JSON.parse(localStorage.getItem(PROPERTIES_STORAGE_KEY) || 'null');
+            if (data && Array.isArray(data.properties)) return data;
+        } catch {
+            // No usable properties snapshot.
+        }
+
+        return { properties: [] };
     }
 
     async function updateItem(id, data) {
@@ -136,17 +204,18 @@
             body: fd,
             credentials: 'include',
             redirect: 'follow',
+            headers: { 'X-SecApp-Replay': '1' },
         });
 
-        // Success: the server redirected us to the /success page (or we got 200)
+        // Success: the server redirected us to the /success page, or returned any
+        // other non-error 2xx/3xx response after storing the form.
         const landed = res.url || '';
-        if (res.ok && (landed.includes('/success') || landed.includes('/forms/select'))) {
-            await removeItem(resolved.id);
-            return true;
-        }
-        // Auth expired — server redirected to login
         if (landed.includes('/login') || landed === location.origin + '/') {
             throw new Error('session_expired');
+        }
+        if (res.ok && res.status !== 202 && !landed.includes('/error')) {
+            await removeItem(resolved.id);
+            return true;
         }
         return false;
     }
@@ -196,59 +265,79 @@
 
     // ── Sync all pending ──────────────────────────────────────────────────────
     async function syncAll() {
+        if (syncInFlight) return;
         if (!navigator.onLine) {
             showToast('Sin conexión. Conéctate a internet e intenta de nuevo.', true);
             return;
         }
 
-        const pending = await getPending();
-        if (!pending.length) return;
-
-        updateBanner(pending.length, true);
-
-        let ok = 0, fail = 0, unresolved = 0;
+        syncInFlight = true;
         try {
-            const csrfToken = await fetchCsrfToken();
-            for (const item of pending) {
-                try {
-                    const success = await syncOne(item, csrfToken);
-                    success ? ok++ : fail++;
-                } catch (err) {
-                    if (err.message === 'session_expired') {
-                        showToast('Sesión expirada. Por favor, inicia sesión nuevamente.', true);
-                        updateBanner(await countPending(), false);
-                        return;
+            const pending = await getPending();
+            if (!pending.length) return;
+
+            updateBanner(pending.length, true);
+
+            let ok = 0, fail = 0, unresolved = 0;
+            try {
+                const csrfToken = await fetchCsrfToken();
+                for (const item of pending) {
+                    try {
+                        const success = await syncOne(item, csrfToken);
+                        success ? ok++ : fail++;
+                    } catch (err) {
+                        if (err.message === 'session_expired') {
+                            showToast('Sesión expirada. Por favor, inicia sesión nuevamente.', true);
+                            updateBanner(await countPending(), false);
+                            return;
+                        }
+                        if (err.message === 'property_unresolved') {
+                            unresolved++;
+                            continue;
+                        }
+                        fail++;
                     }
-                    if (err.message === 'property_unresolved') {
-                        unresolved++;
-                        continue;
-                    }
-                    fail++;
                 }
+            } catch {
+                showToast('Error al obtener token de seguridad. Intenta más tarde.', true);
+                updateBanner(await countPending(), false);
+                return;
             }
-        } catch {
-            showToast('Error al obtener token de seguridad. Intenta más tarde.', true);
-            updateBanner(await countPending(), false);
-            return;
-        }
 
-        const remaining = await countPending();
-        updateBanner(remaining, false);
+            const remaining = await countPending();
+            updateBanner(remaining, false);
 
-        if (unresolved > 0) {
-            showToast(
-                `${unresolved} formulario${unresolved !== 1 ? 's' : ''} requiere${unresolved === 1 ? '' : 'n'} seleccionar instalación antes de enviar.`,
-                true
-            );
+            if (unresolved > 0) {
+                showToast(
+                    `${unresolved} formulario${unresolved !== 1 ? 's' : ''} requiere${unresolved === 1 ? '' : 'n'} seleccionar instalación antes de enviar.`,
+                    true
+                );
+            }
+            if (ok > 0 && fail === 0 && unresolved === 0) {
+                showToast(`✓ ${ok} formulario${ok !== 1 ? 's' : ''} enviado${ok !== 1 ? 's' : ''} correctamente`);
+            } else if (fail > 0) {
+                showToast(
+                    `${ok} enviado${ok !== 1 ? 's' : ''}, ${fail} fallido${fail !== 1 ? 's' : ''}. Intenta de nuevo.`,
+                    true
+                );
+            }
+        } finally {
+            syncInFlight = false;
         }
-        if (ok > 0 && fail === 0 && unresolved === 0) {
-            showToast(`✓ ${ok} formulario${ok !== 1 ? 's' : ''} enviado${ok !== 1 ? 's' : ''} correctamente`);
-        } else if (fail > 0) {
-            showToast(
-                `${ok} enviado${ok !== 1 ? 's' : ''}, ${fail} fallido${fail !== 1 ? 's' : ''}. Intenta de nuevo.`,
-                true
-            );
-        }
+    }
+
+    async function maybeSyncPending() {
+        if (!navigator.onLine || syncInFlight) return;
+        const count = await countPending().catch(() => 0);
+        if (count > 0) syncAll();
+    }
+
+    function scheduleAutoSync() {
+        if (autoSyncTimer) clearTimeout(autoSyncTimer);
+        autoSyncTimer = setTimeout(() => {
+            autoSyncTimer = null;
+            maybeSyncPending();
+        }, AUTO_SYNC_DELAY_MS);
     }
 
     // ── Register service worker ───────────────────────────────────────────────
@@ -277,10 +366,15 @@
             // IndexedDB unavailable (private browsing etc.) — silent fail
         }
 
-        // Sync automatically when coming back online
-        window.addEventListener('online', async () => {
-            const count = await countPending().catch(() => 0);
-            if (count > 0) syncAll();
+        if (navigator.onLine) scheduleAutoSync();
+
+        // Sync automatically when coming back online, and when mobile browsers
+        // resume a page after the connection changed in the background.
+        window.addEventListener('online', scheduleAutoSync);
+        window.addEventListener('focus', scheduleAutoSync);
+        window.addEventListener('pageshow', scheduleAutoSync);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') scheduleAutoSync();
         });
 
         // Manual sync button
@@ -293,6 +387,8 @@
             if (count > 0) updateBanner(count, false);
         });
     }
+
+    window.secappSyncOfflineNow = syncAll;
 
     document.addEventListener('DOMContentLoaded', init);
 })();

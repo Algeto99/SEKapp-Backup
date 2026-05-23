@@ -9,11 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
+        html {
+            background-color: #1a202c;
+        }
+
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
             padding-top: 80px;
+            min-height: 100vh;
+            overflow-x: hidden;
             /* Account for fixed header */
         }
 
@@ -89,6 +95,8 @@
             padding: 1.5rem;
             margin-bottom: 1.5rem;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
         .form-input {
@@ -226,11 +234,14 @@
         /* Legend table */
         .legend-table {
             width: 100%;
+            max-width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             margin-top: 1.5rem;
             font-size: 0.875rem;
             border-radius: 0.5rem;
             overflow: hidden;
+            background-color: #2d3748;
         }
 
         .legend-table thead th {
@@ -252,6 +263,24 @@
         .legend-table td {
             padding: 0.625rem 1rem;
             vertical-align: middle;
+            overflow-wrap: anywhere;
+            word-break: normal;
+            line-height: 1.35;
+        }
+
+        .legend-table th:nth-child(1),
+        .legend-table td:nth-child(1) {
+            width: 26%;
+        }
+
+        .legend-table th:nth-child(2),
+        .legend-table td:nth-child(2) {
+            width: 35%;
+        }
+
+        .legend-table th:nth-child(3),
+        .legend-table td:nth-child(3) {
+            width: 39%;
         }
 
         .legend-table .score-range {
@@ -278,6 +307,8 @@
         .resultado-cell {
             display: flex;
             align-items: center;
+            min-width: 0;
+            gap: 0.45rem;
         }
 
         /* Light mode overrides */
@@ -295,6 +326,7 @@
         body.light-mode .score-label.yellow { color: #854d0e; }
         body.light-mode .score-label.orange { color: #9a3412; }
         body.light-mode .score-label.red    { color: #991b1b; }
+        body.light-mode .legend-table { background-color: #ffffff; }
         body.light-mode .legend-table thead th { background-color: #1e4d72; }
         body.light-mode .legend-table tbody tr { border-bottom: 1px solid #e2e8f0; }
         body.light-mode .legend-table .score-range { color: #1e293b; }
@@ -326,6 +358,32 @@
         @media (max-width: 640px) {
             body {
                 padding-top: 140px;
+            }
+
+            .container {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .form-section {
+                padding: 1rem;
+            }
+
+            .legend-table {
+                font-size: 0.78rem;
+            }
+
+            .legend-table thead th,
+            .legend-table td {
+                padding: 0.55rem 0.45rem;
+            }
+
+            .legend-table .score-range {
+                white-space: normal;
+            }
+
+            .dot {
+                margin-right: 0;
             }
         }
     </style>

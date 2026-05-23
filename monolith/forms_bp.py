@@ -1420,7 +1420,7 @@ def submit_checklist_cumplimiento():
 
         conn.commit()
         cur.close()
-        return redirect(url_for('success', message='Checklist(s) enviado(s) exitosamente!'))
+        return redirect(url_for('forms_bp.success', message='Checklist(s) enviado(s) exitosamente!'))
 
     except Exception as e:
         if conn:

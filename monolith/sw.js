@@ -37,6 +37,9 @@ self.addEventListener('fetch', event => {
     const url = new URL(request.url);
 
     if (request.method !== 'GET') {
+        if (request.headers.get('X-SecApp-Replay') === '1') {
+            return;
+        }
         if (request.method === 'POST' && url.origin === location.origin && /\/forms\/submit_/.test(url.pathname)) {
             event.respondWith(handleFormPost(request));
         }
@@ -212,6 +215,7 @@ function buildOfflineSavedHTML(formType, hasFiles) {
     ${fileWarning}
     <a class="btn" href="/forms/select">← Volver al Inicio</a>
   </div>
+  <script src="/static/js/offline-sync.js"></script>
 </body>
 </html>`;
 }
