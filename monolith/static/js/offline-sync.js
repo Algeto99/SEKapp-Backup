@@ -8,9 +8,12 @@
     const PROPERTIES_URL = '/forms/api/properties';
     const PROPERTIES_STORAGE_KEY = 'secapp:properties:v1';
     const AUTO_SYNC_DELAY_MS = 750;
+    const SYNC_REQUEST_TIMEOUT_MS = 90000;
 
     let syncInFlight = false;
+    let syncStartedAt = 0;
     let autoSyncTimer = null;
+    let lastQueueActionAt = 0;
 
     const FORM_NAMES = {
         incident_report: 'Reporte de Incidente',
@@ -42,6 +45,36 @@
         });
     }
 
+    function normalizeStoreKey(id) {
+        if (typeof id === 'number') return id;
+        const text = String(id == null ? '' : id).trim();
+        const numeric = Number(text);
+        return text && Number.isInteger(numeric) && String(numeric) === text ? numeric : id;
+    }
+
+    function beginSync() {
+        if (!syncInFlight) {
+            syncInFlight = true;
+            syncStartedAt = Date.now();
+            return true;
+        }
+
+        const elapsed = Date.now() - syncStartedAt;
+        if (elapsed > SYNC_REQUEST_TIMEOUT_MS + 5000) {
+            syncInFlight = true;
+            syncStartedAt = Date.now();
+            return true;
+        }
+
+        showToast('Ya hay una sincronización en curso. Intenta de nuevo en unos segundos.', true);
+        return false;
+    }
+
+    function clearSyncState() {
+        syncInFlight = false;
+        syncStartedAt = 0;
+    }
+
     async function getPending() {
         const db = await openDB();
         return new Promise((resolve, reject) => {
@@ -64,7 +97,7 @@
         const db = await openDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).delete(id);
+            tx.objectStore(STORE_NAME).delete(normalizeStoreKey(id));
             tx.oncomplete = () => resolve();
             tx.onerror = e => reject(e.target.error);
         });
@@ -72,7 +105,11 @@
 
     // ── CSRF token ────────────────────────────────────────────────────────────
     async function fetchCsrfToken() {
-        const res = await fetch('/forms/api/csrf_token', { credentials: 'include' });
+        const res = await fetchWithTimeout(
+            '/forms/api/csrf_token',
+            { credentials: 'include' },
+            SYNC_REQUEST_TIMEOUT_MS
+        );
         if (!res.ok) throw new Error('Could not obtain CSRF token');
         const json = await res.json();
         return json.csrf_token;
@@ -181,9 +218,10 @@
 
     async function updateItem(id, data) {
         const db = await openDB();
+        const storeKey = normalizeStoreKey(id);
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).put({ ...data, id });
+            tx.objectStore(STORE_NAME).put({ ...data, id: storeKey });
             tx.oncomplete = () => resolve();
             tx.onerror = e => reject(e.target.error);
         });
@@ -205,13 +243,13 @@
             fd.append(fileEntry.key, blob, fileEntry.name);
         }
 
-        const res = await fetch(resolved.url, {
+        const res = await fetchWithTimeout(resolved.url, {
             method: 'POST',
             body: fd,
             credentials: 'include',
             redirect: 'follow',
             headers: { 'X-SecApp-Replay': '1' },
-        });
+        }, SYNC_REQUEST_TIMEOUT_MS);
 
         // Success: the server redirected us to the /success page, or returned any
         // other non-error 2xx/3xx response after storing the form.
@@ -224,6 +262,22 @@
             return true;
         }
         return false;
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs) {
+        const controller = 'AbortController' in window ? new AbortController() : null;
+        const timer = controller
+            ? setTimeout(() => controller.abort(), timeoutMs)
+            : null;
+
+        try {
+            return await fetch(url, {
+                ...options,
+                signal: controller ? controller.signal : options.signal,
+            });
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
     }
 
     // ── UI helpers ────────────────────────────────────────────────────────────
@@ -317,7 +371,7 @@
             'position:fixed', 'bottom:1.5rem', 'left:50%', 'transform:translateX(-50%)',
             `background:${isError ? '#c53030' : '#276749'}`, 'color:#fff',
             'padding:.7rem 1.4rem', 'border-radius:8px',
-            'box-shadow:0 4px 14px rgba(0,0,0,.35)', 'z-index:9999',
+            'box-shadow:0 4px 14px rgba(0,0,0,.35)', 'z-index:10050',
             'font-size:.9rem', 'transition:opacity .3s ease', 'white-space:nowrap',
         ].join(';');
         el.textContent = message;
@@ -327,18 +381,23 @@
 
     // ── Sync all pending ──────────────────────────────────────────────────────
     async function syncAll(options = {}) {
-        if (syncInFlight) return;
+        if (!beginSync()) return;
         if (!navigator.onLine) {
+            clearSyncState();
             showToast('Sin conexión. Conéctate a internet e intenta de nuevo.', true);
             return;
         }
 
-        syncInFlight = true;
         try {
             const pending = await getPending();
-            if (!pending.length) return;
+            if (!pending.length) {
+                updateBanner(0, false);
+                showToast('No hay formularios pendientes.');
+                return;
+            }
 
             updateBanner(pending.length, true);
+            showToast('Sincronizando formularios pendientes...');
 
             let ok = 0, fail = 0, unresolved = 0;
             try {
@@ -384,19 +443,19 @@
                 );
             }
         } finally {
-            syncInFlight = false;
+            clearSyncState();
             refreshQueueManager();
         }
     }
 
     async function syncQueuedItem(id, options = {}) {
-        if (syncInFlight) return;
+        if (!beginSync()) return;
         if (!navigator.onLine) {
+            clearSyncState();
             showToast('Sin conexión. Conéctate a internet e intenta de nuevo.', true);
             return;
         }
 
-        syncInFlight = true;
         try {
             const item = (await getPending()).find(entry => String(entry.id) === String(id));
             if (!item) {
@@ -405,6 +464,7 @@
             }
 
             updateBanner(await countPending(), true);
+            showToast('Sincronizando formulario pendiente...');
             const csrfToken = await fetchCsrfToken();
             const success = await syncOne(item, csrfToken, options);
             if (success) {
@@ -421,21 +481,26 @@
                 showToast('Error al enviar ese formulario.', true);
             }
         } finally {
-            syncInFlight = false;
+            clearSyncState();
             updateBanner(await countPending().catch(() => 0), false);
             refreshQueueManager();
         }
     }
 
     async function deleteQueuedItem(id) {
+        clearSyncState();
         const ok = window.confirm('¿Eliminar este formulario pendiente? Esta acción no se puede deshacer.');
         if (!ok) return;
 
-        await removeItem(id);
-        const remaining = await countPending().catch(() => 0);
-        updateBanner(remaining, false);
-        showToast('Formulario pendiente eliminado.');
-        refreshQueueManager();
+        try {
+            await removeItem(id);
+            const remaining = await countPending().catch(() => 0);
+            updateBanner(remaining, false);
+            showToast('Formulario pendiente eliminado.');
+            refreshQueueManager();
+        } catch {
+            showToast('No se pudo eliminar el formulario pendiente.', true);
+        }
     }
 
     function escapeHtml(value) {
@@ -497,7 +562,7 @@
             '.offline-queue-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;padding:1.25rem 1.35rem;border-bottom:1px solid rgba(255,255,255,.08);}',
             '.offline-queue-title{font-family:Roboto,sans-serif;font-size:1rem;font-weight:800;margin:0;color:#fff;}',
             '.offline-queue-subtitle{font-size:.8rem;color:#9ca3af;margin:.25rem 0 0;}',
-            '.offline-queue-close{background:none;border:none;color:#cbd5e1;font-size:1.35rem;line-height:1;cursor:pointer;padding:.15rem;}',
+            '.offline-queue-close{background:none;border:none;color:#cbd5e1;font-size:1.35rem;line-height:1;cursor:pointer;padding:.15rem;touch-action:manipulation;}',
             '.offline-queue-actions{display:flex;gap:.6rem;flex-wrap:wrap;padding:1rem 1.35rem;border-bottom:1px solid rgba(255,255,255,.08);}',
             '.offline-queue-list{display:flex;flex-direction:column;gap:.75rem;padding:1rem 1.35rem 1.35rem;}',
             '.offline-queue-item{border:1px solid rgba(255,255,255,.1);border-radius:10px;background:rgba(255,255,255,.04);padding:1rem;}',
@@ -508,7 +573,7 @@
             '.offline-queue-note{font-size:.72rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);border-radius:999px;padding:.18rem .5rem;color:#cbd5e1;}',
             '.offline-queue-note.warn{border-color:#f59e0b;color:#fcd34d;background:rgba(245,158,11,.12);}',
             '.offline-queue-buttons{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.85rem;}',
-            '.offline-queue-btn{border:1px solid rgba(255,255,255,.16);border-radius:7px;background:rgba(255,255,255,.08);color:#fff;padding:.45rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;}',
+            '.offline-queue-btn{border:1px solid rgba(255,255,255,.16);border-radius:7px;background:rgba(255,255,255,.08);color:#fff;padding:.45rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;touch-action:manipulation;pointer-events:auto;}',
             '.offline-queue-btn.primary{background:#2563eb;border-color:#60a5fa;}',
             '.offline-queue-btn.warn{background:#92400e;border-color:#f59e0b;color:#fef3c7;}',
             '.offline-queue-btn.danger{background:#7f1d1d;border-color:#ef4444;color:#fee2e2;}',
@@ -527,26 +592,22 @@
             '<h2 id="offline-queue-title" class="offline-queue-title">Cola de formularios sin conexión</h2>',
             '<p class="offline-queue-subtitle">Reintenta, fuerza el envío o elimina formularios pendientes.</p>',
             '</div>',
-            '<button class="offline-queue-close" type="button" aria-label="Cerrar">×</button>',
+            '<button class="offline-queue-close" type="button" aria-label="Cerrar" data-queue-action="close">×</button>',
             '</div>',
             '<div class="offline-queue-actions">',
-            '<button id="offline-queue-retry-all" class="offline-queue-btn primary" type="button">Reintentar todos</button>',
-            '<button id="offline-queue-force-all" class="offline-queue-btn warn" type="button">Forzar todos</button>',
+            '<button id="offline-queue-retry-all" class="offline-queue-btn primary" type="button" data-queue-action="retry-all">Reintentar todos</button>',
+            '<button id="offline-queue-force-all" class="offline-queue-btn warn" type="button" data-queue-action="force-all">Forzar todos</button>',
             '</div>',
             '<div id="offline-queue-list" class="offline-queue-list"></div>',
             '</div>',
         ].join('');
         document.body.appendChild(modal);
 
-        modal.querySelector('.offline-queue-close').addEventListener('click', closeQueueManager);
         modal.addEventListener('click', event => {
             if (event.target === modal) closeQueueManager();
         });
-        document.getElementById('offline-queue-retry-all').addEventListener('click', () => syncAll());
-        document.getElementById('offline-queue-force-all').addEventListener('click', () => {
-            const ok = window.confirm('¿Forzar el envío de todos los formularios pendientes? Los adjuntos antiguos que no fueron guardados no se podrán recuperar.');
-            if (ok) syncAll({ forceSubmit: true });
-        });
+        modal.addEventListener('click', handleQueueAction);
+        modal.addEventListener('touchend', handleQueueAction, { passive: false });
 
         return modal;
     }
@@ -583,26 +644,45 @@
                 '</div>',
                 notes,
                 '<div class="offline-queue-buttons">',
-                `<button class="offline-queue-btn primary" type="button" data-retry-id="${escapeHtml(item.id)}">Reintentar</button>`,
-                `<button class="offline-queue-btn warn" type="button" data-force-id="${escapeHtml(item.id)}">${forceLabel}</button>`,
-                `<button class="offline-queue-btn danger" type="button" data-delete-id="${escapeHtml(item.id)}">Eliminar</button>`,
+                `<button class="offline-queue-btn primary" type="button" data-queue-action="retry" data-queue-id="${escapeHtml(item.id)}">Reintentar</button>`,
+                `<button class="offline-queue-btn warn" type="button" data-queue-action="force" data-queue-id="${escapeHtml(item.id)}">${forceLabel}</button>`,
+                `<button class="offline-queue-btn danger" type="button" data-queue-action="delete" data-queue-id="${escapeHtml(item.id)}">Eliminar</button>`,
                 '</div>',
                 '</div>',
             ].join('');
         }).join('');
+    }
 
-        list.querySelectorAll('[data-retry-id]').forEach(btn => {
-            btn.addEventListener('click', () => syncQueuedItem(btn.dataset.retryId));
-        });
-        list.querySelectorAll('[data-force-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const ok = window.confirm('¿Forzar el envío de este formulario? Si el adjunto fue creado antes de la corrección, no se podrá recuperar.');
-                if (ok) syncQueuedItem(btn.dataset.forceId, { forceSubmit: true });
-            });
-        });
-        list.querySelectorAll('[data-delete-id]').forEach(btn => {
-            btn.addEventListener('click', () => deleteQueuedItem(btn.dataset.deleteId));
-        });
+    function handleQueueAction(event) {
+        const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+        const button = target?.closest('[data-queue-action]');
+        if (!button) return;
+
+        const now = Date.now();
+        if (now - lastQueueActionAt < 350) return;
+        lastQueueActionAt = now;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const action = button.dataset.queueAction;
+        const id = button.dataset.queueId;
+
+        if (action === 'close') {
+            closeQueueManager();
+        } else if (action === 'retry-all') {
+            syncAll();
+        } else if (action === 'force-all') {
+            const ok = window.confirm('¿Forzar el envío de todos los formularios pendientes? Los adjuntos antiguos que no fueron guardados no se podrán recuperar.');
+            if (ok) syncAll({ forceSubmit: true });
+        } else if (action === 'retry') {
+            syncQueuedItem(id);
+        } else if (action === 'force') {
+            const ok = window.confirm('¿Forzar el envío de este formulario? Si el adjunto fue creado antes de la corrección, no se podrá recuperar.');
+            if (ok) syncQueuedItem(id, { forceSubmit: true });
+        } else if (action === 'delete') {
+            deleteQueuedItem(id);
+        }
     }
 
     function openQueueManager() {

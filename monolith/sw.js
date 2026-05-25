@@ -1,5 +1,5 @@
 /* SecApp Service Worker - Offline-first form queue */
-const CACHE_VERSION = 'secapp-v5';
+const CACHE_VERSION = 'secapp-v6';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
