@@ -521,7 +521,10 @@
 
             <!-- Categorías bar chart -->
             <div class="card chart-wrap" style="position:relative;">
-                <div class="card-title">Incidentes por Categoría <span style="font-weight:400;font-size:0.7em;color:#6b7280;">(clic en barra = filtrar)</span></div>
+                <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+                    <span>Incidentes por Categoría <span style="font-weight:400;font-size:0.7em;color:#6b7280;">(clic en barra = filtrar)</span></span>
+                    <button id="catClearBtn" onclick="clearDrilldown()" style="display:none;padding:.25rem .65rem;font-size:.75rem;font-weight:600;border:none;border-radius:20px;background:#3b82f6;color:#fff;cursor:pointer;white-space:nowrap;line-height:1.4;">✕ Limpiar filtro</button>
+                </div>
                 <div class="chart-wrap" style="min-height:260px;">
                     <canvas id="catChart" class="chart-canvas"></canvas>
                     <div id="catEmpty" class="empty-state" style="display:none;">
@@ -868,6 +871,8 @@
         if (activeCatFilter)   { catBadge.textContent  = 'Categoría: '  + activeCatFilter;   catBadge.style.display  = 'inline'; } else { catBadge.style.display  = 'none'; }
         if (activeSevFilter)   { sevBadge2.textContent = 'Severidad: '  + activeSevFilter;   sevBadge2.style.display = 'inline'; } else { sevBadge2.style.display = 'none'; }
         if (activeTurnoFilter) { turnoBadge.textContent= 'Turno: '      + activeTurnoFilter; turnoBadge.style.display= 'inline'; } else { turnoBadge.style.display= 'none'; }
+        const catClearBtn = document.getElementById('catClearBtn');
+        if (catClearBtn) catClearBtn.style.display = activeCatFilter ? 'inline-block' : 'none';
     }
 
     function buildDrillQS() {
@@ -910,9 +915,11 @@
         ];
         const labels = categorias.map(c => c.label);
         const values = categorias.map(c => c.count);
-        const colors = categorias.map((c, i) =>
-            activeCatFilter === c.label ? '#fff' : CAT_COLORS[i % CAT_COLORS.length]
-        );
+        const colors = categorias.map((c, i) => {
+            const base = CAT_COLORS[i % CAT_COLORS.length];
+            if (!activeCatFilter) return base;
+            return activeCatFilter === c.label ? base : base + '44';
+        });
 
         if (catChart) catChart.destroy();
         catChart = new Chart(canvas, {
