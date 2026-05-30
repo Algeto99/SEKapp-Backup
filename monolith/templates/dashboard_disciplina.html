@@ -296,7 +296,7 @@
         <div class="kpi-grid" id="kpiSection">
 
             <!-- KPI 1: Total novedades -->
-            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+            <div class="card clickable-card" onclick="openDetailsModal({}, 'Total Novedades')" title="Ver todas las novedades">
                 <div class="card-title">Total Novedades</div>
                 <div class="kpi-value" id="kpiTotalVal" style="color:#fb923c">—</div>
                 <div class="kpi-label">Novedades en el período</div>
@@ -305,7 +305,7 @@
             </div>
 
             <!-- KPI 2: Empleados involucrados -->
-            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+            <div class="card clickable-card" onclick="openDetailsModal({empleados_unicos: true}, 'Empleados Involucrados')" title="Ver empleados con novedades">
                 <div class="card-title">Empleados Involucrados</div>
                 <div class="kpi-value" id="kpiEmpleadosVal" style="color:#f87171">—</div>
                 <div class="kpi-label">Empleados con al menos 1 novedad</div>
@@ -323,7 +323,7 @@
             </div>
 
             <!-- KPI 4: % Reincidencia -->
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailsModal({reincidentes: true}, '% Reincidencia — Empleados con más de 1 novedad')" title="Ver empleados reincidentes">
                 <div class="card-title">% Reincidencia</div>
                 <div class="kpi-value" id="kpiReincVal" style="color:#a78bfa">—</div>
                 <div class="kpi-label">Empleados con más de 1 novedad</div>
@@ -495,7 +495,7 @@
     }
 
     function filterDisciplinaDetails(filters = {}) {
-        return allDetails.filter(detail => {
+        let result = allDetails.filter(detail => {
             if (filters.tipo && detail.tipo !== filters.tipo) return false;
             if (filters.cliente && detail.cliente !== filters.cliente) return false;
             if (filters.empleado_num && detail.emp_numero !== filters.empleado_num) return false;
@@ -505,6 +505,20 @@
             }
             return true;
         });
+        if (filters.reincidentes) {
+            const counts = {};
+            result.forEach(d => { counts[d.emp_numero] = (counts[d.emp_numero] || 0) + 1; });
+            result = result.filter(d => counts[d.emp_numero] > 1);
+        }
+        if (filters.empleados_unicos) {
+            const seen = new Set();
+            result = result.filter(d => {
+                if (seen.has(d.emp_numero)) return false;
+                seen.add(d.emp_numero);
+                return true;
+            });
+        }
+        return result;
     }
 
     function setLoading(id, on) { document.getElementById(id)?.classList.toggle('active', on); }

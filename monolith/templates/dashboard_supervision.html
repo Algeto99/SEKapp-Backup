@@ -377,7 +377,7 @@
             </div>
 
             <!-- KPI 3: Puestos críticos -->
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailsModal({nivel:'critico'}, 'Puestos Críticos — Calificación ≤15 pts')" title="Ver puestos con calificación crítica">
                 <div class="card-title">Puestos Críticos (&le;15 pts)</div>
                 <div class="kpi-value" id="kpiCriticoVal" style="color:#f87171;">—</div>
                 <div class="kpi-label" id="kpiCriticoPct">— del total</div>
@@ -388,7 +388,7 @@
             </div>
 
             <!-- KPI 4: Puestos en seguimiento -->
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailsModal({nivel:'seguimiento'}, 'En Seguimiento — Calificación 16–20 pts')" title="Ver puestos en seguimiento">
                 <div class="card-title">En Seguimiento (16–20 pts)</div>
                 <div class="kpi-value" id="kpiSeguimientoVal" style="color:var(--amber-text);">—</div>
                 <div class="kpi-label" id="kpiSeguimientoPct">— del total</div>

@@ -309,7 +309,7 @@
         <div class="kpi-grid">
 
             <!-- KPI 1: % Cumplimiento -->
-            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+            <div class="card clickable-card" onclick="openDetailsModal({nivel:'cumple'}, '% Cumplimiento — Verificaciones que cumplen')" title="Ver verificaciones que cumplen">
                 <div class="card-title">% Cumplimiento</div>
                 <div class="kpi-value" id="kpiPctCumple" style="color:#22c55e;">—%</div>
                 <div class="kpi-label" id="kpiCntCumple">— verificaciones cumplen</div>
@@ -320,7 +320,7 @@
             </div>
 
             <!-- KPI 2: % No Cumplimiento -->
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailsModal({nivel:'no cumple'}, '% No Cumplimiento — Verificaciones que no cumplen')" title="Ver verificaciones que no cumplen">
                 <div class="card-title">% No Cumplimiento</div>
                 <div class="kpi-value" id="kpiPctNoCumple" style="color:var(--red-text);">—%</div>
                 <div class="kpi-label" id="kpiCntNoCumple">— verificaciones no cumplen</div>
@@ -331,7 +331,7 @@
             </div>
 
             <!-- KPI 3: Total verificaciones -->
-            <div class="card clickable-card" onclick="openDetailsModal()" title="Ver registros">
+            <div class="card clickable-card" onclick="openDetailsModal({}, 'Total Verificaciones')" title="Ver todas las verificaciones">
                 <div class="card-title">Total Verificaciones</div>
                 <div class="kpi-value" id="kpiTotal" style="color:#60a5fa;">—</div>
                 <div class="kpi-label">Checklists en el período</div>
@@ -339,7 +339,7 @@
             </div>
 
             <!-- KPI 4: % Certificaciones vencidas -->
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailsModal({certStatus:'vencido'}, '% Certificaciones Vencidas')" title="Ver certificados vencidos">
                 <div class="card-title">% Certificaciones Vencidas</div>
                 <div class="kpi-value" id="kpiPctVencidos" style="color:var(--red-text);">—%</div>
                 <div class="kpi-label" id="kpiCntVencidos">— certificados vencidos</div>
@@ -525,6 +525,7 @@
                 const key = fieldMap[filters.criterionLabel];
                 if (key && normalizeSiNo(detail[key]) !== normalizeSiNo(filters.expectedValue)) return false;
             }
+            if (filters.nivel && (detail.nivel || '').toLowerCase() !== filters.nivel.toLowerCase()) return false;
             if (filters.certStatus && certStatusForDetail(detail) !== filters.certStatus) return false;
             if (filters.empleado && detail.num_doc !== filters.empleado) return false;
             if (filters.sitio && detail.cliente !== filters.sitio) return false;
