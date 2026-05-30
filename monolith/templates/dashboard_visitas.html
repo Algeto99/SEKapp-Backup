@@ -147,13 +147,18 @@
         {% include '_dashboard_filters.html' %}
 
         {% if is_admin %}
+        <div id="chartFilterBanner" style="display:none;align-items:center;gap:.75rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:.6rem 1rem;margin-bottom:.75rem;font-size:.8125rem;font-family:'Roboto',sans-serif;">
+            <span style="color:#94a3b8;">Filtro activo:</span>
+            <span id="chartFilterLabel" style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);border-radius:20px;padding:.2rem .65rem;font-weight:600;"></span>
+            <button onclick="clearChartFilter()" style="margin-left:auto;padding:.25rem .65rem;font-size:.75rem;font-weight:600;border:none;border-radius:20px;background:#3b82f6;color:#fff;cursor:pointer;">✕ Limpiar filtro</button>
+        </div>
         <div class="kpi-grid">
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({}), 'Total de Visitas')" title="Ver todas las visitas">
                 <div class="card-title">Total de Visitas</div>
                 <div class="kpi-value" id="kpiTotalVisitas" style="color:#22c55e;">—</div>
                 <div class="kpi-label">Visitas registradas en el período</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({soloVisitados:true}), 'Clientes Visitados')" title="Ver compromisos de clientes visitados">
                 <div class="card-title">Clientes Visitados</div>
                 <div class="kpi-value" id="kpiClientes" style="color:#38bdf8;">—</div>
                 <div class="kpi-label">Clientes con al menos una visita</div>
@@ -163,13 +168,13 @@
                 <div class="kpi-value" id="kpiPromedio" style="color:#f59e0b;">—</div>
                 <div class="kpi-label">Visitas promedio por cliente</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({}), '% Sin Visita — Todos los compromisos del período')" title="Ver compromisos del período">
                 <div class="card-title">% Sin Visita</div>
                 <div class="kpi-value" id="kpiSinVisita" style="color:#ef4444;">—</div>
                 <div class="kpi-label">Clientes sin visita en el período</div>
                 <div class="kpi-sub" id="kpiSinVisitaSub">—</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({estado:'cumplido'}), '⏱ Resolución — Compromisos cumplidos')" title="Ver compromisos cumplidos">
                 <div class="card-title">⏱ Resolución de Compromisos</div>
                 <div class="kpi-value" id="kpiResolucion" style="color:#a78bfa;">—</div>
                 <div class="kpi-label">Tiempo promedio de resolución</div>
@@ -241,6 +246,9 @@
     const GRID_COLOR = 'rgba(148,163,184,0.15)';
     const TICK_COLOR = '#94a3b8';
     let clienteChart, motivoChart, trendChart, estadoChart;
+    let _rawData = null;
+    let _allDetalles = [];  // full unfiltered detail list from API
+    let _chartFilter = {};  // { type: 'cliente'|'motivo'|'periodo'|'estado', value: string }
     const recordViewer = createDashboardRecordViewer({
         formType: 'registro_y_acta_de_visita',
         recordTitle: 'Detalle de Visita'
@@ -317,7 +325,8 @@
 
         const labels = rows.map(r => (r[labelKey] || '').length > 34 ? r[labelKey].slice(0, 31) + '...' : r[labelKey]);
         const values = rows.map(r => Number(r[valueKey]) || 0);
-        const colors = barColors(values);
+        const baseColors = barColors(values);
+        const colors = rows.map((r, i) => r._dimmed ? baseColors[i] + '44' : baseColors[i]);
 
         window[chartRefName] = new Chart(canvas, {
             type: 'bar',
@@ -408,7 +417,9 @@
                 onClick(evt, elements) {
                     if (!elements.length) return;
                     const row = rows[elements[0].index];
-                    if (row?.periodo_label) openDetailListModal(filterVisitasDetalles({ periodLabel: row.periodo_label }), `Compromisos — ${row.periodo_label}`);
+                    if (!row?.periodo_label) return;
+                    if (_chartFilter.type === 'periodo' && _chartFilter.value === row.periodo_label) { clearChartFilter(); return; }
+                    applyChartFilter('periodo', row.periodo_label, `Período: ${row.periodo_label}`);
                 },
                 scales: {
                     y: { beginAtZero: true, grid: { color: GRID_COLOR }, ticks: { color: TICK_COLOR, precision: 0 } },
@@ -464,12 +475,11 @@
                 onClick(evt, elements) {
                     if (!elements.length) return;
                     const states = ['cumplido', 'pendiente', 'vencido'];
-                    const labels = ['Cumplido', 'Pendiente', 'Vencido'];
+                    const stateLabels = ['Cumplido', 'Pendiente', 'Vencido'];
                     const idx = elements[0].index;
-                    openDetailListModal(
-                        filterVisitasDetalles({ estado: states[idx] }),
-                        `Compromisos — ${labels[idx]}`
-                    );
+                    const val = states[idx];
+                    if (_chartFilter.type === 'estado' && _chartFilter.value === val) { clearChartFilter(); return; }
+                    applyChartFilter('estado', val, `Estado: ${stateLabels[idx]}`);
                 },
                 plugins: {
                     legend: { position: 'bottom', labels: { color: TICK_COLOR, usePointStyle: true, boxWidth: 10 } },
@@ -493,18 +503,98 @@
     let _matrixData = [];
 
     function filterVisitasDetalles(filters = {}) {
+        // Build combined filter from explicit filters + active chart filter
+        const cfKey = _chartFilter.type === 'motivo' ? 'motivo' : _chartFilter.type === 'periodo' ? 'periodLabel' : _chartFilter.type;
+        const f = Object.assign({}, _chartFilter.type ? { [cfKey]: _chartFilter.value } : {}, filters);
+        const seen = new Set();
         return _matrixData.filter(detail => {
-            if (filters.cliente && detail.cliente !== filters.cliente) return false;
-            if (filters.motivo && detail.motivo_visita !== filters.motivo) return false;
-            if (filters.estado && detail.estado !== filters.estado) return false;
-            if (filters.periodLabel) {
+            if (f.cliente && detail.cliente !== f.cliente) return false;
+            if (f.motivo && detail.motivo_visita !== f.motivo) return false;
+            if (f.estado && detail.estado !== f.estado) return false;
+            if (f.periodLabel) {
                 const monthKey = (detail.fecha_visita || '').slice(0, 7);
                 const monthLabel = monthKey ? monthLabelFromKey(monthKey).toLowerCase() : '';
-                const target = String(filters.periodLabel).toLowerCase();
+                const target = String(f.periodLabel).toLowerCase();
                 if (target !== monthLabel && target !== monthKey.toLowerCase()) return false;
+            }
+            if (f.soloVisitados) {
+                // Show one record per unique client that has at least one visita
+                if (seen.has(detail.cliente)) return false;
+                seen.add(detail.cliente);
             }
             return true;
         });
+    }
+
+    function applyChartFilter(type, value, label) {
+        _chartFilter = { type, value };
+        const banner = document.getElementById('chartFilterBanner');
+        const lbl = document.getElementById('chartFilterLabel');
+        if (banner) { banner.style.display = 'flex'; lbl.textContent = label; }
+        if (_rawData) renderFromRaw(_rawData, true);
+    }
+
+    function clearChartFilter() {
+        _chartFilter = {};
+        const banner = document.getElementById('chartFilterBanner');
+        if (banner) banner.style.display = 'none';
+        if (_rawData) renderFromRaw(_rawData, false);
+    }
+
+    function renderFromRaw(data, filtered) {
+        // Apply chart filter against the full unfiltered detail list
+        let detalles = _allDetalles;
+        if (filtered && _chartFilter.type) {
+            // Temporarily use _allDetalles as source for filterVisitasDetalles
+            _matrixData = _allDetalles;
+            detalles = filterVisitasDetalles({});
+        }
+        // Re-derive aggregates from filtered detail rows for KPI
+        const clienteSet = new Set(detalles.map(d => d.cliente));
+        const totalVisitas = detalles.length;
+        // Use raw KPI for unfiltered state, derive for filtered
+        if (filtered) {
+            const cumplidos = detalles.filter(d => d.estado === 'cumplido');
+            const diasArr = cumplidos.map(d => {
+                if (!d.fecha_cumplimiento || !d.fecha_visita) return null;
+                const diff = (new Date(d.fecha_cumplimiento) - new Date(d.fecha_visita)) / 86400000;
+                return isNaN(diff) ? null : diff;
+            }).filter(v => v !== null);
+            const avgDias = diasArr.length ? diasArr.reduce((a,b)=>a+b,0)/diasArr.length : null;
+            renderKPI({
+                total_visitas: totalVisitas,
+                clientes_visitados: clienteSet.size,
+                promedio_visitas: clienteSet.size ? (totalVisitas / clienteSet.size) : 0,
+                pct_sin_visita: 0,
+                clientes_sin_visita: 0,
+                avg_dias_resolucion: avgDias,
+                resolucion_muestra: cumplidos.length,
+            });
+        } else {
+            renderKPI(data.kpi || {});
+        }
+
+        // Re-render charts with filter-highlighted bars
+        const frecRows = (data.frecuencia_clientes || []).map(r => {
+            const active = filtered && _chartFilter.type === 'cliente';
+            return { ...r, _dimmed: active && r.cliente !== _chartFilter.value };
+        });
+        const motivoRows = (data.motivos || []).map(r => {
+            const active = filtered && _chartFilter.type === 'motivo';
+            return { ...r, _dimmed: active && r.motivo !== _chartFilter.value };
+        });
+
+        renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', frecRows, 'cliente', 'visitas', 'Visitas', row => {
+            if (_chartFilter.type === 'cliente' && _chartFilter.value === row.cliente) { clearChartFilter(); return; }
+            applyChartFilter('cliente', row.cliente, `Cliente: ${row.cliente}`);
+        });
+        renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', motivoRows, 'motivo', 'visitas', 'Visitas', row => {
+            if (_chartFilter.type === 'motivo' && _chartFilter.value === row.motivo) { clearChartFilter(); return; }
+            applyChartFilter('motivo', row.motivo, `Motivo: ${row.motivo}`);
+        });
+        renderTrendChart(data.tendencia || []);
+        renderEstadoChart(data.estado_compromisos || {});
+        renderMatrix(detalles);
     }
 
     function openDetailListModal(rows, title) {
@@ -617,16 +707,13 @@
                 if (!dataRes.ok) throw new Error(data.error || 'No se pudo cargar el dashboard de visitas');
                 if (!detalleRes.ok) throw new Error(detalles.error || 'No se pudo cargar la matriz de compromisos');
 
-                renderKPI(data.kpi || {});
-                renderHorizontalBars('clienteChart', 'clienteChart', 'clienteEmpty', data.frecuencia_clientes || [], 'cliente', 'visitas', 'Visitas', row => {
-                    openDetailListModal(filterVisitasDetalles({ cliente: row.cliente }), `Compromisos — ${row.cliente}`);
-                });
-                renderHorizontalBars('motivoChart', 'motivoChart', 'motivoEmpty', data.motivos || [], 'motivo', 'visitas', 'Visitas', row => {
-                    openDetailListModal(filterVisitasDetalles({ motivo: row.motivo }), `Compromisos — ${row.motivo}`);
-                });
-                renderTrendChart(data.tendencia || []);
-                renderEstadoChart(data.estado_compromisos || {});
-                renderMatrix(detalles.detalles || []);
+                _rawData = data;
+                _allDetalles = detalles.detalles || [];
+                _chartFilter = {};
+                const banner = document.getElementById('chartFilterBanner');
+                if (banner) banner.style.display = 'none';
+                renderMatrix(_allDetalles);
+                renderFromRaw(data, false);
                 renderAlert(data.vencidos_total || 0);
             } else {
                 const detalleRes = await fetch('/dashboard/api/visitas/detalles' + q);
