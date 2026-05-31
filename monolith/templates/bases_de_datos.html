@@ -607,8 +607,12 @@
                         <th>Guardia</th>
                         <th>Documento</th>
                         <th>Cliente</th>
+                        <th>Serial Radio</th>
+                        <th>Marca Radio</th>
+                        <th>Tipo de Radio</th>
+                        <th>Fecha Último Mtto</th>
+                        <th>Estado</th>
                         <th>Supervisor</th>
-                        <th>Estado Equipamiento (Radio)</th>
                         <th>Fecha</th>
                     </tr></thead><tbody>`;
                 data.rows.forEach(r => {
@@ -617,8 +621,12 @@
                         <td>${r.nombre_guardia}</td>
                         <td>${r.documento_guardia}</td>
                         <td>${r.cliente}</td>
-                        <td>${r.supervisor}</td>
+                        <td>${r.serial_radio}</td>
+                        <td>${r.marca_radio}</td>
+                        <td>${r.tipo_radio}</td>
+                        <td>${r.fecha_ultimo_mantenimiento}</td>
                         <td>${equipBadge(r.equipamiento)}</td>
+                        <td>${r.supervisor}</td>
                         <td>${r.fecha_hora}</td>
                     </tr>`;
                 });
@@ -744,8 +752,8 @@
             rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.serie_arma, r.tipo_arma, r.fecha_vencimiento_matricula, r.fecha_ultimo_mantenimiento, r.cantidad_municion, r.fecha_hora];
         } else if (type === 'radios') {
             sheetName = 'Inventario Radios';
-            headers = ['N° Empleado','Nombre','Documento','Cliente','Supervisor','Estado Equipamiento','Fecha'];
-            rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.equipamiento, r.fecha_hora];
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Serial Radio','Marca Radio','Tipo de Radio','Fecha Último Mtto','Estado','Supervisor','Fecha'];
+            rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.serial_radio, r.marca_radio, r.tipo_radio, r.fecha_ultimo_mantenimiento, r.equipamiento, r.supervisor, r.fecha_hora];
         } else {
             sheetName = 'Inventario Personal';
             headers = ['N° Empleado','Nombre','Documento','Cliente','Última Supervisión','Nivel de Desempeño','Novedades Disciplina','Total Capacitaciones','Capacitaciones (nombres)'];

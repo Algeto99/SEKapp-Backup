@@ -6735,13 +6735,20 @@ def api_bases_de_datos_radios():
         if cliente:
             conds.append("cliente = %s")
             params.append(cliente)
-        if year and month:
-            conds.append("fecha_hora::TEXT LIKE %s")
-            params.append(f"{year}-{month:02d}%")
-        elif year:
-            conds.append("fecha_hora::TEXT LIKE %s")
-            params.append(f"{year}%")
+        _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, None)
         where = "WHERE " + " AND ".join(conds)
+
+        # Check which optional columns exist
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'supervision_puesto'
+        """)
+        existing_cols = {row['column_name'] for row in cur.fetchall()}
+
+        serial_sel   = "radio_asignado_serial"    if 'radio_asignado_serial'    in existing_cols else "NULL::TEXT AS radio_asignado_serial"
+        marca_sel    = "marca_radio"               if 'marca_radio'               in existing_cols else "NULL::TEXT AS marca_radio"
+        tipo_sel     = "tipo_radio"                if 'tipo_radio'                in existing_cols else "NULL::TEXT AS tipo_radio"
+        fumtto_sel   = "fecha_ultimo_mtto_radio"   if 'fecha_ultimo_mtto_radio'   in existing_cols else "NULL::DATE AS fecha_ultimo_mtto_radio"
 
         cur.execute(f"""
             SELECT
@@ -6749,8 +6756,12 @@ def api_bases_de_datos_radios():
                 nombre_guardia,
                 documento_guardia,
                 cliente,
-                supervisor,
+                {serial_sel},
+                {marca_sel},
+                {tipo_sel},
+                {fumtto_sel},
                 equipamiento_completo,
+                supervisor,
                 fecha_hora
             FROM supervision_puesto
             {where}
@@ -6759,15 +6770,26 @@ def api_bases_de_datos_radios():
         """, params)
         rows = []
         for r in cur.fetchall():
-            val = str(r['equipamiento_completo']).strip() if r['equipamiento_completo'] is not None else '—'
+            def _fmt_date(val):
+                if val is None:
+                    return '—'
+                if hasattr(val, 'strftime'):
+                    return val.strftime('%d/%m/%Y')
+                return str(val)[:10] if val else '—'
+
+            estado = str(r['equipamiento_completo']).strip() if r['equipamiento_completo'] is not None else '—'
             rows.append({
-                'numero_empleado':   r['numero_empleado']  or '—',
-                'nombre_guardia':    r['nombre_guardia']    or '—',
-                'documento_guardia': r['documento_guardia'] or '—',
-                'cliente':           r['cliente']           or '—',
-                'supervisor':        r['supervisor']        or '—',
-                'equipamiento':      val,
-                'fecha_hora':        r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+                'numero_empleado':        r['numero_empleado']  or '—',
+                'nombre_guardia':         r['nombre_guardia']    or '—',
+                'documento_guardia':      r['documento_guardia'] or '—',
+                'cliente':                r['cliente']           or '—',
+                'serial_radio':           r['radio_asignado_serial'] or '—',
+                'marca_radio':            r['marca_radio']       or '—',
+                'tipo_radio':             r['tipo_radio']        or '—',
+                'fecha_ultimo_mantenimiento': _fmt_date(r['fecha_ultimo_mtto_radio']),
+                'equipamiento':           estado,
+                'supervisor':             r['supervisor']        or '—',
+                'fecha_hora':             r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
             })
         return jsonify({'rows': rows, 'total': len(rows)})
     except Exception as e:
