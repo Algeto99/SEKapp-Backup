@@ -6656,6 +6656,17 @@ def api_bases_de_datos_armas():
             params.append(f"{year}%")
         where = "WHERE " + " AND ".join(conds)
 
+        # Check which optional columns exist to avoid errors on older DB schemas
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'supervision_puesto'
+        """)
+        existing_cols = {row['column_name'] for row in cur.fetchall()}
+
+        tipo_arma_sel    = "tipo_arma" if 'tipo_arma' in existing_cols else "NULL::TEXT AS tipo_arma"
+        fvp_sel          = "fecha_vencimiento_permiso_porte" if 'fecha_vencimiento_permiso_porte' in existing_cols else "NULL::DATE AS fecha_vencimiento_permiso_porte"
+        fumtto_sel       = "fecha_ultimo_mtto_arma" if 'fecha_ultimo_mtto_arma' in existing_cols else "NULL::DATE AS fecha_ultimo_mtto_arma"
+
         cur.execute(f"""
             SELECT
                 numero_empleado,
@@ -6664,6 +6675,9 @@ def api_bases_de_datos_armas():
                 cliente,
                 supervisor,
                 COALESCE(NULLIF(TRIM(serie_arma), ''), '—') AS serie_arma,
+                {tipo_arma_sel},
+                {fvp_sel},
+                {fumtto_sel},
                 cantidad_municion,
                 fecha_hora
             FROM supervision_puesto
@@ -6673,15 +6687,25 @@ def api_bases_de_datos_armas():
         """, params)
         rows = []
         for r in cur.fetchall():
+            def _fmt_date(val):
+                if val is None:
+                    return '—'
+                if hasattr(val, 'strftime'):
+                    return val.strftime('%d/%m/%Y')
+                return str(val)[:10] if val else '—'
+
             rows.append({
-                'numero_empleado':   r['numero_empleado']  or '—',
-                'nombre_guardia':    r['nombre_guardia']    or '—',
-                'documento_guardia': r['documento_guardia'] or '—',
-                'cliente':           r['cliente']           or '—',
-                'supervisor':        r['supervisor']        or '—',
-                'serie_arma':        r['serie_arma'],
-                'cantidad_municion': str(r['cantidad_municion']) if r['cantidad_municion'] is not None else '—',
-                'fecha_hora':        r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+                'numero_empleado':               r['numero_empleado']  or '—',
+                'nombre_guardia':                r['nombre_guardia']    or '—',
+                'documento_guardia':             r['documento_guardia'] or '—',
+                'cliente':                       r['cliente']           or '—',
+                'supervisor':                    r['supervisor']        or '—',
+                'serie_arma':                    r['serie_arma'],
+                'tipo_arma':                     r['tipo_arma']         or '—',
+                'fecha_vencimiento_matricula':   _fmt_date(r['fecha_vencimiento_permiso_porte']),
+                'fecha_ultimo_mantenimiento':    _fmt_date(r['fecha_ultimo_mtto_arma']),
+                'cantidad_municion':             str(r['cantidad_municion']) if r['cantidad_municion'] is not None else '—',
+                'fecha_hora':                    r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
             })
         return jsonify({'rows': rows, 'total': len(rows)})
     except Exception as e:

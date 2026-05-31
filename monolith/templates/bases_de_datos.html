@@ -550,6 +550,9 @@
                         <th>Cliente</th>
                         <th>Supervisor</th>
                         <th>Serie Arma</th>
+                        <th>Tipo</th>
+                        <th>Fecha Venc. Matrícula</th>
+                        <th>Fecha Último Mtto</th>
                         <th>Munición</th>
                         <th>Fecha</th>
                     </tr></thead><tbody>`;
@@ -561,6 +564,9 @@
                         <td>${r.cliente}</td>
                         <td>${r.supervisor}</td>
                         <td><strong>${r.serie_arma}</strong></td>
+                        <td>${r.tipo_arma}</td>
+                        <td>${r.fecha_vencimiento_matricula}</td>
+                        <td>${r.fecha_ultimo_mantenimiento}</td>
                         <td>${r.cantidad_municion}</td>
                         <td>${r.fecha_hora}</td>
                     </tr>`;
@@ -734,8 +740,8 @@
         let headers, rowMapper, sheetName;
         if (type === 'armas') {
             sheetName = 'Inventario Armas';
-            headers = ['N° Empleado','Nombre','Documento','Cliente','Supervisor','Serie Arma','Munición','Fecha'];
-            rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.serie_arma, r.cantidad_municion, r.fecha_hora];
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Supervisor','Serie Arma','Tipo','Fecha Venc. Matrícula','Fecha Último Mtto','Munición','Fecha'];
+            rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.supervisor, r.serie_arma, r.tipo_arma, r.fecha_vencimiento_matricula, r.fecha_ultimo_mantenimiento, r.cantidad_municion, r.fecha_hora];
         } else if (type === 'radios') {
             sheetName = 'Inventario Radios';
             headers = ['N° Empleado','Nombre','Documento','Cliente','Supervisor','Estado Equipamiento','Fecha'];
