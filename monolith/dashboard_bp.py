@@ -5947,7 +5947,6 @@ def api_equipos_data():
                 ROUND(SUM({_EQ_FUNC_SQL})::numeric
                     / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
             {lateral}
-              AND NULLIF(TRIM(elem->>'tipo'), '') IS NOT NULL
             GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
             HAVING SUM({_EQ_TOTAL_SQL}) > 0
             ORDER BY pct ASC NULLS LAST
@@ -6050,7 +6049,6 @@ def api_equipos_detalles():
                 ROUND(SUM({_EQ_FUNC_SQL})::numeric
                     / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
             {lateral}
-              AND NULLIF(TRIM(elem->>'tipo'), '') IS NOT NULL
             GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
             HAVING SUM({_EQ_TOTAL_SQL}) > 0
             ORDER BY pct ASC NULLS LAST

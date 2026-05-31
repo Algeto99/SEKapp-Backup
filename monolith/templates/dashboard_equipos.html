@@ -48,6 +48,8 @@
         .alert-warn-title { font-weight:700; color:var(--amber-text); margin-bottom:.25rem; }
         /* Cards */
         .card { background:#374151; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1.5rem; }
+        .clickable-card { cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; }
+        .clickable-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.3); border-color:#60a5fa; }
         .card-title { font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:.875rem; }
         .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1rem; }
         .kpi-value { font-family:'Merriweather',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:.35rem; }
@@ -162,7 +164,7 @@
         <!-- KPI grid -->
         <div class="kpi-grid">
             <!-- Main KPI: confiabilidad general -->
-            <div class="card">
+            <div class="card clickable-card" onclick="openRecordsModal(allRecordRows, 'Confiabilidad General — Todos los registros')" title="Ver todos los registros">
                 <div class="card-title">Confiabilidad General</div>
                 <div class="kpi-value" id="kpiPct" style="color:#94a3b8;">—</div>
                 <div class="kpi-label">del total de equipos monitoreados</div>
@@ -171,17 +173,17 @@
                     <div class="progress-bar-fill" id="kpiProgressBar" style="width:0%; background:#94a3b8;"></div>
                 </div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openRecordsModal(allRecordRows, 'Total Inspecciones — Todos los registros')" title="Ver todos los registros">
                 <div class="card-title">Total Inspecciones</div>
                 <div class="kpi-value" id="kpiRegistros" style="color:#94a3b8;">—</div>
                 <div class="kpi-label">Registros en el período</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openRecordsModal(allRecordRows, 'Equipos Monitoreados — Todos los registros')" title="Ver todos los registros">
                 <div class="card-title">Equipos Monitoreados</div>
                 <div class="kpi-value" id="kpiTotal" style="color:#94a3b8;">—</div>
                 <div class="kpi-label">Unidades totales registradas</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openRecordsModal(allRecordRows.filter(r => r.pct_general !== null && r.pct_general < 70), 'Tipos No Confiables — Registros con confiabilidad &lt; 70%')" title="Ver registros con confiabilidad menor al 70%">
                 <div class="card-title">Tipos No Confiables</div>
                 <div class="kpi-value" id="kpiNoConf" style="color:#ef4444;">—</div>
                 <div class="kpi-label">Tipos de equipo con &lt; 70%</div>
