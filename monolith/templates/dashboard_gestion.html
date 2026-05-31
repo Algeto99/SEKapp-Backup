@@ -528,6 +528,12 @@
                     <select id="filterResponsable" class="filter-select"></select>
                 </div>
                 <div>
+                    <label class="filter-label" for="filterNombre">Nombre del Responsable</label>
+                    <select id="filterNombre" class="filter-select">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div>
                     <label class="filter-label" for="filterProyecto">Proyecto</label>
                     <select id="filterProyecto" class="filter-select" disabled>
                         <option>Próximamente</option>
@@ -768,6 +774,7 @@
         const filterMonth = document.getElementById('filterMonth');
         const filterDay = document.getElementById('filterDay');
         const filterResponsable = document.getElementById('filterResponsable');
+        const filterNombre = document.getElementById('filterNombre');
         const resetFilters = document.getElementById('resetFilters');
         const gestionDetailModal = document.getElementById('gestionDetailModal');
         const gestionDetailTitle = document.getElementById('gestionDetailTitle');
@@ -861,6 +868,7 @@
             filterMonth.value = params.get('month') || '';
             filterDay.value = params.get('day') || '';
             filterResponsable.value = params.get('responsable') || '';
+            filterNombre.value = params.get('nombre_usuario') || '';
         }
 
         function updateUrl() {
@@ -870,6 +878,7 @@
             if (filterMonth.value) params.set('month', filterMonth.value);
             if (filterDay.value) params.set('day', filterDay.value);
             if (filterResponsable.value) params.set('responsable', filterResponsable.value);
+            if (filterNombre.value) params.set('nombre_usuario', filterNombre.value);
             const query = params.toString();
             window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
         }
@@ -881,6 +890,7 @@
             if (filterMonth.value) params.set('month', filterMonth.value);
             if (filterDay.value) params.set('day', filterDay.value);
             if (filterResponsable.value) params.set('responsable', filterResponsable.value);
+            if (filterNombre.value) params.set('nombre_usuario', filterNombre.value);
             return params.toString();
         }
 
@@ -1648,9 +1658,31 @@
             ['trendLoading', 'rankingLoading', 'distributionLoading'].forEach(id => setLoading(id, false));
         }
 
+        async function loadNombresPorRol(rol) {
+            filterNombre.innerHTML = '<option value="">Todos</option>';
+            try {
+                const qs = rol ? `?rol=${encodeURIComponent(rol)}` : '';
+                const res = await fetch(`/dashboard/api/gestion/nombres-por-rol${qs}`);
+                const data = await res.json();
+                (data.nombres || []).forEach(nombre => {
+                    const opt = document.createElement('option');
+                    opt.value = nombre;
+                    opt.textContent = nombre;
+                    filterNombre.appendChild(opt);
+                });
+            } catch (e) {
+                // keep empty options on error
+            }
+        }
+
         function bindEvents() {
-            [filterCliente, filterYear, filterMonth, filterDay, filterResponsable].forEach(el => {
+            [filterCliente, filterYear, filterMonth, filterDay, filterNombre].forEach(el => {
                 el.addEventListener('change', () => loadDashboard());
+            });
+            filterResponsable.addEventListener('change', async () => {
+                filterNombre.value = '';
+                await loadNombresPorRol(filterResponsable.value);
+                loadDashboard();
             });
             resetFilters.addEventListener('click', () => {
                 filterCliente.value = '';
@@ -1658,6 +1690,8 @@
                 filterMonth.value = '';
                 filterDay.value = '';
                 filterResponsable.value = '';
+                filterNombre.innerHTML = '<option value="">Todos</option>';
+                filterNombre.value = '';
                 loadDashboard();
             });
             gestionDetailClose.addEventListener('click', closeGestionDetailModal);
@@ -1675,6 +1709,11 @@
             buildDateFilters();
             await loadClientes();
             readFromUrl();
+            if (filterResponsable.value) {
+                await loadNombresPorRol(filterResponsable.value);
+                const urlNombre = new URLSearchParams(window.location.search).get('nombre_usuario') || '';
+                filterNombre.value = urlNombre;
+            }
             bindEvents();
             await loadDashboard();
         });

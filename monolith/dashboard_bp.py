@@ -1848,6 +1848,47 @@ def api_gestion_filtros():
         if conn: conn.close()
 
 
+@dashboard_bp.route('/api/gestion/nombres-por-rol')
+@jwt_required()
+@admin_required
+def api_gestion_nombres_por_rol():
+    """Returns distinct person names for a given rol_aplicador across all relevant tables."""
+    rol = request.args.get('rol') or None
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'nombres': []})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        rol_cond = "AND TRIM(rol_aplicador) = %s" if rol else ""
+        rol_params = [rol] if rol else []
+
+        cur.execute(f"""
+            SELECT DISTINCT nombre FROM (
+                SELECT TRIM(nombre_responsable) AS nombre
+                FROM medicion_experiencia_cliente
+                WHERE nombre_responsable IS NOT NULL AND TRIM(nombre_responsable) <> ''
+                {rol_cond}
+                UNION
+                SELECT TRIM(supervisor) AS nombre
+                FROM supervision_puesto
+                WHERE supervisor IS NOT NULL AND TRIM(supervisor) <> ''
+                {rol_cond}
+            ) q
+            WHERE nombre IS NOT NULL AND nombre <> ''
+            ORDER BY nombre
+        """, rol_params + rol_params)
+        nombres = [r['nombre'] for r in cur.fetchall()]
+        return jsonify({'nombres': nombres})
+    except Exception as e:
+        app_logger.error(f"api_gestion_nombres_por_rol error: {e}", exc_info=True)
+        return jsonify({'nombres': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 @dashboard_bp.route('/api/gestion/data')
 @jwt_required()
 @admin_required
@@ -2482,7 +2523,7 @@ def _sat_date_prefix(year, month, day):
     return prefix
 
 
-def _sat_where(cliente, year, month, day, responsable=None):
+def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2494,6 +2535,9 @@ def _sat_where(cliente, year, month, day, responsable=None):
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
+    if nombre_usuario:
+        conds.append("TRIM(nombre_responsable) = %s")
+        params.append(nombre_usuario)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -2648,7 +2692,8 @@ def api_satisfaccion_data():
     year        = int(request.args.get('year'))   if request.args.get('year')  else None
     month       = int(request.args.get('month'))  if request.args.get('month') else None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
-    responsable = request.args.get('responsable') or None
+    responsable    = request.args.get('responsable')    or None
+    nombre_usuario = request.args.get('nombre_usuario') or None
 
     conn = cur = None
     try:
@@ -2657,7 +2702,7 @@ def api_satisfaccion_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable)
+        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario)
         where_prev, params_prev = _sat_prev_where(cliente, year, month, day)
 
         # ── Main summary ─────────────────────────────────────────────────
@@ -2818,10 +2863,12 @@ def api_satisfaccion_data():
 @dashboard_bp.route('/api/satisfaccion/detalles')
 @jwt_required()
 def api_satisfaccion_detalles():
-    cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    cliente        = request.args.get('cliente')        or None
+    year           = int(request.args.get('year'))   if request.args.get('year')  else None
+    month          = int(request.args.get('month'))  if request.args.get('month') else None
+    day            = int(request.args.get('day'))    if request.args.get('day')   else None
+    responsable    = request.args.get('responsable')    or None
+    nombre_usuario = request.args.get('nombre_usuario') or None
 
     conn = cur = None
     try:
@@ -2830,7 +2877,7 @@ def api_satisfaccion_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params = _sat_where(cliente, year, month, day)
+        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario)
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
@@ -3659,7 +3706,7 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day, responsable=None):
+def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente = %s")
@@ -3667,6 +3714,9 @@ def _sup_where(cliente, year, month, day, responsable=None):
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
+    if nombre_usuario:
+        conds.append("TRIM(supervisor) = %s")
+        params.append(nombre_usuario)
     prefix = _sat_date_prefix(year, month, day)
     if prefix:
         conds.append("fecha_hora::TEXT LIKE %s")
@@ -3755,8 +3805,9 @@ def api_supervision_data():
     year        = int(request.args.get('year'))  if request.args.get('year')  else None
     month       = int(request.args.get('month')) if request.args.get('month') else None
     day         = int(request.args.get('day'))   if request.args.get('day')   else None
-    nivel       = request.args.get('nivel') or None  # 'excelente' | 'seguimiento' | 'critico'
-    responsable = request.args.get('responsable') or None
+    nivel          = request.args.get('nivel') or None  # 'excelente' | 'seguimiento' | 'critico'
+    responsable    = request.args.get('responsable')    or None
+    nombre_usuario = request.args.get('nombre_usuario') or None
 
     conn = cur = None
     try:
@@ -3765,7 +3816,7 @@ def api_supervision_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params           = _sup_where(cliente, year, month, day, responsable)
+        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario)
         where_prev, params_prev = _sup_prev_where(cliente, year, month, day)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
@@ -3977,13 +4028,15 @@ def api_supervision_data():
 @dashboard_bp.route('/api/supervision/detalles')
 @jwt_required()
 def api_supervision_detalles():
-    cliente      = request.args.get('cliente') or None
-    year         = int(request.args.get('year'))  if request.args.get('year')  else None
-    month        = int(request.args.get('month')) if request.args.get('month') else None
-    day          = int(request.args.get('day'))   if request.args.get('day')   else None
-    nivel        = request.args.get('nivel')         or None
-    empleado_num = request.args.get('empleado_num') or None
-    turno_filter = request.args.get('turno')         or None
+    cliente        = request.args.get('cliente')        or None
+    year           = int(request.args.get('year'))   if request.args.get('year')  else None
+    month          = int(request.args.get('month'))  if request.args.get('month') else None
+    day            = int(request.args.get('day'))    if request.args.get('day')   else None
+    nivel          = request.args.get('nivel')          or None
+    empleado_num   = request.args.get('empleado_num')   or None
+    turno_filter   = request.args.get('turno')          or None
+    responsable    = request.args.get('responsable')    or None
+    nombre_usuario = request.args.get('nombre_usuario') or None
 
     conn = cur = None
     try:
@@ -3992,7 +4045,7 @@ def api_supervision_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        where, params = _sup_where(cliente, year, month, day)
+        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]
