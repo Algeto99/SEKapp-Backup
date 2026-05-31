@@ -667,6 +667,7 @@
                         <th>Documento</th>
                         <th>Cliente</th>
                         <th>Última Supervisión</th>
+                        <th>Tiempo en el Puesto</th>
                         <th>Nivel de Desempeño</th>
                         <th>Novedades Disciplina</th>
                         <th>Capacitaciones</th>
@@ -689,6 +690,7 @@
                         <td>${r.documento_guardia}</td>
                         <td>${r.cliente}</td>
                         <td>${r.ultima_supervision}</td>
+                        <td>${r.tiempo_en_puesto || '—'}</td>
                         <td><span class="badge ${nivelCls}">${nivel}</span></td>
                         <td><span class="badge ${novCls}">${r.novedades_disciplina ?? 0}</span></td>
                         <td>${capBadge}</td>
@@ -696,7 +698,7 @@
                     </tr>`;
                     if (hasCap) {
                         html += `<tr class="training-detail" id="training-detail-${idx}">
-                            <td colspan="8">
+                            <td colspan="9">
                                 <table class="training-inner-table">
                                     <thead><tr>
                                         <th>Capacitación</th>
@@ -756,10 +758,11 @@
             rowMapper = r => [r.numero_empleado, r.nombre_guardia, r.documento_guardia, r.cliente, r.serial_radio, r.marca_radio, r.tipo_radio, r.fecha_ultimo_mantenimiento, r.equipamiento, r.supervisor, r.fecha_hora];
         } else {
             sheetName = 'Inventario Personal';
-            headers = ['N° Empleado','Nombre','Documento','Cliente','Última Supervisión','Nivel de Desempeño','Novedades Disciplina','Total Capacitaciones','Capacitaciones (nombres)'];
+            headers = ['N° Empleado','Nombre','Documento','Cliente','Última Supervisión','Tiempo en el Puesto','Nivel de Desempeño','Novedades Disciplina','Total Capacitaciones','Capacitaciones (nombres)'];
             rowMapper = r => [
                 r.numero_empleado, r.nombre_guardia, r.documento_guardia,
                 r.cliente, r.ultima_supervision,
+                r.tiempo_en_puesto || '—',
                 r.nivel_desempeno || '—',
                 r.novedades_disciplina ?? 0,
                 r.total_capacitaciones,

@@ -6841,38 +6841,57 @@ def api_bases_de_datos_personal():
 
         score_sql = _bd_score_expr()
 
-        # One row per distinct employee, most recent supervision, with avg score
+        # Check if tiempo_en_puesto column exists
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'supervision_puesto' AND column_name = 'tiempo_en_puesto'
+        """)
+        has_tiempo = cur.fetchone() is not None
+        tiempo_col = "tiempo_en_puesto" if has_tiempo else "NULL::TEXT AS tiempo_en_puesto"
+
+        # One row per distinct employee: avg score across all supervisions,
+        # tiempo_en_puesto from the most recent record.
         cur.execute(f"""
-            SELECT
-                emp_key,
-                nombre_guardia,
-                documento_guardia,
-                numero_empleado,
-                cliente,
-                ultima_supervision,
-                ROUND(avg_score::NUMERIC, 1) AS avg_score
-            FROM (
+            WITH agg AS (
                 SELECT
                     COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id') AS emp_key,
                     nombre_guardia,
                     COALESCE(NULLIF(TRIM(documento_guardia),''), '—') AS documento_guardia,
                     COALESCE(NULLIF(TRIM(numero_empleado),''),  '—') AS numero_empleado,
                     cliente,
-                    MAX(creado_en) AS ultima_supervision,
-                    AVG({score_sql})                                  AS avg_score,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id')
-                        ORDER BY MAX(creado_en) DESC
-                    ) AS rn
+                    MAX(creado_en)   AS ultima_supervision,
+                    AVG({score_sql}) AS avg_score
                 FROM supervision_puesto
                 {base_where}
                 GROUP BY
                     COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id'),
                     nombre_guardia, documento_guardia, numero_empleado, cliente
-            ) sub
-            WHERE rn = 1
-            ORDER BY nombre_guardia
-        """, params)
+            ),
+            latest AS (
+                SELECT DISTINCT ON (
+                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id')
+                )
+                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id') AS emp_key,
+                    {tiempo_col}
+                FROM supervision_puesto
+                {base_where}
+                ORDER BY
+                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id'),
+                    creado_en DESC
+            )
+            SELECT
+                a.emp_key,
+                a.nombre_guardia,
+                a.documento_guardia,
+                a.numero_empleado,
+                a.cliente,
+                a.ultima_supervision,
+                ROUND(a.avg_score::NUMERIC, 1) AS avg_score,
+                l.tiempo_en_puesto
+            FROM agg a
+            LEFT JOIN latest l ON l.emp_key = a.emp_key
+            ORDER BY a.nombre_guardia
+        """, params + params)
         employees = cur.fetchall()
 
         rows = []
@@ -6939,6 +6958,7 @@ def api_bases_de_datos_personal():
                 'documento_guardia':    emp['documento_guardia'],
                 'cliente':              emp['cliente']             or '—',
                 'ultima_supervision':   emp['ultima_supervision'].strftime('%Y-%m-%d') if emp['ultima_supervision'] else '—',
+                'tiempo_en_puesto':     emp['tiempo_en_puesto']   or '—',
                 'avg_score':            avg_score,
                 'nivel_desempeno':      _sup_score_label(avg_score),
                 'novedades_disciplina': novedades_count,
