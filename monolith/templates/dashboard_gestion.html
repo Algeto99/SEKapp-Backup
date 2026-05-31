@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="{{ url_for('static', filename='js/multi-select.js') }}"></script>
     <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -512,12 +513,12 @@
                     <select id="filterCliente" class="filter-select"></select>
                 </div>
                 <div>
-                    <label class="filter-label" for="filterYear">Año</label>
-                    <select id="filterYear" class="filter-select"></select>
+                    <label class="filter-label">Año</label>
+                    <div id="filterYear-wrap" style="min-width:110px;"></div>
                 </div>
                 <div>
-                    <label class="filter-label" for="filterMonth">Mes</label>
-                    <select id="filterMonth" class="filter-select"></select>
+                    <label class="filter-label">Mes</label>
+                    <div id="filterMonth-wrap" style="min-width:120px;"></div>
                 </div>
                 <div>
                     <label class="filter-label" for="filterDay">Día</label>
@@ -770,8 +771,8 @@
         const modulesGrid = document.getElementById('modulesGrid');
 
         const filterCliente = document.getElementById('filterCliente');
-        const filterYear = document.getElementById('filterYear');
-        const filterMonth = document.getElementById('filterMonth');
+        let filterYearMS   = null;  // MultiSelect instance (set in buildDateFilters)
+        let filterMonthMS  = null;  // MultiSelect instance (set in buildDateFilters)
         const filterDay = document.getElementById('filterDay');
         const filterResponsable = document.getElementById('filterResponsable');
         const filterNombre = document.getElementById('filterNombre');
@@ -852,20 +853,51 @@
             });
         }
 
+        const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
         function buildDateFilters() {
             const currentYear = new Date().getFullYear();
-            const years = [];
-            for (let y = currentYear; y >= 2022; y--) years.push(String(y));
-            fillSelect(filterYear, years, 'Todos');
-            fillSelect(filterMonth, Array.from({ length: 12 }, (_, i) => String(i + 1)), 'Todos');
+            const yearOptions = [];
+            for (let y = currentYear; y >= 2022; y--) {
+                yearOptions.push({ value: String(y), label: String(y) });
+            }
+            const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+                value: String(i + 1),
+                label: MONTH_SHORT[i],
+                shortLabel: MONTH_SHORT[i],
+            }));
+
+            filterYearMS = new MultiSelect({
+                anchor: document.getElementById('filterYear-wrap'),
+                options: yearOptions,
+                placeholder: 'Todos',
+                onChange: () => {
+                    // When year changes, month/day selection becomes stale but we keep it
+                    loadDashboard();
+                },
+            });
+
+            filterMonthMS = new MultiSelect({
+                anchor: document.getElementById('filterMonth-wrap'),
+                options: monthOptions,
+                placeholder: 'Todos',
+                onChange: () => loadDashboard(),
+            });
+
             fillSelect(filterDay, Array.from({ length: 31 }, (_, i) => String(i + 1)), 'Todos');
         }
 
         function readFromUrl() {
             const params = new URLSearchParams(window.location.search);
             filterCliente.value = params.get('cliente') || '';
-            filterYear.value = params.get('year') || '';
-            filterMonth.value = params.get('month') || '';
+            if (params.get('year') && filterYearMS) {
+                const vals = params.get('year').split(',').map(v => v.trim()).filter(Boolean);
+                filterYearMS.setValues(vals);
+            }
+            if (params.get('month') && filterMonthMS) {
+                const vals = params.get('month').split(',').map(v => v.trim()).filter(Boolean);
+                filterMonthMS.setValues(vals);
+            }
             filterDay.value = params.get('day') || '';
             filterResponsable.value = params.get('responsable') || '';
             filterNombre.value = params.get('nombre_usuario') || '';
@@ -874,8 +906,10 @@
         function updateUrl() {
             const params = new URLSearchParams();
             if (filterCliente.value) params.set('cliente', filterCliente.value);
-            if (filterYear.value) params.set('year', filterYear.value);
-            if (filterMonth.value) params.set('month', filterMonth.value);
+            const yVals = filterYearMS ? filterYearMS.getValues() : [];
+            const mVals = filterMonthMS ? filterMonthMS.getValues() : [];
+            if (yVals.length) params.set('year', yVals.join(','));
+            if (mVals.length) params.set('month', mVals.join(','));
             if (filterDay.value) params.set('day', filterDay.value);
             if (filterResponsable.value) params.set('responsable', filterResponsable.value);
             if (filterNombre.value) params.set('nombre_usuario', filterNombre.value);
@@ -886,8 +920,10 @@
         function queryString() {
             const params = new URLSearchParams();
             if (filterCliente.value) params.set('cliente', filterCliente.value);
-            if (filterYear.value) params.set('year', filterYear.value);
-            if (filterMonth.value) params.set('month', filterMonth.value);
+            const yVals = filterYearMS ? filterYearMS.getValues() : [];
+            const mVals = filterMonthMS ? filterMonthMS.getValues() : [];
+            if (yVals.length) params.set('year', yVals.join(','));
+            if (mVals.length) params.set('month', mVals.join(','));
             if (filterDay.value) params.set('day', filterDay.value);
             if (filterResponsable.value) params.set('responsable', filterResponsable.value);
             if (filterNombre.value) params.set('nombre_usuario', filterNombre.value);
@@ -932,8 +968,10 @@
         }
 
         function parseTrendFilters(label) {
-            const year = filterYear.value;
-            const month = filterMonth.value;
+            const yVals = filterYearMS ? filterYearMS.getValues() : [];
+            const mVals = filterMonthMS ? filterMonthMS.getValues() : [];
+            const year  = yVals.length === 1 ? yVals[0] : '';
+            const month = mVals.length === 1 ? mVals[0] : '';
             const clean = String(label || '').trim();
             if (year && month && /^\d{1,2}$/.test(clean)) {
                 return { year, month, day: String(Number(clean)) };
@@ -1676,7 +1714,7 @@
         }
 
         function bindEvents() {
-            [filterCliente, filterYear, filterMonth, filterDay, filterNombre].forEach(el => {
+            [filterCliente, filterDay, filterNombre].forEach(el => {
                 el.addEventListener('change', () => loadDashboard());
             });
             filterResponsable.addEventListener('change', async () => {
@@ -1686,8 +1724,8 @@
             });
             resetFilters.addEventListener('click', () => {
                 filterCliente.value = '';
-                filterYear.value = '';
-                filterMonth.value = '';
+                if (filterYearMS) filterYearMS.reset();
+                if (filterMonthMS) filterMonthMS.reset();
                 filterDay.value = '';
                 filterResponsable.value = '';
                 filterNombre.innerHTML = '<option value="">Todos</option>';

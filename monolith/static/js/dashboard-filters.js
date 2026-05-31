@@ -8,30 +8,34 @@
  *   filters.init();
  *
  *   document.addEventListener('filtersChanged', (e) => {
- *     const { propertyId, year, month, day } = e.detail;
+ *     const { propertyId, years, months, day } = e.detail;
  *     // re-fetch your dashboard data here
  *   });
  *
  * Filter state shape:
  *   propertyId  : string | null   — null = all properties
- *   year        : number | null   — null = all years
- *   month       : number | null   — 1-12, null = all months
+ *   years       : number[]        — empty = all years  (multi-select)
+ *   months      : number[]        — 1-12, empty = all months (multi-select)
  *   day         : number | null   — 1-31, null = all days
  *   responsable : string | null   — null = all; activated via activateResponsable()
+ *
+ * Backwards-compat aliases exposed on getState():
+ *   year  = years[0] || null
+ *   month = months[0] || null
  */
 class DashboardFilters {
     constructor() {
         this.state = {
-            propertyId: null,
-            year: null,
-            month: null,
-            day: null,
+            propertyId:  null,
+            years:       [],   // multi-select
+            months:      [],   // multi-select
+            day:         null,
             responsable: null,
         };
 
         // DOM refs — populated in init()
         this._propertySelect    = null;
-        this._yearSelect        = null;
+        this._yearMS            = null;   // MultiSelect instance
         this._monthBtns         = null;
         this._dayRow            = null;
         this._daySelect         = null;
@@ -39,21 +43,22 @@ class DashboardFilters {
         this._chipsRow          = null;
         this._responsableSelect = null;
 
-        this._MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-                             'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        this._MONTH_NAMES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                              'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        this._MONTH_SHORT  = ['Ene','Feb','Mar','Abr','May','Jun',
+                              'Jul','Ago','Sep','Oct','Nov','Dic'];
     }
 
     /** Call once after the DOM is ready. */
     init() {
         this._propertySelect = document.getElementById('df-property');
-        this._yearSelect     = document.getElementById('df-year');
         this._monthBtns      = document.querySelectorAll('.df-month-btn');
         this._dayRow         = document.getElementById('df-day-row');
         this._daySelect      = document.getElementById('df-day');
         this._resetBtn       = document.getElementById('df-reset');
         this._chipsRow       = document.getElementById('df-chips');
 
-        if (!this._propertySelect || !this._yearSelect) {
+        if (!this._propertySelect) {
             console.warn('DashboardFilters: required elements not found.');
             return;
         }
@@ -70,20 +75,26 @@ class DashboardFilters {
 
     /** Returns a copy of the current filter state. */
     getState() {
-        return { ...this.state };
+        const { years, months } = this.state;
+        return {
+            ...this.state,
+            // Backwards-compat single-value aliases
+            year:  years.length  ? years[0]  : null,
+            month: months.length ? months[0] : null,
+        };
     }
 
     /**
      * Returns query-string params suitable for appending to a fetch URL.
-     * Only includes non-null values.
+     * Only includes non-empty values.
      */
     toQueryString() {
         const params = new URLSearchParams();
-        if (this.state.propertyId)  params.set('property_id',  this.state.propertyId);
-        if (this.state.year)        params.set('year',          this.state.year);
-        if (this.state.month)       params.set('month',         this.state.month);
-        if (this.state.day)         params.set('day',           this.state.day);
-        if (this.state.responsable) params.set('responsable',   this.state.responsable);
+        if (this.state.propertyId)        params.set('property_id',  this.state.propertyId);
+        if (this.state.years.length)      params.set('year',          this.state.years.join(','));
+        if (this.state.months.length)     params.set('month',         this.state.months.join(','));
+        if (this.state.day)               params.set('day',           this.state.day);
+        if (this.state.responsable)       params.set('responsable',   this.state.responsable);
         return params.toString();
     }
 
@@ -126,15 +137,27 @@ class DashboardFilters {
     _populateYears() {
         const currentYear = new Date().getFullYear();
         const startYear   = 2022;
-        const frag        = document.createDocumentFragment();
-
+        const options     = [];
         for (let y = currentYear; y >= startYear; y--) {
-            const opt = document.createElement('option');
-            opt.value       = y;
-            opt.textContent = y;
-            frag.appendChild(opt);
+            options.push({ value: String(y), label: String(y) });
         }
-        this._yearSelect.appendChild(frag);
+
+        const wrap = document.getElementById('df-year-wrap');
+        if (!wrap) return;
+
+        this._yearMS = new MultiSelect({
+            anchor:      wrap,
+            options:     options,
+            placeholder: 'Todos',
+            onChange:    (values) => {
+                this.state.years  = values.map(v => parseInt(v, 10));
+                this.state.months = [];
+                this.state.day    = null;
+                this._syncMonthButtons();
+                this._syncDayRow();
+                this._emit();
+            },
+        });
     }
 
     async _loadProperties() {
@@ -164,28 +187,17 @@ class DashboardFilters {
             this._emit();
         });
 
-        // Year
-        this._yearSelect.addEventListener('change', () => {
-            const val = this._yearSelect.value;
-            this.state.year  = val ? parseInt(val, 10) : null;
-            this.state.month = null;
-            this.state.day   = null;
-            this._syncMonthButtons();
-            this._syncDayRow();
-            this._emit();
-        });
-
-        // Month buttons
+        // Month buttons — multi-select: each click toggles that month
         this._monthBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const val = parseInt(btn.dataset.month, 10);
-                // Toggle: clicking the active month deselects it
-                if (this.state.month === val) {
-                    this.state.month = null;
-                    this.state.day   = null;
+                const idx = this.state.months.indexOf(val);
+                if (idx >= 0) {
+                    // Deselect
+                    this.state.months.splice(idx, 1);
+                    if (this.state.months.length === 0) this.state.day = null;
                 } else {
-                    this.state.month = val;
-                    this.state.day   = null;
+                    this.state.months.push(val);
                 }
                 this._syncMonthButtons();
                 this._syncDayRow();
@@ -207,23 +219,22 @@ class DashboardFilters {
     }
 
     _syncMonthButtons() {
+        const hasYear = this.state.years.length > 0;
         this._monthBtns.forEach(btn => {
             const val = parseInt(btn.dataset.month, 10);
-            btn.classList.toggle('df-month-active', this.state.month === val);
-            // Disable month buttons when no year is selected
-            btn.disabled = this.state.year === null;
-            btn.classList.toggle('df-month-disabled', this.state.year === null);
+            btn.classList.toggle('df-month-active', this.state.months.includes(val));
+            btn.disabled = !hasYear;
+            btn.classList.toggle('df-month-disabled', !hasYear);
         });
     }
 
     _syncDayRow() {
-        const show = this.state.month !== null;
+        const show = this.state.months.length > 0;
         this._dayRow.classList.toggle('df-hidden', !show);
 
         if (show) {
             this._populateDays();
         } else {
-            // Clear selection
             this._daySelect.value = '';
         }
     }
@@ -234,8 +245,8 @@ class DashboardFilters {
             this._daySelect.remove(1);
         }
 
-        const year  = this.state.year  || new Date().getFullYear();
-        const month = this.state.month || 1;
+        const year  = this.state.years[0]  || new Date().getFullYear();
+        const month = this.state.months[0] || 1;
         const days  = new Date(year, month, 0).getDate(); // last day of month
 
         const frag = document.createDocumentFragment();
@@ -250,11 +261,11 @@ class DashboardFilters {
     }
 
     _reset() {
-        this.state = { propertyId: null, year: null, month: null, day: null, responsable: null };
+        this.state = { propertyId: null, years: [], months: [], day: null, responsable: null };
 
         this._propertySelect.value = '';
-        this._yearSelect.value     = '';
-        this._daySelect.value      = '';
+        if (this._yearMS) this._yearMS.reset();
+        if (this._daySelect) this._daySelect.value = '';
         if (this._responsableSelect) this._responsableSelect.value = '';
 
         this._syncMonthButtons();
@@ -270,11 +281,15 @@ class DashboardFilters {
             this._propertySelect.value = this.state.propertyId;
         }
         if (params.get('year')) {
-            this.state.year = parseInt(params.get('year'), 10);
-            this._yearSelect.value = this.state.year;
+            this.state.years = params.get('year').split(',')
+                .map(v => parseInt(v.trim(), 10))
+                .filter(v => !isNaN(v));
+            if (this._yearMS) this._yearMS.setValues(this.state.years.map(String));
         }
         if (params.get('month')) {
-            this.state.month = parseInt(params.get('month'), 10);
+            this.state.months = params.get('month').split(',')
+                .map(v => parseInt(v.trim(), 10))
+                .filter(v => !isNaN(v));
         }
         if (params.get('day')) {
             this.state.day = parseInt(params.get('day'), 10);
@@ -292,19 +307,22 @@ class DashboardFilters {
 
         if (this.state.propertyId) {
             const label = this._propertySelect.options[this._propertySelect.selectedIndex]?.text || this.state.propertyId;
-            chips.push({ key: 'propertyId', label: `📍 ${label}` });
+            chips.push({ key: 'propertyId', label: `${label}` });
         }
-        if (this.state.year) {
-            chips.push({ key: 'year', label: `📅 ${this.state.year}` });
+        if (this.state.years.length) {
+            chips.push({ key: 'year', label: this.state.years.join(', ') });
         }
-        if (this.state.month) {
-            chips.push({ key: 'month', label: this._MONTH_NAMES[this.state.month - 1] });
+        if (this.state.months.length) {
+            const mLabels = this.state.months
+                .slice().sort((a,b) => a-b)
+                .map(m => this._MONTH_SHORT[m - 1]);
+            chips.push({ key: 'month', label: mLabels.join(', ') });
         }
         if (this.state.day) {
             chips.push({ key: 'day', label: `Día ${this.state.day}` });
         }
         if (this.state.responsable) {
-            chips.push({ key: 'responsable', label: `👤 ${this.state.responsable}` });
+            chips.push({ key: 'responsable', label: this.state.responsable });
         }
 
         if (chips.length === 0) {
@@ -329,15 +347,15 @@ class DashboardFilters {
             this.state.propertyId = null;
             this._propertySelect.value = '';
         } else if (key === 'year') {
-            this.state.year  = null;
-            this.state.month = null;
-            this.state.day   = null;
-            this._yearSelect.value = '';
+            this.state.years  = [];
+            this.state.months = [];
+            this.state.day    = null;
+            if (this._yearMS) this._yearMS.reset();
             this._syncMonthButtons();
             this._syncDayRow();
         } else if (key === 'month') {
-            this.state.month = null;
-            this.state.day   = null;
+            this.state.months = [];
+            this.state.day    = null;
             this._syncMonthButtons();
             this._syncDayRow();
         } else if (key === 'day') {

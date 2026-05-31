@@ -1711,6 +1711,61 @@ def _gestion_add_like_date_filter(conds, params, text_expr, year, month, day):
         params.append(prefix + "%")
 
 
+def _parse_multi(value):
+    """Parse comma-separated string → list of non-empty stripped strings."""
+    if not value:
+        return []
+    return [v.strip() for v in str(value).split(',') if v.strip()]
+
+
+def _gestion_add_multi_date_filter(conds, params, text_expr, years, months, days):
+    """Build (expr LIKE '...' OR expr LIKE '...') for multi-select year/month/day.
+    Falls back gracefully to single-value behaviour when only one value is given.
+    """
+    def _to_ints(val):
+        if isinstance(val, (int, float)):
+            return [int(val)]
+        if isinstance(val, str):
+            return [int(x) for x in _parse_multi(val) if x.lstrip('-').isdigit()]
+        if val is None:
+            return []
+        # already a list/tuple
+        result = []
+        for x in val:
+            try:
+                result.append(int(x))
+            except (TypeError, ValueError):
+                pass
+        return result
+
+    y_list = _to_ints(years)
+    m_list = _to_ints(months)
+    d_list = _to_ints(days)
+
+    if not y_list:
+        return  # no year filter → no date constraint
+
+    prefixes = []
+    for y in y_list:
+        if m_list:
+            for m in m_list:
+                if d_list:
+                    for d in d_list:
+                        prefixes.append(f"{y}-{m:02d}-{d:02d}")
+                else:
+                    prefixes.append(f"{y}-{m:02d}")
+        else:
+            prefixes.append(f"{y}")
+
+    if len(prefixes) == 1:
+        conds.append(f"{text_expr} LIKE %s")
+        params.append(prefixes[0] + "%")
+    elif prefixes:
+        placeholders = " OR ".join(f"{text_expr} LIKE %s" for _ in prefixes)
+        conds.append(f"({placeholders})")
+        params.extend(p + "%" for p in prefixes)
+
+
 def _gestion_add_extract_date_filter(conds, params, date_expr, year, month, day):
     if year:
         conds.append(f"EXTRACT(YEAR FROM {date_expr}) = %s")
@@ -1896,9 +1951,10 @@ def api_gestion_data():
     cliente = request.args.get('cliente') or None
     proyecto = request.args.get('proyecto') or None
     turno = request.args.get('turno') or None
-    year = int(request.args.get('year')) if request.args.get('year') else None
-    month = int(request.args.get('month')) if request.args.get('month') else None
-    day = int(request.args.get('day')) if request.args.get('day') else None
+    # Accept comma-separated multi-values for year and month
+    year  = request.args.get('year')  or None  # kept as string; may be "2024,2025"
+    month = request.args.get('month') or None  # kept as string; may be "1,2,3"
+    day   = int(request.args.get('day')) if request.args.get('day') else None
 
     conn = cur = None
     try:
@@ -1914,7 +1970,7 @@ def api_gestion_data():
         if turno:
             sat_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
             sat_params.append(turno.lower())
-        _gestion_add_like_date_filter(sat_conds, sat_params, "fecha_hora::TEXT", year, month, day)
+        _gestion_add_multi_date_filter(sat_conds, sat_params, "fecha_hora::TEXT", year, month, day)
         sat_where = _gestion_where(sat_conds)
         cur.execute(f"""
             SELECT
@@ -1941,7 +1997,7 @@ def api_gestion_data():
         if turno:
             inc_conds.append("LOWER(COALESCE(turno, '')) = %s")
             inc_params.append(turno.lower())
-        _gestion_add_like_date_filter(inc_conds, inc_params, "fecha_hora::TEXT", year, month, day)
+        _gestion_add_multi_date_filter(inc_conds, inc_params, "fecha_hora::TEXT", year, month, day)
         inc_where = _gestion_where(inc_conds)
         cur.execute(f"""
             SELECT
@@ -1977,7 +2033,7 @@ def api_gestion_data():
         if turno:
             sup_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
             sup_params.append(turno.lower())
-        _gestion_add_like_date_filter(sup_conds, sup_params, "fecha_hora::TEXT", year, month, day)
+        _gestion_add_multi_date_filter(sup_conds, sup_params, "fecha_hora::TEXT", year, month, day)
         sup_where = _gestion_where(sup_conds)
         cur.execute(f"""
             SELECT
@@ -2058,7 +2114,7 @@ def api_gestion_data():
         if turno:
             disc_conds.append("LOWER(COALESCE(turno, '')) = %s")
             disc_params.append(turno.lower())
-        _gestion_add_like_date_filter(disc_conds, disc_params, "fecha_hora::TEXT", year, month, day)
+        _gestion_add_multi_date_filter(disc_conds, disc_params, "fecha_hora::TEXT", year, month, day)
         disc_where = _gestion_where(disc_conds)
         cur.execute(f"""
             WITH emp_counts AS (
@@ -2523,15 +2579,19 @@ def _sat_date_prefix(year, month, day):
     return prefix
 
 
+def _sat_add_multi_date_filter(conds, params, text_expr, year, month, day):
+    """Multi-value date filter for sub-module _xxx_where helpers.
+    Delegates to _gestion_add_multi_date_filter — same logic, shared implementation.
+    """
+    _gestion_add_multi_date_filter(conds, params, text_expr, year, month, day)
+
+
 def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
-    prefix = _sat_date_prefix(year, month, day)
-    if prefix:
-        conds.append("fecha_hora::TEXT LIKE %s")
-        params.append(prefix + "%")
+    _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
@@ -2543,7 +2603,16 @@ def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None)
 
 
 def _sat_prev_where(cliente, year, month, day):
-    """Build WHERE clause for the previous comparison period."""
+    """Build WHERE clause for the previous comparison period.
+    Accepts comma-separated year/month but uses only the first value
+    (prev-period comparison only makes sense for a single period).
+    """
+    # Coerce to single int
+    try:
+        year  = int(str(year).split(',')[0].strip())  if year  else None
+        month = int(str(month).split(',')[0].strip()) if month else None
+    except (ValueError, TypeError):
+        year = month = None
     if not year:
         return None, None
 
@@ -2689,8 +2758,8 @@ def api_satisfaccion_debug():
 @jwt_required()
 def api_satisfaccion_data():
     cliente     = request.args.get('cliente')     or None
-    year        = int(request.args.get('year'))   if request.args.get('year')  else None
-    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
     responsable    = request.args.get('responsable')    or None
     nombre_usuario = request.args.get('nombre_usuario') or None
@@ -2864,8 +2933,8 @@ def api_satisfaccion_data():
 @jwt_required()
 def api_satisfaccion_detalles():
     cliente        = request.args.get('cliente')        or None
-    year           = int(request.args.get('year'))   if request.args.get('year')  else None
-    month          = int(request.args.get('month'))  if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day            = int(request.args.get('day'))    if request.args.get('day')   else None
     responsable    = request.args.get('responsable')    or None
     nombre_usuario = request.args.get('nombre_usuario') or None
@@ -2971,10 +3040,7 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
     if cliente:
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
-    prefix = _sat_date_prefix(year, month, day)
-    if prefix:
-        conds.append("fecha_hora::TEXT LIKE %s")
-        params.append(prefix + "%")
+    _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if categoria:
         conds.append("categoria = %s")
         params.append(categoria)
@@ -2992,6 +3058,13 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
 
 
 def _inc_prev_where(cliente, year, month, day):
+    # Coerce to single int — prev-period comparison only works for a single period
+    try:
+        year  = int(str(year).split(',')[0].strip())  if year  else None
+        month = int(str(month).split(',')[0].strip()) if month else None
+    except (ValueError, TypeError):
+        year = month = None
+
     if not year:
         return None, None
     conds, params = [], []
@@ -3068,8 +3141,8 @@ def api_incidentes_clientes():
 @jwt_required()
 def api_incidentes_data():
     cliente     = request.args.get('cliente')     or None
-    year        = int(request.args.get('year'))   if request.args.get('year')  else None
-    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
     categoria   = request.args.get('categoria')   or None
     severidad   = request.args.get('severidad')   or None
@@ -3220,8 +3293,8 @@ def api_incidentes_data():
 @jwt_required()
 def api_incidentes_detalles():
     cliente   = request.args.get('cliente')   or None
-    year      = int(request.args.get('year'))  if request.args.get('year')  else None
-    month     = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day       = int(request.args.get('day'))   if request.args.get('day')   else None
     categoria = request.args.get('categoria') or None
     severidad = request.args.get('severidad') or None
@@ -3367,10 +3440,7 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None):
     if cliente:
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
-    prefix = _sat_date_prefix(year, month, day)
-    if prefix:
-        conds.append("fecha_hora::TEXT LIKE %s")
-        params.append(prefix + "%")
+    _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if tipo:
         conds.append("tipo_novedad = %s")
         params.append(tipo)
@@ -3382,6 +3452,13 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None):
 
 
 def _disc_prev_where(cliente, year, month, day):
+    # Coerce to single int — prev-period comparison only works for a single period
+    try:
+        year  = int(str(year).split(',')[0].strip())  if year  else None
+        month = int(str(month).split(',')[0].strip()) if month else None
+    except (ValueError, TypeError):
+        year = month = None
+
     if not year:
         return None, None
     conds, params = [], []
@@ -3434,8 +3511,8 @@ def api_disciplina_clientes():
 @jwt_required()
 def api_disciplina_data():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -3622,8 +3699,8 @@ def api_disciplina_data():
 @jwt_required()
 def api_disciplina_detalles():
     cliente      = request.args.get('cliente') or None
-    year         = int(request.args.get('year'))  if request.args.get('year')  else None
-    month        = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day          = int(request.args.get('day'))   if request.args.get('day')   else None
     tipo         = request.args.get('tipo')         or None
     empleado_num = request.args.get('empleado_num') or None
@@ -3717,14 +3794,18 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None)
     if nombre_usuario:
         conds.append("TRIM(supervisor) = %s")
         params.append(nombre_usuario)
-    prefix = _sat_date_prefix(year, month, day)
-    if prefix:
-        conds.append("fecha_hora::TEXT LIKE %s")
-        params.append(prefix + "%")
+    _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
 def _sup_prev_where(cliente, year, month, day):
+    # Coerce to single int — prev-period comparison only works for a single period
+    try:
+        year  = int(str(year).split(',')[0].strip())  if year  else None
+        month = int(str(month).split(',')[0].strip()) if month else None
+    except (ValueError, TypeError):
+        year = month = None
+
     if not year:
         return None, None
     conds, params = [], []
@@ -3802,8 +3883,8 @@ def api_supervision_clientes():
 @jwt_required()
 def api_supervision_data():
     cliente     = request.args.get('cliente') or None
-    year        = int(request.args.get('year'))  if request.args.get('year')  else None
-    month       = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day         = int(request.args.get('day'))   if request.args.get('day')   else None
     nivel          = request.args.get('nivel') or None  # 'excelente' | 'seguimiento' | 'critico'
     responsable    = request.args.get('responsable')    or None
@@ -4029,8 +4110,8 @@ def api_supervision_data():
 @jwt_required()
 def api_supervision_detalles():
     cliente        = request.args.get('cliente')        or None
-    year           = int(request.args.get('year'))   if request.args.get('year')  else None
-    month          = int(request.args.get('month'))  if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day            = int(request.args.get('day'))    if request.args.get('day')   else None
     nivel          = request.args.get('nivel')          or None
     empleado_num   = request.args.get('empleado_num')   or None
@@ -4195,8 +4276,8 @@ def api_cumplimiento_clientes():
 @jwt_required()
 def api_cumplimiento_data():
     cliente     = request.args.get('cliente')     or None
-    year        = int(request.args.get('year'))   if request.args.get('year')  else None
-    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
     responsable = request.args.get('responsable') or None
 
@@ -4418,8 +4499,8 @@ def api_cumplimiento_data():
 @jwt_required()
 def api_cumplimiento_detalles():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -4525,8 +4606,8 @@ def api_capacitacion_clientes():
 @jwt_required()
 def api_capacitacion_data():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -4686,8 +4767,8 @@ def api_capacitacion_data():
 @jwt_required()
 def api_capacitacion_detalles():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -4891,8 +4972,8 @@ def api_visitas_clientes():
 @jwt_required()
 def api_visitas_data():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -5050,8 +5131,8 @@ def api_visitas_data():
 @jwt_required()
 def api_visitas_detalles():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -5265,8 +5346,8 @@ def api_motocicletas_clientes():
 @jwt_required()
 def api_motocicletas_data():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -5416,8 +5497,8 @@ def api_motocicletas_data():
 @jwt_required()
 def api_motocicletas_detalles():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -5595,8 +5676,8 @@ def api_vehiculos_clientes():
 @jwt_required()
 def api_vehiculos_data():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -5746,8 +5827,8 @@ def api_vehiculos_data():
 @jwt_required()
 def api_vehiculos_detalles():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -5931,8 +6012,8 @@ def api_equipos_clientes():
 @jwt_required()
 def api_equipos_data():
     cliente     = request.args.get('cliente')     or None
-    year        = int(request.args.get('year'))   if request.args.get('year')  else None
-    month       = int(request.args.get('month'))  if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
     responsable = request.args.get('responsable') or None
 
@@ -6075,8 +6156,8 @@ def api_equipos_data():
 @jwt_required()
 def api_equipos_detalles():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
@@ -6552,8 +6633,8 @@ def api_bases_de_datos_clientes():
 @jwt_required()
 def api_bases_de_datos_armas():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
 
     conn = cur = None
     try:
@@ -6615,8 +6696,8 @@ def api_bases_de_datos_armas():
 @jwt_required()
 def api_bases_de_datos_radios():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
 
     conn = cur = None
     try:
@@ -6689,8 +6770,8 @@ def _bd_score_expr():
 @jwt_required()
 def api_bases_de_datos_personal():
     cliente = request.args.get('cliente') or None
-    year    = int(request.args.get('year'))  if request.args.get('year')  else None
-    month   = int(request.args.get('month')) if request.args.get('month') else None
+    year = request.args.get('year') or None
+    month = request.args.get('month') or None
 
     conn = cur = cur2 = None
     try:
