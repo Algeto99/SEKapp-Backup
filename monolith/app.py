@@ -21,6 +21,7 @@ from forms_bp import forms_bp
 from viewer_bp import viewer_bp
 from expediente_bp import expediente_bp
 from admin_bp import admin_bp, init_admin_bp
+from cgeo_bp import cgeo_bp
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -162,12 +163,14 @@ app.register_blueprint(forms_bp, url_prefix='/forms')
 app.register_blueprint(viewer_bp, url_prefix='/viewer')
 app.register_blueprint(expediente_bp, url_prefix='')
 app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(cgeo_bp, url_prefix='/cgeo')
 
 # JWT-authenticated blueprints use their own auth — exempt from CSRF
 csrf.exempt(viewer_bp)
 csrf.exempt(dashboard_bp)
 csrf.exempt(expediente_bp)
 csrf.exempt(admin_bp)
+csrf.exempt(cgeo_bp)
 
 # Inject is_super_admin into every template from the active JWT
 @app.context_processor

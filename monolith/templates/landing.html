@@ -342,6 +342,11 @@
                     🗄️ Bases de Datos (Admin)
                 </button>
 
+                <button id="cgeo-button" class="base-button-style btn-admin-special hidden" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:2px solid #f59e0b;color:#fff;position:relative">
+                    🏢 Centro de Gestión Ejecutiva y Operativa
+                    <span style="position:absolute;top:-8px;right:8px;background:#f59e0b;color:#fff;font-size:.65rem;font-weight:800;padding:.15rem .5rem;border-radius:999px;letter-spacing:.5px">NUEVO</span>
+                </button>
+
                 <button id="logout-button" class="base-button-style btn-logout hidden">
                     Cerrar Sesión
                 </button>
@@ -375,6 +380,7 @@
         const matricesButton = document.getElementById('matrices-button');
         const databasesButton = document.getElementById('databases-button');
         const reportsButton = document.getElementById('reports-button');
+        const cgeoButton = document.getElementById('cgeo-button');
         const logoutButton = document.getElementById('logout-button');
         const topBar = document.getElementById('topBar');
         const topBarLogoutLink = document.getElementById('topBarLogoutLink');
@@ -443,10 +449,12 @@
                     reportsButton.classList.remove('hidden');
                     dashboardButton.classList.remove('hidden');
                     databasesButton.classList.remove('hidden');
+                    cgeoButton.classList.remove('hidden');
                 } else {
                     reportsButton.classList.add('hidden');
                     dashboardButton.classList.add('hidden');
                     databasesButton.classList.add('hidden');
+                    cgeoButton.classList.add('hidden');
                 }
 
                 logoutButton.classList.remove('hidden');
@@ -510,6 +518,16 @@
                     if (DASHBOARD_SERVICE_URL) {
                         window.location.href = DASHBOARD_SERVICE_URL + '/bases_de_datos/';
                     }
+                });
+            }
+
+            if (cgeoButton) {
+                cgeoButton.addEventListener('click', function () {
+                    if (!currentUserIsAdmin) {
+                        alert('Acceso denegado: Solo los administradores pueden acceder a este módulo.');
+                        return;
+                    }
+                    window.location.href = '/cgeo/recursos/';
                 });
             }
 

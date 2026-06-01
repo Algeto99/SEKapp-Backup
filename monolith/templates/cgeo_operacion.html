@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestión de Operación y Novedades — Kanan Sentinel</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;display:flex}
+
+.sidebar{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto}
+.sidebar-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
+.sidebar-logo img{width:120px;display:block}
+.sidebar-logo-text{color:#94a3b8;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem}
+.sidebar-nav{padding:1rem 0;flex:1}
+.nav-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
+.nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
+.nav-item.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
+.nav-item svg{width:15px;height:15px;flex-shrink:0}
+.nav-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:.5rem 1.25rem}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,0.07)}
+.sidebar-user{font-size:.75rem;color:#64748b;word-break:break-all}
+.sidebar-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
+.btn-logout{display:block;margin-top:.75rem;padding:.5rem .75rem;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25);border-radius:.5rem;font-size:.75rem;text-align:center;text-decoration:none;font-weight:600;transition:all .15s}
+.btn-logout:hover{background:rgba(239,68,68,0.2)}
+
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:1rem 1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:30}
+.topbar-left{display:flex;align-items:center;gap:.875rem}
+.page-icon{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#f97316,#ef4444);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.page-icon svg{width:22px;height:22px;color:#fff}
+.page-title{font-size:1.125rem;font-weight:700;color:#0f172a;line-height:1.2}
+.page-subtitle{font-size:.8rem;color:#64748b;font-weight:400}
+.topbar-right{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.filter-group{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.filter-label{font-size:.75rem;font-weight:600;color:#64748b;white-space:nowrap}
+.filter-select{height:36px;padding:0 .75rem;border:1px solid #e2e8f0;border-radius:.5rem;font-size:.8125rem;color:#334155;background:#fff;cursor:pointer;min-width:130px}
+.filter-select:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
+.date-input{height:36px;padding:0 .75rem;border:1px solid #e2e8f0;border-radius:.5rem;font-size:.8125rem;color:#334155;background:#fff;cursor:pointer}
+.btn-apply{height:36px;padding:0 1rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;font-size:.8125rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-apply:hover{background:#2563eb}
+.btn-pdf{height:36px;padding:0 1rem;background:#fff;color:#ef4444;border:1.5px solid #ef4444;border-radius:.5rem;font-size:.8125rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.375rem;white-space:nowrap;transition:all .15s}
+.btn-pdf:hover{background:#fef2f2}
+
+.content{padding:1.5rem 1.75rem;flex:1}
+.tabs-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem}
+.tabs{display:flex;gap:.25rem;background:#e2e8f0;border-radius:.625rem;padding:.25rem}
+.tab-btn{padding:.5rem 1.25rem;border-radius:.5rem;border:none;cursor:pointer;font-size:.875rem;font-weight:600;transition:all .2s;background:transparent;color:#64748b}
+.tab-btn.active{background:#fff;color:#1e293b;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.status-banner{display:flex;align-items:center;gap:.625rem;padding:.625rem 1rem;border-radius:.625rem;font-size:.875rem;font-weight:600}
+.status-estable{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.status-alerta{background:#fffbeb;color:#b45309;border:1px solid #fde68a}
+.status-critico{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.25rem}
+.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.125rem 1.25rem}
+.kpi-icon{font-size:1.75rem;margin-bottom:.5rem;display:block}
+.kpi-val{font-size:2rem;font-weight:700;line-height:1;margin-bottom:.25rem;font-family:'Merriweather',serif}
+.kpi-lbl{font-size:.8rem;color:#64748b;font-weight:500}
+.kpi-sub{font-size:.75rem;margin-top:.375rem;font-weight:600}
+.kpi-border-blue{border-top:3px solid #3b82f6}
+.kpi-border-red{border-top:3px solid #ef4444}
+.kpi-border-green{border-top:3px solid #22c55e}
+.kpi-border-indigo{border-top:3px solid #6366f1}
+.kpi-border-orange{border-top:3px solid #f97316}
+
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.charts-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
+.chart-title{font-size:.8125rem;font-weight:700;color:#1e293b;margin-bottom:1rem}
+.chart-box{position:relative;height:240px}
+
+.alert-req{background:#fef2f2;border:1px solid #fecaca;border-radius:.875rem;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:.75rem}
+.alert-req-dot{width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;margin-top:.25rem}
+.alert-req-title{font-size:.9375rem;font-weight:700;color:#b91c1c}
+.alert-req-text{font-size:.8125rem;color:#7f1d1d;margin-top:.125rem}
+
+.alert-kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.25rem}
+.alert-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1rem 1.125rem}
+.alert-kpi-icon{font-size:1.5rem;margin-bottom:.375rem;display:block}
+.alert-kpi-val{font-size:1.75rem;font-weight:800;line-height:1;font-family:'Merriweather',serif}
+.alert-kpi-lbl{font-size:.75rem;color:#64748b;margin-top:.25rem}
+.color-red{color:#dc2626}
+.color-orange{color:#f97316}
+.color-yellow{color:#d97706}
+.color-blue{color:#2563eb}
+
+.pend-cat{display:grid;grid-template-columns:repeat(6,1fr);gap:.875rem;margin-bottom:1.25rem}
+.pend-cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:.875rem;text-align:center}
+.pend-cat-icon{font-size:1.75rem;display:block;margin-bottom:.375rem}
+.pend-cat-val{font-size:1.75rem;font-weight:800;font-family:'Merriweather',serif;line-height:1}
+.pend-cat-lbl{font-size:.72rem;color:#64748b;margin-top:.25rem}
+.pend-cat-sub{font-size:.68rem;color:#94a3b8;margin-top:.125rem}
+
+.tables-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.table-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
+.table-title{font-size:.9375rem;font-weight:700;color:#0f172a;margin-bottom:1rem}
+.tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+.tbl th{padding:.5rem .75rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap}
+.tbl td{padding:.625rem .75rem;border-bottom:1px solid #f1f5f9;color:#1e293b;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f8fafc}
+.badge{display:inline-flex;align-items:center;padding:.2rem .625rem;border-radius:999px;font-size:.7rem;font-weight:700;white-space:nowrap}
+.badge-red{background:#fef2f2;color:#b91c1c}
+.badge-orange{background:#fff7ed;color:#c2410c}
+.badge-yellow{background:#fffbeb;color:#92400e}
+.badge-green{background:#f0fdf4;color:#15803d}
+.badge-gray{background:#f1f5f9;color:#475569}
+.dias-neg{color:#dc2626;font-weight:700}
+.dias-pos{color:#16a34a;font-weight:700}
+
+/* Ranking bar */
+.ranking-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;margin-bottom:1.25rem}
+.ranking-item{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.ranking-item:last-child{margin-bottom:0}
+.rank-label{font-size:.8125rem;color:#334155;font-weight:500;min-width:80px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-bar-wrap{flex:1;background:#f1f5f9;border-radius:999px;height:14px;overflow:hidden}
+.rank-bar{height:100%;background:#3b82f6;border-radius:999px;transition:width .6s ease}
+.rank-pct{font-size:.8rem;font-weight:700;color:#0f172a;min-width:38px;text-align:right}
+
+/* Novedades */
+.novedades-list{display:flex;flex-direction:column;gap:.5rem}
+.novedad-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #f1f5f9}
+.novedad-row:last-child{border-bottom:none}
+.novedad-icon{font-size:.875rem;flex-shrink:0}
+.novedad-label{font-size:.8125rem;color:#334155;flex:1}
+.novedad-val{font-size:1rem;font-weight:800;font-family:'Merriweather',serif}
+.nv-red{color:#dc2626}
+.nv-orange{color:#f97316}
+.nv-yellow{color:#d97706}
+.nv-green{color:#16a34a}
+.nv-blue{color:#2563eb}
+
+/* Supervision donut */
+.donut-wrap{display:flex;align-items:center;gap:1rem;height:180px}
+.donut-wrap canvas{flex:0 0 150px;height:150px}
+.donut-legend{font-size:.8rem;display:flex;flex-direction:column;gap:.5rem}
+.leg-row{display:flex;align-items:center;gap:.5rem}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+.acciones-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
+.acciones-title{font-size:.9375rem;font-weight:700;color:#f97316;margin-bottom:.875rem}
+.accion-item{display:flex;align-items:flex-start;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #f1f5f9}
+.accion-item:last-child{border-bottom:none}
+.accion-num{width:26px;height:26px;border-radius:50%;background:#f97316;color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
+.accion-text{font-size:.8125rem;color:#334155;font-weight:500}
+
+.content-footer{padding:1rem 1.75rem;border-top:1px solid #e2e8f0;background:#fff;font-size:.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.refresh-btn{background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.75rem;display:flex;align-items:center;gap:.35rem;padding:.25rem}
+.refresh-btn:hover{text-decoration:underline}
+
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.8);z-index:100;display:flex;align-items:center;justify-content:center}
+.spinner{width:44px;height:44px;border:4px solid #e2e8f0;border-top-color:#f97316;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none!important}
+
+#tab-ejecutivo{display:block}
+#tab-operativo{display:none}
+
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.alert-kpi-grid{grid-template-columns:repeat(3,1fr)}.pend-cat{grid-template-columns:repeat(3,1fr)}.tables-row{grid-template-columns:1fr}}
+@media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.sidebar{width:200px}.main{margin-left:200px}}
+@media(max-width:700px){.sidebar{display:none}.main{margin-left:0}}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="{{ url_for('static', filename='logo_new.png') }}" alt="Kanan Sentinel">
+        <div class="sidebar-logo-text">SekApp</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Principal</div>
+        <a href="/landing/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Inicio
+        </a>
+        <a href="/forms/select" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Acceso a Formularios
+        </a>
+        <a href="/visitas/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Consultar Matrices
+        </a>
+        <hr class="nav-divider">
+        <div class="nav-section">Administración</div>
+        <a href="/viewer/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Reportes (Admin)
+        </a>
+        <a href="/dashboard/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Dashboards (Admin)
+        </a>
+        <a href="/dashboard/bases_de_datos/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Bases de Datos (Admin)
+        </a>
+        <hr class="nav-divider">
+        <div class="nav-section">Centro de Gestión</div>
+        <a href="/cgeo/recursos/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Recursos y Confiabilidad
+        </a>
+        <a href="/cgeo/operacion/" class="nav-item active">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Operación y Novedades
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <strong>Usuario</strong>
+            <span>{{ user_name or current_user }}</span>
+        </div>
+        <a href="/logout" class="btn-logout">⏻ Cerrar Sesión</a>
+    </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="page-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            </div>
+            <div>
+                <div class="page-title">Gestión de Operación y Novedades</div>
+                <div class="page-subtitle">Desempeño operativo, incidentes y compromisos</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="filter-group">
+                <span class="filter-label">Cliente</span>
+                <select id="filtCliente" class="filter-select">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">Desde</span>
+                <input type="date" id="filtStart" class="date-input">
+                <span class="filter-label">Hasta</span>
+                <input type="date" id="filtEnd" class="date-input">
+            </div>
+            <button class="btn-apply" onclick="loadData()">Aplicar</button>
+            <button class="btn-pdf" onclick="window.print()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Exportar PDF
+            </button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="tabs-row">
+            <div class="tabs">
+                <button class="tab-btn active" id="tabBtnEjec" onclick="switchTab('ejecutivo')">Informe Ejecutivo</button>
+                <button class="tab-btn" id="tabBtnOper" onclick="switchTab('operativo')">Resumen Operativo</button>
+            </div>
+            <div id="statusBanner" class="status-banner status-estable">
+                <span id="statusDot" style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
+                <span id="statusText">Cargando...</span>
+            </div>
+        </div>
+
+        <!-- ══════════════ INFORME EJECUTIVO ══════════════ -->
+        <div id="tab-ejecutivo">
+            <div class="kpi-grid">
+                <div class="kpi-card kpi-border-green">
+                    <span class="kpi-icon">🛡️</span>
+                    <div class="kpi-val" id="kpiSat">—</div>
+                    <div class="kpi-lbl">Satisfacción del Cliente</div>
+                </div>
+                <div class="kpi-card kpi-border-red">
+                    <span class="kpi-icon">⚠️</span>
+                    <div class="kpi-val" id="kpiInc">—</div>
+                    <div class="kpi-lbl">Incidentes Totales</div>
+                </div>
+                <div class="kpi-card kpi-border-blue">
+                    <span class="kpi-icon">🚗</span>
+                    <div class="kpi-val" id="kpiSup">—</div>
+                    <div class="kpi-lbl">Supervisiones Realizadas</div>
+                </div>
+                <div class="kpi-card kpi-border-indigo">
+                    <span class="kpi-icon">🎓</span>
+                    <div class="kpi-val" id="kpiCap">—</div>
+                    <div class="kpi-lbl">Capacitaciones Realizadas</div>
+                </div>
+                <div class="kpi-card kpi-border-orange">
+                    <span class="kpi-icon">📝</span>
+                    <div class="kpi-val" id="kpiDisc">—</div>
+                    <div class="kpi-lbl">Reportes Disciplinarios</div>
+                </div>
+            </div>
+
+            <!-- Charts row 1: Tendencia + Distribución incidentes -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <div class="chart-title">Tendencia Operacional</div>
+                    <div class="chart-box"><canvas id="chartTendencia"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Distribución de Incidentes por Severidad</div>
+                    <div style="display:flex;align-items:center;gap:1.5rem;height:240px">
+                        <div style="flex:0 0 180px;position:relative;height:180px">
+                            <canvas id="chartIncSev"></canvas>
+                        </div>
+                        <div id="incSevLegend" style="font-size:.8rem;display:flex;flex-direction:column;gap:.625rem"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts row 2: Ranking + Novedades + Supervisión donut -->
+            <div class="charts-row-3">
+                <div class="chart-card">
+                    <div class="chart-title">Ranking de Clientes — Satisfacción</div>
+                    <div id="rankingList" style="margin-top:.5rem"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Novedades Destacadas</div>
+                    <div class="novedades-list" id="novedadesList">
+                        <div style="font-size:.8rem;color:#94a3b8">Cargando...</div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Incidentes por Severidad</div>
+                    <div class="donut-wrap">
+                        <canvas id="chartSupDonut"></canvas>
+                        <div id="supDonutLegend" class="donut-legend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════════ RESUMEN OPERATIVO ══════════════ -->
+        <div id="tab-operativo">
+            <div class="alert-req">
+                <div class="alert-req-dot"></div>
+                <div>
+                    <div class="alert-req-title">Atención Requerida</div>
+                    <div class="alert-req-text" id="alertBannerText">Cargando...</div>
+                </div>
+            </div>
+
+            <div class="alert-kpi-grid">
+                <div class="alert-kpi">
+                    <span class="alert-kpi-icon">⚠️</span>
+                    <div class="alert-kpi-val color-red" id="opIncCrit">—</div>
+                    <div class="alert-kpi-lbl">Incidentes Críticos</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Abiertos</div>
+                </div>
+                <div class="alert-kpi">
+                    <span class="alert-kpi-icon">📅</span>
+                    <div class="alert-kpi-val color-red" id="opCompVenc">—</div>
+                    <div class="alert-kpi-lbl">Compromisos Vencidos</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Pendientes</div>
+                </div>
+                <div class="alert-kpi">
+                    <span class="alert-kpi-icon">😞</span>
+                    <div class="alert-kpi-val color-yellow" id="opCliInsat">—</div>
+                    <div class="alert-kpi-lbl">Clientes Insatisfechos</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren seguimiento</div>
+                </div>
+                <div class="alert-kpi">
+                    <span class="alert-kpi-icon">🎓</span>
+                    <div class="alert-kpi-val color-blue" id="opCapPend">—</div>
+                    <div class="alert-kpi-lbl">Capacitaciones</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Realizadas</div>
+                </div>
+                <div class="alert-kpi">
+                    <span class="alert-kpi-icon">📊</span>
+                    <div class="alert-kpi-val" style="color:#2563eb" id="opTotal">—</div>
+                    <div class="alert-kpi-lbl">Total Pendientes</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Elementos por gestionar</div>
+                </div>
+            </div>
+
+            <!-- Pendientes por categoría -->
+            <div class="pend-cat" id="pendCat">
+                <!-- filled by JS -->
+            </div>
+
+            <!-- Tables: Incidentes abiertos + Compromisos -->
+            <div class="tables-row">
+                <div class="table-card">
+                    <div class="table-title">Incidentes Abiertos</div>
+                    <table class="tbl">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Incidente</th>
+                                <th>Cliente</th>
+                                <th>Severidad</th>
+                                <th>Estado</th>
+                                <th>Días</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incidentesTable">
+                            <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-card">
+                    <div class="table-title">Compromisos Pendientes / Vencidos</div>
+                    <table class="tbl">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Compromiso</th>
+                                <th>Cliente</th>
+                                <th>Estado</th>
+                                <th>Días Retraso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compromisosTable">
+                            <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Acciones recomendadas -->
+            <div class="acciones-card">
+                <div class="acciones-title">Acciones Recomendadas</div>
+                <div id="accionesList" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+                    <div style="font-size:.8rem;color:#94a3b8">Cargando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-footer">
+        <span>Última actualización: <span id="lastUpdate">—</span></span>
+        <button class="refresh-btn" onclick="loadData()">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Actualizar
+        </button>
+    </div>
+</div>
+
+<div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="spinner"></div>
+</div>
+
+<script>
+let charts = {};
+
+function switchTab(tab) {
+    document.getElementById('tab-ejecutivo').style.display = tab === 'ejecutivo' ? 'block' : 'none';
+    document.getElementById('tab-operativo').style.display = tab === 'operativo' ? 'block' : 'none';
+    document.getElementById('tabBtnEjec').className = 'tab-btn' + (tab === 'ejecutivo' ? ' active' : '');
+    document.getElementById('tabBtnOper').className = 'tab-btn' + (tab === 'operativo' ? ' active' : '');
+}
+
+function destroyChart(id) {
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+function buildDonutCenter(id, labels, data, colors, centerLabel) {
+    destroyChart(id);
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    const total = data.reduce((a, b) => a + b, 0);
+    charts[id] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff', hoverOffset: 6 }] },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.formattedValue}` } } },
+        },
+        plugins: [{
+            id: 'centerText',
+            beforeDraw(chart) {
+                const { ctx: c, chartArea: { width, height, left, top } } = chart;
+                c.save(); c.textAlign = 'center'; c.textBaseline = 'middle';
+                const cx = left + width / 2, cy = top + height / 2;
+                c.font = 'bold 16px Inter'; c.fillStyle = '#0f172a';
+                c.fillText(total.toLocaleString(), cx, cy - 8);
+                c.font = '10px Inter'; c.fillStyle = '#64748b';
+                c.fillText(centerLabel || 'Total', cx, cy + 10);
+                c.restore();
+            }
+        }]
+    });
+}
+
+function legendHtml(labels, data, colors, total) {
+    return labels.map((lbl, i) => {
+        const pct = total ? Math.round(data[i] / total * 100) : 0;
+        return `<div style="display:flex;align-items:center;gap:.5rem">
+            <div style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0"></div>
+            <span style="color:#475569">${lbl}</span>
+            <span style="margin-left:auto;font-weight:700;color:#0f172a">${data[i]} (${pct}%)</span>
+        </div>`;
+    }).join('');
+}
+
+function buildMultiLine(id, labels, datasets) {
+    destroyChart(id);
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    charts[id] = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, usePointStyle: true } } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b' } }
+            }
+        }
+    });
+}
+
+function severityBadge(sev) {
+    if (!sev) return '<span class="badge badge-gray">—</span>';
+    const s = sev.toLowerCase();
+    if (s.includes('crít') || s.includes('crit')) return `<span class="badge badge-red">${sev}</span>`;
+    if (s.includes('alto') || s.includes('high')) return `<span class="badge badge-orange">${sev}</span>`;
+    if (s.includes('medio') || s.includes('med')) return `<span class="badge badge-yellow">${sev}</span>`;
+    if (s.includes('bajo') || s.includes('low')) return `<span class="badge badge-green">${sev}</span>`;
+    return `<span class="badge badge-gray">${sev}</span>`;
+}
+
+function estadoBadge(est) {
+    if (!est) return '<span class="badge badge-gray">—</span>';
+    const s = est.toLowerCase();
+    if (s.includes('vencid') || s.includes('expirad')) return `<span class="badge badge-red">${est}</span>`;
+    if (s.includes('pendiente') || s.includes('pend')) return `<span class="badge badge-orange">${est}</span>`;
+    if (s.includes('abierto') || s.includes('open')) return `<span class="badge badge-red">${est}</span>`;
+    if (s.includes('cerrado') || s.includes('resolv')) return `<span class="badge badge-green">${est}</span>`;
+    return `<span class="badge badge-gray">${est}</span>`;
+}
+
+function novColor(c) {
+    return { red: 'nv-red', orange: 'nv-orange', yellow: 'nv-yellow', green: 'nv-green', blue: 'nv-blue' }[c] || 'nv-blue';
+}
+
+function renderData(d) {
+    // Status banner
+    const sat = d.satisfaccion.pct;
+    const inc = d.incidentes.total;
+    const banner = document.getElementById('statusBanner');
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    if (d.incidentes.criticos_abiertos > 0) {
+        banner.className = 'status-banner status-critico';
+        dot.style.background = '#ef4444';
+        txt.textContent = 'Atención Requerida — Hay incidentes críticos abiertos';
+    } else {
+        banner.className = 'status-banner status-estable';
+        dot.style.background = '#22c55e';
+        txt.textContent = 'Estado General de la Operación — Operación Estable';
+    }
+
+    // KPIs
+    document.getElementById('kpiSat').textContent = sat !== null ? sat + '%' : '—';
+    document.getElementById('kpiInc').textContent = inc ?? '—';
+    document.getElementById('kpiSup').textContent = d.supervisiones.total ?? '—';
+    document.getElementById('kpiCap').textContent = d.capacitaciones.total ?? '—';
+    document.getElementById('kpiDisc').textContent = d.disciplina.total ?? '—';
+
+    // Tendencia operacional (multi-line)
+    const t = d.tendencia;
+    buildMultiLine('chartTendencia', t.labels, [
+        { label: 'Incidentes', data: t.incidentes, borderColor: '#ef4444', backgroundColor: 'transparent', tension: .4, pointRadius: 3 },
+        { label: 'Supervisiones', data: t.supervisiones, borderColor: '#3b82f6', backgroundColor: 'transparent', tension: .4, pointRadius: 3 },
+        { label: 'Capacitaciones', data: t.capacitaciones, borderColor: '#22c55e', backgroundColor: 'transparent', tension: .4, pointRadius: 3 },
+        { label: 'Satisfacción (%)', data: t.satisfaccion, borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: .4, pointRadius: 3, yAxisID: 'y' },
+    ]);
+
+    // Distribución incidentes por severidad
+    const inc_d = d.incidentes;
+    const sevLabels = ['Críticos', 'Altos', 'Medios', 'Bajos'];
+    const sevData = [inc_d.criticos, inc_d.altos, inc_d.medios, inc_d.bajos];
+    const sevColors = ['#ef4444', '#f97316', '#eab308', '#22c55e'];
+    const sevTotal = inc_d.total;
+    buildDonutCenter('chartIncSev', sevLabels, sevData, sevColors, 'Total');
+    document.getElementById('incSevLegend').innerHTML = legendHtml(sevLabels, sevData, sevColors, sevTotal);
+
+    // Donut "Supervisión / Incidentes breakdown"
+    buildDonutCenter('chartSupDonut', sevLabels, sevData, sevColors, 'Total');
+    document.getElementById('supDonutLegend').innerHTML = sevLabels.map((l, i) => `
+        <div class="leg-row">
+            <div class="leg-dot" style="background:${sevColors[i]}"></div>
+            <span style="color:#475569;font-size:.8rem">${l}</span>
+            <span style="margin-left:auto;font-weight:700;font-size:.8rem;color:#0f172a">${sevData[i]}</span>
+        </div>`).join('');
+
+    // Ranking clientes
+    const rk = d.ranking_satisfaccion;
+    document.getElementById('rankingList').innerHTML = rk.length
+        ? rk.map(r => `
+            <div class="ranking-item">
+                <span class="rank-label" title="${r.cliente}">${r.cliente}</span>
+                <div class="rank-bar-wrap"><div class="rank-bar" style="width:${r.pct}%"></div></div>
+                <span class="rank-pct">${r.pct}%</span>
+            </div>`).join('')
+        : '<div style="font-size:.8rem;color:#94a3b8;padding:.5rem 0">Sin datos de satisfacción para el período.</div>';
+
+    // Novedades
+    const nv = d.novedades;
+    document.getElementById('novedadesList').innerHTML = nv.length
+        ? nv.map(n => `
+            <div class="novedad-row">
+                <span class="novedad-label">${n.label}</span>
+                <span class="novedad-val ${novColor(n.color)}">${n.value}</span>
+            </div>`).join('')
+        : '<div style="font-size:.8rem;color:#22c55e;font-weight:600;padding:.5rem 0">✓ Sin novedades críticas.</div>';
+
+    // ── RESUMEN OPERATIVO ────────────────────────────────────────────────────
+    const compVenc = d.compromisos_pendientes.filter(c => c.dias_retraso > 0).length;
+    const compPend = d.compromisos_pendientes.filter(c => c.dias_retraso <= 0).length;
+    const totalPend = (inc_d.criticos_abiertos || 0) + compVenc + (d.satisfaccion.insatisfechos || 0);
+
+    document.getElementById('alertBannerText').textContent =
+        `Existen ${totalPend} elementos que requieren gestión inmediata.`;
+    document.getElementById('opIncCrit').textContent = inc_d.criticos_abiertos ?? '—';
+    document.getElementById('opCompVenc').textContent = compVenc;
+    document.getElementById('opCliInsat').textContent = d.satisfaccion.insatisfechos ?? '—';
+    document.getElementById('opCapPend').textContent = d.capacitaciones.total ?? '—';
+    document.getElementById('opTotal').textContent = totalPend;
+
+    // Pendientes por categoría
+    const pendItems = [
+        { icon: '⚠️', label: 'Incidentes', val: inc_d.total || 0, sub: 'Abiertos', color: '#ef4444' },
+        { icon: '👁️', label: 'Supervisión', val: d.supervisiones.total || 0, sub: 'Realizadas', color: '#3b82f6' },
+        { icon: '🏢', label: 'Visitas', val: d.compromisos_pendientes.length, sub: 'Pendientes', color: '#22c55e' },
+        { icon: '👤', label: 'Disciplina', val: d.disciplina.total || 0, sub: 'Reportes abiertos', color: '#475569' },
+        { icon: '🎓', label: 'Capacitaciones', val: d.capacitaciones.total || 0, sub: 'Realizadas', color: '#6366f1' },
+        { icon: '😞', label: 'Encuestas', val: d.satisfaccion.insatisfechos || 0, sub: 'Insatisfechos', color: '#f97316' },
+    ];
+    document.getElementById('pendCat').innerHTML = pendItems.map(p => `
+        <div class="pend-cat-card">
+            <span class="pend-cat-icon">${p.icon}</span>
+            <div class="pend-cat-val" style="color:${p.color}">${p.val}</div>
+            <div class="pend-cat-lbl">${p.label}</div>
+            <div class="pend-cat-sub">${p.sub}</div>
+        </div>`).join('');
+
+    // Incidentes abiertos table
+    const incTbody = document.getElementById('incidentesTable');
+    const abiertos = d.incidentes.abiertos || [];
+    if (!abiertos.length) {
+        incTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem">No hay incidentes abiertos.</td></tr>';
+    } else {
+        incTbody.innerHTML = abiertos.map(r => `
+            <tr>
+                <td>${r.fecha || '—'}</td>
+                <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.incidente}">${r.incidente}</td>
+                <td>${r.cliente || '—'}</td>
+                <td>${severityBadge(r.severidad)}</td>
+                <td>${estadoBadge(r.estado)}</td>
+                <td class="${r.dias_abierto > 7 ? 'dias-neg' : 'dias-pos'}">${r.dias_abierto}</td>
+            </tr>`).join('');
+    }
+
+    // Compromisos table
+    const compTbody = document.getElementById('compromisosTable');
+    const comp = d.compromisos_pendientes || [];
+    if (!comp.length) {
+        compTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem">No hay compromisos pendientes.</td></tr>';
+    } else {
+        compTbody.innerHTML = comp.map(r => `
+            <tr>
+                <td>${r.fecha || '—'}</td>
+                <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.compromiso}</td>
+                <td>${r.cliente || '—'}</td>
+                <td>${estadoBadge(r.estado)}</td>
+                <td class="${r.dias_retraso > 0 ? 'dias-neg' : 'dias-pos'}">${r.dias_retraso > 0 ? r.dias_retraso : '—'}</td>
+            </tr>`).join('');
+    }
+
+    // Acciones
+    const accDiv = document.getElementById('accionesList');
+    accDiv.innerHTML = d.acciones && d.acciones.length
+        ? d.acciones.map((a, i) => `
+            <div class="accion-item">
+                <div class="accion-num">${i + 1}</div>
+                <div class="accion-text">${a}</div>
+            </div>`).join('')
+        : '<div style="font-size:.8rem;color:#22c55e;font-weight:600;grid-column:1/-1">✓ No hay acciones urgentes pendientes.</div>';
+
+    document.getElementById('lastUpdate').textContent = d.ultima_actualizacion
+        ? new Date(d.ultima_actualizacion).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '—';
+}
+
+async function loadData() {
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+    const params = new URLSearchParams();
+    const cli = document.getElementById('filtCliente').value;
+    const start = document.getElementById('filtStart').value;
+    const end = document.getElementById('filtEnd').value;
+    if (cli) params.set('cliente', cli);
+    if (start) params.set('start_date', start);
+    if (end) params.set('end_date', end);
+    try {
+        const r = await fetch('/cgeo/api/operacion-data?' + params);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        renderData(data);
+    } catch (err) {
+        console.error(err);
+        document.getElementById('statusText').textContent = 'Error al cargar datos: ' + err.message;
+    } finally {
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    }
+}
+
+async function loadFiltros() {
+    try {
+        const r = await fetch('/cgeo/api/filtros');
+        if (!r.ok) return;
+        const d = await r.json();
+        const sel = document.getElementById('filtCliente');
+        (d.clientes || []).forEach(c => {
+            const o = document.createElement('option');
+            o.value = o.textContent = c;
+            sel.appendChild(o);
+        });
+    } catch (e) {}
+}
+
+function setDefaultDates() {
+    const now = new Date();
+    const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+    document.getElementById('filtStart').value = `${y}-${m}-01`;
+    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+    document.getElementById('filtEnd').value = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+}
+
+(async function init() {
+    setDefaultDates();
+    await loadFiltros();
+    await loadData();
+})();
+</script>
+</body>
+</html>
