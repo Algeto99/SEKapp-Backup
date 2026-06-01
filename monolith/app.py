@@ -22,6 +22,7 @@ from viewer_bp import viewer_bp
 from expediente_bp import expediente_bp
 from admin_bp import admin_bp, init_admin_bp
 from cgeo_bp import cgeo_bp
+from matrices_bp import matrices_bp
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -164,6 +165,7 @@ app.register_blueprint(viewer_bp, url_prefix='/viewer')
 app.register_blueprint(expediente_bp, url_prefix='')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(cgeo_bp, url_prefix='/cgeo')
+app.register_blueprint(matrices_bp, url_prefix='/matrices')
 
 # JWT-authenticated blueprints use their own auth — exempt from CSRF
 csrf.exempt(viewer_bp)

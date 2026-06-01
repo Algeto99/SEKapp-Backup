@@ -261,6 +261,10 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Exportar PDF
             </button>
+            <button class="btn-pdf" onclick="openQRModal()" style="border-color:#0ea5e9;color:#0ea5e9">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12v.01M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z"/></svg>
+                Generar QR
+            </button>
         </div>
     </div>
 
@@ -755,6 +759,45 @@ function exportPDF() {
     window.print();
 }
 
+// ── QR Modal ──────────────────────────────────────────────────────────────────
+function openQRModal() {
+    const cliente = document.getElementById('filtCliente')?.value || '';
+    const start = document.getElementById('filtStart')?.value || '';
+    const end = document.getElementById('filtEnd')?.value || '';
+    const params = new URLSearchParams();
+    if (cliente) params.set('cliente', cliente);
+    if (start) params.set('start_date', start);
+    if (end) params.set('end_date', end);
+    const url = window.location.origin + '/cgeo/recursos/' + (params.toString() ? '?' + params.toString() : '');
+
+    let modal = document.getElementById('qrModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'qrModal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:380px;width:90%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
+                <div style="font-family:\'Merriweather\',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR</div>
+                <div style="font-size:.8rem;color:#64748b;margin-bottom:1.25rem">Recursos y Confiabilidad — Kanan Sentinel</div>
+                <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
+                <div style="font-size:.75rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem" id="qrUrlLabel"></div>
+                <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    }
+
+    document.getElementById('qrUrlLabel').textContent = url;
+    const container = document.getElementById('qrContainer');
+    container.innerHTML = '';
+
+    if (typeof QRCode !== 'undefined') {
+        new QRCode(container, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+    } else {
+        container.innerHTML = '<p style="color:#ef4444;font-size:.8rem">Librería QR no cargada</p>';
+    }
+}
+
 // ── Defaults: current month range ─────────────────────────────────────────────
 function setDefaultDates() {
     const now = new Date();
@@ -771,5 +814,6 @@ function setDefaultDates() {
     await loadData();
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </body>
 </html>
