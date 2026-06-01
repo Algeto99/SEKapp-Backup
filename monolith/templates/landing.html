@@ -208,6 +208,77 @@
             content: '👤';
         }
 
+        /* Tooltip / info icon */
+        .btn-wrapper {
+            position: relative;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .btn-wrapper .base-button-style {
+            margin-bottom: 0;
+        }
+
+        .info-icon {
+            position: absolute;
+            right: 0.65rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 1.35rem;
+            height: 1.35rem;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.35);
+            color: rgba(255,255,255,0.85);
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: default;
+            line-height: 1;
+            z-index: 2;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .info-icon:hover {
+            background: rgba(255,255,255,0.30);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        body.light-mode .info-icon {
+            background: rgba(0,0,0,0.08);
+            border: 1px solid rgba(0,0,0,0.22);
+            color: rgba(0,0,0,0.65);
+        }
+
+        body.light-mode .info-icon:hover {
+            background: rgba(0,0,0,0.15);
+        }
+
+        .tooltip-box {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 0.5rem);
+            width: 230px;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            padding: 0.6rem 0.8rem;
+            border-radius: 0.45rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+            pointer-events: none;
+            text-align: left;
+        }
+
+        .info-icon:hover .tooltip-box {
+            display: block;
+        }
+
         /* Light mode */
         body.light-mode {
             background-color: #f8f9fa;
@@ -321,35 +392,67 @@
                 <span id="user-type-text">Usuario</span>
             </div>
 
-            <div class="button-group w-full space-y-4 max-w-xs">
-                <button id="forms-button" class="base-button-style btn-primary-professional">
-                    📝 Acceso a Formularios
-                </button>
+            <div class="button-group w-full max-w-xs" style="display:flex;flex-direction:column;">
+                <div class="btn-wrapper">
+                    <button id="forms-button" class="base-button-style btn-primary-professional">
+                        📝 Acceso a Formularios
+                    </button>
+                    <span class="info-icon">ⓘ
+                        <span class="tooltip-box">Permite registrar novedades, inspecciones, incidentes y demás información operativa en tiempo real desde la plataforma.</span>
+                    </span>
+                </div>
 
-                <button id="matrices-button" class="base-button-style btn-primary-professional hidden">
-                    📊 Consultar Matrices
-                </button>
+                <div class="btn-wrapper hidden">
+                    <button id="matrices-button" class="base-button-style btn-primary-professional">
+                        📊 Consultar Matrices
+                    </button>
+                    <span class="info-icon">ⓘ
+                        <span class="tooltip-box">Espacio de seguimiento operativo para gestionar incidentes, compromisos y casos pendientes hasta su cierre.</span>
+                    </span>
+                </div>
 
-                <button id="reports-button" class="base-button-style btn-admin-special hidden">
-                    📊 Reportes (Admin)
-                </button>
+                <div class="btn-wrapper hidden">
+                    <button id="reports-button" class="base-button-style btn-admin-special">
+                        📊 Reportes
+                    </button>
+                    <span class="info-icon">ⓘ
+                        <span class="tooltip-box">Permite consultar, filtrar y exportar el detalle completo de todos los registros realizados en la plataforma.</span>
+                    </span>
+                </div>
 
-                <button id="dashboard-button" class="base-button-style btn-admin-special hidden">
-                    📈 Dashboards (Admin)
-                </button>
+                <div class="btn-wrapper hidden">
+                    <button id="dashboard-button" class="base-button-style btn-admin-special">
+                        📈 Dashboards
+                    </button>
+                    <span class="info-icon">ⓘ
+                        <span class="tooltip-box">Visualiza indicadores, gráficas y tendencias de la operación para análisis y seguimiento de resultados.</span>
+                    </span>
+                </div>
 
-                <button id="databases-button" class="base-button-style btn-admin-special hidden">
-                    🗄️ Bases de Datos (Admin)
-                </button>
+                <div class="btn-wrapper hidden">
+                    <button id="databases-button" class="base-button-style btn-admin-special">
+                        🗄️ Bases de Datos
+                    </button>
+                    <span class="info-icon">ⓘ
+                        <span class="tooltip-box">Centraliza inventarios, personal, equipos y demás información consolidada de la operación.</span>
+                    </span>
+                </div>
 
-                <button id="cgeo-button" class="base-button-style btn-admin-special hidden" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:2px solid #f59e0b;color:#fff;position:relative">
-                    🏢 Centro de Gestión Ejecutiva y Operativa
-                    <span style="position:absolute;top:-8px;right:8px;background:#f59e0b;color:#fff;font-size:.65rem;font-weight:800;padding:.15rem .5rem;border-radius:999px;letter-spacing:.5px">NUEVO</span>
-                </button>
+                <div class="btn-wrapper hidden">
+                    <button id="cgeo-button" class="base-button-style btn-admin-special" style="background:linear-gradient(135deg,#1e293b,#0f172a);border:2px solid #f59e0b;color:#fff;position:relative">
+                        🏢 Centro de Gestión Ejecutiva y Operativa
+                        <span style="position:absolute;top:-8px;right:8px;background:#f59e0b;color:#fff;font-size:.65rem;font-weight:800;padding:.15rem .5rem;border-radius:999px;letter-spacing:.5px">NUEVO</span>
+                    </button>
+                    <span class="info-icon" style="z-index:3">ⓘ
+                        <span class="tooltip-box">Consolida información estratégica y operativa para facilitar la toma de decisiones, seguimiento de alertas y control general de la operación.</span>
+                    </span>
+                </div>
 
-                <button id="logout-button" class="base-button-style btn-logout hidden">
-                    Cerrar Sesión
-                </button>
+                <div class="btn-wrapper hidden">
+                    <button id="logout-button" class="base-button-style btn-logout">
+                        Cerrar Sesión
+                    </button>
+                </div>
             </div>
 
             <p class="mt-12 text-sm text-muted">
@@ -442,31 +545,33 @@
                 welcomeMessageElement.textContent = `¡Bienvenido, ${userType} ${currentUserName || currentUserEmail}! Escoja una opción para interactuar de manera segura con nuestra plataforma.`;
 
                 // Show matrices button for all authenticated users
-                matricesButton.classList.remove('hidden');
+                matricesButton.closest('.btn-wrapper').classList.remove('hidden');
 
                 // Show/hide admin buttons
                 if (currentUserIsAdmin) {
-                    reportsButton.classList.remove('hidden');
-                    dashboardButton.classList.remove('hidden');
-                    databasesButton.classList.remove('hidden');
-                    cgeoButton.classList.remove('hidden');
+                    reportsButton.closest('.btn-wrapper').classList.remove('hidden');
+                    dashboardButton.closest('.btn-wrapper').classList.remove('hidden');
+                    databasesButton.closest('.btn-wrapper').classList.remove('hidden');
+                    cgeoButton.closest('.btn-wrapper').classList.remove('hidden');
                 } else {
-                    reportsButton.classList.add('hidden');
-                    dashboardButton.classList.add('hidden');
-                    databasesButton.classList.add('hidden');
-                    cgeoButton.classList.add('hidden');
+                    reportsButton.closest('.btn-wrapper').classList.add('hidden');
+                    dashboardButton.closest('.btn-wrapper').classList.add('hidden');
+                    databasesButton.closest('.btn-wrapper').classList.add('hidden');
+                    cgeoButton.closest('.btn-wrapper').classList.add('hidden');
                 }
 
-                logoutButton.classList.remove('hidden');
+                logoutButton.closest('.btn-wrapper').classList.remove('hidden');
                 topBar.classList.remove('hidden');
             } else {
                 welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades.";
                 userBadge.classList.add('hidden');
-                logoutButton.classList.add('hidden');
+                logoutButton.closest('.btn-wrapper').classList.add('hidden');
                 topBar.classList.add('hidden');
-                matricesButton.classList.add('hidden');
-                reportsButton.classList.add('hidden');
-                dashboardButton.classList.add('hidden');
+                matricesButton.closest('.btn-wrapper').classList.add('hidden');
+                reportsButton.closest('.btn-wrapper').classList.add('hidden');
+                dashboardButton.closest('.btn-wrapper').classList.add('hidden');
+                databasesButton.closest('.btn-wrapper').classList.add('hidden');
+                cgeoButton.closest('.btn-wrapper').classList.add('hidden');
             }
         }
 
