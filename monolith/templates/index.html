@@ -1677,36 +1677,84 @@
         }
 
         async function shareSelectedReports() {
-            let reportIds;
+            let reports;
             let reportCount;
 
             // Check if we're in "all reports" mode
             if (selectAllMode === 'all' && allReportIds.length > 0) {
-                reportIds = allReportIds.map(r => r.id);
-                reportCount = allReportIds.length;
+                reports = allReportIds;
+                reportCount = reports.length;
             } else {
                 const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
                 if (checkedCheckboxes.length === 0) {
                     showFlashMessage('Por favor seleccione al menos un reporte para compartir.', 'error');
                     return;
                 }
-                reportIds = Array.from(checkedCheckboxes).map(checkbox => checkbox.dataset.reportId);
-                reportCount = reportIds.length;
+                reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
+                reportCount = reports.length;
             }
 
-            if (navigator.share) {
-                try {
+            if (!navigator.share) {
+                showFlashMessage('Función de compartir no disponible en este navegador.', 'error');
+                return;
+            }
+
+            const loadingMsg = showFlashMessage(`Generando archivo PDF para compartir...`, 'info', 0);
+            try {
+                const response = await fetch('/viewer/api/generate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/pdf'
+                    },
+                    body: JSON.stringify({
+                        reports: reports,
+                        filename: 'reportes_compartidos'
+                    })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                const file = new File([blob], `Reportes_Seguridad_${timestamp}.pdf`, { type: 'application/pdf' });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Reportes de Seguridad - Kanan Sentinel SekApp',
+                        text: `Adjunto ${reportCount} reporte(s) de seguridad.`
+                    });
+                } else {
+                    // Fallback to text if file sharing is not supported by the OS/browser
                     await navigator.share({
                         title: 'Reportes de Seguridad - Kanan Sentinel SekApp',
-                        text: `${reportCount} reportes seleccionados: ${reportIds.join(', ')}`,
+                        text: `Enlace a ${reportCount} reporte(s) seleccionados.`,
                         url: window.location.href
                     });
-                } catch (error) {
-                    console.error('Error sharing:', error);
                 }
-            } else {
-                // Fallback for browsers that don't support Web Share API
-                showFlashMessage('Función de compartir no disponible en este navegador.', 'error');
+            } catch (error) {
+                console.error('Error sharing:', error);
+                // Ignore AbortError which happens when user closes the share sheet
+                if (error.name !== 'AbortError') {
+                    showFlashMessage('Error al compartir o compartir cancelado.', 'error');
+                }
+            } finally {
+                if (loadingMsg && loadingMsg.remove) {
+                    loadingMsg.remove();
+                }
             }
         }
 
