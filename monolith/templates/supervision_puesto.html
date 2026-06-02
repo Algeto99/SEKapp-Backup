@@ -304,13 +304,27 @@
                             <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
                             <input type="text" name="supervisions[${index}][puesto_area_especifica]" class="form-input" required>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Horario del Servicio</label>
-                            <select name="supervisions[${index}][horario_servicio]" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option>Diurno</option>
-                                <option>Nocturno</option>
-                            </select>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Tipo de turno</label>
+                                    <select name="supervisions[${index}][horario_servicio]" class="form-select">
+                                        <option value="">Seleccione...</option>
+                                        <option>Diurno</option>
+                                        <option>Nocturno</option>
+                                        <option>Mixto</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Entrada</label>
+                                    <input type="time" name="supervisions[${index}][hora_entrada]" class="form-input">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Salida</label>
+                                    <input type="time" name="supervisions[${index}][hora_salida]" class="form-input">
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>

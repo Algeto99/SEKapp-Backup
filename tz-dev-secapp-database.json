@@ -1835,6 +1835,16 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "reportes_incidentes",
+    "column_name": "accion_seguimiento",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "evidencia_seguimiento_url",
+    "data_type": "text"
+  },
+  {
     "table_name": "saved_filters",
     "column_name": "id",
     "data_type": "integer"
@@ -2068,6 +2078,26 @@
     "table_name": "supervision_puesto",
     "column_name": "fecha_ultimo_mtto_radio",
     "data_type": "date"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "hora_entrada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "hora_salida",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "licencia_portar_arma",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "matricula_arma",
+    "data_type": "character varying"
   },
   {
     "table_name": "users",
