@@ -231,9 +231,11 @@ class MultiSelect {
 .ms-wrap {
     position: relative;
     display: inline-block;
+    box-sizing: border-box;
 }
 
 .ms-btn {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -253,6 +255,9 @@ class MultiSelect {
     background-size: 1rem;
     white-space: nowrap;
     min-width: 110px;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
     text-align: left;
 }
 
