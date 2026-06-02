@@ -1544,10 +1544,10 @@ def install_instructions():
 @forms_bp.route('/manifest.json')
 def manifest():
     return jsonify({
-        "name": "Kanan SekApp Forms", # Slightly updated name
-        "short_name": "Kanan Forms",
+        "name": "Kanan SekApp",
+        "short_name": "SekApp",
         "description": "Aplicación para completar formularios de Kanan SekApp",
-        "start_url": "/select", # Start at selection
+        "start_url": "/forms/select",
         "display": "standalone",
         "background_color": "#1a202c",
         "theme_color": "#2563eb",
@@ -1556,25 +1556,25 @@ def manifest():
         "lang": "es",
         "icons": [
             {
-                "src": "https://storage.googleapis.com/smt-misc/SMT-logo.png", # Use your actual logo URL
+                "src": "https://storage.googleapis.com/smt-misc/SMT-logo.png",
                 "sizes": "192x192",
                 "type": "image/png",
                 "purpose": "any maskable"
             },
             {
-                "src": "https://storage.googleapis.com/smt-misc/SMT-logo.png", # Use your actual logo URL
+                "src": "https://storage.googleapis.com/smt-misc/SMT-logo.png",
                 "sizes": "512x512",
                 "type": "image/png",
                 "purpose": "any maskable"
             }
         ],
-         "shortcuts": [
+        "shortcuts": [
             {
                 "name": "Seleccionar Formulario",
                 "short_name": "Formularios",
                 "description": "Ver la lista de formularios disponibles",
-                "url": "/select",
-                "icons": [{"src": "https://storage.googleapis.com/smt-misc/SMT-logo.png", "sizes": "96x96"}] # Use your actual logo URL
+                "url": "/forms/select",
+                "icons": [{"src": "https://storage.googleapis.com/smt-misc/SMT-logo.png", "sizes": "96x96"}]
             }
         ],
         "categories": ["business", "productivity"],

@@ -446,6 +446,12 @@
         </div>
 
         <div class="mt-8 flex flex-col items-center gap-3">
+            <button id="install-pwa-btn" onclick="installPWA()" style="
+                display: none; background: #1e40af; color: #dbeafe; border: 1px solid #3b82f6;
+                padding: 0.5rem 1.2rem; border-radius: 8px; cursor: pointer;
+                font-size: 0.82rem; transition: background .2s; align-items: center; gap: .4rem;">
+                📲 Agregar a Pantalla de Inicio
+            </button>
             <button id="offline-prep-btn" onclick="prepareOffline()" style="
                 background: #2d6a4f; color: #d8f3dc; border: 1px solid #52b788;
                 padding: 0.5rem 1.2rem; border-radius: 8px; cursor: pointer;
@@ -815,6 +821,34 @@
     <!-- Offline queue sync manager -->
     <script src="/static/js/offline-sync.js"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+
+    <script>
+    (function () {
+        let deferredInstallPrompt = null;
+        const installBtn = document.getElementById('install-pwa-btn');
+
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            installBtn.style.display = 'inline-flex';
+        });
+
+        window.installPWA = async function () {
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+                installBtn.style.display = 'none';
+            }
+            deferredInstallPrompt = null;
+        };
+
+        window.addEventListener('appinstalled', function () {
+            installBtn.style.display = 'none';
+            deferredInstallPrompt = null;
+        });
+    })();
+    </script>
 </body>
 
 </html>
