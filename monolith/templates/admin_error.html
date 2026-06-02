@@ -36,21 +36,7 @@
 </head>
 <body>
 
-<div class="header-nav">
-    <div class="nav-content">
-        <div style="display:flex; align-items:center; gap:0.75rem;">
-            <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png?v=2" alt="Logo" style="width:2rem;height:2rem;border-radius:0.375rem;">
-            <span style="font-size:0.875rem; color:#9ca3af;">Bienvenido, <span class="user-name">{{ user_name }}</span></span>
-        </div>
-        <div class="nav-links">
-            <a href="/admin/" class="nav-link">← Panel de Admin</a>
-            <a href="/landing/" class="nav-link">Inicio</a>
-            <a href="/logout" class="nav-link">Cerrar Sesión</a>
-        </div>
-    </div>
-</div>
-
-<div class="main">
+{% include '_header_nav.html' %}
     <div style="display:flex; align-items:center; gap:1rem; margin-bottom:2rem;">
         <div style="width:48px;height:48px;border-radius:12px;background:rgba(220,38,38,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
             <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

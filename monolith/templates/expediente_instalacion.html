@@ -9,12 +9,29 @@
   <style>
     body { font-family:'Roboto',sans-serif; background-color:#1a202c; color:#e2e8f0; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
     h1,h2,h3,h4 { font-family:'Merriweather',serif; color:#fff; }
+    
+    .theme-toggle { position:fixed; top:1.25rem; left:1.25rem; z-index:100; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:.5rem; padding:.5rem; cursor:pointer; color:#e5e7eb; }
+    .theme-toggle svg { width:1.25rem; height:1.25rem; }
 
+    /* Light Mode Overrides */
+    body.light-mode { background-color:#f1f5f9; color:#0f172a; }
+    body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4 { color:#0f172a; }
+    body.light-mode .theme-toggle { background:rgba(0,0,0,0.06); color:#334155; border-color:rgba(0,0,0,0.12); }
+    body.light-mode .property-bar, body.light-mode .kpi-card, body.light-mode .tl-card, body.light-mode .filter-btn, body.light-mode .range-chip { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 8px rgba(0,0,0,.04); }
+    body.light-mode .tl-card { background:#fff; }
+    body.light-mode .kpi-val, body.light-mode .tl-summary { color:#334155; }
+    body.light-mode .kpi-label, body.light-mode .tl-ts, body.light-mode .tl-meta { color:#64748b; }
+    body.light-mode .select-field { background:#f8fafc; border-color:rgba(0,0,0,0.15); color:#0f172a; }
+    body.light-mode .qr-box { background-color:#fff; border-color:rgba(0,0,0,0.1); }
+    body.light-mode .qr-box h3 { color:#0f172a; }
+    body.light-mode .timeline::before { background:rgba(0,0,0,.08); }
+    body.light-mode .btn-outline { color:#334155; border-color:rgba(0,0,0,0.2); }
+    body.light-mode .btn-outline:hover { border-color:rgba(0,0,0,0.4); }
 
     .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
     .module-header { display:flex; align-items:center; gap:1rem; margin-bottom:1.75rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.07); }
     .module-icon { width:50px; height:50px; border-radius:12px; flex-shrink:0; background-color:rgba(167,139,250,.15); color:#a78bfa; display:flex; align-items:center; justify-content:center; }
-
+    
     /* Property selector */
     .property-bar { background:rgba(45,55,72,.6); border:1px solid rgba(255,255,255,.08); border-radius:.75rem; padding:1rem 1.25rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
     .select-field { background:#2d3748; border:1px solid rgba(255,255,255,.15); color:#e2e8f0; border-radius:.5rem; padding:.5rem .75rem; font-size:.9rem; min-width:220px; }
@@ -105,26 +122,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 <body>
+    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+    </button>
 
 <!-- Nav -->
-<nav class="header-nav">
-  <div class="nav-content">
-    <div class="nav-links">
-      <span style="font-family:'Merriweather',serif;font-weight:700;color:#a78bfa;font-size:1.05rem;">SekApp</span>
-      <a href="/landing/" class="nav-link">Inicio</a>
-      <a href="/dashboard/" class="nav-link">Dashboards</a>
-      <a href="/viewer/" class="nav-link">Reportes</a>
-      <a href="/dashboard/supervision/" class="nav-link">Supervisión</a>
-      <a href="/dashboard/incidentes/" class="nav-link">Incidentes</a>
-      <a href="/dashboard/visitas/" class="nav-link">Visitas</a>
-      <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
-      {% if is_super_admin %}<a href="/admin/" class="nav-link" title="Panel de Administración" style="display:inline-flex;align-items:center;"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>{% endif %}<a href="/logout" class="nav-link">Cerrar Sesión</a>
-    </div>
-    <div class="user-greeting">
-      Hola, <span class="user-name">{{ user_name }}</span>
-    </div>
-  </div>
-</nav>
+{% include '_header_nav.html' %}
 
 <!-- QR Modal -->
 <div id="qrModal">

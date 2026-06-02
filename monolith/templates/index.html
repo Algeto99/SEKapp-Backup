@@ -521,24 +521,7 @@
 
     <div class="container-wrapper">
         <!-- Unified Navigation Bar -->
-        <div class="header-nav">
-            <div class="nav-content">
-                <div class="flex items-center gap-3">
-                    <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png?v=2" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
-                </div>
-                <div class="nav-links">
-                    <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
-                    <a href="{{ forms_service_url }}" class="nav-link">Reporte de Incidencia</a>
-                    <a href="/dashboard/" class="nav-link">Dashboards</a>
-                    <a href="/logout" class="nav-link nav-link-danger">Cerrar Sesión</a>
-                    <button id="install-pwa-btn" onclick="installPWA()" class="nav-link text-green-600 hover:text-green-800 font-medium transition-colors duration-200" style="display: none; background:none; border:none; padding:0; cursor:pointer;">
-                        📲 Instalar App
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex flex-col items-center mb-6">
+        {% include '_header_nav.html' %}
             <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png?v=2" alt="Kanan Logo"
                 class="logo-img opacity-90" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);">
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Reportes de Seguridad</h1>
