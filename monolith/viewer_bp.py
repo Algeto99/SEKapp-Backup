@@ -1466,7 +1466,7 @@ def email_selected_reports_api():
 
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
     logo_src = _get_logo_data_url() or ""
-    logo_tag = f'<img src="{logo_src}" alt="Kanan" width="36" height="36" style="border-radius:6px;background:#fff;padding:3px;vertical-align:middle;">' if logo_src else ''
+    logo_tag = f'<img src="{logo_src}" alt="Kanan" height="40" style="width:auto;border-radius:6px;background:transparent;padding:3px;vertical-align:middle;">' if logo_src else ''
     gen_date = datetime.now().strftime("%d/%m/%Y %H:%M")
 
     p = []
@@ -1948,9 +1948,9 @@ def _get_logo_data_url():
     if _LOGO_DATA_URL_CACHE:
         return _LOGO_DATA_URL_CACHE
     try:
-        resp = requests.get("https://storage.googleapis.com/smt-misc/KananSentinel.png", timeout=5, verify=False)
-        if resp.ok:
-            b64 = base64.b64encode(resp.content).decode()
+        logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo_full.png')
+        with open(logo_path, 'rb') as f:
+            b64 = base64.b64encode(f.read()).decode()
             _LOGO_DATA_URL_CACHE = f"data:image/png;base64,{b64}"
             return _LOGO_DATA_URL_CACHE
     except Exception:
@@ -2073,7 +2073,7 @@ body { font-family: Arial, Helvetica, sans-serif; color: #1f2937; font-size: 8.5
 }
 .header-left { display: table-cell; vertical-align: middle; }
 .header-logo { display: inline-block; vertical-align: middle; margin-right: 10px; }
-.header-logo img { height: 36px; width: 36px; border-radius: 6px; background: white; padding: 2px; vertical-align: middle; }
+.header-logo img { height: 40px; width: auto; border-radius: 6px; background: transparent; padding: 2px; vertical-align: middle; object-fit: contain; }
 .header-title { display: inline-block; vertical-align: middle; }
 .header-title h1 { font-size: 12pt; font-weight: bold; }
 .header-title p { font-size: 8pt; opacity: 0.8; margin-top: 1px; }

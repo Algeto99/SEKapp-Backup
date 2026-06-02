@@ -13,7 +13,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 /* ── Sidebar ── */
 .sidebar{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto}
 .sidebar-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
-.sidebar-logo img{width:120px;display:block}
+.sidebar-logo img{width:160px;display:block;margin:0 auto}
 .sidebar-logo-text{color:#fff;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem;color:#94a3b8}
 .sidebar-nav{padding:1rem 0;flex:1}
 .nav-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
@@ -180,7 +180,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 <!-- Sidebar -->
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <img src="{{ url_for('static', filename='logo_new.png') }}" alt="Kanan Sentinel">
+        <img src="{{ url_for('static', filename='logo_full.png') }}" alt="Kanan Sentinel">
         <div class="sidebar-logo-text">SekApp</div>
     </div>
     <nav class="sidebar-nav">
