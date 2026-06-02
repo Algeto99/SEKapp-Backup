@@ -2,7 +2,7 @@
     <div class="nav-content">
         <div class="flex items-center gap-3">
             <img src="/static/logo_full.png" alt="Logo" class="w-8 h-auto object-contain rounded-md shadow-sm">
-            <div class="user-greeting">Bienvenido, <span class="user-name">{{ user_name }}</span>{% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}</div>
+            <div class="user-greeting">Bienvenido, <span class="user-name">{{ user_name or name or current_user }}</span>{% if is_admin %}<span class="admin-badge"> (Admin)</span>{% endif %}</div>
         </div>
         <div class="nav-links">
             <a href="/landing/" class="nav-link">Inicio</a>
@@ -30,3 +30,4 @@
         }
     });
 </script>
+<script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

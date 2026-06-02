@@ -1,4 +1,7 @@
 (function () {
+    if (window.themeToggleInitialized) return;
+    window.themeToggleInitialized = true;
+    
     // App-wide layout guard: prevents stray horizontal overflow from revealing
     // a mismatched root background on mobile while preserving table wrappers.
     var style = document.createElement('style');
@@ -74,7 +77,46 @@
         } catch (e) {}
 
         var btn = document.getElementById('themeToggle');
+        
+        // --- Theme initialization ---
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const lightModeIcon = document.getElementById('lightModeIcon');
+
+        function setDarkMode() {
+            document.body.classList.remove('light-mode');
+            if (darkModeIcon) darkModeIcon.style.display = 'block';
+            if (lightModeIcon) lightModeIcon.style.display = 'none';
+            localStorage.setItem('theme', 'dark');
+            syncRootBackground();
+        }
+
+        function setLightMode() {
+            document.body.classList.add('light-mode');
+            if (darkModeIcon) darkModeIcon.style.display = 'none';
+            if (lightModeIcon) lightModeIcon.style.display = 'block';
+            localStorage.setItem('theme', 'light');
+            syncRootBackground();
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('light-mode')) setDarkMode(); else setLightMode();
+        }
+
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+                setLightMode();
+            } else {
+                setDarkMode();
+            }
+        }
+
+        initializeTheme();
+
         if (!btn) return;
+        
+        btn.addEventListener('click', toggleTheme);
 
         // --- Restore saved position ---
         var saved = null;
