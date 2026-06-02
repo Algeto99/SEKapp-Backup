@@ -138,19 +138,6 @@
             margin-bottom: 1.5rem;
         }
 
-        .nav-link {
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 1rem;
-            display: inline-block;
-            transition: all 0.2s ease;
-        }
-
-        .nav-link:hover {
-            background-color: #f3f4f6;
-            transform: translateY(-1px);
-        }
 
         .report-content {
             max-height: 0;
@@ -197,21 +184,10 @@
                 margin-top: 1rem;
             }
 
-            .nav-link {
-                font-size: 0.875rem;
-                padding: 0.5rem 0.75rem;
-                text-align: center;
-                min-width: 0;
-                flex: 1;
-            }
         }
 
         @media (max-width: 640px) {
-            .nav-link {
-                font-size: 0.75rem;
-                padding: 0.375rem 0.5rem;
-                line-height: 1.2;
-            }
+
 
             .theme-toggle {
                 top: 1rem;
@@ -522,6 +498,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 
 <body class="bg-gray-100 flex flex-col items-center p-6">
@@ -543,32 +520,23 @@
     <div id="flash-message-container" class="flash-message hidden"></div>
 
     <div class="container-wrapper">
-        <!-- Mobile-Responsive Navigation Bar -->
-        <nav class="bg-white border-b border-gray-200 rounded-lg shadow-sm mb-6 p-3 md:p-4">
-            <div class="flex flex-wrap justify-center items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8">
-                <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png?v=2" alt="Logo"
-                    class="w-8 h-8 rounded-md shadow-sm">
-                <a href="{{ landing_service_url }}"
-                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
-                    Inicio
-                </a>
-                <a href="{{ forms_service_url }}"
-                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
-                    Reporte de Incidencia
-                </a>
-                <a href="/dashboard/"
-                    class="nav-link text-blue-700 hover:text-blue-900 font-medium transition-colors duration-200">
-                    Dashboards
-                </a>
-                <a href="/logout"
-                    class="nav-link text-red-600 hover:text-red-800 font-medium transition-colors duration-200">
-                    Cerrar Sesión
-                </a>
-                <button id="install-pwa-btn" onclick="installPWA()" class="nav-link text-green-600 hover:text-green-800 font-medium transition-colors duration-200" style="display: none;">
-                    📲 Instalar App
-                </button>
+        <!-- Unified Navigation Bar -->
+        <div class="header-nav">
+            <div class="nav-content">
+                <div class="flex items-center gap-3">
+                    <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png?v=2" alt="Logo" class="w-8 h-8 rounded-md shadow-sm">
+                </div>
+                <div class="nav-links">
+                    <a href="{{ landing_service_url }}" class="nav-link">Inicio</a>
+                    <a href="{{ forms_service_url }}" class="nav-link">Reporte de Incidencia</a>
+                    <a href="/dashboard/" class="nav-link">Dashboards</a>
+                    <a href="/logout" class="nav-link nav-link-danger">Cerrar Sesión</a>
+                    <button id="install-pwa-btn" onclick="installPWA()" class="nav-link text-green-600 hover:text-green-800 font-medium transition-colors duration-200" style="display: none; background:none; border:none; padding:0; cursor:pointer;">
+                        📲 Instalar App
+                    </button>
+                </div>
             </div>
-        </nav>
+        </div>
 
         <div class="flex flex-col items-center mb-6">
             <img src="https://storage.googleapis.com/smt-misc/KananSentinel.png?v=2" alt="Kanan Logo"

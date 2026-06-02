@@ -191,10 +191,6 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .admin-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-color: #667eea;
-        }
 
         .admin-badge::before {
             content: '👑';
@@ -341,6 +337,7 @@
             background-color: #dc2626;
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 
 <body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">

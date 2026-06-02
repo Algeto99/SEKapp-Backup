@@ -9,17 +9,7 @@
     <style>
         body { font-family: 'Roboto', sans-serif; background-color: #1a202c; color: #e2e8f0; min-height: 100vh; padding-top: 80px; }
         h1, h2 { font-family: 'Merriweather', serif; color: #fff; }
-        .header-nav {
-            position: fixed; top: 0; left: 0; right: 0;
-            background-color: rgba(45,55,72,0.97); backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding: 1rem 1.5rem; z-index: 50;
-        }
-        .nav-content { max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
-        .nav-link { color: #60a5fa; text-decoration: none; font-size: 0.875rem; }
-        .nav-link:hover { color: #93c5fd; text-decoration: underline; }
-        .user-name { color: #60a5fa; font-weight: bold; }
+
         .main { max-width: 780px; margin: 3rem auto; padding: 0 1.5rem; }
         .error-card {
             background: rgba(69,10,10,0.5); border: 1px solid rgba(220,38,38,0.4);
@@ -42,6 +32,7 @@
         .btn-primary { background: #4f46e5; color: #fff; }
         .btn-ghost { background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.12); }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 <body>
 
@@ -54,7 +45,7 @@
         <div class="nav-links">
             <a href="/admin/" class="nav-link">← Panel de Admin</a>
             <a href="/landing/" class="nav-link">Inicio</a>
-            <a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+            <a href="/logout" class="nav-link">Cerrar Sesión</a>
         </div>
     </div>
 </div>

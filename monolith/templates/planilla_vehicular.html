@@ -26,61 +26,6 @@
             color: #ffffff;
         }
 
-        .header-nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: rgba(45, 55, 72, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 1rem 1.5rem;
-            z-index: 50;
-        }
-
-        .nav-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .nav-links {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        .nav-link {
-            color: #60a5fa;
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-
-        .nav-link:hover {
-            color: #93c5fd;
-            text-decoration: underline;
-        }
-
-        .user-greeting {
-            font-size: 0.875rem;
-            color: #9ca3af;
-        }
-
-        .user-name {
-            color: #60a5fa;
-            font-weight: bold;
-        }
-
-        .admin-badge {
-            color: #a855f7;
-            font-weight: bold;
-        }
 
         .form-section {
             background-color: #2d3748;
@@ -237,14 +182,6 @@
             color: #212529;
         }
 
-        body.light-mode .header-nav {
-            background-color: rgba(255, 255, 255, 0.95);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-        }
-
-        body.light-mode .user-greeting {
-            color: #4a5568;
-        }
 
         body.light-mode .form-section {
             background-color: #ffffff;
@@ -289,17 +226,14 @@
         }
 
         @media (max-width: 768px) {
-            .nav-content {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.5rem;
-            }
+
 
             body {
                 padding-top: 120px;
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 
 <body>

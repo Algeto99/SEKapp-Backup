@@ -20,24 +20,6 @@
         }
         h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
 
-        .header-nav {
-            position: fixed; top:0; left:0; right:0;
-            background-color: rgba(45,55,72,0.97);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding: 1rem 1.5rem; z-index: 50;
-        }
-        .nav-content {
-            max-width: 1280px; margin:0 auto;
-            display:flex; justify-content:space-between;
-            align-items:center; flex-wrap:wrap; gap:0.75rem;
-        }
-        .nav-links { display:flex; align-items:center; gap:1.25rem; flex-wrap:wrap; }
-        .nav-link { color:#60a5fa; text-decoration:none; font-size:0.875rem; transition:color 0.2s; }
-        .nav-link:hover { color:#93c5fd; text-decoration:underline; }
-        .user-greeting { font-size:0.875rem; color:#9ca3af; }
-        .user-name { color:#60a5fa; font-weight:bold; }
-        .admin-badge { color:#a855f7; font-weight:bold; }
 
         .theme-toggle {
             position:fixed; top:1.25rem; left:1.25rem; z-index:100;
@@ -190,8 +172,7 @@
         body.light-mode { background-color:#f1f5f9; color:#1e293b; }
         body.light-mode h1,body.light-mode h2,body.light-mode h3,
         body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
-        body.light-mode .header-nav { background-color:rgba(255,255,255,0.97); border-bottom:1px solid rgba(0,0,0,0.08); }
-        body.light-mode .user-greeting { color:#475569; }
+
         body.light-mode .theme-toggle { background-color:rgba(0,0,0,0.07); border-color:rgba(0,0,0,0.15); color:#374151; }
         body.light-mode .card { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,0.07); }
         body.light-mode .card-title { color:#94a3b8; }
@@ -233,7 +214,7 @@
         @media (max-width:700px)  {
             .kpi-grid { grid-template-columns:1fr 1fr; }
             body { padding-top:110px; }
-            .nav-content { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+
         }
         @media (max-width:500px) { .kpi-grid { grid-template-columns:1fr; } .gauge-score { font-size:2.25rem; } }
 
@@ -282,6 +263,7 @@
         .score-seguimiento { background:rgba(234,179,8,0.15);   color:#facc15; }
         .score-critico     { background:rgba(239,68,68,0.15);   color:#f87171; }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 
 <body>
@@ -309,7 +291,7 @@
                 <a href="/viewer/" class="nav-link">Reportes</a>
                 <a href="{{ url_for('forms_bp.select_form') }}" class="nav-link">Seleccionar Formulario</a>
                 <a href="/expediente/" class="nav-link">Expediente</a>
-                {% if is_super_admin %}<a href="/admin/" class="nav-link" title="Panel de Administración" style="display:inline-flex;align-items:center;"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>{% endif %}<a href="/logout" class="nav-link" style="color:#f87171;">Cerrar Sesión</a>
+                {% if is_super_admin %}<a href="/admin/" class="nav-link" title="Panel de Administración" style="display:inline-flex;align-items:center;"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a>{% endif %}<a href="/logout" class="nav-link">Cerrar Sesión</a>
             </div>
         </div>
     </div>
