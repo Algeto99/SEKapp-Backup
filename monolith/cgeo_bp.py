@@ -132,7 +132,12 @@ def _capac_date():
 def cgeo_hub():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
-    return redirect("/cgeo/recursos/")
+    return render_template(
+        "cgeo_hub.html",
+        current_user=user_email,
+        user_name=user_name,
+        is_admin=is_admin,
+    )
 
 
 @cgeo_bp.route("/recursos/")

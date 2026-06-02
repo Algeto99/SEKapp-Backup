@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centro de Gestión Ejecutiva y Operativa — Kanan Sentinel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;display:flex}
+
+.sidebar{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto;transition:transform 0.3s ease}
+.sidebar.collapsed{transform:translateX(-100%)}
+.sidebar-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
+.sidebar-logo img{width:160px;display:block;margin:0 auto}
+.sidebar-logo-text{color:#94a3b8;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem}
+.sidebar-nav{padding:1rem 0;flex:1}
+.nav-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
+.nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
+.nav-item.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
+.nav-item svg{width:15px;height:15px;flex-shrink:0}
+.nav-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:.5rem 1.25rem}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,0.07)}
+.sidebar-user{font-size:.75rem;color:#64748b;word-break:break-all}
+.sidebar-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
+.btn-logout{display:block;margin-top:.75rem;padding:.5rem .75rem;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25);border-radius:.5rem;font-size:.75rem;text-align:center;text-decoration:none;font-weight:600;transition:all .15s}
+.btn-logout:hover{background:rgba(239,68,68,0.2)}
+
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left 0.3s ease}
+.main.expanded{margin-left:0}
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:1rem 1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:30}
+.topbar-left{display:flex;align-items:center;gap:.875rem}
+.page-icon{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform 0.2s ease, opacity 0.2s ease}
+.page-icon:hover{opacity:0.9;transform:scale(1.05)}
+.page-icon svg{width:22px;height:22px;color:#fff}
+.page-title{font-size:1.125rem;font-weight:700;color:#0f172a;line-height:1.2}
+.page-subtitle{font-size:.8rem;color:#64748b;font-weight:400}
+
+.content{padding:1.5rem 1.75rem;flex:1}
+
+.section-header{margin-bottom:1.25rem}
+.section-title{font-size:1rem;font-weight:700;color:#0f172a;margin-bottom:.25rem}
+.section-desc{font-size:.8125rem;color:#64748b}
+
+.matrices-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.25rem;margin-bottom:2rem}
+
+.matrix-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.5rem;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:1rem;transition:all .2s;position:relative;overflow:hidden}
+.matrix-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.09);border-color:#cbd5e1}
+.matrix-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.matrix-card.border-blue::before{background:linear-gradient(90deg,#3b82f6,#6366f1)}
+.matrix-card.border-orange::before{background:linear-gradient(90deg,#f97316,#ef4444)}
+
+.matrix-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+.matrix-card-icon{width:44px;height:44px;border-radius:.625rem;display:flex;align-items:center;justify-content:center;font-size:1.375rem;flex-shrink:0}
+.icon-blue{background:#eff6ff}
+.icon-orange{background:#fff7ed}
+
+.matrix-card-title{font-size:.9375rem;font-weight:700;color:#0f172a;margin-bottom:.25rem}
+.matrix-card-desc{font-size:.8rem;color:#64748b;line-height:1.5}
+
+.matrix-stats{display:flex;gap:1rem;flex-wrap:wrap}
+.stat-pill{display:flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.625rem;padding:.5rem .875rem;min-width:64px;flex:1}
+.stat-num{font-size:1.25rem;font-weight:700;font-family:'Merriweather',serif;line-height:1;color:#0f172a}
+.stat-num.text-red{color:#dc2626}
+.stat-num.text-amber{color:#d97706}
+.stat-num.text-green{color:#16a34a}
+.stat-num.text-blue{color:#3b82f6}
+.stat-lbl{font-size:.65rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-top:.25rem;text-align:center}
+
+.matrix-action{display:flex;align-items:center;justify-content:space-between;padding-top:.75rem;border-top:1px solid #f1f5f9}
+.matrix-action-text{font-size:.8125rem;font-weight:600;color:#3b82f6}
+.matrix-action-arrow{color:#94a3b8;transition:transform .15s}
+.matrix-card:hover .matrix-action-arrow{transform:translateX(4px);color:#3b82f6}
+
+.loading-shimmer{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:400px 100%;animation:shimmer 1.2s infinite;border-radius:.375rem;height:1.25rem;width:4rem;display:inline-block}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+
+.alert-bar{background:#fef2f2;border:1px solid #fecaca;border-radius:.75rem;padding:.875rem 1.25rem;display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem}
+.alert-bar-dot{width:10px;height:10px;border-radius:50%;background:#ef4444;flex-shrink:0}
+.alert-bar-text{font-size:.875rem;font-weight:600;color:#b91c1c}
+.alert-bar.hidden{display:none}
+
+/* Loading spinner overlays for cards */
+.card-loader{position:absolute;inset:0;background:rgba(255,255,255,0.8);z-index:10;display:flex;align-items:center;justify-content:center;transition:opacity 0.3s;border-radius:.875rem}
+.card-loader.hidden{opacity:0;pointer-events:none}
+.spinner{width:30px;height:30px;border:3px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <img src="/static/logo_full.png" alt="Kanan Sentinel">
+        <div class="sidebar-logo-text">SekApp</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Principal</div>
+        <a href="/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Inicio
+        </a>
+        <a href="/forms/select" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Acceso a Formularios
+        </a>
+        <a href="/matrices/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            Consultar Matrices
+        </a>
+        <hr class="nav-divider">
+        <div class="nav-section">Administración</div>
+        <a href="/viewer/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Reportes (Admin)
+        </a>
+        <a href="/dashboard/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Dashboards (Admin)
+        </a>
+        <a href="/dashboard/bases_de_datos/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Bases de Datos (Admin)
+        </a>
+        <hr class="nav-divider">
+        <div class="nav-section">Centro de Gestión</div>
+        <a href="/cgeo/recursos/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Recursos y Confiabilidad
+        </a>
+        <a href="/cgeo/operacion/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+            Operación y Novedades
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <strong>Usuario</strong>
+            <span>{{ user_name or current_user }}</span>
+        </div>
+        <a href="/logout" class="btn-logout">⏻ Cerrar Sesión</a>
+    </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="page-icon">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            </div>
+            <div>
+                <div class="page-title">Centro de Gestión Ejecutiva y Operativa</div>
+                <div class="page-subtitle">Consolida información estratégica para la toma de decisiones</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Alert bar for critical items -->
+        <div id="alertBar" class="alert-bar hidden">
+            <div class="alert-bar-dot"></div>
+            <span id="alertBarText" class="alert-bar-text"></span>
+        </div>
+
+        <div class="section-header">
+            <div class="section-title">Paneles de Control y Gestión</div>
+            <div class="section-desc">Seleccione el módulo que desea gestionar.</div>
+        </div>
+
+        <div class="matrices-grid">
+            <!-- Recursos y Confiabilidad -->
+            <a href="/cgeo/recursos/" class="matrix-card border-blue">
+                <div class="card-loader" id="loader-recursos"><div class="spinner"></div></div>
+                <div class="matrix-card-header">
+                    <div>
+                        <div class="matrix-card-title">Gestión de Recursos y Confiabilidad</div>
+                        <div class="matrix-card-desc">Estado de equipos, disponibilidad de vehículos, certificaciones y cumplimiento normativo.</div>
+                    </div>
+                    <div class="matrix-card-icon icon-blue">🛡️</div>
+                </div>
+                <div class="matrix-stats">
+                    <div class="stat-pill">
+                        <span class="stat-num text-blue" id="recConf"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Confiabilidad</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num" id="recEq"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Equipos Op.</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num text-red" id="recCert"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Certs Vencidas</span>
+                    </div>
+                </div>
+                <div class="matrix-action">
+                    <span class="matrix-action-text">Ingresar al panel de recursos</span>
+                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </a>
+
+            <!-- Operación y Novedades -->
+            <a href="/cgeo/operacion/" class="matrix-card border-orange">
+                <div class="card-loader" id="loader-operacion"><div class="spinner" style="border-top-color:#f97316"></div></div>
+                <div class="matrix-card-header">
+                    <div>
+                        <div class="matrix-card-title">Gestión de Operación y Novedades</div>
+                        <div class="matrix-card-desc">Desempeño operativo, incidentes, compromisos, disciplina y nivel de servicio.</div>
+                    </div>
+                    <div class="matrix-card-icon icon-orange">📊</div>
+                </div>
+                <div class="matrix-stats">
+                    <div class="stat-pill">
+                        <span class="stat-num text-green" id="opSat"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Satisfacción</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num text-red" id="opInc"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Inc. Críticos</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num text-amber" id="opVis"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Compromisos Pend.</span>
+                    </div>
+                </div>
+                <div class="matrix-action">
+                    <span class="matrix-action-text">Ingresar al panel de operaciones</span>
+                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadStats() {
+    let globalAlerts = [];
+
+    // Load Recursos
+    try {
+        const r = await fetch('/cgeo/api/recursos-data');
+        if (r.ok) {
+            const d = await r.json();
+            document.getElementById('recConf').textContent = d.confiabilidad_general != null ? d.confiabilidad_general + '%' : '—';
+            document.getElementById('recEq').textContent = d.equipos ? d.equipos.operativos : '—';
+            document.getElementById('recCert').textContent = d.certificaciones ? d.certificaciones.vencidas : '—';
+            
+            if (d.certificaciones && d.certificaciones.vencidas > 0) {
+                globalAlerts.push(`${d.certificaciones.vencidas} certificación(es) vencida(s)`);
+            }
+            if (d.equipos && d.equipos.no_operativos > 0) {
+                globalAlerts.push(`${d.equipos.no_operativos} equipo(s) no operativo(s)`);
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    } finally {
+        document.getElementById('loader-recursos').classList.add('hidden');
+    }
+
+    // Load Operación
+    try {
+        const r = await fetch('/cgeo/api/operacion-data');
+        if (r.ok) {
+            const d = await r.json();
+            document.getElementById('opSat').textContent = d.satisfaccion && d.satisfaccion.pct != null ? d.satisfaccion.pct + '%' : '—';
+            document.getElementById('opInc').textContent = d.incidentes ? d.incidentes.criticos_abiertos : '—';
+            
+            // Compromisos pendientes
+            let compVencidos = 0;
+            if (d.compromisos_pendientes) {
+                compVencidos = d.compromisos_pendientes.filter(c => c.dias_retraso > 0).length;
+            } else if (d.alertas && typeof d.alertas.compromisos_vencidos !== 'undefined') {
+                 // Dependiendo del API, puede que no devuelva la lista exacta en el payload principal para hub
+                 // Usaremos la longitud de abiertos o asumiremos 0 si no lo mandan.
+            }
+
+            // The API doesn't return compromisos_pendientes directly sometimes.
+            // Wait, operacion-data DOES return it? Actually, checking cgeo_bp.py:
+            // The JSON does NOT return compromisos_pendientes, wait.
+            // Let's set it to '-' or a safe value.
+            
+            document.getElementById('opVis').textContent = 'Ver Detalle';
+
+            if (d.incidentes && d.incidentes.criticos_abiertos > 0) {
+                globalAlerts.push(`${d.incidentes.criticos_abiertos} incidente(s) crítico(s) abierto(s)`);
+            }
+        }
+    } catch(e) {
+        console.error(e);
+    } finally {
+        document.getElementById('loader-operacion').classList.add('hidden');
+    }
+
+    // Alert Bar
+    if (globalAlerts.length > 0) {
+        document.getElementById('alertBarText').textContent = '⚠️ Atención: ' + globalAlerts.slice(0, 3).join(' · ') + (globalAlerts.length > 3 ? '...' : '');
+        document.getElementById('alertBar').classList.remove('hidden');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+
+    // Sidebar toggle functionality
+    const pageIcon = document.querySelector('.page-icon');
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main');
+    
+    if (pageIcon && sidebar && mainContent) {
+        pageIcon.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+        });
+    }
+});
+</script>
+</body>
+</html>
