@@ -451,6 +451,25 @@
                         ${generateSelectField(index, 'estado_bitacora', 'Estado de bitácora y registros')}
                     </div>
 
+                    <!-- Detalles de Uniforme -->
+                    <div id="uniformeFields_${index}" class="hidden mb-6 p-4 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
+                        <label class="block text-sm font-medium mb-2">Prendas con problemas de presentación</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Gorra" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                <span class="ml-2 text-sm">Gorra</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Camisa" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                <span class="ml-2 text-sm">Camisa</span>
+                            </label>
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                <span class="ml-2 text-sm">Pantalón</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Observaciones -->
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Observaciones</h3>
                     <div class="mb-6">
@@ -480,7 +499,7 @@
                 return `
                     <div>
                         <label class="block text-sm font-medium mb-1">${label}</label>
-                        <select name="supervisions[${index}][${name}]" class="form-select">
+                        <select name="supervisions[${index}][${name}]" class="form-select ${name}-select" data-index="${index}">
                             <option value="">Seleccione...</option>
                             <option value="1">1</option>
                             <option value="2">2</option>
@@ -549,6 +568,23 @@
                     if (this.value === 'Si') fields.classList.remove('hidden');
                     else fields.classList.add('hidden');
                 });
+
+                // Uniforme logic
+                const selUniforme = block.querySelector('.presentacion_uniforme-select');
+                const fieldsUniforme = document.getElementById(`uniformeFields_${index}`);
+                if (selUniforme && fieldsUniforme) {
+                    selUniforme.addEventListener('change', function () {
+                        const val = parseInt(this.value);
+                        if (!isNaN(val) && val < 5) {
+                            fieldsUniforme.classList.remove('hidden');
+                        } else {
+                            fieldsUniforme.classList.add('hidden');
+                            // Opcional: limpiar los checkboxes si se oculta
+                            const checkboxes = fieldsUniforme.querySelectorAll('input[type="checkbox"]');
+                            checkboxes.forEach(cb => cb.checked = false);
+                        }
+                    });
+                }
             }
 
             // Define removeSupervision as a global function so onclick can access it
