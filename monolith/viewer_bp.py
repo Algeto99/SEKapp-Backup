@@ -2049,7 +2049,7 @@ def _render_lista_asistencia_html(value):
 
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
-    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
+    SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos'}
 
     def _is_signature(key, val_str):
         return 'firma' in key.lower() or val_str.startswith('data:image')
@@ -2166,8 +2166,10 @@ td.val { color: #1f2937; }
         image_urls, pdf_urls, other_urls = [], [], []
 
         for key, value in data.items():
-            if not value or str(value).strip() in ('N/A', 'None', ''):
-                continue
+            val_str = str(value).strip() if value is not None else ""
+            if not val_str:
+                val_str = "N/A"
+            
             if key in SKIP_KEYS:
                 # Parse attachment URLs
                 for url in str(value).split('\n'):
@@ -2208,6 +2210,9 @@ td.val { color: #1f2937; }
             val_str = str(value).strip()
 
             if _is_signature(key, val_str):
+                if val_str == "N/A":
+                    html_parts.append(f'<tr><td class="lbl">{key}</td><td class="val">Sin firma</td></tr>')
+                    continue
                 # val may be a JSON array of data URLs (multiple guards)
                 try:
                     sig_list = json.loads(val_str) if val_str.startswith('[') else None
@@ -2219,6 +2224,9 @@ td.val { color: #1f2937; }
                         if sv and sv not in ('N/A', 'None', ''):
                             label = f"{key} {i+1}" if len(sig_list) > 1 else key
                             signatures.append((label, sv))
+                        else:
+                            label = f"{key} {i+1}" if len(sig_list) > 1 else key
+                            html_parts.append(f'<tr><td class="lbl">{label}</td><td class="val">Sin firma</td></tr>')
                 else:
                     signatures.append((key, val_str))
                 continue
