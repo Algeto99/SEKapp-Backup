@@ -7,6 +7,7 @@ import os
 import logging
 import urllib.parse as urlparse
 from datetime import date, timedelta
+import calendar
 
 import psycopg2
 from psycopg2 import extras
@@ -69,8 +70,20 @@ def matrices_api_stats():
         return jsonify({"error": "DB no disponible"}), 500
     try:
         cur = conn.cursor()
-        today = date.today()
-        month_start = today.replace(day=1)
+        
+        month_arg = request.args.get("month")
+        if month_arg:
+            try:
+                year, month = map(int, month_arg.split('-'))
+                selected_date = date(year, month, 1)
+            except Exception:
+                selected_date = date.today()
+        else:
+            selected_date = date.today()
+
+        month_start = selected_date.replace(day=1)
+        last_day = calendar.monthrange(selected_date.year, selected_date.month)[1]
+        month_end = date(selected_date.year, selected_date.month, last_day)
 
         stats = {}
 
@@ -83,8 +96,8 @@ def matrices_api_stats():
                         ('cerrado','closed','resuelto','resolved') THEN 1 ELSE 0 END) AS abiertos,
                     SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos
                 FROM reportes_incidentes
-                WHERE COALESCE(fecha_hora, creado_en) >= %s
-            """, (month_start,))
+                WHERE COALESCE(fecha_hora, creado_en) >= %s AND COALESCE(fecha_hora, creado_en) < %s
+            """, (month_start, month_end + timedelta(days=1)))
             r = cur.fetchone() or {}
             stats["incidentes"] = {
                 "total": int(r.get("total") or 0),
@@ -102,8 +115,8 @@ def matrices_api_stats():
                     SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,''))) IN
                         ('pendiente','','abierto') OR estado IS NULL THEN 1 ELSE 0 END) AS pendientes
                 FROM registro_y_acta_de_visita
-                WHERE COALESCE(fecha_hora, creado_en) >= %s
-            """, (month_start,))
+                WHERE COALESCE(fecha_hora, creado_en) >= %s AND COALESCE(fecha_hora, creado_en) < %s
+            """, (month_start, month_end + timedelta(days=1)))
             r = cur.fetchone() or {}
             stats["visitas"] = {
                 "total": int(r.get("total") or 0),
@@ -116,8 +129,8 @@ def matrices_api_stats():
         try:
             cur.execute("""
                 SELECT COUNT(*) AS total FROM supervision_puesto
-                WHERE fecha_hora >= %s
-            """, (month_start,))
+                WHERE fecha_hora >= %s AND fecha_hora < %s
+            """, (month_start, month_end + timedelta(days=1)))
             r = cur.fetchone() or {}
             stats["supervision"] = {"total": int(r.get("total") or 0)}
         except Exception:
@@ -127,8 +140,8 @@ def matrices_api_stats():
         try:
             cur.execute("""
                 SELECT COUNT(*) AS total FROM informe_novedades_disciplinario
-                WHERE fecha_hora >= %s
-            """, (month_start,))
+                WHERE fecha_hora >= %s AND fecha_hora < %s
+            """, (month_start, month_end + timedelta(days=1)))
             r = cur.fetchone() or {}
             stats["disciplina"] = {"total": int(r.get("total") or 0)}
         except Exception:
@@ -138,8 +151,8 @@ def matrices_api_stats():
         try:
             cur.execute("""
                 SELECT COUNT(*) AS total FROM registro_de_capacitaciones
-                WHERE COALESCE(fecha_hora, creado_en::timestamp) >= %s
-            """, (month_start,))
+                WHERE COALESCE(fecha_hora, creado_en::timestamp) >= %s AND COALESCE(fecha_hora, creado_en::timestamp) < %s
+            """, (month_start, month_end + timedelta(days=1)))
             r = cur.fetchone() or {}
             stats["capacitaciones"] = {"total": int(r.get("total") or 0)}
         except Exception:
@@ -166,6 +179,7 @@ def matrices_api_stats():
             stats["cumplimiento"] = {"total": 0, "vencidas": 0, "proximas": 0}
 
         stats["mes"] = month_start.strftime("%B %Y")
+        stats["mes_iso"] = month_start.strftime("%Y-%m")
         return jsonify(stats)
     except Exception as e:
         app_logger.error(f"matrices_api_stats error: {e}", exc_info=True)

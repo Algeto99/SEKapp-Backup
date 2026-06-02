@@ -166,9 +166,9 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
         </div>
 
         <div class="section-header">
-            <div class="section-title">
+            <div class="section-title" style="display: flex; align-items: center;">
                 Matrices Operativas
-                <span id="mesBadge" class="mes-badge">Cargando...</span>
+                <input type="month" id="mesInput" class="mes-badge" style="border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; padding: .15rem .5rem; font-family: inherit; cursor: pointer; outline: none; margin-left: 0.5rem;">
             </div>
             <div class="section-desc">Seleccione una matriz para consultar el estado detallado, filtrar por cliente y gestionar casos.</div>
         </div>
@@ -326,11 +326,19 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 <script>
 async function loadStats() {
     try {
-        const res = await fetch('/matrices/api/stats');
+        const monthVal = document.getElementById('mesInput').value;
+        let url = '/matrices/api/stats';
+        if (monthVal) {
+            url += `?month=${monthVal}`;
+        }
+        
+        const res = await fetch(url);
         if (!res.ok) return;
         const d = await res.json();
 
-        if (d.mes) document.getElementById('mesBadge').textContent = d.mes;
+        if (d.mes_iso && !monthVal) {
+            document.getElementById('mesInput').value = d.mes_iso;
+        }
 
         // Incidentes
         if (d.incidentes) {
@@ -378,13 +386,18 @@ async function loadStats() {
         if (alerts.length) {
             document.getElementById('alertBarText').textContent = '⚠️ Atención: ' + alerts.join(' · ');
             document.getElementById('alertBar').classList.remove('hidden');
+        } else {
+            document.getElementById('alertBar').classList.add('hidden');
         }
     } catch (e) {
         console.error('Error cargando stats de matrices:', e);
     }
 }
 
-document.addEventListener('DOMContentLoaded', loadStats);
+document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    document.getElementById('mesInput').addEventListener('change', loadStats);
+});
 </script>
 </body>
 </html>
