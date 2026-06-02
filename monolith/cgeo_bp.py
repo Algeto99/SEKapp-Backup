@@ -92,8 +92,13 @@ _EQ_FUNC_SQL = (
     "THEN (elem->>'equipos_operativos')::int ELSE 0 END"
 )
 _VEH_FAULT_COLS = [
-    "motor", "frenos", "direccion", "llantas", "luces",
-    "bateria", "sistema_electrico", "carroceria",
+    "estado_rines", "juego_senales_carretera", "gato_hidraulico", "palanca_gato",
+    "estado_asientos", "estado_tapetes_alfombras", "limpieza_carroceria",
+    "luces_delanteras", "luces_direccionales", "luces_traseras",
+    "parabrisas_delantero", "parabrisas_trasero", "defensa_delantera", "defensa_trasera",
+    "puertas_vidrios", "tapa_radiador", "tapa_aceite_motor", "bateria_tapa",
+    "espejo_retrovisor_interno", "espejos_retrovisores_externos", "limpia_brisas",
+    "antena_radio", "radio_funciona", "llanta_repuesto", "aire_acondicionado",
 ]
 _VEH_FAULT_EXPR = " OR ".join(
     f"LOWER(COALESCE({c},''))='malo'" for c in _VEH_FAULT_COLS
@@ -354,7 +359,7 @@ def cgeo_api_recursos_data():
         cur.execute(f"""
             SELECT
                 'Certificación' AS tipo,
-                COALESCE(NULLIF(TRIM(descripcion_actividad), ''), 'Certificación #' || id::text) AS elemento,
+                COALESCE(NULLIF(TRIM(curso_certificacion), ''), 'Certificación #' || id::text) AS elemento,
                 cliente_instalacion AS cliente,
                 'Vencida' AS estado,
                 vigencia_hasta AS vencimiento,
@@ -371,7 +376,7 @@ def cgeo_api_recursos_data():
                 "cliente": r["cliente"],
                 "estado": r["estado"],
                 "vencimiento": r["vencimiento"].isoformat() if r["vencimiento"] else None,
-                "dias_restantes": -int(r["dias_restantes"].days) if r["dias_restantes"] else None,
+                "dias_restantes": -int(r["dias_restantes"]) if r["dias_restantes"] is not None else None,
             })
 
         # Vehículos no aptos
@@ -379,7 +384,7 @@ def cgeo_api_recursos_data():
         cur.execute(f"""
             SELECT
                 'Vehículo' AS tipo,
-                COALESCE(NULLIF(TRIM(placa), ''), 'Vehículo #' || id::text) AS elemento,
+                COALESCE(NULLIF(TRIM(placa_vehiculo), ''), 'Vehículo #' || id_planilla_vehicular::text) AS elemento,
                 cliente_instalacion AS cliente,
                 'No apto' AS estado,
                 NULL::date AS vencimiento
@@ -399,6 +404,11 @@ def cgeo_api_recursos_data():
             })
 
         # Equipos no operativos (registros con equipos_operativos < total)
+        eq_conds2 = list(eq_conds) + [
+            f"({_EQ_FUNC_SQL}) < ({_EQ_TOTAL_SQL})",
+            f"({_EQ_TOTAL_SQL}) > 0",
+        ]
+        eq_where2 = _where(eq_conds2)
         cur.execute(f"""
             SELECT
                 'Equipo' AS tipo,
@@ -409,9 +419,7 @@ def cgeo_api_recursos_data():
                 'Fuera de servicio' AS estado
             FROM confiabilidad_equipos c,
                  LATERAL jsonb_array_elements(c.inventario) AS elem
-            {eq_where}
-            AND ({_EQ_FUNC_SQL}) < ({_EQ_TOTAL_SQL})
-            AND ({_EQ_TOTAL_SQL}) > 0
+            {eq_where2}
             ORDER BY c.fecha DESC
             LIMIT 10
         """, eq_params)
@@ -553,7 +561,7 @@ def cgeo_api_operacion_data():
                 "cliente": r["cliente"],
                 "severidad": r["severidad"],
                 "estado": r["estado"],
-                "dias_abierto": int(r["dias_abierto"].days) if r["dias_abierto"] else 0,
+                "dias_abierto": int(r["dias_abierto"]) if r["dias_abierto"] is not None else 0,
             }
             for r in cur.fetchall()
         ]
@@ -725,7 +733,7 @@ def cgeo_api_operacion_data():
                     "compromiso": r["compromiso"],
                     "cliente": r["cliente"],
                     "estado": r["estado"],
-                    "dias_retraso": int(r["dias_retraso"].days) if r["dias_retraso"] else 0,
+                    "dias_retraso": int(r["dias_retraso"]) if r["dias_retraso"] is not None else 0,
                 }
                 for r in cur.fetchall()
             ]
