@@ -9,6 +9,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500&display=swap"
         rel="stylesheet">
+    <link rel="manifest" href="/forms/manifest.json">
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -453,6 +454,12 @@
                         Cerrar Sesión
                     </button>
                 </div>
+                
+                <div class="btn-wrapper">
+                    <button id="install-pwa-btn" onclick="installPWA()" class="base-button-style btn-primary-professional" style="display: none;">
+                        📲 Instalar SekApp en Pantalla de Inicio
+                    </button>
+                </div>
             </div>
 
             <p class="mt-12 text-sm text-muted">
@@ -651,6 +658,56 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script>
+    (function () {
+        let deferredInstallPrompt = null;
+        const installBtn = document.getElementById('install-pwa-btn');
+
+        window.addEventListener('beforeinstallprompt', function (e) {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            if (installBtn) {
+                installBtn.style.display = 'flex';
+            }
+        });
+
+        window.installPWA = async function () {
+            if (!deferredInstallPrompt) return;
+            deferredInstallPrompt.prompt();
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+                if (installBtn) installBtn.style.display = 'none';
+            }
+            deferredInstallPrompt = null;
+        };
+
+        window.addEventListener('appinstalled', function () {
+            if (installBtn) installBtn.style.display = 'none';
+            deferredInstallPrompt = null;
+        });
+
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        };
+        const isStandalone = () => {
+            return ('standalone' in window.navigator) && window.navigator.standalone;
+        };
+
+        if (isIos() && !isStandalone()) {
+            if (installBtn) {
+                installBtn.style.display = 'flex';
+                installBtn.innerHTML = '🍎 Instalar: Toca Compartir <svg style="display:inline;width:16px;height:16px;margin:0 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> y "Agregar a Inicio"';
+                installBtn.onclick = function(e) { e.preventDefault(); };
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/forms/sw.js', { scope: '/' })
+                .catch(err => console.error('SW register failed:', err));
+        }
+    })();
+    </script>
 </body>
 
 </html>

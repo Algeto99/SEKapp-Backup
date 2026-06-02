@@ -719,7 +719,7 @@
     // ── Register service worker ───────────────────────────────────────────────
     function registerSW() {
         if (!('serviceWorker' in navigator)) return;
-        navigator.serviceWorker.register('/forms/sw.js', { scope: '/forms/' })
+        navigator.serviceWorker.register('/forms/sw.js', { scope: '/' })
             .then(reg => {
                 // Listen for SW messages (new item queued from another tab/context)
                 navigator.serviceWorker.addEventListener('message', async event => {
