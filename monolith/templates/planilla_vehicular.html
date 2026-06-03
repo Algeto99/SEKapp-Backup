@@ -261,15 +261,6 @@
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
-                            required>
-                    </div>
-                    <div>
-                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
-                    </div>
-                    <div>
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="" disabled>Seleccione un rol...</option>
@@ -277,6 +268,15 @@
                             <option>Coordinador</option>
                             <option>Jefe de Seguridad</option>
                         </select>
+                    </div>
+                    <div>
+                        <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" value="{{ name }}"
+                            class="form-input" required readonly>
+                    </div>
+                    <div>
+                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
                         <label for="turno" class="form-label">Turno</label>
@@ -287,29 +287,25 @@
                         </select>
                     </div>
                     <div>
-                        <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
-                        <input type="text" name="nombre_responsable" id="nombre_responsable" value="{{ name }}"
-                            class="form-input" required readonly>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="form-label">Firma del Responsable</label>
-                        <canvas id="firma-responsable-pad" class="signature-pad"></canvas>
-                        <button type="button" onclick="responsablePad.clear()"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_responsable" id="firma_responsable">
-                    </div>
-                    <div>
                         <label for="numero_empleado" class="form-label">Número de Empleado</label>
                         <input type="text" name="numero_empleado" id="numero_empleado" class="form-input" required>
                     </div>
                     <div>
-                        <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
-                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input" required>
+                        <label for="vehiculo_tipo" class="form-label">Vehículo</label>
+                        <select name="vehiculo_tipo" id="vehiculo_tipo" class="form-select" required>
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option>Propio</option>
+                            <option>Empresa</option>
+                        </select>
                     </div>
                     <div>
                         <label for="placa_vehiculo" class="form-label">Placa del Vehículo <span
                                 class="text-red-400">*</span></label>
                         <input type="text" name="placa_vehiculo" id="placa_vehiculo" class="form-input" required>
+                    </div>
+                    <div>
+                        <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
+                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input" required>
                     </div>
                     <div>
                         <label for="kilometraje_vehiculo" class="form-label">Kilometraje del Vehículo</label>
@@ -647,7 +643,7 @@
         // Define the public URL for the car diagram image
         const carImageURL = 'https://storage.googleapis.com/smt-misc/car.png';
 
-        let responsablePad, entregaPad, recibePad, oficialPad;
+        let entregaPad, recibePad, oficialPad;
         let carCanvas, carCtx;
         let isDrawing = false;
         let currentColor = '#ef4444';
@@ -678,12 +674,10 @@
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
             // Initialize signature pads
-            const responsableCanvas = document.getElementById('firma-responsable-pad');
             const entregaCanvas = document.getElementById('firma-entrega-pad');
             const recibeCanvas = document.getElementById('firma-recibe-pad');
             const oficialCanvas = document.getElementById('firma-oficial-pad');
 
-            responsablePad = new SignaturePad(responsableCanvas, { penColor: 'rgb(0, 0, 0)' });
             entregaPad = new SignaturePad(entregaCanvas, { penColor: 'rgb(0, 0, 0)' });
             recibePad = new SignaturePad(recibeCanvas, { penColor: 'rgb(0, 0, 0)' });
             oficialPad = new SignaturePad(oficialCanvas, { penColor: 'rgb(0, 0, 0)' });
@@ -710,13 +704,11 @@
             }
 
             window.addEventListener("resize", function () {
-                resizeAndRestore(responsableCanvas, responsablePad);
                 resizeAndRestore(entregaCanvas, entregaPad);
                 resizeAndRestore(recibeCanvas, recibePad);
                 resizeAndRestore(oficialCanvas, oficialPad);
             });
 
-            resizeAndRestore(responsableCanvas, responsablePad);
             resizeAndRestore(entregaCanvas, entregaPad);
             resizeAndRestore(recibeCanvas, recibePad);
             resizeAndRestore(oficialCanvas, oficialPad);
@@ -752,9 +744,6 @@
             const form = document.getElementById('planillaVehicularForm');
             form.addEventListener('submit', function (event) {
                 // Save all signatures
-                if (!responsablePad.isEmpty()) {
-                    document.getElementById('firma_responsable').value = responsablePad.toDataURL();
-                }
                 if (!entregaPad.isEmpty()) {
                     document.getElementById('firma_entrega').value = entregaPad.toDataURL();
                 }
