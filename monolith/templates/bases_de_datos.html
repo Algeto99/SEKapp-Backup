@@ -233,18 +233,16 @@
 
     {% include '_header_nav.html' %}
 
-        <!-- Module header -->
-        <div class="module-header">
-            <div class="module-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 7c0-1.657 3.582-3 8-3s8 1.343 8 3M4 7v5c0 1.657 3.582 3 8 3s8-1.343 8-3V7M4 7c0 1.657 3.582 3 8 3s8-1.343 8-3M4 12v5c0 1.657 3.582 3 8 3s8-1.343 8-3v-5" />
-                </svg>
-            </div>
-            <div>
-                <h1>Bases de Datos</h1>
-                <p>Consulta de inventarios de armas, radios y personal con historial de capacitaciones.</p>
-            </div>
+    <div class="main-container">
+        <!-- Page hero -->
+        <div style="text-align:center; margin-bottom:2rem;">
+            <img src="/static/logo_full.png" alt="Kanan Logo"
+                class="mx-auto mb-4 w-24 opacity-90"
+                style="border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.2);" />
+            <h1 style="font-size:1.75rem; margin-bottom:0.4rem;">Bases de Datos</h1>
+            <p style="font-family:'Roboto',sans-serif; font-size:0.9rem; color:#64748b;">
+                Consulta de inventarios de armas, radios y personal con historial de capacitaciones.
+            </p>
         </div>
 
         <!-- Tabs -->
@@ -374,24 +372,11 @@
             <div id="personal-container"></div>
         </div>
 
-    </div>
+    </div><!-- /.main-container -->
 
     <script>
     // ── Cached data for export ────────────────────────────────────────
     const _cache = { armas: [], radios: [], personal: [] };
-
-    // ── Theme toggle ─────────────────────────────────────────────────
-    const themeToggle = document.getElementById('themeToggle');
-    const darkModeIcon = document.getElementById('darkModeIcon');
-    const lightModeIcon = document.getElementById('lightModeIcon');
-    
-    
-    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
-    (function() {
-        const saved = localStorage.getItem('theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        (saved === 'light' || (!saved && !prefersDark)) ? setLightMode() : setDarkMode();
-    })();
 
     // ── Tabs ─────────────────────────────────────────────────────────
     const _tabLoaded = { armas: false, radios: false, personal: false };
@@ -747,6 +732,5 @@
         XLSX.writeFile(wb, `inventario_${type}_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
     </script>
-    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 </html>
