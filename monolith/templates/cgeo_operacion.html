@@ -168,6 +168,55 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.pend-cat{grid-template-columns:repeat(3,minmax(0,1fr))}.tables-row{grid-template-columns:1fr}.charts-row-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pend-cat{grid-template-columns:repeat(2,minmax(0,1fr))}.sidebar{width:200px}.main{margin-left:200px}}
 @media(max-width:700px){.sidebar{display:none}.main{margin-left:0}.kpi-grid,.alert-kpi-grid,.pend-cat{grid-template-columns:1fr}}
+
+/* ── Print / PDF styles ── */
+@media print {
+    @page { size: A4 portrait; margin: 1.2cm 1.4cm; }
+
+    /* Hide navigation and controls */
+    .sidebar, .topbar, .tabs-row, .filter-bar, .btn-pdf, .btn-apply, .refresh-btn,
+    .content-footer, .loading-overlay, #themeToggle { display: none !important; }
+
+    /* Full-width content, no sidebar offset */
+    body { background: #fff !important; color: #000 !important; margin: 0; padding: 0; display: block; }
+    .main { margin-left: 0 !important; width: 100% !important; display: block; }
+    .content { padding: 0 !important; overflow: visible !important; }
+
+    /* Show print header */
+    #print-header { display: block !important; }
+
+    /* Prevent elements from splitting across pages */
+    .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
+    .alert-kpi, .pend-cat-card, .kpi-grid, .charts-row, .charts-row-3,
+    .alert-kpi-grid, .pend-cat, .tables-row { break-inside: avoid; }
+
+    /* Keep section headers with their content */
+    h2, h3, .chart-title, .table-title { break-after: avoid; }
+
+    /* Ensure grids render properly for print */
+    .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+    .charts-row { grid-template-columns: 1fr 1fr !important; }
+    .charts-row-3 { grid-template-columns: 1fr 1fr 1fr !important; }
+    .alert-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+    .pend-cat { grid-template-columns: repeat(3, 1fr) !important; }
+    .tables-row { grid-template-columns: 1fr !important; }
+
+    /* Chart boxes need fixed height for print */
+    .chart-box { height: 200px !important; }
+    canvas { max-width: 100% !important; }
+
+    /* Light backgrounds for cards */
+    .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
+    .alert-kpi, .pend-cat-card {
+        background: #fff !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
+    }
+
+    /* Alert banners */
+    .alert-req { background: #fef2f2 !important; border: 1px solid #fecaca !important; }
+    #statusBanner { display: none !important; }
+}
 /* Dark mode defaults */
 body:not(.light-mode){background:#0f172a;color:#e2e8f0}
 body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
@@ -265,6 +314,25 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
     </div>
 
     <div class="content">
+        <!-- Print header — hidden on screen, visible on print only -->
+        <div id="print-header" style="display:none; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:2px solid #e2e8f0;">
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem;">
+                <img src="/static/logo_full.png" alt="Kanan Sentinel" style="height:48px; width:auto;">
+                <div>
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b;">Kanan Sentinel — SekApp</div>
+                    <div style="font-size:1.3rem; font-weight:800; color:#0f172a; line-height:1.2;">GESTIÓN DE OPERACIÓN Y NOVEDADES</div>
+                    <div style="font-size:1rem; font-weight:700;" id="print-report-type">INFORME EJECUTIVO</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-top:0.2rem;" id="print-report-subtitle">Resumen estratégico de indicadores, tendencias y estado general de la operación.</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:2rem; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.6rem 1rem; font-size:0.8rem;">
+                <div><strong style="color:#475569;">Cliente:</strong> <span id="print-cliente">—</span></div>
+                <div><strong style="color:#475569;">Período:</strong> <span id="print-periodo">—</span></div>
+                <div><strong style="color:#475569;">Generado:</strong> <span id="print-fecha">—</span></div>
+                <div><strong style="color:#475569;">Usuario:</strong> <span id="print-usuario">{{ user_name or current_user }}</span></div>
+            </div>
+        </div>
+
         <!-- Filter bar -->
         <div class="filter-bar">
             <div class="filter-group">
@@ -280,7 +348,7 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
                 <input type="date" id="filtEnd" class="date-input">
             </div>
             <button class="btn-apply" onclick="loadData()">Aplicar</button>
-            <button class="btn-pdf" onclick="window.print()">
+            <button class="btn-pdf" onclick="exportPDF()">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Exportar PDF
             </button>
@@ -482,6 +550,29 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
 
 <script>
 let charts = {};
+
+function exportPDF() {
+    const tab = document.getElementById('tabBtnEjec')?.classList.contains('active') ? 'ejecutivo' : 'operativo';
+    const cliente = document.getElementById('filtCliente')?.value || 'Todos';
+    const start = document.getElementById('filtStart')?.value || '';
+    const end = document.getElementById('filtEnd')?.value || '';
+
+    document.getElementById('print-cliente').textContent = cliente || 'Todos';
+    document.getElementById('print-periodo').textContent = (start && end) ? `${start} — ${end}` : (start || end || 'Sin filtro');
+    document.getElementById('print-fecha').textContent = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+
+    if (tab === 'ejecutivo') {
+        document.getElementById('print-report-type').textContent = 'INFORME EJECUTIVO';
+        document.getElementById('print-report-type').style.color = '#1d4ed8';
+        document.getElementById('print-report-subtitle').textContent = 'Resumen estratégico de indicadores, tendencias y estado general de la operación.';
+    } else {
+        document.getElementById('print-report-type').textContent = 'RESUMEN OPERATIVO';
+        document.getElementById('print-report-type').style.color = '#b45309';
+        document.getElementById('print-report-subtitle').textContent = 'Pendientes, alertas, vencimientos y elementos que requieren gestión.';
+    }
+
+    window.print();
+}
 
 function switchTab(tab) {
     document.getElementById('tab-ejecutivo').style.display = tab === 'ejecutivo' ? 'block' : 'none';
