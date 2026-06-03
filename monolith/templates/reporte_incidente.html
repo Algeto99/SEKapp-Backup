@@ -242,13 +242,6 @@
                         <label for="numero_empleado" class="form-label">Número de Empleado</label>
                         <input type="text" id="numero_empleado" name="numero_empleado" class="form-input">
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="form-label">Firma</label>
-                        <canvas id="firma-pad" class="signature-pad"></canvas>
-                        <button type="button" onclick="signaturePad.clear()"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" id="firma_responsable" name="firma_responsable">
-                    </div>
                 </div>
             </div>
 
@@ -498,6 +491,17 @@
                             <option value="Vencido">Vencido (si la fecha ya pasó)</option>
                         </select>
                     </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Firma</h2>
+                <div>
+                    <label class="form-label">Firma persona que reporta</label>
+                    <canvas id="firma-pad" class="signature-pad"></canvas>
+                    <button type="button" onclick="signaturePad.clear()"
+                        class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                    <input type="hidden" id="firma_responsable" name="firma_responsable">
                 </div>
             </div>
 
