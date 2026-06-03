@@ -252,15 +252,6 @@
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
-                            required>
-                    </div>
-                    <div>
-                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
-                    </div>
-                    <div>
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="" disabled>Seleccione un rol...</option>
@@ -268,6 +259,15 @@
                             <option>Coordinador</option>
                             <option>Jefe de Seguridad</option>
                         </select>
+                    </div>
+                    <div>
+                        <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input"
+                            value="{{ name }}" required readonly>
+                    </div>
+                    <div>
+                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
                     </div>
                     <div>
                         <label for="turno" class="form-label">Turno</label>
@@ -278,34 +278,30 @@
                         </select>
                     </div>
                     <div>
+                        <label for="numero_empleado" class="form-label">Número de Empleado</label>
+                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input">
+                    </div>
+                    <div>
+                        <label for="motocicleta_tipo" class="form-label">Motocicleta</label>
+                        <select name="motocicleta_tipo" id="motocicleta_tipo" class="form-select" required>
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option>Propia</option>
+                            <option>Empresa</option>
+                        </select>
+                    </div>
+                    <div>
                         <label for="placa_motocicleta" class="form-label">Placa de Motocicleta <span
                                 class="text-red-400">*</span></label>
                         <input type="text" name="placa_motocicleta" id="placa_motocicleta" class="form-input" required>
                     </div>
                     <div>
-                        <label for="kilometraje_motocicleta" class="form-label">Kilometraje de Motocicleta</label>
-                        <input type="number" name="kilometraje_motocicleta" id="kilometraje_motocicleta"
-                            class="form-input">
-                    </div>
-                    <div>
-                        <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
-                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input"
-                            value="{{ name }}" required readonly>
-                    </div>
-                    <div>
-                        <label for="numero_empleado" class="form-label">Número de Empleado</label>
-                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input">
-                    </div>
-                    <div>
                         <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
                         <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input">
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="form-label">Firma del Responsable</label>
-                        <canvas id="firma_responsable_pad" class="signature-pad"></canvas>
-                        <button type="button" data-pad="firma_responsable_pad"
-                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_responsable" id="firma_responsable">
+                    <div>
+                        <label for="kilometraje_motocicleta" class="form-label">Kilometraje de Motocicleta</label>
+                        <input type="number" name="kilometraje_motocicleta" id="kilometraje_motocicleta"
+                            class="form-input">
                     </div>
                 </div>
             </div>
@@ -485,7 +481,7 @@
             });
 
             // Initialize signature pads
-            const padIds = ['firma_responsable_pad', 'firma_entrega_pad', 'firma_recibe_pad', 'oficial_firma_pad'];
+            const padIds = ['firma_entrega_pad', 'firma_recibe_pad', 'oficial_firma_pad'];
             padIds.forEach(id => {
                 const canvas = document.getElementById(id);
                 if (canvas) {
@@ -554,9 +550,6 @@
 
             // Form submission logic
             document.getElementById('motocicletaForm').addEventListener('submit', function (event) {
-                if (signaturePads['firma_responsable_pad'] && !signaturePads['firma_responsable_pad'].isEmpty()) {
-                    document.getElementById('firma_responsable').value = signaturePads['firma_responsable_pad'].toDataURL();
-                }
                 if (signaturePads['firma_entrega_pad'] && !signaturePads['firma_entrega_pad'].isEmpty()) {
                     document.querySelector('input[name="firma_entrega"]').value = signaturePads['firma_entrega_pad'].toDataURL();
                 }
