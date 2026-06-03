@@ -166,10 +166,32 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.alert-kpi-grid{grid-template-columns:repeat(3,1fr)}.pend-cat{grid-template-columns:repeat(3,1fr)}.tables-row{grid-template-columns:1fr}}
 @media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.sidebar{width:200px}.main{margin-left:200px}}
 @media(max-width:700px){.sidebar{display:none}.main{margin-left:0}}
+/* Dark mode defaults */
+body:not(.light-mode){background:#0f172a;color:#e2e8f0}
+body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
+body:not(.light-mode) .page-title{color:#f1f5f9}
+body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .table-card,body:not(.light-mode) .ranking-card,body:not(.light-mode) .alert-kpi,body:not(.light-mode) .pend-cat-card{background:#1e293b;border-color:#334155}
+body:not(.light-mode) .chart-title,body:not(.light-mode) .table-title,body:not(.light-mode) .kpi-val{color:#f1f5f9}
+body:not(.light-mode) .kpi-lbl,body:not(.light-mode) .pend-cat-lbl,body:not(.light-mode) .alert-kpi-lbl{color:#94a3b8}
+body:not(.light-mode) .tabs{background:#1e293b}
+body:not(.light-mode) .tab-btn.active{background:#0f172a;color:#f1f5f9}
+body:not(.light-mode) .filter-select,body:not(.light-mode) .date-input{background:#1e293b;border-color:#334155;color:#e2e8f0}
+body:not(.light-mode) .tbl th{border-bottom-color:#334155;color:#94a3b8}
+body:not(.light-mode) .tbl td{color:#e2e8f0;border-bottom-color:#1e293b}
+body:not(.light-mode) .tbl tr:hover td{background:#334155}
+body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 <body>
+<button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+    <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;width:22px;height:22px">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+    </svg>
+    <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+    </svg>
+</button>
 
 <!-- Sidebar -->
 <aside class="sidebar">
@@ -805,5 +827,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 </html>

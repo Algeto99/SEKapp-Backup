@@ -758,10 +758,6 @@
 
         
 
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode();
-        });
-
         function setLoading(id, active) {
             const el = document.getElementById(id);
             if (!el) return;

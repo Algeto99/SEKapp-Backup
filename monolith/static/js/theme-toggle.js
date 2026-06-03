@@ -84,22 +84,20 @@
 
         function setDarkMode() {
             document.body.classList.remove('light-mode');
-            document.body.classList.add('dark-mode');
             if (darkModeIcon) darkModeIcon.style.display = 'block';
             if (lightModeIcon) lightModeIcon.style.display = 'none';
             localStorage.setItem('theme', 'dark');
             syncRootBackground();
-            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: 'dark' } }));
+            window.dispatchEvent(new CustomEvent('themechange', { detail: { dark: true } }));
         }
 
         function setLightMode() {
             document.body.classList.add('light-mode');
-            document.body.classList.remove('dark-mode');
             if (darkModeIcon) darkModeIcon.style.display = 'none';
             if (lightModeIcon) lightModeIcon.style.display = 'block';
             localStorage.setItem('theme', 'light');
             syncRootBackground();
-            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: 'light' } }));
+            window.dispatchEvent(new CustomEvent('themechange', { detail: { dark: false } }));
         }
 
         function toggleTheme() {
@@ -131,7 +129,6 @@
 
         // --- Dragging ---
         var isDragging = false;
-        var moved = false;
         var startClientX, startClientY, startBtnLeft, startBtnTop;
 
         function getClient(e) {
@@ -150,7 +147,6 @@
             startBtnLeft  = rect.left;
             startBtnTop   = rect.top;
             isDragging     = false;
-            moved          = false;
 
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup',   onEnd);
@@ -165,7 +161,6 @@
 
             if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
                 isDragging = true;
-                moved      = true;
                 btn.classList.add('tt-dragging');
                 // Switch from right-based to left-based so math is simple
                 btn.style.setProperty('right',  'auto', 'important');

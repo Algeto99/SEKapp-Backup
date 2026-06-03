@@ -448,7 +448,7 @@
     
     
     function initTheme()    { const s=localStorage.getItem('theme'); (s==='light'||(!s&&!window.matchMedia('(prefers-color-scheme: dark)').matches)) ? setLightMode() : setDarkMode(); }
-    themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
+    window.addEventListener('themechange', e => updateChartTheme(!e.detail.dark));
 
     // ── Chart.js ──────────────────────────────────────────────────────────
     Chart.register(ChartDataLabels);

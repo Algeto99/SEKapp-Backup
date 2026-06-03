@@ -672,8 +672,6 @@
             
             
             initializeTheme();
-            if (themeToggle) themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
-
             // Set current date and time
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());

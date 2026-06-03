@@ -393,10 +393,6 @@
         
         
         initializeTheme();
-        themeToggle.addEventListener('click', () => {
-            document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode();
-        });
-
         /* ─── Pre-fill date/time ─── */
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
