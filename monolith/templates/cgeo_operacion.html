@@ -702,6 +702,8 @@ function renderData(d) {
     }
 
     // KPIs
+    const inc_d = d.incidentes;
+
     document.getElementById('kpiSat').textContent = sat !== null ? sat + '%' : '—';
     document.getElementById('kpiSatSub').textContent = d.satisfaccion.total
         ? `Encuestas: ${d.satisfaccion.total} | Recomiendan: ${d.satisfaccion.recomienda}`
@@ -748,7 +750,6 @@ function renderData(d) {
     ]);
 
     // Distribución incidentes por severidad
-    const inc_d = d.incidentes;
     const sevLabels = ['Críticos', 'Altos', 'Medios', 'Bajos'];
     const sevData = [inc_d.criticos, inc_d.altos, inc_d.medios, inc_d.bajos];
     const sevColors = ['#ef4444', '#f97316', '#eab308', '#22c55e'];
