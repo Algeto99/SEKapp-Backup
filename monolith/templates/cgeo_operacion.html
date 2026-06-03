@@ -92,7 +92,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .color-yellow{color:#d97706}
 .color-blue{color:#2563eb}
 
-.pend-cat{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:.875rem;margin-bottom:1.25rem}
+.pend-cat{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.875rem;margin-bottom:1.25rem}
 .pend-cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:.875rem;text-align:center}
 .pend-cat-icon{font-size:1.75rem;display:block;margin-bottom:.375rem}
 .pend-cat-val{font-size:1.75rem;font-weight:800;font-family:'Merriweather',serif;line-height:1}
@@ -165,9 +165,10 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 #tab-operativo{display:none}
 
 @media(max-width:1400px){.kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.pend-cat{grid-template-columns:repeat(3,minmax(0,1fr))}.tables-row{grid-template-columns:1fr}.charts-row-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pend-cat{grid-template-columns:repeat(2,minmax(0,1fr))}.sidebar{width:200px}.main{margin-left:200px}}
-@media(max-width:700px){.sidebar{display:none}.main{margin-left:0}.kpi-grid,.alert-kpi-grid,.pend-cat{grid-template-columns:1fr}}
+@media(max-width:1400px){.alert-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.pend-cat{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.pend-cat{grid-template-columns:repeat(3,minmax(0,1fr))!important}.tables-row{grid-template-columns:1fr}.charts-row-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.pend-cat{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sidebar{width:200px}.main{margin-left:200px}}
+@media(max-width:700px){.sidebar{display:none}.main{margin-left:0}.kpi-grid,.alert-kpi-grid,.pend-cat{grid-template-columns:1fr!important}}
 
 /* ── Print / PDF styles ── */
 @media print {
@@ -198,7 +199,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
     .charts-row { grid-template-columns: 1fr 1fr !important; }
     .charts-row-3 { grid-template-columns: 1fr 1fr 1fr !important; }
     .alert-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
-    .pend-cat { grid-template-columns: repeat(3, 1fr) !important; }
+    .pend-cat { grid-template-columns: repeat(4, 1fr) !important; }
     .tables-row { grid-template-columns: 1fr !important; }
 
     /* Chart boxes need fixed height for print */
@@ -453,7 +454,7 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
                 </div>
             </div>
 
-            <div class="alert-kpi-grid">
+            <div class="alert-kpi-grid" style="grid-template-columns:repeat(7,minmax(0,1fr))">
                 <div class="alert-kpi">
                     <span class="alert-kpi-icon">⚠️</span>
                     <div class="alert-kpi-val color-red" id="opIncCrit">—</div>
@@ -461,10 +462,22 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
                     <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Abiertos</div>
                 </div>
                 <div class="alert-kpi">
+                    <span class="alert-kpi-icon">👁️</span>
+                    <div class="alert-kpi-val color-red" id="opSupCrit">—</div>
+                    <div class="alert-kpi-lbl">Supervisiones Críticas</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren atención</div>
+                </div>
+                <div class="alert-kpi">
+                    <span class="alert-kpi-icon">🏢</span>
+                    <div class="alert-kpi-val color-orange" id="opVisPend">—</div>
+                    <div class="alert-kpi-lbl">Visitas Pendientes</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Sin cerrar</div>
+                </div>
+                <div class="alert-kpi">
                     <span class="alert-kpi-icon">📅</span>
                     <div class="alert-kpi-val color-red" id="opCompVenc">—</div>
                     <div class="alert-kpi-lbl">Compromisos Vencidos</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Pendientes</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Con retraso</div>
                 </div>
                 <div class="alert-kpi">
                     <span class="alert-kpi-icon">😞</span>
@@ -473,16 +486,16 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
                     <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren seguimiento</div>
                 </div>
                 <div class="alert-kpi">
-                    <span class="alert-kpi-icon">🎓</span>
-                    <div class="alert-kpi-val color-blue" id="opCapPend">—</div>
-                    <div class="alert-kpi-lbl">Capacitaciones</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Realizadas</div>
+                    <span class="alert-kpi-icon">📝</span>
+                    <div class="alert-kpi-val color-orange" id="opDisc">—</div>
+                    <div class="alert-kpi-lbl">Reportes Disciplinarios</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Abiertos</div>
                 </div>
                 <div class="alert-kpi">
                     <span class="alert-kpi-icon">📊</span>
                     <div class="alert-kpi-val" style="color:#2563eb" id="opTotal">—</div>
-                    <div class="alert-kpi-lbl">Total Pendientes</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Elementos por gestionar</div>
+                    <div class="alert-kpi-lbl">Total por Gestionar</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Elementos pendientes</div>
                 </div>
             </div>
 
@@ -775,25 +788,31 @@ function renderData(d) {
 
     // ── RESUMEN OPERATIVO ────────────────────────────────────────────────────
     const compVenc = d.compromisos_pendientes.filter(c => c.dias_retraso > 0).length;
-    const compPend = d.compromisos_pendientes.filter(c => c.dias_retraso <= 0).length;
-    const totalPend = (inc_d.criticos_abiertos || 0) + compVenc + (d.satisfaccion.insatisfechos || 0);
+    const visPend  = (d.visitas && d.visitas.pendientes) ? d.visitas.pendientes : d.compromisos_pendientes.filter(c => c.dias_retraso <= 0).length;
+    const supCrit  = d.supervisiones.critico || 0;
+    const discTotal = d.disciplina.total || 0;
+    const totalPend = (inc_d.criticos_abiertos || 0) + supCrit + visPend + compVenc
+                    + (d.satisfaccion.insatisfechos || 0) + discTotal;
 
     document.getElementById('alertBannerText').textContent =
         `Existen ${totalPend} elementos que requieren gestión inmediata.`;
     document.getElementById('opIncCrit').textContent = inc_d.criticos_abiertos ?? '—';
+    document.getElementById('opSupCrit').textContent = supCrit;
+    document.getElementById('opVisPend').textContent = visPend;
     document.getElementById('opCompVenc').textContent = compVenc;
     document.getElementById('opCliInsat').textContent = d.satisfaccion.insatisfechos ?? '—';
-    document.getElementById('opCapPend').textContent = d.capacitaciones.total ?? '—';
+    document.getElementById('opDisc').textContent = discTotal;
     document.getElementById('opTotal').textContent = totalPend;
 
-    // Pendientes por categoría
+    // Pendientes por categoría — 7 action-oriented items, no duplicates
     const pendItems = [
-        { icon: '⚠️', label: 'Incidentes', val: inc_d.total || 0, sub: 'Abiertos', color: '#ef4444' },
-        { icon: '👁️', label: 'Supervisión', val: d.supervisiones.total || 0, sub: 'Realizadas', color: '#3b82f6' },
-        { icon: '🏢', label: 'Visitas', val: d.compromisos_pendientes.length, sub: 'Pendientes', color: '#22c55e' },
-        { icon: '👤', label: 'Disciplina', val: d.disciplina.total || 0, sub: 'Reportes abiertos', color: '#475569' },
-        { icon: '🎓', label: 'Capacitaciones', val: d.capacitaciones.total || 0, sub: 'Realizadas', color: '#6366f1' },
-        { icon: '😞', label: 'Encuestas', val: d.satisfaccion.insatisfechos || 0, sub: 'Insatisfechos', color: '#f97316' },
+        { icon: '⚠️', label: 'Incidentes Críticos',       val: inc_d.criticos_abiertos || 0, sub: 'Abiertos',            color: '#ef4444' },
+        { icon: '👁️', label: 'Supervisiones Críticas',    val: supCrit,                       sub: 'Requieren atención',   color: '#ef4444' },
+        { icon: '🏢', label: 'Visitas Pendientes',         val: visPend,                       sub: 'Sin cerrar',           color: '#f97316' },
+        { icon: '📅', label: 'Compromisos Vencidos',       val: compVenc,                      sub: 'Con retraso',          color: '#ef4444' },
+        { icon: '😞', label: 'Clientes Insatisfechos',     val: d.satisfaccion.insatisfechos || 0, sub: 'Seguimiento',     color: '#d97706' },
+        { icon: '📝', label: 'Reportes Disciplinarios',    val: discTotal,                     sub: 'Abiertos',             color: '#6366f1' },
+        { icon: '🎓', label: 'Cap. Pendientes',            val: d.capacitaciones.total === 0 ? 1 : 0, sub: 'Sin programar', color: '#94a3b8' },
     ];
     document.getElementById('pendCat').innerHTML = pendItems.map(p => `
         <div class="pend-cat-card">
