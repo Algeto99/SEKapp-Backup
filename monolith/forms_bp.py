@@ -592,7 +592,6 @@ def submit_supervision_puesto():
             'fecha_hora': request.form.get('fecha_hora'),
             'supervisor': request.form.get('supervisor'),
             'rol_aplicador': request.form.get('rol_aplicador'),
-            'firma_supervisor': request.form.get('firma_supervisor'),
             'submitted_by_email': user_email,
             'latitude': _parse_float(request.form.get('latitude')),
             'longitude': _parse_float(request.form.get('longitude')),

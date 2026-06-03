@@ -205,13 +205,6 @@
                             <option>Jefe de Operaciones</option>
                         </select>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Firma Supervisor</label>
-                        <canvas id="signaturePadSupervisor" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clearSignatureSupervisor"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_supervisor" id="firma_supervisor">
-                    </div>
                 </div>
             </div>
 
@@ -484,13 +477,22 @@
                          <input type="file" name="supervisions[${index}][foto_evidencia]" class="form-input" accept="image/*,application/pdf">
                     </div>
 
-                    <!-- Firma Guardia -->
-                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium mb-1">Firma</label>
-                        <canvas id="signaturePadGuardia_${index}" class="signature-pad w-full h-32"></canvas>
-                        <button type="button" class="mt-2 text-sm text-blue-400 hover:text-blue-300 clear-sig-btn" data-index="${index}">Limpiar Firma</button>
-                        <input type="hidden" name="supervisions[${index}][firma_guardia]" id="firma_guardia_${index}">
+                    <!-- Firmas -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma Supervisor</h3>
+                            <label class="block text-sm font-medium mb-1">Firma</label>
+                            <canvas id="signaturePadSupervisor_${index}" class="signature-pad w-full h-32"></canvas>
+                            <button type="button" class="mt-2 text-sm text-blue-400 hover:text-blue-300 clear-sig-supervisor-btn" data-index="${index}">Limpiar Firma</button>
+                            <input type="hidden" name="supervisions[${index}][firma_supervisor]" id="firma_supervisor_${index}">
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
+                            <label class="block text-sm font-medium mb-1">Firma</label>
+                            <canvas id="signaturePadGuardia_${index}" class="signature-pad w-full h-32"></canvas>
+                            <button type="button" class="mt-2 text-sm text-blue-400 hover:text-blue-300 clear-sig-btn" data-index="${index}">Limpiar Firma</button>
+                            <input type="hidden" name="supervisions[${index}][firma_guardia]" id="firma_guardia_${index}">
+                        </div>
                     </div>
                 `;
 
@@ -513,36 +515,29 @@
                 `;
             }
 
-            function initSignaturePad(index) {
-                const canvas = document.getElementById(`signaturePadGuardia_${index}`);
-                const signaturePad = new SignaturePad(canvas, {
+            function initSignaturePadCanvas(canvas, storageKey) {
+                const pad = new SignaturePad(canvas, {
                     backgroundColor: 'rgb(255, 255, 255)',
                     penColor: 'rgb(0, 0, 0)',
                     minWidth: 0.5,
                     maxWidth: 2.5,
                     throttle: 0
                 });
-                signaturePads[index] = signaturePad;
+                signaturePads[storageKey] = pad;
 
-                // Robust resize function
                 function resize() {
-                    // Capture data
-                    const data = signaturePad.toData();
-
+                    const data = pad.toData();
                     const ratio = Math.max(window.devicePixelRatio || 1, 1);
                     const rect = canvas.getBoundingClientRect();
-
                     canvas.width = rect.width * ratio;
                     canvas.height = rect.height * ratio;
                     canvas.getContext('2d').scale(ratio, ratio);
-
-                    signaturePad.clear();
-                    signaturePad.fromData(data);
+                    pad.clear();
+                    pad.fromData(data);
                 }
 
                 resize();
 
-                // Using ResizeObserver for robustness
                 let resizeTimer;
                 const resizeObserver = new ResizeObserver(() => {
                     clearTimeout(resizeTimer);
@@ -550,10 +545,21 @@
                 });
                 resizeObserver.observe(canvas.parentElement);
 
-                const btn = canvas.parentNode.querySelector('.clear-sig-btn');
-                btn.addEventListener('click', () => {
-                    signaturePad.clear();
-                });
+                return pad;
+            }
+
+            function initSignaturePad(index) {
+                const canvasGuardia = document.getElementById(`signaturePadGuardia_${index}`);
+                const padGuardia = initSignaturePadCanvas(canvasGuardia, `guardia_${index}`);
+
+                const btnGuardia = canvasGuardia.parentNode.querySelector('.clear-sig-btn');
+                btnGuardia.addEventListener('click', () => { padGuardia.clear(); });
+
+                const canvasSupervisor = document.getElementById(`signaturePadSupervisor_${index}`);
+                const padSupervisor = initSignaturePadCanvas(canvasSupervisor, `supervisor_${index}`);
+
+                const btnSupervisor = canvasSupervisor.parentNode.querySelector('.clear-sig-supervisor-btn');
+                btnSupervisor.addEventListener('click', () => { padSupervisor.clear(); });
             }
 
             function addSupervision() {
@@ -610,10 +616,9 @@
             window.removeSupervision = function (index) {
                 const block = container.querySelector(`[data-index="${index}"]`);
                 if (block) {
-                    // Clean up signature pad reference
-                    if (signaturePads[index]) {
-                        delete signaturePads[index];
-                    }
+                    // Clean up signature pad references
+                    delete signaturePads[`guardia_${index}`];
+                    delete signaturePads[`supervisor_${index}`];
                     // Remove the block from DOM
                     block.remove();
 
@@ -629,6 +634,22 @@
             };
 
             addBtn.addEventListener('click', addSupervision);
+
+            // Before submit: serialize signature pads to hidden inputs
+            document.getElementById('supervisionForm').addEventListener('submit', function () {
+                const blocks = container.querySelectorAll('.supervision-block');
+                blocks.forEach(block => {
+                    const idx = block.dataset.index;
+                    const padGuardia = signaturePads[`guardia_${idx}`];
+                    if (padGuardia && !padGuardia.isEmpty()) {
+                        document.getElementById(`firma_guardia_${idx}`).value = padGuardia.toDataURL();
+                    }
+                    const padSupervisor = signaturePads[`supervisor_${idx}`];
+                    if (padSupervisor && !padSupervisor.isEmpty()) {
+                        document.getElementById(`firma_supervisor_${idx}`).value = padSupervisor.toDataURL();
+                    }
+                });
+            });
 
             // Before submit: copy "Otro" numeric values into the select value
             document.getElementById('supervisionForm').addEventListener('submit', function (e) {
@@ -659,43 +680,6 @@
             // Add one supervision block by default
             addSupervision();
 
-            // Global Supervisor Signature - FIXED VERSION
-            const canvasSup = document.getElementById('signaturePadSupervisor');
-            const padSup = new SignaturePad(canvasSup, {
-                backgroundColor: 'white',
-                penColor: 'rgb(0, 0, 0)',
-                minWidth: 0.5,
-                maxWidth: 2.5,
-                throttle: 0
-            });
-
-            function resizeSup() {
-                // Capture data
-                const data = padSup.toData();
-
-                const ratio = Math.max(window.devicePixelRatio || 1, 1);
-                const rect = canvasSup.getBoundingClientRect();
-
-                canvasSup.width = rect.width * ratio;
-                canvasSup.height = rect.height * ratio;
-                canvasSup.getContext('2d').scale(ratio, ratio);
-
-                padSup.clear();
-                padSup.fromData(data);
-            }
-
-            resizeSup();
-
-            let resizeSupTimer;
-            const resizeSupObserver = new ResizeObserver(() => {
-                clearTimeout(resizeSupTimer);
-                resizeSupTimer = setTimeout(resizeSup, 100);
-            });
-            resizeSupObserver.observe(canvasSup.parentElement);
-
-            document.getElementById('clearSignatureSupervisor').addEventListener('click', () => {
-                padSup.clear();
-            });
 
         });
 
