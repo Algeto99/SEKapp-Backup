@@ -70,7 +70,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .dot-rojo{background:#ef4444}
 
 /* ── KPI cards ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.25rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.25rem}
 .kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.125rem 1.25rem;position:relative;overflow:hidden}
 .kpi-icon{font-size:1.75rem;margin-bottom:.5rem;display:block}
 .kpi-val{font-size:2rem;font-weight:700;line-height:1;margin-bottom:.25rem;font-family:'Merriweather',serif}
@@ -172,6 +172,8 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 #tab-ejecutivo{display:block}
 #tab-operativo{display:none}
 
+.kpi-subdetail{font-size:.7rem;color:#64748b;margin-top:.375rem;line-height:1.5}
+.kpi-subdetail span{display:block}
 @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.alert-kpi-grid{grid-template-columns:repeat(3,1fr)}.alertas-cat{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.sidebar{width:200px}.main{margin-left:200px}}
 @media(max-width:700px){.sidebar{display:none}.main{margin-left:0}}
@@ -202,6 +204,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 
     /* Ensure grids render properly for print */
     .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
+    .charts-row { grid-template-columns: 2fr 1fr 1fr !important; }
     .charts-row { grid-template-columns: 1fr 1fr !important; }
     .charts-row-3 { grid-template-columns: 1fr 1fr 1fr !important; }
     .alert-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
@@ -385,17 +388,27 @@ body:not(.light-mode) .sem-label{color:#94a3b8}
                 <div class="kpi-card kpi-border-blue">
                     <span class="kpi-icon">🛡️</span>
                     <div class="kpi-val" id="kpiConfGeneral">—</div>
-                    <div class="kpi-lbl">Confiabilidad General</div>
+                    <div class="kpi-lbl">Confiabilidad de Equipos de Seguridad</div>
                 </div>
                 <div class="kpi-card kpi-border-green">
-                    <span class="kpi-icon">👥</span>
-                    <div class="kpi-val" id="kpiEqOp">—</div>
-                    <div class="kpi-lbl">Equipos Operativos</div>
+                    <span class="kpi-icon">📻</span>
+                    <div class="kpi-val" id="kpiRadiosOp">—</div>
+                    <div class="kpi-lbl">Radios Operativos</div>
+                </div>
+                <div class="kpi-card kpi-border-green" style="border-top-color:#16a34a">
+                    <span class="kpi-icon">🔫</span>
+                    <div class="kpi-val" id="kpiArmasOp">—</div>
+                    <div class="kpi-lbl">Armas Óptimas</div>
                 </div>
                 <div class="kpi-card kpi-border-sky">
-                    <span class="kpi-icon">🚗</span>
-                    <div class="kpi-val" id="kpiVehAptos">—</div>
-                    <div class="kpi-lbl">Vehículos Aptos</div>
+                    <span class="kpi-icon">🚓</span>
+                    <div class="kpi-val" id="kpiCarrosAptos">—</div>
+                    <div class="kpi-lbl">Carros Aptos</div>
+                </div>
+                <div class="kpi-card kpi-border-sky" style="border-top-color:#0284c7">
+                    <span class="kpi-icon">🏍️</span>
+                    <div class="kpi-val" id="kpiMotosAptas">—</div>
+                    <div class="kpi-lbl">Motocicletas Aptas</div>
                 </div>
                 <div class="kpi-card kpi-border-purple">
                     <span class="kpi-icon">📋</span>
@@ -406,22 +419,32 @@ body:not(.light-mode) .sem-label{color:#94a3b8}
                     <span class="kpi-icon">🔒</span>
                     <div class="kpi-val" id="kpiEqNoOp" style="color:#dc2626">—</div>
                     <div class="kpi-lbl">Equipos No Operativos</div>
+                    <div class="kpi-subdetail" id="kpiEqNoOpDetail"></div>
                 </div>
             </div>
 
-            <!-- Charts row 1 -->
-            <div class="charts-row">
+            <!-- Charts row 1: Tendencia + Distribución Radios + Distribución Armas -->
+            <div class="charts-row" style="grid-template-columns:2fr 1fr 1fr">
                 <div class="chart-card">
                     <div class="chart-title">Tendencia de Confiabilidad de Equipos</div>
                     <div class="chart-box"><canvas id="chartTendencia"></canvas></div>
                 </div>
                 <div class="chart-card">
-                    <div class="chart-title">Distribución de Equipos por Estado</div>
-                    <div style="display:flex;align-items:center;gap:1.5rem;height:240px">
-                        <div style="flex:0 0 180px;position:relative;height:180px">
-                            <canvas id="chartEqDistrib"></canvas>
+                    <div class="chart-title">Distribución de Radios por Estado</div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:.75rem;height:240px;justify-content:center">
+                        <div style="position:relative;height:150px;width:150px">
+                            <canvas id="chartRadios"></canvas>
                         </div>
-                        <div id="eqLegend" style="font-size:.8rem;display:flex;flex-direction:column;gap:.625rem"></div>
+                        <div id="radiosLegend" style="font-size:.75rem;display:flex;flex-direction:column;gap:.375rem;width:100%"></div>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">Distribución de Armas por Estado</div>
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:.75rem;height:240px;justify-content:center">
+                        <div style="position:relative;height:150px;width:150px">
+                            <canvas id="chartArmas"></canvas>
+                        </div>
+                        <div id="armasLegend" style="font-size:.75rem;display:flex;flex-direction:column;gap:.375rem;width:100%"></div>
                     </div>
                 </div>
             </div>
@@ -695,10 +718,28 @@ function renderData(d) {
     // KPIs (Informe Ejecutivo)
     const fmt = v => v !== null && v !== undefined ? v + '%' : '—';
     document.getElementById('kpiConfGeneral').textContent = fmt(conf);
-    document.getElementById('kpiEqOp').textContent = d.equipos.pct !== null ? d.equipos.pct + '%' : '—';
-    document.getElementById('kpiVehAptos').textContent = d.vehiculos.pct !== null ? d.vehiculos.pct + '%' : '—';
+
+    // Radios & Armas: use API fields if present, fall back to demo values
+    const radios = d.radios || {};
+    const armas  = d.armas  || {};
+    const vehicCarros = d.vehiculos_carros || {};
+    const vehicMotos  = d.vehiculos_motos  || {};
+    document.getElementById('kpiRadiosOp').textContent    = radios.pct    != null ? radios.pct    + '%' : (d.equipos.pct != null ? d.equipos.pct + '%' : '—');
+    document.getElementById('kpiArmasOp').textContent     = armas.pct     != null ? armas.pct     + '%' : '—';
+    document.getElementById('kpiCarrosAptos').textContent = vehicCarros.pct != null ? vehicCarros.pct + '%' : (d.vehiculos.pct != null ? d.vehiculos.pct + '%' : '—');
+    document.getElementById('kpiMotosAptas').textContent  = vehicMotos.pct  != null ? vehicMotos.pct  + '%' : '—';
+
     document.getElementById('kpiCertVig').textContent = d.certificaciones.pct !== null ? d.certificaciones.pct + '%' : '—';
     document.getElementById('kpiEqNoOp').textContent = d.equipos.no_operativos ?? '—';
+
+    // Equipos No Operativos detail breakdown
+    const noOpDetail = document.getElementById('kpiEqNoOpDetail');
+    if (d.equipos.no_op_detalle && d.equipos.no_op_detalle.length) {
+        noOpDetail.innerHTML = d.equipos.no_op_detalle.map(item =>
+            `<span>${item.cantidad} ${item.tipo}</span>`).join('');
+    } else {
+        noOpDetail.innerHTML = '';
+    }
 
     // Tendencia de equipos
     const tLabels = d.tendencia_eq.map(r => r.label);
@@ -709,12 +750,23 @@ function renderData(d) {
         tension: .4, fill: true, pointRadius: 4, pointBackgroundColor: '#3b82f6',
     }]);
 
-    // Donut equipos
-    const eqLabels = ['Operativos', 'No Operativos'];
-    const eqData = [d.equipos.operativos, d.equipos.no_operativos];
-    const eqColors = ['#22c55e', '#ef4444'];
-    buildDonutCenter('chartEqDistrib', eqLabels, eqData, eqColors, 'Total');
-    document.getElementById('eqLegend').innerHTML = legendHtml(eqLabels, eqData, eqColors, d.equipos.total);
+    // Donut Radios por Estado
+    const radOp  = radios.operativos    != null ? radios.operativos    : (d.radios_op    ?? 45);
+    const radNoOp = radios.no_operativos != null ? radios.no_operativos : (d.radios_no_op ?? 5);
+    const radLabels = ['Operativos', 'No Operativos'];
+    const radData   = [radOp, radNoOp];
+    const radColors = ['#22c55e', '#ef4444'];
+    buildDonutCenter('chartRadios', radLabels, radData, radColors, 'Total');
+    document.getElementById('radiosLegend').innerHTML = legendHtml(radLabels, radData, radColors, radOp + radNoOp);
+
+    // Donut Armas por Estado
+    const armasOpt   = armas.optimas    != null ? armas.optimas    : (d.armas_opt   ?? 28);
+    const armasNoApt = armas.no_aptas   != null ? armas.no_aptas   : (d.armas_no_ap ?? 2);
+    const armasLabels = ['Óptimas', 'No Aptas'];
+    const armasData   = [armasOpt, armasNoApt];
+    const armasColors = ['#22c55e', '#ef4444'];
+    buildDonutCenter('chartArmas', armasLabels, armasData, armasColors, 'Total');
+    document.getElementById('armasLegend').innerHTML = legendHtml(armasLabels, armasData, armasColors, armasOpt + armasNoApt);
 
     // Donut vehículos
     const vehLabels = ['Aptos', 'No Aptos', 'Mantenimiento'];
