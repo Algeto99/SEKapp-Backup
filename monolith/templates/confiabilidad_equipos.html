@@ -328,25 +328,7 @@
                 <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-600">
                     4. Firmas
                 </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-                    <!-- Técnico de Mantenimiento -->
-                    <div>
-                        <div class="mb-4">
-                            <label for="tecnico_mantenimiento" class="block text-sm font-medium mb-1">
-                                Técnico de Mantenimiento
-                            </label>
-                            <input type="text" name="tecnico_mantenimiento" id="tecnico_mantenimiento"
-                                   class="form-input" placeholder="Nombre completo">
-                        </div>
-                        <label class="block text-sm font-medium mb-2">Firma</label>
-                        <canvas id="signaturePadTecnico" class="signature-pad w-full h-36"></canvas>
-                        <button type="button" id="clearSignatureTecnico"
-                                class="mt-2 text-sm text-blue-400 hover:text-blue-300 transition">
-                            Limpiar Firma
-                        </button>
-                        <input type="hidden" name="firma_tecnico" id="firma_tecnico">
-                    </div>
+                <div class="grid grid-cols-1 gap-8">
 
                     <!-- Supervisor de Seguridad -->
                     <div>
@@ -656,17 +638,13 @@
             return pad;
         }
 
-        const padTecnico    = initSignaturePad('signaturePadTecnico');
         const padSupervisor = initSignaturePad('signaturePadSupervisor');
 
-        document.getElementById('clearSignatureTecnico').addEventListener('click', () => padTecnico.clear());
         document.getElementById('clearSignatureSupervisor').addEventListener('click', () => padSupervisor.clear());
 
         /* ─── Form Submit ─── */
         document.getElementById('confiabilidadForm').addEventListener('submit', function (e) {
             // Capture signatures
-            document.getElementById('firma_tecnico').value =
-                padTecnico.isEmpty() ? '' : padTecnico.toDataURL();
             document.getElementById('firma_supervisor').value =
                 padSupervisor.isEmpty() ? '' : padSupervisor.toDataURL();
         });
