@@ -236,16 +236,6 @@
                             <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input"
                                 value="{{ name }}" required readonly>
                         </div>
-                        <div>
-                            <label class="form-label">Firma <span class="text-red-400">*</span></label>
-                            <div class="signature-wrapper">
-                                <canvas id="firma_auditor_pad" class="signature-pad"></canvas>
-                            </div>
-                            <button type="button" data-pad="firma_auditor_pad"
-                                class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
-                                Firma</button>
-                            <input type="hidden" name="firma_auditor" id="firma_auditor">
-                        </div>
                     </div>
                 </div>
 
@@ -402,10 +392,21 @@
                             <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">5. Firmas</h2>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
+                                    <label class="form-label">Firma del Supervisor <span class="text-red-400">*</span></label>
+                                    <div class="signature-wrapper">
+                                        <canvas id="firma_auditor_pad_0"
+                                            class="signature-pad supervisor-sig-canvas"></canvas>
+                                    </div>
+                                    <button type="button" data-pad="firma_auditor_pad_0"
+                                        class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
+                                        Firma</button>
+                                    <input type="hidden" name="firma_auditor[]" class="hidden-supervisor-sig-input">
+                                </div>
+                                <div>
                                     <label class="form-label">Firma del Guarda Supervisado</label>
                                     <div class="signature-wrapper">
                                         <canvas id="firma_guarda_supervisado_pad_0"
-                                            class="signature-pad dynamic-pad"></canvas>
+                                            class="signature-pad guarda-sig-canvas"></canvas>
                                     </div>
                                     <button type="button" data-pad="firma_guarda_supervisado_pad_0"
                                         class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
@@ -518,24 +519,28 @@
                 fileInput.value = '';
             }
 
-            const oldCanvas = newBlock.querySelector('canvas');
-            const oldBtn = newBlock.querySelector('.clear-sig-btn');
-            const oldHidden = newBlock.querySelector('.hidden-sig-input');
+            // Update supervisor signature canvas
+            const supervisorCanvas = newBlock.querySelector('.supervisor-sig-canvas');
+            const newSupervisorPadId = `firma_auditor_pad_${newIndex}`;
+            supervisorCanvas.id = newSupervisorPadId;
+            const supervisorBtn = supervisorCanvas.closest('div').parentElement.querySelector('.clear-sig-btn');
+            if (supervisorBtn) supervisorBtn.dataset.pad = newSupervisorPadId;
+            const supervisorHidden = newBlock.querySelector('.hidden-supervisor-sig-input');
+            if (supervisorHidden) supervisorHidden.value = '';
 
+            // Update guarda signature canvas
+            const guardaCanvas = newBlock.querySelector('.guarda-sig-canvas');
             const newPadId = `firma_guarda_supervisado_pad_${newIndex}`;
-            oldCanvas.id = newPadId;
-            oldBtn.dataset.pad = newPadId;
-            oldHidden.value = '';
+            guardaCanvas.id = newPadId;
+            const guardaBtn = guardaCanvas.closest('div').parentElement.querySelector('.clear-sig-btn[data-pad^="firma_guarda"]') ||
+                              guardaCanvas.parentElement.nextElementSibling;
+            if (guardaBtn && guardaBtn.classList.contains('clear-sig-btn')) guardaBtn.dataset.pad = newPadId;
+            const oldHidden = newBlock.querySelector('.hidden-sig-input');
+            if (oldHidden) oldHidden.value = '';
 
             container.appendChild(newBlock);
+            initPad(newSupervisorPadId);
             initPad(newPadId);
-
-            oldBtn.addEventListener('click', () => {
-                if (signaturePads[newPadId]) {
-                    signaturePads[newPadId].clear();
-                    signatureImages[newPadId] = null;
-                }
-            });
 
             blockCount++;
         }
@@ -574,7 +579,7 @@
             if (fechaHoraInput) fechaHoraInput.value = formattedDateTime;
 
             // Initialize Signature Pads
-            initPad('firma_auditor_pad');
+            initPad('firma_auditor_pad_0');
             initPad('firma_guarda_supervisado_pad_0');
 
             // Clear signature buttons
@@ -590,26 +595,36 @@
 
             // Form submission
             document.getElementById('checklistForm').addEventListener('submit', function (event) {
-                // Capture Auditor Signature
-                if (signaturePads['firma_auditor_pad'] && !signaturePads['firma_auditor_pad'].isEmpty()) {
-                    document.getElementById('firma_auditor').value = signatureImages['firma_auditor_pad'] || signaturePads['firma_auditor_pad'].toDataURL();
-                } else {
-                    event.preventDefault();
-                    alert('Por favor, proporcione la firma del auditor (Sección 1).');
-                    return false;
-                }
-
-                // Loop through all dynamic blocks and capture their signatures
+                // Loop through all dynamic blocks and capture both signatures per block
                 const blocks = document.querySelectorAll('.checklist-block');
-                blocks.forEach((block, index) => {
-                    const canvas = block.querySelector('canvas');
-                    const hiddenInput = block.querySelector('.hidden-sig-input');
-                    const padId = canvas.id;
-
-                    if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
-                        hiddenInput.value = signatureImages[padId] || signaturePads[padId].toDataURL();
+                let supervisorSigned = false;
+                blocks.forEach((block) => {
+                    // Supervisor signature
+                    const supervisorCanvas = block.querySelector('.supervisor-sig-canvas');
+                    if (supervisorCanvas) {
+                        const padId = supervisorCanvas.id;
+                        const hiddenInput = block.querySelector('.hidden-supervisor-sig-input');
+                        if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
+                            if (hiddenInput) hiddenInput.value = signatureImages[padId] || signaturePads[padId].toDataURL();
+                            supervisorSigned = true;
+                        }
+                    }
+                    // Guarda signature
+                    const guardaCanvas = block.querySelector('.guarda-sig-canvas');
+                    if (guardaCanvas) {
+                        const padId = guardaCanvas.id;
+                        const hiddenInput = block.querySelector('.hidden-sig-input');
+                        if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
+                            if (hiddenInput) hiddenInput.value = signatureImages[padId] || signaturePads[padId].toDataURL();
+                        }
                     }
                 });
+
+                if (!supervisorSigned) {
+                    event.preventDefault();
+                    alert('Por favor, proporcione la firma del supervisor en la sección 5.');
+                    return false;
+                }
             });
         });
     </script>

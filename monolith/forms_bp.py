@@ -1362,7 +1362,6 @@ def submit_checklist_cumplimiento():
             'fecha_hora': request.form.get('fecha_hora') or None,
             'rol_aplicador': request.form.get('rol_aplicador'),
             'nombre_auditor': request.form.get('nombre_auditor'),
-            'firma_auditor': request.form.get('firma_auditor'),
              # 'turno' is removed/ignored
         }
         header_data.update(_resolve_scope_fields(
@@ -1416,6 +1415,7 @@ def submit_checklist_cumplimiento():
                 'fechas_vigentes': request.form.getlist('fechas_vigentes[]')[i] if len(request.form.getlist('fechas_vigentes[]')) > i else None,
 
                 # Section 5
+                'firma_auditor': request.form.getlist('firma_auditor[]')[i] if len(request.form.getlist('firma_auditor[]')) > i else None,
                 'firma_guarda_supervisado': request.form.getlist('firma_guarda_supervisado[]')[i] if len(request.form.getlist('firma_guarda_supervisado[]')) > i else None,
             })
 
