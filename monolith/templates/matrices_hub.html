@@ -263,97 +263,6 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
                 </div>
             </a>
 
-            <!-- Supervisión -->
-            <a href="/dashboard/supervision/" class="matrix-card border-teal">
-                <div class="matrix-card-header">
-                    <div>
-                        <div class="matrix-card-title">Supervisión de Puestos</div>
-                        <div class="matrix-card-desc">Registros de supervisión, hallazgos operativos y seguimiento de puestos de guardia.</div>
-                    </div>
-                    <div class="matrix-card-icon icon-teal">👁️</div>
-                </div>
-                <div class="matrix-stats">
-                    <div class="stat-pill">
-                        <span class="stat-num" id="supTotal"><span class="loading-shimmer"></span></span>
-                        <span class="stat-lbl">Superv. mes</span>
-                    </div>
-                </div>
-                <div class="matrix-action">
-                    <span class="matrix-action-text">Ver supervisiones</span>
-                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </a>
-
-            <!-- Disciplina -->
-            <a href="/dashboard/disciplina/" class="matrix-card border-purple">
-                <div class="matrix-card-header">
-                    <div>
-                        <div class="matrix-card-title">Novedades Disciplinarias</div>
-                        <div class="matrix-card-desc">Seguimiento de reportes disciplinarios, faltas y personal reincidente.</div>
-                    </div>
-                    <div class="matrix-card-icon icon-purple">⚖️</div>
-                </div>
-                <div class="matrix-stats">
-                    <div class="stat-pill">
-                        <span class="stat-num" id="discTotal"><span class="loading-shimmer"></span></span>
-                        <span class="stat-lbl">Reportes mes</span>
-                    </div>
-                </div>
-                <div class="matrix-action">
-                    <span class="matrix-action-text">Ver novedades disciplinarias</span>
-                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </a>
-
-            <!-- Capacitaciones -->
-            <a href="/dashboard/capacitacion/" class="matrix-card border-green">
-                <div class="matrix-card-header">
-                    <div>
-                        <div class="matrix-card-title">Capacitaciones</div>
-                        <div class="matrix-card-desc">Registro de capacitaciones realizadas, asistencia y seguimiento por cliente.</div>
-                    </div>
-                    <div class="matrix-card-icon icon-green">🎓</div>
-                </div>
-                <div class="matrix-stats">
-                    <div class="stat-pill">
-                        <span class="stat-num text-green" id="capTotal"><span class="loading-shimmer"></span></span>
-                        <span class="stat-lbl">Capacit. mes</span>
-                    </div>
-                </div>
-                <div class="matrix-action">
-                    <span class="matrix-action-text">Ver capacitaciones</span>
-                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </a>
-
-            <!-- Cumplimiento normativo -->
-            <a href="/dashboard/cumplimiento/" class="matrix-card border-amber">
-                <div class="matrix-card-header">
-                    <div>
-                        <div class="matrix-card-title">Cumplimiento Normativo</div>
-                        <div class="matrix-card-desc">Certificaciones, vigencias y alertas de vencimiento por puesto y cliente.</div>
-                    </div>
-                    <div class="matrix-card-icon icon-amber">📋</div>
-                </div>
-                <div class="matrix-stats">
-                    <div class="stat-pill">
-                        <span class="stat-num" id="cumTotal"><span class="loading-shimmer"></span></span>
-                        <span class="stat-lbl">Total</span>
-                    </div>
-                    <div class="stat-pill">
-                        <span class="stat-num text-red" id="cumVencidas"><span class="loading-shimmer"></span></span>
-                        <span class="stat-lbl">Vencidas</span>
-                    </div>
-                    <div class="stat-pill">
-                        <span class="stat-num text-amber" id="cumProximas"><span class="loading-shimmer"></span></span>
-                        <span class="stat-lbl">Por vencer</span>
-                    </div>
-                </div>
-                <div class="matrix-action">
-                    <span class="matrix-action-text">Ver cumplimiento</span>
-                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                </div>
-            </a>
         </div>
     </div>
 </div>
@@ -388,34 +297,10 @@ async function loadStats() {
             document.getElementById('visPendientes').textContent = d.visitas.pendientes ?? '—';
         }
 
-        // Supervisión
-        if (d.supervision) {
-            document.getElementById('supTotal').textContent = d.supervision.total ?? '—';
-        }
-
-        // Disciplina
-        if (d.disciplina) {
-            document.getElementById('discTotal').textContent = d.disciplina.total ?? '—';
-        }
-
-        // Capacitaciones
-        if (d.capacitaciones) {
-            document.getElementById('capTotal').textContent = d.capacitaciones.total ?? '—';
-        }
-
-        // Cumplimiento
-        if (d.cumplimiento) {
-            document.getElementById('cumTotal').textContent = d.cumplimiento.total ?? '—';
-            document.getElementById('cumVencidas').textContent = d.cumplimiento.vencidas ?? '—';
-            document.getElementById('cumProximas').textContent = d.cumplimiento.proximas ?? '—';
-        }
-
         // Alert bar
         const alerts = [];
         if (d.incidentes?.criticos > 0)
             alerts.push(`${d.incidentes.criticos} incidente(s) crítico(s) este mes`);
-        if (d.cumplimiento?.vencidas > 0)
-            alerts.push(`${d.cumplimiento.vencidas} certificación(es) vencida(s)`);
         if (d.visitas?.pendientes > 0)
             alerts.push(`${d.visitas.pendientes} compromiso(s) pendiente(s)`);
         if (alerts.length) {
