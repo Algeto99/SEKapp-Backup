@@ -374,13 +374,6 @@
                             Responsable</label>
                         <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}" readonly>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
-                        <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clearSignatureResponsable"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_responsable" id="firma_responsable">
-                    </div>
                 </div>
             </div>
 
@@ -578,6 +571,16 @@
                     <button type="button" id="clearSignatureEncuestado"
                         class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
                     <input type="hidden" name="firma_encuestado" id="firma_encuestado">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="mt-4">
+                    <label class="block text-sm font-medium mb-2">Firma de Coordinador/Supervisor</label>
+                    <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
+                    <button type="button" id="clearSignatureResponsable"
+                        class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                    <input type="hidden" name="firma_responsable" id="firma_responsable">
                 </div>
             </div>
 
