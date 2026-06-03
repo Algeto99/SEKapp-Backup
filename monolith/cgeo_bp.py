@@ -644,11 +644,24 @@ def cgeo_api_operacion_data():
             sup_params.append(cliente)
         _date_conds("fecha_hora", sup_conds, sup_params)
         sup_where = _where(sup_conds)
+        _sup_score = " + ".join(
+            f"COALESCE(CASE WHEN {col}::TEXT ~ '^[0-9.]+$' THEN {col}::NUMERIC ELSE 0 END, 0)"
+            for col in ["asistencia_puntualidad", "presentacion_uniforme",
+                        "estado_limpieza_puesto", "equipamiento_completo", "estado_bitacora"]
+        )
         cur.execute(f"""
-            SELECT COUNT(*) AS total FROM supervision_puesto {sup_where}
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN ({_sup_score}) >= 21 THEN 1 ELSE 0 END) AS excelente,
+                SUM(CASE WHEN ({_sup_score}) >= 16 AND ({_sup_score}) < 21 THEN 1 ELSE 0 END) AS seguimiento,
+                SUM(CASE WHEN ({_sup_score}) > 0  AND ({_sup_score}) < 16 THEN 1 ELSE 0 END) AS critico
+            FROM supervision_puesto {sup_where}
         """, sup_params)
         sup_row = cur.fetchone() or {}
-        sup_total = int(sup_row.get("total") or 0)
+        sup_total      = int(sup_row.get("total")      or 0)
+        sup_excelente  = int(sup_row.get("excelente")  or 0)
+        sup_seguimiento = int(sup_row.get("seguimiento") or 0)
+        sup_critico    = int(sup_row.get("critico")    or 0)
 
         # Tendencia mensual supervisión
         cur.execute(f"""
@@ -719,7 +732,28 @@ def cgeo_api_operacion_data():
         _date_conds("fecha_hora", vis_conds, vis_params)
         vis_where = _where(vis_conds)
         compromisos_pend = []
+        vis_total = vis_cumplidos = vis_pendientes = vis_vencidos = 0
         try:
+            # Aggregate counts for visitas KPI card
+            cur.execute(f"""
+                SELECT
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,'')))
+                        IN ('cumplido','completado','cumplida','completada') THEN 1 ELSE 0 END) AS cumplidos,
+                    SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,'')))
+                        IN ('vencido','vencida','expirado','expirada') THEN 1 ELSE 0 END) AS vencidos,
+                    SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,'')))
+                        NOT IN ('cumplido','completado','cumplida','completada',
+                                'vencido','vencida','expirado','expirada') THEN 1 ELSE 0 END) AS pendientes
+                FROM registro_y_acta_de_visita
+                {vis_where}
+            """, vis_params)
+            vis_row = cur.fetchone() or {}
+            vis_total      = int(vis_row.get("total")      or 0)
+            vis_cumplidos  = int(vis_row.get("cumplidos")  or 0)
+            vis_vencidos   = int(vis_row.get("vencidos")   or 0)
+            vis_pendientes = int(vis_row.get("pendientes") or 0)
+
             cur.execute(f"""
                 SELECT
                     CAST(COALESCE(fecha_hora, creado_en) AS date) AS fecha_compromiso,
@@ -796,6 +830,9 @@ def cgeo_api_operacion_data():
             },
             "supervisiones": {
                 "total": sup_total,
+                "excelente": sup_excelente,
+                "seguimiento": sup_seguimiento,
+                "critico": sup_critico,
             },
             "capacitaciones": {
                 "total": cap_total,
@@ -803,6 +840,12 @@ def cgeo_api_operacion_data():
             },
             "disciplina": {
                 "total": disc_total,
+            },
+            "visitas": {
+                "total": vis_total,
+                "cumplidos": vis_cumplidos,
+                "pendientes": vis_pendientes,
+                "vencidos": vis_vencidos,
             },
             "ranking_satisfaccion": ranking,
             "novedades": novedades,

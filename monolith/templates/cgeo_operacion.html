@@ -373,29 +373,34 @@ body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
         <div id="tab-ejecutivo">
             <div class="kpi-grid">
                 <div class="kpi-card kpi-border-green">
-                    <span class="kpi-icon">🛡️</span>
+                    <span class="kpi-icon">⭐</span>
                     <div class="kpi-val" id="kpiSat">—</div>
                     <div class="kpi-lbl">Satisfacción del Cliente</div>
+                    <div class="kpi-sub" id="kpiSatSub" style="color:#64748b;font-weight:400;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-red">
                     <span class="kpi-icon">⚠️</span>
                     <div class="kpi-val" id="kpiInc">—</div>
-                    <div class="kpi-lbl">Incidentes Totales</div>
+                    <div class="kpi-lbl">Incidentes Reportados</div>
+                    <div id="kpiIncSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-blue">
-                    <span class="kpi-icon">🚗</span>
+                    <span class="kpi-icon">👁️</span>
                     <div class="kpi-val" id="kpiSup">—</div>
                     <div class="kpi-lbl">Supervisiones Realizadas</div>
+                    <div id="kpiSupSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-indigo">
                     <span class="kpi-icon">🎓</span>
                     <div class="kpi-val" id="kpiCap">—</div>
                     <div class="kpi-lbl">Capacitaciones Realizadas</div>
+                    <div class="kpi-sub" id="kpiCapSub" style="color:#6366f1;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-orange">
-                    <span class="kpi-icon">📝</span>
-                    <div class="kpi-val" id="kpiDisc">—</div>
-                    <div class="kpi-lbl">Reportes Disciplinarios</div>
+                    <span class="kpi-icon">🏢</span>
+                    <div class="kpi-val" id="kpiVis">—</div>
+                    <div class="kpi-lbl">Visitas a Clientes</div>
+                    <div id="kpiVisSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
             </div>
 
@@ -685,10 +690,40 @@ function renderData(d) {
 
     // KPIs
     document.getElementById('kpiSat').textContent = sat !== null ? sat + '%' : '—';
+    document.getElementById('kpiSatSub').textContent = d.satisfaccion.total
+        ? `Encuestas: ${d.satisfaccion.total} | Recomiendan: ${d.satisfaccion.recomienda}`
+        : '';
+
     document.getElementById('kpiInc').textContent = inc ?? '—';
+    const incTotal = inc || 1;
+    document.getElementById('kpiIncSub').innerHTML = [
+        { label: 'Bajo',    val: inc_d.bajos,    color: '#16a34a' },
+        { label: 'Medio',   val: inc_d.medios,   color: '#d97706' },
+        { label: 'Alto',    val: inc_d.altos,    color: '#ea580c' },
+        { label: 'Crítico', val: inc_d.criticos, color: '#dc2626' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round(s.val/incTotal*100)}%</span>`).join('');
+
     document.getElementById('kpiSup').textContent = d.supervisiones.total ?? '—';
+    const supTotal = d.supervisiones.total || 1;
+    document.getElementById('kpiSupSub').innerHTML = [
+        { label: 'Excelente',    val: d.supervisiones.excelente,   color: '#16a34a' },
+        { label: 'Seguimiento',  val: d.supervisiones.seguimiento,  color: '#d97706' },
+        { label: 'Crítico',      val: d.supervisiones.critico,      color: '#dc2626' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round((s.val||0)/supTotal*100)}%</span>`).join('');
+
     document.getElementById('kpiCap').textContent = d.capacitaciones.total ?? '—';
-    document.getElementById('kpiDisc').textContent = d.disciplina.total ?? '—';
+    document.getElementById('kpiCapSub').textContent = d.capacitaciones.asistentes
+        ? `Personal capacitado: ${d.capacitaciones.asistentes} personas`
+        : '';
+
+    const vis = d.visitas || {};
+    document.getElementById('kpiVis').textContent = vis.total ?? '—';
+    const visTotal = vis.total || 1;
+    document.getElementById('kpiVisSub').innerHTML = [
+        { label: 'Cumplido',   val: vis.cumplidos,  color: '#16a34a' },
+        { label: 'Pendiente',  val: vis.pendientes, color: '#d97706' },
+        { label: 'Vencido',    val: vis.vencidos,   color: '#dc2626' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round((s.val||0)/visTotal*100)}%</span>`).join('');
 
     // Tendencia operacional (multi-line)
     const t = d.tendencia;
