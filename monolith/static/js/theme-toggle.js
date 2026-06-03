@@ -84,18 +84,22 @@
 
         function setDarkMode() {
             document.body.classList.remove('light-mode');
+            document.body.classList.add('dark-mode');
             if (darkModeIcon) darkModeIcon.style.display = 'block';
             if (lightModeIcon) lightModeIcon.style.display = 'none';
             localStorage.setItem('theme', 'dark');
             syncRootBackground();
+            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: 'dark' } }));
         }
 
         function setLightMode() {
             document.body.classList.add('light-mode');
+            document.body.classList.remove('dark-mode');
             if (darkModeIcon) darkModeIcon.style.display = 'none';
             if (lightModeIcon) lightModeIcon.style.display = 'block';
             localStorage.setItem('theme', 'light');
             syncRootBackground();
+            document.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: 'light' } }));
         }
 
         function toggleTheme() {

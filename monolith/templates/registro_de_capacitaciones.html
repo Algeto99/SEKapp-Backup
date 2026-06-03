@@ -308,23 +308,9 @@
             const darkModeIcon = document.getElementById('darkModeIcon');
             const lightModeIcon = document.getElementById('lightModeIcon');
 
-            function initializeTheme() {
-                const savedTheme = localStorage.getItem('theme');
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (savedTheme === 'light' || (!savedTheme && !prefersDark)) setLightMode(); else setDarkMode();
-            }
-            function setDarkMode() {
-                document.body.classList.remove('light-mode');
-                if (darkModeIcon) darkModeIcon.style.display = 'block';
-                if (lightModeIcon) lightModeIcon.style.display = 'none';
-                localStorage.setItem('theme', 'dark');
-            }
-            function setLightMode() {
-                document.body.classList.add('light-mode');
-                if (darkModeIcon) darkModeIcon.style.display = 'none';
-                if (lightModeIcon) lightModeIcon.style.display = 'block';
-                localStorage.setItem('theme', 'light');
-            }
+            
+            
+            
             if (themeToggle) themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
 
             initializeTheme();

@@ -241,33 +241,16 @@
             const darkModeIcon = document.getElementById('darkModeIcon');
             const lightModeIcon = document.getElementById('lightModeIcon');
 
-            function setDarkMode() {
-                document.body.classList.remove('light-mode');
-                darkModeIcon.style.display = 'block';
-                lightModeIcon.style.display = 'none';
-                localStorage.setItem('theme', 'dark');
-            }
+            
 
-            function setLightMode() {
-                document.body.classList.add('light-mode');
-                darkModeIcon.style.display = 'none';
-                lightModeIcon.style.display = 'block';
-                localStorage.setItem('theme', 'light');
-            }
+            
 
-            function toggleTheme() {
-                if (document.body.classList.contains('light-mode')) {
-                    setDarkMode();
-                } else {
+             else {
                     setLightMode();
                 }
             }
 
-            function initializeTheme() {
-                const savedTheme = localStorage.getItem('theme');
-                if (savedTheme === 'light') {
-                    setLightMode();
-                } else {
+             else {
                     setDarkMode();
                 }
             }

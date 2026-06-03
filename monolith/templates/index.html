@@ -522,27 +522,12 @@
     <div class="container-wrapper">
         <!-- Unified Navigation Bar -->
         {% include '_header_nav.html' %}
+        <div class="text-center mb-6">
             <img src="/static/logo_full.png" alt="Kanan Logo"
                 class="mx-auto mb-6 w-24 opacity-90" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);" />
             <h1 class="text-3xl font-bold mb-2">Reportes</h1>
-            <p class="text-md text-gray-600 mb-4">Explore y gestione los reportes de seguridad.</p>
-
-            <!-- Admin Badge -->
-            {% if is_admin %}
-            <div
-                class="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium mb-4 shadow-lg">
-                <span>👑</span>
-                <span>Panel de Administrador</span>
-            </div>
-            {% endif %}
-
-            <p class="text-lg font-medium text-gray-700">
-                Bienvenido,
-                <span class="font-bold text-blue-700" id="usernameDisplay">{{ user_name }}</span>
-                {% if is_admin %}
-                <span class="text-purple-600 font-bold">(Administrador)</span>
-                {% endif %}
-            </p>
+            <p class="text-md text-gray-600">Explore y gestione los reportes de seguridad.</p>
+        </div>
         </div>
 
         <div id="multi-select-controls"
@@ -795,35 +780,16 @@
         const lightModeIcon = document.getElementById('lightModeIcon');
 
         // Theme management functions
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-                setDarkMode();
-            } else {
+         else {
                 setLightMode();
             }
         }
 
-        function setDarkMode() {
-            document.body.classList.add('dark-mode');
-            darkModeIcon.style.display = 'block';
-            lightModeIcon.style.display = 'none';
-            localStorage.setItem('theme', 'dark');
-        }
+        
 
-        function setLightMode() {
-            document.body.classList.remove('dark-mode');
-            darkModeIcon.style.display = 'none';
-            lightModeIcon.style.display = 'block';
-            localStorage.setItem('theme', 'light');
-        }
+        
 
-        function toggleTheme() {
-            if (document.body.classList.contains('dark-mode')) {
-                setLightMode();
-            } else {
+         else {
                 setDarkMode();
             }
         }

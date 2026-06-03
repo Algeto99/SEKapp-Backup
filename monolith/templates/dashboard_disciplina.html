@@ -414,8 +414,8 @@
     const themeToggle   = document.getElementById('themeToggle');
     const darkModeIcon  = document.getElementById('darkModeIcon');
     const lightModeIcon = document.getElementById('lightModeIcon');
-    function setDarkMode()  { document.body.classList.remove('light-mode'); darkModeIcon.style.display='block';  lightModeIcon.style.display='none';  localStorage.setItem('theme','dark');  updateChartTheme(false); }
-    function setLightMode() { document.body.classList.add('light-mode');    darkModeIcon.style.display='none';   lightModeIcon.style.display='block'; localStorage.setItem('theme','light'); updateChartTheme(true);  }
+    
+    
     function initTheme()    { const s=localStorage.getItem('theme'); (s==='light'||(!s&&!window.matchMedia('(prefers-color-scheme: dark)').matches)) ? setLightMode() : setDarkMode(); }
     themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
 
@@ -963,6 +963,12 @@
         loadData();
     });
     </script>
-    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/theme-toggle.js') }}">
+document.addEventListener('themeChanged', function(e) {
+    if (typeof updateChartTheme === 'function') {
+        updateChartTheme(e.detail.theme === 'light');
+    }
+});
+</script>
 </body>
 </html>
