@@ -261,15 +261,6 @@
                             Responsable</label>
                         <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}" readonly>
                     </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
-                        <div class="signature-wrapper w-full h-48">
-                            <canvas id="signaturePadResponsable" class="signature-pad"></canvas>
-                        </div>
-                        <button type="button" id="clearSignatureResponsable"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_responsable" id="firma_responsable">
-                    </div>
                 </div>
             </div>
 
@@ -365,6 +356,15 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">6. Firmas</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Firma del Responsable</label>
+                        <div class="signature-wrapper w-full h-48">
+                            <canvas id="signaturePadResponsable" class="signature-pad"></canvas>
+                        </div>
+                        <button type="button" id="clearSignatureResponsable"
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_responsable" id="firma_responsable">
+                    </div>
                     <div>
                         <label class="block text-sm font-medium mb-2">Firma del Colaborador</label>
                         <div class="signature-wrapper w-full h-48" id="signatureWrapperRevisado">
