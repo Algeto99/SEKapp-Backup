@@ -978,8 +978,33 @@ function setDefaultDates() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {
-    setDefaultDates();
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCliente = urlParams.get('cliente');
+    const urlStart   = urlParams.get('start_date');
+    const urlEnd     = urlParams.get('end_date');
+
+    if (urlStart || urlEnd) {
+        if (urlStart) document.getElementById('filtStart').value = urlStart;
+        if (urlEnd)   document.getElementById('filtEnd').value   = urlEnd;
+    } else {
+        setDefaultDates();
+    }
+
     await loadFiltros();
+
+    if (urlCliente) {
+        const sel = document.getElementById('filtCliente');
+        // Wait for options to be populated, then select
+        const opt = [...sel.options].find(o => o.value === urlCliente);
+        if (opt) sel.value = urlCliente;
+        else {
+            const o = document.createElement('option');
+            o.value = o.textContent = urlCliente;
+            sel.appendChild(o);
+            sel.value = urlCliente;
+        }
+    }
+
     await loadData();
 })();
 
