@@ -491,24 +491,6 @@
         const userBadge = document.getElementById('user-badge');
         const userTypeText = document.getElementById('user-type-text');
         const themeToggle = document.getElementById('themeToggle');
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        const lightModeIcon = document.getElementById('lightModeIcon');
-
-        // Theme management
-         else {
-                setDarkMode();
-            }
-        }
-
-        
-
-        
-
-         else {
-                setLightMode();
-            }
-        }
-
         function updateUIForAuthStatus() {
             console.log('User email:', currentUserEmail);
             console.log('User is admin:', currentUserIsAdmin);
@@ -564,7 +546,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            initializeTheme();
             updateUIForAuthStatus();
 
 

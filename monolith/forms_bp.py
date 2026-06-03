@@ -428,6 +428,8 @@ def submit_incident_report():
             'impacto': ", ".join(request.form.getlist('impacto')),
             'descripcion_impacto': request.form.get('descripcion_impacto'),
             'foto_evidencia_url': foto_url,
+            'reportado_autoridades': request.form.get('reportado_autoridades'),
+            'numero_reporte_autoridades': request.form.get('numero_reporte_autoridades') or None,
             'plan_accion': request.form.get('plan_accion'),
             'nombre_responsable_plan': request.form.get('nombre_responsable_plan'),
             'fecha_cumplimiento_plan': request.form.get('fecha_cumplimiento_plan') or None,
@@ -451,6 +453,18 @@ def submit_incident_report():
         sql = f"INSERT INTO reportes_incidentes ({columns}) VALUES ({placeholders})"
 
         cur.execute(sql, list(valid_form_data.values()))
+        cur.execute("SELECT lastval()")
+        report_id = cur.fetchone()[0]
+
+        tipos = request.form.getlist('persona_tipo[]')
+        nombres = request.form.getlist('persona_nombre[]')
+        for tipo, nombre in zip(tipos, nombres):
+            if tipo or nombre:
+                cur.execute(
+                    "INSERT INTO reportes_incidentes_personas (id_reporte_incidente, persona_tipo, persona_nombre) VALUES (%s, %s, %s)",
+                    (report_id, tipo or None, nombre or None)
+                )
+
         conn.commit()
         cur.close()
 

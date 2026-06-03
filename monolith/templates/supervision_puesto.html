@@ -236,26 +236,8 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Theme toggle functionality
-            const themeToggle = document.getElementById('themeToggle');
-            const darkModeIcon = document.getElementById('darkModeIcon');
-            const lightModeIcon = document.getElementById('lightModeIcon');
 
-            
 
-            
-
-             else {
-                    setLightMode();
-                }
-            }
-
-             else {
-                    setDarkMode();
-                }
-            }
-
-            initializeTheme();
 
             // Set current date and time
             const now = new Date();
@@ -334,6 +316,29 @@
                         <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
                             <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
+                            <select name="supervisions[${index}][tiempo_en_puesto]" class="form-select tiempo-en-puesto-select" data-index="${index}">
+                                <option value="">Seleccione...</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                            <div id="tiempoPuestoOtro_${index}" class="hidden mt-2">
+                                <input type="number" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses" min="1" step="1" pattern="[0-9]*">
+                                <p class="text-xs text-gray-400 mt-1">Solo números enteros.</p>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
@@ -419,24 +424,6 @@
                         <div>
                             <label class="block text-sm font-medium mb-1">Tipo de radio</label>
                             <input type="text" name="supervisions[${index}][tipo_radio]" class="form-input">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-1">Tiempo en el puesto</label>
-                            <select name="supervisions[${index}][tiempo_en_puesto]" class="form-select">
-                                <option value="">Seleccione...</option>
-                                <option>1 mes</option>
-                                <option>2 meses</option>
-                                <option>3 meses</option>
-                                <option>4 meses</option>
-                                <option>5 meses</option>
-                                <option>6 meses</option>
-                                <option>7 meses</option>
-                                <option>8 meses</option>
-                                <option>9 meses</option>
-                                <option>10 meses</option>
-                                <option>11 meses</option>
-                                <option>12 meses o más</option>
-                            </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
@@ -584,6 +571,23 @@
                     else fields.classList.add('hidden');
                 });
 
+                // Tiempo en el puesto "Otro" logic
+                const selTiempo = block.querySelector('.tiempo-en-puesto-select');
+                const tiempoOtroDiv = document.getElementById(`tiempoPuestoOtro_${index}`);
+                const tiempoOtroInput = document.getElementById(`tiempoPuestoOtroInput_${index}`);
+                if (selTiempo && tiempoOtroDiv && tiempoOtroInput) {
+                    selTiempo.addEventListener('change', function () {
+                        if (this.value === 'Otro') {
+                            tiempoOtroDiv.classList.remove('hidden');
+                            tiempoOtroInput.required = true;
+                        } else {
+                            tiempoOtroDiv.classList.add('hidden');
+                            tiempoOtroInput.required = false;
+                            tiempoOtroInput.value = '';
+                        }
+                    });
+                }
+
                 // Uniforme logic
                 const selUniforme = block.querySelector('.presentacion_uniforme-select');
                 const fieldsUniforme = document.getElementById(`uniformeFields_${index}`);
@@ -625,6 +629,32 @@
             };
 
             addBtn.addEventListener('click', addSupervision);
+
+            // Before submit: copy "Otro" numeric values into the select value
+            document.getElementById('supervisionForm').addEventListener('submit', function (e) {
+                const tiempoSelects = container.querySelectorAll('.tiempo-en-puesto-select');
+                for (const sel of tiempoSelects) {
+                    if (sel.value === 'Otro') {
+                        const idx = sel.dataset.index;
+                        const otroInput = document.getElementById(`tiempoPuestoOtroInput_${idx}`);
+                        const val = otroInput ? otroInput.value.trim() : '';
+                        if (!val || !/^\d+$/.test(val)) {
+                            e.preventDefault();
+                            otroInput.focus();
+                            otroInput.setCustomValidity('Ingrese un número entero válido.');
+                            otroInput.reportValidity();
+                            return;
+                        }
+                        otroInput.setCustomValidity('');
+                        // Add a new option with the numeric value and select it
+                        const opt = document.createElement('option');
+                        opt.value = val;
+                        opt.text = val;
+                        sel.appendChild(opt);
+                        sel.value = val;
+                    }
+                }
+            });
 
             // Add one supervision block by default
             addSupervision();

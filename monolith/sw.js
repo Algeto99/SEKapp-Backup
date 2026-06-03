@@ -1,5 +1,5 @@
 /* SecApp Service Worker - Offline-first form queue */
-const CACHE_VERSION = 'secapp-v6';
+const CACHE_VERSION = 'secapp-v7';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
@@ -52,7 +52,8 @@ self.addEventListener('fetch', event => {
             caches.match(request).then(cached => {
                 const networkFetch = fetch(request).then(response => {
                     if (response.ok || response.type === 'opaque') {
-                        caches.open(CACHE_VERSION).then(cache => cache.put(request, response.clone()));
+                        const toCache = response.clone();
+                        caches.open(CACHE_VERSION).then(cache => cache.put(request, toCache));
                     }
                     return response;
                 }).catch(() => cached);
@@ -87,7 +88,8 @@ self.addEventListener('fetch', event => {
             fetch(request)
                 .then(response => {
                     if (response.ok) {
-                        caches.open(CACHE_VERSION).then(cache => cache.put(request, response.clone()));
+                        const toCache = response.clone();
+                        caches.open(CACHE_VERSION).then(cache => cache.put(request, toCache));
                     }
                     return response;
                 })
@@ -105,7 +107,8 @@ self.addEventListener('fetch', event => {
             fetch(request)
                 .then(response => {
                     if (response.ok) {
-                        caches.open(CACHE_VERSION).then(cache => cache.put(request, response.clone()));
+                        const toCache = response.clone();
+                        caches.open(CACHE_VERSION).then(cache => cache.put(request, toCache));
                     }
                     return response;
                 })

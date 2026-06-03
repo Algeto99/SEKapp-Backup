@@ -1845,6 +1845,41 @@
     "data_type": "text"
   },
   {
+    "table_name": "reportes_incidentes",
+    "column_name": "reportado_autoridades",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "numero_reporte_autoridades",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes_personas",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_personas",
+    "column_name": "id_reporte_incidente",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "reportes_incidentes_personas",
+    "column_name": "persona_tipo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes_personas",
+    "column_name": "persona_nombre",
+    "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes_personas",
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
     "table_name": "saved_filters",
     "column_name": "id",
     "data_type": "integer"

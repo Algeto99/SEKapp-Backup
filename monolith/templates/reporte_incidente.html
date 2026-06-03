@@ -423,8 +423,58 @@
                 </div>
             </div>
 
+            <!-- Section 3: Personas Involucradas -->
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Personas Involucradas en el Incidente</h2>
+                <div id="personas-container" class="space-y-4">
+                    <div class="persona-entry grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg" style="background-color: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+                        <div>
+                            <label class="form-label">Tipo</label>
+                            <select name="persona_tipo[]" class="form-select">
+                                <option value="" disabled selected>Seleccione un tipo...</option>
+                                <option value="Guardia">Guardia</option>
+                                <option value="Visitante">Visitante</option>
+                                <option value="Cliente interno">Cliente interno</option>
+                                <option value="Tercero">Tercero</option>
+                                <option value="Personal Interno">Personal Interno</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="persona_nombre[]" class="form-input" placeholder="Nombre completo">
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="agregarPersona()"
+                    class="mt-4 flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Agregar persona
+                </button>
+            </div>
+
+            <!-- Section 4: Reporte a Autoridades -->
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">4. Reporte a Autoridades</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="reportado_autoridades" class="form-label">¿El incidente fue reportado a autoridades?</label>
+                        <select id="reportado_autoridades" name="reportado_autoridades" class="form-select" onchange="toggleNumeroReporte()">
+                            <option value="" disabled selected>Seleccione...</option>
+                            <option value="No">No</option>
+                            <option value="Sí">Sí</option>
+                        </select>
+                    </div>
+                    <div id="numero-reporte-wrapper" style="display: none;">
+                        <label for="numero_reporte_autoridades" class="form-label">Número de reporte / radicado</label>
+                        <input type="text" id="numero_reporte_autoridades" name="numero_reporte_autoridades" class="form-input" placeholder="Ingrese el número de radicado">
+                    </div>
+                </div>
+            </div>
+
             <div class="form-section" id="plan-accion-section" style="display: none;">
-                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Plan de Acción</h2>
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">5. Plan de Acción</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="md:col-span-2">
                         <label for="plan_accion" class="form-label">Acción</label>
@@ -671,6 +721,52 @@
             } else {
                 wrapper.style.display = 'none';
                 textarea.removeAttribute('required');
+            }
+        }
+
+        function agregarPersona() {
+            const container = document.getElementById('personas-container');
+            const entry = document.createElement('div');
+            entry.className = 'persona-entry grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg';
+            entry.style.cssText = 'background-color: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);';
+            entry.innerHTML = `
+                <div>
+                    <label class="form-label">Tipo</label>
+                    <select name="persona_tipo[]" class="form-select">
+                        <option value="" disabled selected>Seleccione un tipo...</option>
+                        <option value="Guardia">Guardia</option>
+                        <option value="Visitante">Visitante</option>
+                        <option value="Cliente interno">Cliente interno</option>
+                        <option value="Tercero">Tercero</option>
+                        <option value="Personal Interno">Personal Interno</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 items-end">
+                    <div class="flex-1">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" name="persona_nombre[]" class="form-input" placeholder="Nombre completo">
+                    </div>
+                    <button type="button" onclick="this.closest('.persona-entry').remove()"
+                        class="mb-0 p-2 text-red-400 hover:text-red-300 transition-colors" title="Eliminar">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>`;
+            container.appendChild(entry);
+        }
+
+        function toggleNumeroReporte() {
+            const val = document.getElementById('reportado_autoridades').value;
+            const wrapper = document.getElementById('numero-reporte-wrapper');
+            const input = document.getElementById('numero_reporte_autoridades');
+            if (val === 'Sí') {
+                wrapper.style.display = 'block';
+                input.setAttribute('required', 'required');
+            } else {
+                wrapper.style.display = 'none';
+                input.removeAttribute('required');
+                input.value = '';
             }
         }
 
