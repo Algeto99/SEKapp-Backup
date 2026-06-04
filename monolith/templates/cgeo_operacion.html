@@ -144,6 +144,8 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .donut-legend{font-size:.8rem;display:flex;flex-direction:column;gap:.5rem}
 .leg-row{display:flex;align-items:center;gap:.5rem}
 .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.leg-label{font-size:.8rem;color:#475569}
+.leg-value{font-size:.8rem;font-weight:700;color:#0f172a;margin-left:auto}
 
 .acciones-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
 .acciones-title{font-size:.9375rem;font-weight:700;color:#f97316;margin-bottom:.875rem}
@@ -233,6 +235,16 @@ body:not(.light-mode) .tbl th{border-bottom-color:#334155;color:#94a3b8}
 body:not(.light-mode) .tbl td{color:#e2e8f0;border-bottom-color:#1e293b}
 body:not(.light-mode) .tbl tr:hover td{background:#334155}
 body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
+body:not(.light-mode) .page-subtitle{color:#94a3b8}
+body:not(.light-mode) .filter-label{color:#94a3b8}
+body:not(.light-mode) .tab-btn{color:#94a3b8}
+body:not(.light-mode) .rank-label{color:#cbd5e1}
+body:not(.light-mode) .rank-pct{color:#f1f5f9}
+body:not(.light-mode) .novedad-label{color:#cbd5e1}
+body:not(.light-mode) .accion-text{color:#cbd5e1}
+body:not(.light-mode) .pend-cat-sub{color:#64748b}
+body:not(.light-mode) .leg-label{color:#94a3b8}
+body:not(.light-mode) .leg-value{color:#f1f5f9}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -634,10 +646,10 @@ function buildDonutCenter(id, labels, data, colors, centerLabel) {
 function legendHtml(labels, data, colors, total) {
     return labels.map((lbl, i) => {
         const pct = total ? Math.round(data[i] / total * 100) : 0;
-        return `<div style="display:flex;align-items:center;gap:.5rem">
-            <div style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0"></div>
-            <span style="color:#475569">${lbl}</span>
-            <span style="margin-left:auto;font-weight:700;color:#0f172a">${data[i]} (${pct}%)</span>
+        return `<div class="leg-row">
+            <div class="leg-dot" style="background:${colors[i]}"></div>
+            <span class="leg-label">${lbl}</span>
+            <span class="leg-value">${data[i]} (${pct}%)</span>
         </div>`;
     }).join('');
 }
@@ -762,8 +774,8 @@ function renderData(d) {
     document.getElementById('supDonutLegend').innerHTML = sevLabels.map((l, i) => `
         <div class="leg-row">
             <div class="leg-dot" style="background:${sevColors[i]}"></div>
-            <span style="color:#475569;font-size:.8rem">${l}</span>
-            <span style="margin-left:auto;font-weight:700;font-size:.8rem;color:#0f172a">${sevData[i]}</span>
+            <span class="leg-label">${l}</span>
+            <span class="leg-value">${sevData[i]}</span>
         </div>`).join('');
 
     // Ranking clientes
