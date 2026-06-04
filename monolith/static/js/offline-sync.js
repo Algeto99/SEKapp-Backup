@@ -15,6 +15,21 @@
     let autoSyncTimer = null;
     let lastQueueActionAt = 0;
 
+    // File field key used when attaching images in the queue manager, by form type
+    const ATTACH_FILE_KEY = {
+        incident_report: 'foto_evidencia',
+        supervision_puesto: 'foto_evidencia',
+        informe_novedades_disciplinario: 'foto_evidencia',
+        registro_de_capacitaciones: 'capacitacion_files',
+        registro_y_acta_de_visita: 'anexos_files',
+        log_de_patrullas: 'foto_evidencia',
+        medicion_experiencia_cliente: 'foto_evidencia',
+        planilla_vehicular: 'foto_evidencia',
+        planilla_motocicletas: 'foto_evidencia',
+        checklist_cumplimiento: 'foto_evidencia',
+        confiabilidad_equipos: 'foto_evidencia',
+    };
+
     const FORM_NAMES = {
         incident_report: 'Reporte de Incidente',
         medicion_experiencia_cliente: 'Encuesta a Cliente',
@@ -577,6 +592,10 @@
             '.offline-queue-btn.primary{background:#2563eb;border-color:#60a5fa;}',
             '.offline-queue-btn.warn{background:#92400e;border-color:#f59e0b;color:#fef3c7;}',
             '.offline-queue-btn.danger{background:#7f1d1d;border-color:#ef4444;color:#fee2e2;}',
+            '.offline-queue-btn.attach{background:#065f46;border-color:#34d399;color:#d1fae5;}',
+            '.offline-queue-files{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem;}',
+            '.offline-queue-file-chip{display:flex;align-items:center;gap:.3rem;font-size:.72rem;border:1px solid rgba(52,211,153,.3);border-radius:999px;padding:.18rem .55rem;color:#6ee7b7;background:rgba(52,211,153,.08);}',
+            '.offline-queue-file-chip button{background:none;border:none;color:#f87171;cursor:pointer;font-size:.8rem;line-height:1;padding:0 .1rem;}',
             '.offline-queue-empty{padding:1.5rem;color:#9ca3af;text-align:center;}',
             '@media(max-width:640px){.offline-queue-head,.offline-queue-actions,.offline-queue-list{padding-left:1rem;padding-right:1rem;}.offline-queue-btn{flex:1 1 auto;}}',
         ].join('');
@@ -633,6 +652,12 @@
                 }).join('')}</div>`
                 : '';
             const forceLabel = details.hasLegacyMissingFiles ? 'Enviar sin adjunto' : 'Forzar envío';
+            const fileEntries = item.fileEntries || [];
+            const fileChips = fileEntries.length
+                ? `<div class="offline-queue-files">${fileEntries.map((fe, idx) =>
+                    `<span class="offline-queue-file-chip">📎 ${escapeHtml(fe.name)}<button type="button" title="Quitar adjunto" data-queue-action="remove-file" data-queue-id="${escapeHtml(item.id)}" data-file-index="${idx}">×</button></span>`
+                  ).join('')}</div>`
+                : '';
 
             return [
                 `<div class="offline-queue-item" data-queue-id="${escapeHtml(item.id)}">`,
@@ -643,8 +668,10 @@
                 '</div>',
                 '</div>',
                 notes,
+                fileChips,
                 '<div class="offline-queue-buttons">',
                 `<button class="offline-queue-btn primary" type="button" data-queue-action="retry" data-queue-id="${escapeHtml(item.id)}">Reintentar</button>`,
+                `<button class="offline-queue-btn attach" type="button" data-queue-action="attach" data-queue-id="${escapeHtml(item.id)}">📎 Adjuntar imagen</button>`,
                 `<button class="offline-queue-btn warn" type="button" data-queue-action="force" data-queue-id="${escapeHtml(item.id)}">${forceLabel}</button>`,
                 `<button class="offline-queue-btn danger" type="button" data-queue-action="delete" data-queue-id="${escapeHtml(item.id)}">Eliminar</button>`,
                 '</div>',
@@ -682,6 +709,60 @@
             if (ok) syncQueuedItem(id, { forceSubmit: true });
         } else if (action === 'delete') {
             deleteQueuedItem(id);
+        } else if (action === 'attach') {
+            attachFileToQueuedItem(id);
+        } else if (action === 'remove-file') {
+            removeFileFromQueuedItem(id, parseInt(button.dataset.fileIndex, 10));
+        }
+    }
+
+    function attachFileToQueuedItem(id) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*,application/pdf';
+        input.multiple = true;
+        input.style.display = 'none';
+        document.body.appendChild(input);
+
+        input.addEventListener('change', async () => {
+            document.body.removeChild(input);
+            if (!input.files.length) return;
+
+            try {
+                const pending = await getPending();
+                const item = pending.find(e => String(e.id) === String(id));
+                if (!item) { showToast('Formulario no encontrado en cola.', true); return; }
+
+                const existingFiles = item.fileEntries || [];
+                const fileKey = ATTACH_FILE_KEY[item.formType] || 'foto_evidencia';
+                const newEntries = await Promise.all(Array.from(input.files).map(async file => {
+                    const buffer = await file.arrayBuffer();
+                    return { key: fileKey, name: file.name, type: file.type, buffer };
+                }));
+
+                await updateItem(id, { ...item, fileEntries: [...existingFiles, ...newEntries] });
+                showToast(`${newEntries.length} archivo${newEntries.length > 1 ? 's' : ''} adjunto${newEntries.length > 1 ? 's' : ''} correctamente.`);
+                refreshQueueManager();
+            } catch (err) {
+                console.error('Error attaching file:', err);
+                showToast('No se pudo adjuntar el archivo.', true);
+            }
+        });
+
+        input.click();
+    }
+
+    async function removeFileFromQueuedItem(id, index) {
+        try {
+            const pending = await getPending();
+            const item = pending.find(e => String(e.id) === String(id));
+            if (!item) return;
+            const updated = (item.fileEntries || []).filter((_, i) => i !== index);
+            await updateItem(id, { ...item, fileEntries: updated });
+            refreshQueueManager();
+        } catch (err) {
+            console.error('Error removing file:', err);
+            showToast('No se pudo quitar el archivo.', true);
         }
     }
 
