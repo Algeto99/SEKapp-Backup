@@ -7,9 +7,11 @@
 body{display:flex!important;min-height:100vh}
 .sidebar-nav-wrap{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto;transition:transform 0.3s ease}
 .sidebar-nav-wrap.collapsed{transform:translateX(-100%)}
-.snw-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
-.snw-logo img{width:160px;display:block;margin:0 auto}
-.snw-logo-text{color:#94a3b8;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem;text-align:center}
+.snw-logo{padding:1.25rem 1.25rem .875rem;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.snw-logo img{width:130px;flex-shrink:0}
+.snw-collapse-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.snw-collapse-btn:hover{background:rgba(255,255,255,0.12);color:#94a3b8}
+.snw-collapse-btn svg{width:14px;height:14px}
 .snw-nav{padding:1rem 0;flex:1}
 .snw-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
 .snw-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
@@ -20,6 +22,13 @@ body{display:flex!important;min-height:100vh}
 .snw-footer{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,0.07)}
 .snw-user{font-size:.75rem;color:#64748b;word-break:break-all}
 .snw-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
+
+/* ── Expand button (visible only when sidebar is collapsed, desktop) ── */
+.snw-expand-btn{position:fixed;top:1rem;left:0;z-index:41;width:28px;height:44px;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-left:none;border-radius:0 8px 8px 0;color:#64748b;cursor:pointer;display:none;align-items:center;justify-content:center;transition:all .15s}
+.snw-expand-btn:hover{background:#1e293b;color:#94a3b8}
+.snw-expand-btn svg{width:14px;height:14px}
+.sidebar-nav-wrap.collapsed ~ .snw-expand-btn,
+.snw-expand-btn.visible{display:flex}
 
 /* ── Main content offset ── */
 .sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto}
@@ -35,13 +44,16 @@ body{display:flex!important;min-height:100vh}
   .sidebar-nav-wrap{transform:translateX(-100%);width:240px}
   .sidebar-nav-wrap.mobile-open{transform:translateX(0)}
   .sidebar-main-content{margin-left:0!important}
+  .snw-expand-btn{display:flex}
 }
 </style>
 
 <aside class="sidebar-nav-wrap" id="globalSidebar">
     <div class="snw-logo">
         <img src="{{ url_for('static', filename='logo_full.png') }}" alt="Kanan Sentinel">
-        <div class="snw-logo-text">SekApp</div>
+        <button class="snw-collapse-btn" id="snwCollapseBtn" title="Ocultar menú">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+        </button>
     </div>
     <nav class="snw-nav">
         <div class="snw-section">Principal</div>
@@ -104,45 +116,93 @@ body{display:flex!important;min-height:100vh}
     </div>
 </aside>
 
+<!-- Expand button — shown when sidebar is collapsed on desktop -->
+<button class="snw-expand-btn" id="snwExpandBtn" title="Mostrar menú">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+</button>
+
 <!-- Mobile sidebar overlay -->
 <div class="snw-overlay" id="snwOverlay"></div>
 
 <script>
 (function(){
     document.addEventListener('DOMContentLoaded', function() {
-        var sidebar = document.getElementById('globalSidebar');
-        var overlay = document.getElementById('snwOverlay');
+        var sidebar    = document.getElementById('globalSidebar');
+        var overlay    = document.getElementById('snwOverlay');
+        var collapseBtn = document.getElementById('snwCollapseBtn');
+        var expandBtn  = document.getElementById('snwExpandBtn');
         var mainContent = document.querySelector('.sidebar-main-content');
 
         function isMobile() { return window.innerWidth <= 700; }
 
-        // Handle hamburger/toggle buttons (existing pages may have them)
-        var toggleBtns = document.querySelectorAll('#sidebarToggleBtn, #hamburgerBtn, [data-sidebar-toggle]');
-        toggleBtns.forEach(function(btn) {
+        function collapse() {
+            sidebar.classList.add('collapsed');
+            if (mainContent) mainContent.classList.add('expanded');
+            expandBtn.classList.add('visible');
+            try { localStorage.setItem('sidebarCollapsed', '1'); } catch(e) {}
+        }
+
+        function expand() {
+            sidebar.classList.remove('collapsed');
+            if (mainContent) mainContent.classList.remove('expanded');
+            expandBtn.classList.remove('visible');
+            try { localStorage.removeItem('sidebarCollapsed'); } catch(e) {}
+        }
+
+        function openMobile() {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+        }
+
+        function closeMobile() {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+        }
+
+        // Restore collapsed state on desktop
+        if (!isMobile()) {
+            try {
+                if (localStorage.getItem('sidebarCollapsed') === '1') {
+                    sidebar.classList.add('collapsed');
+                    if (mainContent) mainContent.classList.add('expanded');
+                    expandBtn.classList.add('visible');
+                }
+            } catch(e) {}
+        }
+
+        // Collapse button (inside sidebar)
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isMobile()) { closeMobile(); } else { collapse(); }
+            });
+        }
+
+        // Expand button (floating, shown when collapsed)
+        if (expandBtn) {
+            expandBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isMobile()) { openMobile(); } else { expand(); }
+            });
+        }
+
+        // Also support existing page toggle buttons (sidebarToggleBtn, hamburgerBtn)
+        var legacyBtns = document.querySelectorAll('#sidebarToggleBtn, #hamburgerBtn, [data-sidebar-toggle]');
+        legacyBtns.forEach(function(btn) {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 if (isMobile()) {
-                    sidebar.classList.toggle('mobile-open');
-                    overlay.classList.toggle('active');
+                    sidebar.classList.contains('mobile-open') ? closeMobile() : openMobile();
                 } else {
-                    sidebar.classList.toggle('collapsed');
-                    if (mainContent) mainContent.classList.toggle('expanded');
+                    sidebar.classList.contains('collapsed') ? expand() : collapse();
                 }
             });
         });
 
-        if (overlay) {
-            overlay.addEventListener('click', function() {
-                sidebar.classList.remove('mobile-open');
-                overlay.classList.remove('active');
-            });
-        }
+        if (overlay) overlay.addEventListener('click', closeMobile);
 
         window.addEventListener('resize', function() {
-            if (!isMobile()) {
-                sidebar.classList.remove('mobile-open');
-                overlay.classList.remove('active');
-            }
+            if (!isMobile()) closeMobile();
         });
     });
 })();

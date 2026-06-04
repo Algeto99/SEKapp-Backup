@@ -154,6 +154,16 @@ body:not(.light-mode) .user-dropdown-item:hover{background:#334155}
 body:not(.light-mode) .user-dropdown-item.danger{color:#f87171}
 body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
 /* ── fin user menu ───────────────────────────────────────────────────────── */
+
+/* ── Sidebar collapse button ── */
+.sidebar-collapse-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.sidebar-collapse-btn:hover{background:rgba(255,255,255,0.12);color:#94a3b8}
+.sidebar-collapse-btn svg{width:14px;height:14px}
+.sidebar-expand-btn{position:fixed;top:1rem;left:0;z-index:41;width:28px;height:44px;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-left:none;border-radius:0 8px 8px 0;color:#64748b;cursor:pointer;display:none;align-items:center;justify-content:center;transition:all .15s}
+.sidebar-expand-btn:hover{background:#1e293b;color:#94a3b8}
+.sidebar-expand-btn svg{width:14px;height:14px}
+.sidebar-expand-btn.visible{display:flex}
+@media(max-width:700px){.sidebar-expand-btn{display:flex}}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -170,9 +180,10 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 
 <!-- Sidebar -->
 <aside class="sidebar">
-    <div class="sidebar-logo">
+    <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1.25rem 1.25rem .875rem">
         <img src="/static/logo_full.png" alt="Kanan Sentinel">
         <div class="sidebar-logo-text">Kanan Sentinel</div>
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Ocultar menú"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
     </div>
     <nav class="sidebar-nav">
         <div class="nav-section">Principal</div>
@@ -222,6 +233,9 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         </div>
     </div>
 </aside>
+
+<!-- Expand button — shown when sidebar is collapsed on desktop -->
+<button class="sidebar-expand-btn" id="sidebarExpandBtn" title="Mostrar menú"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
 
 <!-- Mobile sidebar overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -391,14 +405,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent   = document.querySelector('.main');
     const overlay       = document.getElementById('sidebarOverlay');
     const desktopToggle = document.getElementById('sidebarToggleBtn');
+    const collapseBtn   = document.getElementById('sidebarCollapseBtn');
+    const expandBtn     = document.getElementById('sidebarExpandBtn');
 
     function isMobile() { return window.innerWidth <= 700; }
     function openMobileSidebar()  { sidebar.classList.add('mobile-open');    overlay.classList.add('active'); }
     function closeMobileSidebar() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); }
+    function collapse() {
+        sidebar.classList.add('collapsed'); mainContent.classList.add('expanded');
+        if (expandBtn) expandBtn.classList.add('visible');
+        try { localStorage.setItem('sidebarCollapsed', '1'); } catch(e) {}
+    }
+    function expand() {
+        sidebar.classList.remove('collapsed'); mainContent.classList.remove('expanded');
+        if (expandBtn) expandBtn.classList.remove('visible');
+        try { localStorage.removeItem('sidebarCollapsed'); } catch(e) {}
+    }
+
+    if (!isMobile()) { try { if (localStorage.getItem('sidebarCollapsed') === '1') { collapse(); } } catch(e) {} }
 
     if (desktopToggle) desktopToggle.addEventListener('click', () => {
-        isMobile() ? openMobileSidebar() : (sidebar.classList.toggle('collapsed'), mainContent.classList.toggle('expanded'));
+        isMobile() ? openMobileSidebar() : (sidebar.classList.contains('collapsed') ? expand() : collapse());
     });
+    if (collapseBtn) collapseBtn.addEventListener('click', (e) => { e.stopPropagation(); isMobile() ? closeMobileSidebar() : collapse(); });
+    if (expandBtn)   expandBtn.addEventListener('click',   (e) => { e.stopPropagation(); isMobile() ? openMobileSidebar() : expand(); });
     if (overlay)   overlay.addEventListener('click', closeMobileSidebar);
     window.addEventListener('resize', () => { if (!isMobile()) closeMobileSidebar(); });
 });
