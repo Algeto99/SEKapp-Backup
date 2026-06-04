@@ -141,6 +141,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 /* Supervision donut */
 .donut-wrap{display:flex;align-items:center;gap:1rem;height:180px}
 .donut-wrap canvas{flex:0 0 150px;height:150px}
+canvas{outline:none}
 .donut-legend{font-size:.8rem;display:flex;flex-direction:column;gap:.5rem}
 .leg-row{display:flex;align-items:center;gap:.5rem}
 .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
@@ -631,11 +632,14 @@ function buildDonutCenter(id, labels, data, colors, centerLabel) {
             id: 'centerText',
             beforeDraw(chart) {
                 const { ctx: c, chartArea: { width, height, left, top } } = chart;
+                const dark = !document.body.classList.contains('light-mode');
                 c.save(); c.textAlign = 'center'; c.textBaseline = 'middle';
                 const cx = left + width / 2, cy = top + height / 2;
-                c.font = 'bold 16px Inter'; c.fillStyle = '#0f172a';
+                c.font = 'bold 16px Inter';
+                c.fillStyle = dark ? '#f1f5f9' : '#0f172a';
                 c.fillText(total.toLocaleString(), cx, cy - 8);
-                c.font = '10px Inter'; c.fillStyle = '#64748b';
+                c.font = '10px Inter';
+                c.fillStyle = dark ? '#94a3b8' : '#64748b';
                 c.fillText(centerLabel || 'Total', cx, cy + 10);
                 c.restore();
             }

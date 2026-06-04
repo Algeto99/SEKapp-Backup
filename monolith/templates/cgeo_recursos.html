@@ -91,6 +91,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .chart-title{font-size:.8125rem;font-weight:700;color:#1e293b;margin-bottom:1rem}
 .chart-box{position:relative;height:240px}
 .chart-box-sm{position:relative;height:200px}
+canvas{outline:none}
 
 /* ── Semáforo ── */
 .semaforo-grid{display:flex;flex-direction:column;gap:.625rem;margin-top:.5rem}
@@ -213,7 +214,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 
     /* Chart boxes need fixed height for print */
     .chart-box { height: 200px !important; }
-    canvas { max-width: 100% !important; }
+    canvas { max-width: 100% !important; outline: none; }
 
     /* Light backgrounds for cards */
     .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
@@ -649,14 +650,15 @@ function buildDonutCenter(id, labels, data, colors, centerLabel) {
             id: 'centerText',
             beforeDraw(chart) {
                 const { ctx: c, chartArea: { width, height, left, top } } = chart;
+                const dark = !document.body.classList.contains('light-mode');
                 c.save();
                 c.textAlign = 'center'; c.textBaseline = 'middle';
                 const cx = left + width / 2, cy = top + height / 2;
                 c.font = 'bold 16px Inter';
-                c.fillStyle = '#0f172a';
+                c.fillStyle = dark ? '#f1f5f9' : '#0f172a';
                 c.fillText(total.toLocaleString(), cx, cy - 8);
                 c.font = '10px Inter';
-                c.fillStyle = '#64748b';
+                c.fillStyle = dark ? '#94a3b8' : '#64748b';
                 c.fillText(centerLabel || 'Total', cx, cy + 10);
                 c.restore();
             }
