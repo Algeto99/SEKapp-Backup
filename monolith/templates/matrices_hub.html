@@ -111,7 +111,23 @@ body:not(.light-mode) .stat-pill{background:#0f172a;border-color:#334155}
 body:not(.light-mode) .stat-num{color:#e2e8f0}
 body:not(.light-mode) .matrix-action{border-top-color:#334155}
 body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3)}
-
+@media(max-width:900px){.main{margin-left:200px}.sidebar{width:200px}}
+@media(max-width:700px){
+  .sidebar{transform:translateX(-100%);width:240px}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .main{margin-left:0}
+  .topbar{padding:.75rem 1rem}
+  .page-title{font-size:.9rem}
+  .page-subtitle{display:none}
+  .content{padding:1rem}
+  .matrices-grid{grid-template-columns:1fr}
+  .matrix-stats{flex-wrap:wrap}
+  .mes-badge{font-size:.7rem;padding:.1rem .4rem}
+  .hamburger-btn{display:flex}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
+  .sidebar-overlay.active{display:block}
+}
+@media(min-width:701px){.hamburger-btn{display:none}}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -180,11 +196,20 @@ body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba
     </div>
 </aside>
 
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
 <!-- Main -->
 <div class="main">
     <div class="topbar">
         <div class="topbar-left">
-            <div class="page-icon">
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú"
+                style="background:none;border:none;cursor:pointer;padding:.25rem;color:inherit;align-items:center;justify-content:center">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="page-icon" id="sidebarToggleBtn">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
             </div>
             <div>
@@ -319,17 +344,22 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     document.getElementById('mesInput').addEventListener('change', loadStats);
 
-    // Sidebar toggle functionality
-    const pageIcon = document.querySelector('.page-icon');
-    const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main');
-    
-    if (pageIcon && sidebar && mainContent) {
-        pageIcon.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-        });
-    }
+    const sidebar       = document.querySelector('.sidebar');
+    const mainContent   = document.querySelector('.main');
+    const overlay       = document.getElementById('sidebarOverlay');
+    const desktopToggle = document.getElementById('sidebarToggleBtn');
+    const hamburger     = document.getElementById('hamburgerBtn');
+
+    function isMobile() { return window.innerWidth <= 700; }
+    function openMobileSidebar()  { sidebar.classList.add('mobile-open');    overlay.classList.add('active'); }
+    function closeMobileSidebar() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); }
+
+    if (desktopToggle) desktopToggle.addEventListener('click', () => {
+        isMobile() ? openMobileSidebar() : (sidebar.classList.toggle('collapsed'), mainContent.classList.toggle('expanded'));
+    });
+    if (hamburger) hamburger.addEventListener('click', openMobileSidebar);
+    if (overlay)   overlay.addEventListener('click', closeMobileSidebar);
+    window.addEventListener('resize', () => { if (!isMobile()) closeMobileSidebar(); });
 });
 </script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
