@@ -64,6 +64,59 @@
         }
     }
 
+    // --- Theme functions — defined here so they can run both immediately and after DOM load ---
+    const _darkIcon  = function() { return document.getElementById('darkModeIcon');  };
+    const _lightIcon = function() { return document.getElementById('lightModeIcon'); };
+
+    function setDarkMode() {
+        document.body.classList.remove('light-mode');
+        var di = _darkIcon(),  li = _lightIcon();
+        if (di) di.style.display = 'block';
+        if (li) li.style.display = 'none';
+        try { localStorage.setItem('theme', 'dark'); } catch(e) {}
+        syncRootBackground();
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { dark: true } }));
+    }
+
+    function setLightMode() {
+        document.body.classList.add('light-mode');
+        var di = _darkIcon(),  li = _lightIcon();
+        if (di) di.style.display = 'none';
+        if (li) li.style.display = 'block';
+        try { localStorage.setItem('theme', 'light'); } catch(e) {}
+        syncRootBackground();
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { dark: false } }));
+    }
+
+    function toggleTheme() {
+        if (document.body.classList.contains('light-mode')) setDarkMode(); else setLightMode();
+    }
+
+    function initializeTheme() {
+        var savedTheme  = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
+            setLightMode();
+        } else {
+            setDarkMode();
+        }
+    }
+
+    // Expose globally so templates can call them directly (e.g. dashboard inline scripts)
+    window.setDarkMode      = setDarkMode;
+    window.setLightMode     = setLightMode;
+    window.toggleTheme      = toggleTheme;
+    window.initializeTheme  = initializeTheme;
+
+    // Apply saved theme immediately — body exists because this script is in <body>.
+    // This eliminates FOUC for pages that load theme-toggle.js at end of body
+    // (auth pages, landing, etc.). Pages using _header_nav.html are covered by
+    // its own inline script that runs even earlier.
+    if (document.body) {
+        initializeTheme();
+        syncRootBackground();
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         syncRootBackground();
         setTimeout(syncRootBackground, 50);
@@ -76,45 +129,10 @@
             });
         } catch (e) {}
 
-        var btn = document.getElementById('themeToggle');
-        
-        // --- Theme initialization ---
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        const lightModeIcon = document.getElementById('lightModeIcon');
-
-        function setDarkMode() {
-            document.body.classList.remove('light-mode');
-            if (darkModeIcon) darkModeIcon.style.display = 'block';
-            if (lightModeIcon) lightModeIcon.style.display = 'none';
-            localStorage.setItem('theme', 'dark');
-            syncRootBackground();
-            window.dispatchEvent(new CustomEvent('themechange', { detail: { dark: true } }));
-        }
-
-        function setLightMode() {
-            document.body.classList.add('light-mode');
-            if (darkModeIcon) darkModeIcon.style.display = 'none';
-            if (lightModeIcon) lightModeIcon.style.display = 'block';
-            localStorage.setItem('theme', 'light');
-            syncRootBackground();
-            window.dispatchEvent(new CustomEvent('themechange', { detail: { dark: false } }));
-        }
-
-        function toggleTheme() {
-            if (document.body.classList.contains('light-mode')) setDarkMode(); else setLightMode();
-        }
-
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (savedTheme === 'light' || (!savedTheme && !prefersDark)) {
-                setLightMode();
-            } else {
-                setDarkMode();
-            }
-        }
-
+        // Re-apply to sync icon state in case icons weren't in DOM during early init
         initializeTheme();
+
+        var btn = document.getElementById('themeToggle');
 
         if (!btn) return;
         

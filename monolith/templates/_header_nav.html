@@ -1,3 +1,7 @@
+<script>
+/* Runs synchronously before any page content renders — prevents flash of wrong theme. */
+(function(){try{var t=localStorage.getItem('theme');var dark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(!dark)document.body.classList.add('light-mode');}catch(e){}})();
+</script>
 <div class="header-nav" id="globalHeaderNav">
     <div class="nav-content">
         <div class="flex items-center gap-3">
