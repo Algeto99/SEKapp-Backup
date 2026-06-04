@@ -138,11 +138,22 @@
         
         btn.addEventListener('click', toggleTheme);
 
-        // --- Restore saved position ---
+        // --- Restore saved position (clamped to viewport) ---
         var saved = null;
         try { saved = JSON.parse(localStorage.getItem('themeTogglePos')); } catch (e) {}
         if (saved && saved.top != null && saved.left != null) {
-            btn.style.cssText += ';top:' + saved.top + '!important;left:' + saved.left + '!important;right:auto!important;bottom:auto!important;';
+            var savedTop  = parseFloat(saved.top)  || 0;
+            var savedLeft = parseFloat(saved.left) || 0;
+            var btnW = btn.offsetWidth  || 44;
+            var btnH = btn.offsetHeight || 44;
+            var maxLeft = window.innerWidth  - btnW  - 4;
+            var maxTop  = window.innerHeight - btnH - 4;
+            if (savedLeft >= 0 && savedLeft <= maxLeft && savedTop >= 0 && savedTop <= maxTop) {
+                btn.style.cssText += ';top:' + saved.top + '!important;left:' + saved.left + '!important;right:auto!important;bottom:auto!important;';
+            } else {
+                // Saved position is off-screen — clear it and use default
+                try { localStorage.removeItem('themeTogglePos'); } catch (e) {}
+            }
         }
 
         // --- Dragging ---
