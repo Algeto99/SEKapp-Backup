@@ -187,6 +187,44 @@ canvas{outline:none}
 .alertas-refresh-ts{font-size:.7rem;color:#94a3b8}
 /* ── fin panel alertas ───────────────────────────────────────────────────── */
 
+/* ── Semáforo Global ────────────────────────────────────────────────────── */
+.semaforo-global{display:flex;align-items:center;gap:1.25rem;border-radius:1rem;padding:1.125rem 1.5rem;margin-bottom:1.25rem;cursor:pointer;transition:filter .15s;border:1.5px solid transparent;user-select:none}
+.semaforo-global:hover{filter:brightness(.97)}
+.semaforo-global.sg-verde{background:#f0fdf4;border-color:#86efac}
+.semaforo-global.sg-amarillo{background:#fffbeb;border-color:#fde68a}
+.semaforo-global.sg-rojo{background:#fef2f2;border-color:#fecaca}
+.sg-luz-wrap{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+.sg-luz{width:20px;height:20px;border-radius:50%;opacity:.22;transition:opacity .3s,box-shadow .3s}
+.sg-luz-rojo{background:#ef4444}
+.sg-luz-amarillo{background:#f59e0b}
+.sg-luz-verde{background:#22c55e}
+.sg-luz.activo{opacity:1}
+.sg-luz-rojo.activo{box-shadow:0 0 10px 3px rgba(239,68,68,.45)}
+.sg-luz-amarillo.activo{box-shadow:0 0 10px 3px rgba(245,158,11,.45)}
+.sg-luz-verde.activo{box-shadow:0 0 10px 3px rgba(34,197,94,.45)}
+.sg-body{flex:1;min-width:0}
+.sg-estado{font-size:1.125rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+.semaforo-global.sg-verde  .sg-estado{color:#15803d}
+.semaforo-global.sg-amarillo .sg-estado{color:#92400e}
+.semaforo-global.sg-rojo   .sg-estado{color:#b91c1c}
+.sg-meta{font-size:.8rem;margin-top:.25rem;font-weight:500}
+.semaforo-global.sg-verde  .sg-meta{color:#166534}
+.semaforo-global.sg-amarillo .sg-meta{color:#78350f}
+.semaforo-global.sg-rojo   .sg-meta{color:#7f1d1d}
+.sg-hint{font-size:.72rem;margin-top:.125rem;opacity:.6}
+.sg-arrow{flex-shrink:0;opacity:.45}
+/* Modal detalle semáforo */
+.sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
+.sg-modal{background:#fff;border-radius:1rem;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.sg-modal-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
+.sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
+.sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
+.sg-cond-item:last-child{border-bottom:none}
+.sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
+.sg-cond-text{font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
+.sg-cond-ok{color:#64748b;font-weight:400}
+/* ── fin semáforo global ─────────────────────────────────────────────────── */
+
 .content-footer{padding:1rem 1.75rem;border-top:1px solid #e2e8f0;background:#fff;font-size:.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
 .refresh-btn{background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.75rem;display:flex;align-items:center;gap:.35rem;padding:.25rem}
 .refresh-btn:hover{text-decoration:underline}
@@ -299,6 +337,20 @@ body:not(.light-mode) .accion-text{color:#cbd5e1}
 body:not(.light-mode) .pend-cat-sub{color:#64748b}
 body:not(.light-mode) .leg-label{color:#94a3b8}
 body:not(.light-mode) .leg-value{color:#f1f5f9}
+body:not(.light-mode) .semaforo-global.sg-verde{background:#052e16;border-color:#166534}
+body:not(.light-mode) .semaforo-global.sg-amarillo{background:#1c1508;border-color:#78350f}
+body:not(.light-mode) .semaforo-global.sg-rojo{background:#1c0505;border-color:#7f1d1d}
+body:not(.light-mode) .semaforo-global.sg-verde .sg-estado{color:#4ade80}
+body:not(.light-mode) .semaforo-global.sg-amarillo .sg-estado{color:#fbbf24}
+body:not(.light-mode) .semaforo-global.sg-rojo .sg-estado{color:#f87171}
+body:not(.light-mode) .semaforo-global.sg-verde .sg-meta{color:#86efac}
+body:not(.light-mode) .semaforo-global.sg-amarillo .sg-meta{color:#fde68a}
+body:not(.light-mode) .semaforo-global.sg-rojo .sg-meta{color:#fca5a5}
+body:not(.light-mode) .sg-modal{background:#1e293b;color:#e2e8f0}
+body:not(.light-mode) .sg-modal-title{color:#f1f5f9}
+body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
+body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
+body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -433,6 +485,23 @@ body:not(.light-mode) .leg-value{color:#f1f5f9}
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12v.01M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z"/></svg>
                 Generar QR
             </button>
+        </div>
+
+        <!-- ══════════════ SEMÁFORO GLOBAL ══════════════ -->
+        <div class="semaforo-global sg-verde" id="semaforoGlobal" onclick="abrirDetalleSemaforo()">
+            <div class="sg-luz-wrap">
+                <div class="sg-luz sg-luz-rojo"    id="sgLuzRojo"></div>
+                <div class="sg-luz sg-luz-amarillo" id="sgLuzAmarillo"></div>
+                <div class="sg-luz sg-luz-verde activo" id="sgLuzVerde"></div>
+            </div>
+            <div class="sg-body">
+                <div class="sg-estado" id="sgEstado">CARGANDO…</div>
+                <div class="sg-meta"   id="sgMeta">Evaluando condiciones…</div>
+                <div class="sg-hint"   id="sgHint"></div>
+            </div>
+            <svg class="sg-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
         </div>
 
         <!-- ══════════════ PANEL ALERTAS ACCIONABLES ══════════════ -->
@@ -1213,14 +1282,18 @@ async function evaluateAlerts() {
     if (cliente) params.set('cliente', cliente);
 
     try {
-        const resp = await fetch(`/cgeo/api/alertas${params.toString() ? '?' + params.toString() : ''}`,
-            { headers: { Accept: 'application/json' } });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const data = await resp.json();
+        const [alertasResp] = await Promise.all([
+            fetch(`/cgeo/api/alertas${params.toString() ? '?' + params.toString() : ''}`,
+                { headers: { Accept: 'application/json' } }),
+            fetchSemaforoKpis(),
+        ]);
+        if (!alertasResp.ok) throw new Error(`HTTP ${alertasResp.status}`);
+        const data = await alertasResp.json();
 
         _alertasData = data.alertas || [];
         _updateBadges(data);
         renderAlertasList(_alertasData);
+        renderSemaforoGlobal(_alertasData, _sgKpis);
 
         const ts = document.getElementById('alertasTs');
         ts.textContent = `Actualizado ${new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`;
@@ -1233,6 +1306,129 @@ async function evaluateAlerts() {
 function _startAlertasAutoRefresh() {
     if (_alertasRefreshTimer) clearInterval(_alertasRefreshTimer);
     _alertasRefreshTimer = setInterval(evaluateAlerts, 5 * 60 * 1000);
+}
+
+// ── Semáforo Global ──────────────────────────────────────────────────────────
+
+let _sgKpis = null;  // datos de /api/semaforo-global
+
+function computeSemaforo(alertasData, kpis) {
+    const rojas    = alertasData.filter(a => a.color_semaforo === 'rojo').length;
+    const amarillas = alertasData.filter(a => a.color_semaforo === 'amarillo').length;
+
+    const incAb   = kpis.inc_abiertos    ?? 0;
+    const supComp = kpis.sup_completadas ?? 0;
+    const supProg = kpis.sup_programadas ?? 0;
+    const eqNoOp  = kpis.eq_no_op        ?? 0;
+    const eqTotal = kpis.eq_total        ?? 0;
+    const certProx = kpis.cert_proximas  ?? 0;
+
+    const supPct   = supProg > 0 ? (supComp / supProg * 100) : 100;
+    const eqNoPct  = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
+
+    const condiciones = [];
+
+    // ── ROJO ─────────────────────────────────────────────────────────────────
+    if (rojas >= 1)
+        condiciones.push({ nivel: 'rojo', texto: `${rojas} alerta${rojas !== 1 ? 's' : ''} crítica${rojas !== 1 ? 's' : ''} activa${rojas !== 1 ? 's' : ''}` });
+    if (supProg > 0 && supPct < 70)
+        condiciones.push({ nivel: 'rojo', texto: `Supervisiones completadas: ${supComp} de ${supProg} (${Math.round(supPct)}% < 70%)` });
+    if (incAb >= 3)
+        condiciones.push({ nivel: 'rojo', texto: `${incAb} incidentes abiertos (umbral ≥ 3)` });
+    if (eqTotal > 0 && eqNoPct > 15)
+        condiciones.push({ nivel: 'rojo', texto: `${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota > 15%)` });
+
+    const esRojo = condiciones.some(c => c.nivel === 'rojo');
+
+    // ── AMARILLO ─────────────────────────────────────────────────────────────
+    if (!esRojo) {
+        if (amarillas >= 1)
+            condiciones.push({ nivel: 'amarillo', texto: `${amarillas} alerta${amarillas !== 1 ? 's' : ''} en seguimiento` });
+        if (supProg > 0 && supPct >= 70 && supPct < 90)
+            condiciones.push({ nivel: 'amarillo', texto: `Supervisiones completadas: ${Math.round(supPct)}% (entre 70% y 89%)` });
+        if (incAb === 1 || incAb === 2)
+            condiciones.push({ nivel: 'amarillo', texto: `${incAb} incidente${incAb !== 1 ? 's' : ''} abierto${incAb !== 1 ? 's' : ''}` });
+        if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
+            condiciones.push({ nivel: 'amarillo', texto: `${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota, entre 5% y 15%)` });
+        if (certProx >= 1)
+            condiciones.push({ nivel: 'amarillo', texto: `${certProx} certificación${certProx !== 1 ? 'es' : ''} por vencer en 30 días` });
+    }
+
+    const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');
+
+    const nivel = esRojo ? 'rojo' : esAmarillo ? 'amarillo' : 'verde';
+    return { nivel, condiciones };
+}
+
+function renderSemaforoGlobal(alertasData, kpis) {
+    if (!kpis) return;
+    const { nivel, condiciones } = computeSemaforo(alertasData, kpis);
+
+    const el = document.getElementById('semaforoGlobal');
+    el.className = `semaforo-global sg-${nivel}`;
+
+    document.getElementById('sgLuzRojo').className    = `sg-luz sg-luz-rojo${nivel === 'rojo' ? ' activo' : ''}`;
+    document.getElementById('sgLuzAmarillo').className = `sg-luz sg-luz-amarillo${nivel === 'amarillo' ? ' activo' : ''}`;
+    document.getElementById('sgLuzVerde').className   = `sg-luz sg-luz-verde${nivel === 'verde' ? ' activo' : ''}`;
+
+    const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
+    document.getElementById('sgEstado').textContent = textos[nivel];
+
+    const total = alertasData.length;
+    const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('sgMeta').textContent =
+        `${total} alerta${total !== 1 ? 's' : ''} activa${total !== 1 ? 's' : ''} — última actualización ${ts}`;
+
+    const hint = nivel === 'verde'
+        ? 'Toca para ver el detalle de condiciones evaluadas'
+        : `${condiciones.filter(c => c.nivel === nivel).length} condición${condiciones.filter(c => c.nivel === nivel).length !== 1 ? 'es' : ''} activando este estado — toca para ver`;
+    document.getElementById('sgHint').textContent = hint;
+}
+
+function abrirDetalleSemaforo() {
+    if (!_sgKpis) return;
+    const { nivel, condiciones } = computeSemaforo(_alertasData, _sgKpis);
+
+    const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
+    const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+
+    const colores = { rojo: '#ef4444', amarillo: '#f59e0b', verde: '#22c55e' };
+    const condHtml = condiciones.length
+        ? condiciones.map(c =>
+            `<div class="sg-cond-item">
+                <div class="sg-cond-dot" style="background:${colores[c.nivel]}"></div>
+                <span class="sg-cond-text">${c.texto}</span>
+            </div>`).join('')
+        : `<div class="sg-cond-item"><div class="sg-cond-dot" style="background:#22c55e"></div><span class="sg-cond-text sg-cond-ok">Ninguna condición de alerta activa — operación en orden</span></div>`;
+
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal">
+            <div class="sg-modal-title">Estado: ${textos[nivel]}</div>
+            <div class="sg-modal-sub">Condiciones evaluadas al ${ts}</div>
+            ${condHtml}
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+}
+
+async function fetchSemaforoKpis() {
+    const cliente = document.getElementById('filtCliente')?.value || '';
+    const params = new URLSearchParams();
+    if (cliente) params.set('cliente', cliente);
+    try {
+        const resp = await fetch(`/cgeo/api/semaforo-global${params.toString() ? '?' + params.toString() : ''}`,
+            { headers: { Accept: 'application/json' } });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        _sgKpis = await resp.json();
+    } catch (e) {
+        console.warn('fetchSemaforoKpis error:', e);
+    }
 }
 
 // ── fin motor de alertas ──────────────────────────────────────────────────────

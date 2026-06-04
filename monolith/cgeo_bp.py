@@ -769,6 +769,97 @@ def cgeo_api_alertas():
         conn.close()
 
 
+# ── API: Semáforo Global ─────────────────────────────────────────────────────
+
+@cgeo_bp.route("/api/semaforo-global")
+@jwt_required()
+def cgeo_api_semaforo_global():
+    """
+    Retorna los KPIs necesarios para calcular el semáforo global de la operación.
+    Diseñado para ser llamado junto con /api/alertas desde el Morning Briefing.
+    """
+    cliente = request.args.get("cliente") or None
+
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+
+        def _cp(col="cliente_instalacion"):
+            return ([f"{col} = %s"], [cliente]) if cliente else ([], [])
+
+        # Incidentes abiertos
+        inc_conds, inc_params = _cp()
+        inc_conds += [
+            "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')"
+        ]
+        cur.execute(f"""
+            SELECT COUNT(*) AS total FROM reportes_incidentes {_where(inc_conds)}
+        """, inc_params)
+        inc_abiertos = int((cur.fetchone() or {}).get("total") or 0)
+
+        # Supervisiones: programadas hoy vs completadas hoy
+        # Usamos puestos activos (supervisados en los últimos 30 días) como proxy de programadas
+        sup_conds_hist, sup_params_hist = _cp("cliente")
+        sup_conds_hist_full = sup_conds_hist + ["fecha_hora >= NOW() - INTERVAL '30 days'"]
+        cur.execute(f"""
+            SELECT COUNT(DISTINCT TRIM(cliente)) AS programadas
+            FROM supervision_puesto {_where(sup_conds_hist_full)}
+        """, sup_params_hist)
+        sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
+
+        sup_conds_hoy, sup_params_hoy = _cp("cliente")
+        sup_conds_hoy_full = sup_conds_hoy + ["fecha_hora::date = CURRENT_DATE"]
+        cur.execute(f"""
+            SELECT COUNT(DISTINCT TRIM(cliente)) AS completadas
+            FROM supervision_puesto {_where(sup_conds_hoy_full)}
+        """, sup_params_hoy)
+        sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
+
+        # Equipos no operativos vs flota total
+        eq_conds, eq_params = _cp()
+        cur.execute(f"""
+            SELECT
+                COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
+                COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(c.inventario) AS elem
+            {_where(eq_conds)}
+        """, eq_params)
+        eq_row = cur.fetchone() or {}
+        eq_total = int(eq_row.get("total") or 0)
+        eq_op    = int(eq_row.get("operativos") or 0)
+        eq_no_op = max(0, eq_total - eq_op)
+
+        # Certificaciones próximas a vencer (≤ 30 días)
+        cert_conds, cert_params = _cp()
+        cert_conds += [
+            "vigencia_hasta IS NOT NULL",
+            "vigencia_hasta >= CURRENT_DATE",
+            "vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'",
+        ]
+        cur.execute(f"""
+            SELECT COUNT(*) AS total FROM checklist_cumplimiento {_where(cert_conds)}
+        """, cert_params)
+        cert_proximas = int((cur.fetchone() or {}).get("total") or 0)
+
+        return jsonify({
+            "inc_abiertos": inc_abiertos,
+            "sup_completadas": sup_completadas,
+            "sup_programadas": sup_programadas,
+            "eq_no_op": eq_no_op,
+            "eq_total": eq_total,
+            "cert_proximas": cert_proximas,
+        })
+
+    except Exception as e:
+        app_logger.error(f"cgeo_api_semaforo_global error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
 # ── API: Operación y Novedades ────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/operacion-data")
