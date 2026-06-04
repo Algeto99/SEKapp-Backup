@@ -555,7 +555,7 @@ def cgeo_api_alertas():
         ]
         cur.execute(f"""
             SELECT
-                id,
+                id_reporte_incidente AS id,
                 COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
                 EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora, creado_en))) / 3600 AS horas,
                 COALESCE(fecha_hora, creado_en) AS ts
