@@ -126,6 +126,34 @@ body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
   .sidebar-overlay.active{display:block}
 }
+
+/* ── User menu ───────────────────────────────────────────────────────────── */
+.user-menu-wrap{position:relative;flex-shrink:0}
+.user-btn{display:flex;align-items:center;gap:.5rem;padding:.375rem .625rem;background:transparent;border:1px solid #e2e8f0;border-radius:.5rem;cursor:pointer;font-size:.78rem;font-weight:600;color:#334155;transition:background .15s;white-space:nowrap}
+.user-btn:hover{background:#f1f5f9}
+.user-btn-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
+.user-btn-name{max-width:100px;overflow:hidden;text-overflow:ellipsis}
+.user-dropdown{position:absolute;right:0;top:calc(100% + .375rem);background:#fff;border:1px solid #e2e8f0;border-radius:.625rem;box-shadow:0 8px 24px rgba(0,0,0,.1);min-width:160px;z-index:200;display:none}
+.user-dropdown.open{display:block}
+.user-dropdown-header{padding:.625rem .875rem;border-bottom:1px solid #f1f5f9}
+.user-dropdown-name{font-size:.8125rem;font-weight:600;color:#0f172a}
+.user-dropdown-email{font-size:.7rem;color:#94a3b8;margin-top:.125rem;word-break:break-all}
+.user-dropdown-item{display:flex;align-items:center;gap:.5rem;padding:.625rem .875rem;font-size:.8125rem;color:#334155;text-decoration:none;transition:background .1s;font-weight:500}
+.user-dropdown-item:hover{background:#f8fafc}
+.user-dropdown-item svg{width:14px;height:14px;flex-shrink:0;color:#94a3b8}
+.user-dropdown-item.danger{color:#ef4444}
+.user-dropdown-item.danger svg{color:#ef4444}
+.user-dropdown-item.danger:hover{background:#fef2f2}
+body:not(.light-mode) .user-btn{background:transparent;border-color:#334155;color:#e2e8f0}
+body:not(.light-mode) .user-btn:hover{background:#334155}
+body:not(.light-mode) .user-dropdown{background:#1e293b;border-color:#334155;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+body:not(.light-mode) .user-dropdown-header{border-bottom-color:#334155}
+body:not(.light-mode) .user-dropdown-name{color:#f1f5f9}
+body:not(.light-mode) .user-dropdown-item{color:#cbd5e1}
+body:not(.light-mode) .user-dropdown-item:hover{background:#334155}
+body:not(.light-mode) .user-dropdown-item.danger{color:#f87171}
+body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
+/* ── fin user menu ───────────────────────────────────────────────────────── */
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -148,13 +176,25 @@ body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba
     </div>
     <nav class="sidebar-nav">
         <div class="nav-section">Principal</div>
+        <a href="/cgeo/morning-briefing/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Morning Briefing
+        </a>
         <a href="/landing/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
             Inicio
         </a>
         <a href="/forms/select" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Acceso a Formularios
+            Formularios
+        </a>
+        <a href="/cgeo/recursos/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Recursos y Confiabilidad
+        </a>
+        <a href="/cgeo/operacion/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Operación e Incidentes
         </a>
         <a href="/matrices/" class="nav-item active">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -164,25 +204,15 @@ body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba
         <div class="nav-section">Administración</div>
         <a href="/viewer/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Reportes (Admin)
+            Reportes
         </a>
         <a href="/dashboard/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            Dashboards (Admin)
+            Dashboards
         </a>
         <a href="/dashboard/bases_de_datos/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
-            Bases de Datos (Admin)
-        </a>
-        <hr class="nav-divider">
-        <div class="nav-section">Centro de Gestión</div>
-        <a href="/cgeo/recursos/" class="nav-item">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-            Recursos y Confiabilidad
-        </a>
-        <a href="/cgeo/operacion/" class="nav-item">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-            Operación y Novedades
+            Bases de Datos
         </a>
     </nav>
     <div class="sidebar-footer">
@@ -190,7 +220,6 @@ body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba
             <strong>Usuario</strong>
             <span>{{ user_name or current_user }}</span>
         </div>
-        <a href="/logout" class="btn-logout">⏻ Cerrar Sesión</a>
     </div>
 </aside>
 
@@ -207,6 +236,28 @@ body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba
             <div>
                 <div class="page-title">Consultar Matrices</div>
                 <div class="page-subtitle">Seguimiento y control de novedades, compromisos e incidentes</div>
+            </div>
+        
+        <div class="topbar-right">
+            <div class="user-menu-wrap" id="userMenuWrap">
+                <button class="user-btn" id="userMenuBtn" onclick="toggleUserMenu()">
+                    <div class="user-btn-avatar" id="userAvatar">…</div>
+                    <span class="user-btn-name" id="userBtnName">{{ user_name or current_user }}</span>
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-name" id="dropdownName">{{ user_name or current_user }}</div>
+                    </div>
+                    <a href="/cgeo/morning-briefing/" class="user-dropdown-item">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        Morning Briefing
+                    </a>
+                    <a href="/logout" class="user-dropdown-item danger">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        Cerrar Sesión
+                    </a>
+                </div>
             </div>
         </div>
     </div>

@@ -2,7 +2,7 @@
 Centro de Gestión Ejecutiva y Operativa (CGEO)
 Blueprint with two sub-modules:
   - Gestión de Recursos y Confiabilidad  (/cgeo/recursos/)
-  - Gestión de Operación y Novedades     (/cgeo/operacion/)
+  - Operación e Incidentes     (/cgeo/operacion/)
 Each sub-module exposes an Informe Ejecutivo and a Resumen Operativo tab.
 """
 
@@ -899,7 +899,8 @@ def cgeo_api_morning_briefing_data():
         cur.execute("""
             SELECT
                 COUNT(*) AS total_abiertos,
-                SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos
+                SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
+                SUM(CASE WHEN COALESCE(fecha_hora, creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
             FROM reportes_incidentes
             WHERE LOWER(TRIM(COALESCE(estado,'')))
                   NOT IN ('cerrado','closed','resuelto','resolved')
@@ -907,6 +908,7 @@ def cgeo_api_morning_briefing_data():
         inc_row = cur.fetchone() or {}
         inc_abiertos  = int(inc_row.get("total_abiertos") or 0)
         inc_criticos  = int(inc_row.get("criticos") or 0)
+        inc_mas_24h   = int(inc_row.get("mas_24h") or 0)
 
         # ── Supervisiones hoy vs puestos activos (programadas proxy) ─────────
         cur.execute("""
@@ -978,6 +980,7 @@ def cgeo_api_morning_briefing_data():
             "kpis": {
                 "inc_abiertos":   inc_abiertos,
                 "inc_criticos":   inc_criticos,
+                "inc_mas_24h":    inc_mas_24h,
                 "sup_completadas": sup_completadas,
                 "sup_programadas": sup_programadas,
                 "eq_total":       eq_total,
@@ -995,7 +998,7 @@ def cgeo_api_morning_briefing_data():
         conn.close()
 
 
-# ── API: Operación y Novedades ────────────────────────────────────────────────
+# ── API: Operación e Incidentes ────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/operacion-data")
 @jwt_required()
