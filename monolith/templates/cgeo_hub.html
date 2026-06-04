@@ -111,11 +111,9 @@ body:not(.light-mode) .card-loader{background:rgba(15,23,42,0.8)}
   .content{padding:1rem}
   .matrices-grid{grid-template-columns:1fr}
   .matrix-stats{flex-wrap:wrap}
-  .hamburger-btn{display:flex}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
   .sidebar-overlay.active{display:block}
 }
-@media(min-width:701px){.hamburger-btn{display:none}}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -191,12 +189,6 @@ body:not(.light-mode) .card-loader{background:rgba(15,23,42,0.8)}
 <div class="main">
     <div class="topbar">
         <div class="topbar-left">
-            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú"
-                style="background:none;border:none;cursor:pointer;padding:.25rem;color:inherit;align-items:center;justify-content:center">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-            </button>
             <div class="page-icon" id="sidebarToggleBtn">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
             </div>
@@ -357,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent   = document.querySelector('.main');
     const overlay       = document.getElementById('sidebarOverlay');
     const desktopToggle = document.getElementById('sidebarToggleBtn');
-    const hamburger     = document.getElementById('hamburgerBtn');
 
     function isMobile() { return window.innerWidth <= 700; }
     function openMobileSidebar()  { sidebar.classList.add('mobile-open');    overlay.classList.add('active'); }
@@ -366,7 +357,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (desktopToggle) desktopToggle.addEventListener('click', () => {
         isMobile() ? openMobileSidebar() : (sidebar.classList.toggle('collapsed'), mainContent.classList.toggle('expanded'));
     });
-    if (hamburger) hamburger.addEventListener('click', openMobileSidebar);
     if (overlay)   overlay.addEventListener('click', closeMobileSidebar);
     window.addEventListener('resize', () => { if (!isMobile()) closeMobileSidebar(); });
 });

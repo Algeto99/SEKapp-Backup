@@ -47,7 +47,6 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 @keyframes spin{to{transform:rotate(360deg)}}
 .btn-ver-operacion{height:34px;padding:0 .875rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-size:.78rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.375rem;transition:background .15s;flex-shrink:0;white-space:nowrap}
 .btn-ver-operacion:hover{background:#1e293b}
-.hamburger-btn{background:none;border:none;cursor:pointer;padding:.25rem;color:inherit;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 .content{padding:1.5rem 1.75rem;flex:1;max-width:1200px;min-width:0;width:100%;overflow-x:hidden}
 
@@ -218,7 +217,6 @@ body:not(.light-mode) .skeleton{background:linear-gradient(90deg,#1e293b 25%,#33
   .greeting-title{font-size:1.2rem}
   .btn-ver-operacion span{display:none}
   .btn-ver-operacion{padding:0 .625rem}
-  .hamburger-btn{display:flex}
   .auto-refresh-badge{display:none}
   .semaforo-global{padding:1rem 1.125rem;gap:1rem}
   .sg-estado{font-size:1rem}
@@ -236,7 +234,6 @@ body:not(.light-mode) .skeleton{background:linear-gradient(90deg,#1e293b 25%,#33
   .alerta-texto{white-space:normal}
   .chart-card{padding:1rem}
 }
-@media(min-width:701px){.hamburger-btn{display:none}}
 .hidden{display:none!important}
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -306,11 +303,6 @@ body:not(.light-mode) .skeleton{background:linear-gradient(90deg,#1e293b 25%,#33
 <div class="main" id="mainContent">
     <div class="topbar">
         <div class="topbar-left">
-            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                </svg>
-            </button>
             <button class="page-icon" id="sidebarToggleBtn">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             </button>
@@ -827,7 +819,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const main     = document.getElementById('mainContent');
     const overlay  = document.getElementById('sidebarOverlay');
     const deskBtn  = document.getElementById('sidebarToggleBtn');
-    const hambBtn  = document.getElementById('hamburgerBtn');
 
     function isMobile() { return window.innerWidth <= 700; }
 
@@ -839,11 +830,6 @@ document.addEventListener('DOMContentLoaded', () => {
             sidebar.classList.toggle('collapsed');
             main.classList.toggle('expanded');
         }
-    });
-
-    if (hambBtn) hambBtn.addEventListener('click', () => {
-        sidebar.classList.add('mobile-open');
-        overlay.classList.add('active');
     });
 
     overlay.addEventListener('click', () => {
