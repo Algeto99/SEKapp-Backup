@@ -74,7 +74,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 
 .charts-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}
 .charts-row-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}
-.chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
+.chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;min-width:0;overflow:hidden}
 .chart-title{font-size:.8125rem;font-weight:700;color:#1e293b;margin-bottom:1rem}
 .chart-box{position:relative;height:240px}
 
@@ -118,21 +118,21 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .dias-pos{color:#16a34a;font-weight:700}
 
 /* Ranking bar */
-.ranking-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;margin-bottom:1.25rem}
-.ranking-item{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.ranking-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;margin-bottom:1.25rem;overflow:hidden}
+.ranking-item{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;min-width:0}
 .ranking-item:last-child{margin-bottom:0}
-.rank-label{font-size:.8125rem;color:#334155;font-weight:500;min-width:80px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rank-bar-wrap{flex:1;background:#f1f5f9;border-radius:999px;height:14px;overflow:hidden}
+.rank-label{font-size:.8125rem;color:#334155;font-weight:500;min-width:0;width:30%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.rank-bar-wrap{flex:1;background:#f1f5f9;border-radius:999px;height:14px;overflow:hidden;min-width:0}
 .rank-bar{height:100%;background:#3b82f6;border-radius:999px;transition:width .6s ease}
-.rank-pct{font-size:.8rem;font-weight:700;color:#0f172a;min-width:38px;text-align:right}
+.rank-pct{font-size:.8rem;font-weight:700;color:#0f172a;min-width:32px;text-align:right;flex-shrink:0}
 
 /* Novedades */
-.novedades-list{display:flex;flex-direction:column;gap:.5rem}
-.novedad-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem 0;border-bottom:1px solid #f1f5f9}
+.novedades-list{display:flex;flex-direction:column;gap:.5rem;min-width:0;overflow:hidden}
+.novedad-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem 0;border-bottom:1px;min-width:0 solid #f1f5f9}
 .novedad-row:last-child{border-bottom:none}
 .novedad-icon{font-size:.875rem;flex-shrink:0}
-.novedad-label{font-size:.8125rem;color:#334155;flex:1}
-.novedad-val{font-size:1rem;font-weight:800;font-family:'Merriweather',serif}
+.novedad-label{font-size:.8125rem;color:#334155;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.novedad-val{font-size:1rem;font-weight:800;font-family:'Merriweather',serif;flex-shrink:0}
 .nv-red{color:#dc2626}
 .nv-orange{color:#f97316}
 .nv-yellow{color:#d97706}
@@ -641,8 +641,8 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 </div>
                 <div class="chart-card">
                     <div class="chart-title">Distribución de Incidentes por Severidad</div>
-                    <div style="display:flex;align-items:center;gap:1.5rem;height:240px">
-                        <div style="flex:0 0 180px;position:relative;height:180px">
+                    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;min-height:180px;overflow:hidden">
+                        <div style="flex:0 0 min(180px,40%);position:relative;height:180px;min-width:0">
                             <canvas id="chartIncSev"></canvas>
                         </div>
                         <div id="incSevLegend" style="font-size:.8rem;display:flex;flex-direction:column;gap:.625rem"></div>
