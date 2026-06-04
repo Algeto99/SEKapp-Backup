@@ -838,7 +838,9 @@ def cgeo_api_semaforo_global():
                 COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
                 COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
             FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(c.inventario) AS elem
+                 LATERAL jsonb_array_elements(
+                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
+                 ) AS elem
             {_where(eq_conds)}
         """, eq_params)
         eq_row = cur.fetchone() or {}
@@ -927,7 +929,9 @@ def cgeo_api_morning_briefing_data():
                 COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
                 COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
             FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(c.inventario) AS elem
+                 LATERAL jsonb_array_elements(
+                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
+                 ) AS elem
         """)
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
@@ -963,7 +967,7 @@ def cgeo_api_morning_briefing_data():
         tendencia = [
             {
                 "fecha": d.isoformat(),
-                "label": d.strftime("%-d %b"),
+                "label": str(d.day) + " " + d.strftime("%b"),
                 "completadas": comp_by_day.get(d, 0),
                 "programadas": sup_programadas,
             }
