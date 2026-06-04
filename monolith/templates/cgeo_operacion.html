@@ -171,7 +171,25 @@ canvas{outline:none}
 @media(max-width:1400px){.alert-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.pend-cat{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
 @media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.pend-cat{grid-template-columns:repeat(3,minmax(0,1fr))!important}.tables-row{grid-template-columns:1fr}.charts-row-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:900px){.charts-row,.charts-row-3{grid-template-columns:1fr}.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.alert-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.pend-cat{grid-template-columns:repeat(2,minmax(0,1fr))!important}.sidebar{width:200px}.main{margin-left:200px}}
-@media(max-width:700px){.sidebar{display:none}.main{margin-left:0}.kpi-grid,.alert-kpi-grid,.pend-cat{grid-template-columns:1fr!important}}
+@media(max-width:700px){
+  .sidebar{transform:translateX(-100%);width:240px}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .main{margin-left:0}
+  .kpi-grid,.alert-kpi-grid,.pend-cat{grid-template-columns:1fr!important}
+  .topbar{padding:.75rem 1rem;gap:.5rem}
+  .page-title{font-size:.9rem}
+  .page-subtitle{display:none}
+  .content{padding:1rem}
+  .filter-bar{flex-direction:column;align-items:stretch;gap:.5rem}
+  .filter-group{flex-wrap:wrap}
+  .filter-select,.date-input{min-width:0;width:100%}
+  .tabs-row{flex-direction:column;gap:.5rem;align-items:stretch}
+  .status-banner{font-size:.7rem;padding:.4rem .75rem}
+  .hamburger-btn{display:flex}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
+  .sidebar-overlay.active{display:block}
+}
+@media(min-width:701px){.hamburger-btn{display:none}}
 
 /* ── Print / PDF styles ── */
 @media print {
@@ -313,11 +331,21 @@ body:not(.light-mode) .leg-value{color:#f1f5f9}
     </div>
 </aside>
 
+<!-- Mobile sidebar overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
 <!-- Main -->
 <div class="main">
     <div class="topbar">
         <div class="topbar-left">
-            <div class="page-icon">
+            <!-- Hamburger: visible only on mobile -->
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú"
+                style="background:none;border:none;cursor:pointer;padding:.25rem;color:inherit;align-items:center;justify-content:center">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <div class="page-icon" id="sidebarToggleBtn">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
             </div>
             <div>
@@ -1008,17 +1036,50 @@ function openQRModal() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Sidebar toggle functionality
-    const pageIcon = document.querySelector('.page-icon');
-    const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main');
-    
-    if (pageIcon && sidebar && mainContent) {
-        pageIcon.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
+    const sidebar      = document.querySelector('.sidebar');
+    const mainContent  = document.querySelector('.main');
+    const overlay      = document.getElementById('sidebarOverlay');
+    const desktopToggle = document.getElementById('sidebarToggleBtn');
+    const hamburger    = document.getElementById('hamburgerBtn');
+
+    function isMobile() { return window.innerWidth <= 700; }
+
+    function openMobileSidebar() {
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('active');
+    }
+
+    function closeMobileSidebar() {
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+    }
+
+    // Desktop toggle (page-icon button): collapse/expand sidebar + content margin
+    if (desktopToggle) {
+        desktopToggle.addEventListener('click', () => {
+            if (isMobile()) {
+                openMobileSidebar();
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            }
         });
     }
+
+    // Hamburger: mobile-only open button
+    if (hamburger) {
+        hamburger.addEventListener('click', openMobileSidebar);
+    }
+
+    // Overlay tap: close mobile sidebar
+    if (overlay) {
+        overlay.addEventListener('click', closeMobileSidebar);
+    }
+
+    // Close mobile sidebar on resize to desktop
+    window.addEventListener('resize', () => {
+        if (!isMobile()) closeMobileSidebar();
+    });
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
