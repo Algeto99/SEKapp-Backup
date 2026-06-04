@@ -195,6 +195,7 @@
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">
+            <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
@@ -519,6 +520,7 @@
         let signaturePad;
 
         document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
             // Set current date and time
             const now = new Date();

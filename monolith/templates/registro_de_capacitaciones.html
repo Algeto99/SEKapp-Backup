@@ -163,6 +163,7 @@
         </header>
         <form id="capacitacionForm" action="{{ url_for('forms_bp.submit_registro_de_capacitaciones') }}" method="POST"
             enctype="multipart/form-data">
+            <input type="hidden" name="submitter_timezone" id="submitter_timezone">
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos de la Capacitación/Reunión/Entrenamiento</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -263,6 +264,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
             // ── QR Code + Session Token ───────────────────────────────────────────
             function generateUUID() {

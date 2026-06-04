@@ -1,79 +1,52 @@
-import os
 import logging
-from flask import Blueprint, current_app, Flask, render_template, request, redirect, flash, jsonify, url_for, send_from_directory
-from flask_jwt_extended import JWTManager, get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
-from flask_wtf.csrf import generate_csrf
-from google.cloud import storage, secretmanager
-from werkzeug.utils import secure_filename
+import os
+import re
+import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+
 import psycopg2
 import psycopg2.extras
-import uuid
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import smtplib
-import socket
+from flask import Blueprint, current_app, render_template, request, redirect, flash, jsonify, url_for, send_from_directory
+from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
+from flask_wtf.csrf import generate_csrf
 from google.api_core.exceptions import NotFound
-import urllib.parse as urlparse
-import re
-from concurrent.futures import ThreadPoolExecutor
-import time
+from google.cloud import storage, secretmanager
+from werkzeug.utils import secure_filename
 
-# --- Logger Setup ---
-logging.basicConfig(level=logging.INFO)
-app_logger = logging.getLogger('app')
+from db import get_db_connection
+from email_utils import send_email
 
-# --- Flask App Setup ---
+app_logger = logging.getLogger(__name__)
+
 forms_bp = Blueprint("forms_bp", __name__)
-GCS_BUCKET_NAME = 'smt-uploads' # Make sure this bucket exists and permissions are set
+GCS_BUCKET_NAME = 'smt-uploads'
 
-# Initialize GCS client lazily or globally if environment is ready
 try:
     gcs_client = storage.Client()
-    logging.info("Global GCS Client initialized successfully.")
+    app_logger.info("Global GCS Client initialized successfully.")
 except Exception as e:
-    logging.warning(f"Failed to initialize global GCS Client: {e}")
+    app_logger.warning(f"Failed to initialize global GCS Client: {e}")
     gcs_client = None
 
-# App config and JWT handlers are managed centrally in the monolith's main app_bp
 
-# --- Database Connection ---
-def get_db_connection():
-    db_url = os.getenv('DATABASE_URL')
-    if not db_url:
-        raise Exception("DATABASE_URL environment variable not set")
-
-    urlparse.uses_netloc.append('postgres')
-    parsed_url = urlparse.urlparse(db_url)
-    query = dict(urlparse.parse_qsl(parsed_url.query))
-
-    try:
-        conn = psycopg2.connect(
-            dbname=parsed_url.path[1:],
-            user=parsed_url.username,
-            password=parsed_url.password,
-            host=query.get('host', parsed_url.hostname),
-            port=query.get('port', parsed_url.port or '5432')
-        )
-        return conn
-    except Exception as e:
-        app_logger.error(f"Database connection error: {e}", exc_info=True)
-        raise
-
-
+# Process-global schema cache. Populated lazily on first request per table.
+# IMPORTANT: Adding a new column to a form table requires an app restart (or
+# a Cloud Run deploy) to pick it up — the cache is never invalidated at runtime.
+# This is intentional: schema changes always require a redeploy anyway.
 _SCHEMA_CACHE = {}
 
 
 def _get_table_columns(cur, table_name):
-    cache_key = table_name
-    if cache_key not in _SCHEMA_CACHE:
+    if table_name not in _SCHEMA_CACHE:
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = %s
         """, (table_name,))
-        _SCHEMA_CACHE[cache_key] = {row[0] for row in cur.fetchall()}
-    return _SCHEMA_CACHE[cache_key]
+        _SCHEMA_CACHE[table_name] = {row[0] for row in cur.fetchall()}
+    return _SCHEMA_CACHE[table_name]
 
 
 def _table_has_column(cur, table_name, column_name):
@@ -181,6 +154,8 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
     elif legacy_customer_value:
         scope['cliente_instalacion'] = legacy_customer_value
 
+    scope['submitter_timezone'] = request.form.get('submitter_timezone') or 'UTC'
+
     return scope
 
 # --- Helper Functions ---
@@ -207,38 +182,6 @@ def upload_file_to_gcs(file, bucket_name):
     except Exception as e:
         app_logger.error(f"Error uploading file to GCS: {e}", exc_info=True)
         return None # Return None or raise an exception based on desired error handling
-
-def get_secret_value(secret_name):
-    project_id = current_app.config.get('GCP_PROJECT_ID')
-    if not project_id:
-        raise ValueError(f"GCP_PROJECT_ID required for '{secret_name}'.")
-
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
-    try:
-        response = client.access_secret_version(request={"name": name})
-        return response.payload.data.decode("UTF-8")
-    except NotFound:
-        raise ValueError(f"Secret '{secret_name}' not found.")
-    except Exception as e:
-        app_logger.error(f"Error accessing secret '{secret_name}': {e}", exc_info=True)
-        raise
-
-def get_email_password():
-    password = os.environ.get('EMAIL_PASSWORD')
-    if password:
-        return password
-
-    try:
-        with app.app_context():
-            return get_secret_value(current_app.config.get('EMAIL_PASSWORD_SECRET_NAME'))
-    except Exception as e:
-        app_logger.warning(f"Could not retrieve email password: {e}")
-        return None
-
-def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
-    # ... (send_email function remains the same) ...
-    pass # Keep existing implementation
 
 def get_service_urls():
     """Helper to get all service URLs for templates."""
@@ -302,10 +245,11 @@ def api_form_properties():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute("""
-            SELECT id_propiedad, nombre, COALESCE(cliente, '') AS cliente
-            FROM propiedades
-            WHERE COALESCE(activa, TRUE) = TRUE
-            ORDER BY nombre
+            SELECT p.id_propiedad, p.nombre, COALESCE(cc.name, '') AS cliente
+            FROM propiedades p
+            LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+            WHERE COALESCE(p.activa, TRUE) = TRUE
+            ORDER BY p.nombre
         """)
         rows = cur.fetchall()
         return jsonify({
@@ -474,7 +418,8 @@ def submit_incident_report():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting incident report: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -556,7 +501,8 @@ def submit_medicion_experiencia_cliente():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting encuesta: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -604,8 +550,7 @@ def submit_supervision_puesto():
             property_id=request.form.get('id_propiedad'),
             customer_company_id=request.form.get('customer_company_id'),
         ))
-        if global_data.get('cliente_instalacion'):
-            global_data['cliente'] = global_data['cliente_instalacion']
+        # supervision_puesto now uses cliente_instalacion (renamed from cliente)
 
         # 2. Parse Dynamic Supervisions from request.form
         # Keys are in format: supervisions[index][field_name]
@@ -678,7 +623,8 @@ def submit_supervision_puesto():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting supervision puesto: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -815,7 +761,8 @@ def submit_informe_novedades_disciplinario():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting informe: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -877,7 +824,8 @@ def submit_log_de_patrullas():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting log: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -1033,7 +981,8 @@ def submit_registro_de_capacitaciones():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting capacitacion: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -1147,7 +1096,8 @@ def submit_registro_y_acta_de_visita():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting registro y acta de visita: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -1244,7 +1194,8 @@ def submit_planilla_vehicular():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla vehicular: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -1326,7 +1277,8 @@ def submit_planilla_motocicletas():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla motocicletas: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -1529,7 +1481,8 @@ def submit_confiabilidad_equipos():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting confiabilidad_equipos: {e}", exc_info=True)
-        return render_template('error.html', error=str(e)), 500
+        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
             conn.close()
@@ -1707,7 +1660,7 @@ def success():
 
 @forms_bp.route('/error')
 def error():
-    error_message = request.args.get('error', 'Ha ocurrido un error inesperado.')
+    error_message = 'Ha ocurrido un error inesperado. Por favor intente nuevamente.'
     try: # Safely get user info even on error page if logged in
         user_info = get_jwt_identity()
         if isinstance(user_info, str):

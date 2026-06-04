@@ -1,20 +1,17 @@
 import json
+import logging
 import math
 import os
-import sys
-import logging
 from datetime import datetime, timezone
 from functools import wraps
 from io import BytesIO
 
+import psycopg2
+from psycopg2 import extras
 from flask import (Blueprint, current_app, jsonify, redirect,
                    render_template, request, send_file)
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from itsdangerous import BadData, URLSafeSerializer
-
-import psycopg2
-from psycopg2 import extras
-import urllib.parse as urlparse
 
 try:
     import qrcode
@@ -22,16 +19,11 @@ try:
 except ImportError:
     QRCODE_AVAILABLE = False
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+from db import get_db_connection
+
 app_logger = logging.getLogger(__name__)
 
 expediente_bp = Blueprint('expediente', __name__)
-
-DATABASE_URL = os.environ.get('DATABASE_URL')
 
 # --- Constants ---
 QR_SALT           = 'sekapp-evidence-qr-v1'
@@ -39,28 +31,6 @@ EXPEDIENTE_QR_SALT = 'sekapp-expediente-qr-v1'
 GEOFENCE_RADIUS_M = 100
 CRITICAL_SEVERITIES = {'CRITICO', 'CRÍTICO', 'ALTO'}
 OPEN_INCIDENT_STATUSES = {'ABIERTO', 'EN PROCESO', 'EN_PROCESO', 'PENDIENTE', 'REPORTADO'}
-
-
-# ─── DB helpers (same pattern as dashboard_bp / viewer_bp) ───────────────────
-
-def get_db_connection():
-    if not DATABASE_URL:
-        app_logger.error("DATABASE_URL not set.")
-        return None
-    urlparse.uses_netloc.append('postgres')
-    parsed = urlparse.urlparse(DATABASE_URL)
-    query = dict(urlparse.parse_qsl(parsed.query))
-    try:
-        return psycopg2.connect(
-            dbname=parsed.path[1:],
-            user=parsed.username,
-            password=parsed.password,
-            host=query.get('host', parsed.hostname),
-            port=query.get('port', parsed.port or '5432')
-        )
-    except Exception as e:
-        app_logger.error(f"DB connection error: {e}", exc_info=True)
-        return None
 
 
 def _get_user_company_id(cur, user_email):
@@ -155,7 +125,7 @@ def _resolve_geofence_center(cur, cliente_instalacion):
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY longitude)::float AS med_lng,
             COUNT(*) AS gps_count
         FROM supervision_puesto
-        WHERE LOWER(TRIM(cliente)) = LOWER(TRIM(%s))
+        WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s))
           AND latitude  IS NOT NULL
           AND longitude IS NOT NULL
     """, (cliente_instalacion,))
@@ -288,13 +258,12 @@ def api_clientes():
         cf = 'AND company_id = %s' if company_id is not None else ''
         params = (company_id,) * 4 if company_id is not None else ()
 
-        # supervision_puesto uses `cliente`, the other three use `cliente_instalacion`
         cur.execute(f"""
             SELECT DISTINCT TRIM(cliente_name) AS nombre
             FROM (
-                SELECT NULLIF(TRIM(cliente), '')           AS cliente_name
+                SELECT NULLIF(TRIM(cliente_instalacion), '') AS cliente_name
                 FROM supervision_puesto
-                WHERE cliente IS NOT NULL {cf}
+                WHERE cliente_instalacion IS NOT NULL {cf}
 
                 UNION
 
@@ -376,7 +345,7 @@ def api_feed():
                 NULL::date                                       AS compromisos_fecha_limite,
                 NULL::text                                       AS compromisos_estados
             FROM supervision_puesto sp
-            WHERE LOWER(TRIM(sp.cliente)) = LOWER(TRIM(%s)) {cf_sup}
+            WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
               AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - INTERVAL '{days} days'
 
             UNION ALL
@@ -625,7 +594,7 @@ def api_kpi():
                 COUNT(*) AS supervisiones,
                 {geofence_sql}
             FROM supervision_puesto
-            WHERE LOWER(TRIM(cliente)) = LOWER(TRIM(%s)) {cf}
+            WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s)) {cf}
               AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
         """, p(cliente))
@@ -880,7 +849,7 @@ def public_expediente_viewer(token):
                 NULL::date               AS compromisos_fecha_limite,
                 NULL::text               AS compromisos_estados
             FROM supervision_puesto sp
-            WHERE LOWER(TRIM(sp.cliente)) = LOWER(TRIM(%s)) {cf_sup}
+            WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
               AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - INTERVAL '{days} days'
 
             UNION ALL

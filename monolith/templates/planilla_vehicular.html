@@ -256,6 +256,7 @@
         </div>
 
         <form id="planillaVehicularForm" action="{{ url_for('forms_bp.submit_planilla_vehicular') }}" method="POST">
+            <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
@@ -659,6 +660,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
             // Theme Toggle Logic
             const themeToggle = document.getElementById('themeToggle');
             const darkModeIcon = document.getElementById('darkModeIcon');

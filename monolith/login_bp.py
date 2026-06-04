@@ -1,11 +1,6 @@
 import os
-import smtplib
-import socket
-import ssl
 import secrets
 import hashlib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
 from flask_jwt_extended import (
@@ -14,6 +9,9 @@ from flask_jwt_extended import (
 )
 from psycopg2 import extras
 import psycopg2
+
+from db import get_db_connection
+from email_utils import send_email, send_password_reset_email, send_welcome_email, send_registration_notification
 
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
@@ -25,38 +23,6 @@ def init_login_bp(app_bcrypt):
     global bcrypt
     bcrypt = app_bcrypt
 
-import urllib.parse as urlparse
-
-# --- Database Helper (Using main app context) ---
-def get_db_connection():
-    db_url = os.environ.get('DATABASE_URL')
-    if not db_url:
-        current_app.logger.critical("DATABASE_URL environment variable NOT SET.")
-        return None
-        
-    urlparse.uses_netloc.append('postgres')
-    parsed_url = urlparse.urlparse(db_url)
-    query = dict(urlparse.parse_qsl(parsed_url.query))
-    
-    try:
-        conn = psycopg2.connect(
-            dbname=parsed_url.path[1:],
-            user=parsed_url.username,
-            password=parsed_url.password,
-            host=query.get('host', parsed_url.hostname),
-            port=query.get('port', parsed_url.port or '5432')
-        )
-        return conn
-    except Exception as e:
-        current_app.logger.error(f"Database connection error: {e}", exc_info=True)
-        return None
-    try:
-        conn = psycopg2.connect(db_url)
-        return conn
-    except Exception as e:
-        current_app.logger.error(f"Database connection error: {e}", exc_info=True)
-        return None
-
 # --- Security and Tokens ---
 def generate_reset_token():
     return secrets.token_urlsafe(32)
@@ -64,33 +30,10 @@ def generate_reset_token():
 def hash_token(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
-def ensure_password_reset_table(conn):
-    try:
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS password_reset_tokens (
-                id SERIAL PRIMARY KEY,
-                email VARCHAR(255) NOT NULL,
-                token_hash VARCHAR(64) NOT NULL,
-                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens(token_hash);
-            CREATE INDEX IF NOT EXISTS idx_password_reset_email ON password_reset_tokens(email);
-        """)
-        conn.commit()
-        cur.close()
-        return True
-    except Exception as e:
-        conn.rollback()
-        current_app.logger.error(f"Error checking/creating password_reset_tokens table: {e}", exc_info=True)
-        return False
-
 def create_password_reset_token(email):
     conn = get_db_connection()
     if not conn:
         return None
-    ensure_password_reset_table(conn)
     try:
         token = generate_reset_token()
         token_hash = hash_token(token)
@@ -122,7 +65,10 @@ def verify_reset_token(token):
         cur.close()
         
         if not result: return None
-        if datetime.now(timezone.utc) > result['expires_at'].replace(tzinfo=timezone.utc):
+        expires = result['expires_at']
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) > expires:
             cur = conn.cursor()
             cur.execute("DELETE FROM password_reset_tokens WHERE token_hash = %s", (token_hash,))
             conn.commit()
@@ -149,82 +95,6 @@ def delete_reset_token(token):
     finally:
         if conn: conn.close()
 
-# --- Email System ---
-# Note: get_email_password implies sharing the secret lookup from the main context
-def get_email_password():
-    password = os.environ.get('EMAIL_PASSWORD') or os.environ.get('EMAIL_PASSWORD_SECRET')
-    if password: return password
-
-    project_id = current_app.config.get('GCP_PROJECT_ID')
-    secret_name = current_app.config.get('EMAIL_PASSWORD_SECRET_NAME')
-    if not project_id or not secret_name: return None
-    
-    from google.cloud import secretmanager
-    client = secretmanager.SecretManagerServiceClient()
-    name = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
-    try:
-        response = client.access_secret_version(request={"name": name})
-        return response.payload.data.decode("UTF-8")
-    except Exception as e:
-        current_app.logger.warning(f"Could not retrieve email password: {e}")
-        return None
-
-def send_email(to_email, subject, body, is_html=False):
-    email_username = current_app.config.get('SENDER_EMAIL') or current_app.config.get('EMAIL_USERNAME')
-    smtp_server = current_app.config.get('SMTP_SERVER')
-    smtp_port = current_app.config.get('SMTP_PORT')
-    email_password = get_email_password()
-
-    if not all([email_username, email_password, smtp_server, smtp_port]):
-        if request: flash("Error en la configuración de envío de email.", "danger")
-        return False
-    
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = email_username
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
-
-        context = ssl.create_default_context()
-        try:
-             server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-             server.ehlo()
-             server.starttls(context=context)
-             server.ehlo()
-        except Exception:
-            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-            server.starttls()
-
-        server.login(email_username, email_password)
-        server.send_message(msg)
-        server.quit()
-        return True
-    except Exception as e:
-        current_app.logger.error(f"Email failure: {e}", exc_info=True)
-        if request: flash("El servidor de email falló.", "danger")
-        return False
-
-def send_password_reset_email(email, reset_token):
-    reset_url = url_for('login_bp.reset_password', token=reset_token, _external=True)
-    subject = "Restablecer Contraseña - Kanan SekApp"
-    html_body = f"""<div style="font-family: sans-serif;"><a href="{reset_url}">Restablecer</a></div>"""
-    return send_email(email, subject, html_body, is_html=True)
-
-def send_welcome_email(user_email, user_name, is_admin=False):
-    subject = "¡Bienvenido a Kanan SekApp!"
-    login_url = url_for('login_bp.login', _external=True)
-    html_body = f"""<div style="font-family: sans-serif;">¡Hola {user_name}! <a href="{login_url}">Iniciar Sesión</a></div>"""
-    return send_email(user_email, subject, html_body, is_html=True)
-
-def send_registration_notification(user_email, user_name, phone_number):
-    admin_email = current_app.config.get('ADMIN_EMAIL')
-    if admin_email:
-        subject = f"Nuevo Usuario Registrado - {user_name}"
-        html_body = f"<div>Registrado: {user_name} - {user_email}</div>"
-        send_email(admin_email, subject, html_body, is_html=True)
-    return send_welcome_email(user_email, user_name)
-
 # --- Routes Blueprint ---
 
 @login_bp.route('/', methods=['GET', 'POST'])
@@ -239,8 +109,13 @@ def login():
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
-            cur.execute('SELECT "id", "email", "password_hash", "name", "is_admin" FROM "users" WHERE "email" = %s', (email,))
+            cur.execute('SELECT "id", "email", "password_hash", "name", "is_admin", "is_active" FROM "users" WHERE "email" = %s', (email,))
             user = cur.fetchone()
+
+            if user and not user['is_active']:
+                flash("Credenciales inválidas", "danger")
+                cur.close()
+                return render_template('login.html')
 
             # Also check authorized_emails for admin status (same as original login service)
             if user:
@@ -279,7 +154,7 @@ def login():
 
                     if force_password_change:
                         flash('Debes cambiar tu contraseña antes de continuar.', 'warning')
-                        response = redirect(url_for('login_bp.change_password') + f'?email={user["email"]}&forced=1')
+                        response = redirect(url_for('login_bp.change_password', forced='1'))
                         set_access_cookies(response, access_token)
                         set_refresh_cookies(response, refresh_token)
                         return response
@@ -319,15 +194,26 @@ def register():
             flash('Las contraseñas no coinciden.', 'danger')
             return redirect(url_for('login_bp.register'))
 
+        if len(password) < 8:
+            flash('La contraseña debe tener al menos 8 caracteres.', 'warning')
+            return redirect(url_for('login_bp.register'))
+
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
         conn = get_db_connection()
-        
+
         if conn is None:
             flash("Error de conexión a la base de datos.", "danger")
             return redirect(url_for('login_bp.register'))
 
+        cur = None
         try:
             cur = conn.cursor()
+            cur.execute('SELECT "is_active" FROM "authorized_emails" WHERE "email" = %s', (email,))
+            auth = cur.fetchone()
+            if not auth or not auth[0]:
+                flash('Este correo no está autorizado para registrarse.', 'danger')
+                return redirect(url_for('login_bp.register'))
+
             cur.execute('SELECT 1 FROM "users" WHERE "email" = %s', (email,))
             if cur.fetchone():
                 flash('El correo electrónico ya está registrado.', 'warning')
@@ -411,7 +297,11 @@ def reset_password(token):
         if password != confirm_password:
             flash('Las contraseñas no coinciden.', 'danger')
             return render_template('reset_password.html', token=token)
-            
+
+        if len(password) < 8:
+            flash('La contraseña debe tener al menos 8 caracteres.', 'warning')
+            return render_template('reset_password.html', token=token)
+
         conn = get_db_connection()
         if not conn:
             flash("Error de conexión a la base de datos.", "danger")
@@ -440,15 +330,24 @@ def reset_password(token):
 @login_bp.route('/change-password', methods=['GET', 'POST'])
 def change_password():
     if request.method == 'POST':
-        email = request.form.get('email')
+        forced = request.form.get('forced', '0') == '1'
+        # For forced changes the user is already authenticated — read email from JWT
+        # to avoid PII in form fields/URLs. Fall back to form value for voluntary changes.
+        try:
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request(optional=True)
+            jwt_email = get_jwt_identity()
+        except Exception:
+            jwt_email = None
+        email = jwt_email if (forced and jwt_email) else request.form.get('email')
+
         current_password = request.form.get('current_password')
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
-        forced = request.form.get('forced', '0') == '1'
 
         if not all([email, current_password, new_password, confirm_password]):
             flash('Por favor complete todos los campos.', 'warning')
-            return render_template('change_password.html', email=email, forced=forced)
+            return render_template('change_password.html', email='', forced=forced)
 
         if new_password != confirm_password:
             flash('Las contraseñas nuevas no coinciden.', 'danger')
@@ -490,7 +389,7 @@ def change_password():
             conn.close()
 
     forced = request.args.get('forced', '0') == '1'
-    return render_template('change_password.html', email=request.args.get('email', ''), forced=forced)
+    return render_template('change_password.html', email='', forced=forced)
 
 @login_bp.route('/logout')
 def logout():

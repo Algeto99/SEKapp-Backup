@@ -1,37 +1,24 @@
-import os
-import sys
-import logging
-import re
-from datetime import timedelta, datetime, timezone
 import calendar
-
-from flask import Blueprint, current_app, Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
-from flask_cors import CORS
-from google.cloud import secretmanager, storage as gcs_storage
-from google.api_core.exceptions import NotFound
-
-import google.auth.transport.requests
-import google.oauth2.id_token
-import requests
+import logging
+import os
+import re
+import sys
+from datetime import timedelta, datetime, timezone
+from functools import wraps
 
 import psycopg2
 from psycopg2 import extras
-import urllib.parse as urlparse
-from functools import wraps
+from flask import Blueprint, current_app, render_template, request, jsonify, Response, flash, session, redirect, url_for
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
+from google.cloud import storage as gcs_storage
 
-# --- Configure Logging ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
+from db import get_db_connection
+
 app_logger = logging.getLogger(__name__)
 
 _GCS_BUCKET_NAME = 'smt-uploads'
 
 def _upload_file_to_gcs(file_storage):
-    """Upload a werkzeug FileStorage to GCS and return the public URL."""
     if not file_storage or not file_storage.filename:
         return None
     import uuid
@@ -47,50 +34,7 @@ def _upload_file_to_gcs(file_storage):
         app_logger.error(f"_upload_file_to_gcs error: {e}", exc_info=True)
         return None
 
-# --- Initialize Flask App ---
 dashboard_bp = Blueprint("dashboard_bp", __name__)
-is_production = os.environ.get('K_SERVICE') is not None
-app_logger.info(f"Starting Dashboard Service in {'production' if is_production else 'development'} mode")
-
-# In the monolith, main app.py handles Secrets and JWT configuration.
-
-# DB Config
-DATABASE_URL = os.environ.get('DATABASE_URL')
-if not DATABASE_URL:
-    app_logger.warning("DATABASE_URL environment variable is not set. Database connections will fail.")
-
-# --- Database Helper Functions ---
-def get_db_connection():
-    """Establishes and returns a database connection."""
-    if not DATABASE_URL:
-        app_logger.error("Attempted to connect to DB, but DATABASE_URL is not set.")
-        return None
-        
-    urlparse.uses_netloc.append('postgres')
-    parsed_url = urlparse.urlparse(DATABASE_URL)
-    query = dict(urlparse.parse_qsl(parsed_url.query))
-    
-    try:
-        app_logger.info(f"Attempting to connect to database using parsed parameters (path: {parsed_url.path})")
-        conn = psycopg2.connect(
-            dbname=parsed_url.path[1:],
-            user=parsed_url.username,
-            password=parsed_url.password,
-            host=query.get('host', parsed_url.hostname),
-            port=query.get('port', parsed_url.port or '5432')
-        )
-        app_logger.info("Successfully connected to the database.")
-        return conn
-    except psycopg2.OperationalError as e:
-        app_logger.error(f"PostgreSQL Operational Error connecting to database: {e}", exc_info=True)
-        if "timeout" in str(e).lower():
-            app_logger.error("Possible timeout. Check firewall, Cloud SQL Auth Proxy, or network configuration.")
-        elif "no such file or directory" in str(e).lower() and "cloudsql" in str(e).lower():
-             app_logger.error("Could not connect to Cloud SQL instance. Ensure 'ADD_CLOUDSQL_INSTANCES' is correctly configured in Cloud Run deployment.")
-        return None
-    except Exception as e:
-        app_logger.error(f"General Error connecting to database: {e}", exc_info=True)
-        return None
 
 
 INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora, ri.creado_en) AS date)"
@@ -1817,7 +1761,7 @@ def api_gestion_filtros():
                 UNION
                 SELECT TRIM(cliente_instalacion) AS cliente FROM reportes_incidentes
                 UNION
-                SELECT TRIM(cliente)             AS cliente FROM supervision_puesto
+                SELECT TRIM(cliente_instalacion) AS cliente FROM supervision_puesto
                 UNION
                 SELECT TRIM(cliente_instalacion) AS cliente FROM checklist_cumplimiento
                 UNION

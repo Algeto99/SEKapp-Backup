@@ -343,6 +343,7 @@
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">
+            <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales</h2>
@@ -678,6 +679,7 @@
         // ─────────────────────────────────────────────────────────────────────
 
         document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
             initializeTheme();
 
             if (themeToggle) {

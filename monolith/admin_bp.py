@@ -1,13 +1,14 @@
-import os
 import logging
+import os
 import traceback
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import psycopg2
 import psycopg2.extras
 
-logging.basicConfig(level=logging.INFO)
-app_logger = logging.getLogger('app')
+from db import get_db_connection
+
+app_logger = logging.getLogger(__name__)
 
 admin_bp = Blueprint("admin_bp", __name__)
 
@@ -19,27 +20,17 @@ def init_admin_bp(app_bcrypt):
 
 
 def _error_page(e, context='Panel de Administración'):
-    """Render a user-facing error page with enough detail to report to support."""
+    """Render a user-facing error page. Error ID links to server logs; details stay server-side."""
     error_id = os.urandom(4).hex().upper()
-    error_detail = f"{type(e).__name__}: {e}"
-    app_logger.error(f"[{error_id}] Error in {context}: {error_detail}\n{traceback.format_exc()}")
+    app_logger.error(f"[{error_id}] Error in {context}: {type(e).__name__}: {e}\n{traceback.format_exc()}")
     claims = get_jwt()
     return render_template(
         'admin_error.html',
         error_id=error_id,
-        error_detail=error_detail,
+        error_detail=f"Error interno del servidor. Referencia: {error_id}",
         context=context,
         user_name=claims.get('name', get_jwt_identity()),
     ), 500
-
-
-def get_db_connection():
-    db_url = os.getenv('DATABASE_URL')
-    if not db_url:
-        raise Exception("DATABASE_URL environment variable not set")
-    conn = psycopg2.connect(db_url)
-    conn.autocommit = False
-    return conn
 
 
 def _is_super_admin():
@@ -68,12 +59,10 @@ def _is_super_admin():
 # ---------------------------------------------------------------------------
 
 @admin_bp.route('/debug')
+@jwt_required()
 def debug():
-    from flask_jwt_extended import verify_jwt_in_request
-    try:
-        verify_jwt_in_request()
-    except Exception as e:
-        return jsonify({'error': f'JWT failed: {str(e)}', 'cookies': list(request.cookies.keys())})
+    if not _is_super_admin():
+        return jsonify({'error': 'Forbidden'}), 403
     email = get_jwt_identity()
     claims = get_jwt()
     conn = None

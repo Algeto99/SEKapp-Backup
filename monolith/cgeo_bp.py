@@ -6,41 +6,24 @@ Blueprint with two sub-modules:
 Each sub-module exposes an Informe Ejecutivo and a Resumen Operativo tab.
 """
 
-import os
 import logging
-from functools import wraps
+import os
 from datetime import date, timedelta
+from functools import wraps
 
 import psycopg2
 from psycopg2 import extras
-import urllib.parse as urlparse
-
 from flask import Blueprint, render_template, jsonify, request, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+
+from db import get_db_connection
 
 cgeo_bp = Blueprint("cgeo_bp", __name__)
 app_logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-# ── DB helper ────────────────────────────────────────────────────────────────
 
 def _get_conn():
-    if not DATABASE_URL:
-        app_logger.error("DATABASE_URL not set")
-        return None
-    urlparse.uses_netloc.append("postgres")
-    p = urlparse.urlparse(DATABASE_URL)
-    q = dict(urlparse.parse_qsl(p.query))
-    try:
-        return psycopg2.connect(
-            dbname=p.path[1:], user=p.username, password=p.password,
-            host=q.get("host", p.hostname), port=q.get("port", p.port or "5432"),
-            cursor_factory=extras.RealDictCursor,
-        )
-    except Exception as e:
-        app_logger.error(f"CGEO DB connect error: {e}", exc_info=True)
-        return None
+    return get_db_connection()
 
 
 def _get_user_info(user_email):
@@ -54,7 +37,7 @@ def _get_user_info(user_email):
     conn = _get_conn()
     if conn:
         try:
-            cur = conn.cursor()
+            cur = conn.cursor(cursor_factory=extras.RealDictCursor)
             cur.execute('SELECT "name" FROM "users" WHERE email = %s', (user_email,))
             row = cur.fetchone()
             if row and row["name"]:
@@ -184,7 +167,7 @@ def cgeo_api_filtros():
             ("planilla_vehicular",    "cliente_instalacion"),
             ("checklist_cumplimiento", "cliente_instalacion"),
             ("reportes_incidentes",   "cliente_instalacion"),
-            ("supervision_puesto",    "cliente"),
+            ("supervision_puesto",    "cliente_instalacion"),
         ]:
             try:
                 cur.execute(f"SELECT DISTINCT TRIM({col}) AS c FROM {tbl} WHERE {col} IS NOT NULL AND TRIM({col}) <> '' ORDER BY c")

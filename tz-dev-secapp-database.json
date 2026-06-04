@@ -35,11 +35,6 @@
     "data_type": "boolean"
   },
   {
-    "table_name": "authorized_emails",
-    "column_name": "company_id",
-    "data_type": "integer"
-  },
-  {
     "table_name": "capacitacion_asistencia",
     "column_name": "id",
     "data_type": "integer"
@@ -240,6 +235,11 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "companies",
     "column_name": "id",
     "data_type": "integer"
@@ -353,6 +353,11 @@
     "table_name": "confiabilidad_equipos",
     "column_name": "location_accuracy",
     "data_type": "numeric"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
   },
   {
     "table_name": "customer_companies",
@@ -487,7 +492,7 @@
   {
     "table_name": "informe_novedades_disciplinario",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "informe_novedades_disciplinario",
@@ -558,6 +563,11 @@
     "table_name": "informe_novedades_disciplinario",
     "column_name": "location_accuracy",
     "data_type": "numeric"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
   },
   {
     "table_name": "log_de_patrullas",
@@ -645,6 +655,21 @@
     "data_type": "integer"
   },
   {
+    "table_name": "log_de_patrullas",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "medicion_experiencia_cliente",
     "column_name": "id_encuesta",
     "data_type": "integer"
@@ -687,7 +712,7 @@
   {
     "table_name": "medicion_experiencia_cliente",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "medicion_experiencia_cliente",
@@ -793,6 +818,11 @@
     "table_name": "medicion_experiencia_cliente",
     "column_name": "location_accuracy",
     "data_type": "numeric"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
   },
   {
     "table_name": "password_reset_tokens",
@@ -1022,7 +1052,7 @@
   {
     "table_name": "planilla_motocicletas",
     "column_name": "creado_en",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "planilla_motocicletas",
@@ -1075,6 +1105,11 @@
     "data_type": "date"
   },
   {
+    "table_name": "planilla_motocicletas",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "planilla_vehicular",
     "column_name": "id_planilla_vehicular",
     "data_type": "integer"
@@ -1092,7 +1127,7 @@
   {
     "table_name": "planilla_vehicular",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "planilla_vehicular",
@@ -1330,6 +1365,11 @@
     "data_type": "date"
   },
   {
+    "table_name": "planilla_vehicular",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "propiedades",
     "column_name": "id_propiedad",
     "data_type": "integer"
@@ -1375,11 +1415,6 @@
     "data_type": "numeric"
   },
   {
-    "table_name": "propiedades",
-    "column_name": "cliente",
-    "data_type": "character varying"
-  },
-  {
     "table_name": "registro_de_capacitaciones",
     "column_name": "id_capacitacion",
     "data_type": "integer"
@@ -1397,7 +1432,7 @@
   {
     "table_name": "registro_de_capacitaciones",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "registro_de_capacitaciones",
@@ -1485,6 +1520,11 @@
     "data_type": "text"
   },
   {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "registro_y_acta_de_visita",
     "column_name": "id_visita",
     "data_type": "integer"
@@ -1502,7 +1542,7 @@
   {
     "table_name": "registro_y_acta_de_visita",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "registro_y_acta_de_visita",
@@ -1658,6 +1698,11 @@
     "table_name": "registro_y_acta_de_visita",
     "column_name": "location_accuracy",
     "data_type": "numeric"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
   },
   {
     "table_name": "reportes_incidentes",
@@ -1855,6 +1900,11 @@
     "data_type": "text"
   },
   {
+    "table_name": "reportes_incidentes",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "reportes_incidentes_personas",
     "column_name": "id",
     "data_type": "integer"
@@ -1917,7 +1967,7 @@
   {
     "table_name": "supervision_puesto",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "supervision_puesto",
@@ -2135,6 +2185,16 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "supervision_puesto",
+    "column_name": "cliente_instalacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "submitter_timezone",
+    "data_type": "text"
+  },
+  {
     "table_name": "users",
     "column_name": "id",
     "data_type": "integer"
@@ -2195,83 +2255,8 @@
     "data_type": "boolean"
   },
   {
-    "table_name": "v_expediente_feed",
-    "column_name": "source_id",
-    "data_type": "text"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "module",
-    "data_type": "text"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "event_ts",
+    "table_name": "users",
+    "column_name": "updated_at",
     "data_type": "timestamp with time zone"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "latitude",
-    "data_type": "double precision"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "longitude",
-    "data_type": "double precision"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "location_accuracy",
-    "data_type": "double precision"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "foto_url",
-    "data_type": "text"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "actor",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "summary",
-    "data_type": "text"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "estado",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "nivel_severidad",
-    "data_type": "text"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "compromisos_fecha_limite",
-    "data_type": "date"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "compromisos_estados",
-    "data_type": "text"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "id_propiedad",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "company_id",
-    "data_type": "integer"
-  },
-  {
-    "table_name": "v_expediente_feed",
-    "column_name": "customer_company_id",
-    "data_type": "integer"
   }
 ]

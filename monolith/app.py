@@ -37,7 +37,12 @@ app = Flask(__name__)
 is_production = os.environ.get('K_SERVICE') is not None
 
 # --- Global Configs ---
-app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'default-flask-secret-key')
+_flask_secret = os.environ.get('FLASK_SECRET_KEY')
+if not _flask_secret:
+    if is_production:
+        raise RuntimeError("FLASK_SECRET_KEY must be set in production")
+    _flask_secret = 'default-flask-secret-key'
+app.config['SECRET_KEY'] = _flask_secret
 app.config['BASE_URL'] = os.environ.get('BASE_URL', '/')
 
 # Since this is a monolith, service URLs generally point back to itself. Keep definitions for backward-compatibility.
@@ -99,6 +104,8 @@ if not jwt_secret and project_id:
     jwt_secret = get_secret(project_id, 'jwt-secret-key')
 
 if not jwt_secret:
+    if is_production:
+        raise RuntimeError("JWT secret could not be loaded from environment or Secret Manager — aborting")
     app_logger.warning("Could not find jwt-secret-key, using development default")
     jwt_secret = "dev-secret-key"
 
@@ -108,14 +115,18 @@ app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
 app.config['JWT_COOKIE_SECURE'] = True if is_production else False
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token_cookie'
-app.config['JWT_COOKIE_CSRF_PROTECT'] = False
+app.config['JWT_COOKIE_CSRF_PROTECT'] = True
 app.config['JWT_COOKIE_DOMAIN'] = os.environ.get('JWT_COOKIE_DOMAIN', None)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 app.config['PASSWORD_RESET_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 jwt = JWTManager(app)
-CORS(app)
+_allowed_origins = [o.strip() for o in os.environ.get(
+    'ALLOWED_ORIGINS',
+    'https://secapp.tzolkintech.com'
+).split(',') if o.strip()]
+CORS(app, origins=_allowed_origins, supports_credentials=True)
 csrf = CSRFProtect(app)
 bcrypt = Bcrypt(app)
 

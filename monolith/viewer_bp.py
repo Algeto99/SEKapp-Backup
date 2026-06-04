@@ -1,39 +1,28 @@
-import os
-import sys
-import logging
-import re
-import base64
-import math
-import hmac
-import hashlib
-import json
 import ast
+import base64
+import hashlib
+import hmac
+import json
+import logging
+import math
+import os
+import re
+import smtplib
+import ssl
 from datetime import timedelta, datetime, timezone, date, time
 from decimal import Decimal
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from functools import wraps
 from io import BytesIO
-
-from flask import Blueprint, current_app, Flask, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
-from flask_cors import CORS
-from google.cloud import secretmanager
-from google.api_core.exceptions import NotFound
-
-import google.auth.transport.requests
-import google.oauth2.id_token
-import requests
 
 import psycopg2
 from psycopg2 import extras
-import urllib.parse as urlparse
-
-import smtplib
-import ssl
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-from functools import wraps
-from flask_jwt_extended import get_jwt
+from flask import Blueprint, current_app, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from google.cloud import storage
+
+from db import get_db_connection
 
 # PDF generation imports
 try:
@@ -117,53 +106,7 @@ def serve_media():
         return 'Invalid request', 400
 
 
-# --- Configure Logging ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
 app_logger = logging.getLogger(__name__)
-
-# App config and JWT handlers are managed centrally in the monolith's main app_bp
-
-# DB Config
-DATABASE_URL = os.environ.get('DATABASE_URL')
-if not DATABASE_URL:
-    app_logger.warning("DATABASE_URL environment variable is not set. Database connection will fail.")
-
-# --- Database Helper Functions ---
-def get_db_connection():
-    """Establishes and returns a database connection."""
-    if not DATABASE_URL:
-        app_logger.error("Attempted to connect to DB, but DATABASE_URL is not set.")
-        return None
-        
-    urlparse.uses_netloc.append('postgres')
-    parsed_url = urlparse.urlparse(DATABASE_URL)
-    query = dict(urlparse.parse_qsl(parsed_url.query))
-    
-    try:
-        app_logger.info(f"Attempting to connect to database using parsed parameters (path: {parsed_url.path})")
-        conn = psycopg2.connect(
-            dbname=parsed_url.path[1:],
-            user=parsed_url.username,
-            password=parsed_url.password,
-            host=query.get('host', parsed_url.hostname),
-            port=query.get('port', parsed_url.port or '5432')
-        )
-        app_logger.info("Successfully connected to the database.")
-        return conn
-    except psycopg2.OperationalError as e:
-        app_logger.error(f"PostgreSQL Operational Error connecting to database: {e}", exc_info=True)
-        if "timeout" in str(e).lower():
-            app_logger.error("Possible timeout. Check firewall, Cloud SQL Auth Proxy, or network configuration.")
-        elif "no such file or directory" in str(e).lower() and "cloudsql" in str(e).lower():
-             app_logger.error("Could not connect to Cloud SQL instance. Ensure 'ADD_CLOUDSQL_INSTANCES' is correctly configured in Cloud Run deployment.")
-        return None
-    except Exception as e:
-        app_logger.error(f"General Error connecting to database: {e}", exc_info=True)
-        return None
 
 
 _SCHEMA_CACHE = {}
@@ -286,7 +229,7 @@ FORM_CONFIGS = {
             "Nombre Guardia": "nombre_guardia",
             "Observaciones": "observaciones_novedades",
             "Ruta": "ruta",
-            "Cliente": "cliente",
+            "Cliente": "cliente_instalacion",
             "Dirección": "direccion",
             "Documento Guardia": "documento_guardia",
             "Serie Arma": "serie_arma",
@@ -806,9 +749,11 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                 # Determine date
                 date_val = row_dict.get(config['date_col'])
                 if isinstance(date_val, datetime):
-                    date_str = date_val.strftime("%Y-%m-%d %H:%M:%S")
+                    date_str = date_val.isoformat()
                 else:
                     date_str = str(date_val) if date_val else "N/A"
+
+                submitter_tz = row_dict.get('submitter_timezone') or 'UTC'
 
                 # Map data
                 mapped_data = {}
@@ -842,16 +787,16 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     mapped_data[label] = val
 
                 # 2. Add unmapped fields, filtering out system columns
-                system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name'}
+                system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone'}
                 for col_name, val in row_dict.items():
                     if col_name not in processed_cols and col_name not in system_cols:
                         # Sign signatures if they are GCS URLs
                         if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
                              val = generate_signed_url(val)
-                             
+
                         # Convert snake_case to Title Case for display
                         display_label = ' '.join(word.capitalize() for word in col_name.split('_'))
-                        
+
                         # Handle Date/Time objects for JSON serialization
                         if isinstance(val, (datetime, date, time)):
                             val = str(val)
@@ -859,12 +804,13 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                             val = _ensure_json_serializable(val)
 
                         mapped_data[display_label] = val
-                
+
                 report = {
                     "id": row_dict.get(config['id_col']),
                     "title": f"{config['title_prefix']} #{row_dict.get(config['id_col'])}",
                     "submittedBy": display_name,
                     "dateSubmitted": date_str,
+                    "submitterTimezone": submitter_tz,
                     "data": mapped_data,
                     "formType": f_type
                 }
@@ -951,9 +897,11 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
             # Determine date
             date_val = row_dict.get(config['date_col'])
             if isinstance(date_val, datetime):
-                date_str = date_val.strftime("%Y-%m-%d %H:%M:%S")
+                date_str = date_val.isoformat()
             else:
                 date_str = str(date_val) if date_val else "N/A"
+
+            submitter_tz = row_dict.get('submitter_timezone') or 'UTC'
 
             # Map data fields
             data_content = {}
@@ -988,17 +936,17 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 data_content[label] = val
 
             # 2. Add unmapped fields, filtering out system columns
-            system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name'}
+            system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone'}
             for col_name, val in row_dict.items():
                 if col_name not in processed_cols and col_name not in system_cols:
                     # Sign signatures if they are GCS URLs
                     if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
                          if not skip_signing:
                             val = generate_signed_url(val)
-                         
+
                     # Convert snake_case to Title Case for display
                     display_label = ' '.join(word.capitalize() for word in col_name.split('_'))
-                    
+
                     # Handle Date/Time objects for JSON serialization
                     if isinstance(val, (datetime, date, time)):
                         val = str(val)
@@ -1016,6 +964,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 "title": f"{config['title_prefix']} #{row_dict[config['id_col']]}",
                 "submittedBy": display_name,
                 "dateSubmitted": date_str,
+                "submitterTimezone": submitter_tz,
                 "data": data_content,
                 "formType": form_type
             }

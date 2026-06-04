@@ -3,11 +3,10 @@ Matrices Hub — Consultar Matrices
 Central hub for operational matrices: incidents, visits, supervision, discipline, etc.
 """
 
-import os
-import logging
-import urllib.parse as urlparse
-from datetime import date, timedelta
 import calendar
+import logging
+import os
+from datetime import date, timedelta
 
 import psycopg2
 from psycopg2 import extras
@@ -15,27 +14,14 @@ from psycopg2 import extras
 from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
+from db import get_db_connection
+
 matrices_bp = Blueprint("matrices_bp", __name__)
 app_logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
 
 def _get_conn():
-    if not DATABASE_URL:
-        return None
-    urlparse.uses_netloc.append("postgres")
-    p = urlparse.urlparse(DATABASE_URL)
-    q = dict(urlparse.parse_qsl(p.query))
-    try:
-        return psycopg2.connect(
-            dbname=p.path[1:], user=p.username, password=p.password,
-            host=q.get("host", p.hostname), port=q.get("port", p.port or "5432"),
-            cursor_factory=extras.RealDictCursor,
-        )
-    except Exception as e:
-        app_logger.error(f"Matrices DB connect error: {e}", exc_info=True)
-        return None
+    return get_db_connection()
 
 
 def _get_user_info(user_email):
@@ -69,7 +55,7 @@ def matrices_api_stats():
     if not conn:
         return jsonify({"error": "DB no disponible"}), 500
     try:
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         
         month_arg = request.args.get("month")
         if month_arg:

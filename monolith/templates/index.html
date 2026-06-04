@@ -702,7 +702,10 @@
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-800">{{ form.title }}</h2>
-                        <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el {{ form.dateSubmitted }}
+                        <p class="text-gray-600 text-sm">Enviado por: {{ form.submittedBy }} el
+                            <span class="local-time"
+                                data-utc="{{ form.dateSubmitted }}"
+                                data-submitter-tz="{{ form.submitterTimezone }}">{{ form.dateSubmitted }}</span>
                         </p>
                     </div>
                     <div class="flex items-start gap-2">
@@ -938,7 +941,7 @@
                 detailsHtml += '<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-600 flex justify-between items-start gap-4">';
                 detailsHtml += '<div>';
                 detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Enviado por:</strong> ${reportDetails.submittedBy}</p>`;
-                detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Fecha:</strong> ${reportDetails.dateSubmitted}</p>`;
+                detailsHtml += `<p class="mb-2 text-gray-800 dark:text-gray-200"><strong>Fecha:</strong> <span class="local-time" data-utc="${reportDetails.dateSubmitted}" data-submitter-tz="${reportDetails.submitterTimezone || 'UTC'}">${reportDetails.dateSubmitted}</span></p>`;
                 detailsHtml += '</div>';
                 if (_hasCoords) {
                     const _mapsUrl = `https://www.google.com/maps?q=${_lat},${_lng}&z=19`;
@@ -1175,7 +1178,7 @@
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
-                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el ${form.dateSubmitted}</p>
+                        <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el <span class="local-time" data-utc="${form.dateSubmitted}" data-submitter-tz="${form.submitterTimezone || 'UTC'}">${form.dateSubmitted}</span></p>
                     </div>
                     <div class="flex items-start gap-2">
                         <div class="report-map-thumb"></div>
@@ -2294,6 +2297,43 @@
                 .catch(err => console.error('SW register failed:', err));
         }
     })();
+    </script>
+
+    <script>
+        // Convert .local-time spans: show viewer's local time, note submitter's tz if different
+        function formatLocalTime(el) {
+            const raw = el.dataset.utc;
+            const submitterTz = el.dataset.submitterTz || 'UTC';
+            if (!raw || raw === 'N/A') return;
+            const utc = new Date(raw);
+            if (isNaN(utc)) return;
+            const opts = { dateStyle: 'medium', timeStyle: 'short', timeZoneName: 'short' };
+            const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const viewerLocal = utc.toLocaleString(undefined, opts);
+            if (submitterTz === viewerTz) {
+                el.textContent = viewerLocal;
+            } else {
+                try {
+                    const submitterLocal = utc.toLocaleString(undefined, { ...opts, timeZone: submitterTz });
+                    el.textContent = `${viewerLocal} (registrado: ${submitterLocal})`;
+                } catch (_) {
+                    el.textContent = viewerLocal;
+                }
+            }
+        }
+
+        // Process spans already in the DOM
+        document.querySelectorAll('.local-time').forEach(formatLocalTime);
+
+        // Process spans injected dynamically (modal details, lazy-loaded cards)
+        const _tzObserver = new MutationObserver(mutations => {
+            mutations.forEach(m => m.addedNodes.forEach(node => {
+                if (node.nodeType !== 1) return;
+                if (node.classList && node.classList.contains('local-time')) formatLocalTime(node);
+                node.querySelectorAll && node.querySelectorAll('.local-time').forEach(formatLocalTime);
+            }));
+        });
+        _tzObserver.observe(document.body, { childList: true, subtree: true });
     </script>
 </body>
 

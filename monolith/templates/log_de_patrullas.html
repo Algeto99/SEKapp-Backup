@@ -96,6 +96,7 @@
 
         <form id="patrullaForm" action="{{ url_for('forms_bp.submit_log_de_patrullas') }}" method="POST"
             class="space-y-6">
+            <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
             <div class="form-section">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -208,6 +209,7 @@
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
             // Signature Pad 1
             const canvas1 = document.getElementById('signaturePad1');
             const signaturePad1 = new SignaturePad(canvas1);
