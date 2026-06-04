@@ -34,6 +34,7 @@
             border-radius: 12px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
         }
 
         .left-section {
@@ -108,30 +109,6 @@
             border-color: #b91c1c;
         }
 
-        .top-bar {
-            position: absolute;
-            top: 0;
-            right: 0;
-            padding: 1.5rem;
-            z-index: 10;
-        }
-
-        .top-bar-link {
-            color: #e2e8f0;
-            font-weight: 500;
-            text-decoration: none;
-            transition: color 0.2s ease-in-out;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            background-color: rgba(220, 38, 38, 0.1);
-            border: 1px solid #dc2626;
-        }
-
-        .top-bar-link:hover {
-            color: #ffffff;
-            background-color: #dc2626;
-        }
-
         .hidden {
             display: none !important;
         }
@@ -155,13 +132,13 @@
 
         .theme-toggle {
             position: absolute;
-            top: 1.5rem;
-            left: 1.5rem;
+            top: 0.75rem;
+            right: 0.75rem;
             z-index: 10;
             background-color: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 0.5rem;
-            padding: 0.5rem;
+            padding: 0.4rem;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             color: #e2e8f0;
@@ -173,8 +150,9 @@
         }
 
         .theme-toggle svg {
-            width: 1.5rem;
-            height: 1.5rem;
+            width: 1.25rem;
+            height: 1.25rem;
+            display: block;
         }
 
         .user-badge {
@@ -325,45 +303,24 @@
             background-color: rgba(0, 0, 0, 0.2);
         }
 
-        body.light-mode .top-bar-link {
-            color: #374151;
-            background-color: rgba(220, 38, 38, 0.1);
-        }
-
-        body.light-mode .top-bar-link:hover {
-            color: #ffffff;
-            background-color: #dc2626;
-        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 
-<body class="min-h-screen flex items-center justify-center p-6 sm:p-8 md:p-12">
-
-    <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
-        <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-        <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            style="display: none;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-    </button>
-
-    <header id="topBar" class="top-bar hidden">
-        <nav>
-            {% if is_super_admin %}
-            <a href="/admin/" class="top-bar-link" title="Panel de Administración" style="display:inline-flex;align-items:center;margin-right:0.5rem;">
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </a>
-            {% endif %}
-            <a href="#" id="topBarLogoutLink" class="top-bar-link">Cerrar Sesión</a>
-        </nav>
-    </header>
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8">
 
     <div class="container-wrapper max-w-4xl w-full flex flex-col md:flex-row overflow-hidden">
+        <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+            <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+            <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                style="display: none;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+        </button>
         <div class="left-section md:w-1/2 p-8 md:p-12 flex flex-col justify-center items-center text-center">
             <img src="/static/logo_full.png" alt="Kanan Logo" class="mb-6 logo-img">
             <h1 class="text-4xl sm:text-5xl font-bold mb-6 leading-tight">
@@ -460,7 +417,7 @@
                 Su privacidad y seguridad de datos son nuestras principales prioridades.
             </p>
             <p class="mt-2 text-xs text-muted">
-                &copy; 2025 Kanan Sentinel, Inc. Derechos Reservados.
+                &copy; 2026 Kanan Sentinel, Inc. Derechos Reservados.
             </p>
         </div>
     </div>
@@ -486,8 +443,6 @@
         const reportsButton = document.getElementById('reports-button');
         const cgeoButton = document.getElementById('cgeo-button');
         const logoutButton = document.getElementById('logout-button');
-        const topBar = document.getElementById('topBar');
-        const topBarLogoutLink = document.getElementById('topBarLogoutLink');
         const userBadge = document.getElementById('user-badge');
         const userTypeText = document.getElementById('user-type-text');
         const themeToggle = document.getElementById('themeToggle');
@@ -526,12 +481,10 @@
                 }
 
                 logoutButton.closest('.btn-wrapper').classList.remove('hidden');
-                topBar.classList.remove('hidden');
             } else {
                 welcomeMessageElement.textContent = "Por favor, inicie sesión para acceder a las funcionalidades.";
                 userBadge.classList.add('hidden');
                 logoutButton.closest('.btn-wrapper').classList.add('hidden');
-                topBar.classList.add('hidden');
                 matricesButton.closest('.btn-wrapper').classList.add('hidden');
                 reportsButton.closest('.btn-wrapper').classList.add('hidden');
                 dashboardButton.closest('.btn-wrapper').classList.add('hidden');
@@ -610,7 +563,6 @@
             }
 
             if (logoutButton) logoutButton.addEventListener('click', handleLogout);
-            if (topBarLogoutLink) topBarLogoutLink.addEventListener('click', handleLogout);
         });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
