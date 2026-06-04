@@ -477,6 +477,298 @@ def cgeo_api_recursos_data():
         conn.close()
 
 
+# ── API: Motor de Alertas Accionables ────────────────────────────────────────
+
+@cgeo_bp.route("/api/alertas")
+@jwt_required()
+@_admin_required
+def cgeo_api_alertas():
+    """
+    Evalúa 8 reglas de negocio y devuelve alertas priorizadas.
+    Orden: ROJO primero (reglas 1-3), luego AMARILLO (4-8); dentro de cada
+    color, las más antiguas primero (mayor urgencia).
+    """
+    cliente = request.args.get("cliente") or None
+
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+
+    try:
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        alertas = []
+
+        def _cp(col="cliente_instalacion"):
+            """Condición de filtro por cliente y sus parámetros."""
+            return ([f"{col} = %s"], [cliente]) if cliente else ([], [])
+
+        # ── REGLA 1: Puesto sin supervisión > 48 h ────────────────────────────
+        r1_conds, r1_params = _cp("cliente")
+        cur.execute(f"""
+            SELECT
+                TRIM(cliente) AS puesto,
+                MAX(fecha_hora) AS ultima_sup,
+                EXTRACT(EPOCH FROM (NOW() - MAX(fecha_hora))) / 3600 AS horas
+            FROM supervision_puesto
+            {_where(r1_conds)}
+            GROUP BY TRIM(cliente)
+            HAVING MAX(fecha_hora) < NOW() - INTERVAL '48 hours'
+            ORDER BY MAX(fecha_hora) ASC
+            LIMIT 5
+        """, r1_params)
+        for r in cur.fetchall():
+            h = float(r["horas"] or 0)
+            dias = round(h / 24, 1)
+            texto = (f'"{r["puesto"]}" sin supervisión hace {int(h)}h'
+                     if h < 48 else
+                     f'"{r["puesto"]}" sin supervisión hace {dias} días')
+            alertas.append({
+                "id": f"r1_{r['puesto']}",
+                "regla": 1,
+                "texto": texto,
+                "accion": "Ver puesto",
+                "ruta_navegacion": f"/cgeo/operacion/?cliente={r['puesto']}",
+                "color_semaforo": "rojo",
+                "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
+                "horas": round(h, 1),
+            })
+
+        # ── REGLA 2: Incidente abierto sin gestión > 24 h ────────────────────
+        r2_conds, r2_params = _cp()
+        r2_conds += [
+            "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
+            "COALESCE(fecha_hora, creado_en) < NOW() - INTERVAL '24 hours'",
+        ]
+        cur.execute(f"""
+            SELECT
+                id,
+                COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
+                EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora, creado_en))) / 3600 AS horas,
+                COALESCE(fecha_hora, creado_en) AS ts
+            FROM reportes_incidentes
+            {_where(r2_conds)}
+            ORDER BY COALESCE(fecha_hora, creado_en) ASC
+            LIMIT 5
+        """, r2_params)
+        for r in cur.fetchall():
+            h = float(r["horas"] or 0)
+            alertas.append({
+                "id": f"r2_{r['id']}",
+                "regla": 2,
+                "texto": f"Incidente #{r['id']} abierto hace {int(h)}h — {r['tipo']}",
+                "accion": "Ver incidente",
+                "ruta_navegacion": f"/dashboard/incidentes/?id={r['id']}",
+                "color_semaforo": "rojo",
+                "timestamp": r["ts"].isoformat() if r["ts"] else None,
+                "horas": round(h, 1),
+            })
+
+        # ── REGLA 3: Cliente con historial reciente pero sin supervisión hoy ──
+        # Proxy: clientes supervisados en los últimos 7 días pero NO hoy.
+        r3_conds, r3_params = _cp("cliente")
+        r3_conds_hist = r3_conds + ["fecha_hora >= NOW() - INTERVAL '7 days'"]
+        r3_conds_hoy  = r3_conds + ["fecha_hora::date = CURRENT_DATE"]
+        cur.execute(f"""
+            SELECT
+                TRIM(cliente) AS puesto,
+                MAX(fecha_hora) AS ultima_sup
+            FROM supervision_puesto
+            {_where(r3_conds_hist)}
+            GROUP BY TRIM(cliente)
+            HAVING TRIM(cliente) NOT IN (
+                SELECT TRIM(cliente)
+                FROM supervision_puesto
+                {_where(r3_conds_hoy)}
+            )
+            ORDER BY MAX(fecha_hora) ASC
+            LIMIT 5
+        """, r3_params + r3_params)
+        for r in cur.fetchall():
+            alertas.append({
+                "id": f"r3_{r['puesto']}",
+                "regla": 3,
+                "texto": f"Puesto \"{r['puesto']}\" sin supervisión registrada hoy",
+                "accion": "Ir a supervisión",
+                "ruta_navegacion": f"/forms/supervision_puesto?cliente={r['puesto']}",
+                "color_semaforo": "rojo",
+                "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
+                "horas": None,
+            })
+
+        # ── REGLA 4: Certificación próxima a vencer (≤ 30 días) ──────────────
+        r4_conds, r4_params = _cp()
+        r4_conds += [
+            "vigencia_hasta IS NOT NULL",
+            "vigencia_hasta >= CURRENT_DATE",
+            "vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'",
+        ]
+        cur.execute(f"""
+            SELECT
+                id,
+                COALESCE(NULLIF(TRIM(curso_certificacion),''), 'Certificación #' || id::text) AS cert,
+                cliente_instalacion AS cliente,
+                vigencia_hasta,
+                (vigencia_hasta - CURRENT_DATE) AS dias_restantes
+            FROM checklist_cumplimiento
+            {_where(r4_conds)}
+            ORDER BY vigencia_hasta ASC
+            LIMIT 5
+        """, r4_params)
+        for r in cur.fetchall():
+            d = int(r["dias_restantes"] or 0)
+            alertas.append({
+                "id": f"r4_{r['id']}",
+                "regla": 4,
+                "texto": f"Certificación \"{r['cert']}\" en {r['cliente']} vence en {d} días",
+                "accion": "Ver certificación",
+                "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
+                "color_semaforo": "amarillo",
+                "timestamp": r["vigencia_hasta"].isoformat() if r["vigencia_hasta"] else None,
+                "horas": d * 24,
+            })
+
+        # ── REGLA 5: Equipo sin registro de confiabilidad > 45 días ──────────
+        r5_conds, r5_params = _cp()
+        cur.execute(f"""
+            SELECT
+                cliente_instalacion AS instalacion,
+                MAX(fecha) AS ultimo_reg,
+                (CURRENT_DATE - MAX(fecha)) AS dias
+            FROM confiabilidad_equipos
+            {_where(r5_conds)}
+            GROUP BY cliente_instalacion
+            HAVING MAX(fecha) < CURRENT_DATE - INTERVAL '45 days'
+            ORDER BY MAX(fecha) ASC
+            LIMIT 5
+        """, r5_params)
+        for r in cur.fetchall():
+            d = int(r["dias"] or 0)
+            alertas.append({
+                "id": f"r5_{r['instalacion']}",
+                "regla": 5,
+                "texto": f"Equipos en \"{r['instalacion']}\" sin reporte de confiabilidad hace {d} días",
+                "accion": "Reportar estado",
+                "ruta_navegacion": f"/dashboard/equipos/?cliente={r['instalacion']}",
+                "color_semaforo": "amarillo",
+                "timestamp": r["ultimo_reg"].isoformat() if r["ultimo_reg"] else None,
+                "horas": d * 24,
+            })
+
+        # ── REGLA 6: Vehículo sin pre-operacional > 24 h ─────────────────────
+        r6_conds, r6_params = _cp()
+        r6_conds += ["placa_vehiculo IS NOT NULL", "TRIM(placa_vehiculo) != ''"]
+        cur.execute(f"""
+            SELECT
+                TRIM(placa_vehiculo) AS placa,
+                cliente_instalacion AS cliente,
+                MAX(COALESCE(fecha_hora, creado_en)) AS ultimo_preop,
+                EXTRACT(EPOCH FROM (NOW() - MAX(COALESCE(fecha_hora, creado_en)))) / 3600 AS horas
+            FROM planilla_vehicular
+            {_where(r6_conds)}
+            GROUP BY TRIM(placa_vehiculo), cliente_instalacion
+            HAVING MAX(COALESCE(fecha_hora, creado_en)) < NOW() - INTERVAL '24 hours'
+            ORDER BY MAX(COALESCE(fecha_hora, creado_en)) ASC
+            LIMIT 5
+        """, r6_params)
+        for r in cur.fetchall():
+            h = float(r["horas"] or 0)
+            alertas.append({
+                "id": f"r6_{r['placa']}",
+                "regla": 6,
+                "texto": f"Vehículo {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
+                "accion": "Registrar pre-op",
+                "ruta_navegacion": f"/forms/planilla_vehicular?cliente={r['cliente']}",
+                "color_semaforo": "amarillo",
+                "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
+                "horas": round(h, 1),
+            })
+
+        # ── REGLA 7: Checklist SST / cumplimiento vencido ─────────────────────
+        r7_conds, r7_params = _cp()
+        r7_conds += [
+            "vigencia_hasta IS NOT NULL",
+            "vigencia_hasta < CURRENT_DATE",
+        ]
+        cur.execute(f"""
+            SELECT
+                id,
+                cliente_instalacion AS instalacion,
+                vigencia_hasta,
+                (CURRENT_DATE - vigencia_hasta) AS dias_vencido,
+                COALESCE(NULLIF(TRIM(curso_certificacion),''), 'Checklist #' || id::text) AS nombre
+            FROM checklist_cumplimiento
+            {_where(r7_conds)}
+            ORDER BY vigencia_hasta ASC
+            LIMIT 5
+        """, r7_params)
+        for r in cur.fetchall():
+            d = int(r["dias_vencido"] or 0)
+            alertas.append({
+                "id": f"r7_{r['id']}",
+                "regla": 7,
+                "texto": f"Checklist \"{r['nombre']}\" en {r['instalacion']} vencido hace {d} días",
+                "accion": "Renovar checklist",
+                "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
+                "color_semaforo": "amarillo",
+                "timestamp": r["vigencia_hasta"].isoformat() if r["vigencia_hasta"] else None,
+                "horas": d * 24,
+            })
+
+        # ── REGLA 8: NPS cliente bajo (< 3.0/5) en últimos 30 días ───────────
+        # La escala almacenada es 0-40; 3.0/5 equivale a 24 en esa escala.
+        r8_conds, r8_params = _cp()
+        r8_conds += ["fecha_hora >= NOW() - INTERVAL '30 days'"]
+        cur.execute(f"""
+            SELECT
+                TRIM(cliente_instalacion) AS cliente,
+                ROUND(AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC), 2) AS avg_raw,
+                ROUND(AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) / 40 * 5, 2) AS avg_5,
+                COUNT(*) AS encuestas,
+                MAX(fecha_hora) AS ultima
+            FROM medicion_experiencia_cliente
+            {_where(r8_conds)}
+            GROUP BY TRIM(cliente_instalacion)
+            HAVING COUNT(*) > 0
+               AND AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) < 24
+            ORDER BY AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) ASC
+            LIMIT 5
+        """, r8_params)
+        for r in cur.fetchall():
+            score = float(r["avg_5"] or 0)
+            alertas.append({
+                "id": f"r8_{r['cliente']}",
+                "regla": 8,
+                "texto": f"Satisfacción baja en \"{r['cliente']}\": {score}/5 promedio ({r['encuestas']} encuestas)",
+                "accion": "Ver encuestas",
+                "ruta_navegacion": f"/dashboard/satisfaccion/?cliente={r['cliente']}",
+                "color_semaforo": "amarillo",
+                "timestamp": r["ultima"].isoformat() if r["ultima"] else None,
+                "horas": None,
+            })
+
+        # ── Ordenar: ROJO primero, luego AMARILLO; dentro de cada color ───────
+        # por timestamp ascendente (más antiguo = más urgente).
+        prioridad = {"rojo": 0, "amarillo": 1}
+        alertas.sort(key=lambda a: (
+            prioridad.get(a["color_semaforo"], 9),
+            a["timestamp"] or "9999",
+        ))
+
+        return jsonify({
+            "alertas": alertas,
+            "total": len(alertas),
+            "rojas": sum(1 for a in alertas if a["color_semaforo"] == "rojo"),
+            "amarillas": sum(1 for a in alertas if a["color_semaforo"] == "amarillo"),
+            "timestamp": date.today().isoformat(),
+        })
+
+    except Exception as e:
+        app_logger.error(f"cgeo_api_alertas error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
 # ── API: Operación y Novedades ────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/operacion-data")

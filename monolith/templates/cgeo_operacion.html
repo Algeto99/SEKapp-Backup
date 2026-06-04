@@ -155,6 +155,38 @@ canvas{outline:none}
 .accion-num{width:26px;height:26px;border-radius:50%;background:#f97316;color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem}
 .accion-text{font-size:.8125rem;color:#334155;font-weight:500}
 
+/* ── Panel de Alertas Accionables ─────────────────────────────────────────── */
+.alertas-panel{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;margin-bottom:1.25rem;overflow:hidden}
+.alertas-header{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1.25rem;border-bottom:1px solid #f1f5f9;cursor:pointer;user-select:none}
+.alertas-header-left{display:flex;align-items:center;gap:.75rem}
+.alertas-title{font-size:.9375rem;font-weight:700;color:#0f172a}
+.alertas-badges{display:flex;gap:.375rem;align-items:center}
+.badge-count-rojo{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
+.badge-count-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
+.badge-count-ok{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
+.alertas-toggle-icon{color:#94a3b8;transition:transform .2s;flex-shrink:0}
+.alertas-toggle-icon.open{transform:rotate(180deg)}
+.alertas-body{padding:0 1.25rem}
+.alerta-item{display:flex;align-items:center;gap:.875rem;padding:.75rem 0;border-bottom:1px solid #f8fafc}
+.alerta-item:last-child{border-bottom:none}
+.alerta-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.alerta-dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
+.alerta-dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+.alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
+.alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap;flex-shrink:0}
+.alerta-btn{flex-shrink:0;padding:.3rem .75rem;font-size:.75rem;font-weight:600;border-radius:.4rem;border:none;cursor:pointer;white-space:nowrap;transition:all .15s;text-decoration:none;display:inline-block}
+.alerta-btn-rojo{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.alerta-btn-rojo:hover{background:#fee2e2}
+.alerta-btn-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.alerta-btn-amarillo:hover{background:#fef3c7}
+.alertas-ver-mas{display:flex;justify-content:center;padding:.625rem 0;border-top:1px solid #f1f5f9}
+.btn-ver-mas{background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.8125rem;font-weight:600;padding:.375rem .75rem;border-radius:.4rem;transition:background .15s}
+.btn-ver-mas:hover{background:#eff6ff}
+.alertas-empty{padding:1rem;text-align:center;font-size:.8125rem;color:#22c55e;font-weight:600}
+.alertas-loading{padding:1rem;text-align:center;font-size:.8125rem;color:#94a3b8}
+.alertas-refresh-ts{font-size:.7rem;color:#94a3b8}
+/* ── fin panel alertas ───────────────────────────────────────────────────── */
+
 .content-footer{padding:1rem 1.75rem;border-top:1px solid #e2e8f0;background:#fff;font-size:.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
 .refresh-btn{background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.75rem;display:flex;align-items:center;gap:.35rem;padding:.25rem}
 .refresh-btn:hover{text-decoration:underline}
@@ -401,6 +433,36 @@ body:not(.light-mode) .leg-value{color:#f1f5f9}
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12v.01M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z"/></svg>
                 Generar QR
             </button>
+        </div>
+
+        <!-- ══════════════ PANEL ALERTAS ACCIONABLES ══════════════ -->
+        <div class="alertas-panel" id="alertasPanel">
+            <div class="alertas-header" onclick="toggleAlertasPanel()">
+                <div class="alertas-header-left">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:#f97316;flex-shrink:0">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="alertas-title">Alertas Accionables</span>
+                    <div class="alertas-badges" id="alertasBadges">
+                        <span style="font-size:.75rem;color:#94a3b8">Cargando...</span>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.75rem">
+                    <span class="alertas-refresh-ts" id="alertasTs"></span>
+                    <svg class="alertas-toggle-icon open" id="alertasChevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+            </div>
+            <div id="alertasBody" class="alertas-body">
+                <div class="alertas-loading" id="alertasLoading">Evaluando condiciones...</div>
+                <div id="alertasList"></div>
+                <div class="alertas-ver-mas hidden" id="alertasVerMas">
+                    <button class="btn-ver-mas" onclick="toggleVerTodas()">
+                        <span id="verMasLabel">Ver todas las alertas</span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="tabs-row">
@@ -957,6 +1019,8 @@ async function loadData() {
     } finally {
         document.getElementById('loadingOverlay').classList.add('hidden');
     }
+    // Re-evaluar alertas al cambiar filtros (cliente puede cambiar contexto)
+    evaluateAlerts();
 }
 
 async function loadFiltros() {
@@ -1010,6 +1074,8 @@ function setDefaultDates() {
     }
 
     await loadData();
+    await evaluateAlerts();
+    _startAlertasAutoRefresh();
 })();
 
 
@@ -1052,6 +1118,124 @@ function openQRModal() {
         container.innerHTML = '<p style="color:#ef4444;font-size:.8rem">Librería QR no cargada</p>';
     }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MOTOR DE ALERTAS ACCIONABLES
+// ══════════════════════════════════════════════════════════════════════════════
+
+const ALERTAS_VISIBLES_MAX = 5;
+let _alertasData = [];
+let _alertasPanelOpen = true;
+let _alertasVerTodas = false;
+let _alertasRefreshTimer = null;
+
+function toggleAlertasPanel() {
+    _alertasPanelOpen = !_alertasPanelOpen;
+    const body = document.getElementById('alertasBody');
+    const chevron = document.getElementById('alertasChevron');
+    body.style.display = _alertasPanelOpen ? '' : 'none';
+    chevron.classList.toggle('open', _alertasPanelOpen);
+}
+
+function toggleVerTodas() {
+    _alertasVerTodas = !_alertasVerTodas;
+    document.getElementById('verMasLabel').textContent =
+        _alertasVerTodas ? 'Ver menos' : 'Ver todas las alertas';
+    renderAlertasList(_alertasData);
+}
+
+function _relTime(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const h = Math.floor(diff / 3600000);
+    if (h < 1)  return 'hace minutos';
+    if (h < 24) return `hace ${h}h`;
+    return `hace ${Math.floor(h / 24)}d`;
+}
+
+function renderAlertasList(alertas) {
+    const lista = document.getElementById('alertasList');
+    const verMas = document.getElementById('alertasVerMas');
+    const loading = document.getElementById('alertasLoading');
+
+    loading.style.display = 'none';
+
+    if (!alertas.length) {
+        lista.innerHTML = '<div class="alertas-empty">✓ Sin alertas activas — operación en orden</div>';
+        verMas.classList.add('hidden');
+        return;
+    }
+
+    const visibles = _alertasVerTodas ? alertas : alertas.slice(0, ALERTAS_VISIBLES_MAX);
+    const ocultas  = alertas.length - ALERTAS_VISIBLES_MAX;
+
+    lista.innerHTML = visibles.map(a => {
+        const esRojo = a.color_semaforo === 'rojo';
+        const dotClass   = esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo';
+        const btnClass   = esRojo ? 'alerta-btn-rojo' : 'alerta-btn-amarillo';
+        const icon       = esRojo ? '🔴' : '🟡';
+        return `<div class="alerta-item" data-id="${a.id}">
+            <span class="alerta-dot ${dotClass}" title="${esRojo ? 'Crítico' : 'Atención'}"></span>
+            <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
+            <span class="alerta-texto">${a.texto}</span>
+            <span class="alerta-ts">${_relTime(a.timestamp)}</span>
+            <a href="${a.ruta_navegacion}" class="alerta-btn ${btnClass}">${a.accion} →</a>
+        </div>`;
+    }).join('');
+
+    if (!_alertasVerTodas && ocultas > 0) {
+        document.getElementById('verMasLabel').textContent =
+            `Ver ${ocultas} alerta${ocultas !== 1 ? 's' : ''} más`;
+        verMas.classList.remove('hidden');
+    } else if (_alertasVerTodas) {
+        document.getElementById('verMasLabel').textContent = 'Ver menos';
+        verMas.classList.remove('hidden');
+    } else {
+        verMas.classList.add('hidden');
+    }
+}
+
+function _updateBadges(data) {
+    const badges = document.getElementById('alertasBadges');
+    if (!data || data.total === 0) {
+        badges.innerHTML = '<span class="badge-count-ok">✓ Sin alertas</span>';
+        return;
+    }
+    let html = '';
+    if (data.rojas)    html += `<span class="badge-count-rojo">🔴 ${data.rojas} crítica${data.rojas !== 1 ? 's' : ''}</span>`;
+    if (data.amarillas) html += `<span class="badge-count-amarillo">🟡 ${data.amarillas} en seguimiento</span>`;
+    badges.innerHTML = html;
+}
+
+async function evaluateAlerts() {
+    const cliente = document.getElementById('filtCliente')?.value || '';
+    const params = new URLSearchParams();
+    if (cliente) params.set('cliente', cliente);
+
+    try {
+        const resp = await fetch(`/cgeo/api/alertas${params.toString() ? '?' + params.toString() : ''}`,
+            { headers: { Accept: 'application/json' } });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+
+        _alertasData = data.alertas || [];
+        _updateBadges(data);
+        renderAlertasList(_alertasData);
+
+        const ts = document.getElementById('alertasTs');
+        ts.textContent = `Actualizado ${new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`;
+    } catch (e) {
+        console.warn('evaluateAlerts error:', e);
+        document.getElementById('alertasLoading').textContent = 'Error al cargar alertas';
+    }
+}
+
+function _startAlertasAutoRefresh() {
+    if (_alertasRefreshTimer) clearInterval(_alertasRefreshTimer);
+    _alertasRefreshTimer = setInterval(evaluateAlerts, 5 * 60 * 1000);
+}
+
+// ── fin motor de alertas ──────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar      = document.querySelector('.sidebar');
