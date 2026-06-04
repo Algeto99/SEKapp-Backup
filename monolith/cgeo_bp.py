@@ -160,7 +160,7 @@ def cgeo_api_filtros():
     if not conn:
         return jsonify({"error": "DB no disponible"}), 500
     try:
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         clientes = set()
         for tbl, col in [
             ("confiabilidad_equipos", "cliente_instalacion"),
@@ -196,7 +196,7 @@ def cgeo_api_recursos_data():
     if not conn:
         return jsonify({"error": "DB no disponible"}), 500
     try:
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         today = date.today()
 
         # ── Equipos ──────────────────────────────────────────────────────────
@@ -491,7 +491,7 @@ def cgeo_api_operacion_data():
     if not conn:
         return jsonify({"error": "DB no disponible"}), 500
     try:
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         def _date_conds(date_col, conds, params):
             if start_date:
