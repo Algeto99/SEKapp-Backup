@@ -308,7 +308,7 @@ def cgeo_api_recursos_data():
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < CURRENT_DATE THEN 1 ELSE 0 END) AS vencidas,
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
                          AND vigencia_hasta >= CURRENT_DATE
-                         AND vigencia_hasta <= CURRENT_DATE + INTERVAL '15 days' THEN 1 ELSE 0 END) AS proximas
+                         AND vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days' THEN 1 ELSE 0 END) AS proximas
             FROM checklist_cumplimiento
             {cum_where}
         """, cum_params)
@@ -432,7 +432,7 @@ def cgeo_api_recursos_data():
         if eq_no_op:
             acciones.append(f"Gestionar reparación de {eq_no_op} equipos fuera de servicio.")
         if cum_proximas:
-            acciones.append(f"Revisar {cum_proximas} certificaciones próximas a vencer.")
+            acciones.append(f"Renovar {cum_proximas} certificaciones que vencen en los próximos 30 días.")
 
         return jsonify({
             "confiabilidad_general": conf_general,
@@ -555,6 +555,18 @@ def cgeo_api_operacion_data():
         ]
         inc_criticos_abiertos = sum(1 for i in inc_abiertos if i["severidad"] and "crít" in i["severidad"].lower())
 
+        # Total de abiertos sin límite (para KPI contextual)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total_abiertos,
+                SUM(CASE WHEN (CURRENT_DATE - CAST(COALESCE(fecha_hora, creado_en) AS date)) > 0 THEN 1 ELSE 0 END) AS mas_24h
+            FROM reportes_incidentes
+            {_where(inc_ab_conds)}
+        """, inc_params)
+        inc_ab_row = cur.fetchone() or {}
+        inc_abiertos_total = int(inc_ab_row.get("total_abiertos") or 0)
+        inc_mas_24h = int(inc_ab_row.get("mas_24h") or 0)
+
         # Tendencia mensual incidentes
         cur.execute(f"""
             SELECT
@@ -658,6 +670,13 @@ def cgeo_api_operacion_data():
             LIMIT 8
         """, sup_params)
         sup_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
+
+        # Supervisiones completadas hoy
+        sup_hoy_conds = list(sup_conds) + ["fecha_hora::date = CURRENT_DATE"]
+        cur.execute(f"""
+            SELECT COUNT(*) AS hoy FROM supervision_puesto {_where(sup_hoy_conds)}
+        """, sup_params)
+        sup_hoy = int((cur.fetchone() or {}).get("hoy") or 0)
 
         # ── Capacitaciones ────────────────────────────────────────────────────
         cap_date = _capac_date()
@@ -803,6 +822,8 @@ def cgeo_api_operacion_data():
                 "bajos": inc_bajos,
                 "criticos_abiertos": inc_criticos_abiertos,
                 "abiertos": inc_abiertos,
+                "abiertos_total": inc_abiertos_total,
+                "mas_24h": inc_mas_24h,
             },
             "satisfaccion": {
                 "pct": sat_pct,
@@ -813,6 +834,7 @@ def cgeo_api_operacion_data():
             },
             "supervisiones": {
                 "total": sup_total,
+                "hoy": sup_hoy,
                 "excelente": sup_excelente,
                 "seguimiento": sup_seguimiento,
                 "critico": sup_critico,

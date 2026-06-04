@@ -423,16 +423,18 @@ body:not(.light-mode) .leg-value{color:#f1f5f9}
                     <div class="kpi-lbl">Satisfacción del Cliente</div>
                     <div class="kpi-sub" id="kpiSatSub" style="color:#64748b;font-weight:400;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-red">
+                <div class="kpi-card kpi-border-red" id="kpiIncCard">
                     <span class="kpi-icon">⚠️</span>
                     <div class="kpi-val" id="kpiInc">—</div>
-                    <div class="kpi-lbl">Incidentes Reportados</div>
+                    <div class="kpi-lbl">Incidentes Abiertos</div>
+                    <div id="kpiIncMas24h" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiIncSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-blue">
+                <div class="kpi-card kpi-border-blue" id="kpiSupCard">
                     <span class="kpi-icon">👁️</span>
                     <div class="kpi-val" id="kpiSup">—</div>
-                    <div class="kpi-lbl">Supervisiones Realizadas</div>
+                    <div class="kpi-lbl">Supervisiones Completadas Hoy</div>
+                    <div id="kpiSupDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiSupSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-indigo">
@@ -759,17 +761,30 @@ function renderData(d) {
         ? `Encuestas: ${d.satisfaccion.total} | Recomiendan: ${d.satisfaccion.recomienda}`
         : '';
 
-    document.getElementById('kpiInc').textContent = inc ?? '—';
+    // KPI: Incidentes Abiertos con contexto de 24h
+    const abiertosTotal = inc_d.abiertos_total ?? inc_d.abiertos?.length ?? 0;
+    const mas24h = inc_d.mas_24h ?? 0;
+    document.getElementById('kpiInc').textContent = abiertosTotal;
+    const incKpiColor = abiertosTotal === 0 ? '#22c55e' : abiertosTotal <= 2 ? '#d97706' : '#dc2626';
+    document.getElementById('kpiIncCard').style.borderTopColor = incKpiColor;
+    document.getElementById('kpiIncMas24h').innerHTML =
+        `<span style="color:${mas24h > 0 ? '#dc2626' : '#64748b'}">${mas24h} llevan más de 24h sin gestión</span>`;
     const incTotal = inc || 1;
     document.getElementById('kpiIncSub').innerHTML = [
         { label: 'Bajo',    val: inc_d.bajos,    color: '#16a34a' },
         { label: 'Medio',   val: inc_d.medios,   color: '#d97706' },
         { label: 'Alto',    val: inc_d.altos,    color: '#ea580c' },
         { label: 'Crítico', val: inc_d.criticos, color: '#dc2626' },
-    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round(s.val/incTotal*100)}%</span>`).join('');
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round((s.val||0)/incTotal*100)}%</span>`).join('');
 
-    document.getElementById('kpiSup').textContent = d.supervisiones.total ?? '—';
-    const supTotal = d.supervisiones.total || 1;
+    // KPI: Supervisiones Completadas Hoy con contexto del período
+    const supHoy = d.supervisiones.hoy ?? 0;
+    const supPeriodo = d.supervisiones.total ?? 0;
+    document.getElementById('kpiSup').textContent = supHoy;
+    const supKpiColor = supHoy >= 1 ? '#22c55e' : supPeriodo > 0 ? '#d97706' : '#dc2626';
+    document.getElementById('kpiSupCard').style.borderTopColor = supKpiColor;
+    document.getElementById('kpiSupDenom').textContent = `Del período: ${supPeriodo} en total`;
+    const supTotal = supPeriodo || 1;
     document.getElementById('kpiSupSub').innerHTML = [
         { label: 'Excelente',    val: d.supervisiones.excelente,   color: '#16a34a' },
         { label: 'Seguimiento',  val: d.supervisiones.seguimiento,  color: '#d97706' },

@@ -447,15 +447,17 @@ body:not(.light-mode) .sem-label{color:#94a3b8}
                     <div class="kpi-val" id="kpiMotosAptas">—</div>
                     <div class="kpi-lbl">Motocicletas Aptas</div>
                 </div>
-                <div class="kpi-card kpi-border-purple">
+                <div class="kpi-card kpi-border-purple" id="kpiCertCard">
                     <span class="kpi-icon">📋</span>
                     <div class="kpi-val" id="kpiCertVig">—</div>
-                    <div class="kpi-lbl">Certificaciones Vigentes</div>
+                    <div class="kpi-lbl">Certificaciones por Vencer (30d)</div>
+                    <div id="kpiCertDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-red">
+                <div class="kpi-card kpi-border-red" id="kpiEqNoOpCard">
                     <span class="kpi-icon">🔒</span>
                     <div class="kpi-val" id="kpiEqNoOp" style="color:#dc2626">—</div>
                     <div class="kpi-lbl">Equipos No Operativos</div>
+                    <div id="kpiEqNoOpDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div class="kpi-subdetail" id="kpiEqNoOpDetail"></div>
                 </div>
             </div>
@@ -541,7 +543,7 @@ body:not(.light-mode) .sem-label{color:#94a3b8}
                     <span class="alert-kpi-icon">🕐</span>
                     <div class="alert-kpi-val color-yellow" id="opCertProx">—</div>
                     <div class="alert-kpi-lbl">Próximas a Vencer</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">En los próximos 15 días</div>
+                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">En los próximos 30 días</div>
                 </div>
                 <div class="alert-kpi">
                     <span class="alert-kpi-icon">🚫</span>
@@ -770,8 +772,25 @@ function renderData(d) {
     document.getElementById('kpiCarrosAptos').textContent = vehicCarros.pct != null ? vehicCarros.pct + '%' : (d.vehiculos.pct != null ? d.vehiculos.pct + '%' : '—');
     document.getElementById('kpiMotosAptas').textContent  = vehicMotos.pct  != null ? vehicMotos.pct  + '%' : '—';
 
-    document.getElementById('kpiCertVig').textContent = d.certificaciones.pct !== null ? d.certificaciones.pct + '%' : '—';
-    document.getElementById('kpiEqNoOp').textContent = d.equipos.no_operativos ?? '—';
+    // KPI: Certificaciones por Vencer en 30 días
+    const certProx = d.certificaciones.proximas_vencer ?? 0;
+    const certTotal = d.certificaciones.total ?? 0;
+    document.getElementById('kpiCertVig').textContent = certProx;
+    const certKpiColor = certProx === 0 ? '#22c55e' : certProx <= 5 ? '#d97706' : '#dc2626';
+    document.getElementById('kpiCertCard').style.borderTopColor = certKpiColor;
+    document.getElementById('kpiCertVig').style.color = certKpiColor;
+    document.getElementById('kpiCertDenom').innerHTML =
+        `<span style="color:${d.certificaciones.vencidas > 0 ? '#dc2626' : '#64748b'}">${d.certificaciones.vencidas} ya vencidas · ${certTotal} totales</span>`;
+
+    // KPI: Equipos No Operativos de Y total en flota
+    const eqNoOp = d.equipos.no_operativos ?? 0;
+    const eqTotal = d.equipos.total ?? 0;
+    const eqPct = eqTotal > 0 ? eqNoOp / eqTotal * 100 : 0;
+    const eqKpiColor = eqPct === 0 ? '#22c55e' : eqPct <= 15 ? '#d97706' : '#dc2626';
+    document.getElementById('kpiEqNoOp').textContent = eqNoOp;
+    document.getElementById('kpiEqNoOp').style.color = eqKpiColor;
+    document.getElementById('kpiEqNoOpCard').style.borderTopColor = eqKpiColor;
+    document.getElementById('kpiEqNoOpDenom').textContent = `de ${eqTotal} total en flota`;
 
     // Equipos No Operativos detail breakdown
     const noOpDetail = document.getElementById('kpiEqNoOpDetail');
