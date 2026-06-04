@@ -581,6 +581,8 @@ body:not(.light-mode) .leg-value{color:#f1f5f9}
 
 <script>
 let charts = {};
+// Re-render all charts when the user toggles dark/light mode so center text colors update
+window.addEventListener('themechange', () => { Object.values(charts).forEach(c => c && c.update('none')); });
 
 function exportPDF() {
     const tab = document.getElementById('tabBtnEjec')?.classList.contains('active') ? 'ejecutivo' : 'operativo';
@@ -632,7 +634,8 @@ function buildDonutCenter(id, labels, data, colors, centerLabel) {
             id: 'centerText',
             beforeDraw(chart) {
                 const { ctx: c, chartArea: { width, height, left, top } } = chart;
-                const dark = !document.body.classList.contains('light-mode');
+                const t = localStorage.getItem('theme');
+                const dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
                 c.save(); c.textAlign = 'center'; c.textBaseline = 'middle';
                 const cx = left + width / 2, cy = top + height / 2;
                 c.font = 'bold 16px Inter';
