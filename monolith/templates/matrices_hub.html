@@ -89,18 +89,28 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alert-bar-text{font-size:.875rem;font-weight:600;color:#b91c1c}
 .alert-bar.hidden{display:none}
 
-/* Dark mode */
-body.dark-mode { background: #1a202c; color: #e2e8f0; }
-body.dark-mode .topbar { background: #1a202c; border-bottom: 1px solid #2d3748; }
-body.dark-mode .page-title { color: #f8fafc; }
-body.dark-mode .section-title { color: #f8fafc; }
-body.dark-mode .matrix-card { background: #2d3748; border-color: rgba(255,255,255,0.1); }
-body.dark-mode .matrix-card:hover { border-color: #64748b; }
-body.dark-mode .matrix-card-title { color: #f8fafc; }
-body.dark-mode .stat-pill { background: #1a202c; border-color: rgba(255,255,255,0.1); }
-body.dark-mode .stat-num { color: #f8fafc; }
-body.dark-mode .matrix-action { border-top-color: rgba(255,255,255,0.1); }
-body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+/* Dark mode — uses body:not(.light-mode) to match theme-toggle.js */
+body:not(.light-mode){background:#0f172a;color:#e2e8f0}
+body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
+body:not(.light-mode) .page-title{color:#f1f5f9}
+body:not(.light-mode) .page-subtitle{color:#94a3b8}
+body:not(.light-mode) .section-title{color:#f1f5f9}
+body:not(.light-mode) .section-desc{color:#94a3b8}
+body:not(.light-mode) .mes-badge{background:#1e3a5f;color:#93c5fd;border-color:#1d4ed8}
+body:not(.light-mode) .matrix-card{background:#1e293b;border-color:#334155;color:#e2e8f0}
+body:not(.light-mode) .matrix-card:hover{border-color:#475569;box-shadow:0 8px 25px rgba(0,0,0,.3)}
+body:not(.light-mode) .matrix-card-title{color:#f1f5f9}
+body:not(.light-mode) .matrix-card-desc{color:#94a3b8}
+body:not(.light-mode) .icon-blue{background:rgba(59,130,246,.15)}
+body:not(.light-mode) .icon-orange{background:rgba(249,115,22,.15)}
+body:not(.light-mode) .icon-teal{background:rgba(14,165,233,.15)}
+body:not(.light-mode) .icon-purple{background:rgba(139,92,246,.15)}
+body:not(.light-mode) .icon-green{background:rgba(34,197,94,.15)}
+body:not(.light-mode) .icon-amber{background:rgba(245,158,11,.15)}
+body:not(.light-mode) .stat-pill{background:#0f172a;border-color:#334155}
+body:not(.light-mode) .stat-num{color:#e2e8f0}
+body:not(.light-mode) .matrix-action{border-top-color:#334155}
+body:not(.light-mode) .alert-bar{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3)}
 
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -115,15 +125,6 @@ body.dark-mode .theme-toggle { background: rgba(255,255,255,0.1); border-color: 
     </svg>
 </button>
 
-
-<button id="themeToggle" class="theme-toggle" title="Cambiar tema" style="position:fixed;top:1rem;right:1.5rem;z-index:100;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:0.5rem;padding:0.5rem;cursor:pointer;color:#e2e8f0;">
-    <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:1.5rem;height:1.5rem;">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-    </svg>
-    <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;width:1.5rem;height:1.5rem;">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-    </svg>
-</button>
 
 <!-- Sidebar -->
 <aside class="sidebar">
