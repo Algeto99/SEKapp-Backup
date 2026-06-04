@@ -303,20 +303,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            // Theme Toggle Logic
-            const themeToggle = document.getElementById('themeToggle');
-            const darkModeIcon = document.getElementById('darkModeIcon');
-            const lightModeIcon = document.getElementById('lightModeIcon');
-
-             else {
-                    setDarkMode();
-                }
-            }
-            
-            
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => document.body.classList.contains('light-mode') ? setDarkMode() : setLightMode());
-            }
+            // Theme handled by theme-toggle.js
 
             // Set current date and time
             const now = new Date();
