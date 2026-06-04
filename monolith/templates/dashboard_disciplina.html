@@ -16,7 +16,6 @@
             background-color: #1a202c;
             color: #e2e8f0;
             min-height: 100vh;
-            padding-top: 80px;
             padding-bottom: 3rem;
         }
         h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #fff; }
@@ -166,7 +165,7 @@
         @media (max-width:900px)  { .charts-row { grid-template-columns:1fr; } }
         @media (max-width:700px)  {
             .kpi-grid { grid-template-columns:1fr 1fr; }
-            body { padding-top:110px; }
+            body { }
 
         }
         @media (max-width:500px)  {
@@ -226,7 +225,8 @@
     </button>
 
     <!-- Nav -->
-    {% include '_header_nav.html' %}
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
 
         <!-- Module header -->
         <div class="module-header">
@@ -970,5 +970,6 @@ document.addEventListener('themeChanged', function(e) {
     }
 });
 </script>
+    </div><!-- /sidebar-main-content -->
 </body>
 </html>

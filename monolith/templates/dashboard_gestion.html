@@ -16,7 +16,6 @@
             background-color: #1a202c;
             color: #e2e8f0;
             min-height: 100vh;
-            padding-top: 80px;
             padding-bottom: 3rem;
         }
 
@@ -432,7 +431,7 @@
         }
 
         @media (max-width: 700px) {
-            body { padding-top: 110px; }
+            body { }
 
             .kpi-grid, .filters-grid, .modules-grid { grid-template-columns: 1fr; }
         }
@@ -451,7 +450,8 @@
         </svg>
     </button>
 
-    {% include '_header_nav.html' %}
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
         <div class="module-header">
             <div class="module-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1699,5 +1699,6 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    </div><!-- /sidebar-main-content -->
 </body>
 </html>

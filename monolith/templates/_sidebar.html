@@ -1,0 +1,149 @@
+<script>
+/* Runs synchronously before any page content renders — prevents flash of wrong theme. */
+(function(){try{var t=localStorage.getItem('theme');var dark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(!dark)document.body.classList.add('light-mode');}catch(e){}})();
+</script>
+<style>
+/* ── Sidebar layout ── */
+body{display:flex!important;min-height:100vh}
+.sidebar-nav-wrap{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto;transition:transform 0.3s ease}
+.sidebar-nav-wrap.collapsed{transform:translateX(-100%)}
+.snw-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
+.snw-logo img{width:160px;display:block;margin:0 auto}
+.snw-logo-text{color:#94a3b8;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem;text-align:center}
+.snw-nav{padding:1rem 0;flex:1}
+.snw-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
+.snw-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.snw-item:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
+.snw-item.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
+.snw-item svg{width:15px;height:15px;flex-shrink:0}
+.snw-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:.5rem 1.25rem}
+.snw-footer{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,0.07)}
+.snw-user{font-size:.75rem;color:#64748b;word-break:break-all}
+.snw-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
+
+/* ── Main content offset ── */
+.sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto}
+.sidebar-main-content.expanded{margin-left:0}
+
+/* ── Sidebar overlay (mobile) ── */
+.snw-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
+.snw-overlay.active{display:block}
+
+/* ── Responsive ── */
+@media(max-width:900px){.sidebar-nav-wrap{width:200px}.sidebar-main-content{margin-left:200px}}
+@media(max-width:700px){
+  .sidebar-nav-wrap{transform:translateX(-100%);width:240px}
+  .sidebar-nav-wrap.mobile-open{transform:translateX(0)}
+  .sidebar-main-content{margin-left:0!important}
+}
+</style>
+
+<aside class="sidebar-nav-wrap" id="globalSidebar">
+    <div class="snw-logo">
+        <img src="{{ url_for('static', filename='logo_full.png') }}" alt="Kanan Sentinel">
+        <div class="snw-logo-text">SekApp</div>
+    </div>
+    <nav class="snw-nav">
+        <div class="snw-section">Principal</div>
+        <a href="/cgeo/morning-briefing/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/morning-briefing') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Morning Briefing
+        </a>
+        <a href="/landing/" class="snw-item {{ 'active' if request.path in ('/', '/landing/') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Inicio
+        </a>
+        <a href="/forms/select" class="snw-item {{ 'active' if request.path.startswith('/forms') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Formularios
+        </a>
+        <a href="/cgeo/recursos/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/recursos') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Recursos y Confiabilidad
+        </a>
+        <a href="/cgeo/operacion/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/operacion') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Operación e Incidentes
+        </a>
+        <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            Consultar Matrices
+        </a>
+        <hr class="snw-divider">
+        <div class="snw-section">Administración</div>
+        <a href="/viewer/" class="snw-item {{ 'active' if request.path.startswith('/viewer') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Reportes
+        </a>
+        <a href="/dashboard/" class="snw-item {{ 'active' if request.path == '/dashboard/' else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Dashboards
+        </a>
+        <a href="/dashboard/bases_de_datos/" class="snw-item {{ 'active' if request.path.startswith('/dashboard/bases_de_datos') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Bases de Datos
+        </a>
+        {% if is_admin %}
+        <a href="/expediente/" class="snw-item {{ 'active' if request.path.startswith('/expediente') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"/></svg>
+            Expediente
+        </a>
+        {% endif %}
+        {% if is_super_admin %}
+        <a href="/admin/" class="snw-item {{ 'active' if request.path.startswith('/admin') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Admin
+        </a>
+        {% endif %}
+    </nav>
+    <div class="snw-footer">
+        <div class="snw-user">
+            <strong>{{ user_name or name or current_user }}</strong>
+            <a href="/logout" style="display:inline-block;margin-top:.5rem;padding:.375rem .625rem;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25);border-radius:.375rem;font-size:.7rem;text-decoration:none;font-weight:600;transition:background .15s" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'">Cerrar Sesión</a>
+        </div>
+    </div>
+</aside>
+
+<!-- Mobile sidebar overlay -->
+<div class="snw-overlay" id="snwOverlay"></div>
+
+<script>
+(function(){
+    document.addEventListener('DOMContentLoaded', function() {
+        var sidebar = document.getElementById('globalSidebar');
+        var overlay = document.getElementById('snwOverlay');
+        var mainContent = document.querySelector('.sidebar-main-content');
+
+        function isMobile() { return window.innerWidth <= 700; }
+
+        // Handle hamburger/toggle buttons (existing pages may have them)
+        var toggleBtns = document.querySelectorAll('#sidebarToggleBtn, #hamburgerBtn, [data-sidebar-toggle]');
+        toggleBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isMobile()) {
+                    sidebar.classList.toggle('mobile-open');
+                    overlay.classList.toggle('active');
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                    if (mainContent) mainContent.classList.toggle('expanded');
+                }
+            });
+        });
+
+        if (overlay) {
+            overlay.addEventListener('click', function() {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            });
+        }
+
+        window.addEventListener('resize', function() {
+            if (!isMobile()) {
+                sidebar.classList.remove('mobile-open');
+                overlay.classList.remove('active');
+            }
+        });
+    });
+})();
+</script>

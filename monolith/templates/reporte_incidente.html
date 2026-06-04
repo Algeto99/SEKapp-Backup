@@ -14,7 +14,6 @@
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
-            padding-top: 80px;
         }
 
         h1,
@@ -161,7 +160,6 @@
 
 
             body {
-                padding-top: 120px;
             }
         }
     </style>
@@ -182,7 +180,8 @@
         </svg>
     </button>
 
-    {% include '_header_nav.html' %}
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold">Reporte de Incidente</h1>
             <p class="text-gray-400 mt-2">Diligencie todos los campos para registrar un nuevo incidente.</p>
@@ -866,6 +865,7 @@
             container.appendChild(count);
         });
     </script>
+    </div><!-- /sidebar-main-content -->
 </body>
 
 </html>

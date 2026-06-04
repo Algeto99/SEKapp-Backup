@@ -13,7 +13,6 @@
             font-family: 'Roboto', sans-serif;
             background-color: #1a202c;
             color: #e2e8f0;
-            padding-top: 80px;
         }
 
         h1,
@@ -229,7 +228,6 @@
 
 
             body {
-                padding-top: 120px;
             }
         }
     </style>
@@ -249,7 +247,8 @@
         </svg>
     </button>
 
-    {% include '_header_nav.html' %}
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold">Planilla de Chequeo Pre-Operacional Vehicular</h1>
             <p class="text-gray-400 mt-2">Control y inspección de flota vehicular</p>
@@ -878,6 +877,7 @@
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    </div><!-- /sidebar-main-content -->
 </body>
 
 </html>

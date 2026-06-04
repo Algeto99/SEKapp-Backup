@@ -10,7 +10,7 @@
     <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-top:80px; padding-bottom:3rem; }
+        body { font-family:'Roboto',sans-serif; background:#1f2937; color:#e5e7eb; min-height:100vh; padding-bottom:3rem; }
         h1,h2,h3,h4,h5,h6 { font-family:'Merriweather',serif; color:#fff; }
 
         .theme-toggle { position:fixed; top:1.25rem; left:1.25rem; z-index:100; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:.5rem; padding:.5rem; cursor:pointer; color:#e5e7eb; }
@@ -63,7 +63,7 @@
         body.light-mode .alert-banner svg { color:#ef4444; }
         @media (max-width:1100px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
         @media (max-width:900px) { .charts-row { grid-template-columns:1fr; } }
-        @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { padding-top:110px; } .nav-content { flex-direction:column; align-items:flex-start; } }
+        @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { } .nav-content { flex-direction:column; align-items:flex-start; } }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -73,7 +73,8 @@
         <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
     </button>
 
-    {% include '_header_nav.html' %}
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
 
         <!-- Module header -->
         <div class="module-header">
@@ -671,5 +672,6 @@
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    </div><!-- /sidebar-main-content -->
 </body>
 </html>

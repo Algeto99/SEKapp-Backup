@@ -13,7 +13,6 @@
             background-color: #1a202c;
             color: #e2e8f0;
             min-height: 100vh;
-            padding-top: 80px;
             padding-bottom: 3rem;
         }
         h1,h2,h3,h4,h5,h6 { font-family: 'Merriweather', serif; color: #ffffff; }
@@ -99,7 +98,7 @@
         /* ── Responsive ─────────────────────────────────────────────────── */
         @media (max-width:768px) {
 
-            body { padding-top:110px; }
+            body { }
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -117,7 +116,8 @@
         </svg>
     </button>
 
-    {% include '_header_nav.html' %}
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
 
         <!-- Module header -->
         <div class="module-header">
@@ -167,5 +167,6 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    </div><!-- /sidebar-main-content -->
 </body>
 </html>

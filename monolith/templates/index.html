@@ -517,7 +517,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 
-<body class="bg-gray-100 flex flex-col items-center p-6">
+<body class="bg-gray-100 p-6">
 
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -535,9 +535,9 @@
     <!-- Flash message container -->
     <div id="flash-message-container" class="flash-message hidden"></div>
 
+    {% include '_sidebar.html' %}
+    <div class="sidebar-main-content" id="mainContent">
     <div class="container-wrapper">
-        <!-- Unified Navigation Bar -->
-        {% include '_header_nav.html' %}
         <div class="text-center mb-6">
             <img src="/static/logo_full.png" alt="Kanan Logo"
                 class="mx-auto mb-6 w-24 opacity-90" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);" />
@@ -2345,6 +2345,8 @@
         });
         _tzObserver.observe(document.body, { childList: true, subtree: true });
     </script>
+    </div><!-- /container-wrapper -->
+    </div><!-- /sidebar-main-content -->
 </body>
 
 </html>
