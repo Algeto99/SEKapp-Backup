@@ -151,6 +151,20 @@ def cgeo_operacion():
     )
 
 
+@cgeo_bp.route("/morning-briefing/")
+@jwt_required()
+@_admin_required
+def cgeo_morning_briefing():
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    return render_template(
+        "cgeo_morning_briefing.html",
+        current_user=user_email,
+        user_name=user_name,
+        is_admin=is_admin,
+    )
+
+
 # ── API: shared filter options ────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/filtros")
@@ -855,6 +869,123 @@ def cgeo_api_semaforo_global():
 
     except Exception as e:
         app_logger.error(f"cgeo_api_semaforo_global error: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ── API: Morning Briefing ─────────────────────────────────────────────────────
+
+@cgeo_bp.route("/api/morning-briefing-data")
+@jwt_required()
+@_admin_required
+def cgeo_api_morning_briefing_data():
+    """
+    Single endpoint that returns all data needed by the Morning Briefing screen:
+    KPIs (incidentes, supervisiones, equipos, certificaciones), supervision
+    trend for the last 7 days (completadas vs programadas), and greeting data.
+    """
+    from datetime import date as _date, timedelta
+
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+
+        # ── Incidentes abiertos ───────────────────────────────────────────────
+        cur.execute("""
+            SELECT
+                COUNT(*) AS total_abiertos,
+                SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos
+            FROM reportes_incidentes
+            WHERE LOWER(TRIM(COALESCE(estado,'')))
+                  NOT IN ('cerrado','closed','resuelto','resolved')
+        """)
+        inc_row = cur.fetchone() or {}
+        inc_abiertos  = int(inc_row.get("total_abiertos") or 0)
+        inc_criticos  = int(inc_row.get("criticos") or 0)
+
+        # ── Supervisiones hoy vs puestos activos (programadas proxy) ─────────
+        cur.execute("""
+            SELECT COUNT(DISTINCT TRIM(cliente)) AS programadas
+            FROM supervision_puesto
+            WHERE fecha_hora >= NOW() - INTERVAL '30 days'
+        """)
+        sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
+
+        cur.execute("""
+            SELECT COUNT(DISTINCT TRIM(cliente)) AS completadas
+            FROM supervision_puesto
+            WHERE fecha_hora::date = CURRENT_DATE
+        """)
+        sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
+
+        # ── Equipos no operativos ─────────────────────────────────────────────
+        cur.execute(f"""
+            SELECT
+                COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
+                COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(c.inventario) AS elem
+        """)
+        eq_row = cur.fetchone() or {}
+        eq_total = int(eq_row.get("total") or 0)
+        eq_op    = int(eq_row.get("operativos") or 0)
+        eq_no_op = max(0, eq_total - eq_op)
+        eq_pct   = round(eq_op / eq_total * 100, 1) if eq_total else None
+
+        # ── Certificaciones próximas a vencer (≤ 30 días) ────────────────────
+        cur.execute("""
+            SELECT COUNT(*) AS proximas
+            FROM checklist_cumplimiento
+            WHERE vigencia_hasta IS NOT NULL
+              AND vigencia_hasta >= CURRENT_DATE
+              AND vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'
+        """)
+        cert_proximas = int((cur.fetchone() or {}).get("proximas") or 0)
+
+        # ── Tendencia supervisiones — últimos 7 días ──────────────────────────
+        today = _date.today()
+        days7 = [today - timedelta(days=i) for i in range(6, -1, -1)]
+
+        # Completadas por día (últimos 7 días, conteo de puestos únicos supervisados)
+        cur.execute("""
+            SELECT
+                fecha_hora::date AS dia,
+                COUNT(DISTINCT TRIM(cliente)) AS completadas
+            FROM supervision_puesto
+            WHERE fecha_hora::date >= %s
+            GROUP BY fecha_hora::date
+        """, (days7[0],))
+        comp_by_day = {r["dia"]: int(r["completadas"]) for r in cur.fetchall()}
+
+        tendencia = [
+            {
+                "fecha": d.isoformat(),
+                "label": d.strftime("%-d %b"),
+                "completadas": comp_by_day.get(d, 0),
+                "programadas": sup_programadas,
+            }
+            for d in days7
+        ]
+
+        return jsonify({
+            "kpis": {
+                "inc_abiertos":   inc_abiertos,
+                "inc_criticos":   inc_criticos,
+                "sup_completadas": sup_completadas,
+                "sup_programadas": sup_programadas,
+                "eq_total":       eq_total,
+                "eq_no_op":       eq_no_op,
+                "eq_pct":         eq_pct,
+                "cert_proximas":  cert_proximas,
+            },
+            "tendencia_semana": tendencia,
+        })
+
+    except Exception as e:
+        app_logger.error(f"cgeo_api_morning_briefing_data error: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()

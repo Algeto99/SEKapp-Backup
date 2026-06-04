@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morning Briefing — Kanan Sentinel</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;display:flex}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.sidebar{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto;transition:transform 0.3s ease}
+.sidebar.collapsed{transform:translateX(-100%)}
+.sidebar-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
+.sidebar-logo img{width:160px;display:block;margin:0 auto}
+.sidebar-logo-text{color:#94a3b8;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem;text-align:center}
+.sidebar-nav{padding:1rem 0;flex:1}
+.nav-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
+.nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
+.nav-item.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
+.nav-item svg{width:15px;height:15px;flex-shrink:0}
+.nav-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:.5rem 1.25rem}
+.sidebar-footer{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,0.07)}
+.sidebar-user{font-size:.75rem;color:#64748b;word-break:break-all}
+.sidebar-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
+.btn-logout{display:block;margin-top:.75rem;padding:.5rem .75rem;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25);border-radius:.5rem;font-size:.75rem;text-align:center;text-decoration:none;font-weight:600;transition:all .15s}
+.btn-logout:hover{background:rgba(239,68,68,0.2)}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left 0.3s ease}
+.main.expanded{margin-left:0}
+.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:.875rem 1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;position:sticky;top:0;z-index:30}
+.topbar-left{display:flex;align-items:center;gap:.875rem}
+.page-icon{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
+.page-icon svg{width:22px;height:22px;color:#fff}
+.page-title{font-size:1.0625rem;font-weight:700;color:#0f172a;line-height:1.2}
+.page-subtitle{font-size:.78rem;color:#64748b}
+.topbar-right{display:flex;align-items:center;gap:.75rem}
+.auto-refresh-badge{display:flex;align-items:center;gap:.375rem;font-size:.75rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:.25rem .75rem}
+.auto-refresh-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.auto-refresh-dot.updating{background:#f59e0b;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-ver-operacion{height:34px;padding:0 .875rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-size:.78rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.375rem;transition:background .15s}
+.btn-ver-operacion:hover{background:#1e293b}
+.hamburger-btn{background:none;border:none;cursor:pointer;padding:.25rem;color:inherit;display:flex;align-items:center;justify-content:center}
+
+.content{padding:1.5rem 1.75rem;flex:1;max-width:1200px}
+
+/* ── Skeleton loaders ────────────────────────────────────────────────────── */
+.skeleton{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:400px 100%;animation:shimmer 1.2s infinite;border-radius:.375rem}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.sk-line{display:block;height:1rem;margin-bottom:.5rem}
+.sk-val{display:block;height:2.5rem;width:5rem}
+.sk-full{display:block;height:1rem;width:100%}
+
+/* ── Sección 1 — Saludo ──────────────────────────────────────────────────── */
+.greeting-section{margin-bottom:1.5rem}
+.greeting-title{font-size:1.5rem;font-weight:700;color:#0f172a;font-family:'Merriweather',serif;line-height:1.3}
+.greeting-sub{font-size:.875rem;color:#64748b;margin-top:.375rem;display:flex;align-items:center;gap:.5rem}
+.greeting-chip{display:inline-flex;align-items:center;gap:.375rem;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:999px;padding:.2rem .625rem;font-size:.75rem;font-weight:600}
+
+/* ── Sección 2 — Semáforo Global ─────────────────────────────────────────── */
+.semaforo-global{display:flex;align-items:center;gap:1.25rem;border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1.25rem;cursor:pointer;transition:filter .15s;border:1.5px solid transparent;user-select:none}
+.semaforo-global:hover{filter:brightness(.97)}
+.semaforo-global.sg-verde{background:#f0fdf4;border-color:#86efac}
+.semaforo-global.sg-amarillo{background:#fffbeb;border-color:#fde68a}
+.semaforo-global.sg-rojo{background:#fef2f2;border-color:#fecaca}
+.sg-luz-wrap{display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+.sg-luz{width:22px;height:22px;border-radius:50%;opacity:.2;transition:opacity .3s,box-shadow .3s}
+.sg-luz-rojo{background:#ef4444}
+.sg-luz-amarillo{background:#f59e0b}
+.sg-luz-verde{background:#22c55e}
+.sg-luz.activo{opacity:1}
+.sg-luz-rojo.activo{box-shadow:0 0 12px 3px rgba(239,68,68,.5)}
+.sg-luz-amarillo.activo{box-shadow:0 0 12px 3px rgba(245,158,11,.5)}
+.sg-luz-verde.activo{box-shadow:0 0 12px 3px rgba(34,197,94,.5)}
+.sg-body{flex:1;min-width:0}
+.sg-estado{font-size:1.125rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+.semaforo-global.sg-verde  .sg-estado{color:#15803d}
+.semaforo-global.sg-amarillo .sg-estado{color:#92400e}
+.semaforo-global.sg-rojo   .sg-estado{color:#b91c1c}
+.sg-meta{font-size:.8rem;margin-top:.25rem;font-weight:500}
+.semaforo-global.sg-verde  .sg-meta{color:#166534}
+.semaforo-global.sg-amarillo .sg-meta{color:#78350f}
+.semaforo-global.sg-rojo   .sg-meta{color:#7f1d1d}
+.sg-hint{font-size:.72rem;margin-top:.125rem;opacity:.55}
+.sg-arrow{flex-shrink:0;opacity:.4}
+
+/* Semáforo skeleton */
+.semaforo-skeleton{border-radius:1rem;padding:1.25rem 1.5rem;margin-bottom:1.25rem;background:#fff;border:1px solid #e2e8f0;display:flex;align-items:center;gap:1.25rem}
+
+/* ── Sección 3 — KPI Grid 2×2 ───────────────────────────────────────────── */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}
+.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem 1.375rem;border-top:4px solid #e2e8f0;text-decoration:none;color:inherit;display:block;transition:box-shadow .15s,transform .15s;cursor:pointer;position:relative;overflow:hidden}
+.kpi-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.08);transform:translateY(-1px)}
+.kpi-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
+.kpi-icon-wrap{width:40px;height:40px;border-radius:.625rem;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}
+.kpi-status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.kpi-val{font-size:2.5rem;font-weight:700;font-family:'Merriweather',serif;line-height:1;margin-bottom:.375rem}
+.kpi-lbl{font-size:.8125rem;font-weight:600;color:#64748b;margin-bottom:.25rem}
+.kpi-sub{font-size:.75rem;color:#94a3b8}
+.kpi-action{font-size:.75rem;font-weight:600;color:#3b82f6;margin-top:.75rem;display:flex;align-items:center;gap:.25rem}
+
+.kpi-border-red{border-top-color:#ef4444}
+.kpi-border-orange{border-top-color:#f59e0b}
+.kpi-border-green{border-top-color:#22c55e}
+.kpi-border-blue{border-top-color:#3b82f6}
+.kpi-border-gray{border-top-color:#94a3b8}
+
+.dot-red{background:#ef4444}
+.dot-orange{background:#f59e0b}
+.dot-green{background:#22c55e}
+.dot-gray{background:#94a3b8}
+
+/* ── Sección 4 — Alertas ─────────────────────────────────────────────────── */
+.section-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
+.section-title{font-size:.9375rem;font-weight:700;color:#0f172a}
+.section-link{font-size:.8rem;font-weight:600;color:#3b82f6;text-decoration:none}
+.section-link:hover{text-decoration:underline}
+
+.alertas-list{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;overflow:hidden;margin-bottom:1.25rem}
+.alerta-item{display:flex;align-items:center;gap:.875rem;padding:.875rem 1.25rem;border-bottom:1px solid #f8fafc;text-decoration:none;color:inherit;transition:background .1s}
+.alerta-item:last-child{border-bottom:none}
+.alerta-item:hover{background:#fafafa}
+.alerta-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.alerta-dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
+.alerta-dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+.alerta-icon{font-size:.9375rem;flex-shrink:0}
+.alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4;min-width:0}
+.alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap;flex-shrink:0}
+.alerta-btn{flex-shrink:0;padding:.3rem .75rem;font-size:.75rem;font-weight:600;border-radius:.4rem;border:none;cursor:pointer;white-space:nowrap;transition:all .15s;text-decoration:none;display:inline-block}
+.alerta-btn-rojo{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.alerta-btn-rojo:hover{background:#fee2e2}
+.alerta-btn-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+.alerta-btn-amarillo:hover{background:#fef3c7}
+
+.alertas-empty{padding:1.5rem;text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;margin-bottom:1.25rem}
+.alertas-empty-icon{font-size:2rem;margin-bottom:.5rem}
+.alertas-empty-text{font-size:.875rem;font-weight:600;color:#16a34a}
+.alertas-empty-sub{font-size:.78rem;color:#94a3b8;margin-top:.25rem}
+
+.btn-ver-todas{display:flex;justify-content:center;padding:.75rem;background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 .875rem .875rem;margin-top:-1px;margin-bottom:1.25rem}
+.btn-ver-todas a{font-size:.8125rem;font-weight:600;color:#3b82f6;text-decoration:none}
+.btn-ver-todas a:hover{text-decoration:underline}
+
+/* ── Sección 5 — Tendencia ───────────────────────────────────────────────── */
+.chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;margin-bottom:1.5rem}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.chart-title{font-size:.875rem;font-weight:700;color:#0f172a}
+.chart-legend{display:flex;gap:1rem;align-items:center}
+.legend-item{display:flex;align-items:center;gap:.375rem;font-size:.75rem;color:#64748b;font-weight:500}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.chart-box{height:200px;position:relative}
+
+/* ── Modal Semáforo ──────────────────────────────────────────────────────── */
+.sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
+.sg-modal{background:#fff;border-radius:1rem;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.sg-modal-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
+.sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
+.sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
+.sg-cond-item:last-child{border-bottom:none}
+.sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
+.sg-cond-text{font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
+
+/* ── Sidebar overlay / responsive ───────────────────────────────────────── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
+.sidebar-overlay.active{display:block}
+
+/* Dark mode */
+body:not(.light-mode){background:#0f172a;color:#e2e8f0}
+body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
+body:not(.light-mode) .page-title{color:#f1f5f9}
+body:not(.light-mode) .greeting-title{color:#f1f5f9}
+body:not(.light-mode) .greeting-sub{color:#94a3b8}
+body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .alertas-list,body:not(.light-mode) .alertas-empty,body:not(.light-mode) .btn-ver-todas{background:#1e293b;border-color:#334155}
+body:not(.light-mode) .kpi-val,body:not(.light-mode) .section-title{color:#f1f5f9}
+body:not(.light-mode) .kpi-lbl{color:#94a3b8}
+body:not(.light-mode) .kpi-sub{color:#64748b}
+body:not(.light-mode) .alerta-item:hover{background:#334155}
+body:not(.light-mode) .alerta-texto{color:#cbd5e1}
+body:not(.light-mode) .alerta-item{border-bottom-color:#334155}
+body:not(.light-mode) .chart-title{color:#f1f5f9}
+body:not(.light-mode) .chart-legend .legend-item{color:#94a3b8}
+body:not(.light-mode) .auto-refresh-badge{background:#1e293b;border-color:#334155;color:#94a3b8}
+body:not(.light-mode) .semaforo-global.sg-verde{background:#052e16;border-color:#166534}
+body:not(.light-mode) .semaforo-global.sg-amarillo{background:#1c1508;border-color:#78350f}
+body:not(.light-mode) .semaforo-global.sg-rojo{background:#1c0505;border-color:#7f1d1d}
+body:not(.light-mode) .semaforo-global.sg-verde .sg-estado{color:#4ade80}
+body:not(.light-mode) .semaforo-global.sg-amarillo .sg-estado{color:#fbbf24}
+body:not(.light-mode) .semaforo-global.sg-rojo .sg-estado{color:#f87171}
+body:not(.light-mode) .semaforo-global.sg-verde .sg-meta{color:#86efac}
+body:not(.light-mode) .semaforo-global.sg-amarillo .sg-meta{color:#fde68a}
+body:not(.light-mode) .semaforo-global.sg-rojo .sg-meta{color:#fca5a5}
+body:not(.light-mode) .sg-modal{background:#1e293b;color:#e2e8f0}
+body:not(.light-mode) .sg-modal-title{color:#f1f5f9}
+body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
+body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
+body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
+body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155}
+body:not(.light-mode) .skeleton{background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%);background-size:400px 100%}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media(max-width:900px){.main{margin-left:200px}.sidebar{width:200px}}
+@media(max-width:700px){
+  .sidebar{transform:translateX(-100%);width:240px}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .main{margin-left:0}
+  .topbar{padding:.75rem 1rem}
+  .page-title{font-size:.9rem}
+  .page-subtitle{display:none}
+  .content{padding:1rem}
+  .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .greeting-title{font-size:1.25rem}
+  .btn-ver-operacion span{display:none}
+  .hamburger-btn{display:flex}
+}
+@media(max-width:420px){
+  .kpi-val{font-size:2rem}
+  .kpi-grid{gap:.75rem}
+}
+@media(min-width:701px){.hamburger-btn{display:none}}
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+</head>
+<body>
+<button id="themeToggle" class="theme-toggle" title="Cambiar tema">
+    <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;width:22px;height:22px">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+    </svg>
+    <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+    </svg>
+</button>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="mainSidebar">
+    <div class="sidebar-logo">
+        <img src="/static/logo_full.png" alt="Kanan Sentinel">
+        <div class="sidebar-logo-text">SekApp</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Principal</div>
+        <a href="/landing/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            Inicio
+        </a>
+        <a href="/forms/select" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Formularios
+        </a>
+        <hr class="nav-divider">
+        <div class="nav-section">Centro de Gestión</div>
+        <a href="/cgeo/morning-briefing/" class="nav-item active">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Morning Briefing
+        </a>
+        <a href="/cgeo/recursos/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Recursos y Confiabilidad
+        </a>
+        <a href="/cgeo/operacion/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Operación y Novedades
+        </a>
+        <hr class="nav-divider">
+        <div class="nav-section">Administración</div>
+        <a href="/viewer/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Reportes
+        </a>
+        <a href="/dashboard/" class="nav-item">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Dashboards
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <strong>Usuario</strong>
+            <span>{{ user_name or current_user }}</span>
+        </div>
+        <a href="/logout" class="btn-logout">⏻ Cerrar Sesión</a>
+    </div>
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="main" id="mainContent">
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+            <button class="page-icon" id="sidebarToggleBtn">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </button>
+            <div>
+                <div class="page-title">Morning Briefing</div>
+                <div class="page-subtitle">Estado de la operación — <span id="topbarFecha"></span></div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="auto-refresh-badge">
+                <div class="auto-refresh-dot" id="refreshDot"></div>
+                <span id="refreshLabel">En vivo</span>
+            </div>
+            <a href="/cgeo/operacion/" class="btn-ver-operacion">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
+                <span>Informe completo</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- ══ SECCIÓN 1: SALUDO ══ -->
+        <div class="greeting-section">
+            <div class="greeting-title" id="greetingTitle">Buenos días, {{ user_name or 'Gerente' }}.</div>
+            <div class="greeting-sub">
+                <span id="greetingDate"></span>
+                <span class="greeting-chip" id="supChip">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <span id="supChipText">… supervisiones programadas</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- ══ SECCIÓN 2: SEMÁFORO GLOBAL ══ -->
+        <div class="semaforo-skeleton" id="semaforoSkeleton">
+            <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+                <div class="skeleton" style="width:22px;height:22px;border-radius:50%"></div>
+                <div class="skeleton" style="width:22px;height:22px;border-radius:50%"></div>
+                <div class="skeleton" style="width:22px;height:22px;border-radius:50%"></div>
+            </div>
+            <div style="flex:1">
+                <div class="skeleton sk-line" style="width:40%;height:1.25rem;margin-bottom:.5rem"></div>
+                <div class="skeleton sk-line" style="width:60%"></div>
+            </div>
+        </div>
+
+        <div class="semaforo-global sg-verde hidden" id="semaforoGlobal" onclick="abrirDetalleSemaforo()">
+            <div class="sg-luz-wrap">
+                <div class="sg-luz sg-luz-rojo"    id="sgLuzRojo"></div>
+                <div class="sg-luz sg-luz-amarillo" id="sgLuzAmarillo"></div>
+                <div class="sg-luz sg-luz-verde activo" id="sgLuzVerde"></div>
+            </div>
+            <div class="sg-body">
+                <div class="sg-estado" id="sgEstado">CARGANDO…</div>
+                <div class="sg-meta"   id="sgMeta"></div>
+                <div class="sg-hint"   id="sgHint"></div>
+            </div>
+            <svg class="sg-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+
+        <!-- ══ SECCIÓN 3: KPIs 2×2 ══ -->
+        <div class="kpi-grid" id="kpiGrid">
+            <!-- Skeleton cards -->
+            <div class="kpi-card kpi-border-gray" id="skKpi0">
+                <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
+                <div class="skeleton sk-val"></div>
+                <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
+            </div>
+            <div class="kpi-card kpi-border-gray" id="skKpi1">
+                <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
+                <div class="skeleton sk-val"></div>
+                <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
+            </div>
+            <div class="kpi-card kpi-border-gray" id="skKpi2">
+                <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
+                <div class="skeleton sk-val"></div>
+                <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
+            </div>
+            <div class="kpi-card kpi-border-gray" id="skKpi3">
+                <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
+                <div class="skeleton sk-val"></div>
+                <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
+            </div>
+        </div>
+
+        <!-- ══ SECCIÓN 4: ALERTAS ══ -->
+        <div class="section-title-row">
+            <div class="section-title">Requiere atención hoy</div>
+            <a href="/cgeo/operacion/" class="section-link">Ver informe completo →</a>
+        </div>
+        <div id="alertasContainer">
+            <!-- skeleton -->
+            <div class="alertas-list" id="alertasSkeleton">
+                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
+                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
+                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
+            </div>
+        </div>
+
+        <!-- ══ SECCIÓN 5: TENDENCIA ══ -->
+        <div class="chart-card" id="tendenciaCard">
+            <div class="chart-header">
+                <div class="chart-title">Supervisiones — últimos 7 días</div>
+                <div class="chart-legend">
+                    <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Completadas</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#cbd5e1"></div>Programadas</div>
+                </div>
+            </div>
+            <div class="chart-box">
+                <div class="skeleton" id="chartSkeleton" style="width:100%;height:200px;border-radius:.5rem"></div>
+                <canvas id="chartTendencia" style="display:none"></canvas>
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ── Utilidades ────────────────────────────────────────────────────────────────
+
+const DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function _saludo() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Buenos días';
+    if (h < 19) return 'Buenas tardes';
+    return 'Buenas noches';
+}
+
+function _fechaLarga() {
+    const d = new Date();
+    return `${DIAS_ES[d.getDay()]}, ${d.getDate()} de ${MESES_ES[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+function _relTime(isoStr) {
+    if (!isoStr) return '';
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const h = Math.floor(diff / 3600000);
+    if (h < 1)  return 'hace minutos';
+    if (h < 24) return `hace ${h}h`;
+    return `hace ${Math.floor(h / 24)}d`;
+}
+
+function _isDark() { return !document.body.classList.contains('light-mode'); }
+
+// ── Estado global ─────────────────────────────────────────────────────────────
+
+let _kpis        = null;
+let _alertasData = [];
+let _tendencia   = [];
+let _chart       = null;
+let _refreshTimer = null;
+
+// ── Saludo + fecha ────────────────────────────────────────────────────────────
+
+(function initGreeting() {
+    const nombre = {{ (user_name or current_user) | tojson }};
+    document.getElementById('greetingTitle').textContent = `${_saludo()}, ${nombre}.`;
+    const fechaStr = _fechaLarga();
+    document.getElementById('greetingDate').textContent = `Hoy es ${fechaStr}.`;
+
+    // Topbar fecha corta
+    const d = new Date();
+    document.getElementById('topbarFecha').textContent =
+        `${d.getDate()} ${MESES_ES[d.getMonth()].slice(0,3)}`;
+})();
+
+// ── KPI helpers ───────────────────────────────────────────────────────────────
+
+function _kpiIncColor(val) {
+    if (val === 0) return { border: '#22c55e', dot: 'dot-green' };
+    if (val <= 2)  return { border: '#f59e0b', dot: 'dot-orange' };
+    return { border: '#ef4444', dot: 'dot-red' };
+}
+
+function _kpiSupColor(comp, prog) {
+    if (prog === 0) return { border: '#94a3b8', dot: 'dot-gray' };
+    const pct = comp / prog * 100;
+    if (pct >= 90) return { border: '#22c55e', dot: 'dot-green' };
+    if (pct >= 70) return { border: '#f59e0b', dot: 'dot-orange' };
+    return { border: '#ef4444', dot: 'dot-red' };
+}
+
+function _kpiEqColor(noOp, total) {
+    if (total === 0) return { border: '#94a3b8', dot: 'dot-gray' };
+    const pct = noOp / total * 100;
+    if (pct <= 5)  return { border: '#22c55e', dot: 'dot-green' };
+    if (pct <= 15) return { border: '#f59e0b', dot: 'dot-orange' };
+    return { border: '#ef4444', dot: 'dot-red' };
+}
+
+function _kpiCertColor(proximas) {
+    if (proximas === 0) return { border: '#22c55e', dot: 'dot-green' };
+    if (proximas <= 3)  return { border: '#f59e0b', dot: 'dot-orange' };
+    return { border: '#ef4444', dot: 'dot-red' };
+}
+
+// ── Render KPI cards ──────────────────────────────────────────────────────────
+
+function renderKpis(k) {
+    const today = new Date().toISOString().slice(0,10);
+    const kpiDefs = [
+        {
+            id: 'kpiInc',
+            href: '/cgeo/operacion/',
+            icon: '⚠️', iconBg: '#fef2f2',
+            val: k.inc_abiertos,
+            lbl: 'Incidentes Abiertos',
+            sub: k.inc_criticos > 0 ? `${k.inc_criticos} crítico${k.inc_criticos !== 1 ? 's' : ''}` : 'Sin críticos',
+            action: 'Ver incidentes →',
+            color: _kpiIncColor(k.inc_abiertos),
+        },
+        {
+            id: 'kpiSup',
+            href: `/cgeo/operacion/?start_date=${today}&end_date=${today}`,
+            icon: '👁️', iconBg: '#eff6ff',
+            val: k.sup_completadas,
+            lbl: 'Supervisiones Hoy',
+            sub: `de ${k.sup_programadas} programadas${k.sup_programadas > 0 ? ' ('+Math.round(k.sup_completadas/k.sup_programadas*100)+'%)' : ''}`,
+            action: 'Ver supervisiones →',
+            color: _kpiSupColor(k.sup_completadas, k.sup_programadas),
+        },
+        {
+            id: 'kpiEq',
+            href: '/cgeo/recursos/',
+            icon: '🔧', iconBg: '#fff7ed',
+            val: k.eq_no_op,
+            lbl: 'Equipos No Operativos',
+            sub: k.eq_total > 0 ? `de ${k.eq_total} en flota (${Math.round(k.eq_no_op/k.eq_total*100)}%)` : 'Sin datos de flota',
+            action: 'Ver equipos →',
+            color: _kpiEqColor(k.eq_no_op, k.eq_total),
+        },
+        {
+            id: 'kpiCert',
+            href: '/cgeo/recursos/',
+            icon: '📋', iconBg: '#f0fdf4',
+            val: k.cert_proximas,
+            lbl: 'Certificaciones por Vencer',
+            sub: 'en los próximos 30 días',
+            action: 'Ver certificaciones →',
+            color: _kpiCertColor(k.cert_proximas),
+        },
+    ];
+
+    const grid = document.getElementById('kpiGrid');
+    grid.innerHTML = kpiDefs.map(d => `
+        <a href="${d.href}" class="kpi-card" style="border-top-color:${d.color.border}">
+            <div class="kpi-card-header">
+                <div class="kpi-icon-wrap" style="background:${d.iconBg}">${d.icon}</div>
+                <div class="kpi-status-dot ${d.color.dot}"></div>
+            </div>
+            <div class="kpi-val">${d.val}</div>
+            <div class="kpi-lbl">${d.lbl}</div>
+            <div class="kpi-sub">${d.sub}</div>
+            <div class="kpi-action">${d.action}</div>
+        </a>
+    `).join('');
+
+    // Update greeting chip
+    document.getElementById('supChipText').textContent =
+        `${k.sup_programadas} supervisiones programadas hoy`;
+}
+
+// ── Semáforo global ───────────────────────────────────────────────────────────
+
+function computeSemaforo(alertasData, kpis) {
+    const rojas    = alertasData.filter(a => a.color_semaforo === 'rojo').length;
+    const amarillas = alertasData.filter(a => a.color_semaforo === 'amarillo').length;
+
+    const incAb   = kpis.inc_abiertos    ?? 0;
+    const supComp = kpis.sup_completadas ?? 0;
+    const supProg = kpis.sup_programadas ?? 0;
+    const eqNoOp  = kpis.eq_no_op        ?? 0;
+    const eqTotal = kpis.eq_total        ?? 0;
+    const certProx = kpis.cert_proximas  ?? 0;
+
+    const supPct  = supProg > 0 ? (supComp / supProg * 100) : 100;
+    const eqNoPct = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
+
+    const condiciones = [];
+
+    if (rojas >= 1)
+        condiciones.push({ nivel:'rojo', texto:`${rojas} alerta${rojas!==1?'s':''} crítica${rojas!==1?'s':''} activa${rojas!==1?'s':''}` });
+    if (supProg > 0 && supPct < 70)
+        condiciones.push({ nivel:'rojo', texto:`Supervisiones: ${supComp} de ${supProg} completadas (${Math.round(supPct)}% < 70%)` });
+    if (incAb >= 3)
+        condiciones.push({ nivel:'rojo', texto:`${incAb} incidentes abiertos (umbral ≥ 3)` });
+    if (eqTotal > 0 && eqNoPct > 15)
+        condiciones.push({ nivel:'rojo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota > 15%)` });
+
+    const esRojo = condiciones.some(c => c.nivel === 'rojo');
+
+    if (!esRojo) {
+        if (amarillas >= 1)
+            condiciones.push({ nivel:'amarillo', texto:`${amarillas} alerta${amarillas!==1?'s':''} en seguimiento` });
+        if (supProg > 0 && supPct >= 70 && supPct < 90)
+            condiciones.push({ nivel:'amarillo', texto:`Supervisiones: ${Math.round(supPct)}% completadas (entre 70% y 89%)` });
+        if (incAb === 1 || incAb === 2)
+            condiciones.push({ nivel:'amarillo', texto:`${incAb} incidente${incAb!==1?'s':''} abierto${incAb!==1?'s':''}` });
+        if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
+            condiciones.push({ nivel:'amarillo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% entre 5% y 15%)` });
+        if (certProx >= 1)
+            condiciones.push({ nivel:'amarillo', texto:`${certProx} certificación${certProx!==1?'es':''} por vencer en 30 días` });
+    }
+
+    const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');
+    const nivel = esRojo ? 'rojo' : esAmarillo ? 'amarillo' : 'verde';
+    return { nivel, condiciones };
+}
+
+function renderSemaforo(alertasData, kpis) {
+    const { nivel, condiciones } = computeSemaforo(alertasData, kpis);
+
+    document.getElementById('semaforoSkeleton').classList.add('hidden');
+    const el = document.getElementById('semaforoGlobal');
+    el.className = `semaforo-global sg-${nivel}`;
+    el.classList.remove('hidden');
+
+    document.getElementById('sgLuzRojo').className    = `sg-luz sg-luz-rojo${nivel==='rojo'?' activo':''}`;
+    document.getElementById('sgLuzAmarillo').className = `sg-luz sg-luz-amarillo${nivel==='amarillo'?' activo':''}`;
+    document.getElementById('sgLuzVerde').className   = `sg-luz sg-luz-verde${nivel==='verde'?' activo':''}`;
+
+    const textos = { rojo:'ALERTA CRÍTICA', amarillo:'ATENCIÓN REQUERIDA', verde:'BAJO CONTROL' };
+    document.getElementById('sgEstado').textContent = textos[nivel];
+
+    const total = alertasData.length;
+    const ts = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
+    document.getElementById('sgMeta').textContent =
+        `${total} alerta${total!==1?'s':''} activa${total!==1?'s':''} — última actualización ${ts}`;
+
+    const activasCond = condiciones.filter(c => c.nivel === nivel).length;
+    document.getElementById('sgHint').textContent = nivel === 'verde'
+        ? 'Toca para ver el detalle de condiciones evaluadas'
+        : `${activasCond} condición${activasCond!==1?'es':''} activando este estado — toca para ver`;
+}
+
+function abrirDetalleSemaforo() {
+    if (!_kpis) return;
+    const { nivel, condiciones } = computeSemaforo(_alertasData, _kpis);
+    const textos = { rojo:'ALERTA CRÍTICA', amarillo:'ATENCIÓN REQUERIDA', verde:'BAJO CONTROL' };
+    const colores = { rojo:'#ef4444', amarillo:'#f59e0b', verde:'#22c55e' };
+    const ts = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
+
+    const condHtml = condiciones.length
+        ? condiciones.map(c => `
+            <div class="sg-cond-item">
+                <div class="sg-cond-dot" style="background:${colores[c.nivel]}"></div>
+                <span class="sg-cond-text">${c.texto}</span>
+            </div>`).join('')
+        : `<div class="sg-cond-item">
+               <div class="sg-cond-dot" style="background:#22c55e"></div>
+               <span class="sg-cond-text" style="color:#64748b">Ninguna condición de alerta activa — operación en orden</span>
+           </div>`;
+
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal">
+            <div class="sg-modal-title">Estado: ${textos[nivel]}</div>
+            <div class="sg-modal-sub">Condiciones evaluadas al ${ts}</div>
+            ${condHtml}
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+}
+
+// ── Alertas accionables ───────────────────────────────────────────────────────
+
+const MAX_ALERTAS = 5;
+
+function renderAlertas(alertas) {
+    const cont = document.getElementById('alertasContainer');
+
+    if (!alertas.length) {
+        cont.innerHTML = `
+            <div class="alertas-empty">
+                <div class="alertas-empty-icon">✅</div>
+                <div class="alertas-empty-text">Operación sin pendientes críticos</div>
+                <div class="alertas-empty-sub">Ninguna alerta activa en este momento</div>
+            </div>`;
+        return;
+    }
+
+    const visibles = alertas.slice(0, MAX_ALERTAS);
+    const ocultas  = alertas.length - MAX_ALERTAS;
+
+    const itemsHtml = visibles.map(a => {
+        const esRojo = a.color_semaforo === 'rojo';
+        return `<a href="${a.ruta_navegacion}" class="alerta-item">
+            <div class="alerta-dot ${esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo'}"></div>
+            <span style="font-size:.875rem;flex-shrink:0">${esRojo ? '🔴' : '🟡'}</span>
+            <span class="alerta-texto">${a.texto}</span>
+            <span class="alerta-ts">${_relTime(a.timestamp)}</span>
+            <span class="alerta-btn ${esRojo ? 'alerta-btn-rojo' : 'alerta-btn-amarillo'}">${a.accion} →</span>
+        </a>`;
+    }).join('');
+
+    const verMasHtml = ocultas > 0
+        ? `<div class="btn-ver-todas"><a href="/cgeo/operacion/">Ver ${ocultas} alerta${ocultas!==1?'s':''} más →</a></div>`
+        : '';
+
+    cont.innerHTML = `<div class="alertas-list">${itemsHtml}</div>${verMasHtml}`;
+}
+
+// ── Tendencia chart ───────────────────────────────────────────────────────────
+
+function renderTendencia(tendencia) {
+    document.getElementById('chartSkeleton').style.display = 'none';
+    const canvas = document.getElementById('chartTendencia');
+    canvas.style.display = '';
+
+    if (_chart) { _chart.destroy(); _chart = null; }
+
+    const dark = _isDark();
+    const gridColor = dark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
+    const tickColor = dark ? '#64748b' : '#94a3b8';
+
+    _chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: tendencia.map(d => d.label),
+            datasets: [
+                {
+                    label: 'Completadas',
+                    data: tendencia.map(d => d.completadas),
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,.1)',
+                    borderWidth: 2.5,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#3b82f6',
+                    tension: .3,
+                    fill: true,
+                },
+                {
+                    label: 'Programadas',
+                    data: tendencia.map(d => d.programadas),
+                    borderColor: '#cbd5e1',
+                    borderWidth: 2,
+                    borderDash: [5, 4],
+                    pointRadius: 0,
+                    tension: 0,
+                    fill: false,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 } } },
+                y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 11 }, precision: 0 } },
+            },
+        }
+    });
+}
+
+// ── Carga de datos en paralelo ────────────────────────────────────────────────
+
+async function loadAll(silent = false) {
+    if (!silent) {
+        document.getElementById('refreshDot').className = 'auto-refresh-dot updating';
+        document.getElementById('refreshLabel').textContent = 'Actualizando…';
+    }
+
+    try {
+        const [briefingResp, alertasResp] = await Promise.all([
+            fetch('/cgeo/api/morning-briefing-data', { headers: { Accept: 'application/json' } }),
+            fetch('/cgeo/api/alertas',               { headers: { Accept: 'application/json' } }),
+        ]);
+
+        const [briefing, alertasData] = await Promise.all([
+            briefingResp.ok ? briefingResp.json() : Promise.reject(briefingResp.status),
+            alertasResp.ok  ? alertasResp.json()  : Promise.reject(alertasResp.status),
+        ]);
+
+        _kpis        = briefing.kpis;
+        _alertasData = alertasData.alertas || [];
+        _tendencia   = briefing.tendencia_semana || [];
+
+        renderKpis(_kpis);
+        renderSemaforo(_alertasData, _kpis);
+        renderAlertas(_alertasData);
+        renderTendencia(_tendencia);
+
+    } catch (err) {
+        console.error('loadAll error:', err);
+    } finally {
+        document.getElementById('refreshDot').className = 'auto-refresh-dot';
+        document.getElementById('refreshLabel').textContent = `Actualizado ${new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'})}`;
+    }
+}
+
+function _startAutoRefresh() {
+    if (_refreshTimer) clearInterval(_refreshTimer);
+    _refreshTimer = setInterval(() => loadAll(true), 5 * 60 * 1000);
+}
+
+// ── Sidebar toggle ────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAll();
+    _startAutoRefresh();
+
+    const sidebar  = document.getElementById('mainSidebar');
+    const main     = document.getElementById('mainContent');
+    const overlay  = document.getElementById('sidebarOverlay');
+    const deskBtn  = document.getElementById('sidebarToggleBtn');
+    const hambBtn  = document.getElementById('hamburgerBtn');
+
+    function isMobile() { return window.innerWidth <= 700; }
+
+    if (deskBtn) deskBtn.addEventListener('click', () => {
+        if (isMobile()) {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+        } else {
+            sidebar.classList.toggle('collapsed');
+            main.classList.toggle('expanded');
+        }
+    });
+
+    if (hambBtn) hambBtn.addEventListener('click', () => {
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('active');
+    });
+
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+    });
+});
+</script>
+<script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+</body>
+</html>

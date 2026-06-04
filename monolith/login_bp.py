@@ -163,6 +163,8 @@ def login():
                     # Only allow relative paths to prevent open-redirect attacks
                     if next_url and next_url.startswith('/') and not next_url.startswith('//'):
                         redirect_target = next_url
+                    elif is_admin:
+                        redirect_target = '/cgeo/morning-briefing/'
                     else:
                         redirect_target = url_for('landing_bp.landing_page')
                     response = redirect(redirect_target)
