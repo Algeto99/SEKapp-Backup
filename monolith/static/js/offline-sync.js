@@ -125,9 +125,43 @@
             { credentials: 'include' },
             SYNC_REQUEST_TIMEOUT_MS
         );
+        if (res.status === 401 || res.url?.includes('/login')) throw new Error('session_expired');
         if (!res.ok) throw new Error('Could not obtain CSRF token');
         const json = await res.json();
         return json.csrf_token;
+    }
+
+    // ── Session expiry handler ────────────────────────────────────────────────
+    function handleSessionExpired() {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = [
+            'position:fixed', 'inset:0', 'background:rgba(0,0,0,.75)',
+            'z-index:20000', 'display:flex', 'align-items:center', 'justify-content:center',
+            'padding:1rem',
+        ].join(';');
+
+        overlay.innerHTML = `
+            <div style="background:#1f2937;border:1px solid rgba(96,165,250,.3);border-radius:12px;
+                        padding:1.75rem;width:min(380px,92vw);text-align:center;
+                        font-family:Roboto,sans-serif;color:#e2e8f0;">
+                <div style="font-size:2.5rem;margin-bottom:.75rem;">🔒</div>
+                <h3 style="font-size:1.05rem;font-weight:800;color:#fff;margin:0 0 .5rem;">Sesión expirada</h3>
+                <p style="font-size:.85rem;color:#93c5fd;margin:0 0 1.25rem;line-height:1.5;">
+                    Tu sesión ha expirado. Al iniciar sesión nuevamente, tus formularios pendientes
+                    seguirán guardados y podrás enviarlos.
+                </p>
+                <button id="session-expired-login-btn" type="button"
+                    style="background:#2563eb;border:1px solid #60a5fa;color:#fff;border-radius:8px;
+                           padding:.65rem 1.5rem;font-size:.9rem;font-weight:700;cursor:pointer;width:100%;">
+                    Iniciar sesión
+                </button>
+            </div>`;
+
+        document.body.appendChild(overlay);
+
+        document.getElementById('session-expired-login-btn').addEventListener('click', () => {
+            window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        });
     }
 
     // ── Property resolution hook ──────────────────────────────────────────────
@@ -423,8 +457,8 @@
                         success ? ok++ : fail++;
                     } catch (err) {
                         if (err.message === 'session_expired') {
-                            showToast('Sesión expirada. Por favor, inicia sesión nuevamente.', true);
                             updateBanner(await countPending(), false);
+                            handleSessionExpired();
                             return;
                         }
                         if (err.message === 'property_unresolved') {
@@ -434,7 +468,12 @@
                         fail++;
                     }
                 }
-            } catch {
+            } catch (err) {
+                if (err.message === 'session_expired') {
+                    updateBanner(await countPending(), false);
+                    handleSessionExpired();
+                    return;
+                }
                 showToast('Error al obtener token de seguridad. Intenta más tarde.', true);
                 updateBanner(await countPending(), false);
                 return;
@@ -442,6 +481,7 @@
 
             const remaining = await countPending();
             updateBanner(remaining, false);
+            if (remaining === 0) reviewPromptShown = false;
 
             if (unresolved > 0) {
                 showToast(
@@ -489,7 +529,9 @@
             }
         } catch (err) {
             if (err.message === 'session_expired') {
-                showToast('Sesión expirada. Por favor, inicia sesión nuevamente.', true);
+                updateBanner(await countPending().catch(() => 0), false);
+                handleSessionExpired();
+                return;
             } else if (err.message === 'property_unresolved') {
                 showToast('Selecciona la instalación o usa envío forzado.', true);
             } else {
@@ -783,10 +825,82 @@
         if (modal && modal.classList.contains('open')) renderQueueManager();
     }
 
+    // When back online, prompt the user to review pending forms instead of auto-syncing.
+    let reviewPromptShown = false;
+
     async function maybeSyncPending() {
         if (!navigator.onLine || syncInFlight) return;
         const count = await countPending().catch(() => 0);
-        if (count > 0) syncAll();
+        if (count === 0) return;
+
+        updateBanner(count, false);
+
+        // Only show the review prompt once per online session to avoid repeated interruptions.
+        if (reviewPromptShown) return;
+        reviewPromptShown = true;
+
+        showReviewPrompt(count);
+    }
+
+    function showReviewPrompt(count) {
+        const existing = document.getElementById('offline-review-prompt');
+        if (existing) existing.remove();
+
+        const prompt = document.createElement('div');
+        prompt.id = 'offline-review-prompt';
+        prompt.style.cssText = [
+            'position:fixed', 'bottom:1.5rem', 'left:50%', 'transform:translateX(-50%)',
+            'background:#1e3a5f', 'color:#e2e8f0',
+            'border:1px solid rgba(96,165,250,.4)',
+            'border-radius:12px', 'padding:1rem 1.25rem',
+            'box-shadow:0 8px 32px rgba(0,0,0,.5)',
+            'z-index:10100', 'width:min(420px,92vw)',
+            'display:flex', 'flex-direction:column', 'gap:.75rem',
+            'font-family:Roboto,sans-serif',
+        ].join(';');
+
+        const label = count === 1
+            ? '1 formulario pendiente de envío'
+            : `${count} formularios pendientes de envío`;
+
+        prompt.innerHTML = `
+            <div style="display:flex;align-items:flex-start;gap:.75rem;">
+                <span style="font-size:1.5rem;flex-shrink:0;">📋</span>
+                <div>
+                    <p style="font-weight:700;font-size:.95rem;margin:0 0 .25rem;color:#fff;">${label}</p>
+                    <p style="font-size:.82rem;color:#93c5fd;margin:0;">Estás de nuevo en línea. Revisa tus formularios antes de enviarlos — puedes adjuntar imágenes o verificar los detalles.</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+                <button id="offline-review-btn" type="button"
+                    style="flex:1;background:#2563eb;border:1px solid #60a5fa;color:#fff;border-radius:8px;padding:.5rem .8rem;font-size:.82rem;font-weight:700;cursor:pointer;">
+                    Revisar y adjuntar
+                </button>
+                <button id="offline-sync-quick-btn" type="button"
+                    style="flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#e2e8f0;border-radius:8px;padding:.5rem .8rem;font-size:.82rem;font-weight:700;cursor:pointer;">
+                    Enviar ahora
+                </button>
+                <button id="offline-review-dismiss-btn" type="button"
+                    style="background:none;border:none;color:#9ca3af;font-size:.8rem;cursor:pointer;padding:.25rem .5rem;align-self:center;">
+                    Más tarde
+                </button>
+            </div>`;
+
+        document.body.appendChild(prompt);
+
+        document.getElementById('offline-review-btn').addEventListener('click', () => {
+            prompt.remove();
+            openQueueManager();
+        });
+
+        document.getElementById('offline-sync-quick-btn').addEventListener('click', () => {
+            prompt.remove();
+            syncAll();
+        });
+
+        document.getElementById('offline-review-dismiss-btn').addEventListener('click', () => {
+            prompt.remove();
+        });
     }
 
     function scheduleAutoSync() {
@@ -837,8 +951,9 @@
         // Manual sync and queue management buttons
         bindBannerButtons();
 
-        // Offline indicator in banner
+        // Offline indicator in banner — reset review prompt so it re-appears next time online
         window.addEventListener('offline', async () => {
+            reviewPromptShown = false;
             const count = await countPending().catch(() => 0);
             if (count > 0) updateBanner(count, false);
         });

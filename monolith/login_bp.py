@@ -159,7 +159,13 @@ def login():
                         set_refresh_cookies(response, refresh_token)
                         return response
 
-                    response = redirect(url_for('landing_bp.landing_page'))
+                    next_url = request.args.get('next') or request.form.get('next', '')
+                    # Only allow relative paths to prevent open-redirect attacks
+                    if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+                        redirect_target = next_url
+                    else:
+                        redirect_target = url_for('landing_bp.landing_page')
+                    response = redirect(redirect_target)
                     set_access_cookies(response, access_token)
                     set_refresh_cookies(response, refresh_token)
                     return response
