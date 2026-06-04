@@ -347,9 +347,15 @@ def submit_incident_report():
         cur = conn.cursor()
 
         foto_url = None
-        if 'foto_evidencia' in request.files:
-            file = request.files['foto_evidencia']
-            foto_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+        foto_files = request.files.getlist('foto_evidencia')
+        foto_urls = []
+        for file in foto_files:
+            if file and file.filename:
+                url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                if url:
+                    foto_urls.append(url)
+        if foto_urls:
+            foto_url = "\n".join(foto_urls)
 
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),

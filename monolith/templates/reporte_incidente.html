@@ -408,11 +408,11 @@
                     <!-- Removed Fields: Tiempo de resolucion, Responsable asignado, Estado -->
 
                     <div class="md:col-span-2">
-                        <label for="foto_evidencia" class="form-label">Tomar Foto o Cargar Imagen</label>
+                        <label for="foto_evidencia" class="form-label">Tomar Foto o Cargar Imágenes</label>
                         <input type="file" name="foto_evidencia" id="foto_evidencia" class="form-input"
-                            accept="image/*,application/pdf">
-                        <p class="text-sm text-gray-400 mt-2">📸 Toque para tomar una foto con la cámara o seleccionar
-                            una imagen existente</p>
+                            accept="image/*,application/pdf" multiple>
+                        <p class="text-sm text-gray-400 mt-2">📸 Puede seleccionar una o varias imágenes. Toque para tomar una foto con la cámara o seleccionar imágenes existentes.</p>
+                        <div id="foto-preview-container" class="flex flex-wrap gap-3 mt-3 hidden"></div>
                     </div>
                 </div>
             </div>
@@ -830,6 +830,42 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script>
+        document.getElementById('foto_evidencia').addEventListener('change', function () {
+            const container = document.getElementById('foto-preview-container');
+            container.innerHTML = '';
+            if (this.files.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            Array.from(this.files).forEach(file => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'relative';
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.className = 'h-20 w-20 object-cover rounded-lg border border-gray-600 shadow';
+                    img.src = URL.createObjectURL(file);
+                    img.onload = () => URL.revokeObjectURL(img.src);
+                    wrapper.appendChild(img);
+                } else {
+                    const label = document.createElement('div');
+                    label.className = 'h-20 w-20 flex items-center justify-center rounded-lg border border-gray-600 bg-gray-700 text-xs text-gray-300 text-center p-1 shadow';
+                    label.textContent = file.name.length > 16 ? file.name.slice(0, 14) + '…' : file.name;
+                    wrapper.appendChild(label);
+                }
+                const badge = document.createElement('span');
+                badge.className = 'absolute -bottom-1 -right-1 bg-blue-600 text-white text-xs rounded-full px-1';
+                badge.textContent = '📎';
+                wrapper.appendChild(badge);
+                container.appendChild(wrapper);
+            });
+            const count = document.createElement('div');
+            count.className = 'w-full text-xs text-gray-400 mt-1';
+            count.textContent = `${this.files.length} archivo${this.files.length > 1 ? 's' : ''} seleccionado${this.files.length > 1 ? 's' : ''}`;
+            container.appendChild(count);
+        });
+    </script>
 </body>
 
 </html>
