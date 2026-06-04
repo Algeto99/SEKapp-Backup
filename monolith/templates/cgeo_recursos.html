@@ -970,10 +970,11 @@ function openQRModal() {
 // ── Defaults: current month range ─────────────────────────────────────────────
 function setDefaultDates() {
     const now = new Date();
-    const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
-    document.getElementById('filtStart').value = `${y}-${m}-01`;
-    const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
-    document.getElementById('filtEnd').value = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    const start = new Date(now);
+    start.setDate(now.getDate() - 90);
+    const fmt = d => d.toISOString().slice(0, 10);
+    document.getElementById('filtStart').value = fmt(start);
+    document.getElementById('filtEnd').value   = fmt(now);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
