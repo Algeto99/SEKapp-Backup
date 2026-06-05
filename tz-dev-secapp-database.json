@@ -570,6 +570,26 @@
     "data_type": "text"
   },
   {
+    "table_name": "kpi_thresholds",
+    "column_name": "key",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "kpi_thresholds",
+    "column_name": "value",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "kpi_thresholds",
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "kpi_thresholds",
+    "column_name": "updated_by",
+    "data_type": "text"
+  },
+  {
     "table_name": "log_de_patrullas",
     "column_name": "id_patrulla",
     "data_type": "integer"
@@ -1703,6 +1723,11 @@
     "table_name": "registro_y_acta_de_visita",
     "column_name": "submitter_timezone",
     "data_type": "text"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "estado",
+    "data_type": "character varying"
   },
   {
     "table_name": "reportes_incidentes",
