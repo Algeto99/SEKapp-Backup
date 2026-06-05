@@ -140,10 +140,10 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .nv-blue{color:#2563eb}
 
 /* Supervision donut */
-.donut-wrap{display:flex;align-items:center;gap:1rem;height:180px}
-.donut-wrap canvas{flex:0 0 150px;height:150px}
+.donut-wrap{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.donut-wrap canvas{flex:0 0 150px;width:150px!important;height:150px!important}
 canvas{outline:none}
-.donut-legend{font-size:.8rem;display:flex;flex-direction:column;gap:.5rem}
+.donut-legend{font-size:.8rem;display:flex;flex-direction:column;gap:.5rem;min-width:0;flex:1}
 .leg-row{display:flex;align-items:center;gap:.5rem}
 .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .leg-label{font-size:.8rem;color:#475569}
