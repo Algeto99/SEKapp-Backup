@@ -1484,22 +1484,12 @@ async function fetchSemaforoKpis() {
 // ── fin motor de alertas ──────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
-    const sidebar       = document.querySelector('.sidebar');
-    const mainContent   = document.querySelector('.main');
-    const overlay       = document.getElementById('sidebarOverlay');
+    const sidebar      = document.querySelector('.sidebar');
+    const mainContent  = document.querySelector('.main');
+    const overlay      = document.getElementById('sidebarOverlay');
     const desktopToggle = document.getElementById('sidebarToggleBtn');
 
     function isMobile() { return window.innerWidth <= 700; }
-
-    function collapse() {
-        sidebar.classList.add('collapsed');
-        mainContent.classList.add('expanded'); catch(e) {}
-    }
-
-    function expand() {
-        sidebar.classList.remove('collapsed');
-        mainContent.classList.remove('expanded'); catch(e) {}
-    }
 
     function openMobileSidebar() {
         sidebar.classList.add('mobile-open');
@@ -1511,23 +1501,15 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.classList.remove('active');
     }
 
-    // Restore collapsed state on desktop
-    if (!isMobile()) {
-        try {
-            if (localStorage.getItem('sidebarCollapsed') === '1') {
-                sidebar.classList.add('collapsed');
-                mainContent.classList.add('expanded');
-        } catch(e) {}
-    }
-
+    // Desktop toggle (page-icon button): collapse/expand sidebar + content margin
     if (desktopToggle) {
         desktopToggle.addEventListener('click', () => {
-            if (isMobile()) { openMobileSidebar(); }
-            else { sidebar.classList.contains('collapsed') ? expand() : collapse(); }
-        });
-    } else { collapse(); }
-        });
-    } else { expand(); }
+            if (isMobile()) {
+                openMobileSidebar();
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            }
         });
     }
 

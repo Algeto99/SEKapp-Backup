@@ -867,44 +867,27 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAll();
     _startAutoRefresh();
 
-    const sidebar     = document.getElementById('mainSidebar');
-    const main        = document.getElementById('mainContent');
-    const overlay     = document.getElementById('sidebarOverlay');
-    const deskBtn     = document.getElementById('sidebarToggleBtn');
+    const sidebar  = document.getElementById('mainSidebar');
+    const main     = document.getElementById('mainContent');
+    const overlay  = document.getElementById('sidebarOverlay');
+    const deskBtn  = document.getElementById('sidebarToggleBtn');
 
     function isMobile() { return window.innerWidth <= 700; }
 
-    function collapse() {
-        sidebar.classList.add('collapsed');
-        main.classList.add('expanded'); catch(e) {}
-    }
-
-    function expand() {
-        sidebar.classList.remove('collapsed');
-        main.classList.remove('expanded'); catch(e) {}
-    }
-
-    function openMobile() { sidebar.classList.add('mobile-open'); overlay.classList.add('active'); }
-    function closeMobile() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); }
-
-    // Restore collapsed state
-    if (!isMobile()) {
-        try {
-            if (localStorage.getItem('sidebarCollapsed') === '1') {
-                sidebar.classList.add('collapsed');
-                main.classList.add('expanded');
-        } catch(e) {}
-    }
-
     if (deskBtn) deskBtn.addEventListener('click', () => {
-        if (isMobile()) { openMobile(); }
-        else { sidebar.classList.contains('collapsed') ? expand() : collapse(); }
-    }); else { collapse(); }
-    }); else { expand(); }
+        if (isMobile()) {
+            sidebar.classList.add('mobile-open');
+            overlay.classList.add('active');
+        } else {
+            sidebar.classList.toggle('collapsed');
+            main.classList.toggle('expanded');
+        }
     });
 
-    overlay.addEventListener('click', closeMobile);
-    window.addEventListener('resize', () => { if (!isMobile()) closeMobile(); });
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('active');
+    });
 });
 </script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

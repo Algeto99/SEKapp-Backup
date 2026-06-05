@@ -403,18 +403,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function isMobile() { return window.innerWidth <= 700; }
     function openMobileSidebar()  { sidebar.classList.add('mobile-open');    overlay.classList.add('active'); }
     function closeMobileSidebar() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); }
-    function collapse() {
-        sidebar.classList.add('collapsed'); mainContent.classList.add('expanded'); catch(e) {}
-    }
-    function expand() {
-        sidebar.classList.remove('collapsed'); mainContent.classList.remove('expanded'); catch(e) {}
-    }
-
-    if (!isMobile()) { try { if (localStorage.getItem('sidebarCollapsed') === '1') { collapse(); } } catch(e) {} }
 
     if (desktopToggle) desktopToggle.addEventListener('click', () => {
-        isMobile() ? openMobileSidebar() : (sidebar.classList.contains('collapsed') ? expand() : collapse());
-    });););
+        isMobile() ? openMobileSidebar() : (sidebar.classList.toggle('collapsed'), mainContent.classList.toggle('expanded'));
+    });
     if (overlay)   overlay.addEventListener('click', closeMobileSidebar);
     window.addEventListener('resize', () => { if (!isMobile()) closeMobileSidebar(); });
 });
