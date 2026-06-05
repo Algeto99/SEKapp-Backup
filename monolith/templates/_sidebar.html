@@ -16,9 +16,12 @@ body{display:flex!important;min-height:100vh}
 .snw-item.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
 .snw-item svg{width:15px;height:15px;flex-shrink:0}
 .snw-divider{border:none;border-top:1px solid rgba(255,255,255,0.07);margin:.5rem 1.25rem}
+.snw-item-logout{color:#f87171!important;border-left-color:transparent}
+.snw-item-logout:hover{color:#fca5a5!important;background:rgba(239,68,68,0.1)!important}
+.snw-item-logout svg{color:#f87171}
 .snw-footer{padding:1rem 1.25rem;border-top:1px solid rgba(255,255,255,0.07)}
 .snw-user{font-size:.75rem;color:#64748b;word-break:break-all}
-.snw-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
+.snw-user strong{color:#94a3b8;display:block}
 
 /* ── Main content offset ── */
 .sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto;display:flex;flex-direction:column}
@@ -97,11 +100,15 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Operación e Incidentes
         </a>
+        <hr class="snw-divider">
+        <a href="/logout" class="snw-item snw-item-logout">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Cerrar Sesión
+        </a>
     </nav>
     <div class="snw-footer">
         <div class="snw-user">
             <strong>{{ user_name or name or current_user }}</strong>
-            <a href="/logout" style="display:inline-block;margin-top:.5rem;padding:.375rem .625rem;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25);border-radius:.375rem;font-size:.7rem;text-decoration:none;font-weight:600;transition:background .15s" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.12)'">Cerrar Sesión</a>
         </div>
     </div>
 </aside>

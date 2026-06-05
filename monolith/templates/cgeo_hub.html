@@ -142,6 +142,9 @@ body:not(.light-mode) .user-dropdown-item:hover{background:#334155}
 body:not(.light-mode) .user-dropdown-item.danger{color:#f87171}
 body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
 /* ── fin user menu ───────────────────────────────────────────────────────── */
+.nav-item-logout{color:#f87171!important;border-left-color:transparent}
+.nav-item-logout:hover{color:#fca5a5!important;background:rgba(239,68,68,0.1)!important}
+.nav-item-logout svg{color:#f87171}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -203,6 +206,11 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         <a href="/cgeo/operacion/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Operación e Incidentes
+        </a>
+        <hr class="nav-divider">
+        <a href="/logout" class="nav-item nav-item-logout">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Cerrar Sesión
         </a>
     </nav>
     <div class="sidebar-footer">
