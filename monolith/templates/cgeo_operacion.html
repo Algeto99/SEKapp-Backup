@@ -144,10 +144,10 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .donut-wrap canvas{flex:0 0 150px;width:150px!important;height:150px!important}
 canvas{outline:none}
 .donut-legend{font-size:.8rem;display:flex;flex-direction:column;gap:.5rem;min-width:0;flex:1}
-.leg-row{display:flex;align-items:center;gap:.5rem}
+.leg-row{display:flex;align-items:center;gap:.5rem;width:100%}
 .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.leg-label{font-size:.8rem;color:#475569}
-.leg-value{font-size:.8rem;font-weight:700;color:#0f172a;margin-left:auto}
+.leg-label{font-size:.8rem;color:#475569;flex:1}
+.leg-value{font-size:.8rem;font-weight:700;color:#0f172a;white-space:nowrap}
 
 .acciones-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
 .acciones-title{font-size:.9375rem;font-weight:700;color:#f97316;margin-bottom:.875rem}
@@ -660,8 +660,8 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 </div>
             </div>
 
-            <!-- Charts row 2: Ranking + Novedades + Supervisión donut -->
-            <div class="charts-row-3">
+            <!-- Charts row 2: Ranking + Novedades -->
+            <div class="charts-row">
                 <div class="chart-card">
                     <div class="chart-title">Ranking de Clientes — Satisfacción</div>
                     <div id="rankingList" style="margin-top:.5rem"></div>
@@ -672,13 +672,17 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                         <div style="font-size:.8rem;color:#94a3b8">Cargando...</div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Charts row 3: Incidentes por Severidad (full width) -->
+            <div class="charts-row" style="grid-template-columns:minmax(0,400px) 1fr">
                 <div class="chart-card">
                     <div class="chart-title">Incidentes por Severidad</div>
-                    <div style="display:flex;flex-direction:column;align-items:center;gap:1rem">
-                        <div style="position:relative;width:160px;height:160px;flex-shrink:0">
+                    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+                        <div style="position:relative;width:180px;height:180px;flex-shrink:0">
                             <canvas id="chartSupDonut"></canvas>
                         </div>
-                        <div id="supDonutLegend" class="donut-legend" style="width:100%"></div>
+                        <div id="supDonutLegend" class="donut-legend" style="flex:1;min-width:120px"></div>
                     </div>
                 </div>
             </div>
@@ -1018,12 +1022,14 @@ function renderData(d) {
 
     // Donut "Supervisión / Incidentes breakdown"
     buildDonutCenter('chartSupDonut', sevLabels, sevData, sevColors, 'Total');
-    document.getElementById('supDonutLegend').innerHTML = sevLabels.map((l, i) => `
-        <div class="leg-row">
+    document.getElementById('supDonutLegend').innerHTML = sevLabels.map((l, i) => {
+        const pct = sevTotal ? Math.round(sevData[i] / sevTotal * 100) : 0;
+        return `<div class="leg-row">
             <div class="leg-dot" style="background:${sevColors[i]}"></div>
             <span class="leg-label">${l}</span>
-            <span class="leg-value">${sevData[i]}</span>
-        </div>`).join('');
+            <span class="leg-value">${sevData[i]} (${pct}%)</span>
+        </div>`;
+    }).join('');
 
     // Ranking clientes
     const rk = d.ranking_satisfaccion;
