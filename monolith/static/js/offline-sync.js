@@ -119,6 +119,13 @@
     }
 
     // ── CSRF token ────────────────────────────────────────────────────────────
+    function getJwtCsrfCookie() {
+        const match = document.cookie.split(';')
+            .map(c => c.trim())
+            .find(c => c.startsWith('csrf_access_token='));
+        return match ? decodeURIComponent(match.split('=')[1]) : null;
+    }
+
     async function fetchCsrfToken() {
         const res = await fetchWithTimeout(
             '/forms/api/csrf_token',
@@ -292,18 +299,22 @@
             fd.append(fileEntry.key, blob, fileEntry.name);
         }
 
+        const jwtCsrf = getJwtCsrfCookie();
+        const postHeaders = { 'X-SecApp-Replay': '1' };
+        if (jwtCsrf) postHeaders['X-CSRF-TOKEN'] = jwtCsrf;
+
         const res = await fetchWithTimeout(resolved.url, {
             method: 'POST',
             body: fd,
             credentials: 'include',
             redirect: 'follow',
-            headers: { 'X-SecApp-Replay': '1' },
+            headers: postHeaders,
         }, SYNC_REQUEST_TIMEOUT_MS);
 
         // Success: the server redirected us to the /success page, or returned any
         // other non-error 2xx/3xx response after storing the form.
         const landed = res.url || '';
-        if (landed.includes('/login') || landed === location.origin + '/') {
+        if (res.status === 401 || landed.includes('/login') || landed === location.origin + '/') {
             throw new Error('session_expired');
         }
         if (res.ok && res.status !== 202 && !landed.includes('/error')) {
