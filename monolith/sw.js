@@ -131,24 +131,25 @@ async function handleFormPost(request) {
 
         formData.forEach((value, key) => {
             if (key === 'csrf_token') return;
-            if (value instanceof File && value.size > 0) {
-                filePromises.push(
-                    value.arrayBuffer().then(buffer => ({
-                        key, buffer, name: value.name, type: value.type
-                    }))
-                );
-            } else if (!(value instanceof File)) {
+            if (typeof value === 'object' && value !== null && typeof value.size === 'number') {
+                if (value.size > 0) {
+                    filePromises.push(
+                        value.arrayBuffer().then(buffer => ({
+                            key, buffer, name: value.name || 'blob', type: value.type
+                        }))
+                    );
+                }
+            } else {
                 entries.push([key, value]);
             }
         });
 
         const fileEntries = await Promise.all(filePromises);
         const hasFiles = fileEntries.length > 0;
-
         const url = new URL(request.url);
         const formType = url.pathname.replace('/forms/submit_', '');
 
-        await queueSubmission({ url: url.pathname, formType, entries, fileEntries, hasFiles, timestamp: Date.now() });
+        await queueSubmission({ url: url.pathname + url.search, formType, entries, fileEntries, hasFiles, timestamp: Date.now() });
 
         const clients = await self.clients.matchAll({ type: 'window' });
         clients.forEach(c => c.postMessage({ type: 'OFFLINE_QUEUED', formType }));

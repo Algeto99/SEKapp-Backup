@@ -123,7 +123,7 @@
         const match = document.cookie.split(';')
             .map(c => c.trim())
             .find(c => c.startsWith('csrf_access_token='));
-        return match ? decodeURIComponent(match.split('=')[1]) : null;
+        return match ? decodeURIComponent(match.substring('csrf_access_token='.length)) : null;
     }
 
     async function fetchCsrfToken() {
