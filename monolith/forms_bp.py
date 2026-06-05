@@ -64,10 +64,12 @@ def _table_exists(cur, table_name):
 
 def _filter_existing_columns(cur, table_name, data):
     table_columns = _get_table_columns(cur, table_name)
-    return {
+    filtered = {
         key: value for key, value in data.items()
         if key in table_columns and value is not None and value != ''
     }
+    filtered.pop('cliente_instalacion', None)
+    return filtered
 
 
 def _parse_float(val):
@@ -617,6 +619,9 @@ def submit_supervision_puesto():
                 column_cache = _get_table_columns(cur, 'supervision_puesto')
             
             valid_row_data = {k: v for k, v in filtered_data.items() if k in column_cache}
+            
+            # Remove the generated column so Python doesn't try to insert it
+            valid_row_data.pop('cliente_instalacion', None)
             
             if not valid_row_data:
                 continue # Skip empty rows
