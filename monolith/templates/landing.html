@@ -205,6 +205,18 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
+            <!-- Umbrales KPI — admin -->
+            <a id="thresholds-button" class="nav-card hidden" href="/admin/thresholds">
+                <div class="card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                </div>
+                <div class="card-body">
+                    <div class="card-title">Umbrales KPI</div>
+                    <div class="card-desc">Configura indicadores y rangos de semáforo</div>
+                </div>
+                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
             <!-- Divider before logout -->
             <div id="logout-divider" class="cards-divider hidden"></div>
 
@@ -279,6 +291,7 @@ function updateUI() {
             show('reports-button');
             show('dashboard-button');
             show('databases-button');
+            show('thresholds-button');
         }
     } else {
         welcomeEl.textContent = 'Inicia sesión para acceder a la plataforma.';
