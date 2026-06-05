@@ -91,12 +91,12 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
 
 /* ── Responsive ── */
 @media(max-width:700px){
-  body{padding:0;align-items:flex-start}
-  .landing-wrap{flex-direction:column;border-radius:0;max-width:100%;min-height:100vh}
+  body{padding:0;align-items:flex-start;overflow-y:auto}
+  .landing-wrap{flex-direction:column;border-radius:0;max-width:100%;min-height:100vh;height:auto}
   .left-panel{width:100%;padding:2rem 1.5rem;border-right:none;border-bottom:1px solid rgba(255,255,255,.07)}
   .logo-img{max-width:180px;margin-bottom:1rem}
   .tagline{font-size:1.1rem}
-  .right-panel{padding:1.5rem}
+  .right-panel{padding:1.5rem;max-height:none;overflow-y:visible}
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">

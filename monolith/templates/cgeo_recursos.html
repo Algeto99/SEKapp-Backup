@@ -270,6 +270,10 @@ body:not(.light-mode) .tbl td{color:#e2e8f0;border-bottom-color:#1e293b}
 body:not(.light-mode) .tbl tr:hover td{background:#334155}
 body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
 body:not(.light-mode) .sem-label{color:#94a3b8}
+.legend-lbl{color:#475569}
+.legend-val{color:#0f172a}
+body:not(.light-mode) .legend-lbl{color:#94a3b8}
+body:not(.light-mode) .legend-val{color:#e2e8f0}
 
 /* ── User menu ───────────────────────────────────────────────────────────── */
 .user-menu-wrap{position:relative;flex-shrink:0}
@@ -782,8 +786,8 @@ function legendHtml(labels, data, colors, total) {
         const pct = total ? Math.round(data[i] / total * 100) : 0;
         return `<div style="display:flex;align-items:center;gap:.5rem">
             <div style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0"></div>
-            <span style="color:#475569">${lbl}</span>
-            <span style="margin-left:auto;font-weight:700;color:#0f172a">${data[i].toLocaleString()} (${pct}%)</span>
+            <span class="legend-lbl">${lbl}</span>
+            <span style="margin-left:auto;font-weight:700" class="legend-val">${data[i].toLocaleString()} (${pct}%)</span>
         </div>`;
     }).join('');
 }
