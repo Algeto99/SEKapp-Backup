@@ -16,7 +16,6 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .sidebar.collapsed{transform:translateX(-100%)}
 .sidebar-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
 .sidebar-logo img{width:160px;display:block;margin:0 auto}
-.sidebar-logo-text{color:#94a3b8;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:1px;margin-top:.5rem;text-align:center}
 .sidebar-nav{padding:1rem 0;flex:1}
 .nav-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
 .nav-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
@@ -263,16 +262,6 @@ body:not(.light-mode) .user-dropdown-item:hover{background:#334155}
 body:not(.light-mode) .user-dropdown-item.danger{color:#f87171}
 body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
 /* ── fin user menu ───────────────────────────────────────────────────────── */
-
-/* ── Sidebar collapse button ── */
-.sidebar-collapse-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
-.sidebar-collapse-btn:hover{background:rgba(255,255,255,0.12);color:#94a3b8}
-.sidebar-collapse-btn svg{width:14px;height:14px}
-.sidebar-expand-btn{position:fixed;top:1rem;left:0;z-index:41;width:28px;height:44px;background:#0f172a;border:1px solid rgba(255,255,255,0.1);border-left:none;border-radius:0 8px 8px 0;color:#64748b;cursor:pointer;display:none;align-items:center;justify-content:center;transition:all .15s}
-.sidebar-expand-btn:hover{background:#1e293b;color:#94a3b8}
-.sidebar-expand-btn svg{width:14px;height:14px}
-.sidebar-expand-btn.visible{display:flex}
-@media(max-width:700px){.sidebar-expand-btn{display:flex}}
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -288,10 +277,8 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 
 <!-- Sidebar -->
 <aside class="sidebar" id="mainSidebar">
-    <div class="sidebar-logo" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:1.25rem 1.25rem .875rem">
+    <div class="sidebar-logo">
         <img src="/static/logo_full.png" alt="Kanan Sentinel">
-        <div class="sidebar-logo-text">SekApp</div>
-        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Ocultar menú"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
     </div>
     <nav class="sidebar-nav">
         <div class="nav-section">Principal</div>
@@ -341,9 +328,6 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         </div>
     </div>
 </aside>
-
-<!-- Expand button — shown when sidebar is collapsed on desktop -->
-<button class="sidebar-expand-btn" id="sidebarExpandBtn" title="Mostrar menú"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
 
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -887,23 +871,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const main        = document.getElementById('mainContent');
     const overlay     = document.getElementById('sidebarOverlay');
     const deskBtn     = document.getElementById('sidebarToggleBtn');
-    const collapseBtn = document.getElementById('sidebarCollapseBtn');
-    const expandBtn   = document.getElementById('sidebarExpandBtn');
 
     function isMobile() { return window.innerWidth <= 700; }
 
     function collapse() {
         sidebar.classList.add('collapsed');
-        main.classList.add('expanded');
-        if (expandBtn) expandBtn.classList.add('visible');
-        try { localStorage.setItem('sidebarCollapsed', '1'); } catch(e) {}
+        main.classList.add('expanded'); catch(e) {}
     }
 
     function expand() {
         sidebar.classList.remove('collapsed');
-        main.classList.remove('expanded');
-        if (expandBtn) expandBtn.classList.remove('visible');
-        try { localStorage.removeItem('sidebarCollapsed'); } catch(e) {}
+        main.classList.remove('expanded'); catch(e) {}
     }
 
     function openMobile() { sidebar.classList.add('mobile-open'); overlay.classList.add('active'); }
@@ -915,24 +893,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('sidebarCollapsed') === '1') {
                 sidebar.classList.add('collapsed');
                 main.classList.add('expanded');
-                if (expandBtn) expandBtn.classList.add('visible');
-            }
         } catch(e) {}
     }
 
     if (deskBtn) deskBtn.addEventListener('click', () => {
         if (isMobile()) { openMobile(); }
         else { sidebar.classList.contains('collapsed') ? expand() : collapse(); }
-    });
-
-    if (collapseBtn) collapseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isMobile()) { closeMobile(); } else { collapse(); }
-    });
-
-    if (expandBtn) expandBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isMobile()) { openMobile(); } else { expand(); }
+    }); else { collapse(); }
+    }); else { expand(); }
     });
 
     overlay.addEventListener('click', closeMobile);
