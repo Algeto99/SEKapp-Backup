@@ -20,17 +20,21 @@ body{display:flex!important;min-height:100vh}
 .snw-user{font-size:.75rem;color:#64748b;word-break:break-all}
 .snw-user strong{color:#94a3b8;display:block;margin-bottom:.25rem}
 
-/* ── Floating toggle button (page-icon style) ── */
-.snw-toggle-btn{position:fixed;top:1rem;left:232px;z-index:45;width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#6366f1);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:left 0.3s ease, opacity 0.2s, transform 0.2s;box-shadow:0 2px 8px rgba(59,130,246,.35)}
-.snw-toggle-btn:hover{opacity:.9;transform:scale(1.05)}
-.snw-toggle-btn svg{width:22px;height:22px;color:#fff}
-.snw-toggle-btn.sidebar-collapsed{left:1rem}
-@media(max-width:900px){.snw-toggle-btn{left:212px}.snw-toggle-btn.sidebar-collapsed{left:1rem}}
-@media(max-width:700px){.snw-toggle-btn{left:1rem}}
-
 /* ── Main content offset ── */
-.sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto}
+.sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto;display:flex;flex-direction:column}
 .sidebar-main-content.expanded{margin-left:0}
+
+/* ── Shared topbar (for converted pages) ── */
+.snw-topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:1rem 1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:30;flex-shrink:0}
+.snw-topbar-left{display:flex;align-items:center;gap:.875rem;min-width:0}
+.snw-page-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform 0.2s ease,opacity 0.2s ease;border:none}
+.snw-page-icon:hover{opacity:.9;transform:scale(1.05)}
+.snw-page-icon svg{width:22px;height:22px;color:#fff}
+.snw-page-title{font-size:1.125rem;font-weight:700;color:#0f172a;line-height:1.2}
+.snw-page-subtitle{font-size:.8rem;color:#64748b;font-weight:400}
+body:not(.light-mode) .snw-topbar{background:#1e293b;border-bottom-color:#334155}
+body:not(.light-mode) .snw-page-title{color:#f1f5f9}
+body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
 
 /* ── Sidebar overlay (mobile) ── */
 .snw-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
@@ -42,6 +46,9 @@ body{display:flex!important;min-height:100vh}
   .sidebar-nav-wrap{transform:translateX(-100%);width:240px}
   .sidebar-nav-wrap.mobile-open{transform:translateX(0)}
   .sidebar-main-content{margin-left:0!important}
+  .snw-topbar{padding:.75rem 1rem}
+  .snw-page-title{font-size:.9rem}
+  .snw-page-subtitle{display:none}
 }
 </style>
 
@@ -110,11 +117,6 @@ body{display:flex!important;min-height:100vh}
     </div>
 </aside>
 
-<!-- Floating toggle button — page-icon style, sits at top-left of content area -->
-<button class="snw-toggle-btn" id="snwToggleBtn" title="Mostrar/Ocultar menú">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-</button>
-
 <!-- Mobile sidebar overlay -->
 <div class="snw-overlay" id="snwOverlay"></div>
 
@@ -123,7 +125,6 @@ body{display:flex!important;min-height:100vh}
     document.addEventListener('DOMContentLoaded', function() {
         var sidebar     = document.getElementById('globalSidebar');
         var overlay     = document.getElementById('snwOverlay');
-        var toggleBtn   = document.getElementById('snwToggleBtn');
         var mainContent = document.querySelector('.sidebar-main-content');
 
         function isMobile() { return window.innerWidth <= 700; }
@@ -131,55 +132,35 @@ body{display:flex!important;min-height:100vh}
         function collapse() {
             sidebar.classList.add('collapsed');
             if (mainContent) mainContent.classList.add('expanded');
-            if (toggleBtn) toggleBtn.classList.add('sidebar-collapsed');
             try { localStorage.setItem('sidebarCollapsed', '1'); } catch(e) {}
         }
 
         function expand() {
             sidebar.classList.remove('collapsed');
             if (mainContent) mainContent.classList.remove('expanded');
-            if (toggleBtn) toggleBtn.classList.remove('sidebar-collapsed');
             try { localStorage.removeItem('sidebarCollapsed'); } catch(e) {}
         }
 
-        function openMobile() {
-            sidebar.classList.add('mobile-open');
-            overlay.classList.add('active');
-        }
+        function openMobile() { sidebar.classList.add('mobile-open'); overlay.classList.add('active'); }
+        function closeMobile() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); }
 
-        function closeMobile() {
-            sidebar.classList.remove('mobile-open');
-            overlay.classList.remove('active');
-        }
-
-        // Restore collapsed state on desktop
+        // Restore collapsed state
         if (!isMobile()) {
-            try {
-                if (localStorage.getItem('sidebarCollapsed') === '1') {
-                    sidebar.classList.add('collapsed');
-                    if (mainContent) mainContent.classList.add('expanded');
-                    if (toggleBtn) toggleBtn.classList.add('sidebar-collapsed');
-                }
-            } catch(e) {}
+            try { if (localStorage.getItem('sidebarCollapsed') === '1') collapse(); } catch(e) {}
         }
 
-        // Floating page-icon toggle button
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', function(e) {
+        // Page-icon toggle button (injected per page as id="snwPageIcon")
+        var pageIcon = document.getElementById('snwPageIcon');
+        if (pageIcon) {
+            pageIcon.addEventListener('click', function(e) {
                 e.stopPropagation();
-                if (isMobile()) {
-                    sidebar.classList.contains('mobile-open') ? closeMobile() : openMobile();
-                } else {
-                    sidebar.classList.contains('collapsed') ? expand() : collapse();
-                }
+                if (isMobile()) { sidebar.classList.contains('mobile-open') ? closeMobile() : openMobile(); }
+                else { sidebar.classList.contains('collapsed') ? expand() : collapse(); }
             });
         }
 
         if (overlay) overlay.addEventListener('click', closeMobile);
-
-        window.addEventListener('resize', function() {
-            if (!isMobile()) closeMobile();
-        });
+        window.addEventListener('resize', function() { if (!isMobile()) closeMobile(); });
     });
 })();
 </script>
