@@ -331,3 +331,150 @@ def reset_password(user_id):
         if conn:
             conn.close()
     return redirect(url_for('admin_bp.panel'))
+
+
+# ---------------------------------------------------------------------------
+# KPI Thresholds
+# ---------------------------------------------------------------------------
+
+_THRESHOLD_KEYS = [
+    'supervision_verde_min',
+    'supervision_amarillo_min',
+    'supervision_amarillo_max',
+    'supervision_rojo_max',
+    'equipos_verde_max',
+    'equipos_amarillo_min',
+    'equipos_amarillo_max',
+    'equipos_rojo_min',
+    'dias_sin_supervision_alerta',
+    'horas_incidente_escalar',
+    'dias_certificacion_vencer',
+]
+
+_THRESHOLD_DEFAULTS = {
+    'supervision_verde_min':       90,
+    'supervision_amarillo_min':    70,
+    'supervision_amarillo_max':    89,
+    'supervision_rojo_max':        70,
+    'equipos_verde_max':            5,
+    'equipos_amarillo_min':         5,
+    'equipos_amarillo_max':        15,
+    'equipos_rojo_min':            15,
+    'dias_sin_supervision_alerta':  2,
+    'horas_incidente_escalar':     24,
+    'dias_certificacion_vencer':   30,
+}
+
+
+def _ensure_thresholds_table(conn):
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS kpi_thresholds (
+            key        VARCHAR(100) PRIMARY KEY,
+            value      NUMERIC      NOT NULL,
+            updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+            updated_by TEXT
+        )
+    """)
+    for k, v in _THRESHOLD_DEFAULTS.items():
+        cur.execute(
+            "INSERT INTO kpi_thresholds (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
+            (k, v)
+        )
+    conn.commit()
+    cur.close()
+
+
+def get_thresholds():
+    """Return current thresholds as a dict, falling back to defaults on error."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        _ensure_thresholds_table(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT key, value FROM kpi_thresholds WHERE key = ANY(%s)", (_THRESHOLD_KEYS,))
+        rows = {r['key']: float(r['value']) for r in cur.fetchall()}
+        cur.close()
+        result = dict(_THRESHOLD_DEFAULTS)
+        result.update(rows)
+        return result
+    except Exception as e:
+        app_logger.error(f"Error fetching thresholds: {e}", exc_info=True)
+        return dict(_THRESHOLD_DEFAULTS)
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/thresholds', methods=['GET'])
+@jwt_required()
+def thresholds():
+    claims = get_jwt()
+    is_admin = claims.get('is_admin', False) or _is_super_admin()
+    if not is_admin:
+        return redirect('/landing/')
+    conn = None
+    try:
+        conn = get_db_connection()
+        _ensure_thresholds_table(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT key, value FROM kpi_thresholds WHERE key = ANY(%s)", (_THRESHOLD_KEYS,))
+        rows = {r['key']: float(r['value']) for r in cur.fetchall()}
+        cur.close()
+        t = dict(_THRESHOLD_DEFAULTS)
+        t.update(rows)
+        return render_template(
+            'admin_thresholds.html',
+            thresholds=t,
+            user_name=claims.get('name', get_jwt_identity()),
+            is_admin=True,
+        )
+    except Exception as e:
+        return _error_page(e, 'Umbrales KPI')
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/thresholds', methods=['POST'])
+@jwt_required()
+def save_thresholds():
+    claims = get_jwt()
+    is_admin = claims.get('is_admin', False) or _is_super_admin()
+    if not is_admin:
+        return redirect('/landing/')
+    email = get_jwt_identity()
+    conn = None
+    try:
+        conn = get_db_connection()
+        _ensure_thresholds_table(conn)
+        cur = conn.cursor()
+        for key in _THRESHOLD_KEYS:
+            raw = request.form.get(key, '').strip()
+            if raw == '':
+                continue
+            try:
+                val = float(raw)
+            except ValueError:
+                flash(f'Valor inválido para {key}.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+            cur.execute(
+                """INSERT INTO kpi_thresholds (key, value, updated_at, updated_by)
+                   VALUES (%s, %s, NOW(), %s)
+                   ON CONFLICT (key) DO UPDATE
+                   SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
+                (key, val, email)
+            )
+        conn.commit()
+        cur.close()
+        app_logger.info(f"Thresholds updated by {email}")
+        flash('Umbrales actualizados correctamente.', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error saving thresholds: {e}", exc_info=True)
+        flash(f'Error al guardar umbrales: {type(e).__name__}: {e}', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.thresholds'))

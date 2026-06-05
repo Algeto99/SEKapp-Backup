@@ -83,6 +83,10 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             Consultar Matrices
         </a>
         {% if is_admin %}
+        <a href="/admin/thresholds" class="snw-item {{ 'active' if request.path.startswith('/admin/thresholds') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            Umbrales KPI
+        </a>
         <a href="/dashboard/bases_de_datos/" class="snw-item {{ 'active' if request.path.startswith('/dashboard/bases_de_datos') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
             Bases de Datos
