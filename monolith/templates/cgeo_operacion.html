@@ -101,7 +101,8 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .pend-cat-sub{font-size:.68rem;color:#94a3b8;margin-top:.125rem}
 
 .tables-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}
-.table-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem}
+.table-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;min-width:0;overflow:hidden}
+.table-card .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .table-title{font-size:.9375rem;font-weight:700;color:#0f172a;margin-bottom:1rem}
 .tbl{width:100%;border-collapse:collapse;font-size:.8rem}
 .tbl th{padding:.5rem .75rem;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#64748b;border-bottom:2px solid #e2e8f0;text-align:left;white-space:nowrap}
@@ -752,7 +753,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             <div class="tables-row">
                 <div class="table-card">
                     <div class="table-title">Incidentes Abiertos</div>
-                    <table class="tbl">
+                    <div class="tbl-wrap"><table class="tbl">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -766,11 +767,11 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                         <tbody id="incidentesTable">
                             <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem">Cargando...</td></tr>
                         </tbody>
-                    </table>
+                    </table></div>
                 </div>
                 <div class="table-card">
                     <div class="table-title">Compromisos Pendientes / Vencidos</div>
-                    <table class="tbl">
+                    <div class="tbl-wrap"><table class="tbl">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -783,7 +784,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                         <tbody id="compromisosTable">
                             <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem">Cargando...</td></tr>
                         </tbody>
-                    </table>
+                    </table></div>
                 </div>
             </div>
 

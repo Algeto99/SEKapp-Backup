@@ -183,6 +183,13 @@ def upload_file_to_gcs(file, bucket_name):
         app_logger.error(f"Error uploading file to GCS: {e}", exc_info=True)
         return None # Return None or raise an exception based on desired error handling
 
+def _form_success_response(message=None):
+    """For sync replays return plain JSON so the client doesn't have to follow a redirect."""
+    if request.headers.get('X-SecApp-Replay') == '1':
+        return jsonify({'success': True}), 200
+    kwargs = {'message': message} if message else {}
+    return redirect(url_for('forms_bp.success', **kwargs))
+
 def get_service_urls():
     """Helper to get all service URLs for templates."""
     return {
@@ -418,7 +425,7 @@ def submit_incident_report():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -501,7 +508,7 @@ def submit_medicion_experiencia_cliente():
         cur.close()
 
         app_logger.info("Customer experience survey submitted successfully.")
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -623,7 +630,7 @@ def submit_supervision_puesto():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -761,7 +768,7 @@ def submit_informe_novedades_disciplinario():
         cur.close()
 
         app_logger.info("Disciplinary report submitted successfully.")
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -824,7 +831,7 @@ def submit_log_de_patrullas():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -981,7 +988,7 @@ def submit_registro_de_capacitaciones():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -1096,7 +1103,7 @@ def submit_registro_y_acta_de_visita():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -1194,7 +1201,7 @@ def submit_planilla_vehicular():
         conn.commit()
         cur.close()
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -1277,7 +1284,7 @@ def submit_planilla_motocicletas():
         cur.close()
         app_logger.info("Motorcycle form submitted successfully.")
 
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:
@@ -1391,7 +1398,7 @@ def submit_checklist_cumplimiento():
 
         conn.commit()
         cur.close()
-        return redirect(url_for('forms_bp.success', message='Checklist(s) enviado(s) exitosamente!'))
+        return _form_success_response(message='Checklist(s) enviado(s) exitosamente!')
 
     except Exception as e:
         if conn:
@@ -1481,7 +1488,7 @@ def submit_confiabilidad_equipos():
         cur.close()
 
         app_logger.info(f"Confiabilidad de Equipos submitted by {user_email}")
-        return redirect(url_for('forms_bp.success'))
+        return _form_success_response()
 
     except Exception as e:
         if conn:

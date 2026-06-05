@@ -184,6 +184,7 @@ csrf.exempt(dashboard_bp)
 csrf.exempt(expediente_bp)
 csrf.exempt(admin_bp)
 csrf.exempt(cgeo_bp)
+csrf.exempt(forms_bp)
 
 # Inject is_super_admin into every template from the active JWT
 @app.context_processor

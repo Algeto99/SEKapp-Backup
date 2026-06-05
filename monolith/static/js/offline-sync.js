@@ -311,16 +311,37 @@
             headers: postHeaders,
         }, SYNC_REQUEST_TIMEOUT_MS);
 
-        // Success: the server redirected us to the /success page, or returned any
-        // other non-error 2xx/3xx response after storing the form.
+        // Success: the server returned JSON {success:true} (replay path) or
+        // redirected to the /success page (normal browser path).
         const landed = res.url || '';
         if (res.status === 401 || landed.includes('/login') || landed === location.origin + '/') {
             throw new Error('session_expired');
         }
+
+        // Check for the direct JSON success response from replay-aware endpoints
+        if (res.ok && res.status === 200) {
+            const ct = res.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+                let body;
+                try { body = await res.json(); } catch { body = null; }
+                if (body && body.success) {
+                    await removeItem(resolved.id);
+                    return true;
+                }
+            }
+        }
+
         if (res.ok && res.status !== 202 && !landed.includes('/error')) {
             await removeItem(resolved.id);
             return true;
         }
+
+        // Log the failure details so the server error is visible in the console
+        console.error(`[offline-sync] Submit failed — status: ${res.status}, url: ${landed}`);
+        try {
+            const text = await res.clone().text();
+            console.error(`[offline-sync] Server response body:`, text.slice(0, 500));
+        } catch { /* ignore */ }
         return false;
     }
 
@@ -476,6 +497,7 @@
                             unresolved++;
                             continue;
                         }
+                        console.error('[offline-sync] Unexpected error in syncOne:', err);
                         fail++;
                     }
                 }
