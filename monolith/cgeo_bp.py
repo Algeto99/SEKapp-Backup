@@ -735,16 +735,16 @@ def cgeo_api_alertas():
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS cliente,
-                ROUND(AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC), 2) AS avg_raw,
-                ROUND(AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) / 40 * 5, 2) AS avg_5,
+                ROUND(AVG(calificacion_global_nps), 2) AS avg_raw,
+                ROUND(AVG(calificacion_global_nps) / 40 * 5, 2) AS avg_5,
                 COUNT(*) AS encuestas,
                 MAX(fecha_hora) AS ultima
             FROM medicion_experiencia_cliente
             {_where(r8_conds)}
             GROUP BY TRIM(cliente_instalacion)
             HAVING COUNT(*) > 0
-               AND AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) < 24
-            ORDER BY AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) ASC
+               AND AVG(calificacion_global_nps) < 24
+            ORDER BY AVG(calificacion_global_nps) ASC
             LIMIT 5
         """, r8_params)
         for r in cur.fetchall():
@@ -1110,7 +1110,7 @@ def cgeo_api_operacion_data():
         sat_where = _where(sat_conds)
         cur.execute(f"""
             SELECT
-                AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) AS avg_nps,
+                AVG(calificacion_global_nps) AS avg_nps,
                 COUNT(*) AS total,
                 SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT,'')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda
             FROM medicion_experiencia_cliente
@@ -1127,7 +1127,7 @@ def cgeo_api_operacion_data():
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS cliente,
-                ROUND(AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) / 40 * 100, 1) AS pct
+                ROUND(AVG(calificacion_global_nps) / 40 * 100, 1) AS pct
             FROM medicion_experiencia_cliente
             {sat_where}
             GROUP BY TRIM(cliente_instalacion)
@@ -1144,7 +1144,7 @@ def cgeo_api_operacion_data():
         cur.execute(f"""
             SELECT
                 TO_CHAR(DATE_TRUNC('month', fecha_hora), 'YYYY-MM') AS label,
-                ROUND(AVG(NULLIF(calificacion_global_nps::TEXT,'')::NUMERIC) / 40 * 100, 1) AS pct
+                ROUND(AVG(calificacion_global_nps) / 40 * 100, 1) AS pct
             FROM medicion_experiencia_cliente
             {sat_where}
             GROUP BY DATE_TRUNC('month', fecha_hora)

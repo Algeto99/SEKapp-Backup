@@ -1918,7 +1918,7 @@ def api_gestion_data():
         sat_where = _gestion_where(sat_conds)
         cur.execute(f"""
             SELECT
-                AVG(NULLIF(calificacion_global_nps::TEXT, '')::NUMERIC) AS avg_global,
+                AVG(calificacion_global_nps) AS avg_global,
                 COUNT(*) AS total,
                 SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT, '')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda
             FROM medicion_experiencia_cliente
@@ -2309,7 +2309,7 @@ def api_gestion_data():
 
         cur.execute(f"""
             SELECT {sat_period_label} AS label,
-                   ROUND(AVG(NULLIF(calificacion_global_nps::TEXT, '')::NUMERIC)::NUMERIC, 2) AS value
+                   ROUND(AVG(calificacion_global_nps)::NUMERIC, 2) AS value
             FROM medicion_experiencia_cliente
             {sat_where}
             GROUP BY {sat_period_expr}
@@ -2719,12 +2719,10 @@ def api_satisfaccion_data():
         where_prev, params_prev = _sat_prev_where(cliente, year, month, day)
 
         # ── Main summary ─────────────────────────────────────────────────
-        # Use ::TEXT before NULLIF so it works for both INTEGER and TEXT columns.
-        # Use ::NUMERIC for math; PostgreSQL handles '5'::NUMERIC just fine.
         def _safe_avg(col):
-            return f"AVG(NULLIF({col}::TEXT, '')::NUMERIC)"
+            return f"AVG({col})"
         def _safe_int(col):
-            return f"NULLIF({col}::TEXT, '')::NUMERIC"
+            return f"{col}"
 
         criteria_sql_parts = []
         for f, _ in _SAT_CRITERIA:

@@ -318,7 +318,7 @@ def reset_password(token):
         try:
             hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
             cur = conn.cursor()
-            cur.execute('UPDATE "users" SET "password_hash" = %s WHERE "email" = %s', (hashed_password, email))
+            cur.execute('UPDATE "users" SET "password_hash" = %s, "updated_at" = NOW() WHERE "email" = %s', (hashed_password, email))
             conn.commit()
             cur.close()
             
@@ -377,7 +377,7 @@ def change_password():
 
             hashed_new = bcrypt.generate_password_hash(new_password).decode('utf-8')
             cur.execute(
-                'UPDATE "users" SET "password_hash" = %s, "force_password_change" = FALSE WHERE "email" = %s',
+                'UPDATE "users" SET "password_hash" = %s, "force_password_change" = FALSE, "updated_at" = NOW() WHERE "email" = %s',
                 (hashed_new, email)
             )
             conn.commit()

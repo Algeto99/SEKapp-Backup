@@ -2137,17 +2137,17 @@
   {
     "table_name": "supervision_puesto",
     "column_name": "latitude",
-    "data_type": "double precision"
+    "data_type": "numeric"
   },
   {
     "table_name": "supervision_puesto",
     "column_name": "longitude",
-    "data_type": "double precision"
+    "data_type": "numeric"
   },
   {
     "table_name": "supervision_puesto",
     "column_name": "location_accuracy",
-    "data_type": "double precision"
+    "data_type": "numeric"
   },
   {
     "table_name": "supervision_puesto",

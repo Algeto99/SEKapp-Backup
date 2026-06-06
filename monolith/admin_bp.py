@@ -210,7 +210,7 @@ def toggle_admin(user_id):
             flash('No se puede modificar el rol de un super administrador.', 'error')
             return redirect(url_for('admin_bp.panel'))
         new_val = not user['is_admin']
-        cur.execute('UPDATE users SET is_admin = %s WHERE id = %s', (new_val, user_id))
+        cur.execute('UPDATE users SET is_admin = %s, updated_at = NOW() WHERE id = %s', (new_val, user_id))
         conn.commit()
         cur.close()
         label = 'administrador' if new_val else 'usuario regular'
@@ -246,7 +246,7 @@ def toggle_active(user_id):
             flash('No se puede desactivar a un super administrador.', 'error')
             return redirect(url_for('admin_bp.panel'))
         new_val = not user['is_active']
-        cur.execute('UPDATE users SET is_active = %s WHERE id = %s', (new_val, user_id))
+        cur.execute('UPDATE users SET is_active = %s, updated_at = NOW() WHERE id = %s', (new_val, user_id))
         conn.commit()
         cur.close()
         label = 'activado' if new_val else 'desactivado'
@@ -278,7 +278,7 @@ def toggle_force_password(user_id):
             flash('Usuario no encontrado.', 'error')
             return redirect(url_for('admin_bp.panel'))
         new_val = not bool(user['force_password_change'])
-        cur.execute('UPDATE users SET force_password_change = %s WHERE id = %s', (new_val, user_id))
+        cur.execute('UPDATE users SET force_password_change = %s, updated_at = NOW() WHERE id = %s', (new_val, user_id))
         conn.commit()
         cur.close()
         label = 'activado' if new_val else 'desactivado'
@@ -317,7 +317,7 @@ def reset_password(user_id):
             flash('Usuario no encontrado.', 'error')
             return redirect(url_for('admin_bp.panel'))
         hashed = bcrypt.generate_password_hash(new_password).decode('utf-8')
-        cur.execute('UPDATE users SET password_hash = %s WHERE id = %s', (hashed, user_id))
+        cur.execute('UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s', (hashed, user_id))
         conn.commit()
         cur.close()
         app_logger.info(f"Super admin reset password for {user['email']}")
