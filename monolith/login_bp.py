@@ -228,8 +228,8 @@ def register():
                 return redirect(url_for('login_bp.register'))
 
             cur.execute(
-                'INSERT INTO "users" ("name", "email", "phone_number", "password_hash", "is_admin") VALUES (%s, %s, %s, %s, %s)',
-                (name, email, phone, hashed_password, False)
+                'INSERT INTO "users" ("username", "name", "email", "phone_number", "password_hash", "is_admin") VALUES (%s, %s, %s, %s, %s, %s)',
+                (email, name, email, phone, hashed_password, False)
             )
             conn.commit()
             flash('Registro exitoso. Revise su correo (y spam) para la bienvenida.', 'success')
