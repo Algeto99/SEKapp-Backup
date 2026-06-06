@@ -98,7 +98,7 @@ def _veh_date():
 
 def _capac_safe_len(col="lista_asistencia"):
     return (
-        f"CASE WHEN {col} IS NOT NULL AND {col} NOT IN ('','[]','null') "
+        f"CASE WHEN {col} IS NOT NULL AND {col} ~ '^\\s*\\[' "
         f"THEN json_array_length({col}::json) ELSE 0 END"
     )
 
@@ -551,17 +551,17 @@ def cgeo_api_alertas():
         r2_conds, r2_params = _cp()
         r2_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
-            "COALESCE(fecha_hora, creado_en) < NOW() - INTERVAL '24 hours'",
+            "COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours'",
         ]
         cur.execute(f"""
             SELECT
                 id_reporte_incidente AS id,
                 COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
-                EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora, creado_en))) / 3600 AS horas,
-                COALESCE(fecha_hora, creado_en) AS ts
+                EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en))) / 3600 AS horas,
+                COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) AS ts
             FROM reportes_incidentes
             {_where(r2_conds)}
-            ORDER BY COALESCE(fecha_hora, creado_en) ASC
+            ORDER BY COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) ASC
             LIMIT 5
         """, r2_params)
         for r in cur.fetchall():
@@ -900,7 +900,7 @@ def cgeo_api_morning_briefing_data():
             SELECT
                 COUNT(*) AS total_abiertos,
                 SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
-                SUM(CASE WHEN COALESCE(fecha_hora, creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
+                SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
             FROM reportes_incidentes
             WHERE LOWER(TRIM(COALESCE(estado,'')))
                   NOT IN ('cerrado','closed','resuelto','resolved')

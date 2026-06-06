@@ -82,7 +82,7 @@ def matrices_api_stats():
                         ('cerrado','closed','resuelto','resolved') THEN 1 ELSE 0 END) AS abiertos,
                     SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos
                 FROM reportes_incidentes
-                WHERE COALESCE(fecha_hora, creado_en) >= %s AND COALESCE(fecha_hora, creado_en) < %s
+                WHERE COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) >= %s AND COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < %s
             """, (month_start, month_end + timedelta(days=1)))
             r = cur.fetchone() or {}
             stats["incidentes"] = {

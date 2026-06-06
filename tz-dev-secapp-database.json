@@ -887,7 +887,7 @@
   {
     "table_name": "planilla_motocicletas",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "planilla_motocicletas",
@@ -1492,7 +1492,7 @@
   {
     "table_name": "registro_de_capacitaciones",
     "column_name": "lista_asistencia",
-    "data_type": "text"
+    "data_type": "jsonb"
   },
   {
     "table_name": "registro_de_capacitaciones",
@@ -1747,7 +1747,7 @@
   {
     "table_name": "reportes_incidentes",
     "column_name": "fecha_hora",
-    "data_type": "timestamp without time zone"
+    "data_type": "timestamp with time zone"
   },
   {
     "table_name": "reportes_incidentes",

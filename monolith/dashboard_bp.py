@@ -37,13 +37,13 @@ def _upload_file_to_gcs(file_storage):
 dashboard_bp = Blueprint("dashboard_bp", __name__)
 
 
-INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora, ri.creado_en) AS date)"
-INCIDENT_TIME_EXPR = "CAST(ri.fecha_hora AS time)"
+INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora AT TIME ZONE 'UTC', ri.creado_en) AS date)"
+INCIDENT_TIME_EXPR = "CAST(ri.fecha_hora AT TIME ZONE 'UTC' AS time)"
 INCIDENT_TYPE_EXPR = "COALESCE(NULLIF(TRIM(ri.tipo_incidente), ''), 'Sin Tipo')"
 INCIDENT_CLIENT_EXPR = "COALESCE(NULLIF(TRIM(ri.cliente_instalacion), ''), '')"
 INCIDENT_LOCATION_EXPR = "COALESCE(NULLIF(TRIM(ri.puesto_area_especifica), ''), '')"
 INCIDENT_SUPERVISOR_EXPR = "COALESCE(NULLIF(TRIM(ri.nombre_responsable), ''), '')"
-INCIDENT_ORDER_EXPR = "COALESCE(ri.fecha_hora, ri.creado_en) DESC NULLS LAST, ri.id_reporte_incidente DESC"
+INCIDENT_ORDER_EXPR = "COALESCE(ri.fecha_hora AT TIME ZONE 'UTC', ri.creado_en) DESC NULLS LAST, ri.id_reporte_incidente DESC"
 
 
 def _build_incident_select():
@@ -4494,9 +4494,13 @@ def api_cumplimiento_detalles():
 # ── Capacitaciones Dashboard ───────────────────────────────────────────────────
 
 def _capac_safe_len(col='lista_asistencia'):
-    """SQL expression for safe JSON array length."""
+    """SQL expression for safe JSON array length.
+
+    Guards against NULL, empty, and structurally invalid values before casting.
+    The regex '^\\s*\\[' confirms the value is a JSON array, not just non-empty text.
+    """
     return (
-        f"CASE WHEN {col} IS NOT NULL AND {col} NOT IN ('', '[]', 'null') "
+        f"CASE WHEN {col} IS NOT NULL AND {col} ~ '^\\s*\\[' "
         f"THEN json_array_length({col}::json) ELSE 0 END"
     )
 
@@ -4663,7 +4667,7 @@ def api_capacitacion_data():
         # ── Top asistentes (JSON expansion via lateral) ───────────────────────
         top_conds = base_conds + [
             "lista_asistencia IS NOT NULL",
-            "lista_asistencia NOT IN ('', '[]', 'null')",
+            "lista_asistencia ~ '^\\s*\\['",
         ]
         cur.execute(f"""
             SELECT
@@ -5237,7 +5241,10 @@ _MOTO_FAULT_SUM = " + ".join(
 
 
 def _moto_date_expr():
-    return "COALESCE(fecha_hora, creado_en)"
+    # fecha_hora is TIMESTAMP WITHOUT TIME ZONE; AT TIME ZONE 'UTC' makes the
+    # cast to TIMESTAMPTZ explicit so COALESCE/comparisons with creado_en are
+    # type-homogeneous regardless of DB session timezone.
+    return "COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en)"
 
 
 def _moto_conds(cliente, year, month, day):
@@ -6881,7 +6888,7 @@ def api_bases_de_datos_personal():
                            nivel_comprension, fecha_hora, nombre_responsable
                     FROM registro_de_capacitaciones
                     WHERE lista_asistencia IS NOT NULL
-                      AND lista_asistencia NOT IN ('null', '[]', '')
+                      AND lista_asistencia ~ '^\\s*\\['
                       AND ({match_sql})
                     ORDER BY fecha_hora DESC
                     LIMIT 20
