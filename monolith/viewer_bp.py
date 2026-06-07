@@ -874,27 +874,27 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
             return []
 
         placeholders = ','.join(['%s'] * len(clean_ids))
-        # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
-        query = f"""
-            SELECT {config['columns']}
-            FROM {config['table']} t
-            {config['joins']}
-            WHERE t.{config['id_col']} IN ({placeholders})
-            ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
-        """
         params = list(clean_ids)
+
+        tenant_clause = ""
         if company_id is not None:
             if not _table_has_column(cur, config['table'], 'company_id'):
                 current_app.logger.error(
                     "Security: table '%s' missing company_id — refusing cross-tenant query",
                     config['table']
                 )
-                return jsonify({"error": "Data isolation error"}), 500
-            query = query.replace(
-                f"WHERE t.{config['id_col']} IN ({placeholders})",
-                f"WHERE t.{config['id_col']} IN ({placeholders}) AND t.company_id = %s"
-            )
+                return []
+            tenant_clause = "AND t.company_id = %s"
             params.append(company_id)
+
+        # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
+        query = f"""
+            SELECT {config['columns']}
+            FROM {config['table']} t
+            {config['joins']}
+            WHERE t.{config['id_col']} IN ({placeholders}) {tenant_clause}
+            ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
+        """
         app_logger.info(f"Executing fetch_reports_by_ids query for IDs: {clean_ids} with form_type: {form_type}.")
         cur.execute(query, params)
         rows = cur.fetchall()
