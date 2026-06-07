@@ -66,19 +66,32 @@ def matrices_api_stats():
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         
-        month_arg = request.args.get("month")
-        if month_arg:
+        date_from_arg = request.args.get("date_from")
+        date_to_arg   = request.args.get("date_to")
+        month_arg     = request.args.get("month")
+
+        if date_from_arg and date_to_arg:
+            try:
+                month_start = date.fromisoformat(date_from_arg)
+                month_end   = date.fromisoformat(date_to_arg)
+            except Exception:
+                month_start = date.today().replace(day=1)
+                last_day    = calendar.monthrange(date.today().year, date.today().month)[1]
+                month_end   = date(date.today().year, date.today().month, last_day)
+        elif month_arg:
             try:
                 year, month = map(int, month_arg.split('-'))
                 selected_date = date(year, month, 1)
             except Exception:
                 selected_date = date.today()
+            month_start = selected_date.replace(day=1)
+            last_day    = calendar.monthrange(selected_date.year, selected_date.month)[1]
+            month_end   = date(selected_date.year, selected_date.month, last_day)
         else:
-            selected_date = date.today()
-
-        month_start = selected_date.replace(day=1)
-        last_day = calendar.monthrange(selected_date.year, selected_date.month)[1]
-        month_end = date(selected_date.year, selected_date.month, last_day)
+            today = date.today()
+            month_start = today.replace(day=1)
+            last_day    = calendar.monthrange(today.year, today.month)[1]
+            month_end   = date(today.year, today.month, last_day)
 
         user_email = get_jwt_identity()
         company_id = _get_user_company_id(cur, user_email)
@@ -191,7 +204,10 @@ def matrices_api_stats():
         except Exception:
             stats["cumplimiento"] = {"total": 0, "vencidas": 0, "proximas": 0}
 
-        stats["mes"] = month_start.strftime("%B %Y")
+        if month_start.year == month_end.year and month_start.month == month_end.month:
+            stats["mes"] = month_start.strftime("%B %Y")
+        else:
+            stats["mes"] = f"{month_start.strftime('%d/%m/%Y')} – {month_end.strftime('%d/%m/%Y')}"
         stats["mes_iso"] = month_start.strftime("%Y-%m")
         return jsonify(stats)
     except Exception as e:

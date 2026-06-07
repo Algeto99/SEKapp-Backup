@@ -122,8 +122,8 @@ def _veh_date():
 
 def _capac_safe_len(col="lista_asistencia"):
     return (
-        f"CASE WHEN {col} IS NOT NULL AND {col} ~ '^\\s*\\[' "
-        f"THEN json_array_length({col}::json) ELSE 0 END"
+        f"CASE WHEN {col} IS NOT NULL AND {col}::TEXT ~ '^\\s*\\[' "
+        f"THEN jsonb_array_length({col}) ELSE 0 END"
     )
 
 

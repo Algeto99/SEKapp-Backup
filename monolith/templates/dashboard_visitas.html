@@ -237,20 +237,7 @@
     (function() {
         const saved = localStorage.getItem('theme');
         if (saved === 'light') document.body.classList.add('light-mode');
-        syncThemeIcons();
     })();
-
-    document.getElementById('themeToggle').addEventListener('click', () => {
-        document.body.classList.toggle('light-mode');
-        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-        syncThemeIcons();
-    });
-
-    function syncThemeIcons() {
-        const light = document.body.classList.contains('light-mode');
-        document.getElementById('darkModeIcon').style.display = light ? 'none' : 'block';
-        document.getElementById('lightModeIcon').style.display = light ? 'block' : 'none';
-    }
 
     function destroyChart(inst) { if (inst) { try { inst.destroy(); } catch(_) {} } }
 

@@ -23,6 +23,20 @@ body{display:flex!important;min-height:100vh}
 .snw-user{font-size:.75rem;color:#64748b;word-break:break-all}
 .snw-user strong{color:#94a3b8;display:block}
 
+/* ── Dashboard sub-menu ── */
+.snw-group-toggle{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;text-align:left}
+.snw-group-toggle:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
+.snw-group-toggle.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
+.snw-group-toggle svg.snw-icon{width:15px;height:15px;flex-shrink:0}
+.snw-group-chevron{margin-left:auto;width:12px;height:12px;flex-shrink:0;transition:transform .2s}
+.snw-group-toggle.open .snw-group-chevron{transform:rotate(90deg)}
+.snw-submenu{overflow:hidden;max-height:0;transition:max-height .25s ease}
+.snw-submenu.open{max-height:600px}
+.snw-subitem{display:flex;align-items:center;gap:.5rem;padding:.45rem 1.25rem .45rem 2.75rem;color:#64748b;text-decoration:none;font-size:.775rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+.snw-subitem:hover{color:#cbd5e1;background:rgba(255,255,255,0.04)}
+.snw-subitem.active{color:#38bdf8;background:rgba(56,189,248,0.06);border-left-color:#38bdf8}
+.snw-subitem::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.6}
+
 /* ── Main content offset ── */
 .sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto;display:flex;flex-direction:column}
 .sidebar-main-content.expanded{margin-left:0}
@@ -73,10 +87,25 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             Reportes
         </a>
-        <a href="/dashboard/" class="snw-item {{ 'active' if request.path == '/dashboard/' else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <button id="snwDashGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/dashboard') else '' }} {{ 'open' if request.path.startswith('/dashboard') else '' }}" onclick="snwToggleDash()">
+            <svg class="snw-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Dashboards
-        </a>
+            <svg class="snw-group-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div id="snwDashMenu" class="snw-submenu {{ 'open' if request.path.startswith('/dashboard') else '' }}">
+            <a href="/dashboard/" class="snw-subitem {{ 'active' if request.path == '/dashboard/' else '' }}">Inicio Dashboards</a>
+            <a href="/dashboard/incidentes/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/incidentes') else '' }}">Incidentes</a>
+            <a href="/dashboard/supervision/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/supervision') else '' }}">Supervisión</a>
+            <a href="/dashboard/satisfaccion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/satisfaccion') else '' }}">Satisfacción</a>
+            <a href="/dashboard/cumplimiento/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/cumplimiento') else '' }}">Cumplimiento</a>
+            <a href="/dashboard/capacitacion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/capacitacion') else '' }}">Capacitación</a>
+            <a href="/dashboard/disciplina/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/disciplina') else '' }}">Disciplina</a>
+            <a href="/dashboard/visitas/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/visitas') else '' }}">Visitas</a>
+            <a href="/dashboard/vehiculos/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/vehiculos') else '' }}">Vehículos</a>
+            <a href="/dashboard/motocicletas/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/motocicletas') else '' }}">Motocicletas</a>
+            <a href="/dashboard/equipos/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/equipos') else '' }}">Equipos</a>
+            <a href="/dashboard/gestion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/gestion') else '' }}">Gestión</a>
+        </div>
         {% endif %}
         <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -121,6 +150,13 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
 <div class="snw-overlay" id="snwOverlay"></div>
 
 <script>
+function snwToggleDash() {
+    var btn  = document.getElementById('snwDashGroup');
+    var menu = document.getElementById('snwDashMenu');
+    var open = menu.classList.toggle('open');
+    btn.classList.toggle('open', open);
+}
+
 (function(){
     document.addEventListener('DOMContentLoaded', function() {
         var sidebar     = document.getElementById('globalSidebar');

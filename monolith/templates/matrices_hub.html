@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Consultar Matrices — Kanan Sentinel</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+.flatpickr-calendar { font-family: 'Inter', sans-serif !important; }
+.flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
+.flatpickr-day.selected:hover, .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover {
+    background: #1d4ed8 !important; border-color: #1d4ed8 !important;
+}
+.flatpickr-day.inRange { background: #bfdbfe !important; border-color: #bfdbfe !important; color: #1e40af !important; box-shadow: -5px 0 0 #bfdbfe, 5px 0 0 #bfdbfe !important; }
+body.light-mode .flatpickr-day.inRange { background: #dbeafe !important; border-color: #dbeafe !important; }
+</style>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;display:flex}
@@ -282,7 +292,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         <div class="section-header">
             <div class="section-title" style="display: flex; align-items: center;">
                 Matrices Operativas
-                <input type="month" id="mesInput" class="mes-badge" style="border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; padding: .15rem .5rem; font-family: inherit; cursor: pointer; outline: none; margin-left: 0.5rem;">
+                <input type="text" id="mesInput" placeholder="Seleccionar período…" readonly class="mes-badge" style="border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; padding: .15rem .7rem; font-family: inherit; cursor: pointer; outline: none; margin-left: 0.5rem; min-width: 230px; border-radius: .375rem;">
             </div>
             <div class="section-desc">Seleccione una matriz para consultar el estado detallado, filtrar por cliente y gestionar casos.</div>
         </div>
@@ -347,21 +357,22 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 </div>
 
 <script>
+let _picker = null;
+let _pickerRange = { from: null, to: null };
+
 async function loadStats() {
     try {
-        const monthVal = document.getElementById('mesInput').value;
         let url = '/matrices/api/stats';
-        if (monthVal) {
-            url += `?month=${monthVal}`;
+        const params = new URLSearchParams();
+        if (_pickerRange.from && _pickerRange.to) {
+            params.set('date_from', _pickerRange.from);
+            params.set('date_to',   _pickerRange.to);
         }
-        
+        if (params.toString()) url += '?' + params.toString();
+
         const res = await fetch(url);
         if (!res.ok) return;
         const d = await res.json();
-
-        if (d.mes_iso && !monthVal) {
-            document.getElementById('mesInput').value = d.mes_iso;
-        }
 
         // Incidentes
         if (d.incidentes) {
@@ -394,8 +405,24 @@ async function loadStats() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    _picker = flatpickr('#mesInput', {
+        mode: 'range',
+        locale: 'es',
+        dateFormat: 'd/m/Y',
+        showMonths: 1,
+        disableMobile: true,
+        onClose(selectedDates) {
+            if (selectedDates.length === 2) {
+                const fmt = d => d.toISOString().slice(0, 10);
+                _pickerRange = { from: fmt(selectedDates[0]), to: fmt(selectedDates[1]) };
+                loadStats();
+            } else if (selectedDates.length === 0) {
+                _pickerRange = { from: null, to: null };
+                loadStats();
+            }
+        },
+    });
     loadStats();
-    document.getElementById('mesInput').addEventListener('change', loadStats);
 
     const sidebar       = document.querySelector('.sidebar');
     const mainContent   = document.querySelector('.main');
@@ -413,6 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => { if (!isMobile()) closeMobileSidebar(); });
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 </html>

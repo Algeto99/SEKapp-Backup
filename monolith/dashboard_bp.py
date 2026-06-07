@@ -4577,8 +4577,8 @@ def _capac_safe_len(col='lista_asistencia'):
     The regex '^\\s*\\[' confirms the value is a JSON array, not just non-empty text.
     """
     return (
-        f"CASE WHEN {col} IS NOT NULL AND {col} ~ '^\\s*\\[' "
-        f"THEN json_array_length({col}::json) ELSE 0 END"
+        f"CASE WHEN {col} IS NOT NULL AND {col}::TEXT ~ '^\\s*\\[' "
+        f"THEN jsonb_array_length({col}) ELSE 0 END"
     )
 
 def _capac_date_expr():
@@ -4749,7 +4749,7 @@ def api_capacitacion_data():
         # ── Top asistentes (JSON expansion via lateral) ───────────────────────
         top_conds = base_conds + [
             "lista_asistencia IS NOT NULL",
-            "lista_asistencia ~ '^\\s*\\['",
+            "jsonb_typeof(lista_asistencia) = 'array'",
         ]
         cur.execute(f"""
             SELECT
@@ -4761,9 +4761,9 @@ def api_capacitacion_data():
                 FROM registro_de_capacitaciones
                 {_capac_where(top_conds)}
             ) sub,
-            LATERAL json_array_elements(
-                CASE WHEN sub.lista_asistencia IS NOT NULL AND sub.lista_asistencia ~ '^\s*\['
-                     THEN sub.lista_asistencia::json ELSE '[]'::json END
+            LATERAL jsonb_array_elements(
+                CASE WHEN jsonb_typeof(sub.lista_asistencia) = 'array'
+                     THEN sub.lista_asistencia ELSE '[]'::jsonb END
             ) AS att
             WHERE (att->>'nombre') IS NOT NULL AND (att->>'nombre') != ''
             GROUP BY att->>'nombre', att->>'cargo'
@@ -4914,7 +4914,7 @@ def _visita_parse_compromisos(rows):
     compromisos = []
     for row in rows:
         acuerdos = _visita_split_blocks(row['acuerdos_compromisos'])
-        responsables = _visita_parse_responsables(row['compromisos_responsable'])
+        responsables = []
         temas = _visita_split_blocks(row['temas_tratados'])
 
         estados_override = {}
@@ -5113,7 +5113,6 @@ def api_visitas_data():
                 motivo_visita,
                 temas_tratados,
                 acuerdos_compromisos,
-                compromisos_responsable,
                 nombre_responsable,
                 fecha_cumplimiento,
                 nombre_visitante,
@@ -5191,7 +5190,6 @@ def api_visitas_detalles():
                 motivo_visita,
                 temas_tratados,
                 acuerdos_compromisos,
-                compromisos_responsable,
                 nombre_responsable,
                 fecha_cumplimiento,
                 nombre_visitante,
@@ -7076,17 +7074,17 @@ def api_bases_de_datos_personal():
                 match_parts, train_params = [], []
                 if doc:
                     match_parts.append(
-                        "EXISTS (SELECT 1 FROM json_array_elements("
-                        "CASE WHEN lista_asistencia IS NOT NULL AND lista_asistencia ~ '^\\s*\\['"
-                        " THEN lista_asistencia::json ELSE '[]'::json END) e"
+                        "EXISTS (SELECT 1 FROM jsonb_array_elements("
+                        "CASE WHEN jsonb_typeof(lista_asistencia) = 'array'"
+                        " THEN lista_asistencia ELSE '[]'::jsonb END) e"
                         " WHERE e->>'documento' = %s)"
                     )
                     train_params.append(doc)
                 if nombre:
                     match_parts.append(
-                        "EXISTS (SELECT 1 FROM json_array_elements("
-                        "CASE WHEN lista_asistencia IS NOT NULL AND lista_asistencia ~ '^\\s*\\['"
-                        " THEN lista_asistencia::json ELSE '[]'::json END) e"
+                        "EXISTS (SELECT 1 FROM jsonb_array_elements("
+                        "CASE WHEN jsonb_typeof(lista_asistencia) = 'array'"
+                        " THEN lista_asistencia ELSE '[]'::jsonb END) e"
                         " WHERE e->>'nombre' ILIKE %s)"
                     )
                     train_params.append(f"%{nombre}%")
@@ -7096,8 +7094,7 @@ def api_bases_de_datos_personal():
                     SELECT nombre_capacitacion, objetivo_capacitacion,
                            nivel_comprension, fecha_hora, nombre_responsable
                     FROM registro_de_capacitaciones
-                    WHERE lista_asistencia IS NOT NULL
-                      AND lista_asistencia ~ '^\\s*\\['
+                    WHERE jsonb_typeof(lista_asistencia) = 'array'
                       AND ({match_sql})
                     ORDER BY fecha_hora DESC
                     LIMIT 20
