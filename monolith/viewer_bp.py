@@ -22,6 +22,7 @@ from flask import Blueprint, current_app, render_template, request, jsonify, Res
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from google.cloud import storage
 
+from markupsafe import escape
 from db import get_db_connection
 
 # PDF generation imports
@@ -2190,8 +2191,8 @@ td.val { color: #1f2937; }
                     signatures.append((key, val_str))
                 continue
 
-            clean_value = val_str.replace('\n', '<br>')
-            html_parts.append(f'<tr><td class="lbl">{key}</td><td class="val">{clean_value}</td></tr>')
+            clean_value = str(escape(val_str)).replace('\n', '<br>')
+            html_parts.append(f'<tr><td class="lbl">{escape(key)}</td><td class="val">{clean_value}</td></tr>')
 
         html_parts.append('</table>')
 
