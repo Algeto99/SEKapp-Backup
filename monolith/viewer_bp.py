@@ -698,7 +698,13 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     where_conditions.append(f"t.{config['date_col']} <= %s")
                     query_params.append(filters['end_date'])
 
-                if company_id is not None and _table_has_column(cur, config['table'], 'company_id'):
+                if company_id is not None:
+                    if not _table_has_column(cur, config['table'], 'company_id'):
+                        current_app.logger.error(
+                            "Security: table '%s' missing company_id — refusing cross-tenant query",
+                            config['table']
+                        )
+                        return jsonify({"error": "Data isolation error"}), 500
                     where_conditions.append("t.company_id = %s")
                     query_params.append(company_id)
                     
@@ -876,7 +882,13 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
             ORDER BY t.{config['date_col']} DESC NULLS LAST, t.{config['id_col']} DESC
         """
         params = list(clean_ids)
-        if company_id is not None and _table_has_column(cur, config['table'], 'company_id'):
+        if company_id is not None:
+            if not _table_has_column(cur, config['table'], 'company_id'):
+                current_app.logger.error(
+                    "Security: table '%s' missing company_id — refusing cross-tenant query",
+                    config['table']
+                )
+                return jsonify({"error": "Data isolation error"}), 500
             query = query.replace(
                 f"WHERE t.{config['id_col']} IN ({placeholders})",
                 f"WHERE t.{config['id_col']} IN ({placeholders}) AND t.company_id = %s"
