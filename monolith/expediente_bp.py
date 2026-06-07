@@ -69,16 +69,29 @@ def _get_user_info(user_email):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        is_api = '/api/' in request.path or request.path.startswith('/expediente/api/')
         try:
             claims = get_jwt()
             if not claims.get('is_admin', False):
-                is_api = '/api/' in request.path or request.path.startswith('/expediente/api/')
-                if is_api:
-                    return jsonify({"error": "Acceso denegado"}), 403
-                return redirect('/')
+                return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect('/')
+
+            # DB verification — JWT claim may be stale if admin was revoked after token issuance
+            email = get_jwt_identity()
+            conn = get_db_connection()
+            if conn:
+                try:
+                    cur = conn.cursor()
+                    cur.execute('SELECT is_admin, is_active FROM users WHERE email = %s', (email,))
+                    row = cur.fetchone()
+                    cur.close()
+                    if not row or not row[0] or not row[1]:
+                        app_logger.warning(f"admin_required DB check failed for {email}: row={row}")
+                        return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect('/')
+                finally:
+                    conn.close()
         except Exception as e:
             app_logger.error(f"admin_required error: {e}", exc_info=True)
-            return redirect('/')
+            return jsonify({"error": "Error de autenticación"}), 500 if is_api else redirect('/')
         return f(*args, **kwargs)
     return decorated
 

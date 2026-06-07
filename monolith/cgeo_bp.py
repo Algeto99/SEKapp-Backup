@@ -52,14 +52,29 @@ def _get_user_info(user_email):
 def _admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        is_api = request.path.startswith("/cgeo/api/")
         try:
             claims = get_jwt()
             if not claims.get("is_admin", False):
-                if request.path.startswith("/cgeo/api/"):
-                    return jsonify({"error": "Acceso denegado"}), 403
-                return redirect("/landing/")
+                return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect("/landing/")
+
+            # DB verification — JWT claim may be stale if admin was revoked after token issuance
+            email = get_jwt_identity()
+            conn = _get_conn()
+            if conn:
+                try:
+                    cur = conn.cursor()
+                    cur.execute('SELECT is_admin, is_active FROM users WHERE email = %s', (email,))
+                    row = cur.fetchone()
+                    cur.close()
+                    if not row or not row[0] or not row[1]:
+                        app_logger.warning(f"_admin_required DB check failed for {email}: row={row}")
+                        return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect("/landing/")
+                finally:
+                    conn.close()
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            app_logger.error(f"_admin_required error: {e}", exc_info=True)
+            return jsonify({"error": "Error de autenticación"}), 500 if is_api else redirect("/landing/")
         return f(*args, **kwargs)
     return decorated
 
