@@ -71,12 +71,17 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
-            server.ehlo()
-            server.starttls(context=context)
-            server.ehlo()
-            server.login(email_username, email_password)
-            server.send_message(msg, to_addrs=recipients)
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context, timeout=10) as server:
+                server.login(email_username, email_password)
+                server.send_message(msg, to_addrs=recipients)
+        else:
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=10) as server:
+                server.ehlo()
+                server.starttls(context=context)
+                server.ehlo()
+                server.login(email_username, email_password)
+                server.send_message(msg, to_addrs=recipients)
         return True
     except Exception as e:
         logger.error(f"Email send failure to {recipients}: {e}", exc_info=True)

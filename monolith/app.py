@@ -54,11 +54,11 @@ app.config['DASHBOARD_SERVICE_URL'] = os.environ.get('DASHBOARD_SERVICE_URL', 'h
 app.config['VIEWER_SERVICE_URL'] = os.environ.get('VIEWER_SERVICE_URL', 'https://viewer.secapp.tzolkintech.com')
 
 
-app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
+app.config['SMTP_SERVER'] = os.environ.get('SMTP_SERVER', 'kanansentinel.com')
+app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 465))
 app.config['SMTP_USE_TLS'] = os.environ.get('SMTP_USE_TLS', 'true').lower() == 'true'
-app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME', 'no-reply@tzolkintech.com')
-app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'rcanton@tzolkintech.com')
+app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME', 'no-reply@kanansentinel.com')
+app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'no-reply@kanansentinel.com')
 app.config['GCP_PROJECT_ID'] = os.environ.get('GCP_PROJECT_ID', os.environ.get('GOOGLE_CLOUD_PROJECT', 'tz-dev-secapp'))
 app.config['EMAIL_PASSWORD_SECRET_NAME'] = os.environ.get('EMAIL_PASSWORD_SECRET', 'admin-email-pass')
 

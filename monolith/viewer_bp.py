@@ -1032,6 +1032,7 @@ def _get_email_password():
         project_id = current_app.config.get('GCP_PROJECT_ID')
         if not project_id:
             return None
+        from google.cloud import secretmanager
         client = secretmanager.SecretManagerServiceClient()
         name = f"projects/{project_id}/secrets/admin-email-pass/versions/latest"
         response = client.access_secret_version(request={"name": name})

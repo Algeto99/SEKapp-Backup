@@ -1346,9 +1346,12 @@
         btn.disabled = true;
         try {
             const endpoint = format === 'pdf' ? '/viewer/api/generate-pdf' : '/viewer/api/export-excel';
+            const jwtCsrfExp = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+            const csrfValExp = jwtCsrfExp ? decodeURIComponent(jwtCsrfExp.substring('csrf_access_token='.length)) : '';
             const res = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfValExp },
                 body: JSON.stringify({ reports: [{ id: currentRecordId, formType: 'reporte_incidente' }] })
             });
             if (!res.ok) { let msg = 'Error generando archivo.'; try { const e = await res.json(); msg = e.message || msg; } catch {} showError(msg); return; }
@@ -1384,9 +1387,12 @@
         const btn = document.querySelector('#emailPrompt .btn-email');
         btn.disabled = true;
         try {
+            const jwtCsrfEmail = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+            const csrfValEmail = jwtCsrfEmail ? decodeURIComponent(jwtCsrfEmail.substring('csrf_access_token='.length)) : '';
             const res = await fetch('/viewer/api/email-reports', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfValEmail },
                 body: JSON.stringify({
                     reports: [{ id: currentRecordId, formType: 'reporte_incidente' }],
                     recipient_email: email
