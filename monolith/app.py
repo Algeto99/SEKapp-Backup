@@ -178,13 +178,14 @@ app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(cgeo_bp, url_prefix='/cgeo')
 app.register_blueprint(matrices_bp, url_prefix='/matrices')
 
-# JWT-authenticated blueprints use their own auth — exempt from CSRF
+# JSON API blueprints — all routes are JWT-authenticated fetch calls, not browser forms.
+# JWT_COOKIE_CSRF_PROTECT=True provides double-submit protection for the JWT cookie itself.
 csrf.exempt(viewer_bp)
 csrf.exempt(dashboard_bp)
 csrf.exempt(expediente_bp)
-csrf.exempt(admin_bp)
 csrf.exempt(cgeo_bp)
 csrf.exempt(forms_bp)
+# admin_bp is NOT exempted: it serves traditional browser form POSTs that require CSRF tokens.
 
 # Inject is_super_admin into every template from the active JWT
 @app.context_processor
