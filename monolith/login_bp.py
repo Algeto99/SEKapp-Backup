@@ -2,6 +2,7 @@ import os
 import secrets
 import hashlib
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, unset_jwt_cookies,
@@ -15,6 +16,17 @@ from email_utils import send_email, send_password_reset_email, send_welcome_emai
 
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
+
+def _safe_redirect(next_url, fallback):
+    if not next_url:
+        return fallback
+    parsed = urlparse(next_url)
+    if parsed.scheme or parsed.netloc:
+        return fallback
+    normalised = parsed.path
+    if not normalised.startswith('/') or normalised.startswith('//'):
+        return fallback
+    return next_url
 
 # Extensions (from main app)
 bcrypt = None
@@ -160,14 +172,11 @@ def login():
                         set_refresh_cookies(response, refresh_token)
                         return response
 
-                    next_url = request.args.get('next') or request.form.get('next', '')
-                    # Only allow relative paths to prevent open-redirect attacks
-                    if next_url and next_url.startswith('/') and not next_url.startswith('//'):
-                        redirect_target = next_url
-                    elif is_admin:
-                        redirect_target = '/cgeo/morning-briefing/'
-                    else:
-                        redirect_target = url_for('landing_bp.landing_page')
+                    fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
+                    redirect_target = _safe_redirect(
+                        request.args.get('next') or request.form.get('next'),
+                        fallback=fallback
+                    )
                     response = redirect(redirect_target)
                     set_access_cookies(response, access_token)
                     set_refresh_cookies(response, refresh_token)
