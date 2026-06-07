@@ -1,6 +1,7 @@
 import logging
 import smtplib
 import ssl
+from html import escape
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -106,7 +107,7 @@ def send_welcome_email(user_email, user_name, is_admin=False):
     login_url = url_for('login_bp.login', _external=True)
     html_body = (
         f'<div style="font-family:sans-serif;">'
-        f'<p>¡Hola {user_name}!</p>'
+        f'<p>¡Hola {escape(user_name)}!</p>'
         f'<p>Tu cuenta ha sido creada exitosamente.</p>'
         f'<p><a href="{login_url}">Iniciar sesión</a></p>'
         f'</div>'
@@ -117,13 +118,13 @@ def send_welcome_email(user_email, user_name, is_admin=False):
 def send_registration_notification(user_email, user_name, phone_number):
     admin_email = current_app.config.get('ADMIN_EMAIL')
     if admin_email:
-        subject = f"Nuevo Usuario Registrado - {user_name}"
+        subject = f"Nuevo Usuario Registrado - {escape(user_name)}"
         html_body = (
             f'<div style="font-family:sans-serif;">'
             f'<p>Nuevo registro:</p>'
-            f'<ul><li>Nombre: {user_name}</li>'
-            f'<li>Correo: {user_email}</li>'
-            f'<li>Teléfono: {phone_number or "N/A"}</li></ul>'
+            f'<ul><li>Nombre: {escape(user_name)}</li>'
+            f'<li>Correo: {escape(user_email)}</li>'
+            f'<li>Teléfono: {escape(str(phone_number or "N/A"))}</li></ul>'
             f'</div>'
         )
         send_email(admin_email, subject, html_body, is_html=True)
