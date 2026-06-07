@@ -111,6 +111,7 @@ def login():
             cur = conn.cursor(cursor_factory=extras.DictCursor)
             cur.execute('SELECT "id", "email", "password_hash", "name", "is_admin", "is_active" FROM "users" WHERE "email" = %s', (email,))
             user = cur.fetchone()
+            auth_entry = None
 
             if user and not user['is_active']:
                 flash("Credenciales inválidas", "danger")
