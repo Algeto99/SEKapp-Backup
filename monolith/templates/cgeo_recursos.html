@@ -930,7 +930,8 @@ async function loadFiltros() {
         const sel = document.getElementById('filtCliente');
         (d.clientes || []).forEach(c => {
             const o = document.createElement('option');
-            o.value = o.textContent = c;
+            o.value = c.id;
+            o.textContent = c.name;
             sel.appendChild(o);
         });
     } catch (e) { console.error('filtros error', e); }

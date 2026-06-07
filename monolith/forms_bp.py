@@ -61,7 +61,6 @@ def _filter_existing_columns(cur, table_name, data):
         key: value for key, value in data.items()
         if key in table_columns and value is not None and value != ''
     }
-    filtered.pop('cliente_instalacion', None)
     return filtered
 
 

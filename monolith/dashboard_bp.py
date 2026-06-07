@@ -94,8 +94,8 @@ def _serialize_incident_report_row(row):
         'direccion': row['direccion'] or ''
     }
 
-def get_properties():
-    """Get all available properties"""
+def get_properties(user_email=None):
+    """Get all available properties, scoped to tenant."""
     conn = None
     cur = None
     try:
@@ -106,27 +106,33 @@ def get_properties():
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        query = """
-            SELECT id_propiedad, nombre
-            FROM propiedades
-            WHERE COALESCE(activa, TRUE) = TRUE
-            ORDER BY nombre;
-        """
-        
-        cur.execute(query)
+        company_id = None
+        if user_email:
+            company_id = _get_user_company_id(cur, user_email)
+            
+        if company_id is not None:
+            query = """
+                SELECT p.id_propiedad, p.nombre
+                FROM propiedades p
+                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+                WHERE COALESCE(p.activa, TRUE) = TRUE
+                  AND cc.company_id = %s
+                ORDER BY p.nombre;
+            """
+            cur.execute(query, (company_id,))
+        else:
+            query = """
+                SELECT id_propiedad, nombre
+                FROM propiedades
+                WHERE COALESCE(activa, TRUE) = TRUE
+                ORDER BY nombre;
+            """
+            cur.execute(query)
+            
         rows = cur.fetchall()
-        
-        properties = []
-        for row in rows:
-            properties.append({
-                'id': row['id_propiedad'],
-                'name': row['nombre']
-            })
-        
-        return properties
-        
+        return [{"id": row["id_propiedad"], "name": row["nombre"]} for row in rows]
     except Exception as e:
-        app_logger.error(f"Error in get_properties: {e}", exc_info=True)
+        app_logger.error(f"Error fetching properties: {e}")
         return []
     finally:
         if cur:
@@ -6520,7 +6526,8 @@ def dashboard_redirect():
 @jwt_required()
 def api_properties():
     """API endpoint to get all available properties"""
-    properties = get_properties()
+    user_email = get_jwt_identity()
+    properties = get_properties(user_email=user_email)
     return jsonify(properties)
 
 @dashboard_bp.route('/api/reports/<stat_type>')
