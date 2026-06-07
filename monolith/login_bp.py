@@ -17,6 +17,20 @@ from email_utils import send_email, send_password_reset_email, send_registration
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
 
+_FORCE_PW_ALLOWED = {'login_bp.change_password', 'login_bp.logout', 'static'}
+
+@login_bp.before_app_request
+def enforce_force_password_change():
+    """Block force_pw-scoped tokens from accessing any route except change-password and logout."""
+    from flask_jwt_extended import verify_jwt_in_request
+    try:
+        verify_jwt_in_request(optional=True)
+    except Exception:
+        return
+    claims = get_jwt()
+    if claims.get('force_pw') and request.endpoint not in _FORCE_PW_ALLOWED:
+        return redirect(url_for('login_bp.change_password', forced='1'))
+
 def _safe_redirect(next_url, fallback):
     if not next_url:
         return fallback
@@ -163,9 +177,13 @@ def login():
 
                     if force_password_change:
                         flash('Debes cambiar tu contraseña antes de continuar.', 'warning')
+                        limited_token = create_access_token(
+                            identity=user['email'],
+                            additional_claims={'force_pw': True, 'name': user['name']}
+                            # is_admin / is_super_admin intentionally omitted
+                        )
                         response = redirect(url_for('login_bp.change_password', forced='1'))
-                        set_access_cookies(response, access_token)
-                        set_refresh_cookies(response, refresh_token)
+                        set_access_cookies(response, limited_token)
                         return response
 
                     fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
@@ -374,7 +392,7 @@ def change_password():
 
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
-            cur.execute('SELECT "id", "password_hash" FROM "users" WHERE "email" = %s', (email,))
+            cur.execute('SELECT "id", "password_hash", "name", "is_admin", "is_super_admin" FROM "users" WHERE "email" = %s', (email,))
             user = cur.fetchone()
 
             if not user or not bcrypt.check_password_hash(user['password_hash'], current_password):
@@ -390,9 +408,20 @@ def change_password():
             cur.close()
 
             flash('Contraseña actualizada exitosamente.', 'success')
-            # If this was a forced change, go to landing; otherwise back to login
             if request.form.get('forced') == '1':
-                return redirect(url_for('landing_bp.landing_page'))
+                # Replace the limited-scope token with a full-privilege token now that the
+                # password change is complete and force_password_change has been cleared.
+                full_token = create_access_token(
+                    identity=email,
+                    additional_claims={
+                        'is_admin': bool(user.get('is_admin')),
+                        'is_super_admin': bool(user.get('is_super_admin')),
+                        'name': user.get('name', ''),
+                    }
+                )
+                response = redirect(url_for('landing_bp.landing_page'))
+                set_access_cookies(response, full_token)
+                return response
             return redirect(url_for('login_bp.login'))
 
         except Exception as e:
