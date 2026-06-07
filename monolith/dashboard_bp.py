@@ -3153,6 +3153,8 @@ def api_incidentes_data():
         # ── Previous period ───────────────────────────────────────────────
         total_prev = 0
         total_alto_prev = 0
+        total_medio_prev = 0
+        total_bajo_prev = 0
         avg_resolucion_prev = None
         if where_prev is not None:
             cur.execute(f"""
