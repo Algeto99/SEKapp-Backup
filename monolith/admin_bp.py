@@ -113,7 +113,7 @@ def panel():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         try:
             cur.execute("""
-                SELECT id, name, email, username, phone_number,
+                SELECT id, name, email, phone_number,
                        is_admin, is_super_admin, is_active, company_id, created_at,
                        force_password_change
                 FROM users ORDER BY created_at DESC
@@ -121,7 +121,7 @@ def panel():
         except Exception:
             conn.rollback()
             cur.execute("""
-                SELECT id, name, email, username, phone_number,
+                SELECT id, name, email, phone_number,
                        is_admin, is_super_admin, is_active, company_id, created_at,
                        FALSE AS force_password_change
                 FROM users ORDER BY created_at DESC
@@ -149,7 +149,6 @@ def create_user():
 
     name = request.form.get('name', '').strip()
     email = request.form.get('email', '').strip().lower()
-    username = request.form.get('username', '').strip()
     phone = request.form.get('phone_number', '').strip()
     password = request.form.get('password', '').strip()
     is_admin = request.form.get('is_admin') == '1'
@@ -171,10 +170,10 @@ def create_user():
         force_pw = request.form.get('force_password_change') == '1'
         hashed = bcrypt.generate_password_hash(password).decode('utf-8')
         cur.execute(
-            """INSERT INTO users (name, email, username, phone_number, password_hash,
+            """INSERT INTO users (name, email, phone_number, password_hash,
                                   is_admin, is_active, company_id, force_password_change)
-               VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s)""",
-            (name, email, username or None, phone or None, hashed, is_admin, company_id, force_pw)
+               VALUES (%s, %s, %s, %s, %s, TRUE, %s, %s)""",
+            (name, email, phone or None, hashed, is_admin, company_id, force_pw)
         )
         conn.commit()
         cur.close()

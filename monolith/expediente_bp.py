@@ -374,7 +374,7 @@ def api_feed():
                 rav.creado_en,
                 NULL::numeric, NULL::numeric, NULL::numeric,
                 NULL::text,
-                rav.compromisos_responsable,
+                rav.nombre_responsable,
                 COALESCE(rav.acuerdos_compromisos, ''),
                 rav.compromisos_estados,
                 NULL::text,
@@ -620,7 +620,7 @@ def api_kpi():
                 TO_CHAR(DATE_TRUNC('month', creado_en), 'YYYY-MM') AS mes,
                 COUNT(*) AS acuerdos,
                 COUNT(*) FILTER (
-                    WHERE compromisos_fecha_limite < CURRENT_DATE - INTERVAL '1 day'
+                    WHERE fecha_cumplimiento < CURRENT_DATE - INTERVAL '1 day'
                       AND (compromisos_estados IS NULL
                            OR compromisos_estados NOT ILIKE '%CUMPLIDO%')
                 ) AS vencidos
@@ -871,7 +871,7 @@ def public_expediente_viewer(token):
                 rav.id_visita::text, 'ACUERDO'::text,
                 rav.creado_en,
                 NULL::numeric, NULL::numeric, NULL::numeric,
-                NULL::text, rav.compromisos_responsable,
+                NULL::text, rav.nombre_responsable,
                 COALESCE(rav.acuerdos_compromisos, ''),
                 rav.compromisos_estados, NULL::text,
                 NULL::date, rav.compromisos_estados
@@ -986,7 +986,7 @@ def public_evidence_viewer(hash_token):
                 sp.location_accuracy,
                 sp.foto_evidencia_url,
                 sp.supervisor,
-                sp.cliente             AS cliente_instalacion,
+                sp.cliente_instalacion,
                 sp.observaciones_novedades,
                 p.nombre       AS propiedad_nombre,
                 p.direccion    AS propiedad_direccion
