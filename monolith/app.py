@@ -179,8 +179,38 @@ csrf.exempt(viewer_bp)
 csrf.exempt(dashboard_bp)
 csrf.exempt(expediente_bp)
 csrf.exempt(cgeo_bp)
-csrf.exempt(forms_bp)
 # admin_bp is NOT exempted: it serves traditional browser form POSTs that require CSRF tokens.
+
+# forms_bp: exempt only the specific routes that don't use Flask-WTF CSRF tokens.
+# All @jwt_required() submit routes are protected by JWT_COOKIE_CSRF_PROTECT instead.
+# The two public QR routes have no auth at all — they are explicitly exempt.
+_FORMS_EXEMPT_ENDPOINTS = [
+    # Public unauthenticated attendance form (session_token in URL acts as CSRF nonce)
+    'forms_bp.asistencia_qr_form',
+    'forms_bp.submit_asistencia_qr',
+    # JWT-authenticated PWA submit routes — protected via JWT double-submit cookie
+    'forms_bp.submit_incident_report',
+    'forms_bp.submit_medicion_experiencia_cliente',
+    'forms_bp.submit_supervision_puesto',
+    'forms_bp.submit_informe_novedades_disciplinario',
+    'forms_bp.submit_log_de_patrullas',
+    'forms_bp.submit_registro_de_capacitaciones',
+    'forms_bp.submit_registro_y_acta_de_visita',
+    'forms_bp.submit_planilla_vehicular',
+    'forms_bp.submit_planilla_motocicletas',
+    'forms_bp.submit_checklist_cumplimiento',
+    'forms_bp.submit_confiabilidad_equipos',
+    # JWT-authenticated API endpoints
+    'forms_bp.get_csrf_token',
+    'forms_bp.get_my_reports',
+    'forms_bp.get_my_report_details',
+    'forms_bp.api_form_properties',
+    'forms_bp.customer_hierarchy',
+]
+for _endpoint in _FORMS_EXEMPT_ENDPOINTS:
+    _view = app.view_functions.get(_endpoint)
+    if _view:
+        csrf.exempt(_view)
 
 # Inject is_super_admin into every template from the active JWT
 @app.context_processor
