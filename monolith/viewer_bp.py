@@ -672,7 +672,18 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
             # Build WHERE clause based on filters
             where_conditions = []
             query_params = []
-            
+
+            # Tenant isolation — always applied regardless of other filters
+            if company_id is not None:
+                if not _table_has_column(cur, config['table'], 'company_id'):
+                    current_app.logger.error(
+                        "Security: table '%s' missing company_id — refusing cross-tenant query",
+                        config['table']
+                    )
+                    return [], 0
+                where_conditions.append("t.company_id = %s")
+                query_params.append(company_id)
+
             if filters:
                 # Report ID filter
                 if filters.get('report_id'):
@@ -682,32 +693,22 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                         query_params.append(report_id)
                     except (ValueError, TypeError):
                         pass # Ignore invalid ID for this type
-                
+
                 # Submitted by filter
                 if filters.get('submitted_by'):
                     where_conditions.append(f"(LOWER(u.name) LIKE LOWER(%s) OR LOWER(t.{config['user_col']}) LIKE LOWER(%s))")
                     search_term = f"%{filters['submitted_by']}%"
                     query_params.extend([search_term, search_term])
-                
+
                 # Date range filters
                 if filters.get('start_date'):
                     where_conditions.append(f"t.{config['date_col']} >= %s")
                     query_params.append(filters['start_date'])
-                
+
                 if filters.get('end_date'):
                     where_conditions.append(f"t.{config['date_col']} <= %s")
                     query_params.append(filters['end_date'])
 
-                if company_id is not None:
-                    if not _table_has_column(cur, config['table'], 'company_id'):
-                        current_app.logger.error(
-                            "Security: table '%s' missing company_id — refusing cross-tenant query",
-                            config['table']
-                        )
-                        return jsonify({"error": "Data isolation error"}), 500
-                    where_conditions.append("t.company_id = %s")
-                    query_params.append(company_id)
-                    
                 # Property/Location filters (Only for reporte_incidente for now)
                 if f_type == 'reporte_incidente':
                      if filters.get('property_id'):
