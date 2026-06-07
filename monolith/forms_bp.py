@@ -562,14 +562,24 @@ def submit_supervision_puesto():
         supervisions_map = {}
         pattern = re.compile(r'supervisions\[(\d+)\]\[(.*)\]')
 
-        for key, value in request.form.items():
+        for key in request.form.keys():
             match = pattern.match(key)
             if match:
                 index = int(match.group(1))
                 field = match.group(2)
+                
+                # Check for array fields (e.g., problemas_uniforme[])
+                if field.endswith('[]'):
+                    field_name = field[:-2]
+                    # Join multiple checkbox values with a comma
+                    value = ', '.join(request.form.getlist(key))
+                else:
+                    field_name = field
+                    value = request.form.get(key)
+                
                 if index not in supervisions_map:
                     supervisions_map[index] = {}
-                supervisions_map[index][field] = value
+                supervisions_map[index][field_name] = value
 
         # 3. Handle Files (supervisions[index][foto_evidencia])
         for key, file_storage in request.files.items():
