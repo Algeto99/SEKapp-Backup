@@ -367,34 +367,26 @@ def get_reports_for_stat(stat_type, property_id=None, limit=100):
             # No additional date filters for total
             pass
         elif stat_type == 'thisMonth':
-            where_conditions.append("""
+            where_conditions.append(f"""
                 DATE_TRUNC('month', {INCIDENT_DATE_EXPR}) = DATE_TRUNC('month', CURRENT_DATE)
             """)
         elif stat_type == 'thisWeek':
-            # FIXED: Use calendar week consistently
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
                 AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
             """)
-            # DEBUG: Add logging for thisWeek
-            app_logger.info("ThisWeek date range: week start = DATE_TRUNC('week', CURRENT_DATE)")
         elif stat_type == 'incidentTypes':
-            # FIXED: Use same calendar week calculation for consistency
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
                 AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
             """)
-            # DEBUG: Add logging for incidentTypes
-            app_logger.info("IncidentTypes date range: week start = DATE_TRUNC('week', CURRENT_DATE)")
         elif stat_type == 'incidentTypesMonthly':
-            # Last 30 days for monthly incident types
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '30 days'
                 AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
             """)
         elif stat_type == 'incidentTypesYearly':
-            # Last 365 days for yearly incident types
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '365 days'
                 AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
             """)
@@ -468,20 +460,17 @@ def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id
         
         # FIXED: Add date conditions based on stat type with consistent calculations
         if stat_type == 'weekly':
-            # Use calendar week for consistency with "Esta Semana"
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
                 AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
             """)
         elif stat_type == 'monthly':
-            # Last 30 days
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '30 days'
                 AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
             """)
         elif stat_type == 'yearly':
-            # Last 365 days
-            where_conditions.append("""
+            where_conditions.append(f"""
                 {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '365 days'
                 AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
             """)
