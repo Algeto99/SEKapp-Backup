@@ -23,10 +23,10 @@ def _safe_redirect(next_url, fallback):
     parsed = urlparse(next_url)
     if parsed.scheme or parsed.netloc:
         return fallback
-    normalised = parsed.path
-    if not normalised.startswith('/') or normalised.startswith('//'):
+    path = parsed.path
+    if not path.startswith('/') or path.startswith('//'):
         return fallback
-    return next_url
+    return path
 
 # Extensions (from main app)
 bcrypt = None
