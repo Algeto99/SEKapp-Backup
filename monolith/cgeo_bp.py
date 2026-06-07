@@ -32,7 +32,7 @@ def _get_user_company_id(cur, user_email):
         return None
     cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
     row = cur.fetchone()
-    return row[0] if row and row[0] is not None else None
+    return row['company_id'] if row and row['company_id'] is not None else None
 
 
 def _get_user_info(user_email):
