@@ -12,7 +12,7 @@ from psycopg2 import extras
 import psycopg2
 
 from db import get_db_connection
-from email_utils import send_email, send_password_reset_email, send_welcome_email, send_registration_notification
+from email_utils import send_email, send_password_reset_email, send_registration_notification
 
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
