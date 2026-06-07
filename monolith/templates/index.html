@@ -52,53 +52,74 @@
         }
 
         .base-button-style {
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-            font-weight: 500;
-            border-radius: 0.5rem;
-            transition: all 0.2s ease-in-out;
+            height: 36px;
+            padding: 0 1rem;
+            font-size: .8125rem;
+            font-weight: 600;
+            border-radius: .5rem;
+            transition: background .15s, border-color .15s, color .15s;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            gap: .375rem;
+            white-space: nowrap;
+            border: 1.5px solid transparent;
         }
 
         .action-button {
-            padding: 0.6rem 0.8rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-            min-width: 100px;
-            white-space: nowrap;
-            text-align: center;
-            line-height: 1.2;
-        }
-
-        .base-button-style:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            min-width: 90px;
         }
 
         .btn-primary-professional {
-            background-color: #1d4ed8;
-            color: #ffffff;
-            border: 2px solid #1d4ed8;
+            background: #3b82f6;
+            color: #fff;
+            border-color: #3b82f6;
         }
-
-        .btn-primary-professional:hover {
-            background-color: #1e40af;
-            border-color: #1e40af;
-        }
+        .btn-primary-professional:hover { background: #2563eb; border-color: #2563eb; }
 
         .btn-secondary-professional {
-            background-color: #f3f4f6;
-            color: #1d4ed8;
-            border: 2px solid #e5e7eb;
+            background: #f1f5f9;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        .btn-secondary-professional:hover { background: #e2e8f0; }
+        .btn-secondary-professional:disabled { color: #94a3b8; border-color: #e2e8f0; cursor: not-allowed; }
+
+        .btn-outline-print { background: #fff; color: #475569; border-color: #cbd5e1; }
+        .btn-outline-print:not(:disabled):hover { background: #f8fafc; border-color: #94a3b8; color: #334155; }
+        .btn-outline-pdf { background: #fff; color: #ef4444; border-color: #ef4444; }
+        .btn-outline-pdf:not(:disabled):hover { background: #fef2f2; }
+        .btn-outline-excel { background: #fff; color: #16a34a; border-color: #16a34a; }
+        .btn-outline-excel:not(:disabled):hover { background: #f0fdf4; }
+        .btn-outline-email { background: #fff; color: #3b82f6; border-color: #3b82f6; }
+        .btn-outline-email:not(:disabled):hover { background: #eff6ff; }
+        .btn-outline-share { background: #fff; color: #0f172a; border-color: #0f172a; }
+        .btn-outline-share:not(:disabled):hover { background: #f1f5f9; }
+
+        body:not(.light-mode) .btn-secondary-professional {
+            background: #334155;
+            color: #e2e8f0;
+            border-color: #475569;
+        }
+        body:not(.light-mode) .btn-secondary-professional:hover { background: #3d5068; }
+        body:not(.light-mode) .btn-secondary-professional:disabled {
+            background: #1e293b;
+            color: #475569;
+            border-color: #334155;
+            cursor: not-allowed;
         }
 
-        .btn-secondary-professional:hover {
-            background-color: #e5e7eb;
-        }
+        body:not(.light-mode) .btn-outline-print { background: transparent; color: #94a3b8; border-color: #475569; }
+        body:not(.light-mode) .btn-outline-print:not(:disabled):hover { background: rgba(255,255,255,0.05); }
+        body:not(.light-mode) .btn-outline-pdf { background: transparent; color: #f87171; border-color: #f87171; }
+        body:not(.light-mode) .btn-outline-pdf:not(:disabled):hover { background: rgba(239,68,68,0.1); }
+        body:not(.light-mode) .btn-outline-excel { background: transparent; color: #4ade80; border-color: #4ade80; }
+        body:not(.light-mode) .btn-outline-excel:not(:disabled):hover { background: rgba(34,197,94,0.1); }
+        body:not(.light-mode) .btn-outline-email { background: transparent; color: #60a5fa; border-color: #60a5fa; }
+        body:not(.light-mode) .btn-outline-email:not(:disabled):hover { background: rgba(59,130,246,0.1); }
+        body:not(.light-mode) .btn-outline-share { background: transparent; color: #e2e8f0; border-color: #e2e8f0; }
+        body:not(.light-mode) .btn-outline-share:not(:disabled):hover { background: rgba(255,255,255,0.1); }
 
         .theme-toggle {
             position: absolute;
@@ -366,6 +387,69 @@
             color: #fca5a5 !important;
         }
 
+        /* Export / multi-select panel dark mode */
+        body:not(.light-mode) #multi-select-controls {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        body:not(.light-mode) #multi-select-controls label,
+        body:not(.light-mode) #multi-select-controls .text-gray-600,
+        body:not(.light-mode) #multi-select-controls .text-gray-700 {
+            color: #94a3b8 !important;
+        }
+        body:not(.light-mode) #multi-select-controls .border-gray-100 {
+            border-color: #334155 !important;
+        }
+        body:not(.light-mode) .base-button-style:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        /* Favorites panel dark mode */
+        body:not(.light-mode) #saved-filters-panel {
+            background: #1e3a5f !important;
+            border-color: #2563eb !important;
+        }
+        body:not(.light-mode) #saved-filters-panel span,
+        body:not(.light-mode) #saved-filters-panel #saveFilterFormLabel {
+            color: #93c5fd !important;
+        }
+        body:not(.light-mode) #savedFiltersSelect,
+        body:not(.light-mode) #filterNameInput {
+            background: #0f172a !important;
+            border-color: #334155 !important;
+            color: #e2e8f0 !important;
+        }
+        .fav-btn-outline:disabled { color:#64748b !important; border-color:#cbd5e1 !important; background:rgba(255,255,255,0.5) !important; cursor:not-allowed; opacity: 0.7; }
+        .fav-btn-outline:not(:disabled):hover { filter: brightness(0.92); }
+        .fav-btn-primary:hover { filter: brightness(1.08); }
+        body:not(.light-mode) .fav-btn-outline:not(:disabled) { background: #334155 !important; }
+        body:not(.light-mode) .fav-btn-outline:disabled { background:#1e293b !important; color:#475569 !important; border-color:#334155 !important; }
+        body:not(.light-mode) #saveFilterForm { border-top-color: #334155 !important; }
+
+        /* Filter panel dark mode */
+        body:not(.light-mode) #filter-panel {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        body:not(.light-mode) #filter-panel label {
+            color: #94a3b8;
+        }
+        body:not(.light-mode) #filter-panel input,
+        body:not(.light-mode) #filter-panel select {
+            background: #0f172a;
+            border-color: #334155;
+            color: #e2e8f0;
+        }
+        body:not(.light-mode) #filter-panel input::placeholder {
+            color: #475569;
+        }
+        body:not(.light-mode) #filter-panel input:focus,
+        body:not(.light-mode) #filter-panel select:focus {
+            border-color: #38bdf8;
+            outline: none;
+        }
+
         /* Filter panel collapse */
         #filter-panel {
             overflow: hidden;
@@ -579,63 +663,69 @@
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Exportar</p>
                 <div class="flex flex-wrap gap-2">
                     <button id="print-selected-button"
-                        class="base-button-style btn-secondary-professional action-button" disabled>
-                        🖨️ Imprimir
+                        class="base-button-style btn-outline-print action-button" disabled>
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg> Imprimir
                     </button>
-                    <button id="save-pdf-button" class="base-button-style btn-secondary-professional action-button"
+                    <button id="save-pdf-button" class="base-button-style btn-outline-pdf action-button"
                         disabled>
-                        📄 PDF
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> PDF
                     </button>
-                    <button id="export-excel-button" class="base-button-style btn-secondary-professional action-button"
+                    <button id="export-excel-button" class="base-button-style btn-outline-excel action-button"
                         disabled>
-                        📊 Excel
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Excel
                     </button>
-                    <button id="email-selected-button" class="base-button-style btn-secondary-professional action-button"
+                    <button id="email-selected-button" class="base-button-style btn-outline-email action-button"
                         disabled>
-                        📧 Email
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Email
                     </button>
-                    <button id="share-button" class="base-button-style btn-secondary-professional action-button"
+                    <button id="share-button" class="base-button-style btn-outline-share action-button"
                         disabled>
-                        📱 Compartir
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg> Compartir
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- Saved Filters Panel -->
-        <div id="saved-filters-panel" class="mb-4 p-3 border border-blue-200 rounded-lg bg-blue-50 flex flex-wrap items-center gap-3">
-            <span class="text-sm font-semibold text-blue-700 whitespace-nowrap">⭐ Filtros favoritos:</span>
+        <div id="saved-filters-panel" class="mb-4 p-3 border rounded-lg flex flex-wrap items-center gap-3" style="background:#eff6ff;border-color:#bfdbfe">
+            <span style="font-size:.8rem;font-weight:700;color:#1d4ed8;white-space:nowrap">⭐ Filtros favoritos:</span>
             <select id="savedFiltersSelect"
-                class="px-3 py-2 border border-blue-300 rounded-md shadow-sm text-sm bg-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 min-w-[200px]">
+                style="height:34px;padding:0 .75rem;font-size:.8125rem;border:1.5px solid #bfdbfe;border-radius:.5rem;background:#fff;color:#1e293b;min-width:200px;cursor:pointer">
                 <option value="">— Seleccionar favorito —</option>
             </select>
             <button id="loadFilterBtn" disabled
-                class="px-3 py-2 text-sm font-medium rounded-md border border-blue-400 text-blue-700 bg-white hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                style="height:34px;padding:0 .875rem;font-size:.8125rem;font-weight:600;border-radius:.5rem;border:1.5px solid #93c5fd;background:#fff;color:#1d4ed8;cursor:pointer;transition:all .15s;white-space:nowrap"
+                class="fav-btn-outline">
                 Cargar
             </button>
             <button id="saveFilterBtn"
-                class="px-3 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition">
+                style="height:34px;padding:0 .875rem;font-size:.8125rem;font-weight:600;border-radius:.5rem;border:none;background:#3b82f6;color:#fff;cursor:pointer;transition:background .15s;white-space:nowrap"
+                class="fav-btn-primary">
                 Guardar filtros actuales
             </button>
             <button id="updateFilterBtn" disabled
-                class="px-3 py-2 text-sm font-medium rounded-md border border-yellow-400 text-yellow-700 bg-white hover:bg-yellow-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                style="height:34px;padding:0 .875rem;font-size:.8125rem;font-weight:600;border-radius:.5rem;border:1.5px solid #fbbf24;background:#fff;color:#92400e;cursor:pointer;transition:all .15s;white-space:nowrap"
+                class="fav-btn-outline">
                 Actualizar seleccionado
             </button>
             <button id="deleteFilterBtn" disabled
-                class="px-3 py-2 text-sm font-medium rounded-md border border-red-400 text-red-600 bg-white hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                style="height:34px;padding:0 .875rem;font-size:.8125rem;font-weight:600;border-radius:.5rem;border:1.5px solid #fca5a5;background:#fff;color:#dc2626;cursor:pointer;transition:all .15s;white-space:nowrap"
+                class="fav-btn-outline">
                 Eliminar
             </button>
             <!-- Inline name form (hidden by default) -->
-            <div id="saveFilterForm" class="hidden flex flex-wrap items-center gap-2 w-full mt-2 pt-2 border-t border-blue-200">
-                <span id="saveFilterFormLabel" class="text-sm text-blue-700 font-medium whitespace-nowrap">Nombre del filtro:</span>
+            <div id="saveFilterForm" class="hidden flex flex-wrap items-center gap-2 w-full mt-2 pt-2" style="border-top:1px solid #bfdbfe">
+                <span id="saveFilterFormLabel" style="font-size:.8125rem;font-weight:600;color:#1d4ed8;white-space:nowrap">Nombre del filtro:</span>
                 <input type="text" id="filterNameInput" maxlength="100" placeholder="Ej: Incidentes enero 2026"
-                    class="px-3 py-2 text-sm border border-blue-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 flex-grow min-w-[200px]">
+                    style="height:34px;padding:0 .75rem;font-size:.8125rem;border:1.5px solid #93c5fd;border-radius:.5rem;background:#fff;color:#1e293b;flex-grow:1;min-width:200px">
                 <button id="confirmSaveBtn"
-                    class="px-3 py-2 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 transition">
+                    style="height:34px;padding:0 .875rem;font-size:.8125rem;font-weight:600;border-radius:.5rem;border:none;background:#22c55e;color:#fff;cursor:pointer;transition:background .15s;white-space:nowrap"
+                    class="fav-btn-primary">
                     Confirmar
                 </button>
                 <button id="cancelSaveBtn"
-                    class="px-3 py-2 text-sm font-medium rounded-md border border-gray-300 text-gray-600 bg-white hover:bg-gray-100 transition">
+                    style="height:34px;padding:0 .875rem;font-size:.8125rem;font-weight:600;border-radius:.5rem;border:1.5px solid #e2e8f0;background:#fff;color:#475569;cursor:pointer;transition:all .15s;white-space:nowrap"
+                    class="fav-btn-outline">
                     Cancelar
                 </button>
                 <span id="saveFilterError" class="text-xs text-red-600 hidden"></span>
@@ -715,10 +805,12 @@
                 </div>
             </div>
             <div class="flex flex-col space-y-2 w-full md:w-auto">
-                <button id="search-button" class="base-button-style btn-primary-professional w-full">
+                <button id="search-button" class="base-button-style btn-primary-professional w-full" style="justify-content:center">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     Buscar
                 </button>
-                <button id="clear-search-button" class="base-button-style btn-secondary-professional w-full">
+                <button id="clear-search-button" class="base-button-style btn-secondary-professional w-full" style="justify-content:center">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     Limpiar
                 </button>
             </div>
@@ -2004,18 +2096,22 @@
                 // Check if a saved filter with this name already exists for this user
                 const existing = savedFilters.find(f => f.name === name);
                 let res, data;
+                
+                const jwtCsrf = document.cookie.split('; ').find(row => row.startsWith('csrf_access_token='));
+                const csrfVal = jwtCsrf ? decodeURIComponent(jwtCsrf.substring('csrf_access_token='.length)) : '';
+
                 if (existing) {
                     // Update existing
                     res = await fetch(`/viewer/api/saved-filters/${existing.id}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfVal },
                         body: JSON.stringify({ name, filters })
                     });
                 } else {
                     // Create new
                     res = await fetch('/viewer/api/saved-filters', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfVal },
                         body: JSON.stringify({ name, filters })
                     });
                 }
@@ -2056,7 +2152,13 @@
             if (!saved) return;
             if (!confirm(`¿Eliminar el filtro favorito "${saved.name}"?`)) return;
             try {
-                const res = await fetch(`/viewer/api/saved-filters/${activeSavedFilterId}`, { method: 'DELETE' });
+                const jwtCsrf = document.cookie.split('; ').find(row => row.startsWith('csrf_access_token='));
+                const csrfVal = jwtCsrf ? decodeURIComponent(jwtCsrf.substring('csrf_access_token='.length)) : '';
+                
+                const res = await fetch(`/viewer/api/saved-filters/${activeSavedFilterId}`, { 
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': csrfVal }
+                });
                 if (!res.ok) {
                     const d = await res.json();
                     showFlashMessage(d.error || 'Error al eliminar.', 'error');

@@ -205,7 +205,7 @@ def get_report_details(report_id):
         if conn:
             conn.close()
 
-def get_this_week_count(property_id=None):
+def get_this_week_count(property_id=None, company_id=None):
     """Get count of incidents for current calendar week"""
     conn = None
     cur = None
@@ -216,15 +216,18 @@ def get_this_week_count(property_id=None):
             return 0
 
         cur = conn.cursor()
-        
-        # Build query with optional property filter
+
+        # Build query with optional property/tenant filter
         where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
               AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'"""
         params = []
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             SELECT COUNT(*) as incident_count
@@ -246,7 +249,7 @@ def get_this_week_count(property_id=None):
         if conn:
             conn.close()
 
-def get_this_month_count(property_id=None):
+def get_this_month_count(property_id=None, company_id=None):
     """Get count of incidents for current calendar month"""
     conn = None
     cur = None
@@ -257,14 +260,17 @@ def get_this_month_count(property_id=None):
             return 0
 
         cur = conn.cursor()
-        
-        # Build query with optional property filter
+
+        # Build query with optional property/tenant filter
         where_clause = f"""WHERE DATE_TRUNC('month', {INCIDENT_DATE_EXPR}) = DATE_TRUNC('month', CURRENT_DATE)"""
         params = []
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             SELECT COUNT(*) as incident_count
@@ -286,7 +292,7 @@ def get_this_month_count(property_id=None):
         if conn:
             conn.close()
 
-def get_total_count(property_id=None):
+def get_total_count(property_id=None, company_id=None):
     """Get total count of incidents"""
     conn = None
     cur = None
@@ -297,14 +303,19 @@ def get_total_count(property_id=None):
             return 0
 
         cur = conn.cursor()
-        
-        # Build query with optional property filter
-        where_clause = ""
+
+        # Build query with optional property/tenant filter
+        conditions = []
         params = []
-        
+
         if property_id:
-            where_clause = "WHERE ri.id_propiedad = %s"
+            conditions.append("ri.id_propiedad = %s")
             params.append(property_id)
+        if company_id is not None:
+            conditions.append("ri.company_id = %s")
+            params.append(company_id)
+
+        where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
         
         query = f"""
             SELECT COUNT(*) as incident_count
@@ -619,7 +630,7 @@ def get_incidents_by_week_with_types(property_id=None, company_id=None):
         if conn:
             conn.close()
 
-def get_incidents_by_week(property_id=None):
+def get_incidents_by_week(property_id=None, company_id=None):
     """Get incident counts grouped by 7-day periods (last 7 days, previous 7 days, etc.), optionally filtered by property"""
     conn = None
     cur = None
@@ -630,14 +641,17 @@ def get_incidents_by_week(property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # Build query with optional property filter
+
+        # Build query with optional property/tenant filter
         params = []
         property_filter = ""
-        
+
         if property_id:
             property_filter = "AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            property_filter += " AND ri.company_id = %s"
+            params.append(company_id)
         
         # Use same 7-day periods as the KPI function
         query = f"""
@@ -687,7 +701,7 @@ def get_incidents_by_week(property_id=None):
         if conn:
             conn.close()
 
-def get_incidents_by_month(property_id=None):
+def get_incidents_by_month(property_id=None, company_id=None):
     """Get incident counts grouped by month, optionally filtered by property"""
     conn = None
     cur = None
@@ -698,14 +712,17 @@ def get_incidents_by_month(property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # Build query with optional property filter
+
+        # Build query with optional property/tenant filter
         where_clause = f"WHERE {INCIDENT_DATE_EXPR} IS NOT NULL"
         params = []
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             SELECT 
@@ -762,7 +779,7 @@ def get_incidents_by_month(property_id=None):
         if conn:
             conn.close()
 
-def get_incidents_by_year(property_id=None):
+def get_incidents_by_year(property_id=None, company_id=None):
     """Get incident counts grouped by year, optionally filtered by property"""
     conn = None
     cur = None
@@ -773,14 +790,17 @@ def get_incidents_by_year(property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # Build query with optional property filter
+
+        # Build query with optional property/tenant filter
         where_clause = f"WHERE {INCIDENT_DATE_EXPR} IS NOT NULL"
         params = []
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             SELECT 
@@ -6383,14 +6403,25 @@ def debug_thisweek():
 def api_stats():
     """API endpoint to get consistent statistics"""
     property_id = request.args.get('property_id', type=int)
-    
+
+    conn = cur = None
     try:
-        total_count = get_total_count(property_id)
-        this_month_count = get_this_month_count(property_id)
-        this_week_count = get_this_week_count(property_id)
-        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    except Exception:
+        company_id = None
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+    try:
+        total_count = get_total_count(property_id, company_id)
+        this_month_count = get_this_month_count(property_id, company_id)
+        this_week_count = get_this_week_count(property_id, company_id)
+
         # Calculate average from monthly data
-        monthly_data = get_incidents_by_month(property_id)
+        monthly_data = get_incidents_by_month(property_id, company_id)
         avg_per_month = 0
         if monthly_data:
             avg_per_month = round(sum(item['count'] for item in monthly_data) / len(monthly_data))
@@ -6544,7 +6575,15 @@ def api_reports_for_incident_type(incident_type):
 def api_incidents_weekly():
     """API endpoint for weekly incident data"""
     property_id = request.args.get('property_id', type=int)
-    data = get_incidents_by_week(property_id)
+    conn = cur = None
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    except Exception: company_id = None
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+    data = get_incidents_by_week(property_id, company_id)
     return jsonify(data)
 
 @dashboard_bp.route('/api/incidents/monthly')
@@ -6552,7 +6591,15 @@ def api_incidents_weekly():
 def api_incidents_monthly():
     """API endpoint for monthly incident data"""
     property_id = request.args.get('property_id', type=int)
-    data = get_incidents_by_month(property_id)
+    conn = cur = None
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    except Exception: company_id = None
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+    data = get_incidents_by_month(property_id, company_id)
     return jsonify(data)
 
 @dashboard_bp.route('/api/incidents/yearly')
@@ -6560,7 +6607,15 @@ def api_incidents_monthly():
 def api_incidents_yearly():
     """API endpoint for yearly incident data"""
     property_id = request.args.get('property_id', type=int)
-    data = get_incidents_by_year(property_id)
+    conn = cur = None
+    try:
+        conn = get_db_connection(); cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    except Exception: company_id = None
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+    data = get_incidents_by_year(property_id, company_id)
     return jsonify(data)
 
 @dashboard_bp.route('/api/incidents/types')

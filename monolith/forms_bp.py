@@ -49,18 +49,6 @@ def _get_table_columns(cur, table_name):
     return _SCHEMA_CACHE[table_name]
 
 
-def _table_has_column(cur, table_name, column_name):
-    return column_name in _get_table_columns(cur, table_name)
-
-
-def _table_exists(cur, table_name):
-    cur.execute("""
-        SELECT 1
-        FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name = %s
-    """, (table_name,))
-    return cur.fetchone() is not None
-
 
 def _filter_existing_columns(cur, table_name, data):
     table_columns = _get_table_columns(cur, table_name)
@@ -80,7 +68,7 @@ def _parse_float(val):
 
 
 def _get_user_company_id(cur, user_email):
-    if not user_email or not _table_has_column(cur, 'users', 'company_id'):
+    if not user_email:
         return None
     cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
     row = cur.fetchone()
@@ -88,7 +76,7 @@ def _get_user_company_id(cur, user_email):
 
 
 def _ensure_default_customer_company(cur, company_id):
-    if company_id is None or not _table_exists(cur, 'customer_companies'):
+    if company_id is None:
         return None
 
     cur.execute("""
@@ -286,10 +274,9 @@ def customer_hierarchy():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         company_id = _get_user_company_id(cur, user_email)
-        if company_id is None or not _table_exists(cur, 'customer_companies'):
+        if company_id is None:
             return jsonify({'company_id': company_id, 'customers': []})
 
-        has_property_customer_link = _table_has_column(cur, 'propiedades', 'customer_company_id')
         customers = []
 
         cur.execute("""
@@ -302,19 +289,17 @@ def customer_hierarchy():
         customer_rows = cur.fetchall()
 
         for customer in customer_rows:
-            properties = []
-            if has_property_customer_link:
-                cur.execute("""
-                    SELECT id_propiedad, nombre
-                    FROM propiedades
-                    WHERE customer_company_id = %s
-                      AND COALESCE(activa, TRUE) = TRUE
-                    ORDER BY nombre
-                """, (customer['id'],))
-                properties = [
-                    {'id': row['id_propiedad'], 'name': row['nombre']}
-                    for row in cur.fetchall()
-                ]
+            cur.execute("""
+                SELECT id_propiedad, nombre
+                FROM propiedades
+                WHERE customer_company_id = %s
+                  AND COALESCE(activa, TRUE) = TRUE
+                ORDER BY nombre
+            """, (customer['id'],))
+            properties = [
+                {'id': row['id_propiedad'], 'name': row['nombre']}
+                for row in cur.fetchall()
+            ]
 
             customers.append({
                 'id': customer['id'],

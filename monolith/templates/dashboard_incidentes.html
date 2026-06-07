@@ -324,16 +324,31 @@
         body.light-mode .action-bar { border-top-color:rgba(0,0,0,0.08); }
         .btn-action {
             display:inline-flex; align-items:center; gap:0.4rem;
-            padding:0.5rem 1rem; border-radius:8px; font-size:0.8125rem; font-weight:600;
-            cursor:pointer; transition:all 0.2s; border:none; font-family:'Roboto',sans-serif;
+            padding:0.55rem 1.1rem; border-radius:8px; font-size:0.8125rem; font-weight:600;
+            cursor:pointer; transition:all 0.2s; border:1px solid transparent; font-family:'Roboto',sans-serif;
         }
-        .btn-pdf   { background:#ef4444; color:#fff; }
-        .btn-excel { background:#16a34a; color:#fff; }
-        .btn-email { background:#2563eb; color:#fff; }
-        .btn-back  { background:rgba(255,255,255,0.07); color:#94a3b8; border:1px solid rgba(255,255,255,0.1); }
-        body.light-mode .btn-back { background:rgba(0,0,0,0.05); border-color:rgba(0,0,0,0.1); color:#64748b; }
-        .btn-action:hover { filter:brightness(1.1); transform:translateY(-1px); }
-        .btn-action:disabled { opacity:0.5; cursor:not-allowed; transform:none; filter:none; }
+        .btn-pdf   { background:rgba(239,68,68,0.1); color:#f87171; border-color:rgba(239,68,68,0.3); }
+        .btn-excel { background:rgba(34,197,94,0.1); color:#4ade80; border-color:rgba(34,197,94,0.3); }
+        .btn-email { background:rgba(59,130,246,0.1); color:#60a5fa; border-color:rgba(59,130,246,0.3); }
+        .btn-back  { background:rgba(255,255,255,0.05); color:#94a3b8; border-color:rgba(255,255,255,0.15); }
+
+        body.light-mode .btn-pdf   { background:#fff; color:#ef4444; border-color:#fca5a5; }
+        body.light-mode .btn-excel { background:#fff; color:#16a34a; border-color:#86efac; }
+        body.light-mode .btn-email { background:#fff; color:#3b82f6; border-color:#93c5fd; }
+        body.light-mode .btn-back  { background:#fff; color:#64748b; border-color:#cbd5e1; }
+
+        .btn-action:hover:not(:disabled) { transform:translateY(-1px); }
+        .btn-pdf:hover:not(:disabled) { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.4); }
+        .btn-excel:hover:not(:disabled) { background:rgba(34,197,94,0.15); border-color:rgba(34,197,94,0.4); }
+        .btn-email:hover:not(:disabled) { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.4); }
+        .btn-back:hover:not(:disabled) { background:rgba(255,255,255,0.1); color:#fff; border-color:rgba(255,255,255,0.3); }
+
+        body.light-mode .btn-pdf:hover:not(:disabled) { background:#fef2f2; border-color:#f87171; }
+        body.light-mode .btn-excel:hover:not(:disabled) { background:#f0fdf4; border-color:#4ade80; }
+        body.light-mode .btn-email:hover:not(:disabled) { background:#eff6ff; border-color:#60a5fa; }
+        body.light-mode .btn-back:hover:not(:disabled) { background:#f8fafc; color:#334155; border-color:#94a3b8; }
+
+        .btn-action:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
 
         /* ── Email prompt overlay ─────────────────────────────────────────── */
         #emailPrompt {
