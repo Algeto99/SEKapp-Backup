@@ -378,7 +378,7 @@ def api_feed():
                 COALESCE(rav.acuerdos_compromisos, ''),
                 rav.compromisos_estados,
                 NULL::text,
-                rav.compromisos_fecha_limite,
+                NULL::date,
                 rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
             WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
@@ -395,7 +395,7 @@ def api_feed():
                 mec.nombre_responsable,
                 COALESCE(mec.observaciones_cliente, ''),
                 mec.encuestado,
-                COALESCE(mec.calificacion_global_nps, mec.puntuacion_nps)::text,
+                mec.calificacion_global_nps::text,
                 NULL::date,
                 NULL::text
             FROM medicion_experiencia_cliente mec
@@ -635,7 +635,7 @@ def api_kpi():
             SELECT
                 TO_CHAR(DATE_TRUNC('month', COALESCE(fecha_hora, creado_en)), 'YYYY-MM') AS mes,
                 COUNT(*) AS encuestas,
-                ROUND(AVG(COALESCE(calificacion_global_nps, puntuacion_nps))::numeric, 1) AS nps_promedio
+                ROUND(AVG(calificacion_global_nps)::numeric, 1) AS nps_promedio
             FROM medicion_experiencia_cliente
             WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s)) {cf}
               AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
@@ -874,7 +874,7 @@ def public_expediente_viewer(token):
                 NULL::text, rav.compromisos_responsable,
                 COALESCE(rav.acuerdos_compromisos, ''),
                 rav.compromisos_estados, NULL::text,
-                rav.compromisos_fecha_limite, rav.compromisos_estados
+                NULL::date, rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
             WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
               AND rav.creado_en >= NOW() - INTERVAL '{days} days'
@@ -888,7 +888,7 @@ def public_expediente_viewer(token):
                 NULL::text, mec.nombre_responsable,
                 COALESCE(mec.observaciones_cliente, ''),
                 mec.encuestado,
-                COALESCE(mec.calificacion_global_nps, mec.puntuacion_nps)::text,
+                mec.calificacion_global_nps::text,
                 NULL::date, NULL::text
             FROM medicion_experiencia_cliente mec
             WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}

@@ -517,15 +517,15 @@ def cgeo_api_alertas():
             return ([f"{col} = %s"], [cliente]) if cliente else ([], [])
 
         # ── REGLA 1: Puesto sin supervisión > 48 h ────────────────────────────
-        r1_conds, r1_params = _cp("cliente")
+        r1_conds, r1_params = _cp("cliente_instalacion")
         cur.execute(f"""
             SELECT
-                TRIM(cliente) AS puesto,
+                TRIM(cliente_instalacion) AS puesto,
                 MAX(fecha_hora) AS ultima_sup,
                 EXTRACT(EPOCH FROM (NOW() - MAX(fecha_hora))) / 3600 AS horas
             FROM supervision_puesto
             {_where(r1_conds)}
-            GROUP BY TRIM(cliente)
+            GROUP BY TRIM(cliente_instalacion)
             HAVING MAX(fecha_hora) < NOW() - INTERVAL '48 hours'
             ORDER BY MAX(fecha_hora) ASC
             LIMIT 5
@@ -579,18 +579,18 @@ def cgeo_api_alertas():
 
         # ── REGLA 3: Cliente con historial reciente pero sin supervisión hoy ──
         # Proxy: clientes supervisados en los últimos 7 días pero NO hoy.
-        r3_conds, r3_params = _cp("cliente")
+        r3_conds, r3_params = _cp("cliente_instalacion")
         r3_conds_hist = r3_conds + ["fecha_hora >= NOW() - INTERVAL '7 days'"]
         r3_conds_hoy  = r3_conds + ["fecha_hora::date = CURRENT_DATE"]
         cur.execute(f"""
             SELECT
-                TRIM(cliente) AS puesto,
+                TRIM(cliente_instalacion) AS puesto,
                 MAX(fecha_hora) AS ultima_sup
             FROM supervision_puesto
             {_where(r3_conds_hist)}
-            GROUP BY TRIM(cliente)
-            HAVING TRIM(cliente) NOT IN (
-                SELECT TRIM(cliente)
+            GROUP BY TRIM(cliente_instalacion)
+            HAVING TRIM(cliente_instalacion) NOT IN (
+                SELECT TRIM(cliente_instalacion)
                 FROM supervision_puesto
                 {_where(r3_conds_hoy)}
             )
@@ -815,18 +815,18 @@ def cgeo_api_semaforo_global():
 
         # Supervisiones: programadas hoy vs completadas hoy
         # Usamos puestos activos (supervisados en los últimos 30 días) como proxy de programadas
-        sup_conds_hist, sup_params_hist = _cp("cliente")
+        sup_conds_hist, sup_params_hist = _cp("cliente_instalacion")
         sup_conds_hist_full = sup_conds_hist + ["fecha_hora >= NOW() - INTERVAL '30 days'"]
         cur.execute(f"""
-            SELECT COUNT(DISTINCT TRIM(cliente)) AS programadas
+            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS programadas
             FROM supervision_puesto {_where(sup_conds_hist_full)}
         """, sup_params_hist)
         sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
 
-        sup_conds_hoy, sup_params_hoy = _cp("cliente")
+        sup_conds_hoy, sup_params_hoy = _cp("cliente_instalacion")
         sup_conds_hoy_full = sup_conds_hoy + ["fecha_hora::date = CURRENT_DATE"]
         cur.execute(f"""
-            SELECT COUNT(DISTINCT TRIM(cliente)) AS completadas
+            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
             FROM supervision_puesto {_where(sup_conds_hoy_full)}
         """, sup_params_hoy)
         sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
@@ -912,14 +912,14 @@ def cgeo_api_morning_briefing_data():
 
         # ── Supervisiones hoy vs puestos activos (programadas proxy) ─────────
         cur.execute("""
-            SELECT COUNT(DISTINCT TRIM(cliente)) AS programadas
+            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS programadas
             FROM supervision_puesto
             WHERE fecha_hora >= NOW() - INTERVAL '30 days'
         """)
         sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
 
         cur.execute("""
-            SELECT COUNT(DISTINCT TRIM(cliente)) AS completadas
+            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
             FROM supervision_puesto
             WHERE fecha_hora::date = CURRENT_DATE
         """)
@@ -959,7 +959,7 @@ def cgeo_api_morning_briefing_data():
         cur.execute("""
             SELECT
                 fecha_hora::date AS dia,
-                COUNT(DISTINCT TRIM(cliente)) AS completadas
+                COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
             FROM supervision_puesto
             WHERE fecha_hora::date >= %s
             GROUP BY fecha_hora::date
@@ -1156,7 +1156,7 @@ def cgeo_api_operacion_data():
         # ── Supervisión ───────────────────────────────────────────────────────
         sup_conds, sup_params = [], []
         if cliente:
-            sup_conds.append("cliente = %s")
+            sup_conds.append("cliente_instalacion = %s")
             sup_params.append(cliente)
         _date_conds("fecha_hora", sup_conds, sup_params)
         sup_where = _where(sup_conds)

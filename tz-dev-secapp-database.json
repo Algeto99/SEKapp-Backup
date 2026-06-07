@@ -406,16 +406,6 @@
   },
   {
     "table_name": "informe_novedades_disciplinario",
-    "column_name": "fecha",
-    "data_type": "date"
-  },
-  {
-    "table_name": "informe_novedades_disciplinario",
-    "column_name": "hora",
-    "data_type": "time without time zone"
-  },
-  {
-    "table_name": "informe_novedades_disciplinario",
     "column_name": "dirigido_a",
     "data_type": "character varying"
   },
@@ -748,11 +738,6 @@
     "table_name": "medicion_experiencia_cliente",
     "column_name": "categoria_evaluada",
     "data_type": "character varying"
-  },
-  {
-    "table_name": "medicion_experiencia_cliente",
-    "column_name": "puntuacion_nps",
-    "data_type": "integer"
   },
   {
     "table_name": "medicion_experiencia_cliente",
@@ -1611,21 +1596,6 @@
   },
   {
     "table_name": "registro_y_acta_de_visita",
-    "column_name": "compromisos_adquiridos",
-    "data_type": "text"
-  },
-  {
-    "table_name": "registro_y_acta_de_visita",
-    "column_name": "compromisos_responsable",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "registro_y_acta_de_visita",
-    "column_name": "compromisos_fecha_limite",
-    "data_type": "date"
-  },
-  {
-    "table_name": "registro_y_acta_de_visita",
     "column_name": "persona_atendio",
     "data_type": "character varying"
   },
@@ -2001,11 +1971,6 @@
   },
   {
     "table_name": "supervision_puesto",
-    "column_name": "cliente",
-    "data_type": "character varying"
-  },
-  {
-    "table_name": "supervision_puesto",
     "column_name": "nombre_guardia",
     "data_type": "character varying"
   },
@@ -2223,11 +2188,6 @@
     "table_name": "users",
     "column_name": "id",
     "data_type": "integer"
-  },
-  {
-    "table_name": "users",
-    "column_name": "username",
-    "data_type": "character varying"
   },
   {
     "table_name": "users",

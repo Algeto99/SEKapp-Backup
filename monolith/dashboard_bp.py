@@ -1972,7 +1972,7 @@ def api_gestion_data():
         sup_score_expr = " + ".join(f"COALESCE(({_sup_expr(f)}),0)" for f, _ in _SUP_CRITERIA)
         sup_conds, sup_params = [], []
         if cliente:
-            sup_conds.append("cliente = %s")
+            sup_conds.append("cliente_instalacion = %s")
             sup_params.append(cliente)
         if turno:
             sup_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
@@ -4855,8 +4855,6 @@ def _visita_parse_compromisos(rows):
                     fecha_limite = None
             if not fecha_limite and row.get('fecha_cumplimiento'):
                 fecha_limite = row['fecha_cumplimiento']
-            if not fecha_limite and row.get('compromisos_fecha_limite'):
-                fecha_limite = row['compromisos_fecha_limite']
 
             tema = temas[idx] if idx < len(temas) else (temas[0] if temas else 'Sin tema registrado')
             if not acuerdo and not tema and not fecha_limite and not responsable_item:
@@ -5022,7 +5020,6 @@ def api_visitas_data():
                 temas_tratados,
                 acuerdos_compromisos,
                 compromisos_responsable,
-                compromisos_fecha_limite,
                 nombre_responsable,
                 fecha_cumplimiento,
                 nombre_visitante,
@@ -5100,7 +5097,6 @@ def api_visitas_detalles():
                 temas_tratados,
                 acuerdos_compromisos,
                 compromisos_responsable,
-                compromisos_fecha_limite,
                 nombre_responsable,
                 fecha_cumplimiento,
                 nombre_visitante,
