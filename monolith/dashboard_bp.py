@@ -1939,6 +1939,8 @@ def api_gestion_data():
             inc_conds.append("LOWER(COALESCE(turno, '')) = %s")
             inc_params.append(turno.lower())
         _gestion_add_multi_date_filter(inc_conds, inc_params, "fecha_hora::TEXT", year, month, day)
+        if company_id is not None:
+            inc_conds.append("company_id = %s"); inc_params.append(company_id)
         inc_where = _gestion_where(inc_conds)
         cur.execute(f"""
             SELECT
@@ -1975,6 +1977,8 @@ def api_gestion_data():
             sup_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
             sup_params.append(turno.lower())
         _gestion_add_multi_date_filter(sup_conds, sup_params, "fecha_hora::TEXT", year, month, day)
+        if company_id is not None:
+            sup_conds.append("company_id = %s"); sup_params.append(company_id)
         sup_where = _gestion_where(sup_conds)
         cur.execute(f"""
             SELECT
@@ -2001,6 +2005,8 @@ def api_gestion_data():
             cum_conds.append("LOWER(COALESCE(turno, '')) = %s")
             cum_params.append(turno.lower())
         _gestion_add_extract_date_filter(cum_conds, cum_params, "fecha_hora", year, month, day)
+        if company_id is not None:
+            cum_conds.append("company_id = %s"); cum_params.append(company_id)
         cum_where = _gestion_where(cum_conds)
         cur.execute(f"""
             SELECT
@@ -2030,6 +2036,8 @@ def api_gestion_data():
             cap_conds.append("LOWER(COALESCE(turno, '')) = %s")
             cap_params.append(turno.lower())
         _gestion_add_extract_date_filter(cap_conds, cap_params, cap_date_expr, year, month, day)
+        if company_id is not None:
+            cap_conds.append("company_id = %s"); cap_params.append(company_id)
         cap_where = _gestion_where(cap_conds)
         cur.execute(f"""
             SELECT
@@ -2056,6 +2064,8 @@ def api_gestion_data():
             disc_conds.append("LOWER(COALESCE(turno, '')) = %s")
             disc_params.append(turno.lower())
         _gestion_add_multi_date_filter(disc_conds, disc_params, "fecha_hora::TEXT", year, month, day)
+        if company_id is not None:
+            disc_conds.append("company_id = %s"); disc_params.append(company_id)
         disc_where = _gestion_where(disc_conds)
         cur.execute(f"""
             WITH emp_counts AS (
@@ -2092,6 +2102,8 @@ def api_gestion_data():
             vis_conds.append("LOWER(COALESCE(turno, '')) = %s")
             vis_params.append(turno.lower())
         _gestion_add_extract_date_filter(vis_conds, vis_params, vis_date_expr, year, month, day)
+        if company_id is not None:
+            vis_conds.append("company_id = %s"); vis_params.append(company_id)
         vis_where = _gestion_where(vis_conds)
         cur.execute(f"""
             SELECT
@@ -2118,6 +2130,8 @@ def api_gestion_data():
             veh_conds.append("LOWER(COALESCE(turno, '')) = %s")
             veh_params.append(turno.lower())
         _gestion_add_extract_date_filter(veh_conds, veh_params, veh_date_expr, year, month, day)
+        if company_id is not None:
+            veh_conds.append("company_id = %s"); veh_params.append(company_id)
         veh_where = _gestion_where(veh_conds)
         cur.execute(f"""
             SELECT
@@ -2150,6 +2164,8 @@ def api_gestion_data():
         if day:
             eq_conds.append("EXTRACT(DAY FROM c.fecha) = %s")
             eq_params.append(day)
+        if company_id is not None:
+            eq_conds.append("c.company_id = %s"); eq_params.append(company_id)
         eq_where = _eq_where(eq_conds)
         eq_lateral = f"""
             FROM confiabilidad_equipos c,
@@ -6653,17 +6669,20 @@ def api_bases_de_datos_armas():
             return jsonify({'rows': [], 'total': 0}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+        year_int  = int(year)  if year  else None
+        month_int = int(month) if month else None
+
         conds, params = [], []
         conds.append("LOWER(TRIM(COALESCE(porta_arma,''))) = 'si'")
         if cliente:
             conds.append("cliente = %s")
             params.append(cliente)
-        if year and month:
+        if year_int and month_int:
             conds.append("fecha_hora::TEXT LIKE %s")
-            params.append(f"{year}-{month:02d}%")
-        elif year:
+            params.append(f"{year_int}-{month_int:02d}%")
+        elif year_int:
             conds.append("fecha_hora::TEXT LIKE %s")
-            params.append(f"{year}%")
+            params.append(f"{year_int}%")
         where = "WHERE " + " AND ".join(conds)
 
         # Check which optional columns exist to avoid errors on older DB schemas
@@ -6837,16 +6856,19 @@ def api_bases_de_datos_personal():
         cur  = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur2 = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+        year_int  = int(year)  if year  else None
+        month_int = int(month) if month else None
+
         sup_conds, params = [], []
         if cliente:
             sup_conds.append("cliente = %s")
             params.append(cliente)
-        if year and month:
+        if year_int and month_int:
             sup_conds.append("fecha_hora::TEXT LIKE %s")
-            params.append(f"{year}-{month:02d}%")
-        elif year:
+            params.append(f"{year_int}-{month_int:02d}%")
+        elif year_int:
             sup_conds.append("fecha_hora::TEXT LIKE %s")
-            params.append(f"{year}%")
+            params.append(f"{year_int}%")
         base_where = ("WHERE " + " AND ".join(sup_conds)) if sup_conds else ""
 
         score_sql = _bd_score_expr()
