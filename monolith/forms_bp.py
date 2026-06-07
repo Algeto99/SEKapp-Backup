@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -35,7 +36,8 @@ except Exception as e:
 # IMPORTANT: Adding a new column to a form table requires an app restart (or
 # a Cloud Run deploy) to pick it up — the cache is never invalidated at runtime.
 # This is intentional: schema changes always require a redeploy anyway.
-_SCHEMA_CACHE = {}
+_SCHEMA_CACHE: dict = {}
+_SCHEMA_CACHE_LOCK = threading.Lock()
 
 
 def _get_table_columns(cur, table_name):
@@ -45,7 +47,10 @@ def _get_table_columns(cur, table_name):
             FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = %s
         """, (table_name,))
-        _SCHEMA_CACHE[table_name] = {row[0] for row in cur.fetchall()}
+        columns = {row[0] for row in cur.fetchall()}
+        with _SCHEMA_CACHE_LOCK:
+            if table_name not in _SCHEMA_CACHE:
+                _SCHEMA_CACHE[table_name] = columns
     return _SCHEMA_CACHE[table_name]
 
 
