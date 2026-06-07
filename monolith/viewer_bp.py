@@ -1051,9 +1051,9 @@ def _get_email_password():
 
 
 def send_reports_email(recipient_email, subject, body, is_html=False):
-    _email_username = "no-reply@tzolkintech.com"
-    _smtp_server = "tzolkintech.com"
-    _smtp_port = 587
+    _email_username = current_app.config.get('EMAIL_USERNAME')
+    _smtp_server = current_app.config.get('SMTP_SERVER')
+    _smtp_port = int(current_app.config.get('SMTP_PORT', 587))
     _email_password = _get_email_password()
 
     if not all([_email_username, _email_password, _smtp_server, _smtp_port]):
