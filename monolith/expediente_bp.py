@@ -326,8 +326,10 @@ def api_feed():
         cf_vis = 'AND rav.company_id = %s' if company_id is not None else ''
         cf_enc = 'AND mec.company_id = %s' if company_id is not None else ''
 
+        days_int = int(days)
+
         def bp(text_val):
-            return (text_val, company_id) if company_id is not None else (text_val,)
+            return (text_val, company_id, days_int) if company_id is not None else (text_val, days_int)
 
         query = f"""
             SELECT
@@ -346,7 +348,7 @@ def api_feed():
                 NULL::text                                       AS compromisos_estados
             FROM supervision_puesto sp
             WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
-              AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - INTERVAL '{days} days'
+              AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -364,7 +366,7 @@ def api_feed():
                 NULL::text
             FROM reportes_incidentes ri
             WHERE LOWER(TRIM(ri.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_inc}
-              AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - INTERVAL '{days} days'
+              AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -382,7 +384,7 @@ def api_feed():
                 rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
             WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
-              AND rav.creado_en >= NOW() - INTERVAL '{days} days'
+              AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -400,7 +402,7 @@ def api_feed():
                 NULL::text
             FROM medicion_experiencia_cliente mec
             WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}
-              AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - INTERVAL '{days} days'
+              AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             ORDER BY event_ts DESC NULLS LAST
         """
@@ -456,7 +458,8 @@ def _fetch_equipos_data(cur, cliente, days=None, company_id=None):
     ]
     params = [cliente]
     if days:
-        conds.append("c.fecha >= CURRENT_DATE - INTERVAL '%s days'" % int(days))
+        conds.append("c.fecha >= CURRENT_DATE - (%s * INTERVAL '1 day')")
+        params.append(int(days))
     if company_id is not None:
         conds.append("c.company_id = %s")
         params.append(company_id)
@@ -832,8 +835,10 @@ def public_expediente_viewer(token):
         cf_vis = 'AND rav.company_id = %s' if company_id is not None else ''
         cf_enc = 'AND mec.company_id = %s' if company_id is not None else ''
 
+        days_int = int(days)
+
         def bp(text_val):
-            return (text_val, company_id) if company_id is not None else (text_val,)
+            return (text_val, company_id, days_int) if company_id is not None else (text_val, days_int)
 
         query = f"""
             SELECT
@@ -850,7 +855,7 @@ def public_expediente_viewer(token):
                 NULL::text               AS compromisos_estados
             FROM supervision_puesto sp
             WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
-              AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - INTERVAL '{days} days'
+              AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -863,7 +868,7 @@ def public_expediente_viewer(token):
                 ri.estado, ri.nivel_severidad, NULL::date, NULL::text
             FROM reportes_incidentes ri
             WHERE LOWER(TRIM(ri.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_inc}
-              AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - INTERVAL '{days} days'
+              AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -877,7 +882,7 @@ def public_expediente_viewer(token):
                 NULL::date, rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
             WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
-              AND rav.creado_en >= NOW() - INTERVAL '{days} days'
+              AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -892,7 +897,7 @@ def public_expediente_viewer(token):
                 NULL::date, NULL::text
             FROM medicion_experiencia_cliente mec
             WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}
-              AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - INTERVAL '{days} days'
+              AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             ORDER BY event_ts DESC NULLS LAST
         """
