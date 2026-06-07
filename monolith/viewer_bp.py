@@ -17,7 +17,7 @@ from functools import wraps
 from io import BytesIO
 
 import psycopg2
-from psycopg2 import extras
+from psycopg2 import extras, errors as pg_errors
 from flask import Blueprint, current_app, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from google.cloud import storage
@@ -2272,12 +2272,14 @@ def create_saved_filter():
         row = cur.fetchone()
         conn.commit()
         return jsonify({'saved_filter': {'id': row['id'], 'name': row['name'], 'filters': row['filters']}}), 201
+    except pg_errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({'error': f'Ya existe un filtro con el nombre "{name}".'}), 409
     except Exception as e:
         if conn:
             conn.rollback()
-        if 'uq_saved_filter_user_name' in str(e):
-            return jsonify({'error': f'Ya existe un filtro con el nombre "{name}".'}), 409
-        app_logger.error(f"Error creating saved filter: {e}", exc_info=True)
+        app_logger.error("Error creating saved filter: %s", e, exc_info=True)
         return jsonify({'error': 'Error interno'}), 500
     finally:
         if conn:
@@ -2317,12 +2319,14 @@ def update_saved_filter(filter_id):
             return jsonify({'error': 'Filtro no encontrado.'}), 404
         conn.commit()
         return jsonify({'saved_filter': {'id': row['id'], 'name': row['name'], 'filters': row['filters']}})
+    except pg_errors.UniqueViolation:
+        if conn:
+            conn.rollback()
+        return jsonify({'error': 'Ya existe un filtro con ese nombre.'}), 409
     except Exception as e:
         if conn:
             conn.rollback()
-        if 'uq_saved_filter_user_name' in str(e):
-            return jsonify({'error': f'Ya existe un filtro con ese nombre.'}), 409
-        app_logger.error(f"Error updating saved filter: {e}", exc_info=True)
+        app_logger.error("Error updating saved filter: %s", e, exc_info=True)
         return jsonify({'error': 'Error interno'}), 500
     finally:
         if conn:

@@ -512,7 +512,7 @@ def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id
         if conn:
             conn.close()
 
-def get_incidents_by_week_with_types(property_id=None):
+def get_incidents_by_week_with_types(property_id=None, company_id=None):
     """Get incident counts grouped by 7-day periods with type breakdown for KPI alerts, optionally filtered by property"""
     conn = None
     cur = None
@@ -523,14 +523,16 @@ def get_incidents_by_week_with_types(property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # FIXED: Corrected query structure
+
         params = []
         property_filter = ""
-        
+
         if property_id:
             property_filter = "AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            property_filter += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             WITH seven_day_periods AS (
@@ -1084,7 +1086,7 @@ def get_incident_types_yearly(property_id=None):
         if conn:
             conn.close()
 
-def get_incidents_by_month_with_types(property_id=None):
+def get_incidents_by_month_with_types(property_id=None, company_id=None):
     """Get incident counts grouped by month with type breakdown, optionally filtered by property"""
     conn = None
     cur = None
@@ -1095,15 +1097,17 @@ def get_incidents_by_month_with_types(property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # Build query with optional property filter
+
         where_clause = f"""WHERE {INCIDENT_DATE_EXPR} IS NOT NULL
               AND {INCIDENT_TYPE_EXPR} IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')"""
         params = []
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             SELECT 
@@ -1169,7 +1173,7 @@ def get_incidents_by_month_with_types(property_id=None):
         if conn:
             conn.close()
 
-def get_incidents_by_year_with_types(property_id=None):
+def get_incidents_by_year_with_types(property_id=None, company_id=None):
     """Get incident counts grouped by year with type breakdown, optionally filtered by property"""
     conn = None
     cur = None
@@ -1180,15 +1184,17 @@ def get_incidents_by_year_with_types(property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # Build query with optional property filter
+
         where_clause = f"""WHERE {INCIDENT_DATE_EXPR} IS NOT NULL
               AND {INCIDENT_TYPE_EXPR} IN ('Hurto', 'Olvido', 'Recuperacion', 'Robo')"""
         params = []
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         query = f"""
             SELECT 
@@ -1245,7 +1251,7 @@ def get_incidents_by_year_with_types(property_id=None):
         if conn:
             conn.close()
 
-def get_incident_types_for_period(start_date, end_date, property_id=None):
+def get_incident_types_for_period(start_date, end_date, property_id=None, company_id=None):
     """Get incident counts by type for a specific date range"""
     conn = None
     cur = None
@@ -1256,15 +1262,17 @@ def get_incident_types_for_period(start_date, end_date, property_id=None):
             return []
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        # FIXED: Use exact same date filtering logic with property filter
+
         where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= %s
               AND {INCIDENT_DATE_EXPR} <= %s"""
         params = [start_date, end_date]
-        
+
         if property_id:
             where_clause += " AND ri.id_propiedad = %s"
             params.append(property_id)
+        if company_id is not None:
+            where_clause += " AND ri.company_id = %s"
+            params.append(company_id)
         
         # FIXED: Include all incident types, even with 0 counts
         query = f"""
@@ -1747,82 +1755,88 @@ def api_gestion_filtros():
             return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "WHERE company_id = %s" if company_id is not None else ""
+        cid9 = [company_id] * 9 if company_id is not None else []
+        cid7 = [company_id] * 7 if company_id is not None else []
+        cid6 = [company_id] * 6 if company_id is not None else []
+        cid2 = [company_id] * 2 if company_id is not None else []
 
-        cur.execute("""
+        cur.execute(f"""
             SELECT DISTINCT cliente FROM (
-                SELECT TRIM(cliente_instalacion) AS cliente FROM medicion_experiencia_cliente
+                SELECT TRIM(cliente_instalacion) AS cliente FROM medicion_experiencia_cliente {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM reportes_incidentes
+                SELECT TRIM(cliente_instalacion) AS cliente FROM reportes_incidentes {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM supervision_puesto
+                SELECT TRIM(cliente_instalacion) AS cliente FROM supervision_puesto {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM checklist_cumplimiento
+                SELECT TRIM(cliente_instalacion) AS cliente FROM checklist_cumplimiento {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_de_capacitaciones
+                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_de_capacitaciones {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM informe_novedades_disciplinario
+                SELECT TRIM(cliente_instalacion) AS cliente FROM informe_novedades_disciplinario {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_y_acta_de_visita
+                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_y_acta_de_visita {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM planilla_vehicular
+                SELECT TRIM(cliente_instalacion) AS cliente FROM planilla_vehicular {cid_cond}
                 UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM confiabilidad_equipos
+                SELECT TRIM(cliente_instalacion) AS cliente FROM confiabilidad_equipos {cid_cond}
             ) q
             WHERE cliente IS NOT NULL AND cliente <> ''
             ORDER BY cliente
-        """)
+        """, cid9)
         clientes = [r['cliente'] for r in cur.fetchall()]
 
-        cur.execute("""
+        cur.execute(f"""
             SELECT DISTINCT proyecto FROM (
-                SELECT TRIM(puesto_area_especifica) AS proyecto FROM reportes_incidentes
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM reportes_incidentes {cid_cond}
                 UNION
-                SELECT TRIM(puesto_area_especifica) AS proyecto FROM checklist_cumplimiento
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM checklist_cumplimiento {cid_cond}
                 UNION
-                SELECT TRIM(puesto_area_especifica) AS proyecto FROM registro_de_capacitaciones
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM registro_de_capacitaciones {cid_cond}
                 UNION
-                SELECT TRIM(puesto_area_especifica) AS proyecto FROM informe_novedades_disciplinario
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM informe_novedades_disciplinario {cid_cond}
                 UNION
-                SELECT TRIM(puesto_area_especifica) AS proyecto FROM registro_y_acta_de_visita
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM registro_y_acta_de_visita {cid_cond}
                 UNION
-                SELECT TRIM(puesto_area_especifica) AS proyecto FROM planilla_vehicular
+                SELECT TRIM(puesto_area_especifica) AS proyecto FROM planilla_vehicular {cid_cond}
                 UNION
-                SELECT TRIM(sitio) AS proyecto FROM confiabilidad_equipos
+                SELECT TRIM(sitio) AS proyecto FROM confiabilidad_equipos {cid_cond}
             ) q
             WHERE proyecto IS NOT NULL AND proyecto <> ''
             ORDER BY proyecto
-        """)
+        """, cid7)
         proyectos = [r['proyecto'] for r in cur.fetchall()]
 
-        cur.execute("""
+        cur.execute(f"""
             SELECT DISTINCT turno FROM (
-                SELECT TRIM(turno) AS turno FROM reportes_incidentes
+                SELECT TRIM(turno) AS turno FROM reportes_incidentes {cid_cond}
                 UNION
-                SELECT TRIM(turno) AS turno FROM checklist_cumplimiento
+                SELECT TRIM(turno) AS turno FROM checklist_cumplimiento {cid_cond}
                 UNION
-                SELECT TRIM(turno) AS turno FROM registro_de_capacitaciones
+                SELECT TRIM(turno) AS turno FROM registro_de_capacitaciones {cid_cond}
                 UNION
-                SELECT TRIM(turno) AS turno FROM informe_novedades_disciplinario
+                SELECT TRIM(turno) AS turno FROM informe_novedades_disciplinario {cid_cond}
                 UNION
-                SELECT TRIM(turno) AS turno FROM registro_y_acta_de_visita
+                SELECT TRIM(turno) AS turno FROM registro_y_acta_de_visita {cid_cond}
                 UNION
-                SELECT TRIM(turno) AS turno FROM planilla_vehicular
+                SELECT TRIM(turno) AS turno FROM planilla_vehicular {cid_cond}
             ) q
             WHERE turno IS NOT NULL AND turno <> ''
             ORDER BY turno
-        """)
+        """, cid6)
         turnos = [r['turno'] for r in cur.fetchall()] or ['Diurno', 'Nocturno']
 
-        cur.execute("""
+        cur.execute(f"""
             SELECT DISTINCT rol_aplicador AS responsable
             FROM (
-                SELECT TRIM(rol_aplicador) AS rol_aplicador FROM supervision_puesto
+                SELECT TRIM(rol_aplicador) AS rol_aplicador FROM supervision_puesto {cid_cond}
                 UNION
-                SELECT TRIM(rol_aplicador) AS rol_aplicador FROM medicion_experiencia_cliente
+                SELECT TRIM(rol_aplicador) AS rol_aplicador FROM medicion_experiencia_cliente {cid_cond}
             ) q
             WHERE rol_aplicador IS NOT NULL AND rol_aplicador <> ''
             ORDER BY rol_aplicador
-        """)
+        """, cid2)
         responsables = [r['responsable'] for r in cur.fetchall()]
 
         return jsonify({
@@ -2562,7 +2576,7 @@ def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
     return where, params
 
 
-def _sat_prev_where(cliente, year, month, day):
+def _sat_prev_where(cliente, year, month, day, company_id=None):
     """Build WHERE clause for the previous comparison period.
     Accepts comma-separated year/month but uses only the first value
     (prev-period comparison only makes sense for a single period).
@@ -2580,6 +2594,9 @@ def _sat_prev_where(cliente, year, month, day):
     if cliente:
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
 
     now = datetime.now(timezone.utc)
     if year and month and day:
@@ -2609,12 +2626,15 @@ def api_satisfaccion_filtros():
         if not conn:
             return jsonify({'responsables': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT TRIM(rol_aplicador) AS responsable
             FROM medicion_experiencia_cliente
-            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> '' {cid_cond}
             ORDER BY responsable
-        """)
+        """, cid_params)
         return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_satisfaccion_filtros error: {e}", exc_info=True)
@@ -2633,12 +2653,15 @@ def api_satisfaccion_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM medicion_experiencia_cliente
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_satisfaccion_clientes error: {e}", exc_info=True)
@@ -2652,59 +2675,34 @@ def api_satisfaccion_clientes():
 @jwt_required()
 @admin_required
 def api_satisfaccion_debug():
-    """Diagnostic endpoint — shows table shape, column types, sample rows, and a safe count."""
+    """Diagnostic endpoint — row counts only, no schema or data exposure."""
     conn = cur = None
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
 
-        # Column types
-        cur.execute("""
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE table_name = 'medicion_experiencia_cliente'
-            ORDER BY ordinal_position
-        """)
-        columns = [dict(r) for r in cur.fetchall()]
-
-        # Row count
-        cur.execute("SELECT COUNT(*) AS cnt FROM medicion_experiencia_cliente")
+        cur.execute(
+            f"SELECT COUNT(*) AS cnt FROM medicion_experiencia_cliente WHERE TRUE {cid_cond}",
+            cid_params
+        )
         total = cur.fetchone()['cnt']
 
-        # Most recent 3 rows (only safe TEXT columns to avoid cast errors)
-        cur.execute("""
-            SELECT
-                id,
-                cliente_instalacion,
-                fecha_hora,
-                calificacion_global_nps,
-                recomendaria_servicio,
-                atencion_cliente,
-                comunicacion,
-                confiabilidad
-            FROM medicion_experiencia_cliente
-            ORDER BY id DESC
-            LIMIT 3
-        """)
-        sample = []
-        for r in cur.fetchall():
-            sample.append({k: str(v) if v is not None else None for k, v in r.items()})
-
-        # Test the LIKE date filter
-        cur.execute("""
+        year_params = [f"{datetime.now().year}%"] + cid_params
+        cur.execute(f"""
             SELECT COUNT(*) AS cnt
             FROM medicion_experiencia_cliente
-            WHERE fecha_hora::TEXT LIKE %s
-        """, (f"{datetime.now().year}%",))
+            WHERE fecha_hora::TEXT LIKE %s {cid_cond}
+        """, year_params)
         this_year = cur.fetchone()['cnt']
 
         return jsonify({
             'total_rows': total,
             'this_year_rows': this_year,
-            'columns': columns,
-            'sample_rows': sample,
         })
     except Exception as e:
         app_logger.error(f"api_satisfaccion_debug error: {e}", exc_info=True)
@@ -2733,7 +2731,7 @@ def api_satisfaccion_data():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
-        where_prev, params_prev = _sat_prev_where(cliente, year, month, day)
+        where_prev, params_prev = _sat_prev_where(cliente, year, month, day, company_id=company_id)
 
         # ── Main summary ─────────────────────────────────────────────────
         def _safe_avg(col):
@@ -3020,7 +3018,7 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
     return where, params
 
 
-def _inc_prev_where(cliente, year, month, day):
+def _inc_prev_where(cliente, year, month, day, company_id=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3034,6 +3032,9 @@ def _inc_prev_where(cliente, year, month, day):
     if cliente:
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     now = datetime.now(timezone.utc)
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
@@ -3061,12 +3062,15 @@ def api_incidentes_filtros():
         if not conn:
             return jsonify({'responsables': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT TRIM(nombre_responsable) AS responsable
             FROM reportes_incidentes
-            WHERE nombre_responsable IS NOT NULL AND TRIM(nombre_responsable) <> ''
+            WHERE nombre_responsable IS NOT NULL AND TRIM(nombre_responsable) <> '' {cid_cond}
             ORDER BY responsable
-        """)
+        """, cid_params)
         return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_incidentes_filtros error: {e}", exc_info=True)
@@ -3085,12 +3089,15 @@ def api_incidentes_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM reportes_incidentes
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_incidentes_clientes error: {e}", exc_info=True)
@@ -3120,7 +3127,7 @@ def api_incidentes_data():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id)
-        where_prev, params_prev = _inc_prev_where(cliente, year, month, day)
+        where_prev, params_prev = _inc_prev_where(cliente, year, month, day, company_id=company_id)
 
         # ── KPI summary ───────────────────────────────────────────────────
         cur.execute(f"""
@@ -3425,7 +3432,7 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company
     return where, params
 
 
-def _disc_prev_where(cliente, year, month, day):
+def _disc_prev_where(cliente, year, month, day, company_id=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3439,6 +3446,9 @@ def _disc_prev_where(cliente, year, month, day):
     if cliente:
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     now = datetime.now(timezone.utc)
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
@@ -3466,12 +3476,15 @@ def api_disciplina_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM informe_novedades_disciplinario
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_disciplina_clientes error: {e}", exc_info=True)
@@ -3498,7 +3511,7 @@ def api_disciplina_data():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         where, params           = _disc_where(cliente, year, month, day, company_id=company_id)
-        where_prev, params_prev = _disc_prev_where(cliente, year, month, day)
+        where_prev, params_prev = _disc_prev_where(cliente, year, month, day, company_id=company_id)
 
         # ── KPIs via CTE on employee counts ──────────────────────────────
         # Use empleado_numero as the canonical employee key, fall back to name
@@ -3762,7 +3775,7 @@ def _sup_score_color(score):
 def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None):
     conds, params = [], []
     if cliente:
-        conds.append("cliente = %s")
+        conds.append("cliente_instalacion = %s")
         params.append(cliente)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
@@ -3777,7 +3790,7 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
-def _sup_prev_where(cliente, year, month, day):
+def _sup_prev_where(cliente, year, month, day, company_id=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3789,8 +3802,11 @@ def _sup_prev_where(cliente, year, month, day):
         return None, None
     conds, params = [], []
     if cliente:
-        conds.append("cliente = %s")
+        conds.append("cliente_instalacion = %s")
         params.append(cliente)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     now = datetime.now(timezone.utc)
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
@@ -3818,12 +3834,15 @@ def api_supervision_filtros():
         if not conn:
             return jsonify({'responsables': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT TRIM(rol_aplicador) AS responsable
             FROM supervision_puesto
-            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> '' {cid_cond}
             ORDER BY responsable
-        """)
+        """, cid_params)
         return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_supervision_filtros error: {e}", exc_info=True)
@@ -3843,12 +3862,21 @@ def api_supervision_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor()
-        cur.execute("""
-            SELECT nombre
-            FROM propiedades
-            WHERE COALESCE(activa, TRUE) = TRUE
-            ORDER BY nombre
-        """)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        if company_id is not None:
+            cur.execute("""
+                SELECT nombre
+                FROM propiedades
+                WHERE COALESCE(activa, TRUE) = TRUE AND customer_company_id = %s
+                ORDER BY nombre
+            """, (company_id,))
+        else:
+            cur.execute("""
+                SELECT nombre
+                FROM propiedades
+                WHERE COALESCE(activa, TRUE) = TRUE
+                ORDER BY nombre
+            """)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_supervision_clientes error: {e}", exc_info=True)
@@ -3878,7 +3906,7 @@ def api_supervision_data():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id)
-        where_prev, params_prev = _sup_prev_where(cliente, year, month, day)
+        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
         # Some records store 'Excelente'/'Bueno'/etc. instead of 1-5.
@@ -4216,12 +4244,15 @@ def api_cumplimiento_filtros():
         if not conn:
             return jsonify({'responsables': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT TRIM(rol_aplicador) AS responsable
             FROM checklist_cumplimiento
-            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> '' {cid_cond}
             ORDER BY responsable
-        """)
+        """, cid_params)
         return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_cumplimiento_filtros error: {e}", exc_info=True)
@@ -4240,12 +4271,15 @@ def api_cumplimiento_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM checklist_cumplimiento
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_cumplimiento_clientes error: {e}", exc_info=True)
@@ -4576,12 +4610,15 @@ def api_capacitacion_clientes():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM registro_de_capacitaciones
-            WHERE cliente_instalacion IS NOT NULL
+            WHERE cliente_instalacion IS NOT NULL {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         clientes = [r['cliente_instalacion'] for r in cur.fetchall()]
         return jsonify({'clientes': clientes})
     except Exception as e:
@@ -4948,12 +4985,15 @@ def api_visitas_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM registro_y_acta_de_visita
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> ''
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_visitas_clientes error: {e}", exc_info=True)
@@ -5341,12 +5381,15 @@ def api_motocicletas_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM planilla_motocicletas
-            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> ''
+            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_motocicletas_clientes error: {e}", exc_info=True)
@@ -5676,12 +5719,15 @@ def api_vehiculos_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM planilla_vehicular
-            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> ''
+            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_vehiculos_clientes error: {e}", exc_info=True)
@@ -5993,12 +6039,15 @@ def api_equipos_filtros():
         if not conn:
             return jsonify({'responsables': []})
         cur = conn.cursor()
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT TRIM(rol_aplicador) AS responsable
             FROM confiabilidad_equipos
-            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> ''
+            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> '' {cid_cond}
             ORDER BY responsable
-        """)
+        """, cid_params)
         return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_equipos_filtros error: {e}", exc_info=True)
@@ -6017,12 +6066,15 @@ def api_equipos_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM confiabilidad_equipos
-            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> ''
+            WHERE cliente_instalacion IS NOT NULL AND TRIM(cliente_instalacion) <> '' {cid_cond}
             ORDER BY cliente_instalacion
-        """)
+        """, cid_params)
         return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_equipos_clientes error: {e}", exc_info=True)
@@ -6267,6 +6319,7 @@ def api_equipos_detalles():
 
 @dashboard_bp.route('/api/debug/thisweek')
 @jwt_required()
+@admin_required
 def debug_thisweek():
     """Debug endpoint to see what's happening with this week's data"""
     try:
@@ -6275,21 +6328,23 @@ def debug_thisweek():
             return jsonify({"error": "Database connection failed"}), 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND ri.company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+
         # Get the current date and week boundaries
         boundary_query = """
-            SELECT 
+            SELECT
                 CURRENT_DATE as current_date,
                 DATE_TRUNC('week', CURRENT_DATE) as week_start,
                 DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week' - INTERVAL '1 day' as week_end
         """
-        
+
         cur.execute(boundary_query)
         boundaries = cur.fetchone()
-        
-        # Get all incidents this week with full details
+
         incidents_query = f"""
-            SELECT 
+            SELECT
                 ri.id_reporte_incidente,
                 {INCIDENT_DATE_EXPR} as fecha_incidente,
                 {INCIDENT_TIME_EXPR} as hora_incidente,
@@ -6301,10 +6356,11 @@ def debug_thisweek():
             LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
             WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
               AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
-            ORDER BY {INCIDENT_ORDER_EXPR};
+              {cid_cond}
+            ORDER BY {INCIDENT_ORDER_EXPR}
         """
-        
-        cur.execute(incidents_query)
+
+        cur.execute(incidents_query, cid_params)
         incidents = cur.fetchall()
         
         result = {
@@ -6374,45 +6430,66 @@ def api_stats():
 
 @dashboard_bp.route('/api/report/<int:report_id>')
 @jwt_required()
+@admin_required
 def api_report_details(report_id):
     """API endpoint to get detailed information for a specific report"""
+    conn = cur = None
     try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        if company_id is not None:
+            cur.execute(
+                "SELECT 1 FROM reportes_incidentes WHERE id_reporte_incidente = %s AND company_id = %s",
+                (report_id, company_id)
+            )
+            if not cur.fetchone():
+                return jsonify({'error': 'Report not found'}), 404
+        cur.close()
+        conn.close()
+        conn = cur = None
+
         report = get_report_details(report_id)
-        
         if not report:
             return jsonify({'error': 'Report not found'}), 404
-        
-        return jsonify({
-            'report': report,
-            'success': True
-        })
-        
+        return jsonify({'report': report, 'success': True})
+
     except Exception as e:
-        app_logger.error(f"Error fetching report details for ID {report_id}: {e}", exc_info=True)
-        return jsonify({
-            'error': 'Error al obtener los detalles del reporte',
-            'details': str(e)
-        }), 500
+        app_logger.error("Error fetching report details for ID %s: %s", report_id, e, exc_info=True)
+        return jsonify({'error': 'Error al obtener los detalles del reporte'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 @dashboard_bp.route('/api/incidents/period/<int:period_index>')
 @jwt_required()
+@admin_required
 def api_incidents_for_period(period_index):
     """API endpoint for specific 7-day period incident types"""
     property_id = request.args.get('property_id', type=int)
-    
-    # Get the weekly data to find the specific period
-    weekly_data = get_incidents_by_week_with_types(property_id)
-    
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+    weekly_data = get_incidents_by_week_with_types(property_id, company_id=company_id)
+
     if period_index >= len(weekly_data) or period_index < 0:
         return jsonify({'error': 'Invalid period index'}), 400
-    
+
     selected_period = weekly_data[period_index]
-    
-    # Get incident types for this specific period
     start_date = selected_period['date_range']['start']
     end_date = selected_period['date_range']['end']
-    incident_types = get_incident_types_for_period(start_date, end_date, property_id)
-    
+    incident_types = get_incident_types_for_period(start_date, end_date, property_id, company_id=company_id)
+
     return jsonify({
         'incident_types': incident_types,
         'period_info': selected_period,
@@ -6532,7 +6609,17 @@ def api_incident_types_yearly():
 def api_incidents_weekly_with_kpi():
     """API endpoint for weekly incident data with KPI indicators"""
     property_id = request.args.get('property_id', type=int)
-    data = get_incidents_by_week_with_types(property_id)
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify([]), 500
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+    data = get_incidents_by_week_with_types(property_id, company_id=company_id)
     return jsonify(data)
 
 @dashboard_bp.route('/api/incidents/monthly-with-types')
@@ -6540,7 +6627,17 @@ def api_incidents_weekly_with_kpi():
 def api_incidents_monthly_with_types():
     """API endpoint for monthly incident data with type breakdown"""
     property_id = request.args.get('property_id', type=int)
-    data = get_incidents_by_month_with_types(property_id)
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify([]), 500
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+    data = get_incidents_by_month_with_types(property_id, company_id=company_id)
     return jsonify(data)
 
 @dashboard_bp.route('/api/incidents/yearly-with-types')
@@ -6548,7 +6645,17 @@ def api_incidents_monthly_with_types():
 def api_incidents_yearly_with_types():
     """API endpoint for yearly incident data with type breakdown"""
     property_id = request.args.get('property_id', type=int)
-    data = get_incidents_by_year_with_types(property_id)
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify([]), 500
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+    data = get_incidents_by_year_with_types(property_id, company_id=company_id)
     return jsonify(data)
 
 @dashboard_bp.route('/api/reports/period-range')
@@ -6640,12 +6747,15 @@ def api_bases_de_datos_clientes():
         if not conn:
             return jsonify({'clientes': []})
         cur = conn.cursor()
-        cur.execute("""
-            SELECT DISTINCT cliente
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+        cur.execute(f"""
+            SELECT DISTINCT cliente_instalacion
             FROM supervision_puesto
-            WHERE cliente IS NOT NULL AND cliente <> ''
-            ORDER BY cliente
-        """)
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
+            ORDER BY cliente_instalacion
+        """, cid_params)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_bases_de_datos_clientes error: {e}", exc_info=True)
@@ -6668,6 +6778,7 @@ def api_bases_de_datos_armas():
         if not conn:
             return jsonify({'rows': [], 'total': 0}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
         year_int  = int(year)  if year  else None
         month_int = int(month) if month else None
@@ -6675,8 +6786,11 @@ def api_bases_de_datos_armas():
         conds, params = [], []
         conds.append("LOWER(TRIM(COALESCE(porta_arma,''))) = 'si'")
         if cliente:
-            conds.append("cliente = %s")
+            conds.append("cliente_instalacion = %s")
             params.append(cliente)
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
         if year_int and month_int:
             conds.append("fecha_hora::TEXT LIKE %s")
             params.append(f"{year_int}-{month_int:02d}%")
@@ -6701,7 +6815,7 @@ def api_bases_de_datos_armas():
                 numero_empleado,
                 nombre_guardia,
                 documento_guardia,
-                cliente,
+                cliente_instalacion AS cliente,
                 supervisor,
                 COALESCE(NULLIF(TRIM(serie_arma), ''), '—') AS serie_arma,
                 {tipo_arma_sel},
@@ -6758,12 +6872,16 @@ def api_bases_de_datos_radios():
         if not conn:
             return jsonify({'rows': [], 'total': 0}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
         conds, params = [], []
         conds.append("TRIM(COALESCE(equipamiento_completo, '')) <> ''")
         if cliente:
-            conds.append("cliente = %s")
+            conds.append("cliente_instalacion = %s")
             params.append(cliente)
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
         _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, None)
         where = "WHERE " + " AND ".join(conds)
 
@@ -6784,7 +6902,7 @@ def api_bases_de_datos_radios():
                 numero_empleado,
                 nombre_guardia,
                 documento_guardia,
-                cliente,
+                cliente_instalacion AS cliente,
                 {serial_sel},
                 {marca_sel},
                 {tipo_sel},
@@ -6855,14 +6973,18 @@ def api_bases_de_datos_personal():
             return jsonify({'rows': [], 'total': 0}), 500
         cur  = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur2 = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
         year_int  = int(year)  if year  else None
         month_int = int(month) if month else None
 
         sup_conds, params = [], []
         if cliente:
-            sup_conds.append("cliente = %s")
+            sup_conds.append("cliente_instalacion = %s")
             params.append(cliente)
+        if company_id is not None:
+            sup_conds.append("company_id = %s")
+            params.append(company_id)
         if year_int and month_int:
             sup_conds.append("fecha_hora::TEXT LIKE %s")
             params.append(f"{year_int}-{month_int:02d}%")

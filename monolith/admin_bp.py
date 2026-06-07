@@ -85,7 +85,8 @@ def debug():
             db_info['db_value'] = bool(row and row['is_super_admin'])
         cur.close()
     except Exception as e:
-        db_info['error'] = str(e)
+        app_logger.error(f"admin debug route DB check error: {e}", exc_info=True)
+        db_info['error'] = 'DB check failed'
     finally:
         if conn:
             conn.close()

@@ -26,6 +26,15 @@ def _get_conn():
     return get_db_connection()
 
 
+def _get_user_company_id(cur, user_email):
+    """Returns company_id for tenant isolation, or None for super-admins (no filter)."""
+    if not user_email:
+        return None
+    cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+    row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 def _get_user_info(user_email):
     try:
         claims = get_jwt()
@@ -190,6 +199,7 @@ def cgeo_api_filtros():
         return jsonify({"error": "DB no disponible"}), 500
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
         _FILTROS_PAIRS = {
             ("confiabilidad_equipos",  "cliente_instalacion"),
             ("planilla_vehicular",     "cliente_instalacion"),
@@ -202,12 +212,19 @@ def cgeo_api_filtros():
             try:
                 if (tbl, col) not in _FILTROS_PAIRS:
                     raise ValueError(f"Identifier ({tbl}, {col}) not in allowlist")
-                cur.execute(
-                    sql.SQL(
+                if company_id is not None:
+                    query = sql.SQL(
+                        "SELECT DISTINCT TRIM({col}) AS c FROM {tbl}"
+                        " WHERE {col} IS NOT NULL AND TRIM({col}) <> ''"
+                        " AND company_id = %s ORDER BY c"
+                    ).format(col=sql.Identifier(col), tbl=sql.Identifier(tbl))
+                    cur.execute(query, (company_id,))
+                else:
+                    query = sql.SQL(
                         "SELECT DISTINCT TRIM({col}) AS c FROM {tbl}"
                         " WHERE {col} IS NOT NULL AND TRIM({col}) <> '' ORDER BY c"
                     ).format(col=sql.Identifier(col), tbl=sql.Identifier(tbl))
-                )
+                    cur.execute(query)
                 clientes.update(r["c"] for r in cur.fetchall())
             except Exception:
                 pass
