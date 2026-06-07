@@ -84,6 +84,7 @@ def _media_proxy_url(url):
 
 
 @viewer_bp.route('/api/media')
+@jwt_required()
 def serve_media():
     """Proxy GCS files through a signed-token redirect to hide bucket details."""
     token = request.args.get('f', '')
