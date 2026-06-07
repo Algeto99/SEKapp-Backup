@@ -183,7 +183,7 @@ def create_user():
         if conn:
             conn.rollback()
         app_logger.error(f"Error creating user: {e}", exc_info=True)
-        flash(f'Error al crear el usuario: {type(e).__name__}: {e}', 'error')
+        flash('Error al crear el usuario. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()
@@ -219,7 +219,7 @@ def toggle_admin(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error toggling admin: {e}", exc_info=True)
-        flash(f'Error al actualizar el rol: {type(e).__name__}: {e}', 'error')
+        flash('Error al actualizar el rol. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()
@@ -255,7 +255,7 @@ def toggle_active(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error toggling active: {e}", exc_info=True)
-        flash(f'Error al actualizar el estado: {type(e).__name__}: {e}', 'error')
+        flash('Error al actualizar el estado. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()
@@ -287,7 +287,7 @@ def toggle_force_password(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error toggling force_password_change: {e}", exc_info=True)
-        flash(f'Error al actualizar cambio de contraseña: {type(e).__name__}: {e}', 'error')
+        flash('Error al actualizar cambio de contraseña. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()
@@ -325,7 +325,7 @@ def reset_password(user_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error resetting password: {e}", exc_info=True)
-        flash(f'Error al actualizar la contraseña: {type(e).__name__}: {e}', 'error')
+        flash('Error al actualizar la contraseña. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()
@@ -472,7 +472,7 @@ def save_thresholds():
         if conn:
             conn.rollback()
         app_logger.error(f"Error saving thresholds: {e}", exc_info=True)
-        flash(f'Error al guardar umbrales: {type(e).__name__}: {e}', 'error')
+        flash('Error al guardar umbrales. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()
