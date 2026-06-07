@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from functools import wraps
 
 import psycopg2
-from psycopg2 import extras
+from psycopg2 import extras, sql
 from flask import Blueprint, render_template, jsonify, request, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
@@ -175,16 +175,24 @@ def cgeo_api_filtros():
         return jsonify({"error": "DB no disponible"}), 500
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
-        clientes = set()
-        for tbl, col in [
-            ("confiabilidad_equipos", "cliente_instalacion"),
-            ("planilla_vehicular",    "cliente_instalacion"),
+        _FILTROS_PAIRS = {
+            ("confiabilidad_equipos",  "cliente_instalacion"),
+            ("planilla_vehicular",     "cliente_instalacion"),
             ("checklist_cumplimiento", "cliente_instalacion"),
-            ("reportes_incidentes",   "cliente_instalacion"),
-            ("supervision_puesto",    "cliente_instalacion"),
-        ]:
+            ("reportes_incidentes",    "cliente_instalacion"),
+            ("supervision_puesto",     "cliente_instalacion"),
+        }
+        clientes = set()
+        for tbl, col in _FILTROS_PAIRS:
             try:
-                cur.execute(f"SELECT DISTINCT TRIM({col}) AS c FROM {tbl} WHERE {col} IS NOT NULL AND TRIM({col}) <> '' ORDER BY c")
+                if (tbl, col) not in _FILTROS_PAIRS:
+                    raise ValueError(f"Identifier ({tbl}, {col}) not in allowlist")
+                cur.execute(
+                    sql.SQL(
+                        "SELECT DISTINCT TRIM({col}) AS c FROM {tbl}"
+                        " WHERE {col} IS NOT NULL AND TRIM({col}) <> '' ORDER BY c"
+                    ).format(col=sql.Identifier(col), tbl=sql.Identifier(tbl))
+                )
                 clientes.update(r["c"] for r in cur.fetchall())
             except Exception:
                 pass
