@@ -23,6 +23,25 @@ body{display:flex!important;min-height:100vh}
 .snw-user{font-size:.75rem;color:#64748b;word-break:break-all}
 .snw-user strong{color:#94a3b8;display:block}
 
+/* ── User button (injected into every .snw-topbar) ── */
+.snw-usr-wrap{position:relative;flex-shrink:0;margin-left:auto}
+.snw-usr-btn{display:flex;align-items:center;gap:.5rem;padding:.375rem .625rem;background:transparent;border:1px solid #e2e8f0;border-radius:.5rem;cursor:pointer;font-size:.78rem;font-weight:600;color:#334155;transition:background .15s;white-space:nowrap}
+.snw-usr-btn:hover{background:#f1f5f9}
+.snw-usr-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
+.snw-usr-name{max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.snw-usr-drop{display:none;position:absolute;right:0;top:calc(100% + .375rem);background:#fff;border:1px solid #e2e8f0;border-radius:.625rem;box-shadow:0 8px 24px rgba(0,0,0,.1);min-width:160px;z-index:200}
+.snw-usr-drop.open{display:block}
+.snw-usr-drop-hdr{padding:.625rem .875rem;border-bottom:1px solid #f1f5f9;font-size:.8125rem;font-weight:600;color:#0f172a}
+.snw-usr-drop a{display:flex;align-items:center;gap:.5rem;padding:.625rem .875rem;font-size:.8125rem;color:#ef4444;text-decoration:none;font-weight:500;transition:background .1s}
+.snw-usr-drop a:hover{background:#fef2f2}
+.snw-usr-drop a svg{width:14px;height:14px;color:#ef4444;flex-shrink:0}
+body:not(.light-mode) .snw-usr-btn{background:transparent;border-color:#334155;color:#e2e8f0}
+body:not(.light-mode) .snw-usr-btn:hover{background:#334155}
+body:not(.light-mode) .snw-usr-drop{background:#1e293b;border-color:#334155;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+body:not(.light-mode) .snw-usr-drop-hdr{border-bottom-color:#334155;color:#f1f5f9}
+body:not(.light-mode) .snw-usr-drop a{color:#f87171}
+body:not(.light-mode) .snw-usr-drop a:hover{background:rgba(239,68,68,0.1)}
+
 /* ── Dashboard sub-menu ── */
 .snw-group-toggle{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent;cursor:pointer;background:none;border-right:none;border-top:none;border-bottom:none;width:100%;text-align:left}
 .snw-group-toggle:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
@@ -102,12 +121,12 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             Reportes
         </a>
-        <button id="snwDashGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/dashboard') else '' }} {{ 'open' if request.path.startswith('/dashboard') else '' }}" onclick="snwToggleDash()">
+        <button id="snwDashGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }} {{ 'open' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }}" onclick="snwToggleDash()">
             <svg class="snw-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Dashboards
             <svg class="snw-group-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
         </button>
-        <div id="snwDashMenu" class="snw-submenu {{ 'open' if request.path.startswith('/dashboard') else '' }}">
+        <div id="snwDashMenu" class="snw-submenu {{ 'open' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }}">
             <a href="/dashboard/" class="snw-subitem {{ 'active' if request.path == '/dashboard/' else '' }}">Inicio Dashboards</a>
             <a href="/dashboard/incidentes/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/incidentes') else '' }}">Incidentes</a>
             <a href="/dashboard/supervision/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/supervision') else '' }}">Supervisión</a>
@@ -135,7 +154,6 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
             Bases de Datos
         </a>
-        {% endif %}
         <a href="/cgeo/morning-briefing/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/morning-briefing') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             Morning Briefing
@@ -148,6 +166,7 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Operación e Incidentes
         </a>
+        {% endif %}
         <hr class="snw-divider">
         <a href="/logout" class="snw-item snw-item-logout">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -165,6 +184,11 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
 <div class="snw-overlay" id="snwOverlay"></div>
 
 <script>
+function snwToggleUserMenu() {
+    var d = document.getElementById('snwUsrDrop');
+    if (d) d.classList.toggle('open');
+}
+
 function snwToggleDash() {
     var btn  = document.getElementById('snwDashGroup');
     var menu = document.getElementById('snwDashMenu');
@@ -219,8 +243,38 @@ function snwToggleForms() {
         if (overlay) overlay.addEventListener('click', closeMobile);
         window.addEventListener('resize', function() { if (!isMobile()) closeMobile(); });
 
-        {% if is_admin %}
-        // Inject "Panel Admin" button into every topbar for admin users,
+        // Inject user name + logout button into every topbar
+        var topbar = document.querySelector('.snw-topbar');
+        if (topbar && !document.getElementById('snwUsrWrap')) {
+            var uName = '{{ (user_name or name or current_user or "") | e }}';
+            var initials = uName.trim().split(/\s+/).filter(Boolean).map(function(w){return w[0];}).join('').substring(0,2).toUpperCase() || '?';
+            var wrap = document.createElement('div');
+            wrap.id = 'snwUsrWrap';
+            wrap.className = 'snw-usr-wrap';
+            wrap.innerHTML =
+                '<button class="snw-usr-btn" onclick="snwToggleUserMenu()">' +
+                    '<div class="snw-usr-avatar">' + initials + '</div>' +
+                    '<span class="snw-usr-name">' + uName + '</span>' +
+                    '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>' +
+                '</button>' +
+                '<div class="snw-usr-drop" id="snwUsrDrop">' +
+                    '<div class="snw-usr-drop-hdr">' + uName + '</div>' +
+                    '<a href="/logout">' +
+                        '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>' +
+                        'Cerrar Sesión' +
+                    '</a>' +
+                '</div>';
+            topbar.appendChild(wrap);
+            document.addEventListener('click', function(e) {
+                if (!wrap.contains(e.target)) {
+                    var d = document.getElementById('snwUsrDrop');
+                    if (d) d.classList.remove('open');
+                }
+            });
+        }
+
+        {% if is_super_admin %}
+        // Inject "Panel Admin" button into every topbar for super-admin users,
         // except on the admin pages themselves where it's already present or redundant.
         var adminPages = ['/admin/', '/admin/thresholds'];
         var onAdminPage = adminPages.some(function(p) { return window.location.pathname === p || window.location.pathname.startsWith('/admin/'); });

@@ -167,26 +167,28 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 .nav-item-logout{color:#f87171!important;border-left-color:transparent}
 .nav-item-logout:hover{color:#fca5a5!important;background:rgba(239,68,68,0.1)!important}
 .nav-item-logout svg{color:#f87171}
+.theme-toggle{background-color:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:.5rem;padding:.5rem;color:#e2e8f0;transition:all .2s ease-in-out;width:auto}
+.theme-toggle:hover{background-color:rgba(255,255,255,0.2);transform:scale(1.05)}
+.theme-toggle svg{width:1.5rem;height:1.5rem}
+body.light-mode .theme-toggle{background-color:rgba(0,0,0,0.1);border:1px solid rgba(0,0,0,0.2);color:#374151}
+body.light-mode .theme-toggle:hover{background-color:rgba(0,0,0,0.2)}
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
 <body>
 <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
-    <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;width:22px;height:22px">
+    <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
     </svg>
-    <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
+    <svg id="lightModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
     </svg>
 </button>
 
 
-<!-- Sidebar -->
-<aside class="sidebar">
-    <div class="sidebar-logo">
-        <img src="/static/logo_full.png" alt="Kanan Sentinel">
-    </div>
-        <nav class="sidebar-nav">
+{% include '_sidebar.html' %}
+
+<aside style="display:none"><nav>
         <a href="/landing/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
             Inicio
@@ -217,6 +219,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             Bases de Datos
         </a>
         {% endif %}
+        {% if is_admin %}
         <a href="/cgeo/morning-briefing/" class="nav-item">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
             Morning Briefing
@@ -229,6 +232,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
             Operación e Incidentes
         </a>
+        {% endif %}
         <hr class="nav-divider">
         <a href="/logout" class="nav-item nav-item-logout">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -243,41 +247,15 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
     </div>
 </aside>
 
-<!-- Mobile sidebar overlay -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- Main -->
-<div class="main">
-    <div class="topbar">
-        <div class="topbar-left">
-            <div class="page-icon" id="sidebarToggleBtn">
+<div class="sidebar-main-content" id="mainContent">
+    <div class="snw-topbar">
+        <div class="snw-topbar-left">
+            <button class="snw-page-icon" id="snwPageIcon" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)" title="Mostrar/Ocultar menú">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-            </div>
+            </button>
             <div>
-                <div class="page-title">Consultar Matrices</div>
-                <div class="page-subtitle">Seguimiento y control de novedades, compromisos e incidentes</div>
-            </div>
-        </div>
-        <div class="topbar-right">
-            <div class="user-menu-wrap" id="userMenuWrap">
-                <button class="user-btn" id="userMenuBtn" onclick="toggleUserMenu()">
-                    <div class="user-btn-avatar" id="userAvatar">…</div>
-                    <span class="user-btn-name" id="userBtnName">{{ user_name or current_user }}</span>
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-                <div class="user-dropdown" id="userDropdown">
-                    <div class="user-dropdown-header">
-                        <div class="user-dropdown-name" id="dropdownName">{{ user_name or current_user }}</div>
-                    </div>
-                    <a href="/cgeo/morning-briefing/" class="user-dropdown-item">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        Morning Briefing
-                    </a>
-                    <a href="/logout" class="user-dropdown-item danger">
-                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        Cerrar Sesión
-                    </a>
-                </div>
+                <div class="snw-page-title">Consultar Matrices</div>
+                <div class="snw-page-subtitle">Seguimiento y control de novedades, compromisos e incidentes</div>
             </div>
         </div>
     </div>
@@ -424,20 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     loadStats();
 
-    const sidebar       = document.querySelector('.sidebar');
-    const mainContent   = document.querySelector('.main');
-    const overlay       = document.getElementById('sidebarOverlay');
-    const desktopToggle = document.getElementById('sidebarToggleBtn');
-
-    function isMobile() { return window.innerWidth <= 700; }
-    function openMobileSidebar()  { sidebar.classList.add('mobile-open');    overlay.classList.add('active'); }
-    function closeMobileSidebar() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('active'); }
-
-    if (desktopToggle) desktopToggle.addEventListener('click', () => {
-        isMobile() ? openMobileSidebar() : (sidebar.classList.toggle('collapsed'), mainContent.classList.toggle('expanded'));
-    });
-    if (overlay)   overlay.addEventListener('click', closeMobileSidebar);
-    window.addEventListener('resize', () => { if (!isMobile()) closeMobileSidebar(); });
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

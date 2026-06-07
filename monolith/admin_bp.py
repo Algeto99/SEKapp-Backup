@@ -115,21 +115,12 @@ def panel():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        try:
-            cur.execute("""
-                SELECT id, name, email, phone_number,
-                       is_admin, is_super_admin, is_active, company_id, created_at,
-                       force_password_change
-                FROM users ORDER BY created_at DESC
-            """)
-        except Exception:
-            conn.rollback()
-            cur.execute("""
-                SELECT id, name, email, phone_number,
-                       is_admin, is_super_admin, is_active, company_id, created_at,
-                       FALSE AS force_password_change
-                FROM users ORDER BY created_at DESC
-            """)
+        cur.execute("""
+            SELECT id, name, email, phone_number,
+                   is_admin, is_super_admin, is_active, company_id, created_at,
+                   force_password_change
+            FROM users ORDER BY created_at DESC
+        """)
         users = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT id, name FROM companies WHERE is_active = TRUE ORDER BY name")
         companies = [dict(r) for r in cur.fetchall()]

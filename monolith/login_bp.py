@@ -135,18 +135,14 @@ def login():
                 cur.execute('SELECT "is_admin", "is_active" FROM "authorized_emails" WHERE "email" = %s', (email,))
                 auth_entry = cur.fetchone()
 
-            # Fetch is_super_admin and force_password_change — columns may not exist yet
             is_super_admin = False
             force_password_change = False
             if user:
-                try:
-                    cur.execute('SELECT "is_super_admin", "force_password_change" FROM "users" WHERE "id" = %s', (user['id'],))
-                    row = cur.fetchone()
-                    if row:
-                        is_super_admin = bool(row['is_super_admin'])
-                        force_password_change = bool(row['force_password_change'])
-                except Exception:
-                    conn.rollback()
+                cur.execute('SELECT "is_super_admin", "force_password_change" FROM "users" WHERE "id" = %s', (user['id'],))
+                row = cur.fetchone()
+                if row:
+                    is_super_admin = bool(row['is_super_admin'])
+                    force_password_change = bool(row['force_password_change'])
 
             cur.close()
 
