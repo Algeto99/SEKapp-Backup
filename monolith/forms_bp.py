@@ -706,25 +706,10 @@ def submit_informe_novedades_disciplinario():
         anexos_str = "\n".join(anexos_urls) if anexos_urls else "No Aplica" if request.form.get('anexos_na') else ""
 
         fecha_hora_str = request.form.get('fecha_hora')
-        app_logger.info(f"[DEBUG] Parsing fecha_hora: {fecha_hora_str}")
-        fecha = None
-        hora = None
-        if fecha_hora_str:
-            try:
-                dt_obj = datetime.fromisoformat(fecha_hora_str)
-                fecha = dt_obj.date()
-                hora = dt_obj.time()
-            except ValueError:
-                app_logger.error(f"[DEBUG] Error parsing date: {fecha_hora_str}")
-                pass
-        
         app_logger.info("[DEBUG] Constructing form_data dictionary.")
         form_data = {
             'nombre_responsable': request.form.get('nombre_responsable'),
             'realizado_por_cargo': request.form.get('rol_aplicador'),
-            'fecha': fecha,
-            'hora': hora,
-            'dirigido_a': None,
             'empleado_nombre': request.form.get('empleado_nombre'),
             'empleado_numero': request.form.get('empleado_numero'),
             'empleado_documento': request.form.get('empleado_documento'),

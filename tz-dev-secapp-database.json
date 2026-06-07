@@ -1881,11 +1881,6 @@
   },
   {
     "table_name": "reportes_incidentes",
-    "column_name": "evidencia_seguimiento_url",
-    "data_type": "text"
-  },
-  {
-    "table_name": "reportes_incidentes",
     "column_name": "reportado_autoridades",
     "data_type": "character varying"
   },
