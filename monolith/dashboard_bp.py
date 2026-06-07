@@ -4677,7 +4677,10 @@ def api_capacitacion_data():
                 FROM registro_de_capacitaciones
                 {_capac_where(top_conds)}
             ) sub,
-            LATERAL json_array_elements(sub.lista_asistencia::json) AS att
+            LATERAL json_array_elements(
+                CASE WHEN sub.lista_asistencia IS NOT NULL AND sub.lista_asistencia ~ '^\s*\['
+                     THEN sub.lista_asistencia::json ELSE '[]'::json END
+            ) AS att
             WHERE (att->>'nombre') IS NOT NULL AND (att->>'nombre') != ''
             GROUP BY att->>'nombre', att->>'cargo'
             ORDER BY sesiones DESC
@@ -6865,14 +6868,18 @@ def api_bases_de_datos_personal():
                 match_parts, train_params = [], []
                 if doc:
                     match_parts.append(
-                        "EXISTS (SELECT 1 FROM json_array_elements(lista_asistencia::json) e "
-                        "WHERE e->>'documento' = %s)"
+                        "EXISTS (SELECT 1 FROM json_array_elements("
+                        "CASE WHEN lista_asistencia IS NOT NULL AND lista_asistencia ~ '^\\s*\\['"
+                        " THEN lista_asistencia::json ELSE '[]'::json END) e"
+                        " WHERE e->>'documento' = %s)"
                     )
                     train_params.append(doc)
                 if nombre:
                     match_parts.append(
-                        "EXISTS (SELECT 1 FROM json_array_elements(lista_asistencia::json) e "
-                        "WHERE e->>'nombre' ILIKE %s)"
+                        "EXISTS (SELECT 1 FROM json_array_elements("
+                        "CASE WHEN lista_asistencia IS NOT NULL AND lista_asistencia ~ '^\\s*\\['"
+                        " THEN lista_asistencia::json ELSE '[]'::json END) e"
+                        " WHERE e->>'nombre' ILIKE %s)"
                     )
                     train_params.append(f"%{nombre}%")
 
