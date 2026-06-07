@@ -465,15 +465,15 @@ def submit_medicion_experiencia_cliente():
             'rol_aplicador': request.form.get('rol_aplicador'),
             'nombre_responsable': request.form.get('nombre_responsable'),
             'firma_responsable': request.form.get('firma_responsable'),
-            'atencion_cliente': request.form.get('atencion_cliente'),
-            'comunicacion': request.form.get('comunicacion'),
-            'confiabilidad': request.form.get('confiabilidad'),
-            'capacidad_reaccion': request.form.get('capacidad_reaccion'),
-            'cumplimiento': request.form.get('cumplimiento'),
-            'competencia_personal': request.form.get('competencia_personal'),
-            'actitud_servicio': request.form.get('actitud_servicio'),
-            'atencion_quejas': request.form.get('atencion_quejas'),
-            'calificacion_global_nps': request.form.get('calificacion_global_nps'),
+            'atencion_cliente': int(v) if (v := request.form.get('atencion_cliente', '').strip()) else None,
+            'comunicacion': int(v) if (v := request.form.get('comunicacion', '').strip()) else None,
+            'confiabilidad': int(v) if (v := request.form.get('confiabilidad', '').strip()) else None,
+            'capacidad_reaccion': int(v) if (v := request.form.get('capacidad_reaccion', '').strip()) else None,
+            'cumplimiento': int(v) if (v := request.form.get('cumplimiento', '').strip()) else None,
+            'competencia_personal': int(v) if (v := request.form.get('competencia_personal', '').strip()) else None,
+            'actitud_servicio': int(v) if (v := request.form.get('actitud_servicio', '').strip()) else None,
+            'atencion_quejas': int(v) if (v := request.form.get('atencion_quejas', '').strip()) else None,
+            'calificacion_global_nps': int(v) if (v := request.form.get('calificacion_global_nps', '').strip()) else None,
             'recomendaria_servicio': request.form.get('recomendaria_servicio'),
             'observaciones_cliente': request.form.get('observaciones_cliente'),
             'encuestado': request.form.get('encuestado'),
@@ -939,7 +939,7 @@ def submit_registro_de_capacitaciones():
             except Exception as qr_err:
                 app_logger.warning(f"Could not fetch QR attendees: {qr_err}")
 
-        lista_asistencia_json = _json.dumps(lista_manual)
+        lista_asistencia_json = psycopg2.extras.Json(lista_manual)
 
         # Upload attached files (photos/documents)
         capacitacion_urls = []
@@ -1458,7 +1458,7 @@ def submit_confiabilidad_equipos():
             if row:
                 inventario_list.append(row)
 
-        inventario_json = _json.dumps(inventario_list, ensure_ascii=False)
+        inventario_json = psycopg2.extras.Json(inventario_list)
 
         form_data = {
             'cliente_instalacion':  request.form.get('cliente_instalacion'),
