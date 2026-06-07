@@ -1613,7 +1613,7 @@ def get_my_report_details(report_id):
 
         cur.execute("""
             SELECT * FROM reportes_incidentes
-            WHERE id_reporte_incidente = %s AND submitted_by_email = %s
+            WHERE id_reporte_incidente = %s AND user_email = %s
         """, (report_id, user_email))
 
         report = cur.fetchone()
