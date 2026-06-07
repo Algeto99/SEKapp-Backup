@@ -1092,46 +1092,39 @@ def send_reports_email(recipient_email, subject, body, is_html=False):
 
 def admin_required(f):
     """
-    Decorator that requires the user to be an admin.
+    Decorator that requires the user to be an admin, verified against the DB.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        is_api = request.path.startswith('/api/') or bool(
+            request.accept_mimetypes and request.accept_mimetypes.accept_json
+        )
         try:
-            # Get JWT claims
-            claims = get_jwt()
-            is_admin = claims.get('is_admin', False)
-            user_email = claims.get('sub', 'unknown')
-            
-            app_logger.info(f"Admin check: User {user_email}, is_admin={is_admin}")
-            
-            if not is_admin:
-                app_logger.warning(f"Access denied: User {user_email} attempted to access admin-only resource")
-                
-                # Check if this is an API request or web request
-                if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
-                    return jsonify({
-                        "error": "Access denied", 
-                        "message": "Solo los administradores pueden acceder a este recurso."
-                    }), 403
-                else:
-                    # Redirect to landing page
-                    landing_url = '/landing/'
-                    app_logger.info(f"Redirecting non-admin user to: {landing_url}")
-                    return redirect(landing_url)
-            
-            app_logger.info(f"Admin access granted to {user_email} for {request.endpoint}")
+            user_email = get_jwt_identity()
+            conn = get_db_connection()
+            if not conn:
+                if is_api:
+                    return jsonify({"error": "Service unavailable"}), 503
+                return redirect('/')
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT is_admin, is_active FROM users WHERE email = %s', (user_email,))
+                row = cur.fetchone()
+                cur.close()
+            finally:
+                conn.close()
+            if not row or not row[0] or not row[1]:
+                app_logger.warning("Admin access denied for %s", user_email)
+                if is_api:
+                    return jsonify({"error": "Acceso denegado"}), 403
+                return redirect('/landing/')
             return f(*args, **kwargs)
-            
         except Exception as e:
-            app_logger.error(f"Error in admin_required decorator: {e}", exc_info=True)
-            
-            # Return error response
-            if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
-                return jsonify({"error": "Authentication error", "details": str(e)}), 500
-            else:
-                login_url = '/'
-                return redirect(login_url)
-    
+            app_logger.error("Error in admin_required decorator: %s", e, exc_info=True)
+            if is_api:
+                return jsonify({"error": "Authentication error"}), 500
+            return redirect('/')
+
     return decorated_function
 
 # --- Routes ---
@@ -1234,10 +1227,10 @@ def get_properties():
         
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in get_properties: {e}", exc_info=True)
-        return jsonify({"error": f"Database error: {str(e)}", "properties": []}), 500
+        return jsonify({"error": "Database error", "properties": []}), 500
     except Exception as e:
         app_logger.error(f"Unexpected error in get_properties: {e}", exc_info=True)
-        return jsonify({"error": f"Server error: {str(e)}", "properties": []}), 500
+        return jsonify({"error": "Server error", "properties": []}), 500
     finally:
         if cur:
             cur.close()
@@ -1260,44 +1253,48 @@ def get_locations():
             return jsonify({"error": "Database connection failed", "locations": []}), 500
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
+
+        user_email = get_jwt_identity()
+        company_id = _get_user_company_id(cur, user_email)
+
+        conds = [
+            "puesto_area_especifica IS NOT NULL",
+            "TRIM(puesto_area_especifica) <> ''",
+        ]
+        params = []
         if property_id:
-            query = """
-                SELECT DISTINCT TRIM(puesto_area_especifica) AS nombre
-                FROM reportes_incidentes
-                WHERE id_propiedad = %s
-                  AND puesto_area_especifica IS NOT NULL
-                  AND TRIM(puesto_area_especifica) <> ''
-                ORDER BY nombre
-            """
-            cur.execute(query, (property_id,))
-        else:
-            query = """
-                SELECT DISTINCT TRIM(puesto_area_especifica) AS nombre
-                FROM reportes_incidentes
-                WHERE puesto_area_especifica IS NOT NULL
-                  AND TRIM(puesto_area_especifica) <> ''
-                ORDER BY nombre
-            """
-            cur.execute(query)
-        
+            conds.append("id_propiedad = %s")
+            params.append(property_id)
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
+
+        where_clause = " AND ".join(conds)
+        query = f"""
+            SELECT DISTINCT TRIM(puesto_area_especifica) AS nombre
+            FROM reportes_incidentes
+            WHERE {where_clause}
+            ORDER BY nombre
+        """
+        cur.execute(query, params)
+
         rows = cur.fetchall()
-        
+
         for idx, row in enumerate(rows, start=1):
             locations.append({
                 "id": idx,
                 "name": row["nombre"]
             })
-        
-        app_logger.info(f"Retrieved {len(locations)} locations for property_id: {property_id}")
+
+        app_logger.info("Retrieved %d locations for property_id: %s", len(locations), property_id)
         return jsonify({"locations": locations}), 200
-        
+
     except psycopg2.Error as e:
-        app_logger.error(f"PostgreSQL Error in get_locations: {e}", exc_info=True)
-        return jsonify({"error": f"Database error: {str(e)}", "locations": []}), 500
+        app_logger.error("PostgreSQL Error in get_locations: %s", e, exc_info=True)
+        return jsonify({"error": "Database error", "locations": []}), 500
     except Exception as e:
-        app_logger.error(f"Unexpected error in get_locations: {e}", exc_info=True)
-        return jsonify({"error": f"Server error: {str(e)}", "locations": []}), 500
+        app_logger.error("Unexpected error in get_locations: %s", e, exc_info=True)
+        return jsonify({"error": "Server error", "locations": []}), 500
     finally:
         if cur:
             cur.close()
@@ -1362,10 +1359,10 @@ def get_more_reports():
         return jsonify({"reports": reports, "total_count": total_count})
     except psycopg2.Error as e:
         app_logger.error(f"Database error in get_more_reports: {e}", exc_info=True)
-        return jsonify({"error": f"Database error: {str(e)}", "reports": [], "total_count": 0}), 500
+        return jsonify({"error": "Database error", "reports": [], "total_count": 0}), 500
     except Exception as e:
         app_logger.error(f"Server error in get_more_reports: {e}", exc_info=True)
-        return jsonify({"error": f"Server error: {str(e)}", "reports": [], "total_count": 0}), 500
+        return jsonify({"error": "Server error", "reports": [], "total_count": 0}), 500
 
 # New route to handle fetching a single report by ID, assumed to be used by "Ver Detalles"
 @viewer_bp.route('/api/report/<int:report_id>', methods=['GET'])
@@ -1525,9 +1522,9 @@ def email_selected_reports_api():
                     signatures.append((key, val_str))
                 continue
             bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
-            clean_val = val_str.replace('\n', '<br>')
+            clean_val = str(escape(val_str)).replace('\n', '<br>')
             p.append(f"""      <tr style="background:{bg};">
-        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">{key}</td>
+        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">{escape(key)}</td>
         <td style="padding:6px 12px;font-size:11px;color:#1f2937;border-bottom:1px solid #f1f5f9;">{clean_val}</td>
       </tr>
 """)
@@ -1828,7 +1825,7 @@ def export_excel():
 
     except Exception as e:
         app_logger.error(f"Error generating Excel file: {e}", exc_info=True)
-        return jsonify({"success": False, "message": f"Error generating Excel file: {str(e)}"}), 500
+        return jsonify({"success": False, "message": "Error generating Excel file"}), 500
 
 @viewer_bp.route('/api/generate-pdf', methods=['POST'])
 @jwt_required()
@@ -1888,7 +1885,7 @@ def generate_pdf():
 
     except Exception as e:
         app_logger.error(f"Error generating PDF: {e}", exc_info=True)
-        return jsonify({"success": False, "message": f"Error generating PDF: {str(e)}"}), 500
+        return jsonify({"success": False, "message": "Error generating PDF"}), 500
 
 
 _LOGO_DATA_URL_CACHE = None
@@ -2242,7 +2239,7 @@ def list_saved_filters():
         return jsonify({'saved_filters': result})
     except Exception as e:
         app_logger.error(f"Error listing saved filters: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if conn:
             conn.close()
@@ -2281,7 +2278,7 @@ def create_saved_filter():
         if 'uq_saved_filter_user_name' in str(e):
             return jsonify({'error': f'Ya existe un filtro con el nombre "{name}".'}), 409
         app_logger.error(f"Error creating saved filter: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if conn:
             conn.close()
@@ -2326,7 +2323,7 @@ def update_saved_filter(filter_id):
         if 'uq_saved_filter_user_name' in str(e):
             return jsonify({'error': f'Ya existe un filtro con ese nombre.'}), 409
         app_logger.error(f"Error updating saved filter: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if conn:
             conn.close()
@@ -2353,7 +2350,7 @@ def delete_saved_filter(filter_id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error deleting saved filter: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if conn:
             conn.close()

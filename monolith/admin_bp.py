@@ -61,6 +61,9 @@ def _is_super_admin():
 @admin_bp.route('/debug')
 @jwt_required()
 def debug():
+    import os as _os
+    if _os.environ.get('FLASK_ENV', 'production') == 'production' and not _os.environ.get('ENABLE_DEBUG_ROUTE'):
+        return jsonify({'error': 'Not found'}), 404
     if not _is_super_admin():
         return jsonify({'error': 'Forbidden'}), 403
     email = get_jwt_identity()

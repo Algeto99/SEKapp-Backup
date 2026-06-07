@@ -37,6 +37,15 @@ def _upload_file_to_gcs(file_storage):
 dashboard_bp = Blueprint("dashboard_bp", __name__)
 
 
+def _get_user_company_id(cur, user_email):
+    """Returns company_id for tenant isolation, or None for super-admins (no filter)."""
+    if not user_email:
+        return None
+    cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+    row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora AT TIME ZONE 'UTC', ri.creado_en) AS date)"
 INCIDENT_TIME_EXPR = "CAST(ri.fecha_hora AT TIME ZONE 'UTC' AS time)"
 INCIDENT_TYPE_EXPR = "COALESCE(NULLIF(TRIM(ri.tipo_incidente), ''), 'Sin Tipo')"
@@ -1304,46 +1313,39 @@ def get_incident_types_for_period(start_date, end_date, property_id=None):
 
 def admin_required(f):
     """
-    Decorator that requires the user to be an admin.
+    Decorator that requires the user to be an admin, verified against the DB.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        is_api = request.path.startswith('/api/') or bool(
+            request.accept_mimetypes and request.accept_mimetypes.accept_json
+        )
         try:
-            # Get JWT claims
-            claims = get_jwt()
-            is_admin = claims.get('is_admin', False)
-            user_email = claims.get('sub', 'unknown')
-            
-            app_logger.info(f"Admin check: User {user_email}, is_admin={is_admin}")
-            
-            if not is_admin:
-                app_logger.warning(f"Access denied: User {user_email} attempted to access admin-only resource")
-                
-                # Check if this is an API request or web request
-                if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
-                    return jsonify({
-                        "error": "Access denied", 
-                        "message": "Solo los administradores pueden acceder a este recurso."
-                    }), 403
-                else:
-                    # Redirect to landing page
-                    landing_url = '/landing/'
-                    app_logger.info(f"Redirecting non-admin user to: {landing_url}")
-                    return redirect(landing_url)
-            
-            app_logger.info(f"Admin access granted to {user_email} for {request.endpoint}")
+            user_email = get_jwt_identity()
+            conn = get_db_connection()
+            if not conn:
+                if is_api:
+                    return jsonify({"error": "Service unavailable"}), 503
+                return redirect('/')
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT is_admin, is_active FROM users WHERE email = %s', (user_email,))
+                row = cur.fetchone()
+                cur.close()
+            finally:
+                conn.close()
+            if not row or not row[0] or not row[1]:
+                app_logger.warning("Admin access denied for %s", user_email)
+                if is_api:
+                    return jsonify({"error": "Acceso denegado"}), 403
+                return redirect('/landing/')
             return f(*args, **kwargs)
-            
         except Exception as e:
-            app_logger.error(f"Error in admin_required decorator: {e}", exc_info=True)
-            
-            # Return error response
-            if request.path.startswith('/api/') or (request.accept_mimetypes and request.accept_mimetypes.accept_json):
-                return jsonify({"error": "Authentication error", "details": str(e)}), 500
-            else:
-                login_url = '/'
-                return redirect(login_url)
-    
+            app_logger.error("Error in admin_required decorator: %s", e, exc_info=True)
+            if is_api:
+                return jsonify({"error": "Authentication error"}), 500
+            return redirect('/')
+
     return decorated_function
 
 # --- Helper to resolve user name from JWT + DB ---
@@ -1395,6 +1397,7 @@ def dashboard_home():
 
 @dashboard_bp.route('/incidentes/')
 @jwt_required()
+@admin_required
 def dashboard_incidentes():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
@@ -1544,6 +1547,7 @@ def dashboard_disciplina():
 
 @dashboard_bp.route('/visitas/')
 @jwt_required()
+@admin_required
 def dashboard_visitas():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
@@ -1895,6 +1899,7 @@ def api_gestion_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
         sat_conds, sat_params = [], []
         if cliente:
@@ -1904,6 +1909,9 @@ def api_gestion_data():
             sat_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
             sat_params.append(turno.lower())
         _gestion_add_multi_date_filter(sat_conds, sat_params, "fecha_hora::TEXT", year, month, day)
+        if company_id is not None:
+            sat_conds.append("company_id = %s")
+            sat_params.append(company_id)
         sat_where = _gestion_where(sat_conds)
         cur.execute(f"""
             SELECT
@@ -2454,7 +2462,7 @@ def api_gestion_data():
         })
     except Exception as e:
         app_logger.error(f"api_gestion_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -2519,7 +2527,7 @@ def _sat_add_multi_date_filter(conds, params, text_expr, year, month, day):
     _gestion_add_multi_date_filter(conds, params, text_expr, year, month, day)
 
 
-def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None):
+def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2531,6 +2539,9 @@ def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None)
     if nombre_usuario:
         conds.append("TRIM(nombre_responsable) = %s")
         params.append(nombre_usuario)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -2681,7 +2692,7 @@ def api_satisfaccion_debug():
         })
     except Exception as e:
         app_logger.error(f"api_satisfaccion_debug error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -2703,8 +2714,9 @@ def api_satisfaccion_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario)
+        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
         where_prev, params_prev = _sat_prev_where(cliente, year, month, day)
 
         # ── Main summary ─────────────────────────────────────────────────
@@ -2854,7 +2866,7 @@ def api_satisfaccion_data():
         })
     except Exception as e:
         app_logger.error(f"api_satisfaccion_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -2876,8 +2888,9 @@ def api_satisfaccion_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario)
+        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
@@ -2958,7 +2971,7 @@ def api_satisfaccion_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_satisfaccion_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -2966,7 +2979,7 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -2984,6 +2997,9 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
     if responsable:
         conds.append("TRIM(nombre_responsable) = %s")
         params.append(responsable)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -3085,8 +3101,9 @@ def api_incidentes_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable)
+        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id)
         where_prev, params_prev = _inc_prev_where(cliente, year, month, day)
 
         # ── KPI summary ───────────────────────────────────────────────────
@@ -3214,7 +3231,7 @@ def api_incidentes_data():
         })
     except Exception as e:
         app_logger.error(f"api_incidentes_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -3237,8 +3254,9 @@ def api_incidentes_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno)
+        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id)
 
         # Fetch with optional tracking columns (may not exist yet)
         try:
@@ -3301,7 +3319,7 @@ def api_incidentes_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_incidentes_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -3309,6 +3327,7 @@ def api_incidentes_detalles():
 
 @dashboard_bp.route('/api/incidentes/<int:id_reporte>/estado', methods=['PUT'])
 @jwt_required()
+@admin_required
 def api_incidentes_update_estado(id_reporte):
     """Update estado, accion_seguimiento and evidencia_seguimiento_url on a reportes_incidentes row."""
     if request.content_type and 'multipart' in request.content_type:
@@ -3326,6 +3345,7 @@ def api_incidentes_update_estado(id_reporte):
 
     evidencia_url = _upload_file_to_gcs(evidencia_file) if evidencia_file else None
 
+    user_email = get_jwt_identity()
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -3333,14 +3353,18 @@ def api_incidentes_update_estado(id_reporte):
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # Ensure tracking columns exist (idempotent)
-        for col, col_type in [('accion_seguimiento', 'TEXT'), ('evidencia_seguimiento_url', 'TEXT')]:
-            cur.execute("""
-                SELECT 1 FROM information_schema.columns
-                WHERE table_name='reportes_incidentes' AND column_name=%s
-            """, (col,))
+        # Verify the row belongs to this admin's company before updating
+        cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+        user_row = cur.fetchone()
+        company_id = user_row['company_id'] if user_row else None
+
+        if company_id is not None:
+            cur.execute(
+                "SELECT 1 FROM reportes_incidentes WHERE id_reporte_incidente=%s AND company_id=%s",
+                (id_reporte, company_id)
+            )
             if not cur.fetchone():
-                cur.execute(f"ALTER TABLE reportes_incidentes ADD COLUMN {col} {col_type}")
+                return jsonify({'error': 'Registro no encontrado'}), 404
 
         if evidencia_url:
             cur.execute(
@@ -3357,8 +3381,8 @@ def api_incidentes_update_estado(id_reporte):
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"api_incidentes_update_estado error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        app_logger.error("api_incidentes_update_estado error: %s", e, exc_info=True)
+        return jsonify({'error': 'Error al actualizar el estado'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -3366,7 +3390,7 @@ def api_incidentes_update_estado(id_reporte):
 
 # ── Disciplina Dashboard ─────────────────────────────────────────────────────
 
-def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None):
+def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -3378,6 +3402,9 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None):
     if empleado_num:
         conds.append("empleado_numero = %s")
         params.append(empleado_num)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -3452,8 +3479,9 @@ def api_disciplina_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _disc_where(cliente, year, month, day)
+        where, params           = _disc_where(cliente, year, month, day, company_id=company_id)
         where_prev, params_prev = _disc_prev_where(cliente, year, month, day)
 
         # ── KPIs via CTE on employee counts ──────────────────────────────
@@ -3620,7 +3648,7 @@ def api_disciplina_data():
         })
     except Exception as e:
         app_logger.error(f"api_disciplina_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -3642,8 +3670,9 @@ def api_disciplina_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num)
+        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id)
 
         cur.execute(f"""
             SELECT
@@ -3682,7 +3711,7 @@ def api_disciplina_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_disciplina_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -3714,7 +3743,7 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None):
+def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente = %s")
@@ -3726,6 +3755,9 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None)
         conds.append("TRIM(supervisor) = %s")
         params.append(nombre_usuario)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -3827,8 +3859,9 @@ def api_supervision_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario)
+        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id)
         where_prev, params_prev = _sup_prev_where(cliente, year, month, day)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
@@ -4031,7 +4064,7 @@ def api_supervision_data():
         })
     except Exception as e:
         app_logger.error(f"api_supervision_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4056,8 +4089,9 @@ def api_supervision_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario)
+        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]
@@ -4122,7 +4156,7 @@ def api_supervision_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_supervision_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4137,7 +4171,7 @@ _CUMPL_CRITERIA = [
     ('fechas_vigentes',               'Vigente'),
 ]
 
-def _cumpl_conds(cliente, year, month, day, responsable=None):
+def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append('cliente_instalacion = %s'); params.append(cliente)
@@ -4149,6 +4183,8 @@ def _cumpl_conds(cliente, year, month, day, responsable=None):
         conds.append('EXTRACT(DAY   FROM fecha_hora) = %s'); params.append(day)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
+    if company_id is not None:
+        conds.append('company_id = %s'); params.append(company_id)
     return conds, params
 
 def _cumpl_where(conds):
@@ -4218,8 +4254,9 @@ def api_cumplimiento_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable)
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable, company_id=company_id)
         where = _cumpl_where(base_conds)
 
         # ── KPI summary ────────────────────────────────────────────────────
@@ -4420,7 +4457,7 @@ def api_cumplimiento_data():
         })
     except Exception as e:
         app_logger.error(f"api_cumplimiento_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4440,7 +4477,8 @@ def api_cumplimiento_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, company_id=company_id)
         where = _cumpl_where(base_conds)
 
         cur.execute(f"""
@@ -4472,7 +4510,7 @@ def api_cumplimiento_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_cumplimiento_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4499,13 +4537,14 @@ def _capac_date_expr():
     """
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
-def _capac_conds(cliente, year, month, day):
+def _capac_conds(cliente, year, month, day, company_id=None):
     conds, params = [], []
     date_expr = _capac_date_expr()
     if cliente: conds.append('cliente_instalacion = %s'); params.append(cliente)
     if year:    conds.append(f'EXTRACT(YEAR  FROM {date_expr}) = %s'); params.append(year)
     if month:   conds.append(f'EXTRACT(MONTH FROM {date_expr}) = %s'); params.append(month)
     if day:     conds.append(f'EXTRACT(DAY   FROM {date_expr}) = %s'); params.append(day)
+    if company_id is not None: conds.append('company_id = %s'); params.append(company_id)
     return conds, params
 
 def _capac_where(conds):
@@ -4531,7 +4570,7 @@ def api_capacitacion_clientes():
         return jsonify({'clientes': clientes})
     except Exception as e:
         app_logger.error(f"api_capacitacion_clientes error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4551,7 +4590,8 @@ def api_capacitacion_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _capac_conds(cliente, year, month, day)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id)
         where = _capac_where(base_conds)
         safe_len = _capac_safe_len()
         date_expr = _capac_date_expr()
@@ -4695,7 +4735,7 @@ def api_capacitacion_data():
         })
     except Exception as e:
         app_logger.error(f"api_capacitacion_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4715,7 +4755,8 @@ def api_capacitacion_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _capac_conds(cliente, year, month, day)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id)
         where = _capac_where(base_conds)
         safe_len = _capac_safe_len()
         date_expr = _capac_date_expr()
@@ -4760,7 +4801,7 @@ def api_capacitacion_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_capacitacion_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4771,7 +4812,7 @@ def api_capacitacion_detalles():
 def _visita_date_expr():
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
-def _visita_conds(cliente, year, month, day):
+def _visita_conds(cliente, year, month, day, company_id=None):
     conds, params = [], []
     date_expr = _visita_date_expr()
     if cliente:
@@ -4782,6 +4823,8 @@ def _visita_conds(cliente, year, month, day):
         conds.append(f'EXTRACT(MONTH FROM {date_expr}) = %s'); params.append(month)
     if day:
         conds.append(f'EXTRACT(DAY FROM {date_expr}) = %s'); params.append(day)
+    if company_id is not None:
+        conds.append('company_id = %s'); params.append(company_id)
     return conds, params
 
 def _visita_where(conds):
@@ -4918,8 +4961,9 @@ def api_visitas_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
-        base_conds, base_params = _visita_conds(cliente, year, month, day)
+        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id)
         where = _visita_where(base_conds)
 
         cur.execute(f"""
@@ -5056,7 +5100,7 @@ def api_visitas_data():
         })
     except Exception as e:
         app_logger.error(f"api_visitas_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5076,8 +5120,9 @@ def api_visitas_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
-        base_conds, base_params = _visita_conds(cliente, year, month, day)
+        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id)
         trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
 
         cur.execute(f"""
@@ -5103,7 +5148,7 @@ def api_visitas_detalles():
         return jsonify({'detalles': compromisos})
     except Exception as e:
         app_logger.error(f"api_visitas_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5111,6 +5156,7 @@ def api_visitas_detalles():
 
 @dashboard_bp.route('/api/visitas/<int:id_visita>/estado', methods=['PUT'])
 @jwt_required()
+@admin_required
 def api_visitas_update_estado(id_visita):
     import json as _json
     # Accept either multipart/form-data (with file) or JSON
@@ -5136,6 +5182,7 @@ def api_visitas_update_estado(id_visita):
 
     evidencia_url = _upload_file_to_gcs(evidencia_file) if evidencia_file else None
 
+    user_email = get_jwt_identity()
     conn = cur = None
     try:
         conn = get_db_connection()
@@ -5143,10 +5190,21 @@ def api_visitas_update_estado(id_visita):
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        cur.execute(
-            "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s",
-            (id_visita,)
-        )
+        # Verify ownership by company before fetching/updating
+        cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+        user_row = cur.fetchone()
+        company_id = user_row['company_id'] if user_row else None
+
+        if company_id is not None:
+            cur.execute(
+                "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s AND company_id = %s",
+                (id_visita, company_id)
+            )
+        else:
+            cur.execute(
+                "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s",
+                (id_visita,)
+            )
         row = cur.fetchone()
         if row is None:
             return jsonify({'error': 'Registro no encontrado'}), 404
@@ -5179,8 +5237,8 @@ def api_visitas_update_estado(id_visita):
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"api_visitas_update_estado error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        app_logger.error("api_visitas_update_estado error: %s", e, exc_info=True)
+        return jsonify({'error': 'Error al actualizar el estado'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5233,7 +5291,7 @@ def _moto_date_expr():
     return "COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en)"
 
 
-def _moto_conds(cliente, year, month, day):
+def _moto_conds(cliente, year, month, day, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -5248,6 +5306,9 @@ def _moto_conds(cliente, year, month, day):
     if day:
         conds.append(f"EXTRACT(DAY   FROM {de}) = %s")
         params.append(day)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     return conds, params
 
 
@@ -5293,7 +5354,8 @@ def api_motocicletas_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _moto_conds(cliente, year, month, day)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id)
         where = _moto_where(base_conds)
 
         # ── KPIs ──────────────────────────────────────────────────────────
@@ -5424,7 +5486,7 @@ def api_motocicletas_data():
         })
     except Exception as e:
         app_logger.error(f"api_motocicletas_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5444,8 +5506,9 @@ def api_motocicletas_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _moto_date_expr()
-        base_conds, base_params = _moto_conds(cliente, year, month, day)
+        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id)
         nov_conds = base_conds + [
             "novedades_criticas_detectadas IS NOT NULL",
             "TRIM(novedades_criticas_detectadas) <> ''"
@@ -5514,7 +5577,7 @@ def api_motocicletas_detalles():
         return jsonify({'detalles': detalles, 'inspecciones': inspecciones})
     except Exception as e:
         app_logger.error(f"api_motocicletas_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5563,7 +5626,7 @@ def _veh_date_expr():
     return "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
 
 
-def _veh_conds(cliente, year, month, day):
+def _veh_conds(cliente, year, month, day, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("cliente_instalacion = %s")
@@ -5578,6 +5641,9 @@ def _veh_conds(cliente, year, month, day):
     if day:
         conds.append(f"EXTRACT(DAY   FROM {de}) = %s")
         params.append(day)
+    if company_id is not None:
+        conds.append("company_id = %s")
+        params.append(company_id)
     return conds, params
 
 
@@ -5623,7 +5689,8 @@ def api_vehiculos_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _veh_conds(cliente, year, month, day)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id)
         where = _veh_where(base_conds)
 
         # ── KPIs ──────────────────────────────────────────────────────────
@@ -5754,7 +5821,7 @@ def api_vehiculos_data():
         })
     except Exception as e:
         app_logger.error(f"api_vehiculos_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5774,8 +5841,9 @@ def api_vehiculos_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _veh_date_expr()
-        base_conds, base_params = _veh_conds(cliente, year, month, day)
+        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id)
         nov_conds = base_conds + [
             "novedades_criticas IS NOT NULL",
             "TRIM(novedades_criticas) <> ''"
@@ -5844,7 +5912,7 @@ def api_vehiculos_detalles():
         return jsonify({'detalles': detalles, 'inspecciones': inspecciones})
     except Exception as e:
         app_logger.error(f"api_vehiculos_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -5863,7 +5931,7 @@ _EQ_BASE = [
 ]
 
 
-def _eq_conds(cliente, year, month, day, responsable=None):
+def _eq_conds(cliente, year, month, day, responsable=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append("c.cliente_instalacion = %s")
@@ -5880,6 +5948,9 @@ def _eq_conds(cliente, year, month, day, responsable=None):
     if responsable:
         conds.append("TRIM(c.rol_aplicador) = %s")
         params.append(responsable)
+    if company_id is not None:
+        conds.append("c.company_id = %s")
+        params.append(company_id)
     return conds, params
 
 
@@ -5960,7 +6031,8 @@ def api_equipos_data():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id)
         where = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,
@@ -6083,7 +6155,7 @@ def api_equipos_data():
         })
     except Exception as e:
         app_logger.error(f"api_equipos_data error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -6103,7 +6175,8 @@ def api_equipos_detalles():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        base_conds, base_params = _eq_conds(cliente, year, month, day)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id)
         where  = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,
@@ -6170,7 +6243,7 @@ def api_equipos_detalles():
         return jsonify({'consolidado': consolidado, 'registros': registros})
     except Exception as e:
         app_logger.error(f"api_equipos_detalles error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -6243,7 +6316,7 @@ def debug_thisweek():
         
     except Exception as e:
         app_logger.error(f"Error in debug endpoint: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         if cur:
             cur.close()

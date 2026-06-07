@@ -304,7 +304,7 @@ def api_clientes():
         return jsonify([r['nombre'] for r in rows])
     except Exception as e:
         app_logger.error(f"api_clientes error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -433,7 +433,7 @@ def api_feed():
         })
     except Exception as e:
         app_logger.error(f"api_feed error (cliente '{cliente}'): {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -559,7 +559,7 @@ def api_equipos():
         return jsonify(data or {})
     except Exception as e:
         app_logger.error(f"api_equipos error (cliente '{cliente}'): {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -684,7 +684,7 @@ def api_kpi():
         return jsonify({'kpi': kpi, 'gps_source': gps_source})
     except Exception as e:
         app_logger.error(f"api_kpi error (cliente '{cliente}'): {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -727,7 +727,7 @@ def generate_supervision_qr(id_supervision):
                          download_name=f'evidencia_{id_supervision}.png')
     except Exception as e:
         app_logger.error(f"generate_supervision_qr error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -761,7 +761,7 @@ def api_qr_url(id_supervision):
         return jsonify({'url': public_url})
     except Exception as e:
         app_logger.error(f"api_qr_url error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -796,7 +796,7 @@ def api_qr_expediente_url():
         return jsonify({'url': public_url, 'token': token})
     except Exception as e:
         app_logger.error(f"api_qr_expediente_url error: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()

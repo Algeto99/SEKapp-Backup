@@ -24,6 +24,15 @@ def _get_conn():
     return get_db_connection()
 
 
+def _get_user_company_id(cur, user_email):
+    """Returns company_id for tenant isolation, or None for super-admins (no filter)."""
+    if not user_email:
+        return None
+    cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+    row = cur.fetchone()
+    return row[0] if row and row[0] is not None else None
+
+
 def _get_user_info(user_email):
     try:
         claims = get_jwt()
@@ -71,19 +80,27 @@ def matrices_api_stats():
         last_day = calendar.monthrange(selected_date.year, selected_date.month)[1]
         month_end = date(selected_date.year, selected_date.month, last_day)
 
+        user_email = get_jwt_identity()
+        company_id = _get_user_company_id(cur, user_email)
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        date_end = month_end + timedelta(days=1)
+
         stats = {}
 
         # ── Incidentes abiertos ──────────────────────────────────────────────
         try:
-            cur.execute("""
+            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,
                     SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,''))) NOT IN
                         ('cerrado','closed','resuelto','resolved') THEN 1 ELSE 0 END) AS abiertos,
                     SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos
                 FROM reportes_incidentes
-                WHERE COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) >= %s AND COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < %s
-            """, (month_start, month_end + timedelta(days=1)))
+                WHERE COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) >= %s
+                  AND COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < %s
+                  {cid_cond}
+            """, params)
             r = cur.fetchone() or {}
             stats["incidentes"] = {
                 "total": int(r.get("total") or 0),
@@ -95,14 +112,17 @@ def matrices_api_stats():
 
         # ── Visitas / compromisos pendientes ─────────────────────────────────
         try:
-            cur.execute("""
+            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,
                     SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,''))) IN
                         ('pendiente','','abierto') OR estado IS NULL THEN 1 ELSE 0 END) AS pendientes
                 FROM registro_y_acta_de_visita
-                WHERE COALESCE(fecha_hora, creado_en) >= %s AND COALESCE(fecha_hora, creado_en) < %s
-            """, (month_start, month_end + timedelta(days=1)))
+                WHERE COALESCE(fecha_hora, creado_en) >= %s
+                  AND COALESCE(fecha_hora, creado_en) < %s
+                  {cid_cond}
+            """, params)
             r = cur.fetchone() or {}
             stats["visitas"] = {
                 "total": int(r.get("total") or 0),
@@ -113,10 +133,11 @@ def matrices_api_stats():
 
         # ── Supervisiones del mes ────────────────────────────────────────────
         try:
-            cur.execute("""
+            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            cur.execute(f"""
                 SELECT COUNT(*) AS total FROM supervision_puesto
-                WHERE fecha_hora >= %s AND fecha_hora < %s
-            """, (month_start, month_end + timedelta(days=1)))
+                WHERE fecha_hora >= %s AND fecha_hora < %s {cid_cond}
+            """, params)
             r = cur.fetchone() or {}
             stats["supervision"] = {"total": int(r.get("total") or 0)}
         except Exception:
@@ -124,10 +145,11 @@ def matrices_api_stats():
 
         # ── Disciplina ───────────────────────────────────────────────────────
         try:
-            cur.execute("""
+            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            cur.execute(f"""
                 SELECT COUNT(*) AS total FROM informe_novedades_disciplinario
-                WHERE fecha_hora >= %s AND fecha_hora < %s
-            """, (month_start, month_end + timedelta(days=1)))
+                WHERE fecha_hora >= %s AND fecha_hora < %s {cid_cond}
+            """, params)
             r = cur.fetchone() or {}
             stats["disciplina"] = {"total": int(r.get("total") or 0)}
         except Exception:
@@ -135,10 +157,13 @@ def matrices_api_stats():
 
         # ── Capacitaciones del mes ───────────────────────────────────────────
         try:
-            cur.execute("""
+            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            cur.execute(f"""
                 SELECT COUNT(*) AS total FROM registro_de_capacitaciones
-                WHERE COALESCE(fecha_hora, creado_en::timestamp) >= %s AND COALESCE(fecha_hora, creado_en::timestamp) < %s
-            """, (month_start, month_end + timedelta(days=1)))
+                WHERE COALESCE(fecha_hora, creado_en::timestamp) >= %s
+                  AND COALESCE(fecha_hora, creado_en::timestamp) < %s
+                  {cid_cond}
+            """, params)
             r = cur.fetchone() or {}
             stats["capacitaciones"] = {"total": int(r.get("total") or 0)}
         except Exception:
@@ -146,15 +171,17 @@ def matrices_api_stats():
 
         # ── Certificaciones vencidas ─────────────────────────────────────────
         try:
-            cur.execute("""
+            params = [company_id] if company_id is not None else []
+            where = f"WHERE company_id = %s" if company_id is not None else ""
+            cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,
                     SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < CURRENT_DATE THEN 1 ELSE 0 END) AS vencidas,
                     SUM(CASE WHEN vigencia_hasta IS NOT NULL
                              AND vigencia_hasta >= CURRENT_DATE
                              AND vigencia_hasta <= CURRENT_DATE + INTERVAL '15 days' THEN 1 ELSE 0 END) AS proximas
-                FROM checklist_cumplimiento
-            """)
+                FROM checklist_cumplimiento {where}
+            """, params)
             r = cur.fetchone() or {}
             stats["cumplimiento"] = {
                 "total": int(r.get("total") or 0),
@@ -169,6 +196,6 @@ def matrices_api_stats():
         return jsonify(stats)
     except Exception as e:
         app_logger.error(f"matrices_api_stats error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()

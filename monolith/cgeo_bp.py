@@ -214,7 +214,7 @@ def cgeo_api_filtros():
         return jsonify({"clientes": sorted(clientes)})
     except Exception as e:
         app_logger.error(f"cgeo_api_filtros error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()
 
@@ -509,7 +509,7 @@ def cgeo_api_recursos_data():
         })
     except Exception as e:
         app_logger.error(f"cgeo_api_recursos_data error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()
 
@@ -801,7 +801,7 @@ def cgeo_api_alertas():
 
     except Exception as e:
         app_logger.error(f"cgeo_api_alertas error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()
 
@@ -894,7 +894,7 @@ def cgeo_api_semaforo_global():
 
     except Exception as e:
         app_logger.error(f"cgeo_api_semaforo_global error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()
 
@@ -1016,7 +1016,7 @@ def cgeo_api_morning_briefing_data():
 
     except Exception as e:
         app_logger.error(f"cgeo_api_morning_briefing_data error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()
 
@@ -1411,6 +1411,6 @@ def cgeo_api_operacion_data():
         })
     except Exception as e:
         app_logger.error(f"cgeo_api_operacion_data error: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()

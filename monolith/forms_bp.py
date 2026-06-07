@@ -1395,7 +1395,7 @@ def submit_checklist_cumplimiento():
             conn.rollback()
         app_logger.error(f"Error submitting updated checklist_cumplimiento: {e}", exc_info=True)
         # Redirect to a generic error page, passing the error message
-        return redirect(url_for('error', error=str(e)))
+        return redirect(url_for('forms_bp.error'))
     finally:
         if conn:
             conn.close()
