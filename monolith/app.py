@@ -7,6 +7,7 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from flask_bcrypt import Bcrypt
+from extensions import limiter
 from google.cloud import secretmanager
 from google.api_core.exceptions import NotFound
 import google.auth.transport.requests
@@ -118,6 +119,7 @@ app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
 app.config['PASSWORD_RESET_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 jwt = JWTManager(app)
+limiter.init_app(app)
 _allowed_origins = [o.strip() for o in os.environ.get(
     'ALLOWED_ORIGINS',
     'https://secapp.tzolkintech.com'

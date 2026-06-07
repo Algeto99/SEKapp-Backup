@@ -13,6 +13,7 @@ import psycopg2
 
 from db import get_db_connection
 from email_utils import send_email, send_password_reset_email, send_registration_notification
+from extensions import limiter
 
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
@@ -124,6 +125,7 @@ def delete_reset_token(token):
 # --- Routes Blueprint ---
 
 @login_bp.route('/', methods=['GET', 'POST'])
+@limiter.limit("20 per minute; 5 per second")
 def login():
     if request.method == 'POST':
         email = request.form.get('username') or request.form.get('email')
@@ -210,6 +212,7 @@ def login():
     return render_template('login.html')
 
 @login_bp.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 2 per second")
 def register():
     if request.method == 'POST':
         name = request.form.get('name')
@@ -276,6 +279,7 @@ def register():
     return render_template('register.html')
 
 @login_bp.route('/forgot-password', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 2 per second")
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')

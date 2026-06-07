@@ -58,44 +58,6 @@ def _is_super_admin():
 # Routes
 # ---------------------------------------------------------------------------
 
-@admin_bp.route('/debug')
-@jwt_required()
-def debug():
-    import os as _os
-    if _os.environ.get('FLASK_ENV', 'production') == 'production' and not _os.environ.get('ENABLE_DEBUG_ROUTE'):
-        return jsonify({'error': 'Not found'}), 404
-    if not _is_super_admin():
-        return jsonify({'error': 'Forbidden'}), 403
-    email = get_jwt_identity()
-    claims = get_jwt()
-    conn = None
-    db_info = {}
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'users' AND column_name = 'is_super_admin'
-        """)
-        col_exists = cur.fetchone() is not None
-        db_info['column_exists'] = col_exists
-        if col_exists:
-            cur.execute('SELECT is_super_admin FROM users WHERE email = %s', (email,))
-            row = cur.fetchone()
-            db_info['db_value'] = bool(row and row['is_super_admin'])
-        cur.close()
-    except Exception as e:
-        app_logger.error(f"admin debug route DB check error: {e}", exc_info=True)
-        db_info['error'] = 'DB check failed'
-    finally:
-        if conn:
-            conn.close()
-    return jsonify({
-        'email': email,
-        'jwt_is_super_admin': claims.get('is_super_admin'),
-        'jwt_is_admin': claims.get('is_admin'),
-        'db': db_info
-    })
 
 
 @admin_bp.route('/')
