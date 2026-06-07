@@ -1070,7 +1070,7 @@ def submit_registro_y_acta_de_visita():
             'detalles_participantes': detalles_participantes_json,
             'temas_tratados': temas_combined,
             'acuerdos_compromisos': acuerdos_combined,
-            'compromisos_responsable': responsables_json,
+            'nombre_responsable': responsables_json,
             'submitted_by_email': user_email,
             'latitude': _parse_float(request.form.get('latitude')),
             'longitude': _parse_float(request.form.get('longitude')),
