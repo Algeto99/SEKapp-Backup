@@ -1163,11 +1163,13 @@
                 msgEl.style.color = '#94a3b8';
                 msgEl.textContent = 'Guardando…';
                 try {
+                    const jwtCsrf = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+                    const csrfVal = jwtCsrf ? decodeURIComponent(jwtCsrf.substring('csrf_access_token='.length)) : '';
                     const fd = new FormData();
                     fd.append('estado', nuevoEstado);
                     fd.append('accion_tomada', accionTomada);
                     if (evidenciaFile) fd.append('evidencia', evidenciaFile);
-                    const resp = await fetch(`/dashboard/api/incidentes/${r.id}/estado`, { method: 'PUT', body: fd });
+                    const resp = await fetch(`/dashboard/api/incidentes/${r.id}/estado`, { method: 'PUT', body: fd, credentials: 'include', headers: { 'X-CSRF-TOKEN': csrfVal } });
                     const result = await resp.json();
                     if (!resp.ok) throw new Error(result.error || 'Error al guardar');
                     msgEl.style.color = '#86efac';

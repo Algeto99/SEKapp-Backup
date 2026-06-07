@@ -78,7 +78,8 @@ def _build_incident_select():
             {INCIDENT_TYPE_EXPR} AS tipo_incidencia,
             {INCIDENT_CLIENT_EXPR} AS tipo_cliente,
             {INCIDENT_LOCATION_EXPR} AS lugar_incidente,
-            {INCIDENT_SUPERVISOR_EXPR} AS supervisor_name
+            {INCIDENT_SUPERVISOR_EXPR} AS supervisor_name,
+            ri.estado AS estado_reporte
     """
 
 
@@ -179,7 +180,7 @@ def get_report_details(report_id):
             'descripcion_zona_comun': row['descripcion_zona_comun'] or '',
             'pertenencias_sustraidas': row['pertenencias_sustraidas'] or '',
             'imagenes_pdfs': row['imagenes_pdfs'] or '',
-            'estado_reporte': 'Reportado',  # Default status since it's not in the schema
+            'estado_reporte': row['estado_reporte'] or 'Reportado',
             
             # Person details
             'nombre_persona': row['nombre_persona'] or '',
