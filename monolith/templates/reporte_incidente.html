@@ -522,7 +522,6 @@
                     Enviar Reporte
                 </button>
             </div>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         </form>
     </div>
 
@@ -875,6 +874,18 @@
             count.textContent = `${this.files.length} archivo${this.files.length > 1 ? 's' : ''} seleccionado${this.files.length > 1 ? 's' : ''}`;
             container.appendChild(count);
         });
+    </script>
+    <script>
+    (function() {
+        var _f = document.getElementById('incidenteForm');
+        if (_f) _f.addEventListener('submit', function() {
+            var _c = document.cookie.split(';').map(function(x){return x.trim();}).find(function(x){return x.startsWith('csrf_access_token=');});
+            var _v = _c ? decodeURIComponent(_c.substring('csrf_access_token='.length)) : '';
+            var _i = document.getElementById('_jwt_csrf_form');
+            if (!_i) { _i = document.createElement('input'); _i.type='hidden'; _i.name='csrf_token'; _i.id='_jwt_csrf_form'; _f.appendChild(_i); }
+            _i.value = _v;
+        }, true);
+    })();
     </script>
     </div><!-- /sidebar-main-content -->
 </body>

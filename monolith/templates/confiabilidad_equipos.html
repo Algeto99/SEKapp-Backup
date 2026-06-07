@@ -199,7 +199,6 @@
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
             <!-- ══════════════════════════════════════════════════
                  SECTION 1 – DATOS GENERALES
@@ -706,6 +705,18 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script>
+    (function() {
+        var _f = document.getElementById('confiabilidadForm');
+        if (_f) _f.addEventListener('submit', function() {
+            var _c = document.cookie.split(';').map(function(x){return x.trim();}).find(function(x){return x.startsWith('csrf_access_token=');});
+            var _v = _c ? decodeURIComponent(_c.substring('csrf_access_token='.length)) : '';
+            var _i = document.getElementById('_jwt_csrf_form');
+            if (!_i) { _i = document.createElement('input'); _i.type='hidden'; _i.name='csrf_token'; _i.id='_jwt_csrf_form'; _f.appendChild(_i); }
+            _i.value = _v;
+        }, true);
+    })();
+    </script>
     </div><!-- /sidebar-main-content -->
 </body>
 </html>

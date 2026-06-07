@@ -418,7 +418,6 @@
                     Enviar Informe
                 </button>
             </div>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         </form>
     </div>
 
@@ -688,6 +687,19 @@
                         const loadingText = document.querySelector('.loading-text');
                         if (loadingText) loadingText.textContent = 'Enviando formulario...';
                     }
+
+                    // Inject JWT CSRF token as hidden field so JWT_CSRF_CHECK_FORM can verify it
+                    const _jwtCsrfCookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+                    const _csrfTokenVal = _jwtCsrfCookie ? decodeURIComponent(_jwtCsrfCookie.substring('csrf_access_token='.length)) : '';
+                    let _csrfInput = document.getElementById('_jwt_csrf_disc');
+                    if (!_csrfInput) {
+                        _csrfInput = document.createElement('input');
+                        _csrfInput.type = 'hidden';
+                        _csrfInput.name = 'csrf_token';
+                        _csrfInput.id = '_jwt_csrf_disc';
+                        form.appendChild(_csrfInput);
+                    }
+                    _csrfInput.value = _csrfTokenVal;
 
                     // Submit the form programmatically
                     form.submit();

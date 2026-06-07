@@ -78,10 +78,25 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
             Inicio
         </a>
-        <a href="/forms/select" class="snw-item {{ 'active' if request.path.startswith('/forms') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <button id="snwFormsGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/forms') else '' }} {{ 'open' if request.path.startswith('/forms') else '' }}" onclick="snwToggleForms()">
+            <svg class="snw-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             Formularios
-        </a>
+            <svg class="snw-group-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div id="snwFormsMenu" class="snw-submenu {{ 'open' if request.path.startswith('/forms') else '' }}">
+            <a href="/forms/select" class="snw-subitem {{ 'active' if request.path in ('/forms/select', '/forms/select_form', '/forms/') else '' }}">Seleccionar Formulario</a>
+            <a href="/forms/reporte_incidente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/reporte_incidente') else '' }}">Reporte de Incidente</a>
+            <a href="/forms/supervision_puesto" class="snw-subitem {{ 'active' if request.path.startswith('/forms/supervision_puesto') else '' }}">Supervisión de Puesto</a>
+            <a href="/forms/informe_novedades_disciplinario" class="snw-subitem {{ 'active' if request.path.startswith('/forms/informe_novedades_disciplinario') else '' }}">Reporte Disciplinario</a>
+            <a href="/forms/log_de_patrullas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/log_de_patrullas') else '' }}">Log de Patrullas</a>
+            <a href="/forms/registro_de_capacitaciones" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_de_capacitaciones') else '' }}">Registro de Capacitaciones</a>
+            <a href="/forms/registro_y_acta_de_visita" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_y_acta_de_visita') else '' }}">Acta de Visita a Cliente</a>
+            <a href="/forms/planilla_vehicular" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_vehicular') else '' }}">Planilla Vehicular</a>
+            <a href="/forms/planilla_motocicletas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_motocicletas') else '' }}">Planilla Motocicletas</a>
+            <a href="/forms/checklist_cumplimiento" class="snw-subitem {{ 'active' if request.path.startswith('/forms/checklist_cumplimiento') else '' }}">Checklist Cumplimiento</a>
+            <a href="/forms/confiabilidad_equipos" class="snw-subitem {{ 'active' if request.path.startswith('/forms/confiabilidad_equipos') else '' }}">Confiabilidad de Equipos</a>
+            <a href="/forms/medicion_experiencia_cliente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/medicion_experiencia_cliente') else '' }}">Encuesta de Cliente</a>
+        </div>
         {% if is_admin %}
         <a href="/viewer/" class="snw-item {{ 'active' if request.path.startswith('/viewer') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
@@ -153,6 +168,12 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
 function snwToggleDash() {
     var btn  = document.getElementById('snwDashGroup');
     var menu = document.getElementById('snwDashMenu');
+    var open = menu.classList.toggle('open');
+    btn.classList.toggle('open', open);
+}
+function snwToggleForms() {
+    var btn  = document.getElementById('snwFormsGroup');
+    var menu = document.getElementById('snwFormsMenu');
     var open = menu.classList.toggle('open');
     btn.classList.toggle('open', open);
 }

@@ -43,7 +43,7 @@ def _get_table_columns(cur, table_name):
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_name = %s
+            WHERE table_schema = 'public' AND table_name = %s
         """, (table_name,))
         _SCHEMA_CACHE[table_name] = {row[0] for row in cur.fetchall()}
     return _SCHEMA_CACHE[table_name]
