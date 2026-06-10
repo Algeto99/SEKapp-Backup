@@ -267,6 +267,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 .nav-item-logout svg{color:#f87171}
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
+<script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
 </head>
 <body>
 {% include '_sidebar.html' %}
@@ -374,7 +375,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         <!-- ══ SECCIÓN 4: ALERTAS ══ -->
         <div class="section-title-row">
             <div class="section-title">Requiere atención hoy</div>
-            <a href="/cgeo/operacion/" class="section-link">Ver informe completo →</a>
+            <button id="btnBriefingPdf" onclick="downloadBriefingPdf()" class="section-link" style="background:none;border:none;cursor:pointer;padding:0">Descargar PDF ejecutivo ↓</button>
         </div>
         <div id="alertasContainer">
             <!-- skeleton -->
@@ -437,6 +438,7 @@ function _isDark() { return !document.body.classList.contains('light-mode'); }
 let _kpis        = null;
 let _alertasData = [];
 let _tendencia   = [];
+let _thresholds  = {};
 let _chart       = null;
 let _refreshTimer = null;
 
@@ -470,11 +472,13 @@ function _kpiSupColor(comp, prog) {
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
-function _kpiEqColor(noOp, total) {
+function _kpiEqColor(noOp, total, thr) {
     if (total === 0) return { border: '#94a3b8', dot: 'dot-gray' };
     const pct = noOp / total * 100;
-    if (pct <= 5)  return { border: '#22c55e', dot: 'dot-green' };
-    if (pct <= 15) return { border: '#f59e0b', dot: 'dot-orange' };
+    const verdeMax    = thr?.eq_verde_max    ?? 5;
+    const amarilloMax = thr?.eq_amarillo_max ?? 15;
+    if (pct <= verdeMax)    return { border: '#22c55e', dot: 'dot-green' };
+    if (pct <= amarilloMax) return { border: '#f59e0b', dot: 'dot-orange' };
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
@@ -486,48 +490,84 @@ function _kpiCertColor(proximas) {
 
 // ── Render KPI cards ──────────────────────────────────────────────────────────
 
-function renderKpis(k) {
+function _eqTipo(porTipo, ...claves) {
+    for (const k of claves) {
+        if (porTipo?.[k]) return porTipo[k];
+    }
+    return null;
+}
+
+function renderKpis(k, thr) {
     const today = new Date().toISOString().slice(0,10);
+
+    // Equipos: radios, armas, motos desde el inventario
+    const radioData = _eqTipo(k.eq_por_tipo, 'radio', 'radios');
+    const armaData  = _eqTipo(k.eq_por_tipo, 'arma', 'armas');
+    const motoData  = _eqTipo(k.eq_por_tipo, 'moto', 'motos', 'motocicleta');
+
+    const radioTotal = radioData?.total ?? k.eq_total ?? 0;
+    const radioOp    = radioData?.operativos ?? (k.eq_op ?? 0);
+    const radioNoOp  = radioTotal - radioOp;
+
+    const armaStr = armaData
+        ? `${armaData.operativos} de ${armaData.total} armas operativas`
+        : '0 armas registradas';
+    const motoStr = motoData
+        ? `${motoData.operativos} de ${motoData.total} motos operativas`
+        : '0 motos registradas';
+
+    // Certificaciones por nivel
+    const certNivel = k.cert_por_nivel ?? {};
+    const certSubLines = Object.keys(certNivel).length
+        ? Object.entries(certNivel).map(([n, v]) => `${n}: ${v}`).join(' · ')
+        : 'en los próximos 30 días';
+
     const kpiDefs = [
         {
             id: 'kpiInc',
             href: '/cgeo/operacion/',
             icon: '⚠️', iconBg: '#fef2f2',
-            val: k.inc_abiertos,
+            val: k.inc_abiertos ?? 0,
             lbl: 'Incidentes Abiertos',
-            sub: (k.inc_mas_24h ?? 0) > 0 ? `${k.inc_mas_24h} llevan más de 24h sin gestión` : 'Todos gestionados en las últimas 24h',
+            sub: (k.inc_mas_24h ?? 0) > 0
+                ? `${k.inc_mas_24h} llevan más de 24h sin gestión`
+                : 'Todos gestionados en las últimas 24h',
             action: 'Ver incidentes →',
-            color: _kpiIncColor(k.inc_abiertos),
+            color: _kpiIncColor(k.inc_abiertos ?? 0),
         },
         {
             id: 'kpiSup',
             href: `/cgeo/operacion/?start_date=${today}&end_date=${today}`,
             icon: '👁️', iconBg: '#eff6ff',
-            val: k.sup_completadas,
+            val: k.sup_completadas ?? 0,
             lbl: 'Supervisiones Hoy',
-            sub: `de ${k.sup_programadas} programadas${k.sup_programadas > 0 ? ' ('+Math.round(k.sup_completadas/k.sup_programadas*100)+'%)' : ''}`,
+            sub: k.sup_programadas > 0
+                ? `de ${k.sup_programadas} programadas (${Math.round((k.sup_completadas ?? 0) / k.sup_programadas * 100)}%)`
+                : '0 programadas',
             action: 'Ver supervisiones →',
-            color: _kpiSupColor(k.sup_completadas, k.sup_programadas),
+            color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0),
         },
         {
             id: 'kpiEq',
             href: '/cgeo/recursos/',
-            icon: '🔧', iconBg: '#fff7ed',
-            val: k.eq_no_op,
-            lbl: 'Equipos No Operativos',
-            sub: k.eq_total > 0 ? `de ${k.eq_total} en flota (${Math.round(k.eq_no_op/k.eq_total*100)}%)` : 'Sin datos de flota',
+            icon: '📡', iconBg: '#fff7ed',
+            val: radioTotal > 0 ? radioOp : '—',
+            lbl: 'Radios',
+            sub: radioTotal > 0
+                ? `de ${radioTotal} operativos · ${armaStr} · ${motoStr}`
+                : `Sin datos de radios · ${armaStr} · ${motoStr}`,
             action: 'Ver equipos →',
-            color: _kpiEqColor(k.eq_no_op, k.eq_total),
+            color: _kpiEqColor(radioNoOp, radioTotal, thr),
         },
         {
             id: 'kpiCert',
             href: '/cgeo/recursos/',
             icon: '📋', iconBg: '#f0fdf4',
-            val: k.cert_proximas,
-            lbl: 'Certificaciones por Vencer',
-            sub: 'en los próximos 30 días',
+            val: k.cert_proximas ?? 0,
+            lbl: 'Cumplimiento Normativo',
+            sub: certSubLines,
             action: 'Ver certificaciones →',
-            color: _kpiCertColor(k.cert_proximas),
+            color: _kpiCertColor(k.cert_proximas ?? 0),
         },
     ];
 
@@ -545,9 +585,8 @@ function renderKpis(k) {
         </a>
     `).join('');
 
-    // Update greeting chip
     document.getElementById('supChipText').textContent =
-        `${k.sup_programadas} supervisiones programadas hoy`;
+        `${k.sup_programadas ?? 0} supervisiones programadas hoy`;
 }
 
 // ── Semáforo global ───────────────────────────────────────────────────────────
@@ -581,7 +620,7 @@ function computeSemaforo(alertasData, kpis) {
 
     if (!esRojo) {
         if (amarillas >= 1)
-            condiciones.push({ nivel:'amarillo', texto:`${amarillas} alerta${amarillas!==1?'s':''} en seguimiento` });
+            condiciones.push({ nivel:'amarillo', texto:`${amarillas} alerta${amarillas!==1?'s':''} requieren atención` });
         if (supProg > 0 && supPct >= 70 && supPct < 90)
             condiciones.push({ nivel:'amarillo', texto:`Supervisiones: ${Math.round(supPct)}% completadas (entre 70% y 89%)` });
         if (incAb === 1 || incAb === 2)
@@ -661,6 +700,80 @@ function abrirDetalleSemaforo() {
 
 const MAX_ALERTAS = 5;
 
+// One viewer instance per form_type, created lazily
+const _alertViewers = {};
+function _getAlertViewer(formType) {
+    if (!_alertViewers[formType]) {
+        const titles = {
+            'reporte_incidente':    'Reporte de Incidente',
+            'supervision_puesto':   'Detalle de Supervisión',
+            'checklist_cumplimiento': 'Detalle de Cumplimiento',
+        };
+        _alertViewers[formType] = createDashboardRecordViewer({
+            formType,
+            recordTitle: titles[formType] || 'Detalle del Registro',
+        });
+    }
+    return _alertViewers[formType];
+}
+
+function openAlertRecord(recordId, formType, event) {
+    event.preventDefault();
+    _getAlertViewer(formType).openRecord(recordId);
+}
+
+async function downloadBriefingPdf() {
+    const btn = document.getElementById('btnBriefingPdf');
+    if (!_kpis) { alert('Los datos aún no han cargado. Espera un momento e intenta de nuevo.'); return; }
+
+    const originalText = btn.textContent;
+    btn.textContent = 'Generando PDF…';
+    btn.disabled = true;
+
+    try {
+        const chartImg = _chart ? document.getElementById('chartTendencia')?.toDataURL('image/png') : null;
+        const semaforo = computeSemaforo(_alertasData, _kpis);
+        const cliente  = new URLSearchParams(window.location.search).get('cliente') || 'Todos los clientes';
+
+        const csrfCookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+        const csrfVal    = csrfCookie ? decodeURIComponent(csrfCookie.substring('csrf_access_token='.length)) : '';
+
+        const res = await fetch('/cgeo/api/morning-briefing-pdf', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfVal },
+            body: JSON.stringify({
+                kpis:        _kpis,
+                alertas:     _alertasData,
+                semaforo,
+                tendencia:   { labels: _tendencia.map(d => d.label), supervisiones: _tendencia.map(d => d.completadas ?? 0), programadas: _tendencia.map(d => d.programadas ?? 0) },
+                chart_image: chartImg,
+                cliente,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'Error generando el PDF.');
+            return;
+        }
+
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const today = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `briefing_${today}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        alert(`Error: ${err.message}`);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
 function renderAlertas(alertas) {
     const cont = document.getElementById('alertasContainer');
 
@@ -679,20 +792,30 @@ function renderAlertas(alertas) {
 
     const itemsHtml = visibles.map(a => {
         const esRojo = a.color_semaforo === 'rojo';
+        const btnCls = esRojo ? 'alerta-btn-rojo' : 'alerta-btn-amarillo';
+        if (a.record_id && a.form_type) {
+            return `<a href="${a.ruta_navegacion}" class="alerta-item" onclick="openAlertRecord(${a.record_id},'${a.form_type}',event)">
+                <div class="alerta-dot ${esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo'}"></div>
+                <span style="font-size:.875rem;flex-shrink:0">${esRojo ? '🔴' : '🟡'}</span>
+                <span class="alerta-texto">${a.texto}</span>
+                <span class="alerta-ts">${_relTime(a.timestamp)}</span>
+                <span class="alerta-btn ${btnCls}">${a.accion} →</span>
+            </a>`;
+        }
         return `<a href="${a.ruta_navegacion}" class="alerta-item">
             <div class="alerta-dot ${esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo'}"></div>
             <span style="font-size:.875rem;flex-shrink:0">${esRojo ? '🔴' : '🟡'}</span>
             <span class="alerta-texto">${a.texto}</span>
             <span class="alerta-ts">${_relTime(a.timestamp)}</span>
-            <span class="alerta-btn ${esRojo ? 'alerta-btn-rojo' : 'alerta-btn-amarillo'}">${a.accion} →</span>
+            <span class="alerta-btn ${btnCls}">${a.accion} →</span>
         </a>`;
     }).join('');
 
     const verMasHtml = ocultas > 0
-        ? `<div class="btn-ver-todas"><a href="/cgeo/operacion/">Ver ${ocultas} alerta${ocultas!==1?'s':''} más →</a></div>`
+        ? `<div style="padding:.625rem 1rem;font-size:.8rem;color:#64748b;text-align:right">+${ocultas} alerta${ocultas!==1?'s':''} más</div>`
         : '';
 
-    cont.innerHTML = `<div class="alertas-list">${itemsHtml}</div>${verMasHtml}`;
+    cont.innerHTML = `<div class="alertas-list">${itemsHtml}${verMasHtml}</div>`;
 }
 
 // ── Tendencia chart ───────────────────────────────────────────────────────────
@@ -770,8 +893,9 @@ async function loadAll(silent = false) {
         _kpis        = briefing.kpis;
         _alertasData = alertasData.alertas || [];
         _tendencia   = briefing.tendencia_semana || [];
+        _thresholds  = briefing.thresholds || {};
 
-        renderKpis(_kpis);
+        renderKpis(_kpis, briefing.thresholds);
         renderSemaforo(_alertasData, _kpis);
         renderAlertas(_alertasData);
         renderTendencia(_tendencia);

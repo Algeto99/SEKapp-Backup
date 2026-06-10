@@ -1592,6 +1592,9 @@
             });
             loadUserMatrix();
         }
+
+        const _deepId = new URLSearchParams(window.location.search).get('id');
+        if (_deepId) openRecord(_deepId);
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}">

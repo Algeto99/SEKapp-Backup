@@ -719,7 +719,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
 
             # Count Query
             count_query = f"SELECT COUNT(*) FROM {config['table']} t {config['joins']} {where_clause}"
-            cur.execute(count_query, query_params)
+            cur.execute(count_query, tuple(query_params))
             total_count += cur.fetchone()[0]
 
             # Data Query
@@ -734,7 +734,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                 LIMIT %s
             """
             
-            cur.execute(query, query_params + [fetch_limit])
+            cur.execute(query, tuple(query_params + [fetch_limit]))
             rows = cur.fetchall()
             
             for row_dict in rows:

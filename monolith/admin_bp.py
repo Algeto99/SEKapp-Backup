@@ -307,6 +307,9 @@ _THRESHOLD_KEYS = [
     'dias_certificacion_vencer',
 ]
 
+# Claves cuyo valor es texto (no numérico)
+_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion']
+
 _THRESHOLD_DEFAULTS = {
     'supervision_verde_min':       90,
     'supervision_amarillo_min':    70,
@@ -348,10 +351,17 @@ def get_thresholds():
         conn = get_db_connection()
         _ensure_thresholds_table(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("SELECT key, value FROM kpi_thresholds WHERE key = ANY(%s)", (_THRESHOLD_KEYS,))
-        rows = {r['key']: float(r['value']) for r in cur.fetchall()}
+        all_keys = _THRESHOLD_KEYS + _THRESHOLD_TEXT_KEYS
+        cur.execute("SELECT key, value, text_value FROM kpi_thresholds WHERE key = ANY(%s)", (all_keys,))
+        rows = {}
+        for r in cur.fetchall():
+            if r['key'] in _THRESHOLD_TEXT_KEYS:
+                rows[r['key']] = r['text_value']
+            else:
+                rows[r['key']] = float(r['value'])
         cur.close()
         result = dict(_THRESHOLD_DEFAULTS)
+        result['fecha_inicio_operacion'] = None
         result.update(rows)
         return result
     except Exception as e:
@@ -374,14 +384,24 @@ def thresholds():
         conn = get_db_connection()
         _ensure_thresholds_table(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("SELECT key, value FROM kpi_thresholds WHERE key = ANY(%s)", (_THRESHOLD_KEYS,))
-        rows = {r['key']: float(r['value']) for r in cur.fetchall()}
+        all_keys = _THRESHOLD_KEYS + _THRESHOLD_TEXT_KEYS
+        cur.execute("SELECT key, value, text_value FROM kpi_thresholds WHERE key = ANY(%s)", (all_keys,))
+        rows = {}
+        for r in cur.fetchall():
+            if r['key'] in _THRESHOLD_TEXT_KEYS:
+                rows[r['key']] = r['text_value']
+            else:
+                rows[r['key']] = float(r['value'])
         cur.close()
         t = dict(_THRESHOLD_DEFAULTS)
+        t['fecha_inicio_operacion'] = None
         t.update(rows)
+        from flask import request as _req
+        jwt_csrf = _req.cookies.get('csrf_access_token', '')
         return render_template(
             'admin_thresholds.html',
             thresholds=t,
+            jwt_csrf_token=jwt_csrf,
             user_name=claims.get('name', get_jwt_identity()),
             is_admin=True,
         )
@@ -421,6 +441,22 @@ def save_thresholds():
                    SET value = EXCLUDED.value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
                 (key, val, email)
             )
+        # Guardar clave de texto: fecha_inicio_operacion
+        fecha_raw = request.form.get('fecha_inicio_operacion', '').strip()
+        if fecha_raw:
+            import re
+            if re.match(r'^\d{4}-\d{2}-\d{2}$', fecha_raw):
+                cur.execute(
+                    """INSERT INTO kpi_thresholds (key, value, text_value, updated_at, updated_by)
+                       VALUES (%s, 0, %s, NOW(), %s)
+                       ON CONFLICT (key) DO UPDATE
+                       SET text_value = EXCLUDED.text_value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
+                    ('fecha_inicio_operacion', fecha_raw, email)
+                )
+            else:
+                flash('Fecha de inicio inválida. Use el formato YYYY-MM-DD.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+
         conn.commit()
         cur.close()
         app_logger.info(f"Thresholds updated by {email}")

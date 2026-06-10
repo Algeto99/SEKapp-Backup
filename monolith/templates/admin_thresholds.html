@@ -89,7 +89,7 @@
         </div>
 
         <form method="POST" action="/admin/thresholds">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
 
             <!-- Supervisiones completadas diarias -->
             <div class="card">
@@ -230,6 +230,29 @@
                         <input type="number" name="dias_certificacion_vencer" min="1" max="365" step="1"
                                value="{{ thresholds.dias_certificacion_vencer | int }}">
                         <span class="unit">días antes de vencer</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Período de operación -->
+            <div class="card">
+                <div class="card-title">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Período de Operación
+                </div>
+                <p style="font-size:.78rem;color:#94a3b8;margin-bottom:1rem;">
+                    Define la fecha desde la cual SEKapp considera datos válidos. Registros anteriores a esta fecha no aparecerán en el Morning Briefing ni en cálculos de tendencias.
+                </p>
+                <div class="threshold-grid" style="grid-template-columns: minmax(200px, 320px);">
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Fecha de Inicio
+                        </span>
+                        <label>Inicio de operación</label>
+                        <input type="date" name="fecha_inicio_operacion"
+                               value="{{ thresholds.fecha_inicio_operacion or '' }}">
+                        <span class="unit">Solo se muestran registros desde esta fecha</span>
                     </div>
                 </div>
             </div>

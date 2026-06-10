@@ -182,7 +182,7 @@ csrf.exempt(viewer_bp)
 csrf.exempt(dashboard_bp)
 csrf.exempt(expediente_bp)
 csrf.exempt(cgeo_bp)
-# admin_bp is NOT exempted: it serves traditional browser form POSTs that require CSRF tokens.
+csrf.exempt(admin_bp)  # JWT double-submit cookie (JWT_COOKIE_CSRF_PROTECT) covers admin forms
 
 # forms_bp: exempt only the specific routes that don't use Flask-WTF CSRF tokens.
 # All @jwt_required() submit routes are protected by JWT_COOKIE_CSRF_PROTECT instead.

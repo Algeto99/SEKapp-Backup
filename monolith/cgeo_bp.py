@@ -6,15 +6,24 @@ Blueprint with two sub-modules:
 Each sub-module exposes an Informe Ejecutivo and a Resumen Operativo tab.
 """
 
+import base64
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from functools import wraps
+from io import BytesIO
 
 import psycopg2
 from psycopg2 import extras, sql
-from flask import Blueprint, render_template, jsonify, request, redirect
+from flask import Blueprint, render_template, jsonify, request, redirect, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+
+try:
+    from weasyprint import HTML as _WeasyprintHTML
+    _WEASYPRINT_AVAILABLE = True
+except OSError:
+    _WeasyprintHTML = None
+    _WEASYPRINT_AVAILABLE = False
 
 from db import get_db_connection
 
@@ -86,6 +95,33 @@ def _admin_required(f):
             return jsonify({"error": "Error de autenticación"}), 500 if is_api else redirect("/landing/")
         return f(*args, **kwargs)
     return decorated
+
+
+def _cliente_cond(cliente):
+    """Returns (cond_str, value) for client filtering.
+    Numeric string → filter by id_propiedad (int).
+    Name string     → filter by cliente_instalacion (text).
+    """
+    if not cliente:
+        return None, None
+    try:
+        return "id_propiedad = %s", int(cliente)
+    except (ValueError, TypeError):
+        return "TRIM(cliente_instalacion) = TRIM(%s)", cliente
+
+
+def _add_cliente(conds, params, cliente, alias=''):
+    """Append client filter to existing conds/params lists. alias: e.g. 'c.'"""
+    if not cliente:
+        return
+    try:
+        c_val = int(cliente)
+        conds.append(f"{alias}id_propiedad = %s")
+        params.append(c_val)
+    except (ValueError, TypeError):
+        # We check whether the condition should use TRIM
+        conds.append(f"TRIM({alias}cliente_instalacion) = %s")
+        params.append(str(cliente).strip())
 
 
 # ── SQL constants (mirrors dashboard_bp) ────────────────────────────────────
@@ -245,9 +281,7 @@ def cgeo_api_recursos_data():
 
         # ── Equipos ──────────────────────────────────────────────────────────
         eq_conds, eq_params = [], []
-        if cliente:
-            eq_conds.append("c.id_propiedad = %s")
-            eq_params.append(cliente)
+        _add_cliente(eq_conds, eq_params, cliente, alias='c.')
         if start_date:
             eq_conds.append("c.fecha >= %s")
             eq_params.append(start_date)
@@ -265,7 +299,7 @@ def cgeo_api_recursos_data():
                 SUM({_EQ_TOTAL_SQL}) AS total,
                 SUM({_EQ_FUNC_SQL})  AS operativos
             {eq_lateral}
-        """, eq_params)
+        """, tuple(eq_params))
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
         eq_op = int(eq_row.get("operativos") or 0)
@@ -282,7 +316,7 @@ def cgeo_api_recursos_data():
             GROUP BY DATE_TRUNC('month', c.fecha)
             ORDER BY DATE_TRUNC('month', c.fecha)
             LIMIT 8
-        """, eq_params)
+        """, tuple(eq_params))
         eq_trend = [{"label": r["label"], "pct": float(r["pct"] or 0)} for r in cur.fetchall()]
 
         # Distribución por tipo de equipo (radio vs arma vs otro) from inventario JSON
@@ -295,7 +329,7 @@ def cgeo_api_recursos_data():
             GROUP BY LOWER(TRIM(elem->>'tipo_equipo'))
             ORDER BY total DESC
             LIMIT 10
-        """, eq_params)
+        """, tuple(eq_params))
         eq_por_tipo = [
             {
                 "tipo": r["tipo"] or "otro",
@@ -308,9 +342,7 @@ def cgeo_api_recursos_data():
         # ── Vehículos ─────────────────────────────────────────────────────────
         veh_date = _veh_date()
         veh_conds, veh_params = [], []
-        if cliente:
-            veh_conds.append("id_propiedad = %s")
-            veh_params.append(cliente)
+        _add_cliente(veh_conds, veh_params, cliente)
         if start_date:
             veh_conds.append(f"{veh_date} >= %s")
             veh_params.append(start_date)
@@ -325,7 +357,7 @@ def cgeo_api_recursos_data():
                 SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptos
             FROM planilla_vehicular
             {veh_where}
-        """, veh_params)
+        """, tuple(veh_params))
         veh_row = cur.fetchone() or {}
         veh_total = int(veh_row.get("total") or 0)
         veh_aptos = int(veh_row.get("aptos") or 0)
@@ -335,9 +367,7 @@ def cgeo_api_recursos_data():
 
         # ── Certificaciones / Cumplimiento ────────────────────────────────────
         cum_conds, cum_params = [], []
-        if cliente:
-            cum_conds.append("id_propiedad = %s")
-            cum_params.append(cliente)
+        _add_cliente(cum_conds, cum_params, cliente)
         if start_date:
             cum_conds.append("fecha_hora >= %s")
             cum_params.append(start_date)
@@ -355,7 +385,7 @@ def cgeo_api_recursos_data():
                          AND vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days' THEN 1 ELSE 0 END) AS proximas
             FROM checklist_cumplimiento
             {cum_where}
-        """, cum_params)
+        """, tuple(cum_params))
         cum_row = cur.fetchone() or {}
         cum_total = int(cum_row.get("total") or 0)
         cum_vigentes = int(cum_row.get("vigentes") or 0)
@@ -400,7 +430,7 @@ def cgeo_api_recursos_data():
             {_where(cert_conds2)}
             ORDER BY vigencia_hasta ASC
             LIMIT 10
-        """, cum_params)
+        """, tuple(cum_params))
         for r in cur.fetchall():
             alertas_listado.append({
                 "tipo": r["tipo"],
@@ -424,7 +454,7 @@ def cgeo_api_recursos_data():
             {_where(veh_conds2)}
             ORDER BY creado_en DESC
             LIMIT 10
-        """, veh_params)
+        """, tuple(veh_params))
         for r in cur.fetchall():
             alertas_listado.append({
                 "tipo": r["tipo"],
@@ -454,7 +484,7 @@ def cgeo_api_recursos_data():
             {eq_where2}
             ORDER BY c.fecha DESC
             LIMIT 10
-        """, eq_params)
+        """, tuple(eq_params))
         for r in cur.fetchall():
             alertas_listado.append({
                 "tipo": r["tipo"],
@@ -545,8 +575,8 @@ def cgeo_api_alertas():
         alertas = []
 
         def _cp(col="id_propiedad"):
-            """Condición de filtro por cliente y sus parámetros."""
-            return ([f"{col} = %s"], [cliente]) if cliente else ([], [])
+            cond, val = _cliente_cond(cliente)
+            return ([cond], [val]) if cond else ([], [])
 
         # ── REGLA 1: Puesto sin supervisión > 48 h ────────────────────────────
         r1_conds, r1_params = _cp("id_propiedad")
@@ -554,14 +584,15 @@ def cgeo_api_alertas():
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
                 MAX(fecha_hora) AS ultima_sup,
-                EXTRACT(EPOCH FROM (NOW() - MAX(fecha_hora))) / 3600 AS horas
+                EXTRACT(EPOCH FROM (NOW() - MAX(fecha_hora))) / 3600 AS horas,
+                MAX(id_supervision) AS last_id
             FROM supervision_puesto
             {_where(r1_conds)}
             GROUP BY TRIM(cliente_instalacion)
             HAVING MAX(fecha_hora) < NOW() - INTERVAL '48 hours'
             ORDER BY MAX(fecha_hora) ASC
             LIMIT 5
-        """, r1_params)
+        """, tuple(r1_params))
         for r in cur.fetchall():
             h = float(r["horas"] or 0)
             dias = round(h / 24, 1)
@@ -572,8 +603,10 @@ def cgeo_api_alertas():
                 "id": f"r1_{r['puesto']}",
                 "regla": 1,
                 "texto": texto,
-                "accion": "Ver puesto",
-                "ruta_navegacion": f"/cgeo/operacion/?cliente={r['puesto']}",
+                "accion": "Ver última supervisión",
+                "ruta_navegacion": f"/dashboard/supervision/?id={r['last_id']}",
+                "record_id": r["last_id"],
+                "form_type": "supervision_puesto",
                 "color_semaforo": "rojo",
                 "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
                 "horas": round(h, 1),
@@ -595,7 +628,7 @@ def cgeo_api_alertas():
             {_where(r2_conds)}
             ORDER BY COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) ASC
             LIMIT 5
-        """, r2_params)
+        """, tuple(r2_params))
         for r in cur.fetchall():
             h = float(r["horas"] or 0)
             alertas.append({
@@ -604,6 +637,8 @@ def cgeo_api_alertas():
                 "texto": f"Incidente #{r['id']} abierto hace {int(h)}h — {r['tipo']}",
                 "accion": "Ver incidente",
                 "ruta_navegacion": f"/dashboard/incidentes/?id={r['id']}",
+                "record_id": r["id"],
+                "form_type": "reporte_incidente",
                 "color_semaforo": "rojo",
                 "timestamp": r["ts"].isoformat() if r["ts"] else None,
                 "horas": round(h, 1),
@@ -628,7 +663,7 @@ def cgeo_api_alertas():
             )
             ORDER BY MAX(fecha_hora) ASC
             LIMIT 5
-        """, r3_params + r3_params)
+        """, tuple(r3_params + r3_params))
         for r in cur.fetchall():
             alertas.append({
                 "id": f"r3_{r['puesto']}",
@@ -659,7 +694,7 @@ def cgeo_api_alertas():
             {_where(r4_conds)}
             ORDER BY vigencia_hasta ASC
             LIMIT 5
-        """, r4_params)
+        """, tuple(r4_params))
         for r in cur.fetchall():
             d = int(r["dias_restantes"] or 0)
             alertas.append({
@@ -668,6 +703,8 @@ def cgeo_api_alertas():
                 "texto": f"Certificación \"{r['cert']}\" en {r['cliente']} vence en {d} días",
                 "accion": "Ver certificación",
                 "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
+                "record_id": r["id"],
+                "form_type": "checklist_cumplimiento",
                 "color_semaforo": "amarillo",
                 "timestamp": r["vigencia_hasta"].isoformat() if r["vigencia_hasta"] else None,
                 "horas": d * 24,
@@ -686,7 +723,7 @@ def cgeo_api_alertas():
             HAVING MAX(fecha) < CURRENT_DATE - INTERVAL '45 days'
             ORDER BY MAX(fecha) ASC
             LIMIT 5
-        """, r5_params)
+        """, tuple(r5_params))
         for r in cur.fetchall():
             d = int(r["dias"] or 0)
             alertas.append({
@@ -715,7 +752,7 @@ def cgeo_api_alertas():
             HAVING MAX(COALESCE(fecha_hora, creado_en)) < NOW() - INTERVAL '24 hours'
             ORDER BY MAX(COALESCE(fecha_hora, creado_en)) ASC
             LIMIT 5
-        """, r6_params)
+        """, tuple(r6_params))
         for r in cur.fetchall():
             h = float(r["horas"] or 0)
             alertas.append({
@@ -746,7 +783,7 @@ def cgeo_api_alertas():
             {_where(r7_conds)}
             ORDER BY vigencia_hasta ASC
             LIMIT 5
-        """, r7_params)
+        """, tuple(r7_params))
         for r in cur.fetchall():
             d = int(r["dias_vencido"] or 0)
             alertas.append({
@@ -755,6 +792,8 @@ def cgeo_api_alertas():
                 "texto": f"Checklist \"{r['nombre']}\" en {r['instalacion']} vencido hace {d} días",
                 "accion": "Renovar checklist",
                 "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
+                "record_id": r["id"],
+                "form_type": "checklist_cumplimiento",
                 "color_semaforo": "amarillo",
                 "timestamp": r["vigencia_hasta"].isoformat() if r["vigencia_hasta"] else None,
                 "horas": d * 24,
@@ -778,7 +817,7 @@ def cgeo_api_alertas():
                AND AVG(calificacion_global_nps) < 24
             ORDER BY AVG(calificacion_global_nps) ASC
             LIMIT 5
-        """, r8_params)
+        """, tuple(r8_params))
         for r in cur.fetchall():
             score = float(r["avg_5"] or 0)
             alertas.append({
@@ -835,7 +874,8 @@ def cgeo_api_semaforo_global():
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         def _cp(col="id_propiedad"):
-            return ([f"{col} = %s"], [cliente]) if cliente else ([], [])
+            cond, val = _cliente_cond(cliente)
+            return ([cond], [val]) if cond else ([], [])
 
         # Incidentes abiertos
         inc_conds, inc_params = _cp()
@@ -844,7 +884,7 @@ def cgeo_api_semaforo_global():
         ]
         cur.execute(f"""
             SELECT COUNT(*) AS total FROM reportes_incidentes {_where(inc_conds)}
-        """, inc_params)
+        """, tuple(inc_params))
         inc_abiertos = int((cur.fetchone() or {}).get("total") or 0)
 
         # Supervisiones: programadas hoy vs completadas hoy
@@ -876,7 +916,7 @@ def cgeo_api_semaforo_global():
                      CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
                  ) AS elem
             {_where(eq_conds)}
-        """, eq_params)
+        """, tuple(eq_params))
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
         eq_op    = int(eq_row.get("operativos") or 0)
@@ -891,7 +931,7 @@ def cgeo_api_semaforo_global():
         ]
         cur.execute(f"""
             SELECT COUNT(*) AS total FROM checklist_cumplimiento {_where(cert_conds)}
-        """, cert_params)
+        """, tuple(cert_params))
         cert_proximas = int((cur.fetchone() or {}).get("total") or 0)
 
         return jsonify({
@@ -922,6 +962,7 @@ def cgeo_api_morning_briefing_data():
     trend for the last 7 days (completadas vs programadas), and greeting data.
     """
     from datetime import date as _date, timedelta
+    from admin_bp import get_thresholds
 
     conn = _get_conn()
     if not conn:
@@ -929,27 +970,49 @@ def cgeo_api_morning_briefing_data():
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
+        # Fecha de inicio de operación configurada por el Administrador
+        thresholds = get_thresholds()
+        fecha_inicio_raw = thresholds.get('fecha_inicio_operacion')
+        try:
+            from datetime import date as _date2
+            fecha_inicio = _date2.fromisoformat(fecha_inicio_raw) if fecha_inicio_raw else None
+        except (ValueError, TypeError):
+            fecha_inicio = None
+
         # ── Incidentes abiertos ───────────────────────────────────────────────
-        cur.execute("""
-            SELECT
-                COUNT(*) AS total_abiertos,
-                SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
-                SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
-            FROM reportes_incidentes
-            WHERE LOWER(TRIM(COALESCE(estado,'')))
-                  NOT IN ('cerrado','closed','resuelto','resolved')
-        """)
+        if fecha_inicio:
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total_abiertos,
+                    SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
+                    SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
+                FROM reportes_incidentes
+                WHERE LOWER(TRIM(COALESCE(estado,'')))
+                      NOT IN ('cerrado','closed','resuelto','resolved')
+                  AND COALESCE(fecha_hora::date, creado_en::date) >= %s
+            """, (fecha_inicio,))
+        else:
+            cur.execute("""
+                SELECT
+                    COUNT(*) AS total_abiertos,
+                    SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
+                    SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
+                FROM reportes_incidentes
+                WHERE LOWER(TRIM(COALESCE(estado,'')))
+                      NOT IN ('cerrado','closed','resuelto','resolved')
+            """)
         inc_row = cur.fetchone() or {}
         inc_abiertos  = int(inc_row.get("total_abiertos") or 0)
         inc_criticos  = int(inc_row.get("criticos") or 0)
         inc_mas_24h   = int(inc_row.get("mas_24h") or 0)
 
         # ── Supervisiones hoy vs puestos activos (programadas proxy) ─────────
+        sup_inicio = fecha_inicio if fecha_inicio else (_date.today() - timedelta(days=30))
         cur.execute("""
             SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS programadas
             FROM supervision_puesto
-            WHERE fecha_hora >= NOW() - INTERVAL '30 days'
-        """)
+            WHERE fecha_hora >= %s
+        """, (sup_inicio,))
         sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
 
         cur.execute("""
@@ -975,19 +1038,43 @@ def cgeo_api_morning_briefing_data():
         eq_no_op = max(0, eq_total - eq_op)
         eq_pct   = round(eq_op / eq_total * 100, 1) if eq_total else None
 
-        # ── Certificaciones próximas a vencer (≤ 30 días) ────────────────────
+        # ── Equipos por tipo (radios, armas, motos) ───────────────────────────
+        cur.execute(f"""
+            SELECT
+                LOWER(TRIM(elem->>'tipo_equipo')) AS tipo,
+                COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
+                COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(
+                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
+                 ) AS elem
+            WHERE elem->>'tipo_equipo' IS NOT NULL
+            GROUP BY LOWER(TRIM(elem->>'tipo_equipo'))
+        """)
+        eq_por_tipo = {
+            r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
+            for r in cur.fetchall() if r["tipo"]
+        }
+
+        # ── Certificaciones próximas a vencer (≤ 30 días) por nivel ─────────
         cur.execute("""
-            SELECT COUNT(*) AS proximas
+            SELECT
+                COALESCE(NULLIF(TRIM(nivel_cumplimiento), ''), 'Sin categoría') AS nivel,
+                COUNT(*) AS total
             FROM checklist_cumplimiento
             WHERE vigencia_hasta IS NOT NULL
               AND vigencia_hasta >= CURRENT_DATE
               AND vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'
+            GROUP BY TRIM(nivel_cumplimiento)
         """)
-        cert_proximas = int((cur.fetchone() or {}).get("proximas") or 0)
+        cert_por_nivel = {r["nivel"]: int(r["total"] or 0) for r in cur.fetchall()}
+        cert_proximas = sum(cert_por_nivel.values())
 
         # ── Tendencia supervisiones — últimos 7 días ──────────────────────────
         today = _date.today()
         days7 = [today - timedelta(days=i) for i in range(6, -1, -1)]
+        # Si fecha_inicio es posterior al inicio de la ventana de 7 días, recortamos
+        trend_start = max(days7[0], fecha_inicio) if fecha_inicio else days7[0]
 
         # Completadas por día (últimos 7 días, conteo de puestos únicos supervisados)
         cur.execute("""
@@ -997,30 +1084,37 @@ def cgeo_api_morning_briefing_data():
             FROM supervision_puesto
             WHERE fecha_hora::date >= %s
             GROUP BY fecha_hora::date
-        """, (days7[0],))
+        """, (trend_start,))
         comp_by_day = {r["dia"]: int(r["completadas"]) for r in cur.fetchall()}
 
         tendencia = [
             {
                 "fecha": d.isoformat(),
                 "label": str(d.day) + " " + d.strftime("%b"),
-                "completadas": comp_by_day.get(d, 0),
-                "programadas": sup_programadas,
+                "completadas": comp_by_day.get(d, 0) if (not fecha_inicio or d >= fecha_inicio) else None,
+                "programadas": sup_programadas if (not fecha_inicio or d >= fecha_inicio) else None,
             }
             for d in days7
         ]
 
         return jsonify({
             "kpis": {
-                "inc_abiertos":   inc_abiertos,
-                "inc_criticos":   inc_criticos,
-                "inc_mas_24h":    inc_mas_24h,
+                "inc_abiertos":    inc_abiertos,
+                "inc_criticos":    inc_criticos,
+                "inc_mas_24h":     inc_mas_24h,
                 "sup_completadas": sup_completadas,
                 "sup_programadas": sup_programadas,
-                "eq_total":       eq_total,
-                "eq_no_op":       eq_no_op,
-                "eq_pct":         eq_pct,
-                "cert_proximas":  cert_proximas,
+                "eq_total":        eq_total,
+                "eq_op":           eq_op,
+                "eq_no_op":        eq_no_op,
+                "eq_pct":          eq_pct,
+                "eq_por_tipo":     eq_por_tipo,
+                "cert_proximas":   cert_proximas,
+                "cert_por_nivel":  cert_por_nivel,
+            },
+            "thresholds": {
+                "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),
+                "eq_amarillo_max": float(thresholds.get('equipos_amarillo_max', 15)),
             },
             "tendencia_semana": tendencia,
         })
@@ -1060,9 +1154,7 @@ def cgeo_api_operacion_data():
 
         # ── Incidentes ────────────────────────────────────────────────────────
         inc_conds, inc_params = [], []
-        if cliente:
-            inc_conds.append("id_propiedad = %s")
-            inc_params.append(cliente)
+        _add_cliente(inc_conds, inc_params, cliente)
         _date_conds("fecha_hora", inc_conds, inc_params)
         inc_where = _where(inc_conds)
         cur.execute(f"""
@@ -1074,7 +1166,7 @@ def cgeo_api_operacion_data():
                 SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) = 'bajo' THEN 1 ELSE 0 END) AS bajos
             FROM reportes_incidentes
             {inc_where}
-        """, inc_params)
+        """, tuple(inc_params))
         inc_row = cur.fetchone() or {}
         inc_total   = int(inc_row.get("total") or 0)
         inc_criticos = int(inc_row.get("criticos") or 0)
@@ -1098,7 +1190,7 @@ def cgeo_api_operacion_data():
             {_where(inc_ab_conds)}
             ORDER BY COALESCE(fecha_hora, creado_en) DESC
             LIMIT 10
-        """, inc_params)
+        """, tuple(inc_params))
         inc_abiertos = [
             {
                 "fecha": r["fecha"].isoformat() if r["fecha"] else None,
@@ -1119,7 +1211,7 @@ def cgeo_api_operacion_data():
                 SUM(CASE WHEN (CURRENT_DATE - CAST(COALESCE(fecha_hora, creado_en) AS date)) > 0 THEN 1 ELSE 0 END) AS mas_24h
             FROM reportes_incidentes
             {_where(inc_ab_conds)}
-        """, inc_params)
+        """, tuple(inc_params))
         inc_ab_row = cur.fetchone() or {}
         inc_abiertos_total = int(inc_ab_row.get("total_abiertos") or 0)
         inc_mas_24h = int(inc_ab_row.get("mas_24h") or 0)
@@ -1134,14 +1226,12 @@ def cgeo_api_operacion_data():
             GROUP BY DATE_TRUNC('month', COALESCE(fecha_hora, creado_en))
             ORDER BY DATE_TRUNC('month', COALESCE(fecha_hora, creado_en))
             LIMIT 8
-        """, inc_params)
+        """, tuple(inc_params))
         inc_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
 
         # ── Satisfacción ──────────────────────────────────────────────────────
         sat_conds, sat_params = [], []
-        if cliente:
-            sat_conds.append("id_propiedad = %s")
-            sat_params.append(cliente)
+        _add_cliente(sat_conds, sat_params, cliente)
         _date_conds("fecha_hora", sat_conds, sat_params)
         sat_where = _where(sat_conds)
         cur.execute(f"""
@@ -1151,7 +1241,7 @@ def cgeo_api_operacion_data():
                 SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT,'')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda
             FROM medicion_experiencia_cliente
             {sat_where}
-        """, sat_params)
+        """, tuple(sat_params))
         sat_row = cur.fetchone() or {}
         sat_avg = float(sat_row.get("avg_nps") or 0)
         sat_total = int(sat_row.get("total") or 0)
@@ -1170,7 +1260,7 @@ def cgeo_api_operacion_data():
             HAVING COUNT(*) > 0
             ORDER BY pct DESC
             LIMIT 8
-        """, sat_params)
+        """, tuple(sat_params))
         ranking = [
             {"cliente": r["cliente"], "pct": float(r["pct"] or 0)}
             for r in cur.fetchall()
@@ -1186,14 +1276,12 @@ def cgeo_api_operacion_data():
             GROUP BY DATE_TRUNC('month', fecha_hora)
             ORDER BY DATE_TRUNC('month', fecha_hora)
             LIMIT 8
-        """, sat_params)
+        """, tuple(sat_params))
         sat_trend = {r["label"]: float(r["pct"] or 0) for r in cur.fetchall()}
 
         # ── Supervisión ───────────────────────────────────────────────────────
         sup_conds, sup_params = [], []
-        if cliente:
-            sup_conds.append("id_propiedad = %s")
-            sup_params.append(cliente)
+        _add_cliente(sup_conds, sup_params, cliente)
         _date_conds("fecha_hora", sup_conds, sup_params)
         sup_where = _where(sup_conds)
         _sup_score = " + ".join(
@@ -1208,7 +1296,7 @@ def cgeo_api_operacion_data():
                 SUM(CASE WHEN ({_sup_score}) >= 16 AND ({_sup_score}) < 21 THEN 1 ELSE 0 END) AS seguimiento,
                 SUM(CASE WHEN ({_sup_score}) > 0  AND ({_sup_score}) < 16 THEN 1 ELSE 0 END) AS critico
             FROM supervision_puesto {sup_where}
-        """, sup_params)
+        """, tuple(sup_params))
         sup_row = cur.fetchone() or {}
         sup_total      = int(sup_row.get("total")      or 0)
         sup_excelente  = int(sup_row.get("excelente")  or 0)
@@ -1225,23 +1313,21 @@ def cgeo_api_operacion_data():
             GROUP BY DATE_TRUNC('month', fecha_hora)
             ORDER BY DATE_TRUNC('month', fecha_hora)
             LIMIT 8
-        """, sup_params)
+        """, tuple(sup_params))
         sup_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
 
         # Supervisiones completadas hoy
         sup_hoy_conds = list(sup_conds) + ["fecha_hora::date = CURRENT_DATE"]
         cur.execute(f"""
             SELECT COUNT(*) AS hoy FROM supervision_puesto {_where(sup_hoy_conds)}
-        """, sup_params)
+        """, tuple(sup_params))
         sup_hoy = int((cur.fetchone() or {}).get("hoy") or 0)
 
         # ── Capacitaciones ────────────────────────────────────────────────────
         cap_date = _capac_date()
         cap_safe = _capac_safe_len()
         cap_conds, cap_params = [], []
-        if cliente:
-            cap_conds.append("id_propiedad = %s")
-            cap_params.append(cliente)
+        _add_cliente(cap_conds, cap_params, cliente)
         if start_date:
             cap_conds.append(f"{cap_date} >= %s")
             cap_params.append(start_date)
@@ -1252,7 +1338,7 @@ def cgeo_api_operacion_data():
         cur.execute(f"""
             SELECT COUNT(*) AS total, COALESCE(SUM({cap_safe}), 0) AS asistentes
             FROM registro_de_capacitaciones {cap_where}
-        """, cap_params)
+        """, tuple(cap_params))
         cap_row = cur.fetchone() or {}
         cap_total = int(cap_row.get("total") or 0)
         cap_asist = int(cap_row.get("asistentes") or 0)
@@ -1267,27 +1353,23 @@ def cgeo_api_operacion_data():
             GROUP BY DATE_TRUNC('month', {cap_date})
             ORDER BY DATE_TRUNC('month', {cap_date})
             LIMIT 8
-        """, cap_params)
+        """, tuple(cap_params))
         cap_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
 
         # ── Disciplina ────────────────────────────────────────────────────────
         disc_conds, disc_params = [], []
-        if cliente:
-            disc_conds.append("id_propiedad = %s")
-            disc_params.append(cliente)
+        _add_cliente(disc_conds, disc_params, cliente)
         _date_conds("fecha_hora", disc_conds, disc_params)
         disc_where = _where(disc_conds)
         cur.execute(f"""
             SELECT COUNT(*) AS total FROM informe_novedades_disciplinario {disc_where}
-        """, disc_params)
+        """, tuple(disc_params))
         disc_row = cur.fetchone() or {}
         disc_total = int(disc_row.get("total") or 0)
 
         # ── Compromisos / visitas (resumen operativo) ─────────────────────────
         vis_conds, vis_params = [], []
-        if cliente:
-            vis_conds.append("id_propiedad = %s")
-            vis_params.append(cliente)
+        _add_cliente(vis_conds, vis_params, cliente)
         _date_conds("fecha_hora", vis_conds, vis_params)
         vis_where = _where(vis_conds)
         compromisos_pend = []
@@ -1306,7 +1388,7 @@ def cgeo_api_operacion_data():
                                 'vencido','vencida','expirado','expirada') THEN 1 ELSE 0 END) AS pendientes
                 FROM registro_y_acta_de_visita
                 {vis_where}
-            """, vis_params)
+            """, tuple(vis_params))
             vis_row = cur.fetchone() or {}
             vis_total      = int(vis_row.get("total")      or 0)
             vis_cumplidos  = int(vis_row.get("cumplidos")  or 0)
@@ -1324,7 +1406,7 @@ def cgeo_api_operacion_data():
                 {vis_where}
                 ORDER BY COALESCE(fecha_hora, creado_en) DESC
                 LIMIT 10
-            """, vis_params)
+            """, tuple(vis_params))
             compromisos_pend = [
                 {
                     "fecha": r["fecha_compromiso"].isoformat() if r["fecha_compromiso"] else None,
@@ -1427,3 +1509,195 @@ def cgeo_api_operacion_data():
         return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()
+
+
+# ── Morning Briefing PDF ─────────────────────────────────────────────────────
+
+def _briefing_logo_data_url():
+    try:
+        path = os.path.join(os.path.dirname(__file__), 'static', 'logo_full.png')
+        with open(path, 'rb') as f:
+            return f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
+    except Exception:
+        return None
+
+
+def _build_briefing_html(payload: dict) -> str:
+    kpis       = payload.get('kpis') or {}
+    alertas    = payload.get('alertas') or []
+    semaforo   = payload.get('semaforo') or {}
+    tendencia  = payload.get('tendencia') or {}
+    chart_img  = payload.get('chart_image')   # base64 data URL from canvas
+    cliente    = payload.get('cliente') or 'Todos los clientes'
+    generated  = datetime.now().strftime('%d/%m/%Y %H:%M')
+
+    nivel      = semaforo.get('nivel', 'verde')
+    condiciones = semaforo.get('condiciones') or []
+
+    nivel_color = {'verde': '#16a34a', 'amarillo': '#d97706', 'rojo': '#dc2626'}.get(nivel, '#64748b')
+    nivel_label = {'verde': 'OPERACIÓN NORMAL', 'amarillo': 'ATENCIÓN REQUERIDA', 'rojo': 'ALERTA CRÍTICA'}.get(nivel, nivel.upper())
+    nivel_emoji = {'verde': '🟢', 'amarillo': '🟡', 'rojo': '🔴'}.get(nivel, '⚪')
+
+    logo_html = ''
+    logo_url = _briefing_logo_data_url()
+    if logo_url:
+        logo_html = f'<img src="{logo_url}" style="height:36px;object-fit:contain" alt="SEKapp">'
+
+    # KPI rows
+    inc_ab  = kpis.get('inc_abiertos', 0)
+    inc_cr  = kpis.get('inc_criticos', 0)
+    sup_c   = kpis.get('sup_completadas', 0)
+    sup_p   = kpis.get('sup_programadas', 0)
+    sup_pct = round(sup_c / sup_p * 100) if sup_p else 0
+    eq_op   = kpis.get('eq_op', 0)
+    eq_tot  = kpis.get('eq_total', 0)
+    eq_pct  = kpis.get('eq_pct', 0)
+    cert    = kpis.get('cert_proximas', 0)
+
+    kpi_rows = f"""
+    <tr>
+      <td class="kpi-name">Incidentes abiertos</td>
+      <td class="kpi-val" style="color:{'#dc2626' if inc_ab > 0 else '#16a34a'}">{inc_ab}</td>
+      <td class="kpi-sub">{inc_cr} crítico{'s' if inc_cr != 1 else ''}</td>
+    </tr>
+    <tr>
+      <td class="kpi-name">Supervisiones del día</td>
+      <td class="kpi-val" style="color:{'#16a34a' if sup_pct >= 80 else '#d97706' if sup_pct >= 50 else '#dc2626'}">{sup_c}/{sup_p}</td>
+      <td class="kpi-sub">{sup_pct}% completado</td>
+    </tr>
+    <tr>
+      <td class="kpi-name">Equipos operativos</td>
+      <td class="kpi-val" style="color:{'#16a34a' if eq_pct >= 85 else '#d97706'}">{eq_op}/{eq_tot}</td>
+      <td class="kpi-sub">{eq_pct}% operativo</td>
+    </tr>
+    <tr>
+      <td class="kpi-name">Certificaciones próximas a vencer</td>
+      <td class="kpi-val" style="color:{'#d97706' if cert > 0 else '#16a34a'}">{cert}</td>
+      <td class="kpi-sub">próximos 30 días</td>
+    </tr>
+    """
+
+    # Alert rows (max 5)
+    rojas    = [a for a in alertas if a.get('color_semaforo') == 'rojo']
+    amarillas = [a for a in alertas if a.get('color_semaforo') == 'amarillo']
+    visible  = (rojas + amarillas)[:5]
+    ocultas  = max(0, len(alertas) - 5)
+
+    alerta_rows = ''
+    if not visible:
+        alerta_rows = '<tr><td colspan="2" style="color:#16a34a;padding:.5rem 0">✅ Sin alertas activas — operación en orden</td></tr>'
+    else:
+        for a in visible:
+            dot_color = '#dc2626' if a.get('color_semaforo') == 'rojo' else '#d97706'
+            alerta_rows += f"""
+            <tr>
+              <td style="width:12px;padding-right:.5rem">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{dot_color}"></span>
+              </td>
+              <td style="font-size:.82rem;color:#334155;padding:.25rem 0">{a.get('texto','')}</td>
+            </tr>"""
+        if ocultas > 0:
+            alerta_rows += f'<tr><td></td><td style="font-size:.78rem;color:#64748b">+{ocultas} alerta{"s" if ocultas != 1 else ""} adicional{"es" if ocultas != 1 else ""}</td></tr>'
+
+    # Tendencia section
+    chart_section = ''
+    if chart_img and chart_img.startswith('data:image'):
+        chart_section = f'''
+        <div class="section-title">Tendencia — Últimos 7 días</div>
+        <img src="{chart_img}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0" alt="Tendencia">
+        '''
+    elif tendencia.get('labels'):
+        labels = tendencia['labels']
+        sups   = tendencia.get('supervisiones', [0]*len(labels))
+        progs  = tendencia.get('programadas', [0]*len(labels))
+        rows = ''.join(
+            f'<tr><td style="padding:.3rem .5rem;font-size:.78rem;color:#64748b">{l}</td>'
+            f'<td style="text-align:center;padding:.3rem .5rem;font-size:.78rem">{sups[i] if i < len(sups) else 0}</td>'
+            f'<td style="text-align:center;padding:.3rem .5rem;font-size:.78rem">{progs[i] if i < len(progs) else 0}</td></tr>'
+            for i, l in enumerate(labels)
+        )
+        chart_section = f'''
+        <div class="section-title">Tendencia — Últimos 7 días</div>
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <th style="text-align:left;padding:.3rem .5rem;font-size:.78rem;color:#94a3b8;border-bottom:1px solid #e2e8f0">Fecha</th>
+            <th style="text-align:center;padding:.3rem .5rem;font-size:.78rem;color:#94a3b8;border-bottom:1px solid #e2e8f0">Supervisiones completadas</th>
+            <th style="text-align:center;padding:.3rem .5rem;font-size:.78rem;color:#94a3b8;border-bottom:1px solid #e2e8f0">Programadas</th>
+          </tr>
+          {rows}
+        </table>'''
+
+    cond_text = ' · '.join(c.get('texto', '') for c in condiciones) if condiciones else 'Sin condiciones de alerta'
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ font-family: 'Helvetica Neue', Arial, sans-serif; font-size:.875rem; color:#1e293b; background:#fff; padding:2rem; }}
+  .header {{ display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #1e293b; padding-bottom:1rem; margin-bottom:1.5rem; }}
+  .header-right {{ text-align:right; font-size:.78rem; color:#64748b; }}
+  .semaforo-bar {{ background:{nivel_color}18; border:1.5px solid {nivel_color}; border-radius:8px; padding:.75rem 1rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:.75rem; }}
+  .semaforo-nivel {{ font-size:1rem; font-weight:700; color:{nivel_color}; }}
+  .semaforo-cond {{ font-size:.8rem; color:#475569; }}
+  .section-title {{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#94a3b8; margin:1.25rem 0 .6rem; border-bottom:1px solid #e2e8f0; padding-bottom:.3rem; }}
+  table.kpi-table {{ width:100%; border-collapse:collapse; }}
+  .kpi-name {{ font-size:.82rem; color:#475569; padding:.35rem 0; }}
+  .kpi-val {{ font-size:1.1rem; font-weight:700; padding:.35rem .75rem; white-space:nowrap; }}
+  .kpi-sub {{ font-size:.75rem; color:#94a3b8; padding:.35rem 0; }}
+  .footer {{ margin-top:2rem; padding-top:.75rem; border-top:1px solid #e2e8f0; font-size:.72rem; color:#94a3b8; text-align:center; }}
+  @page {{ margin:1.5cm; }}
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>{logo_html}</div>
+    <div class="header-right">
+      Morning Briefing Ejecutivo<br>
+      <strong>{cliente}</strong><br>
+      {generated}
+    </div>
+  </div>
+
+  <div class="semaforo-bar">
+    <span style="font-size:1.4rem">{nivel_emoji}</span>
+    <div>
+      <div class="semaforo-nivel">{nivel_label}</div>
+      <div class="semaforo-cond">{cond_text}</div>
+    </div>
+  </div>
+
+  <div class="section-title">KPIs del día</div>
+  <table class="kpi-table">
+    {kpi_rows}
+  </table>
+
+  <div class="section-title">Alertas activas</div>
+  <table style="width:100%;border-collapse:collapse">
+    {alerta_rows}
+  </table>
+
+  {chart_section}
+
+  <div class="footer">Generado automáticamente por SEKapp — CONFIDENCIAL · {generated}</div>
+</body>
+</html>"""
+
+
+@cgeo_bp.route('/api/morning-briefing-pdf', methods=['POST'])
+@jwt_required()
+def cgeo_morning_briefing_pdf():
+    if not _WEASYPRINT_AVAILABLE:
+        return jsonify({"error": "PDF generation not available in this environment"}), 503
+    payload = request.get_json() or {}
+    try:
+        html = _build_briefing_html(payload)
+        buf = BytesIO()
+        _WeasyprintHTML(string=html).write_pdf(buf)
+        buf.seek(0)
+        filename = f"briefing_{date.today().isoformat()}.pdf"
+        return send_file(buf, as_attachment=True, download_name=filename, mimetype='application/pdf')
+    except Exception as e:
+        app_logger.error(f"cgeo_morning_briefing_pdf error: {e}", exc_info=True)
+        return jsonify({"error": "Error generando PDF"}), 500

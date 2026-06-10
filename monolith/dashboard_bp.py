@@ -241,7 +241,7 @@ def get_this_week_count(property_id=None, company_id=None):
             {where_clause}
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         result = cur.fetchone()
         
         return result[0] if result else 0
@@ -284,7 +284,7 @@ def get_this_month_count(property_id=None, company_id=None):
             {where_clause}
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         result = cur.fetchone()
         
         return result[0] if result else 0
@@ -329,7 +329,7 @@ def get_total_count(property_id=None, company_id=None):
             {where_clause}
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         result = cur.fetchone()
         
         return result[0] if result else 0
@@ -412,7 +412,7 @@ def get_reports_for_stat(stat_type, property_id=None, limit=100):
         app_logger.info(f"Executing query for stat_type {stat_type}: {query}")
         app_logger.info(f"Query parameters: {params}")
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         app_logger.info(f"Found {len(rows)} reports for stat_type {stat_type}")
@@ -492,7 +492,7 @@ def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id
         app_logger.info(f"Executing query for incident_type {incident_type}, stat_type {stat_type}: {query}")
         app_logger.info(f"Query parameters: {params}")
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         app_logger.info(f"Found {len(rows)} reports for incident_type {incident_type}")
@@ -580,7 +580,7 @@ def get_incidents_by_week_with_types(property_id=None, company_id=None):
             ORDER BY ptc.period_start DESC, ptc.incident_type;
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # KPI threshold for weekly: 4 incidents per 7-day period
@@ -680,7 +680,7 @@ def get_incidents_by_week(property_id=None, company_id=None):
             ORDER BY sdp.period_start;
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         data = []
@@ -741,7 +741,7 @@ def get_incidents_by_month(property_id=None, company_id=None):
             LIMIT 12;
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # Spanish month names
@@ -818,7 +818,7 @@ def get_incidents_by_year(property_id=None, company_id=None):
             ORDER BY year;
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # KPI threshold for yearly: 52 weeks * 4 incidents = 208 incidents per year
@@ -886,7 +886,7 @@ def get_incident_types_stats(property_id=None):
         app_logger.info(f"DEBUG: Executing debug query: {debug_query}")
         app_logger.info(f"DEBUG: Query parameters: {params}")
         
-        cur.execute(debug_query, params)
+        cur.execute(debug_query, tuple(params))
         debug_rows = cur.fetchall()
         
         app_logger.info(f"DEBUG: Found {len(debug_rows)} total incidents this week")
@@ -910,7 +910,7 @@ def get_incident_types_stats(property_id=None):
         app_logger.info(f"Executing incident types query: {query}")
         app_logger.info(f"Query parameters: {params}")
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         app_logger.info(f"Raw incident type results: {len(rows)} types found")
@@ -986,7 +986,7 @@ def get_incident_types_monthly(property_id=None):
             ORDER BY {INCIDENT_TYPE_EXPR};
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # Initialize all incident types with 0 count
@@ -1056,7 +1056,7 @@ def get_incident_types_yearly(property_id=None):
             ORDER BY {INCIDENT_TYPE_EXPR};
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # Initialize all incident types with 0 count
@@ -1130,7 +1130,7 @@ def get_incidents_by_month_with_types(property_id=None, company_id=None):
             LIMIT 48; -- 12 months * 4 types max
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # Spanish month names
@@ -1216,7 +1216,7 @@ def get_incidents_by_year_with_types(property_id=None, company_id=None):
             ORDER BY year DESC, {INCIDENT_TYPE_EXPR};
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # KPI threshold for yearly: 208 incidents per year
@@ -1305,7 +1305,7 @@ def get_incident_types_for_period(start_date, end_date, property_id=None, compan
             ORDER BY at.incident_type;
         """
         
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         # Convert to list format for frontend
@@ -4359,7 +4359,7 @@ def api_cumplimiento_data():
             f" SUM(CASE WHEN LOWER(TRIM({col})) = 'no' THEN 1 ELSE 0 END) AS no_{col}"
             for col, _ in _CUMPL_CRITERIA
         )
-        cur.execute(f"SELECT {crit_select} FROM checklist_cumplimiento {where}", base_params)
+        cur.execute(f"SELECT {crit_select} FROM checklist_cumplimiento {where}", tuple(base_params))
         crit_row = cur.fetchone()
         criteria = []
         for col, label in _CUMPL_CRITERIA:
@@ -5447,7 +5447,7 @@ def api_motocicletas_data():
             f"SUM(CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END) AS \"{col}\""
             for col, _ in _MOTO_COMPONENTS
         ])
-        cur.execute(f"SELECT {comp_cases} FROM planilla_motocicletas {where}", base_params)
+        cur.execute(f"SELECT {comp_cases} FROM planilla_motocicletas {where}", tuple(base_params))
         comp_row = cur.fetchone()
         fallas_comp = [
             {'componente': label, 'fallas': int(comp_row[col] or 0)}
@@ -5785,7 +5785,7 @@ def api_vehiculos_data():
             f"SUM(CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END) AS \"{col}\""
             for col, _ in _VEH_COMPONENTS
         ])
-        cur.execute(f"SELECT {comp_cases} FROM planilla_vehicular {where}", base_params)
+        cur.execute(f"SELECT {comp_cases} FROM planilla_vehicular {where}", tuple(base_params))
         comp_row = cur.fetchone()
         fallas_comp = [
             {'componente': label, 'fallas': int(comp_row[col] or 0)}
@@ -6369,7 +6369,7 @@ def debug_thisweek():
             ORDER BY {INCIDENT_ORDER_EXPR}
         """
 
-        cur.execute(incidents_query, cid_params)
+        cur.execute(incidents_query, tuple(cid_params))
         incidents = cur.fetchall()
         
         result = {
@@ -6746,7 +6746,7 @@ def api_reports_for_period_range():
         """
         
         params.append(limit)
-        cur.execute(query, params)
+        cur.execute(query, tuple(params))
         rows = cur.fetchall()
         
         reports = []

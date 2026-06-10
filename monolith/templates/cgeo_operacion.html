@@ -1139,37 +1139,59 @@ function setDefaultDates() {
 
 
 // ── QR Modal ──────────────────────────────────────────────────────────────────
-function openQRModal() {
-    const cliente = document.getElementById('filtCliente')?.value || '';
-    const start = document.getElementById('filtStart')?.value || '';
-    const end = document.getElementById('filtEnd')?.value || '';
-    const params = new URLSearchParams();
-    if (cliente) params.set('cliente', cliente);
-    if (start) params.set('start_date', start);
-    if (end) params.set('end_date', end);
-    const url = window.location.origin + '/cgeo/operacion/' + (params.toString() ? '?' + params.toString() : '');
+async function openQRModal() {
+    const clienteVal = document.getElementById('filtCliente')?.value || '';
+    const start      = document.getElementById('filtStart')?.value || '';
+    const end        = document.getElementById('filtEnd')?.value || '';
 
-    let modal = document.getElementById('qrModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'qrModal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
-        modal.innerHTML = `
-            <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:380px;width:90%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
-                <div style="font-family:\'Merriweather\',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR</div>
-                <div style="font-size:.8rem;color:#64748b;margin-bottom:1.25rem">Operación e Incidentes — Kanan Sentinel</div>
-                <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
-                <div style="font-size:.75rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem" id="qrUrlLabel"></div>
-                <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
-            </div>`;
-        document.body.appendChild(modal);
-        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    let url;
+    let isPublic = false;
+
+    if (clienteVal) {
+        // Specific client → get a public signed URL (no login required to view)
+        try {
+            const qs  = new URLSearchParams({ cliente: clienteVal, days: 30 });
+            const res = await fetch('/expediente/api/qr-expediente-url?' + qs.toString(), { credentials: 'include' });
+            if (res.ok) {
+                const data = await res.json();
+                url = data.url;
+                isPublic = true;
+            }
+        } catch (_) {}
     }
+
+    if (!url) {
+        // Todos or fallback: current page URL with active filters (requires login)
+        const params = new URLSearchParams();
+        if (clienteVal) params.set('cliente', clienteVal);
+        if (start)      params.set('start_date', start);
+        if (end)        params.set('end_date', end);
+        url = window.location.origin + '/cgeo/operacion/' + (params.toString() ? '?' + params.toString() : '');
+    }
+
+    // Remove stale modal so it re-renders with new URL
+    document.getElementById('qrModal')?.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'qrModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
+    const badge = isPublic
+        ? '<div style="display:inline-block;font-size:.72rem;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.75rem">🌐 Vista pública — no requiere acceso</div>'
+        : '<div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.75rem">🔒 Requiere sesión activa</div>';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:380px;width:90%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
+            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR</div>
+            <div style="font-size:.8rem;color:#64748b;margin-bottom:.75rem">Operación e Incidentes${clienteVal ? ' — ' + clienteVal : ''}</div>
+            ${badge}
+            <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
+            <div style="font-size:.75rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem" id="qrUrlLabel"></div>
+            <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 
     document.getElementById('qrUrlLabel').textContent = url;
     const container = document.getElementById('qrContainer');
-    container.innerHTML = '';
-
     if (typeof QRCode !== 'undefined') {
         new QRCode(container, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
     } else {
