@@ -435,12 +435,13 @@ function _isDark() { return !document.body.classList.contains('light-mode'); }
 
 // ── Estado global ─────────────────────────────────────────────────────────────
 
-let _kpis        = null;
-let _alertasData = [];
-let _tendencia   = [];
-let _thresholds  = {};
-let _chart       = null;
-let _refreshTimer = null;
+let _kpis           = null;
+let _alertasData    = [];
+let _tendencia      = [];
+let _thresholds     = {};
+let _chart          = null;
+let _refreshTimer   = null;
+let _alertasExpanded = false;   // controls "ver todas" toggle
 
 // ── Saludo + fecha ────────────────────────────────────────────────────────────
 
@@ -774,6 +775,39 @@ async function downloadBriefingPdf() {
     }
 }
 
+function _alertaItemHtml(a) {
+    const esRojo  = a.color_semaforo === 'rojo';
+    const dotCls  = esRojo ? 'alerta-dot-rojo'    : 'alerta-dot-amarillo';
+    const btnCls  = esRojo ? 'alerta-btn-rojo'    : 'alerta-btn-amarillo';
+    const icon    = esRojo ? '🔴' : '🟡';
+    const ts      = _relTime(a.timestamp);
+
+    // Alerts with a specific record → open the record-detail modal, no page navigation
+    if (a.record_id && a.form_type) {
+        return `<a href="${a.ruta_navegacion}" class="alerta-item"
+                   onclick="openAlertRecord(${a.record_id},'${a.form_type}',event)">
+            <div class="alerta-dot ${dotCls}"></div>
+            <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
+            <span class="alerta-texto">${a.texto}</span>
+            <span class="alerta-ts">${ts}</span>
+            <span class="alerta-btn ${btnCls}">${a.accion} →</span>
+        </a>`;
+    }
+    // Alerts without a specific record → navigate directly to the targeted page/form
+    return `<a href="${a.ruta_navegacion}" class="alerta-item">
+        <div class="alerta-dot ${dotCls}"></div>
+        <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
+        <span class="alerta-texto">${a.texto}</span>
+        <span class="alerta-ts">${ts}</span>
+        <span class="alerta-btn ${btnCls}">${a.accion} →</span>
+    </a>`;
+}
+
+function toggleAlertasExpanded() {
+    _alertasExpanded = !_alertasExpanded;
+    renderAlertas(_alertasData);
+}
+
 function renderAlertas(alertas) {
     const cont = document.getElementById('alertasContainer');
 
@@ -787,35 +821,33 @@ function renderAlertas(alertas) {
         return;
     }
 
-    const visibles = alertas.slice(0, MAX_ALERTAS);
+    const visibles = _alertasExpanded ? alertas : alertas.slice(0, MAX_ALERTAS);
     const ocultas  = alertas.length - MAX_ALERTAS;
 
-    const itemsHtml = visibles.map(a => {
-        const esRojo = a.color_semaforo === 'rojo';
-        const btnCls = esRojo ? 'alerta-btn-rojo' : 'alerta-btn-amarillo';
-        if (a.record_id && a.form_type) {
-            return `<a href="${a.ruta_navegacion}" class="alerta-item" onclick="openAlertRecord(${a.record_id},'${a.form_type}',event)">
-                <div class="alerta-dot ${esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo'}"></div>
-                <span style="font-size:.875rem;flex-shrink:0">${esRojo ? '🔴' : '🟡'}</span>
-                <span class="alerta-texto">${a.texto}</span>
-                <span class="alerta-ts">${_relTime(a.timestamp)}</span>
-                <span class="alerta-btn ${btnCls}">${a.accion} →</span>
-            </a>`;
-        }
-        return `<a href="${a.ruta_navegacion}" class="alerta-item">
-            <div class="alerta-dot ${esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo'}"></div>
-            <span style="font-size:.875rem;flex-shrink:0">${esRojo ? '🔴' : '🟡'}</span>
-            <span class="alerta-texto">${a.texto}</span>
-            <span class="alerta-ts">${_relTime(a.timestamp)}</span>
-            <span class="alerta-btn ${btnCls}">${a.accion} →</span>
-        </a>`;
-    }).join('');
+    const itemsHtml = visibles.map(_alertaItemHtml).join('');
 
-    const verMasHtml = ocultas > 0
-        ? `<div style="padding:.625rem 1rem;font-size:.8rem;color:#64748b;text-align:right">+${ocultas} alerta${ocultas!==1?'s':''} más</div>`
-        : '';
+    let footerHtml = '';
+    if (ocultas > 0 && !_alertasExpanded) {
+        footerHtml = `<button onclick="toggleAlertasExpanded()"
+            style="width:100%;padding:.625rem 1rem;font-size:.8rem;font-weight:600;
+                   color:#3b82f6;background:none;border:none;border-top:1px solid #f1f5f9;
+                   cursor:pointer;text-align:center;transition:background .15s;"
+            onmouseover="this.style.background='#eff6ff'"
+            onmouseout="this.style.background='none'">
+            Ver ${ocultas} alerta${ocultas !== 1 ? 's' : ''} más ↓
+        </button>`;
+    } else if (_alertasExpanded && alertas.length > MAX_ALERTAS) {
+        footerHtml = `<button onclick="toggleAlertasExpanded()"
+            style="width:100%;padding:.625rem 1rem;font-size:.8rem;font-weight:600;
+                   color:#64748b;background:none;border:none;border-top:1px solid #f1f5f9;
+                   cursor:pointer;text-align:center;transition:background .15s;"
+            onmouseover="this.style.background='#f8fafc'"
+            onmouseout="this.style.background='none'">
+            Ver menos ↑
+        </button>`;
+    }
 
-    cont.innerHTML = `<div class="alertas-list">${itemsHtml}${verMasHtml}</div>`;
+    cont.innerHTML = `<div class="alertas-list">${itemsHtml}${footerHtml}</div>`;
 }
 
 // ── Tendencia chart ───────────────────────────────────────────────────────────

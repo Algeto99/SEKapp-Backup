@@ -529,7 +529,7 @@
                 </div>
             </div>
             <div class="card">
-                <div class="card-title">Distribución General</div>
+                <div class="card-title">Estado de Indicadores por Módulo</div>
                 <div class="chart-wrap">
                     <canvas id="distributionChart" class="chart-canvas" style="height:300px!important;"></canvas>
                     <div class="loading-overlay active" id="distributionLoading"><div class="spinner"></div></div>
@@ -765,11 +765,11 @@
 
         function statusFromScore(score) {
             if (score === null || score === undefined || Number.isNaN(score)) {
-                return { label: 'Sin datos', tone: 'slate', color: colors.slate };
+                return { label: 'Sin Información', tone: 'slate', color: colors.slate };
             }
-            if (score >= 85) return { label: 'Saludable', tone: 'green', color: colors.green };
-            if (score >= 70) return { label: 'Seguimiento', tone: 'yellow', color: colors.yellow };
-            if (score >= 55) return { label: 'Alerta', tone: 'orange', color: colors.orange };
+            if (score >= 85) return { label: 'Operativo', tone: 'green', color: colors.green };
+            if (score >= 70) return { label: 'Requiere Seguimiento', tone: 'yellow', color: colors.yellow };
+            if (score >= 55) return { label: 'Atención Requerida', tone: 'orange', color: colors.orange };
             return { label: 'Crítico', tone: 'red', color: colors.red };
         }
 
@@ -1181,7 +1181,7 @@
                 const tone = avg5 < 3.0 || (pctRec !== null && pctRec < 30) ? 'red' : 'yellow';
                 return { tone, label: 'Alerta', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
             }
-            return { tone: 'yellow', label: 'Seguimiento', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
+            return { tone: 'yellow', label: 'Requiere Seguimiento', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
         }
 
         function alertIncidentes(results) {
@@ -1191,7 +1191,7 @@
             const totalAlto = results.incidentes?.kpi?.total_alto ?? 0;
             if (total === 0) return { tone: 'green', label: 'Sin incidentes', value: '0', meta: 'No se registran incidentes en el período' };
             if (pctAlto >= 25 || totalAlto > 0) return { tone: 'red', label: 'Crítico', value: total, meta: `${total} incidentes · ${totalAlto} de severidad alta (${pctAlto}%)` };
-            return { tone: 'yellow', label: 'Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
+            return { tone: 'yellow', label: 'Requiere Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
         }
 
         function renderKpis(cards, results) {
@@ -1570,7 +1570,7 @@
             distributionChart = new Chart(document.getElementById('distributionChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Saludable', 'Seguimiento', 'Alerta', 'Crítico', 'Sin datos'],
+                    labels: ['Operativo', 'Requiere Seguimiento', 'Atención Requerida', 'Crítico', 'Sin Información'],
                     datasets: [{
                         data: [distribution.green, distribution.yellow, distribution.orange, distribution.red, distribution.slate],
                         backgroundColor: [colors.green, colors.yellow, colors.orange, colors.red, colors.slate],
@@ -1580,7 +1580,25 @@
                 options: {
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom' },
+                        legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, boxWidth: 10 } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const descriptions = {
+                                        'Operativo': 'Score ≥ 85 — Indicadores dentro de parámetros normales',
+                                        'Requiere Seguimiento': 'Score 70–84 — Indicadores con desviaciones menores, monitorear',
+                                        'Atención Requerida': 'Score 55–69 — Indicadores fuera de objetivo, acción recomendada',
+                                        'Crítico': 'Score < 55 — Indicadores críticos, intervención inmediata',
+                                        'Sin Información': 'Sin datos suficientes para calcular el estado del módulo'
+                                    };
+                                    const label = ctx.label;
+                                    const count = ctx.parsed;
+                                    const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? Math.round(count / total * 100) : 0;
+                                    return [`${count} módulo${count !== 1 ? 's' : ''} (${pct}%)`, descriptions[label] || ''];
+                                }
+                            }
+                        },
                         datalabels: {
                             color: '#ffffff',
                             font: { weight: '700' },

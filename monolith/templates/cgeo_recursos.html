@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestión de Recursos y Confiabilidad — Kanan Sentinel</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -204,57 +206,8 @@ canvas{outline:none}
   .sidebar-overlay.active{display:block}
 }
 
-/* ── Print / PDF styles ── */
-@media print {
-    @page { size: A4 portrait; margin: 1.2cm 1.4cm; }
-
-    /* Hide navigation and controls */
-    .sidebar, .topbar, .tabs-row, .btn-pdf, .btn-apply, .refresh-btn,
-    .content-footer, .loading-overlay, #themeToggle { display: none !important; }
-
-    /* Full-width content, no sidebar offset */
-    body { background: #fff !important; color: #000 !important; margin: 0; padding: 0; display: block; }
-    .main { margin-left: 0 !important; width: 100% !important; display: block; }
-    .content { padding: 0 !important; }
-
-    /* Show print header */
-    #print-header { display: block !important; }
-
-    /* Prevent elements from splitting across pages */
-    .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
-    .alert-kpi, .alertas-cat-card, .kpi-grid, .charts-row, .charts-row-3,
-    .alert-kpi-grid, .alertas-cat, .tables-row { break-inside: avoid; }
-
-    /* Keep section headers with their content */
-    h2, h3, .chart-title, .table-title { break-after: avoid; }
-
-    /* Ensure grids render properly for print */
-    .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
-    .charts-row { grid-template-columns: 2fr 1fr 1fr !important; }
-    .charts-row { grid-template-columns: 1fr 1fr !important; }
-    .charts-row-3 { grid-template-columns: 1fr 1fr 1fr !important; }
-    .alert-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
-    .alertas-cat { grid-template-columns: repeat(3, 1fr) !important; }
-    .tables-row { grid-template-columns: 1fr !important; }
-
-    /* Chart boxes need fixed height for print */
-    .chart-box { height: 200px !important; }
-    canvas { max-width: 100% !important; outline: none; }
-
-    /* Light backgrounds for cards */
-    .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
-    .alert-kpi, .alertas-cat-card {
-        background: #fff !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: none !important;
-    }
-
-    /* Alert banners */
-    .alert-req { background: #fef2f2 !important; border: 1px solid #fecaca !important; }
-
-    /* Status banner */
-    #statusBanner { display: none !important; }
-}
+/* print-header is only used in the PDF export popup — keep it hidden on screen */
+#print-header { display: none; }
 /* Dark mode defaults */
 body:not(.light-mode){background:#0f172a;color:#e2e8f0}
 body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
@@ -937,77 +890,317 @@ async function loadFiltros() {
     } catch (e) { console.error('filtros error', e); }
 }
 
-function exportPDF() {
-    const tab = activeTab || 'ejecutivo';
-    const cliente = document.getElementById('filtCliente')?.value || 'Todos';
-    const start = document.getElementById('filtStart')?.value || '';
-    const end = document.getElementById('filtEnd')?.value || '';
+async function exportPDF() {
+    const tab       = activeTab || 'ejecutivo';
+    const clienteEl = document.getElementById('filtCliente');
+    const cliente   = clienteEl?.options[clienteEl.selectedIndex]?.text || 'Todos';
+    const start     = document.getElementById('filtStart')?.value || '';
+    const end       = document.getElementById('filtEnd')?.value   || '';
+    const isEjec    = tab === 'ejecutivo';
+    const dateStr   = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+    const periodo   = (start && end) ? `${start} — ${end}` : (start || end || 'Sin filtro de fechas');
+    const userName  = document.getElementById('print-usuario')?.textContent || '';
 
-    // Populate print header context
-    document.getElementById('print-cliente').textContent = cliente || 'Todos';
-    document.getElementById('print-periodo').textContent = (start && end) ? `${start} — ${end}` : (start || end || 'Sin filtro');
-    document.getElementById('print-fecha').textContent = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+    // Snapshot every live chart canvas → data URL before building the layout
+    const chartImages = {};
+    document.getElementById(`tab-${tab}`).querySelectorAll('canvas').forEach(c => {
+        chartImages[c.id] = c.toDataURL('image/png');
+    });
 
-    if (tab === 'ejecutivo') {
-        document.getElementById('print-report-type').textContent = 'INFORME EJECUTIVO';
-        document.getElementById('print-report-type').style.color = '#1d4ed8';
-        document.getElementById('print-report-subtitle').textContent = 'Resumen estratégico de indicadores, tendencias y estado general de la operación.';
-    } else {
-        document.getElementById('print-report-type').textContent = 'RESUMEN OPERATIVO';
-        document.getElementById('print-report-type').style.color = '#b45309';
-        document.getElementById('print-report-subtitle').textContent = 'Pendientes, alertas, vencimientos y elementos que requieren gestión.';
+    // Fetch logo as base64 so html2canvas doesn't hit CORS issues
+    let logoSrc = '';
+    try {
+        const r = await fetch('/static/logo_full.png');
+        const b = await r.blob();
+        logoSrc = await new Promise(res => { const fr = new FileReader(); fr.onload = e => res(e.target.result); fr.readAsDataURL(b); });
+    } catch (_) {}
+
+    // ── Build the off-screen render container ──────────────────────────────────
+    // A4 content at 96 DPI ≈ 794px wide; we use 760px to leave breathing room
+    const RENDER_W = 760;
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = `
+        position:absolute; left:-9999px; top:0;
+        width:${RENDER_W}px; background:#ffffff;
+        font-family:'Inter',system-ui,sans-serif; color:#1e293b !important;
+        font-size:12px; line-height:1.5; padding:32px 36px 40px;
+        box-sizing:border-box;`;
+
+    // ── Cover band ─────────────────────────────────────────────────────────────
+    wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                border-bottom:3px solid #1d4ed8;padding-bottom:18px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            ${logoSrc ? `<img src="${logoSrc}" style="height:52px;width:auto;" alt="Kanan Sentinel">` : ''}
+            <div>
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:2px;">KANAN SENTINEL — SEKAPP</div>
+                <div style="font-size:18px;font-weight:800;color:#0f172a;line-height:1.15;">GESTIÓN DE RECURSOS<br>Y CONFIABILIDAD</div>
+                <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-top:3px;letter-spacing:.5px;">
+                    ${isEjec ? 'INFORME EJECUTIVO' : 'RESUMEN OPERATIVO'}
+                </div>
+            </div>
+        </div>
+        <div style="text-align:right;font-size:10px;color:#475569;line-height:1.8;">
+            <div><span style="font-weight:600;color:#334155;">Cliente:</span> ${cliente}</div>
+            <div><span style="font-weight:600;color:#334155;">Período:</span> ${periodo}</div>
+            <div><span style="font-weight:600;color:#334155;">Generado:</span> ${dateStr}</div>
+            <div><span style="font-weight:600;color:#334155;">Usuario:</span> ${userName}</div>
+        </div>
+    </div>`;
+
+    // ── Clone active tab content, swap canvases for snapshots ─────────────────
+    const tabClone = document.getElementById(`tab-${tab}`).cloneNode(true);
+    tabClone.style.display = 'block';
+
+    // Remove interactive overflow wrappers (they clip tables in the clone)
+    tabClone.querySelectorAll('[style*="overflow:auto"], [style*="overflow: auto"]').forEach(el => {
+        el.style.overflow = 'visible';
+    });
+
+    // Strip inline grid-template-columns from .charts-row so scoped CSS wins
+    // (the first row has style="grid-template-columns:2fr 1fr 1fr" inline which beats class rules)
+    tabClone.querySelectorAll('.charts-row').forEach(row => {
+        row.style.gridTemplateColumns = '';
+    });
+
+    // Re-layout donut chart containers to stacked (chart above, legend below)
+    // so legends never overflow a narrow column in a 3-col grid
+    ['chartVeh', 'chartArmas', 'chartRadios', 'chartCum'].forEach(chartId => {
+        const img = tabClone.querySelector(`#${chartId}`);
+        if (!img) return;
+        const wrapper = img.closest('.chart-card');
+        if (!wrapper) return;
+        // The flex container that holds [donut-box, legend] side by side
+        const flexRow = img.closest('[style*="display:flex"][style*="align-items:center"]')
+                     || img.closest('[style*="display:flex"][style*="align-items: center"]');
+        if (flexRow) {
+            flexRow.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;';
+            // Remove fixed width/height on the donut box so the image scales naturally
+            const donutBox = img.parentElement;
+            if (donutBox && donutBox !== flexRow) {
+                donutBox.style.cssText = 'position:relative;width:130px;height:130px;flex-shrink:0;';
+            }
+            // Let the legend fill full width below the chart
+            const legend = flexRow.querySelector('[id$="Legend"], [id$="Legend"]');
+            if (legend) legend.style.cssText = 'width:100%;font-size:.7rem;display:flex;flex-direction:column;gap:4px;';
+        }
+        // Also handle column-direction containers (Radios/Armas)
+        const colFlex = img.closest('[style*="flex-direction:column"]');
+        if (colFlex) {
+            const donutBox = img.parentElement;
+            if (donutBox && donutBox !== colFlex) {
+                donutBox.style.cssText = 'position:relative;width:110px;height:110px;flex-shrink:0;';
+            }
+        }
+    });
+
+    // Swap every canvas for its pre-captured image
+    tabClone.querySelectorAll('canvas').forEach(c => {
+        if (chartImages[c.id]) {
+            const img = document.createElement('img');
+            img.src   = chartImages[c.id];
+            img.style.cssText = 'width:100%;height:auto;display:block;border-radius:4px;';
+            c.replaceWith(img);
+        }
+    });
+
+    wrap.appendChild(tabClone);
+    document.body.appendChild(wrap);
+
+    // ── Inject scoped PDF styles into the container ────────────────────────────
+    const style = document.createElement('style');
+    style.textContent = `
+        #pdfwrap * { box-sizing:border-box; }
+        /* Hard-reset all text to dark — prevents dark-mode vars from bleeding in */
+        #pdfwrap, #pdfwrap * { color:#1e293b !important; background-color:transparent; }
+        /* KPI grid */
+        .kpi-grid { display:grid !important; grid-template-columns:repeat(4,1fr) !important; gap:10px !important; margin-bottom:14px !important; }
+        .kpi-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+                    padding:12px 10px !important; display:flex !important; flex-direction:column !important;
+                    align-items:center !important; text-align:center !important; box-shadow:none !important; }
+        .kpi-val  { font-size:1.35rem !important; font-weight:800 !important; color:#0f172a !important; margin:4px 0 !important; }
+        .kpi-lbl  { font-size:.65rem !important; font-weight:600 !important; color:#64748b !important;
+                    text-transform:uppercase !important; letter-spacing:.5px !important; }
+        .kpi-subdetail { font-size:.65rem !important; color:#94a3b8 !important; margin-top:3px !important; }
+        .kpi-border-green  { border-top:3px solid #22c55e !important; }
+        .kpi-border-blue   { border-top:3px solid #3b82f6 !important; }
+        .kpi-border-orange { border-top:3px solid #f59e0b !important; }
+        .kpi-border-red    { border-top:3px solid #ef4444 !important; }
+        .kpi-border-purple { border-top:3px solid #8b5cf6 !important; }
+        /* Chart rows */
+        .charts-row   { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; }
+        .charts-row-3 { display:grid !important; grid-template-columns:1fr 1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
+        .chart-card, .table-card, .ranking-card, .acciones-card {
+            background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+            padding:12px !important; box-shadow:none !important; overflow:visible !important; }
+        .chart-title, .table-title { font-size:.78rem !important; font-weight:700 !important; color:#0f172a !important; margin-bottom:10px !important; }
+        /* Donut chart inner containers — stacked layout, no fixed heights */
+        .chart-card [style*="height:200px"],
+        .chart-card [style*="height: 200px"],
+        .chart-card [style*="height:240px"],
+        .chart-card [style*="height: 240px"] { height:auto !important; }
+        /* Semáforo — ensure all rows are visible, no clipping */
+        .semaforo-grid { display:flex !important; flex-direction:column !important; gap:6px !important; margin-top:8px !important; overflow:visible !important; }
+        /* Tables */
+        .tables-row { display:grid !important; grid-template-columns:1fr !important; gap:10px !important; margin-bottom:14px !important; }
+        .tbl { width:100% !important; border-collapse:collapse !important; }
+        .tbl th { font-size:.65rem !important; font-weight:700 !important; text-transform:uppercase !important;
+                  color:#64748b !important; border-bottom:2px solid #e2e8f0 !important; padding:6px 8px !important; text-align:left !important; }
+        .tbl td { padding:5px 8px !important; border-bottom:1px solid #f1f5f9 !important; color:#334155 !important; font-size:.7rem !important; }
+        /* Semaforo */
+        .semaforo-grid { display:grid !important; gap:8px !important; margin-top:8px !important; }
+        .sem-row { display:flex !important; align-items:center !important; justify-content:space-between !important;
+                   background:#f8fafc !important; border-radius:6px !important; padding:6px 10px !important; }
+        .sem-label { font-size:.72rem !important; color:#475569 !important; font-weight:500 !important; }
+        .sem-pill { font-size:.7rem !important; font-weight:700 !important; padding:2px 10px !important; border-radius:999px !important; }
+        .pill-verde    { background:#dcfce7 !important; color:#16a34a !important; }
+        .pill-amarillo { background:#fef9c3 !important; color:#ca8a04 !important; }
+        .pill-rojo     { background:#fee2e2 !important; color:#dc2626 !important; }
+        .pill-gris     { background:#f1f5f9 !important; color:#64748b !important; }
+        /* Alerts */
+        .alert-kpi-grid { display:grid !important; grid-template-columns:repeat(4,1fr) !important; gap:10px !important; margin-bottom:14px !important; }
+        .alert-kpi { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+                     padding:12px 10px !important; text-align:center !important; box-shadow:none !important; }
+        .alert-kpi-val { font-size:1.35rem !important; font-weight:800 !important; }
+        .alert-kpi-lbl { font-size:.65rem !important; color:#64748b !important; text-transform:uppercase !important; margin-top:3px !important; }
+        .alertas-cat   { display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:10px !important; margin-bottom:14px !important; }
+        .alertas-cat-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important; padding:12px !important; box-shadow:none !important; }
+        .alert-req { background:#fef2f2 !important; border:1px solid #fecaca !important; border-radius:8px !important;
+                     padding:12px !important; margin-bottom:14px !important; display:flex !important; align-items:flex-start !important; gap:10px !important; }
+        .alert-req-dot { width:8px !important; height:8px !important; background:#ef4444 !important; border-radius:50% !important; flex-shrink:0 !important; margin-top:4px !important; }
+        .alert-req-title { font-size:.8rem !important; font-weight:700 !important; color:#dc2626 !important; }
+        .alert-req-text  { font-size:.72rem !important; color:#ef4444 !important; margin-top:2px !important; }
+        /* Utility */
+        .color-red    { color:#dc2626 !important; }
+        .color-yellow { color:#d97706 !important; }
+        .color-orange { color:#ea580c !important; }
+        .badge-red  { background:#fef2f2 !important; color:#dc2626 !important; padding:2px 6px !important; border-radius:4px !important; font-size:.65rem !important; font-weight:600 !important; }
+        .badge-gray { background:#f1f5f9 !important; color:#64748b !important; padding:2px 6px !important; border-radius:4px !important; font-size:.65rem !important; }
+        .legend-lbl { color:#475569 !important; font-size:.7rem !important; }
+        .legend-val { color:#0f172a !important; font-weight:600 !important; font-size:.7rem !important; }
+        h2 { font-size:.85rem !important; font-weight:700 !important; color:#0f172a !important; margin-bottom:10px !important; }
+        /* Footer rule at bottom of page */
+        .content-footer { display:none !important; }
+        /* Hide status banner & tab controls */
+        .tabs-row, #statusBanner, .loading-overlay { display:none !important; }
+        /* Override ALL responsive breakpoints — grids must never collapse regardless of viewport */
+        .kpi-grid         { grid-template-columns:repeat(4,1fr) !important; }
+        .charts-row       { grid-template-columns:1fr 1fr !important; }
+        .charts-row-3     { grid-template-columns:1fr 1fr 1fr !important; }
+        .alert-kpi-grid   { grid-template-columns:repeat(4,1fr) !important; }
+        .alertas-cat      { grid-template-columns:repeat(3,1fr) !important; }
+        .tables-row       { grid-template-columns:1fr !important; }
+    `;
+    wrap.id = 'pdfwrap';
+    wrap.prepend(style);
+
+    // Wait for layout to settle after DOM manipulations
+    await new Promise(r => setTimeout(r, 150));
+
+    // ── Capture with html2canvas ───────────────────────────────────────────────
+    const btn = document.querySelector('.btn-pdf');
+    if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+
+    try {
+        const canvas = await html2canvas(wrap, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            width: wrap.offsetWidth,
+            windowWidth: 1440,
+        });
+
+        // ── Build PDF with jsPDF ───────────────────────────────────────────────
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const PAGE_W  = 210;    // A4 mm
+        const PAGE_H  = 297;
+        const MARGIN  = 10;     // mm
+        const CONTENT_W = PAGE_W - MARGIN * 2;
+
+        const imgW  = canvas.width;
+        const imgH  = canvas.height;
+        const ratio = CONTENT_W / (imgW / 2);   // /2 because scale:2
+        const totalH = (imgH / 2) * ratio;       // rendered height in mm
+
+        const pageContentH = PAGE_H - MARGIN * 2;
+        let   yOffset = 0;
+
+        while (yOffset < totalH) {
+            if (yOffset > 0) pdf.addPage();
+
+            // Slice the canvas for this page
+            const sliceH_mm   = Math.min(pageContentH, totalH - yOffset);
+            const sliceH_px   = Math.round((sliceH_mm / ratio) * 2);   // back to px at scale:2
+            const srcY_px     = Math.round((yOffset / ratio) * 2);
+
+            const slice = document.createElement('canvas');
+            slice.width  = imgW;
+            slice.height = sliceH_px;
+            slice.getContext('2d').drawImage(canvas, 0, srcY_px, imgW, sliceH_px, 0, 0, imgW, sliceH_px);
+
+            pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG',
+                MARGIN, MARGIN, CONTENT_W, sliceH_mm);
+
+            // Page number footer
+            pdf.setFontSize(8);
+            pdf.setTextColor(150);
+            const pageNum = pdf.internal.getCurrentPageInfo().pageNumber;
+            pdf.text(`Kanan Sentinel — Gestión de Recursos y Confiabilidad`, MARGIN, PAGE_H - 5);
+            pdf.text(`${pageNum}`, PAGE_W - MARGIN, PAGE_H - 5, { align: 'right' });
+
+            yOffset += pageContentH;
+        }
+
+        // Generate filename
+        const today  = new Date().toISOString().slice(0, 10);
+        const prefix = isEjec ? 'Informe_Ejecutivo' : 'Resumen_Operativo';
+        const safe   = cliente.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
+        pdf.save(`${prefix}_${safe}_${today}.pdf`);
+
+    } finally {
+        document.body.removeChild(wrap);
+        if (btn) { btn.disabled = false; btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Exportar PDF`; }
     }
-
-    window.print();
 }
 
 // ── QR Modal ──────────────────────────────────────────────────────────────────
-async function openQRModal() {
-    const clienteVal = document.getElementById('filtCliente')?.value || '';
-    const start      = document.getElementById('filtStart')?.value || '';
-    const end        = document.getElementById('filtEnd')?.value || '';
+function openQRModal() {
+    const clienteEl = document.getElementById('filtCliente');
+    const clienteVal = clienteEl?.value || '';
+    const clienteNombre = clienteEl?.options[clienteEl.selectedIndex]?.text || '';
+    const start  = document.getElementById('filtStart')?.value || '';
+    const end    = document.getElementById('filtEnd')?.value   || '';
+    const tab    = activeTab || 'ejecutivo';
 
-    let url;
-    let isPublic = false;
+    // Build deep-link URL to this exact report with all active filters
+    const params = new URLSearchParams();
+    params.set('tab', tab);
+    if (clienteVal) params.set('cliente', clienteVal);
+    if (start)      params.set('start_date', start);
+    if (end)        params.set('end_date', end);
+    const url = window.location.origin + '/cgeo/recursos/?' + params.toString();
 
-    if (clienteVal) {
-        // Specific client → get a public signed URL (no login required to view)
-        try {
-            const qs  = new URLSearchParams({ cliente: clienteVal, days: 30 });
-            const res = await fetch('/expediente/api/qr-expediente-url?' + qs.toString(), { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                url = data.url;
-                isPublic = true;
-            }
-        } catch (_) {}
-    }
+    // Human-readable description of what the QR points to
+    const tabLabel   = tab === 'ejecutivo' ? 'Informe Ejecutivo' : 'Resumen Operativo';
+    const clienteStr = clienteNombre && clienteNombre !== 'Todos los clientes' ? ` — ${clienteNombre}` : '';
+    const periodoStr = (start && end) ? `${start} al ${end}` : (start || end || 'período actual');
 
-    if (!url) {
-        // Todos or fallback: current page URL with active filters (requires login)
-        const params = new URLSearchParams();
-        if (clienteVal) params.set('cliente', clienteVal);
-        if (start)      params.set('start_date', start);
-        if (end)        params.set('end_date', end);
-        url = window.location.origin + '/cgeo/recursos/' + (params.toString() ? '?' + params.toString() : '');
-    }
-
-    // Remove stale modal so it re-renders with new URL
     document.getElementById('qrModal')?.remove();
-
     const modal = document.createElement('div');
     modal.id = 'qrModal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
-    const badge = isPublic
-        ? '<div style="display:inline-block;font-size:.72rem;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.75rem">🌐 Vista pública — no requiere acceso</div>'
-        : '<div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.75rem">🔒 Requiere sesión activa</div>';
     modal.innerHTML = `
-        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:380px;width:90%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
-            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR</div>
-            <div style="font-size:.8rem;color:#64748b;margin-bottom:.75rem">Recursos y Confiabilidad${clienteVal ? ' — ' + clienteVal : ''}</div>
-            ${badge}
+        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
+            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR — Acceso Directo</div>
+            <div style="font-size:.82rem;font-weight:600;color:#1d4ed8;margin-bottom:.2rem">Recursos y Confiabilidad${clienteStr}</div>
+            <div style="font-size:.75rem;color:#64748b;margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
+            <div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.875rem">🔒 Requiere sesión activa</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
-            <div style="font-size:.75rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem" id="qrUrlLabel"></div>
+            <div style="font-size:.7rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
             <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
         </div>`;
     document.body.appendChild(modal);
@@ -1038,6 +1231,7 @@ function setDefaultDates() {
     const urlCliente = urlParams.get('cliente');
     const urlStart   = urlParams.get('start_date');
     const urlEnd     = urlParams.get('end_date');
+    const urlTab     = urlParams.get('tab');
 
     if (urlStart || urlEnd) {
         if (urlStart) document.getElementById('filtStart').value = urlStart;
@@ -1060,6 +1254,8 @@ function setDefaultDates() {
             sel.value = urlCliente;
         }
     }
+
+    if (urlTab === 'operativo') switchTab('operativo');
 
     await loadData();
 })();

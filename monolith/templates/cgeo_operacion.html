@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Operación e Incidentes — Kanan Sentinel</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -93,7 +95,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .color-yellow{color:#d97706}
 .color-blue{color:#2563eb}
 
-.pend-cat{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.875rem;margin-bottom:1.25rem}
+.pend-cat{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:.875rem;margin-bottom:1.25rem}
 .pend-cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:.875rem;text-align:center}
 .pend-cat-icon{font-size:1.75rem;display:block;margin-bottom:.375rem}
 .pend-cat-val{font-size:1.75rem;font-weight:800;font-family:'Merriweather',serif;line-height:1}
@@ -271,54 +273,8 @@ canvas{outline:none}
   .content{padding:.75rem}
 }
 
-/* ── Print / PDF styles ── */
-@media print {
-    @page { size: A4 portrait; margin: 1.2cm 1.4cm; }
-
-    /* Hide navigation and controls */
-    .sidebar, .topbar, .tabs-row, .filter-bar, .btn-pdf, .btn-apply, .refresh-btn,
-    .content-footer, .loading-overlay, #themeToggle { display: none !important; }
-
-    /* Full-width content, no sidebar offset */
-    body { background: #fff !important; color: #000 !important; margin: 0; padding: 0; display: block; }
-    .main { margin-left: 0 !important; width: 100% !important; display: block; }
-    .content { padding: 0 !important; overflow: visible !important; }
-
-    /* Show print header */
-    #print-header { display: block !important; }
-
-    /* Prevent elements from splitting across pages */
-    .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
-    .alert-kpi, .pend-cat-card, .kpi-grid, .charts-row, .charts-row-3,
-    .alert-kpi-grid, .pend-cat, .tables-row { break-inside: avoid; }
-
-    /* Keep section headers with their content */
-    h2, h3, .chart-title, .table-title { break-after: avoid; }
-
-    /* Ensure grids render properly for print */
-    .kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
-    .charts-row { grid-template-columns: 1fr 1fr !important; }
-    .charts-row-3 { grid-template-columns: 1fr 1fr 1fr !important; }
-    .alert-kpi-grid { grid-template-columns: repeat(4, 1fr) !important; }
-    .pend-cat { grid-template-columns: repeat(4, 1fr) !important; }
-    .tables-row { grid-template-columns: 1fr !important; }
-
-    /* Chart boxes need fixed height for print */
-    .chart-box { height: 200px !important; }
-    canvas { max-width: 100% !important; }
-
-    /* Light backgrounds for cards */
-    .kpi-card, .chart-card, .table-card, .ranking-card, .acciones-card,
-    .alert-kpi, .pend-cat-card {
-        background: #fff !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: none !important;
-    }
-
-    /* Alert banners */
-    .alert-req { background: #fef2f2 !important; border: 1px solid #fecaca !important; }
-    #statusBanner { display: none !important; }
-}
+/* print-header only used in the PDF export popup — keep hidden on screen */
+#print-header { display: none; }
 /* Dark mode defaults */
 body:not(.light-mode){background:#0f172a;color:#e2e8f0}
 body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
@@ -617,52 +573,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 </div>
             </div>
 
-            <div class="alert-kpi-grid" style="grid-template-columns:repeat(7,minmax(0,1fr))">
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">⚠️</span>
-                    <div class="alert-kpi-val color-red" id="opIncCrit">—</div>
-                    <div class="alert-kpi-lbl">Incidentes Críticos</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Abiertos</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">👁️</span>
-                    <div class="alert-kpi-val color-red" id="opSupCrit">—</div>
-                    <div class="alert-kpi-lbl">Supervisiones Críticas</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren atención</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">🏢</span>
-                    <div class="alert-kpi-val color-orange" id="opVisPend">—</div>
-                    <div class="alert-kpi-lbl">Visitas Pendientes</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Sin cerrar</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">📅</span>
-                    <div class="alert-kpi-val color-red" id="opCompVenc">—</div>
-                    <div class="alert-kpi-lbl">Compromisos Vencidos</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Con retraso</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">😞</span>
-                    <div class="alert-kpi-val color-yellow" id="opCliInsat">—</div>
-                    <div class="alert-kpi-lbl">Clientes Insatisfechos</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren seguimiento</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">📝</span>
-                    <div class="alert-kpi-val color-orange" id="opDisc">—</div>
-                    <div class="alert-kpi-lbl">Reportes Disciplinarios</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Abiertos</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">📊</span>
-                    <div class="alert-kpi-val" style="color:#2563eb" id="opTotal">—</div>
-                    <div class="alert-kpi-lbl">Total por Gestionar</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Elementos pendientes</div>
-                </div>
-            </div>
-
-            <!-- Pendientes por categoría -->
+            <!-- Indicadores por categoría -->
             <div class="pend-cat" id="pendCat">
                 <!-- filled by JS -->
             </div>
@@ -734,27 +645,318 @@ let charts = {};
 // Re-render all charts when the user toggles dark/light mode so center text colors update
 window.addEventListener('themechange', () => { Object.values(charts).forEach(c => c && c.update('none')); });
 
-function exportPDF() {
-    const tab = document.getElementById('tabBtnEjec')?.classList.contains('active') ? 'ejecutivo' : 'operativo';
-    const cliente = document.getElementById('filtCliente')?.value || 'Todos';
-    const start = document.getElementById('filtStart')?.value || '';
-    const end = document.getElementById('filtEnd')?.value || '';
+async function exportPDF() {
+    const tab       = document.getElementById('tabBtnEjec')?.classList.contains('active') ? 'ejecutivo' : 'operativo';
+    const clienteEl = document.getElementById('filtCliente');
+    const cliente   = clienteEl?.options[clienteEl.selectedIndex]?.text || 'Todos';
+    const start     = document.getElementById('filtStart')?.value || '';
+    const end       = document.getElementById('filtEnd')?.value   || '';
+    const isEjec    = tab === 'ejecutivo';
+    const dateStr   = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+    const periodo   = (start && end) ? `${start} — ${end}` : (start || end || 'Sin filtro de fechas');
+    const userName  = document.getElementById('print-usuario')?.textContent || '';
 
-    document.getElementById('print-cliente').textContent = cliente || 'Todos';
-    document.getElementById('print-periodo').textContent = (start && end) ? `${start} — ${end}` : (start || end || 'Sin filtro');
-    document.getElementById('print-fecha').textContent = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+    // Snapshot every live canvas in the active tab before touching the DOM
+    const chartImages = {};
+    document.getElementById(`tab-${tab}`).querySelectorAll('canvas').forEach(c => {
+        chartImages[c.id] = c.toDataURL('image/png');
+    });
 
-    if (tab === 'ejecutivo') {
-        document.getElementById('print-report-type').textContent = 'INFORME EJECUTIVO';
-        document.getElementById('print-report-type').style.color = '#1d4ed8';
-        document.getElementById('print-report-subtitle').textContent = 'Resumen estratégico de indicadores, tendencias y estado general de la operación.';
-    } else {
-        document.getElementById('print-report-type').textContent = 'RESUMEN OPERATIVO';
-        document.getElementById('print-report-type').style.color = '#b45309';
-        document.getElementById('print-report-subtitle').textContent = 'Pendientes, alertas, vencimientos y elementos que requieren gestión.';
+    // Fetch logo as base64 for reliable rendering in html2canvas
+    let logoSrc = '';
+    try {
+        const r = await fetch('/static/logo_full.png');
+        const b = await r.blob();
+        logoSrc = await new Promise(res => { const fr = new FileReader(); fr.onload = e => res(e.target.result); fr.readAsDataURL(b); });
+    } catch (_) {}
+
+    const RENDER_W = 760;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'pdfwrap';
+    wrap.style.cssText = `
+        position:absolute; left:-9999px; top:0;
+        width:${RENDER_W}px; background:#ffffff;
+        font-family:'Inter',system-ui,sans-serif; color:#1e293b;
+        font-size:12px; line-height:1.5; padding:32px 36px 40px;
+        box-sizing:border-box;`;
+
+    // ── Elegant cover band ─────────────────────────────────────────────────────
+    const reportTypeLabel = isEjec ? 'INFORME EJECUTIVO' : 'RESUMEN OPERATIVO';
+    const reportTypeColor = isEjec ? '#1d4ed8' : '#b45309';
+    const borderColor     = isEjec ? '#1d4ed8' : '#f59e0b';
+
+    wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                border-bottom:3px solid ${borderColor};padding-bottom:18px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+            ${logoSrc ? `<img src="${logoSrc}" style="height:52px;width:auto;" alt="Kanan Sentinel">` : ''}
+            <div>
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#64748b;margin-bottom:2px;">KANAN SENTINEL — SEKAPP</div>
+                <div style="font-size:17px;font-weight:800;color:#0f172a;line-height:1.2;">GESTIÓN DE OPERACIÓN<br>Y NOVEDADES</div>
+                <div style="font-size:11px;font-weight:700;color:${reportTypeColor};margin-top:4px;letter-spacing:.5px;">${reportTypeLabel}</div>
+            </div>
+        </div>
+        <div style="text-align:right;font-size:10px;color:#475569;line-height:1.9;">
+            <div><span style="font-weight:600;color:#334155;">Cliente:</span> ${cliente}</div>
+            <div><span style="font-weight:600;color:#334155;">Período:</span> ${periodo}</div>
+            <div><span style="font-weight:600;color:#334155;">Generado:</span> ${dateStr}</div>
+            <div><span style="font-weight:600;color:#334155;">Usuario:</span> ${userName}</div>
+        </div>
+    </div>`;
+
+    // ── Operativo: force-expand alerts so ALL records render, not just ALERTAS_VISIBLES_MAX ──
+    let prevAlertasVerTodas = false;
+    if (!isEjec && typeof _alertasData !== 'undefined' && _alertasData.length) {
+        prevAlertasVerTodas = _alertasVerTodas;
+        _alertasVerTodas = true;
+        renderAlertasList(_alertasData);
     }
 
-    window.print();
+    // ── Clone active tab, exclude elements that don't belong in the PDF ────────
+    const tabClone = document.getElementById(`tab-${tab}`).cloneNode(true);
+    tabClone.style.display = 'block';
+
+    // Restore alertas state immediately after cloning
+    if (!isEjec && typeof _alertasData !== 'undefined' && _alertasData.length) {
+        _alertasVerTodas = prevAlertasVerTodas;
+        renderAlertasList(_alertasData);
+    }
+
+    // Ejecutivo: remove the Alertas Accionables panel (tactical, not strategic)
+    if (isEjec) {
+        const alertasPanel = tabClone.querySelector('#alertasPanel');
+        if (alertasPanel) alertasPanel.remove();
+    }
+
+    // Operativo: remove the "Ver más / Ver menos" button — not needed in PDF
+    if (!isEjec) {
+        const verMasEl = tabClone.querySelector('#alertasVerMas');
+        if (verMasEl) verMasEl.remove();
+        // Ensure the alertas body is visible (panel might be collapsed)
+        const alertasBody = tabClone.querySelector('#alertasBody');
+        if (alertasBody) alertasBody.style.display = 'block';
+    }
+
+    // Strip inline grid-template-columns from ALL .charts-row elements
+    // (e.g. "minmax(0,400px) 1fr" on ejecutivo row 3 breaks the 1fr 1fr layout)
+    tabClone.querySelectorAll('.charts-row, .charts-row-3').forEach(row => {
+        row.style.gridTemplateColumns = '';
+    });
+
+    // Re-layout donut containers from side-by-side to stacked (chart above, legend below)
+    // so legends don't overflow a narrow PDF column
+    ['chartIncSev', 'chartSupDonut'].forEach(chartId => {
+        const canvas = tabClone.querySelector(`#${chartId}`);
+        if (!canvas) return;
+        // Find the flex container holding [donut-box, legend] side by side
+        const flexRow = canvas.closest('[style*="display:flex"]');
+        if (flexRow) {
+            flexRow.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;';
+            // Relax the fixed donut box so the image scales naturally
+            const donutBox = canvas.parentElement;
+            if (donutBox && donutBox !== flexRow) {
+                donutBox.style.cssText = 'position:relative;width:130px;height:130px;flex-shrink:0;';
+            }
+            // Let the legend fill full width below the chart
+            const legend = flexRow.querySelector('[id$="Legend"], .donut-legend');
+            if (legend) legend.style.cssText = 'width:100%;font-size:.7rem;display:flex;flex-direction:column;gap:4px;flex:unset;min-width:unset;';
+        }
+    });
+
+    // Remove overflow wrappers that clip table content
+    tabClone.querySelectorAll('[style*="overflow"]').forEach(el => {
+        el.style.overflow = 'visible';
+        el.style.overflowX = 'visible';
+    });
+
+    // Swap every canvas for its pre-captured snapshot image
+    tabClone.querySelectorAll('canvas').forEach(c => {
+        if (chartImages[c.id]) {
+            const img = document.createElement('img');
+            img.src = chartImages[c.id];
+            img.style.cssText = 'width:100%;height:auto;display:block;border-radius:4px;';
+            c.replaceWith(img);
+        }
+    });
+
+    wrap.appendChild(tabClone);
+
+    // ── Scoped PDF styles ──────────────────────────────────────────────────────
+    const style = document.createElement('style');
+    style.textContent = `
+        #pdfwrap * { box-sizing:border-box; }
+        #pdfwrap, #pdfwrap * { color:#1e293b !important; background-color:transparent; }
+        /* KPI grid — 5 cols for ejecutivo */
+        .kpi-grid { display:grid !important; grid-template-columns:repeat(5,1fr) !important; gap:10px !important; margin-bottom:14px !important; }
+        .kpi-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+                    padding:12px 8px !important; display:flex !important; flex-direction:column !important;
+                    align-items:center !important; text-align:center !important; box-shadow:none !important; }
+        .kpi-val  { font-size:1.4rem !important; font-weight:800 !important; color:#0f172a !important; margin:4px 0 !important; font-family:'Merriweather',serif !important; }
+        .kpi-lbl  { font-size:.62rem !important; font-weight:600 !important; color:#64748b !important;
+                    text-transform:uppercase !important; letter-spacing:.4px !important; }
+        .kpi-icon { font-size:1.4rem !important; }
+        .kpi-sub  { font-size:.65rem !important; margin-top:3px !important; font-weight:600 !important; }
+        .kpi-border-green  { border-top:3px solid #22c55e !important; }
+        .kpi-border-blue   { border-top:3px solid #3b82f6 !important; }
+        .kpi-border-orange { border-top:3px solid #f59e0b !important; }
+        .kpi-border-red    { border-top:3px solid #ef4444 !important; }
+        .kpi-border-indigo { border-top:3px solid #6366f1 !important; }
+        /* Chart rows */
+        .charts-row   { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
+        .charts-row-3 { display:grid !important; grid-template-columns:1fr 1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
+        .chart-card, .table-card, .ranking-card, .acciones-card {
+            background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+            padding:12px !important; box-shadow:none !important; overflow:visible !important; }
+        /* Remove fixed heights so cards size to their content */
+        .chart-box { min-height:unset !important; height:auto !important; }
+        .chart-card [style*="min-height:180px"], .chart-card [style*="min-height: 180px"],
+        .chart-card [style*="height:180px"],     .chart-card [style*="height: 180px"],
+        .chart-card [style*="height:200px"],     .chart-card [style*="height: 200px"] { height:auto !important; min-height:unset !important; }
+        .chart-title, .table-title { font-size:.8rem !important; font-weight:700 !important; color:#0f172a !important; margin-bottom:10px !important; }
+        /* Indicadores por categoría */
+        .pend-cat { display:grid !important; grid-template-columns:repeat(8,1fr) !important; gap:8px !important; margin-bottom:14px !important; }
+        .pend-cat-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+                         padding:10px 6px !important; text-align:center !important; box-shadow:none !important; }
+        .pend-cat-icon { font-size:1.2rem !important; display:block !important; margin-bottom:3px !important; }
+        .pend-cat-val  { font-size:1.3rem !important; font-weight:800 !important; font-family:'Merriweather',serif !important; line-height:1 !important; }
+        .pend-cat-lbl  { font-size:.6rem !important; color:#64748b !important; margin-top:3px !important; }
+        .pend-cat-sub  { font-size:.58rem !important; color:#94a3b8 !important; margin-top:2px !important; }
+        /* Tables — full width stacked */
+        .tables-row { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; }
+        .tbl-wrap { overflow:visible !important; }
+        .tbl { width:100% !important; border-collapse:collapse !important; }
+        .tbl th { font-size:.62rem !important; font-weight:700 !important; text-transform:uppercase !important;
+                  color:#64748b !important; border-bottom:2px solid #e2e8f0 !important; padding:5px 6px !important;
+                  text-align:left !important; white-space:normal !important; }
+        .tbl td { padding:4px 6px !important; border-bottom:1px solid #f1f5f9 !important; color:#334155 !important; font-size:.68rem !important; vertical-align:middle !important; }
+        /* Acciones */
+        .acciones-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important; padding:12px !important; box-shadow:none !important; }
+        .acciones-title { font-size:.8rem !important; font-weight:700 !important; color:#f97316 !important; margin-bottom:8px !important; }
+        /* Alert banner */
+        .alert-req { background:#fef2f2 !important; border:1px solid #fecaca !important; border-radius:8px !important;
+                     padding:12px !important; margin-bottom:14px !important; display:flex !important; gap:10px !important; }
+        .alert-req-dot { width:8px !important; height:8px !important; background:#ef4444 !important; border-radius:50% !important; flex-shrink:0 !important; margin-top:4px !important; }
+        .alert-req-title { font-size:.8rem !important; font-weight:700 !important; color:#dc2626 !important; }
+        .alert-req-text  { font-size:.72rem !important; color:#ef4444 !important; margin-top:2px !important; }
+        /* Ranking */
+        .ranking-row { display:flex !important; align-items:center !important; gap:8px !important; padding:5px 0 !important;
+                       border-bottom:1px solid #f1f5f9 !important; font-size:.75rem !important; }
+        .donut-legend { font-size:.72rem !important; display:flex !important; flex-direction:column !important; gap:5px !important; }
+        /* Novedades */
+        .novedades-list { font-size:.75rem !important; }
+        /* Badges */
+        .badge { display:inline-block !important; padding:1px 5px !important; border-radius:4px !important; font-size:.62rem !important; font-weight:600 !important; }
+        .badge-red    { background:#fef2f2 !important; color:#dc2626 !important; }
+        .badge-orange { background:#fff7ed !important; color:#c2410c !important; }
+        .badge-yellow { background:#fefce8 !important; color:#a16207 !important; }
+        .badge-green  { background:#f0fdf4 !important; color:#16a34a !important; }
+        .badge-gray   { background:#f1f5f9 !important; color:#64748b !important; }
+        /* Utility colors */
+        .color-red    { color:#dc2626 !important; }
+        .color-yellow { color:#d97706 !important; }
+        .color-orange { color:#ea580c !important; }
+        /* Alertas panel */
+        .alertas-panel { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+                         margin-bottom:14px !important; overflow:visible !important; box-shadow:none !important; }
+        .alertas-header { display:flex !important; align-items:center !important; justify-content:space-between !important;
+                          padding:10px 14px !important; border-bottom:1px solid #f1f5f9 !important; cursor:default !important; }
+        .alertas-title  { font-size:.82rem !important; font-weight:700 !important; color:#0f172a !important; }
+        .alertas-body   { padding:0 14px !important; display:block !important; }
+        .alertas-toggle-icon, .alertas-toggle-icon.open { display:none !important; }
+        .alerta-item { display:flex !important; align-items:flex-start !important; gap:8px !important;
+                       padding:7px 0 !important; border-bottom:1px solid #f8fafc !important; }
+        .alerta-item:last-child { border-bottom:none !important; }
+        .alerta-dot { width:8px !important; height:8px !important; border-radius:50% !important; flex-shrink:0 !important; margin-top:4px !important; }
+        .alerta-dot-rojo    { background:#ef4444 !important; }
+        .alerta-dot-amarillo{ background:#f59e0b !important; }
+        .alerta-texto { flex:1 !important; font-size:.72rem !important; color:#334155 !important; font-weight:500 !important; line-height:1.4 !important; }
+        .alerta-ts  { font-size:.65rem !important; color:#94a3b8 !important; white-space:nowrap !important; flex-shrink:0 !important; }
+        .alerta-btn { flex-shrink:0 !important; padding:2px 7px !important; font-size:.65rem !important; font-weight:600 !important;
+                      border-radius:4px !important; border:none !important; white-space:nowrap !important; text-decoration:none !important; display:inline-block !important; }
+        .alerta-btn-rojo    { background:#fef2f2 !important; color:#b91c1c !important; border:1px solid #fecaca !important; }
+        .alerta-btn-amarillo{ background:#fffbeb !important; color:#92400e !important; border:1px solid #fde68a !important; }
+        .badge-count-rojo   { background:#fef2f2 !important; color:#b91c1c !important; border:1px solid #fecaca !important;
+                              font-size:.65rem !important; font-weight:700 !important; padding:1px 6px !important; border-radius:999px !important; }
+        .badge-count-amarillo{ background:#fffbeb !important; color:#92400e !important; border:1px solid #fde68a !important;
+                               font-size:.65rem !important; font-weight:700 !important; padding:1px 6px !important; border-radius:999px !important; }
+        .alertas-ver-mas { display:none !important; }
+        /* Status banner & tab controls hidden */
+        .tabs-row, #statusBanner, .content-footer, .loading-overlay { display:none !important; }
+        h2 { font-size:.85rem !important; font-weight:700 !important; color:#0f172a !important; margin-bottom:8px !important; }
+        /* Override ALL responsive breakpoints — grids must never collapse regardless of viewport */
+        .kpi-grid         { grid-template-columns:repeat(5,1fr) !important; }
+        .charts-row       { grid-template-columns:1fr 1fr !important; }
+        .charts-row-3     { grid-template-columns:1fr 1fr 1fr !important; }
+        .pend-cat         { grid-template-columns:repeat(8,1fr) !important; }
+        .tables-row       { grid-template-columns:1fr 1fr !important; }
+    `;
+    wrap.prepend(style);
+
+    document.body.appendChild(wrap);
+    // Wait for layout to settle after DOM manipulations
+    await new Promise(r => setTimeout(r, 150));
+
+    const btn = document.querySelector('.btn-pdf');
+    if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
+
+    try {
+        const canvas = await html2canvas(wrap, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+            width: wrap.offsetWidth,
+            windowWidth: 1440,
+        });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+        const PAGE_W       = 210;
+        const PAGE_H       = 297;
+        const MARGIN       = 10;
+        const CONTENT_W    = PAGE_W - MARGIN * 2;
+        const pageContentH = PAGE_H - MARGIN * 2;
+
+        const imgW    = canvas.width;
+        const imgH    = canvas.height;
+        const ratio   = CONTENT_W / (imgW / 2);
+        const totalH  = (imgH / 2) * ratio;
+
+        let yOffset = 0;
+        while (yOffset < totalH) {
+            if (yOffset > 0) pdf.addPage();
+
+            const sliceH_mm = Math.min(pageContentH, totalH - yOffset);
+            const sliceH_px = Math.round((sliceH_mm / ratio) * 2);
+            const srcY_px   = Math.round((yOffset / ratio) * 2);
+
+            const slice = document.createElement('canvas');
+            slice.width  = imgW;
+            slice.height = sliceH_px;
+            slice.getContext('2d').drawImage(canvas, 0, srcY_px, imgW, sliceH_px, 0, 0, imgW, sliceH_px);
+
+            pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', MARGIN, MARGIN, CONTENT_W, sliceH_mm);
+
+            pdf.setFontSize(8);
+            pdf.setTextColor(150);
+            const pageNum = pdf.internal.getCurrentPageInfo().pageNumber;
+            pdf.text('Kanan Sentinel — Gestión de Operación y Novedades', MARGIN, PAGE_H - 5);
+            pdf.text(`${pageNum}`, PAGE_W - MARGIN, PAGE_H - 5, { align: 'right' });
+
+            yOffset += pageContentH;
+        }
+
+        const today  = new Date().toISOString().slice(0, 10);
+        const prefix = isEjec ? 'Informe_Ejecutivo_Operacion' : 'Resumen_Operativo_Operacion';
+        const safe   = cliente.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');
+        pdf.save(`${prefix}_${safe}_${today}.pdf`);
+
+    } finally {
+        document.body.removeChild(wrap);
+        if (btn) { btn.disabled = false; btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Exportar PDF`; }
+    }
 }
 
 function switchTab(tab) {
@@ -820,10 +1022,10 @@ function buildMultiLine(id, labels, datasets) {
         data: { labels, datasets },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12, usePointStyle: true } } },
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 13 }, padding: 16, usePointStyle: true, boxWidth: 10 } } },
             scales: {
-                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#64748b' } },
-                x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#64748b' } }
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 12 }, color: '#475569' } },
+                x: { grid: { display: false }, ticks: { font: { size: 12 }, color: '#475569', maxRotation: 0 } }
             }
         }
     });
@@ -981,23 +1183,17 @@ function renderData(d) {
 
     document.getElementById('alertBannerText').textContent =
         `Existen ${totalPend} elementos que requieren gestión inmediata.`;
-    document.getElementById('opIncCrit').textContent = inc_d.criticos_abiertos ?? '—';
-    document.getElementById('opSupCrit').textContent = supCrit;
-    document.getElementById('opVisPend').textContent = visPend;
-    document.getElementById('opCompVenc').textContent = compVenc;
-    document.getElementById('opCliInsat').textContent = d.satisfaccion.insatisfechos ?? '—';
-    document.getElementById('opDisc').textContent = discTotal;
-    document.getElementById('opTotal').textContent = totalPend;
 
-    // Pendientes por categoría — 7 action-oriented items, no duplicates
+    // Indicadores por categoría — fila única con 8 ítems
     const pendItems = [
-        { icon: '⚠️', label: 'Incidentes Críticos',       val: inc_d.criticos_abiertos || 0, sub: 'Abiertos',            color: '#ef4444' },
-        { icon: '👁️', label: 'Supervisiones Críticas',    val: supCrit,                       sub: 'Requieren atención',   color: '#ef4444' },
-        { icon: '🏢', label: 'Visitas Pendientes',         val: visPend,                       sub: 'Sin cerrar',           color: '#f97316' },
-        { icon: '📅', label: 'Compromisos Vencidos',       val: compVenc,                      sub: 'Con retraso',          color: '#ef4444' },
-        { icon: '😞', label: 'Clientes Insatisfechos',     val: d.satisfaccion.insatisfechos || 0, sub: 'Seguimiento',     color: '#d97706' },
-        { icon: '📝', label: 'Reportes Disciplinarios',    val: discTotal,                     sub: 'Abiertos',             color: '#6366f1' },
-        { icon: '🎓', label: 'Cap. Pendientes',            val: d.capacitaciones.total === 0 ? 1 : 0, sub: 'Sin programar', color: '#94a3b8' },
+        { icon: '⚠️', label: 'Incidentes Críticos',       val: inc_d.criticos_abiertos || 0,       sub: 'Abiertos',            color: '#ef4444' },
+        { icon: '👁️', label: 'Supervisiones Críticas',    val: supCrit,                             sub: 'Requieren atención',   color: '#ef4444' },
+        { icon: '🏢', label: 'Visitas Pendientes',         val: visPend,                             sub: 'Sin cerrar',           color: '#f97316' },
+        { icon: '📅', label: 'Compromisos Vencidos',       val: compVenc,                            sub: 'Con retraso',          color: '#ef4444' },
+        { icon: '😞', label: 'Clientes Insatisfechos',     val: d.satisfaccion.insatisfechos || 0,   sub: 'Requieren seguimiento', color: '#d97706' },
+        { icon: '📝', label: 'Reportes Disciplinarios',    val: discTotal,                           sub: 'Abiertos',             color: '#6366f1' },
+        { icon: '🎓', label: 'Cap. Pendientes',            val: d.capacitaciones.total === 0 ? 1 : 0, sub: 'Sin programar',      color: '#94a3b8' },
+        { icon: '📊', label: 'Total por Gestionar',        val: totalPend,                           sub: 'Elementos pendientes', color: '#2563eb' },
     ];
     document.getElementById('pendCat').innerHTML = pendItems.map(p => `
         <div class="pend-cat-card">
@@ -1109,6 +1305,7 @@ function setDefaultDates() {
     const urlCliente = urlParams.get('cliente');
     const urlStart   = urlParams.get('start_date');
     const urlEnd     = urlParams.get('end_date');
+    const urlTab     = urlParams.get('tab');
 
     if (urlStart || urlEnd) {
         if (urlStart) document.getElementById('filtStart').value = urlStart;
@@ -1131,6 +1328,8 @@ function setDefaultDates() {
         }
     }
 
+    if (urlTab === 'operativo') switchTab('operativo');
+
     await loadData();
     await evaluateAlerts();
     _startAlertasAutoRefresh();
@@ -1139,52 +1338,38 @@ function setDefaultDates() {
 
 
 // ── QR Modal ──────────────────────────────────────────────────────────────────
-async function openQRModal() {
-    const clienteVal = document.getElementById('filtCliente')?.value || '';
-    const start      = document.getElementById('filtStart')?.value || '';
-    const end        = document.getElementById('filtEnd')?.value || '';
+function openQRModal() {
+    const clienteEl  = document.getElementById('filtCliente');
+    const clienteVal = clienteEl?.value || '';
+    const clienteNombre = clienteEl?.options[clienteEl.selectedIndex]?.text || '';
+    const start  = document.getElementById('filtStart')?.value || '';
+    const end    = document.getElementById('filtEnd')?.value   || '';
+    const tab    = document.getElementById('tabBtnEjec')?.classList.contains('active') ? 'ejecutivo' : 'operativo';
 
-    let url;
-    let isPublic = false;
+    // Build deep-link URL to this exact report with all active filters
+    const params = new URLSearchParams();
+    params.set('tab', tab);
+    if (clienteVal) params.set('cliente', clienteVal);
+    if (start)      params.set('start_date', start);
+    if (end)        params.set('end_date', end);
+    const url = window.location.origin + '/cgeo/operacion/?' + params.toString();
 
-    if (clienteVal) {
-        // Specific client → get a public signed URL (no login required to view)
-        try {
-            const qs  = new URLSearchParams({ cliente: clienteVal, days: 30 });
-            const res = await fetch('/expediente/api/qr-expediente-url?' + qs.toString(), { credentials: 'include' });
-            if (res.ok) {
-                const data = await res.json();
-                url = data.url;
-                isPublic = true;
-            }
-        } catch (_) {}
-    }
+    const tabLabel   = tab === 'ejecutivo' ? 'Informe Ejecutivo' : 'Resumen Operativo';
+    const clienteStr = clienteNombre && clienteNombre !== 'Todos los clientes' ? ` — ${clienteNombre}` : '';
+    const periodoStr = (start && end) ? `${start} al ${end}` : (start || end || 'período actual');
 
-    if (!url) {
-        // Todos or fallback: current page URL with active filters (requires login)
-        const params = new URLSearchParams();
-        if (clienteVal) params.set('cliente', clienteVal);
-        if (start)      params.set('start_date', start);
-        if (end)        params.set('end_date', end);
-        url = window.location.origin + '/cgeo/operacion/' + (params.toString() ? '?' + params.toString() : '');
-    }
-
-    // Remove stale modal so it re-renders with new URL
     document.getElementById('qrModal')?.remove();
-
     const modal = document.createElement('div');
     modal.id = 'qrModal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
-    const badge = isPublic
-        ? '<div style="display:inline-block;font-size:.72rem;font-weight:600;color:#16a34a;background:#dcfce7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.75rem">🌐 Vista pública — no requiere acceso</div>'
-        : '<div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.75rem">🔒 Requiere sesión activa</div>';
     modal.innerHTML = `
-        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:380px;width:90%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
-            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR</div>
-            <div style="font-size:.8rem;color:#64748b;margin-bottom:.75rem">Operación e Incidentes${clienteVal ? ' — ' + clienteVal : ''}</div>
-            ${badge}
+        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
+            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR — Acceso Directo</div>
+            <div style="font-size:.82rem;font-weight:600;color:#1d4ed8;margin-bottom:.2rem">Operación y Novedades${clienteStr}</div>
+            <div style="font-size:.75rem;color:#64748b;margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
+            <div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.875rem">🔒 Requiere sesión activa</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
-            <div style="font-size:.75rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem" id="qrUrlLabel"></div>
+            <div style="font-size:.7rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
             <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
         </div>`;
     document.body.appendChild(modal);
