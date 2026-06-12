@@ -535,15 +535,15 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
                 </div>
             </div>
 
-            <!-- Charts row 3: Incidentes por Severidad (full width) -->
+            <!-- Charts row 3: Gestión de Incidentes — capacidad de respuesta (full width) -->
             <div class="charts-row" style="grid-template-columns:minmax(0,400px) 1fr">
                 <div class="chart-card">
-                    <div class="chart-title">Incidentes por Severidad</div>
+                    <div class="chart-title">Gestión de Incidentes — Capacidad de Respuesta</div>
                     <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
                         <div style="position:relative;width:180px;height:180px;flex-shrink:0">
-                            <canvas id="chartSupDonut"></canvas>
+                            <canvas id="chartIncGestion"></canvas>
                         </div>
-                        <div id="supDonutLegend" class="donut-legend" style="flex:1;min-width:120px"></div>
+                        <div id="incGestionLegend" class="donut-legend" style="flex:1;min-width:120px"></div>
                     </div>
                 </div>
             </div>
@@ -678,6 +678,16 @@ async function exportPDF() {
         chartImages[c.id] = c.toDataURL('image/png');
     });
 
+    // Re-capture Tendencia at a compact aspect ratio: the live canvas is a wide thin
+    // strip on desktop, which renders as a sliver in the half-width PDF column —
+    // 680×400 keeps its card proportional to the severity donut card beside it
+    const tendChart = charts.chartTendencia;
+    if (tendChart && chartImages.chartTendencia) {
+        tendChart.resize(680, 400);
+        chartImages.chartTendencia = tendChart.canvas.toDataURL('image/png');
+        tendChart.resize();
+    }
+
     // Fetch logo as base64 for reliable rendering in html2canvas
     let logoSrc = '';
     try {
@@ -760,19 +770,19 @@ async function exportPDF() {
         row.style.gridTemplateColumns = '';
     });
 
-    // Ejecutivo: remove the duplicate "Incidentes por Severidad" row (Row 3 / chartSupDonut)
-    // — it shows the same data as Row 1's chartIncSev and tends to split across PDF pages
+    // Ejecutivo: exclude the "Gestión de Incidentes" row (Row 3) — keeps the approved
+    // one-page PDF layout; a full-width row there tends to split across PDF pages
     if (isEjec) {
-        const supDonutCanvas = tabClone.querySelector('#chartSupDonut');
-        if (supDonutCanvas) {
-            const supDonutRow = supDonutCanvas.closest('.charts-row');
-            if (supDonutRow) supDonutRow.remove();
+        const gestionCanvas = tabClone.querySelector('#chartIncGestion');
+        if (gestionCanvas) {
+            const gestionRow = gestionCanvas.closest('.charts-row');
+            if (gestionRow) gestionRow.remove();
         }
     }
 
     // Re-layout donut containers from side-by-side to stacked (chart above, legend below)
     // so legends don't overflow a narrow PDF column
-    ['chartIncSev', 'chartSupDonut'].forEach(chartId => {
+    ['chartIncSev', 'chartIncGestion'].forEach(chartId => {
         const canvas = tabClone.querySelector(`#${chartId}`);
         if (!canvas) return;
         // Find the flex container holding [donut-box, legend] side by side
@@ -1168,16 +1178,14 @@ function renderData(d) {
     buildDonutCenter('chartIncSev', sevLabels, sevData, sevColors, 'Total');
     document.getElementById('incSevLegend').innerHTML = legendHtml(sevLabels, sevData, sevColors, sevTotal);
 
-    // Donut "Supervisión / Incidentes breakdown"
-    buildDonutCenter('chartSupDonut', sevLabels, sevData, sevColors, 'Total');
-    document.getElementById('supDonutLegend').innerHTML = sevLabels.map((l, i) => {
-        const pct = sevTotal ? Math.round(sevData[i] / sevTotal * 100) : 0;
-        return `<div class="leg-row">
-            <div class="leg-dot" style="background:${sevColors[i]}"></div>
-            <span class="leg-label">${l}</span>
-            <span class="leg-value">${sevData[i]} (${pct}%)</span>
-        </div>`;
-    }).join('');
+    // Donut "Gestión de Incidentes" — capacidad de respuesta (complementa la severidad)
+    const gesAbiertos = inc_d.abiertos_total || 0;
+    const gesMas24    = inc_d.mas_24h || 0;
+    const gesLabels = ['Cerrados', 'Abiertos ≤24h', 'Abiertos >24h sin gestión'];
+    const gesData   = [Math.max(sevTotal - gesAbiertos, 0), Math.max(gesAbiertos - gesMas24, 0), gesMas24];
+    const gesColors = ['#22c55e', '#f59e0b', '#ef4444'];
+    buildDonutCenter('chartIncGestion', gesLabels, gesData, gesColors, 'Total');
+    document.getElementById('incGestionLegend').innerHTML = legendHtml(gesLabels, gesData, gesColors, sevTotal);
 
     // Ranking clientes
     const rk = d.ranking_satisfaccion;

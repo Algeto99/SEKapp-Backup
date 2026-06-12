@@ -912,6 +912,16 @@ async function exportPDF() {
         chartImages[c.id] = c.toDataURL('image/png');
     });
 
+    // Re-capture Tendencia at a compact aspect ratio: the live canvas is a wide thin
+    // strip on desktop, which renders as a sliver in its PDF column — 680×380 keeps
+    // its card proportional to the Radios/Armas donut cards beside it
+    const tendChart = charts.chartTendencia;
+    if (tendChart && chartImages.chartTendencia) {
+        tendChart.resize(680, 380);
+        chartImages.chartTendencia = tendChart.canvas.toDataURL('image/png');
+        tendChart.resize();
+    }
+
     // Fetch logo as base64 so html2canvas doesn't hit CORS issues
     let logoSrc = '';
     try {
@@ -963,11 +973,13 @@ async function exportPDF() {
         el.style.overflow = 'visible';
     });
 
-    // Set grid columns based on child count so 3-child rows stay on one row instead of wrapping
-    // (the first row has style="grid-template-columns:2fr 1fr 1fr" which needs to stay 3-col)
+    // Set grid columns so 3-child rows stay on one row instead of wrapping.
+    // Must be inline !important: the scoped PDF stylesheet uses !important rules,
+    // which beat plain inline styles and would collapse these rows to 2 columns.
     tabClone.querySelectorAll('.charts-row').forEach(row => {
         const count = row.children.length;
-        row.style.gridTemplateColumns = count >= 3 ? '1fr 1fr 1fr' : '1fr 1fr';
+        const cols = row.style.gridTemplateColumns || (count >= 3 ? '1fr 1fr 1fr' : '1fr 1fr');
+        row.style.setProperty('grid-template-columns', cols, 'important');
     });
 
     // Operativo: stack the Listado + Acciones side-by-side grid vertically so they don't overflow
@@ -1055,6 +1067,9 @@ async function exportPDF() {
         .chart-card [style*="height: 200px"],
         .chart-card [style*="height:240px"],
         .chart-card [style*="height: 240px"] { height:auto !important; }
+        /* Line chart boxes get their height from a CSS class, not inline style —
+           reset it too so the card hugs the snapshot image with no blank space below */
+        .chart-box, .chart-box-sm { height:auto !important; min-height:unset !important; }
         /* Semáforo — ensure all rows are visible, no clipping */
         .semaforo-grid { display:flex !important; flex-direction:column !important; gap:6px !important; margin-top:8px !important; overflow:visible !important; }
         /* Tables */
@@ -1113,6 +1128,12 @@ async function exportPDF() {
     // Wait for layout to settle after DOM manipulations
     await new Promise(r => setTimeout(r, 150));
 
+    // Safe page-break positions: the top of each top-level block (KPI grid, chart
+    // rows, tables...) in CSS px relative to wrap, so no card is ever cut mid-page
+    const breakPositionsPx = Array.from(tabClone.children)
+        .filter(el => el.offsetHeight > 0)
+        .map(el => el.offsetTop);
+
     // ── Capture with html2canvas ───────────────────────────────────────────────
     const btn = document.querySelector('.btn-pdf');
     if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
@@ -1142,13 +1163,22 @@ async function exportPDF() {
         const totalH = (imgH / 2) * ratio;       // rendered height in mm
 
         const pageContentH = PAGE_H - MARGIN * 2;
+        const breaksMm = breakPositionsPx.map(px => px * ratio).sort((a, b) => a - b);
         let   yOffset = 0;
 
         while (yOffset < totalH) {
             if (yOffset > 0) pdf.addPage();
 
+            // End the page at the last block boundary that fits, so cards stay whole.
+            // Hard cut only if a single block is taller than a full page.
+            let sliceEnd = Math.min(yOffset + pageContentH, totalH);
+            if (sliceEnd < totalH) {
+                const fitting = breaksMm.filter(b => b > yOffset + 20 && b < sliceEnd);
+                if (fitting.length) sliceEnd = fitting[fitting.length - 1];
+            }
+
             // Slice the canvas for this page
-            const sliceH_mm   = Math.min(pageContentH, totalH - yOffset);
+            const sliceH_mm   = sliceEnd - yOffset;
             const sliceH_px   = Math.round((sliceH_mm / ratio) * 2);   // back to px at scale:2
             const srcY_px     = Math.round((yOffset / ratio) * 2);
 
@@ -1167,7 +1197,7 @@ async function exportPDF() {
             pdf.text(`Kanan Sentinel — Gestión de Recursos y Confiabilidad`, MARGIN, PAGE_H - 5);
             pdf.text(`${pageNum}`, PAGE_W - MARGIN, PAGE_H - 5, { align: 'right' });
 
-            yOffset += pageContentH;
+            yOffset = sliceEnd;
         }
 
         // Generate filename
