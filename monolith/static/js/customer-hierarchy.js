@@ -149,6 +149,18 @@
             const selected = data.properties.find((p) => String(p.id) === propertySelect.value);
             if (legacyInput) legacyInput.value = selected ? selected.name : '';
         });
+
+        // Deep link (e.g. Morning Briefing alerts): ?cliente= preselects the property
+        const clienteParam = (new URLSearchParams(window.location.search).get('cliente') || '').trim().toLowerCase();
+        if (clienteParam) {
+            const match = data.properties.find((p) =>
+                (p.name || '').trim().toLowerCase() === clienteParam ||
+                (p.cliente || '').trim().toLowerCase() === clienteParam);
+            if (match) {
+                propertySelect.value = String(match.id);
+                propertySelect.dispatchEvent(new Event('change'));
+            }
+        }
     }
 
     // Exposed for the "Preparar modo offline" button — fetches and lets the SW cache the response

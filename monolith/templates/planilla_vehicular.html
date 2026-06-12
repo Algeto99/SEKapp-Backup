@@ -272,6 +272,13 @@
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                        <label for="id_propiedad" class="form-label">Propiedad / Instalación</label>
+                        <select name="id_propiedad" id="id_propiedad" class="form-select">
+                            <option value="" disabled selected>Cargando propiedades...</option>
+                        </select>
+                        <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
+                    </div>
+                    <div>
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="" disabled>Seleccione un rol...</option>
