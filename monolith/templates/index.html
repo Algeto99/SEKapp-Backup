@@ -1538,44 +1538,86 @@
         }
 
         // --- Action Button Functions ---
-        async function printSelectedReports() {
-            // Check if we have any selection
-            const hasSelection = (selectAllMode === 'all' && allReportIds.length > 0) ||
-                document.querySelectorAll('.report-checkbox:checked').length > 0;
 
-            if (!hasSelection) {
-                showFlashMessage('Por favor seleccione al menos un reporte para imprimir.', 'error');
-                return;
+        // JWT double-submit CSRF header, required on every POST (JWT_COOKIE_CSRF_PROTECT)
+        function jwtCsrfHeaders() {
+            const row = document.cookie.split('; ').find(r => r.startsWith('csrf_access_token='));
+            return { 'X-CSRF-TOKEN': row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '' };
+        }
+
+        async function printSelectedReports() {
+            let reports;
+
+            // The on-page cards only hold a summary — the full record lives server-side.
+            // Print = generate the complete PDF and open it in a new tab as the preview.
+            if (selectAllMode === 'all' && allReportIds.length > 0) {
+                reports = allReportIds;
+            } else {
+                const checkedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showFlashMessage('Por favor seleccione al menos un reporte para imprimir.', 'error');
+                    return;
+                }
+                reports = Array.from(checkedCheckboxes).map(checkbox => {
+                    const block = checkbox.closest('.report-block');
+                    return {
+                        id: parseInt(checkbox.dataset.reportId),
+                        formType: block.dataset.formType || 'reporte_incidente'
+                    };
+                });
             }
 
-            // Mark selected reports for printing
-            document.querySelectorAll('.report-block').forEach(block => {
-                const checkbox = block.querySelector('.report-checkbox');
-                // In "all reports" mode, print all visible reports
-                // In "page" mode, only print checked reports
-                const shouldPrint = (selectAllMode === 'all' && allReportIds.length > 0) || checkbox.checked;
+            // Open the tab synchronously (inside the click gesture) so popup blockers allow it
+            const previewTab = window.open('', '_blank');
+            const loadingMsg = showFlashMessage('Generando vista previa para imprimir...', 'info', 0);
 
-                if (shouldPrint) {
-                    block.classList.add('print-me');
-                    // Expand the report content for printing
-                    const reportContent = block.querySelector('.report-content');
-                    if (reportContent) {
-                        reportContent.classList.add('expanded');
-                    }
-                } else {
-                    block.classList.remove('print-me');
-                }
-            });
-
-            // Trigger print
-            window.print();
-
-            // Clean up after printing
-            setTimeout(() => {
-                document.querySelectorAll('.report-block').forEach(block => {
-                    block.classList.remove('print-me');
+            try {
+                const response = await fetch('/viewer/api/generate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/pdf',
+                        ...jwtCsrfHeaders()
+                    },
+                    body: JSON.stringify({
+                        reports: reports,
+                        filename: 'reportes_impresion'
+                    })
                 });
-            }, 1000);
+
+                if (!response.ok) {
+                    if (previewTab) previewTab.close();
+                    if (response.status === 401) {
+                        window.location.href = '/logout';
+                        return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+
+                if (previewTab) {
+                    previewTab.location.href = url;
+                } else {
+                    // Popup blocked — fall back to downloading the file
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'reportes_impresion.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            } catch (error) {
+                if (previewTab) previewTab.close();
+                console.error('Error printing reports:', error);
+                showFlashMessage('Error al generar la vista previa de impresión.', 'error');
+            } finally {
+                if (loadingMsg && loadingMsg.remove) {
+                    loadingMsg.remove();
+                }
+            }
         }
 
         async function generatePDFForSelected() {
@@ -1608,7 +1650,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/pdf'
+                        'Accept': 'application/pdf',
+                        ...jwtCsrfHeaders()
                     },
                     body: JSON.stringify({
                         reports: reports,
@@ -1687,7 +1730,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        ...jwtCsrfHeaders()
                     },
                     body: JSON.stringify({
                         reports: reports,
@@ -1791,7 +1835,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/pdf'
+                        'Accept': 'application/pdf',
+                        ...jwtCsrfHeaders()
                     },
                     body: JSON.stringify({
                         reports: reports,
@@ -1845,6 +1890,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        ...jwtCsrfHeaders()
                     },
                     body: JSON.stringify({
                         reports: reports,
