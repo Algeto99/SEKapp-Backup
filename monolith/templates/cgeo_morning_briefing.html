@@ -706,9 +706,10 @@ const _alertViewers = {};
 function _getAlertViewer(formType) {
     if (!_alertViewers[formType]) {
         const titles = {
-            'reporte_incidente':    'Reporte de Incidente',
-            'supervision_puesto':   'Detalle de Supervisión',
-            'checklist_cumplimiento': 'Detalle de Cumplimiento',
+            'reporte_incidente':       'Reporte de Incidente',
+            'supervision_puesto':      'Detalle de Supervisión',
+            'checklist_cumplimiento':  'Detalle de Cumplimiento',
+            'medicion_experiencia_cliente': 'Detalle de Encuesta de Satisfacción',
         };
         _alertViewers[formType] = createDashboardRecordViewer({
             formType,

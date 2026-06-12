@@ -342,6 +342,22 @@ body:not(.light-mode) .user-dropdown-item:hover{background:#334155}
 body:not(.light-mode) .user-dropdown-item.danger{color:#f87171}
 body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68,0.1)}
 /* ── fin user menu ───────────────────────────────────────────────────────── */
+/* ── Alertas Accionables — dark mode ─────────────────────────────────────── */
+body:not(.light-mode) .alertas-panel{background:#1e293b;border-color:#334155}
+body:not(.light-mode) .alertas-header{border-bottom-color:#334155}
+body:not(.light-mode) .alertas-title{color:#f1f5f9}
+body:not(.light-mode) .alerta-item{border-bottom-color:#334155}
+body:not(.light-mode) .alerta-texto{color:#cbd5e1}
+body:not(.light-mode) .alerta-btn-rojo{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+body:not(.light-mode) .alerta-btn-rojo:hover{background:rgba(239,68,68,.25)}
+body:not(.light-mode) .alerta-btn-amarillo{background:rgba(245,158,11,.15);color:#fde68a;border-color:rgba(245,158,11,.3)}
+body:not(.light-mode) .alerta-btn-amarillo:hover{background:rgba(245,158,11,.25)}
+body:not(.light-mode) .badge-count-rojo{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+body:not(.light-mode) .badge-count-amarillo{background:rgba(245,158,11,.15);color:#fde68a;border-color:rgba(245,158,11,.3)}
+body:not(.light-mode) .alertas-ver-mas{border-top-color:#334155}
+body:not(.light-mode) .btn-ver-mas:hover{background:rgba(59,130,246,.1)}
+body:not(.light-mode) .status-estable{background:#052e16;color:#4ade80;border-color:#166534}
+body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-color:#7f1d1d}
 .nav-item-logout{color:#f87171!important;border-left-color:transparent}
 .nav-item-logout:hover{color:#fca5a5!important;background:rgba(239,68,68,0.1)!important}
 .nav-item-logout svg{color:#f87171}
@@ -440,36 +456,6 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             </svg>
         </div>
 
-        <!-- ══════════════ PANEL ALERTAS ACCIONABLES ══════════════ -->
-        <div class="alertas-panel" id="alertasPanel">
-            <div class="alertas-header" onclick="toggleAlertasPanel()">
-                <div class="alertas-header-left">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:#f97316;flex-shrink:0">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <span class="alertas-title">Alertas Accionables</span>
-                    <div class="alertas-badges" id="alertasBadges">
-                        <span style="font-size:.75rem;color:#94a3b8">Cargando...</span>
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:.75rem">
-                    <span class="alertas-refresh-ts" id="alertasTs"></span>
-                    <svg class="alertas-toggle-icon open" id="alertasChevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </div>
-            </div>
-            <div id="alertasBody" class="alertas-body">
-                <div class="alertas-loading" id="alertasLoading">Evaluando condiciones...</div>
-                <div id="alertasList"></div>
-                <div class="alertas-ver-mas hidden" id="alertasVerMas">
-                    <button class="btn-ver-mas" onclick="toggleVerTodas()">
-                        <span id="verMasLabel">Ver todas las alertas</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <div class="tabs-row">
             <div class="tabs">
                 <button class="tab-btn active" id="tabBtnEjec" onclick="switchTab('ejecutivo')">Informe Ejecutivo</button>
@@ -565,6 +551,36 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 
         <!-- ══════════════ RESUMEN OPERATIVO ══════════════ -->
         <div id="tab-operativo">
+            <!-- ══════════════ PANEL ALERTAS ACCIONABLES ══════════════ -->
+            <div class="alertas-panel" id="alertasPanel">
+                <div class="alertas-header" onclick="toggleAlertasPanel()">
+                    <div class="alertas-header-left">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:#f97316;flex-shrink:0">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                        <span class="alertas-title">Alertas Accionables</span>
+                        <div class="alertas-badges" id="alertasBadges">
+                            <span style="font-size:.75rem;color:#94a3b8">Cargando...</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:.75rem">
+                        <span class="alertas-refresh-ts" id="alertasTs"></span>
+                        <svg class="alertas-toggle-icon open" id="alertasChevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+                <div id="alertasBody" class="alertas-body">
+                    <div class="alertas-loading" id="alertasLoading">Evaluando condiciones...</div>
+                    <div id="alertasList"></div>
+                    <div class="alertas-ver-mas hidden" id="alertasVerMas">
+                        <button class="btn-ver-mas" onclick="toggleVerTodas()">
+                            <span id="verMasLabel">Ver todas las alertas</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="alert-req">
                 <div class="alert-req-dot"></div>
                 <div>
@@ -744,6 +760,16 @@ async function exportPDF() {
         row.style.gridTemplateColumns = '';
     });
 
+    // Ejecutivo: remove the duplicate "Incidentes por Severidad" row (Row 3 / chartSupDonut)
+    // — it shows the same data as Row 1's chartIncSev and tends to split across PDF pages
+    if (isEjec) {
+        const supDonutCanvas = tabClone.querySelector('#chartSupDonut');
+        if (supDonutCanvas) {
+            const supDonutRow = supDonutCanvas.closest('.charts-row');
+            if (supDonutRow) supDonutRow.remove();
+        }
+    }
+
     // Re-layout donut containers from side-by-side to stacked (chart above, legend below)
     // so legends don't overflow a narrow PDF column
     ['chartIncSev', 'chartSupDonut'].forEach(chartId => {
@@ -803,8 +829,8 @@ async function exportPDF() {
         .kpi-border-red    { border-top:3px solid #ef4444 !important; }
         .kpi-border-indigo { border-top:3px solid #6366f1 !important; }
         /* Chart rows */
-        .charts-row   { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
-        .charts-row-3 { display:grid !important; grid-template-columns:1fr 1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
+        .charts-row   { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:stretch !important; }
+        .charts-row-3 { display:grid !important; grid-template-columns:1fr 1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:stretch !important; }
         .chart-card, .table-card, .ranking-card, .acciones-card {
             background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
             padding:12px !important; box-shadow:none !important; overflow:visible !important; }
@@ -822,14 +848,15 @@ async function exportPDF() {
         .pend-cat-val  { font-size:1.3rem !important; font-weight:800 !important; font-family:'Merriweather',serif !important; line-height:1 !important; }
         .pend-cat-lbl  { font-size:.6rem !important; color:#64748b !important; margin-top:3px !important; }
         .pend-cat-sub  { font-size:.58rem !important; color:#94a3b8 !important; margin-top:2px !important; }
-        /* Tables — full width stacked */
-        .tables-row { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; }
+        /* Tables — stacked vertically so each gets full width */
+        .tables-row { display:grid !important; grid-template-columns:1fr !important; gap:10px !important; margin-bottom:14px !important; }
         .tbl-wrap { overflow:visible !important; }
-        .tbl { width:100% !important; border-collapse:collapse !important; }
+        .tbl { width:100% !important; border-collapse:collapse !important; table-layout:fixed !important; }
         .tbl th { font-size:.62rem !important; font-weight:700 !important; text-transform:uppercase !important;
                   color:#64748b !important; border-bottom:2px solid #e2e8f0 !important; padding:5px 6px !important;
                   text-align:left !important; white-space:normal !important; }
-        .tbl td { padding:4px 6px !important; border-bottom:1px solid #f1f5f9 !important; color:#334155 !important; font-size:.68rem !important; vertical-align:middle !important; }
+        .tbl td { padding:4px 6px !important; border-bottom:1px solid #f1f5f9 !important; color:#334155 !important; font-size:.68rem !important; vertical-align:middle !important; white-space:normal !important; word-break:break-word !important; overflow:visible !important; max-width:none !important; }
+        .tbl td[style] { white-space:normal !important; overflow:visible !important; max-width:none !important; word-break:break-word !important; text-overflow:unset !important; }
         /* Acciones */
         .acciones-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important; padding:12px !important; box-shadow:none !important; }
         .acciones-title { font-size:.8rem !important; font-weight:700 !important; color:#f97316 !important; margin-bottom:8px !important; }
@@ -889,7 +916,7 @@ async function exportPDF() {
         .charts-row       { grid-template-columns:1fr 1fr !important; }
         .charts-row-3     { grid-template-columns:1fr 1fr 1fr !important; }
         .pend-cat         { grid-template-columns:repeat(8,1fr) !important; }
-        .tables-row       { grid-template-columns:1fr 1fr !important; }
+        .tables-row       { grid-template-columns:1fr !important; }
     `;
     wrap.prepend(style);
 

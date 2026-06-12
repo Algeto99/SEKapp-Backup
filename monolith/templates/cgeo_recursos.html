@@ -212,9 +212,14 @@ canvas{outline:none}
 body:not(.light-mode){background:#0f172a;color:#e2e8f0}
 body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
 body:not(.light-mode) .page-title{color:#f1f5f9}
-body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .table-card,body:not(.light-mode) .ranking-card,body:not(.light-mode) .alert-kpi,body:not(.light-mode) .alertas-cat-card{background:#1e293b;border-color:#334155}
+body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .table-card,body:not(.light-mode) .ranking-card,body:not(.light-mode) .alert-kpi,body:not(.light-mode) .cat-card,body:not(.light-mode) .acciones-card{background:#1e293b;border-color:#334155}
 body:not(.light-mode) .chart-title,body:not(.light-mode) .table-title,body:not(.light-mode) .kpi-val{color:#f1f5f9}
 body:not(.light-mode) .kpi-lbl{color:#94a3b8}
+body:not(.light-mode) .cat-lbl{color:#94a3b8}
+body:not(.light-mode) .cat-val{color:#f1f5f9}
+body:not(.light-mode) .accion-text{color:#cbd5e1}
+body:not(.light-mode) .accion-item{border-bottom-color:#334155}
+body:not(.light-mode) .alert-kpi-lbl{color:#94a3b8}
 body:not(.light-mode) .tabs{background:#1e293b}
 body:not(.light-mode) .tab-btn.active{background:#0f172a;color:#f1f5f9}
 body:not(.light-mode) .filter-select,body:not(.light-mode) .date-input{background:#1e293b;border-color:#334155;color:#e2e8f0}
@@ -958,11 +963,21 @@ async function exportPDF() {
         el.style.overflow = 'visible';
     });
 
-    // Strip inline grid-template-columns from .charts-row so scoped CSS wins
-    // (the first row has style="grid-template-columns:2fr 1fr 1fr" inline which beats class rules)
+    // Set grid columns based on child count so 3-child rows stay on one row instead of wrapping
+    // (the first row has style="grid-template-columns:2fr 1fr 1fr" which needs to stay 3-col)
     tabClone.querySelectorAll('.charts-row').forEach(row => {
-        row.style.gridTemplateColumns = '';
+        const count = row.children.length;
+        row.style.gridTemplateColumns = count >= 3 ? '1fr 1fr 1fr' : '1fr 1fr';
     });
+
+    // Operativo: stack the Listado + Acciones side-by-side grid vertically so they don't overflow
+    if (!isEjec) {
+        tabClone.querySelectorAll('[style*="grid-template-columns:1fr auto"]').forEach(el => {
+            el.style.gridTemplateColumns = '1fr';
+        });
+        const accionesCard = tabClone.querySelector('[style*="min-width:280px"]');
+        if (accionesCard) { accionesCard.style.minWidth = ''; accionesCard.style.maxWidth = ''; }
+    }
 
     // Re-layout donut chart containers to stacked (chart above, legend below)
     // so legends never overflow a narrow column in a 3-col grid
@@ -1028,8 +1043,8 @@ async function exportPDF() {
         .kpi-border-orange { border-top:3px solid #f59e0b !important; }
         .kpi-border-red    { border-top:3px solid #ef4444 !important; }
         .kpi-border-purple { border-top:3px solid #8b5cf6 !important; }
-        /* Chart rows */
-        .charts-row   { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; }
+        /* Chart rows — inline style set by JS on the clone wins over these, this is the fallback */
+        .charts-row   { display:grid !important; grid-template-columns:1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
         .charts-row-3 { display:grid !important; grid-template-columns:1fr 1fr 1fr !important; gap:10px !important; margin-bottom:14px !important; align-items:start !important; }
         .chart-card, .table-card, .ranking-card, .acciones-card {
             background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
@@ -1085,8 +1100,8 @@ async function exportPDF() {
         /* Hide status banner & tab controls */
         .tabs-row, #statusBanner, .loading-overlay { display:none !important; }
         /* Override ALL responsive breakpoints — grids must never collapse regardless of viewport */
+        /* Note: .charts-row columns are set by inline style in the clone based on child count */
         .kpi-grid         { grid-template-columns:repeat(4,1fr) !important; }
-        .charts-row       { grid-template-columns:1fr 1fr !important; }
         .charts-row-3     { grid-template-columns:1fr 1fr 1fr !important; }
         .alert-kpi-grid   { grid-template-columns:repeat(4,1fr) !important; }
         .alertas-cat      { grid-template-columns:repeat(3,1fr) !important; }

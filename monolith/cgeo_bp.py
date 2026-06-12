@@ -665,12 +665,13 @@ def cgeo_api_alertas():
             LIMIT 5
         """, tuple(r3_params + r3_params))
         for r in cur.fetchall():
+            puesto = r['puesto'] or ''
             alertas.append({
-                "id": f"r3_{r['puesto']}",
+                "id": f"r3_{puesto}",
                 "regla": 3,
-                "texto": f"Puesto \"{r['puesto']}\" sin supervisión registrada hoy",
-                "accion": "Ir a supervisión",
-                "ruta_navegacion": f"/forms/supervision_puesto?cliente={r['puesto']}",
+                "texto": f"Puesto \"{puesto}\" sin supervisión registrada hoy",
+                "accion": "Ver supervisiones",
+                "ruta_navegacion": "/dashboard/supervision/",
                 "color_semaforo": "rojo",
                 "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
                 "horas": None,
@@ -760,7 +761,7 @@ def cgeo_api_alertas():
                 "regla": 6,
                 "texto": f"Vehículo {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
                 "accion": "Registrar pre-op",
-                "ruta_navegacion": f"/forms/planilla_vehicular?cliente={r['cliente']}",
+                "ruta_navegacion": f"/forms/planilla_vehicular?cliente={r['cliente']}&placa={r['placa']}",
                 "color_semaforo": "amarillo",
                 "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
                 "horas": round(h, 1),
@@ -809,7 +810,8 @@ def cgeo_api_alertas():
                 ROUND(AVG(calificacion_global_nps), 2) AS avg_raw,
                 ROUND(AVG(calificacion_global_nps) / 40 * 5, 2) AS avg_5,
                 COUNT(*) AS encuestas,
-                MAX(fecha_hora) AS ultima
+                MAX(fecha_hora) AS ultima,
+                MAX(id_encuesta) AS last_encuesta_id
             FROM medicion_experiencia_cliente
             {_where(r8_conds)}
             GROUP BY TRIM(cliente_instalacion)
@@ -824,8 +826,10 @@ def cgeo_api_alertas():
                 "id": f"r8_{r['cliente']}",
                 "regla": 8,
                 "texto": f"Satisfacción baja en \"{r['cliente']}\": {score}/5 promedio ({r['encuestas']} encuestas)",
-                "accion": "Ver encuestas",
-                "ruta_navegacion": f"/dashboard/satisfaccion/?cliente={r['cliente']}",
+                "accion": "Ver encuesta",
+                "record_id": r["last_encuesta_id"],
+                "form_type": "medicion_experiencia_cliente",
+                "ruta_navegacion": f"/dashboard/satisfaccion/",
                 "color_semaforo": "amarillo",
                 "timestamp": r["ultima"].isoformat() if r["ultima"] else None,
                 "horas": None,

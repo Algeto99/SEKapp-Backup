@@ -684,6 +684,13 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
+            // Pre-fill plate from ?placa= URL param (deep link from Morning Briefing alerts)
+            const _placaParam = new URLSearchParams(window.location.search).get('placa');
+            if (_placaParam) {
+                const placaField = document.getElementById('placa_vehiculo');
+                if (placaField) placaField.value = _placaParam.trim().toUpperCase();
+            }
+
             // Initialize signature pads
             const entregaCanvas = document.getElementById('firma-entrega-pad');
             const recibeCanvas = document.getElementById('firma-recibe-pad');
