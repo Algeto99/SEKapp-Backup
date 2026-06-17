@@ -3,8 +3,9 @@ name: Mirror Source Repository
 on:
   schedule:
     - cron: '0 0 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Allows you to trigger it manually
 
+# Grants the runner permission to push code into this backup repository
 permissions:
   contents: write
 
@@ -15,21 +16,22 @@ jobs:
       - name: Configure SSH Key
         run: |
           mkdir -p ~/.ssh
-          # Read the private key from your secret and save it to the runner
+          # Read the multi-line SSH private key from your secret and save it securely
           echo "${{ secrets.SEKAPPSECRETO }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          # Scan GitHub's host keys to prevent SSH prompts
+          # Scan GitHub's host keys to prevent SSH interactive prompts
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
       - name: Mirror Mirror on the Wall
         run: |
-          git config --global user.name "Algeto99"
-          git config --global user.email "alvaro.montalvo02@gmail.com"
+          # Configure Git
+          git config --global user.name "Backup Bot"
+          git config --global user.email "backup-bot@example.com"
           
-          # 1. Clone using the clean SSH URL format
+          # 1. Clone the source repository using the clean SSH URL format
           git clone --mirror git@github.com:rcanton/sekapp.git sekapp.git
           
           cd sekapp.git
           
-          # 2. Push to your destination backup repository using HTTPS authorization
+          # 2. Push everything to your destination backup repository using HTTPS authorization
           git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Algeto99/SEKapp-Backup.git
