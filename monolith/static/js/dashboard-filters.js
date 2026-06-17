@@ -64,7 +64,9 @@ class DashboardFilters {
         }
 
         this._populateYears();
-        this._loadProperties();
+        if (!this._propertySelect.hasAttribute('data-custom-loader')) {
+            this._loadProperties();
+        }
         this._bindEvents();
 
         // Apply any state already in the URL query string

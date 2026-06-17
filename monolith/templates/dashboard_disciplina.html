@@ -65,6 +65,13 @@
             background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.5);
             color:#fca5a5; border-radius:999px; padding:0.15rem 0.5rem;
             font-size:0.75rem; font-weight:700; margin:0 0.2rem;
+            cursor:pointer; transition:all 0.15s ease-in-out;
+        }
+        .alert-badge:hover {
+            background:rgba(239,68,68,0.35);
+            border-color:rgba(239,68,68,0.7);
+            color:#fff;
+            transform:scale(1.03);
         }
 
         /* ── Cards ────────────────────────────────────────────────────────── */
@@ -462,6 +469,7 @@
             if (filters.tipo && detail.tipo !== filters.tipo) return false;
             if (filters.cliente && detail.cliente !== filters.cliente) return false;
             if (filters.empleado_num && detail.emp_numero !== filters.empleado_num) return false;
+            if (filters.empleado_nombre && detail.emp_nombre !== filters.empleado_nombre) return false;
             if (filters.periodLabel) {
                 const target = normalizeDisciplinaPeriod(filters.periodLabel);
                 if (target !== normalizeDisciplinaPeriod(detailDisciplinaPeriod(detail))) return false;
@@ -520,11 +528,25 @@
             return;
         }
         banner.style.display = 'flex';
-        const items = criticosList.map(e => {
+        
+        body.innerHTML = 'Los siguientes empleados superan las 3 novedades y requieren atención inmediata: ';
+        
+        criticosList.forEach(e => {
             const label = e.numero !== '—' ? `#${e.numero}` : e.nombre;
-            return `<span class="alert-badge">&#9888; ${label} — ${e.count} novedades</span>`;
-        }).join(' ');
-        body.innerHTML = `Los siguientes empleados superan las 3 novedades y requieren atención inmediata: ${items}`;
+            const badge = document.createElement('span');
+            badge.className = 'alert-badge';
+            badge.innerHTML = `&#9888; ${label} — ${e.count} novedades`;
+            badge.title = "Clic para ver detalle de registros";
+            badge.addEventListener('click', () => {
+                const title = `Novedades Críticas — Empleado ${label}`;
+                if (e.numero !== '—') {
+                    openDetailsModal({ empleado_num: e.numero }, title);
+                } else {
+                    openDetailsModal({ empleado_nombre: e.nombre }, title);
+                }
+            });
+            body.appendChild(badge);
+        });
     }
 
     // ── Semáforo color for employee count ─────────────────────────────────
@@ -905,8 +927,16 @@
         const p = new URLSearchParams();
         const clienteToUse = activeClienteFilter || state.propertyId;
         if (clienteToUse) p.set('cliente', clienteToUse);
-        if (state.year)   p.set('year',    state.year);
-        if (state.month)  p.set('month',   state.month);
+        if (state.years && state.years.length) {
+            p.set('year', state.years.join(','));
+        } else if (state.year) {
+            p.set('year', state.year);
+        }
+        if (state.months && state.months.length) {
+            p.set('month', state.months.join(','));
+        } else if (state.month) {
+            p.set('month', state.month);
+        }
         if (state.day)    p.set('day',     state.day);
         return p.toString();
     }

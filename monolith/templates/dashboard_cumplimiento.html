@@ -84,12 +84,24 @@
             background:var(--red-badge-bg); border:1px solid var(--red-badge-border);
             color:var(--red-muted); border-radius:999px; padding:0.1rem 0.5rem;
             font-size:0.72rem; font-weight:700; margin:0.15rem;
+            cursor:pointer; transition:transform 0.15s ease, background-color 0.15s ease;
+        }
+        .alert-badge-critico:hover {
+            transform:translateY(-1px);
+            background-color:rgba(239,68,68,0.25);
+            border-color:rgba(239,68,68,0.65);
         }
         .alert-badge-seguimiento {
             display:inline-flex; align-items:center; gap:0.25rem;
             background:var(--amber-badge-bg); border:1px solid var(--amber-border);
             color:var(--amber-muted); border-radius:999px; padding:0.1rem 0.5rem;
             font-size:0.72rem; font-weight:700; margin:0.15rem;
+            cursor:pointer; transition:transform 0.15s ease, background-color 0.15s ease;
+        }
+        .alert-badge-seguimiento:hover {
+            transform:translateY(-1px);
+            background-color:rgba(234,179,8,0.22);
+            border-color:rgba(234,179,8,0.65);
         }
 
         /* ── Cards ─────────────────────────────────────────────────────── */
@@ -579,7 +591,8 @@
             bv.style.display = 'flex';
             const items = vencidos.map(a => {
                 const label = a.num_doc !== '—' && a.num_doc ? `#${a.num_doc}` : a.nombre;
-                return `<span class="alert-badge-critico">&#9888; ${label} — ${a.curso} (vencido hace ${a.dias_vencido}d)</span>`;
+                const clickAttr = a.id ? `onclick="recordViewer.openRecord(${a.id})"` : '';
+                return `<span class="alert-badge-critico" ${clickAttr} title="Ver registro">&#9888; ${label} — ${a.curso} (vencido hace ${a.dias_vencido}d)</span>`;
             }).join(' ');
             document.getElementById('alertVencidosBody').innerHTML =
                 `Los siguientes certificados están vencidos y requieren renovación inmediata: <br>${items}`;
@@ -591,7 +604,8 @@
             bp.style.display = 'flex';
             const items = proximos.map(a => {
                 const label = a.num_doc !== '—' && a.num_doc ? `#${a.num_doc}` : a.nombre;
-                return `<span class="alert-badge-seguimiento">${label} — ${a.curso} (vence en ${a.dias_restantes}d)</span>`;
+                const clickAttr = a.id ? `onclick="recordViewer.openRecord(${a.id})"` : '';
+                return `<span class="alert-badge-seguimiento" ${clickAttr} title="Ver registro">${label} — ${a.curso} (vence en ${a.dias_restantes}d)</span>`;
             }).join(' ');
             document.getElementById('alertProximosBody').innerHTML =
                 `Los siguientes certificados vencen en menos de 30 días: <br>${items}`;
@@ -976,8 +990,16 @@
     function buildQS(state) {
         const p = new URLSearchParams();
         if (state.propertyId)  p.set('cliente',     state.propertyId);
-        if (state.year)        p.set('year',         state.year);
-        if (state.month)       p.set('month',        state.month);
+        if (state.years && state.years.length) {
+            p.set('year', state.years.join(','));
+        } else if (state.year) {
+            p.set('year', state.year);
+        }
+        if (state.months && state.months.length) {
+            p.set('month', state.months.join(','));
+        } else if (state.month) {
+            p.set('month', state.month);
+        }
         if (state.day)         p.set('day',          state.day);
         if (state.responsable) p.set('responsable',  state.responsable);
         return p.toString();

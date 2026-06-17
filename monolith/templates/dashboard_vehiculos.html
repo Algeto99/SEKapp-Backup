@@ -663,9 +663,9 @@
 
         document.addEventListener('filtersChanged', e => {
             const p = new URLSearchParams();
-            const { year, month, day } = e.detail;
-            if (year)  p.set('year',  year);
-            if (month) p.set('month', month);
+            const { years, months, day } = e.detail;
+            if (years && years.length) p.set('year', years.join(','));
+            if (months && months.length) p.set('month', months.join(','));
             if (day)   p.set('day',   day);
             loadData(p.toString());
         });

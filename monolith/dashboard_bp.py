@@ -2027,7 +2027,7 @@ def api_gestion_data():
         if turno:
             cum_conds.append("LOWER(COALESCE(turno, '')) = %s")
             cum_params.append(turno.lower())
-        _gestion_add_extract_date_filter(cum_conds, cum_params, "fecha_hora", year, month, day)
+        _gestion_add_multi_date_filter(cum_conds, cum_params, "fecha_hora::TEXT", year, month, day)
         if company_id is not None:
             cum_conds.append("company_id = %s"); cum_params.append(company_id)
         cum_where = _gestion_where(cum_conds)
@@ -2058,7 +2058,7 @@ def api_gestion_data():
         if turno:
             cap_conds.append("LOWER(COALESCE(turno, '')) = %s")
             cap_params.append(turno.lower())
-        _gestion_add_extract_date_filter(cap_conds, cap_params, cap_date_expr, year, month, day)
+        _gestion_add_multi_date_filter(cap_conds, cap_params, f"({cap_date_expr})::TEXT", year, month, day)
         if company_id is not None:
             cap_conds.append("company_id = %s"); cap_params.append(company_id)
         cap_where = _gestion_where(cap_conds)
@@ -2124,7 +2124,7 @@ def api_gestion_data():
         if turno:
             vis_conds.append("LOWER(COALESCE(turno, '')) = %s")
             vis_params.append(turno.lower())
-        _gestion_add_extract_date_filter(vis_conds, vis_params, vis_date_expr, year, month, day)
+        _gestion_add_multi_date_filter(vis_conds, vis_params, f"({vis_date_expr})::TEXT", year, month, day)
         if company_id is not None:
             vis_conds.append("company_id = %s"); vis_params.append(company_id)
         vis_where = _gestion_where(vis_conds)
@@ -2152,7 +2152,7 @@ def api_gestion_data():
         if turno:
             veh_conds.append("LOWER(COALESCE(turno, '')) = %s")
             veh_params.append(turno.lower())
-        _gestion_add_extract_date_filter(veh_conds, veh_params, veh_date_expr, year, month, day)
+        _gestion_add_multi_date_filter(veh_conds, veh_params, f"({veh_date_expr})::TEXT", year, month, day)
         if company_id is not None:
             veh_conds.append("company_id = %s"); veh_params.append(company_id)
         veh_where = _gestion_where(veh_conds)
@@ -2178,15 +2178,7 @@ def api_gestion_data():
         if proyecto:
             eq_conds.append("c.sitio = %s")
             eq_params.append(proyecto)
-        if year:
-            eq_conds.append("EXTRACT(YEAR FROM c.fecha) = %s")
-            eq_params.append(year)
-        if month:
-            eq_conds.append("EXTRACT(MONTH FROM c.fecha) = %s")
-            eq_params.append(month)
-        if day:
-            eq_conds.append("EXTRACT(DAY FROM c.fecha) = %s")
-            eq_params.append(day)
+        _gestion_add_multi_date_filter(eq_conds, eq_params, "c.fecha::TEXT", year, month, day)
         if company_id is not None:
             eq_conds.append("c.company_id = %s"); eq_params.append(company_id)
         eq_where = _eq_where(eq_conds)
@@ -4171,7 +4163,7 @@ def api_supervision_detalles():
             SELECT
                 id_supervision,
                 fecha_hora,
-                cliente,
+                cliente_instalacion AS cliente,
                 supervisor,
                 numero_empleado,
                 nombre_guardia,
@@ -4230,12 +4222,7 @@ def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None):
     conds, params = [], []
     if cliente:
         conds.append('cliente_instalacion = %s'); params.append(cliente)
-    if year:
-        conds.append('EXTRACT(YEAR  FROM fecha_hora) = %s'); params.append(year)
-    if month:
-        conds.append('EXTRACT(MONTH FROM fecha_hora) = %s'); params.append(month)
-    if day:
-        conds.append('EXTRACT(DAY   FROM fecha_hora) = %s'); params.append(day)
+    _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
     if company_id is not None:
@@ -4456,7 +4443,7 @@ def api_cumplimiento_data():
         # ── Alert: vencidos ────────────────────────────────────────────────
         v_conds = base_conds + ['vigencia_hasta IS NOT NULL', 'vigencia_hasta < CURRENT_DATE']
         cur.execute(f"""
-            SELECT agente_nombre_completo, agente_numero_documento, curso_certificacion,
+            SELECT id, agente_nombre_completo, agente_numero_documento, curso_certificacion,
                    vigencia_hasta, cliente_instalacion,
                    (CURRENT_DATE - vigencia_hasta) AS dias_vencido
             FROM checklist_cumplimiento
@@ -4465,6 +4452,7 @@ def api_cumplimiento_data():
             LIMIT 20
         """, base_params)
         alertas_vencidos = [{
+            'id':            r['id'],
             'nombre':        r['agente_nombre_completo'] or '—',
             'num_doc':       r['agente_numero_documento'] or '—',
             'curso':         r['curso_certificacion'] or '—',
@@ -4480,7 +4468,7 @@ def api_cumplimiento_data():
             "vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'",
         ]
         cur.execute(f"""
-            SELECT agente_nombre_completo, agente_numero_documento, curso_certificacion,
+            SELECT id, agente_nombre_completo, agente_numero_documento, curso_certificacion,
                    vigencia_hasta, cliente_instalacion,
                    (vigencia_hasta - CURRENT_DATE) AS dias_restantes
             FROM checklist_cumplimiento
@@ -4489,6 +4477,7 @@ def api_cumplimiento_data():
             LIMIT 20
         """, base_params)
         alertas_proximos = [{
+            'id':             r['id'],
             'nombre':         r['agente_nombre_completo'] or '—',
             'num_doc':        r['agente_numero_documento'] or '—',
             'curso':          r['curso_certificacion'] or '—',
@@ -4602,9 +4591,7 @@ def _capac_conds(cliente, year, month, day, company_id=None):
     conds, params = [], []
     date_expr = _capac_date_expr()
     if cliente: conds.append('cliente_instalacion = %s'); params.append(cliente)
-    if year:    conds.append(f'EXTRACT(YEAR  FROM {date_expr}) = %s'); params.append(year)
-    if month:   conds.append(f'EXTRACT(MONTH FROM {date_expr}) = %s'); params.append(month)
-    if day:     conds.append(f'EXTRACT(DAY   FROM {date_expr}) = %s'); params.append(day)
+    _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     if company_id is not None: conds.append('company_id = %s'); params.append(company_id)
     return conds, params
 
@@ -4881,12 +4868,7 @@ def _visita_conds(cliente, year, month, day, company_id=None):
     date_expr = _visita_date_expr()
     if cliente:
         conds.append('cliente_instalacion = %s'); params.append(cliente)
-    if year:
-        conds.append(f'EXTRACT(YEAR FROM {date_expr}) = %s'); params.append(year)
-    if month:
-        conds.append(f'EXTRACT(MONTH FROM {date_expr}) = %s'); params.append(month)
-    if day:
-        conds.append(f'EXTRACT(DAY FROM {date_expr}) = %s'); params.append(day)
+    _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     if company_id is not None:
         conds.append('company_id = %s'); params.append(company_id)
     return conds, params
@@ -5362,15 +5344,7 @@ def _moto_conds(cliente, year, month, day, company_id=None):
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
     de = _moto_date_expr()
-    if year:
-        conds.append(f"EXTRACT(YEAR  FROM {de}) = %s")
-        params.append(year)
-    if month:
-        conds.append(f"EXTRACT(MONTH FROM {de}) = %s")
-        params.append(month)
-    if day:
-        conds.append(f"EXTRACT(DAY   FROM {de}) = %s")
-        params.append(day)
+    _gestion_add_multi_date_filter(conds, params, f"({de})::TEXT", year, month, day)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -5700,15 +5674,7 @@ def _veh_conds(cliente, year, month, day, company_id=None):
         conds.append("cliente_instalacion = %s")
         params.append(cliente)
     de = _veh_date_expr()
-    if year:
-        conds.append(f"EXTRACT(YEAR  FROM {de}) = %s")
-        params.append(year)
-    if month:
-        conds.append(f"EXTRACT(MONTH FROM {de}) = %s")
-        params.append(month)
-    if day:
-        conds.append(f"EXTRACT(DAY   FROM {de}) = %s")
-        params.append(day)
+    _gestion_add_multi_date_filter(conds, params, f"({de})::TEXT", year, month, day)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -6007,15 +5973,7 @@ def _eq_conds(cliente, year, month, day, responsable=None, company_id=None):
     if cliente:
         conds.append("c.cliente_instalacion = %s")
         params.append(cliente)
-    if year:
-        conds.append("EXTRACT(YEAR  FROM c.fecha) = %s")
-        params.append(year)
-    if month:
-        conds.append("EXTRACT(MONTH FROM c.fecha) = %s")
-        params.append(month)
-    if day:
-        conds.append("EXTRACT(DAY   FROM c.fecha) = %s")
-        params.append(day)
+    _gestion_add_multi_date_filter(conds, params, "c.fecha::TEXT", year, month, day)
     if responsable:
         conds.append("TRIM(c.rol_aplicador) = %s")
         params.append(responsable)
@@ -7057,14 +7015,14 @@ def api_bases_de_datos_personal():
                     nombre_guardia,
                     COALESCE(NULLIF(TRIM(documento_guardia),''), '—') AS documento_guardia,
                     COALESCE(NULLIF(TRIM(numero_empleado),''),  '—') AS numero_empleado,
-                    cliente,
+                    cliente_instalacion AS cliente,
                     MAX(creado_en)   AS ultima_supervision,
                     AVG({score_sql}) AS avg_score
                 FROM supervision_puesto
                 {base_where}
                 GROUP BY
                     COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id'),
-                    nombre_guardia, documento_guardia, numero_empleado, cliente
+                    nombre_guardia, documento_guardia, numero_empleado, cliente_instalacion
             ),
             latest AS (
                 SELECT DISTINCT ON (
