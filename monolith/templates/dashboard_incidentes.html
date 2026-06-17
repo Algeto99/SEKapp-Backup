@@ -1122,7 +1122,7 @@
         actionBar.style.display = 'none';
 
         try {
-            const res  = await fetch(`/viewer/api/report/${r.id}?form_type=reporte_incidente`);
+            const res  = await fetch(`/viewer/api/report/${r.id}?form_type=reporte_incidente`, { credentials: 'include' });
             const data = await res.json();
             if (!res.ok || !data) { showError('No se encontró el registro.'); return; }
 
@@ -1235,7 +1235,7 @@
         actionBar.style.display = 'none';
 
         try {
-            const res  = await fetch(`/viewer/api/report/${id}?form_type=reporte_incidente`);
+            const res  = await fetch(`/viewer/api/report/${id}?form_type=reporte_incidente`, { credentials: 'include' });
             const data = await res.json();
 
             if (!res.ok || !data) { showError('No se encontró el registro.'); return; }

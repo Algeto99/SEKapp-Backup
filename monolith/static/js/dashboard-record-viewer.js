@@ -1,4 +1,9 @@
 (function() {
+    function getCsrfToken() {
+        const row = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+        return row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '';
+    }
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replace(/&/g, '&amp;')
@@ -557,7 +562,9 @@
             actionBar.style.display = 'none';
             emailOverlay.classList.remove('active');
             try {
-                const res = await fetch(`/viewer/api/report/${id}?form_type=${encodeURIComponent(cfg.formType)}`);
+                const res = await fetch(`/viewer/api/report/${id}?form_type=${encodeURIComponent(cfg.formType)}`, {
+                    credentials: 'include'
+                });
                 const data = await res.json();
                 if (!res.ok || !data) {
                     showToast('drv-error-toast',
@@ -587,7 +594,11 @@
             try {
                 const res = await fetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
                     body: JSON.stringify({ reports: [{ id: currentRecordId, formType: cfg.formType }] })
                 });
                 if (!res.ok) {
@@ -642,7 +653,11 @@
             try {
                 const res = await fetch('/viewer/api/email-reports', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
                     body: JSON.stringify({
                         reports: [{ id: currentRecordId, formType: cfg.formType }],
                         recipient_email: email
