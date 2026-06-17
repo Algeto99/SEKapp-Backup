@@ -34,4 +34,4 @@ jobs:
           cd sekapp.git
           
           # 2. Push everything to your destination backup repository using HTTPS authorization
-          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Algeto99/SEKapp-Backup.git
+          git push --all https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Algeto99/SEKapp-Backup.git
