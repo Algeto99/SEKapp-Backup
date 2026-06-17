@@ -2452,10 +2452,19 @@
         if (isIos() && !isStandalone()) {
             if (installBtn) {
                 installBtn.style.display = 'inline-block';
-                installBtn.innerHTML = '🍎 Instalar: Toca Compartir <svg style="display:inline;width:16px;height:16px;margin:0 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> y "Agregar a Inicio"';
-                installBtn.onclick = function(e) { e.preventDefault(); };
+                installBtn.innerHTML = '🍎 Instalar en iPhone';
+                installBtn.onclick = function(e) { e.preventDefault(); showIosInstallModal(); };
             }
         }
+
+        window.showIosInstallModal = function() {
+            var modal = document.getElementById('ios-install-modal');
+            if (modal) modal.style.display = 'flex';
+        };
+        window.closeIosInstallModal = function() {
+            var modal = document.getElementById('ios-install-modal');
+            if (modal) modal.style.display = 'none';
+        };
 
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/forms/sw.js', { scope: '/' })
@@ -2502,6 +2511,39 @@
     </script>
     </div><!-- /container-wrapper -->
     </div><!-- /sidebar-main-content -->
+
+<!-- iOS Install Instructions Modal -->
+<div id="ios-install-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:flex-end;justify-content:center;padding:1rem;">
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:16px 16px 12px 12px;padding:1.5rem;width:100%;max-width:480px;color:#e2e8f0;position:relative;">
+        <button onclick="closeIosInstallModal()" style="position:absolute;top:.75rem;right:.75rem;background:none;border:none;color:#94a3b8;font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>
+        <div style="text-align:center;margin-bottom:1rem;">
+            <span style="font-size:2rem;">🍎</span>
+            <h2 style="font-size:1.1rem;font-weight:700;margin:.5rem 0 .25rem;">Instalar SekApp en iPhone</h2>
+            <p style="font-size:.8rem;color:#94a3b8;">Sigue estos pasos en Safari para agregar la app a tu pantalla de inicio</p>
+        </div>
+        <ol style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.75rem;">
+            <li style="display:flex;align-items:flex-start;gap:.75rem;">
+                <span style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.4rem .7rem;font-size:1.2rem;flex-shrink:0;">1</span>
+                <span style="font-size:.88rem;padding-top:.3rem;">Asegúrate de abrir esta página en <strong>Safari</strong> (no Chrome ni otro navegador).</span>
+            </li>
+            <li style="display:flex;align-items:flex-start;gap:.75rem;">
+                <span style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.4rem .7rem;font-size:1.2rem;flex-shrink:0;">2</span>
+                <span style="font-size:.88rem;padding-top:.3rem;">Toca el botón <strong>Compartir</strong>
+                    <svg style="display:inline;vertical-align:middle;width:18px;height:18px;margin:0 2px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                    en la barra inferior de Safari.</span>
+            </li>
+            <li style="display:flex;align-items:flex-start;gap:.75rem;">
+                <span style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.4rem .7rem;font-size:1.2rem;flex-shrink:0;">3</span>
+                <span style="font-size:.88rem;padding-top:.3rem;">Desplázate en el menú y toca <strong>"Añadir a pantalla de inicio"</strong>.</span>
+            </li>
+            <li style="display:flex;align-items:flex-start;gap:.75rem;">
+                <span style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:.4rem .7rem;font-size:1.2rem;flex-shrink:0;">4</span>
+                <span style="font-size:.88rem;padding-top:.3rem;">Toca <strong>"Añadir"</strong> en la esquina superior derecha. ¡Listo!</span>
+            </li>
+        </ol>
+        <button onclick="closeIosInstallModal()" style="margin-top:1.2rem;width:100%;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:.7rem;font-size:.9rem;font-weight:600;cursor:pointer;">Entendido</button>
+    </div>
+</div>
 </body>
 
 </html>
