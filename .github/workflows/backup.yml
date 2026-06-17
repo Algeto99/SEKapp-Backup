@@ -23,8 +23,8 @@ jobs:
 
       - name: Mirror Mirror on the Wall
         run: |
-          git config --global user.name "Backup Bot"
-          git config --global user.email "backup-bot@example.com"
+          git config --global user.name "Algeto99"
+          git config --global user.email "alvaro.montalvo02@gmail.com"
           
           # 1. Clone using the clean SSH URL format
           git clone --mirror git@github.com:rcanton/sekapp.git sekapp.git
