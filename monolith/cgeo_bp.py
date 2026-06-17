@@ -761,7 +761,7 @@ def cgeo_api_alertas():
                 "regla": 6,
                 "texto": f"Vehículo {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
                 "accion": "Registrar pre-op",
-                "ruta_navegacion": f"/forms/planilla_vehicular?cliente={r['cliente']}&placa={r['placa']}",
+                "ruta_navegacion": f"/dashboard/vehiculos/?placa={r['placa']}&cliente={r['cliente']}",
                 "color_semaforo": "amarillo",
                 "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
                 "horas": round(h, 1),

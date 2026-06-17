@@ -190,7 +190,10 @@
     <div id="inspectionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this) closeInspectionModal()">
         <div style="width:min(1100px,100%);max-height:80vh;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.1);border-radius:16px;">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);">
-                <h3 id="inspectionModalTitle" style="margin:0;font-family:'Merriweather',serif;color:#fff;">Detalle de inspecciones</h3>
+                <div style="display:flex;align-items:center;gap:1.5rem;">
+                    <h3 id="inspectionModalTitle" style="margin:0;font-family:'Merriweather',serif;color:#fff;">Detalle de inspecciones</h3>
+                    <div id="inspectionModalActions"></div>
+                </div>
                 <button onclick="closeInspectionModal()" style="background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer;">×</button>
             </div>
             <div style="padding:1rem;overflow:auto;max-height:calc(80vh - 70px);">
@@ -305,11 +308,26 @@
     /* ── Fallas por componente ──────────────────────────────────────────── */
     let allInspectionRows = [];
 
-    function openInspectionModal(rows, title) {
+    function openInspectionModal(rows, title, placa = null, cliente = '') {
         const modal = document.getElementById('inspectionModal');
         const titleEl = document.getElementById('inspectionModalTitle');
+        const actionsEl = document.getElementById('inspectionModalActions');
         const body = document.getElementById('inspectionModalBody');
         titleEl.textContent = title || 'Detalle de inspecciones';
+
+        if (actionsEl) {
+            if (placa) {
+                const url = `/forms/planilla_vehicular?placa=${encodeURIComponent(placa)}${cliente ? '&cliente=' + encodeURIComponent(cliente) : ''}`;
+                actionsEl.innerHTML = `
+                    <a href="${url}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded-lg text-xs transition duration-150 inline-flex items-center gap-1.5" style="text-decoration:none;">
+                        <span>📝 Registrar pre-op</span>
+                    </a>
+                `;
+            } else {
+                actionsEl.innerHTML = '';
+            }
+        }
+
         if (!rows.length) {
             body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">Sin inspecciones para esta selección.</td></tr>';
         } else {
@@ -352,7 +370,15 @@
 
     function showPlacaInspecciones(placa) {
         const rows = allInspectionRows.filter(r => r.placa === placa);
-        openInspectionModal(rows, `Inspecciones — Placa ${placa}`);
+        let cliente = '';
+        const matchingRow = rows.find(r => r.cliente && r.cliente !== '—');
+        if (matchingRow) {
+            cliente = matchingRow.cliente;
+        } else {
+            const urlParams = new URLSearchParams(window.location.search);
+            cliente = urlParams.get('cliente') || '';
+        }
+        openInspectionModal(rows, `Inspecciones — Placa ${placa}`, placa, cliente);
     }
 
     function showRecurrentes() {
@@ -485,10 +511,7 @@
                     if (!elements.length) return;
                     const placa = rows[elements[0].index]?.placa;
                     if (!placa) return;
-                    openInspectionModal(
-                        allInspectionRows.filter(r => r.placa === placa),
-                        `Inspecciones — ${placa}`
-                    );
+                    showPlacaInspecciones(placa);
                 },
                 layout: { padding: { right: 40 } },
                 scales: {
@@ -717,7 +740,20 @@
             loadData(p.toString());
         });
 
-        loadData();
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlPlaca = urlParams.get('placa');
+        const urlCliente = urlParams.get('cliente');
+
+        let initialQs = '';
+        if (urlCliente) {
+            initialQs = `cliente=${encodeURIComponent(urlCliente)}`;
+        }
+
+        await loadData(initialQs);
+
+        if (urlPlaca) {
+            showPlacaInspecciones(urlPlaca);
+        }
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
