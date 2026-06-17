@@ -770,15 +770,7 @@ async function exportPDF() {
         row.style.gridTemplateColumns = '';
     });
 
-    // Ejecutivo: exclude the "Gestión de Incidentes" row (Row 3) — keeps the approved
-    // one-page PDF layout; a full-width row there tends to split across PDF pages
-    if (isEjec) {
-        const gestionCanvas = tabClone.querySelector('#chartIncGestion');
-        if (gestionCanvas) {
-            const gestionRow = gestionCanvas.closest('.charts-row');
-            if (gestionRow) gestionRow.remove();
-        }
-    }
+    // Keep the "Gestión de Incidentes" row in PDF to match screen content 100%
 
     // Re-layout donut containers from side-by-side to stacked (chart above, legend below)
     // so legends don't overflow a narrow PDF column
@@ -934,6 +926,12 @@ async function exportPDF() {
     // Wait for layout to settle after DOM manipulations
     await new Promise(r => setTimeout(r, 150));
 
+    // Safe page-break positions: the top of each top-level block (KPI grid, chart
+    // rows, tables...) in CSS px relative to wrap, so no card is ever cut mid-page
+    const breakPositionsPx = Array.from(tabClone.children)
+        .filter(el => el.offsetHeight > 0)
+        .map(el => el.offsetTop);
+
     const btn = document.querySelector('.btn-pdf');
     if (btn) { btn.disabled = true; btn.textContent = 'Generando…'; }
 
@@ -961,11 +959,20 @@ async function exportPDF() {
         const ratio   = CONTENT_W / (imgW / 2);
         const totalH  = (imgH / 2) * ratio;
 
+        const breaksMm = breakPositionsPx.map(px => px * ratio).sort((a, b) => a - b);
         let yOffset = 0;
         while (yOffset < totalH) {
             if (yOffset > 0) pdf.addPage();
 
-            const sliceH_mm = Math.min(pageContentH, totalH - yOffset);
+            // End the page at the last block boundary that fits, so cards stay whole.
+            // Hard cut only if a single block is taller than a full page.
+            let sliceEnd = Math.min(yOffset + pageContentH, totalH);
+            if (sliceEnd < totalH) {
+                const fitting = breaksMm.filter(b => b > yOffset + 20 && b < sliceEnd);
+                if (fitting.length) sliceEnd = fitting[fitting.length - 1];
+            }
+
+            const sliceH_mm = sliceEnd - yOffset;
             const sliceH_px = Math.round((sliceH_mm / ratio) * 2);
             const srcY_px   = Math.round((yOffset / ratio) * 2);
 
@@ -982,8 +989,9 @@ async function exportPDF() {
             pdf.text('Kanan Sentinel — Gestión de Operación y Novedades', MARGIN, PAGE_H - 5);
             pdf.text(`${pageNum}`, PAGE_W - MARGIN, PAGE_H - 5, { align: 'right' });
 
-            yOffset += pageContentH;
+            yOffset = sliceEnd;
         }
+
 
         const today  = new Date().toISOString().slice(0, 10);
         const prefix = isEjec ? 'Informe_Ejecutivo_Operacion' : 'Resumen_Operativo_Operacion';
