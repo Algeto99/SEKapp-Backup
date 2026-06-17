@@ -6,6 +6,10 @@ on:
     - cron: '0 */24 * * *'
   workflow_dispatch: # Allows you to trigger it manually
 
+# Grants the runner permission to push code into this backup repository
+permissions:
+  contents: write
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -16,11 +20,11 @@ jobs:
           git config --global user.name "Backup Bot"
           git config --global user.email "backup-bot@example.com"
           
-          # Clone the source repository as a bare mirror using the secret token
-          git clone --mirror https://x-access-token:${{ secrets.SEKAPPSECRETO }}@github.com/rcanton/sekapp.git source-repo
+          # Clone the source repository as a bare mirror using your secret token
+          git clone --mirror https://x-access-token:${{ secrets.SEKAPPSECRETO }}@github.com/rcanton/sekapp.git sekapp.git
           
-          cd source-repo
+          cd sekapp.git
           
-          # Push everything (all branches, tags, and commits) to the backup repo
-          # Uses the GITHUB_TOKEN automatically provided by Actions for the local repo
-          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/backup-user/backup-repo.git
+          # Push everything (all branches, tags, and commits) to this backup repo
+          # Uses the built-in GITHUB_TOKEN automatically provided by Actions for the local destination
+          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rcanton/sekapp.git
