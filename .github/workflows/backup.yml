@@ -1,0 +1,26 @@
+name: Mirror Source Repository
+
+on:
+  schedule:
+    # Runs every 6 hours (adjust cron as needed)
+    - cron: '0 */24 * * *'
+  workflow_dispatch: # Allows you to trigger it manually
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror Mirror on the Wall
+        run: |
+          # Configure Git
+          git config --global user.name "Backup Bot"
+          git config --global user.email "backup-bot@example.com"
+          
+          # Clone the source repository as a bare mirror using the secret token
+          git clone --mirror https://x-access-token:${{ secrets.SEKAPPSECRETO }}@github.com/source-user/source-repo.git source-repo
+          
+          cd source-repo
+          
+          # Push everything (all branches, tags, and commits) to the backup repo
+          # Uses the GITHUB_TOKEN automatically provided by Actions for the local repo
+          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/backup-user/backup-repo.git
