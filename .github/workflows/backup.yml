@@ -27,4 +27,4 @@ jobs:
           
           # Push everything (all branches, tags, and commits) to this backup repo
           # Uses the built-in GITHUB_TOKEN automatically provided by Actions for the local destination
-          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/rcanton/sekapp.git
+          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/https://github.com/Algeto99/SEKapp-Backup.git
