@@ -2,8 +2,8 @@ name: Mirror Source Repository
 
 on:
   schedule:
-    # Runs every 6 hours (adjust cron as needed)
-    - cron: '0 */24 * * *'
+    # Runs once every day at midnight (00:00)
+    - cron: '0 0 * * *'
   workflow_dispatch: # Allows you to trigger it manually
 
 # Grants the runner permission to push code into this backup repository
@@ -20,11 +20,10 @@ jobs:
           git config --global user.name "Backup Bot"
           git config --global user.email "backup-bot@example.com"
           
-          # Clone the source repository as a bare mirror using your secret token
+          # 1. Clone the source repository as a bare mirror using your secret token
           git clone --mirror https://x-access-token:${{ secrets.SEKAPPSECRETO }}@github.com/rcanton/sekapp.git sekapp.git
           
           cd sekapp.git
           
-          # Push everything (all branches, tags, and commits) to this backup repo
-          # Uses the built-in GITHUB_TOKEN automatically provided by Actions for the local destination
-          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/https://github.com/Algeto99/SEKapp-Backup.git
+          # 2. Push everything to your destination backup repository
+          git push --mirror https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Algeto99/SEKapp-Backup.git
