@@ -5593,6 +5593,8 @@ def api_motocicletas_detalles():
                 COALESCE(NULLIF(TRIM(placa_motocicleta),''), '—')   AS placa,
                 COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
                 {de} AS fecha_evento,
+                novedades_criticas_detectadas,
+                accion_inmediata_tomada,
                 {all_cols}
             FROM planilla_motocicletas
             {_moto_where(base_conds)}
@@ -5615,6 +5617,8 @@ def api_motocicletas_detalles():
                 'no_apta': len(componentes_malos) > 0,
                 'fallas': len(componentes_malos),
                 'componentes_malos': componentes_malos,
+                'novedades_criticas': r['novedades_criticas_detectadas'] or '',
+                'accion_inmediata': r['accion_inmediata_tomada'] or '',
             })
         return jsonify({'detalles': detalles, 'inspecciones': inspecciones})
     except Exception as e:
@@ -5923,6 +5927,8 @@ def api_vehiculos_detalles():
                 COALESCE(NULLIF(TRIM(placa_vehiculo),''), '—')      AS placa,
                 COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
                 {de} AS fecha_evento,
+                novedades_criticas,
+                accion_inmediata,
                 {all_cols}
             FROM planilla_vehicular
             {_veh_where(base_conds)}
@@ -5945,6 +5951,8 @@ def api_vehiculos_detalles():
                 'no_apta': len(componentes_malos) > 0,
                 'fallas': len(componentes_malos),
                 'componentes_malos': componentes_malos,
+                'novedades_criticas': r['novedades_criticas'] or '',
+                'accion_inmediata': r['accion_inmediata'] or '',
             })
         return jsonify({'detalles': detalles, 'inspecciones': inspecciones})
     except Exception as e:

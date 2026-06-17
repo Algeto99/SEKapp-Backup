@@ -21,11 +21,21 @@
         .module-icon svg { width:24px; height:24px; }
         .module-header h1 { font-size:1.5rem; margin:0 0 .2rem; }
         .module-header p { font-size:.875rem; color:#94a3b8; margin:0; }
-        .alert-banner { display:flex; gap:1rem; align-items:flex-start; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.24); color:#fecaca; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; }
+        .alert-banner { display:flex; gap:1rem; align-items:flex-start; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.24); color:#fecaca; border-radius:14px; padding:1rem 1.25rem; margin-bottom:1rem; cursor:pointer; transition:all 0.15s ease-in-out; }
+        .alert-banner:hover { background:rgba(239,68,68,0.22); border-color:rgba(239,68,68,0.45); transform:translateY(-1px); }
         .alert-banner svg { width:22px; height:22px; flex-shrink:0; margin-top:.15rem; }
         .alert-banner-title { font-weight:700; color:#fca5a5; margin-bottom:.25rem; }
-        .alert-recurrente { display:inline-flex; align-items:center; gap:.35rem; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; color:#fca5a5; margin:.15rem; }
+        .alert-recurrente { display:inline-flex; align-items:center; gap:.35rem; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; color:#fca5a5; margin:.15rem; cursor:pointer; transition:all 0.15s ease-in-out; }
+        .alert-recurrente:hover { background:rgba(239,68,68,0.25); border-color:rgba(239,68,68,0.50); transform:translateY(-1px); }
         .card { background:#374151; border:1px solid rgba(255,255,255,0.08); border-radius:14px; padding:1.5rem; }
+        .clickable-card { cursor:pointer; transition:all 0.15s ease-in-out; }
+        .clickable-card:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.25); border-color:rgba(244,63,94,0.4); background:rgba(55,65,81,0.85); }
+        .status-pill { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; }
+        .status-pill::before { content:""; width:8px; height:8px; border-radius:50%; display:inline-block; }
+        .status-apto { background:rgba(34,197,94,.12); color:#86efac; }
+        .status-apto::before { background:#22c55e; }
+        .status-no-apto { background:rgba(239,68,68,.12); color:#fca5a5; }
+        .status-no-apto::before { background:#ef4444; }
         .card-title { font-size:.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:.875rem; }
         .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1rem; }
         .kpi-value { font-family:'Merriweather',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:.35rem; }
@@ -97,24 +107,24 @@
 
         <!-- KPI grid -->
         <div class="kpi-grid">
-            <div class="card">
+            <div class="card clickable-card" onclick="openInspectionModal(allInspectionRows, 'Total de Inspecciones')" title="Ver todas las inspecciones">
                 <div class="card-title">Total Inspecciones</div>
                 <div class="kpi-value" id="kpiTotal" style="color:#fb7185;">—</div>
                 <div class="kpi-label">Inspecciones registradas en el período</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openInspectionModal(allInspectionRows.filter(r => !r.no_apta), 'Motocicletas Aptas')" title="Ver motocicletas sin fallas">
                 <div class="card-title">Motocicletas Aptas</div>
                 <div class="kpi-value" id="kpiAptos" style="color:#22c55e;">—</div>
                 <div class="kpi-label">Sin fallas detectadas</div>
                 <div class="kpi-sub" id="kpiAptosSub">—</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openInspectionModal(allInspectionRows.filter(r => r.no_apta), 'Motocicletas No Aptas')" title="Ver motocicletas con fallas">
                 <div class="card-title">Motocicletas No Aptas</div>
                 <div class="kpi-value" id="kpiNoAptos" style="color:#ef4444;">—</div>
                 <div class="kpi-label">Con al menos una falla</div>
                 <div class="kpi-sub" id="kpiNoAptosSub">—</div>
             </div>
-            <div class="card">
+            <div class="card clickable-card" onclick="openInspectionModal(allInspectionRows.filter(r => r.fallas > 0), 'Inspecciones con Fallas Detectadas')" title="Ver inspecciones con fallas detectadas">
                 <div class="card-title">Total Fallas Detectadas</div>
                 <div class="kpi-value" id="kpiFallas" style="color:#f59e0b;">—</div>
                 <div class="kpi-label">Items en estado "Malo"</div>
@@ -184,16 +194,18 @@
                 <button onclick="closeInspectionModal()" style="background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer;">×</button>
             </div>
             <div style="padding:1rem;overflow:auto;max-height:calc(80vh - 70px);">
-                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                <table class="matrix-table" style="width:100%;">
                     <thead>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
-                            <th style="padding:.65rem;text-align:left;">Fecha</th>
-                            <th style="padding:.65rem;text-align:left;">Cliente</th>
-                            <th style="padding:.65rem;text-align:left;">Placa</th>
-                            <th style="padding:.65rem;text-align:left;">Responsable</th>
-                            <th style="padding:.65rem;text-align:center;">Fallas</th>
-                            <th style="padding:.65rem;text-align:left;">Componentes</th>
-                            <th style="padding:.65rem;text-align:left;">Acción</th>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Placa</th>
+                            <th>Responsable</th>
+                            <th style="text-align:center;">Fallas</th>
+                            <th>Componentes</th>
+                            <th>Novedades Críticas</th>
+                            <th>Acción Inmediata</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="inspectionModalBody"></tbody>
@@ -209,11 +221,11 @@
         formType: 'planilla_motocicletas',
         recordTitle: 'Detalle de Planilla de Motocicleta'
     });
-    Chart.defaults.color = '#cbd5e1';
 
     const GRID_COLOR = 'rgba(148,163,184,0.15)';
     const TICK_COLOR = '#94a3b8';
     let compChart, ubicChart, trendChart;
+    let _rawData = null;
 
     /* ── Theme ──────────────────────────────────────────────────────────── */
     (function() {
@@ -299,17 +311,31 @@
         const body = document.getElementById('inspectionModalBody');
         titleEl.textContent = title || 'Detalle de inspecciones';
         if (!rows.length) {
-            body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin inspecciones para esta selección.</td></tr>';
+            body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">Sin inspecciones para esta selección.</td></tr>';
         } else {
-            body.innerHTML = rows.map(r => `<tr>
-                <td>${r.fecha}</td>
-                <td>${r.cliente}</td>
-                <td style="font-weight:700;color:#fda4af;">${r.placa}</td>
-                <td>${r.responsable}</td>
-                <td style="text-align:center;">${r.fallas}</td>
-                <td>${(r.componentes_malos || []).join(', ') || 'Sin fallas'}</td>
-                <td>${recordViewer.actionButtonHtml(r.id)}</td>
-            </tr>`).join('');
+            body.innerHTML = rows.map(r => `
+                <tr class="clickable-row">
+                    <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
+                    <td>${r.cliente}</td>
+                    <td style="font-weight:700;color:#fda4af;cursor:pointer;text-decoration:underline;" onclick="closeInspectionModal(); showPlacaInspecciones('${r.placa}')" title="Ver historial de esta placa">${r.placa}</td>
+                    <td>${r.responsable}</td>
+                    <td style="text-align:center;">
+                        <span class="status-pill ${r.no_apta ? 'status-no-apto' : 'status-apto'}">${r.fallas}</span>
+                    </td>
+                    <td>${(r.componentes_malos || []).join(', ') || 'Sin fallas'}</td>
+                    <td>
+                        ${r.novedades_criticas && r.novedades_criticas !== '—' && r.novedades_criticas.trim() !== '' 
+                            ? `<span class="badge-critico">${escHtml(r.novedades_criticas)}</span>` 
+                            : '—'}
+                    </td>
+                    <td>
+                        ${r.accion_inmediata && r.accion_inmediata !== '—' && r.accion_inmediata.trim() !== '' 
+                            ? `<span class="badge-accion">${escHtml(r.accion_inmediata)}</span>` 
+                            : '—'}
+                    </td>
+                    <td>${recordViewer.actionButtonHtml(r.id)}</td>
+                </tr>
+            `).join('');
             recordViewer.wireActionButtons(body);
         }
         modal.style.display = 'flex';
@@ -317,6 +343,22 @@
 
     function closeInspectionModal() {
         document.getElementById('inspectionModal').style.display = 'none';
+    }
+
+    function showCriticalNovelties() {
+        const rows = allInspectionRows.filter(r => r.novedades_criticas && r.novedades_criticas !== '—' && r.novedades_criticas.trim() !== '');
+        openInspectionModal(rows, "Inspecciones con Novedades Críticas");
+    }
+
+    function showPlacaInspecciones(placa) {
+        const rows = allInspectionRows.filter(r => r.placa === placa);
+        openInspectionModal(rows, `Inspecciones — Placa ${placa}`);
+    }
+
+    function showRecurrentes() {
+        const recurrentPlacas = new Set((_rawData?.placas_recurrentes || []).map(p => p.placa));
+        const rows = allInspectionRows.filter(r => recurrentPlacas.has(r.placa));
+        openInspectionModal(rows, "Inspecciones de Motocicletas con Fallas Recurrentes");
     }
 
     function renderCompChart(rows, total) {
@@ -571,9 +613,9 @@
 
         const msgs = [];
         if (alertasCount > 0)
-            msgs.push(`${alertasCount} inspección(es) con novedades críticas registradas.`);
+            msgs.push(`<div style="text-decoration:underline;" onclick="showCriticalNovelties()">${alertasCount} inspección(es) con novedades críticas registradas.</div>`);
         if (placasRecurrentes && placasRecurrentes.length > 0)
-            msgs.push(`${placasRecurrentes.length} motocicleta(s) con fallas recurrentes (≥2 inspecciones no aptas).`);
+            msgs.push(`<div style="text-decoration:underline;" onclick="showRecurrentes()">${placasRecurrentes.length} motocicleta(s) con fallas recurrentes (≥2 inspecciones no aptas).</div>`);
 
         if (!msgs.length) {
             banner.style.display = 'none';
@@ -585,7 +627,7 @@
         if (placasRecurrentes && placasRecurrentes.length) {
             placas.innerHTML = '<span style="font-size:.74rem;color:#fca5a5;font-weight:700;margin-right:.35rem;">Placas:</span>' +
                 placasRecurrentes.map(p =>
-                    `<span class="alert-recurrente">${p.placa} · ${p.no_aptas} no apta(s)</span>`
+                    `<span class="alert-recurrente" onclick="showPlacaInspecciones('${p.placa}')" title="Ver historial de la placa ${p.placa}">${p.placa} · ${p.no_aptas} no apta(s)</span>`
                 ).join('');
         } else {
             placas.innerHTML = '';
@@ -601,7 +643,7 @@
         }
         tbody.innerHTML = detalles.map(r => `<tr>
             <td>${r.cliente}</td>
-            <td style="white-space:nowrap;font-weight:700;color:#fda4af;">${r.placa}</td>
+            <td style="white-space:nowrap;font-weight:700;color:#fda4af;cursor:pointer;text-decoration:underline;" onclick="showPlacaInspecciones('${r.placa}')" title="Ver historial de esta placa">${r.placa}</td>
             <td>${r.responsable}</td>
             <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
             <td><span class="badge-critico">${escHtml(r.novedades_criticas)}</span></td>
@@ -632,6 +674,7 @@
             if (!dataRes.ok) throw new Error(data.error || 'Error cargando datos motocicletas');
             if (!detRes.ok)  throw new Error(det.error  || 'Error cargando detalles motocicletas');
 
+            _rawData = data;
             const total = (data.kpi || {}).total_inspecciones || 0;
             renderKPI(data.kpi || {});
             renderCompChart(data.fallas_componente || [], total);
@@ -657,6 +700,15 @@
             propSection.style.display = 'none';
             const divider = propSection.nextElementSibling;
             if (divider && divider.classList.contains('df-divider')) divider.style.display = 'none';
+        }
+
+        const banner = document.getElementById('alertBanner');
+        if (banner) {
+            banner.title = "Clic para ver inspecciones con novedades críticas";
+            banner.addEventListener('click', (e) => {
+                if (e.target.closest('.alert-recurrente')) return;
+                showCriticalNovelties();
+            });
         }
 
         document.addEventListener('filtersChanged', e => {
