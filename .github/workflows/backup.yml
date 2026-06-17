@@ -17,7 +17,7 @@ jobs:
           git config --global user.email "backup-bot@example.com"
           
           # Clone the source repository as a bare mirror using the secret token
-          git clone --mirror https://x-access-token:${{ secrets.SEKAPPSECRETO }}@github.com/source-user/source-repo.git source-repo
+          git clone --mirror https://x-access-token:${{ secrets.SEKAPPSECRETO }}@github.com/rcanton/sekapp.git source-repo
           
           cd source-repo
           
