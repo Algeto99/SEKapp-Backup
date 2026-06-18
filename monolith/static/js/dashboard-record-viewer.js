@@ -287,6 +287,101 @@
                 font-size: 0.8rem;
                 margin-bottom: 0.65rem;
             }
+            body.light-mode .drv-action-btn {
+                background: rgba(59,130,246,0.1);
+                color: #1d4ed8;
+                border-color: rgba(37,99,235,0.22);
+            }
+            body.light-mode .drv-action-btn:hover {
+                background: rgba(59,130,246,0.16);
+                color: #1e40af;
+            }
+            body.light-mode .drv-modal-backdrop {
+                background: rgba(15,23,42,0.38);
+            }
+            body.light-mode .drv-modal-container {
+                background: #ffffff;
+                border-color: rgba(15,23,42,0.1);
+                box-shadow: 0 20px 60px rgba(15,23,42,0.18);
+            }
+            body.light-mode .drv-modal-header {
+                border-bottom-color: rgba(15,23,42,0.08);
+            }
+            body.light-mode .drv-modal-title,
+            body.light-mode .drv-detail-section h4,
+            body.light-mode .drv-email-box h4 {
+                color: #0f172a;
+            }
+            body.light-mode .drv-modal-close {
+                color: #64748b;
+            }
+            body.light-mode .drv-modal-close:hover {
+                color: #0f172a;
+            }
+            body.light-mode .drv-modal-body,
+            body.light-mode .drv-detail-field p,
+            body.light-mode .drv-detail-field > div,
+            body.light-mode .drv-kv-item div {
+                color: #334155;
+            }
+            body.light-mode .drv-record-loading,
+            body.light-mode .drv-detail-field label,
+            body.light-mode .drv-kv-item label,
+            body.light-mode .drv-email-box p {
+                color: #64748b;
+            }
+            body.light-mode .drv-detail-section {
+                background: #f8fafc;
+                border-color: rgba(15,23,42,0.08);
+            }
+            body.light-mode .drv-nested-card {
+                background: #ffffff;
+                border-color: rgba(15,23,42,0.08);
+            }
+            body.light-mode .drv-nested-card h5 {
+                color: #334155;
+            }
+            body.light-mode .drv-inline-image {
+                border-color: rgba(15,23,42,0.14);
+            }
+            body.light-mode .drv-inv-table thead tr {
+                background: rgba(79,70,229,0.1);
+            }
+            body.light-mode .drv-inv-table th {
+                color: #3730a3;
+                border-bottom-color: rgba(15,23,42,0.08);
+            }
+            body.light-mode .drv-inv-table td {
+                color: #334155;
+                border-bottom-color: rgba(15,23,42,0.06);
+            }
+            body.light-mode .drv-inv-table tbody tr:hover td {
+                background: rgba(15,23,42,0.04);
+            }
+            body.light-mode .drv-action-bar {
+                border-top-color: rgba(15,23,42,0.08);
+            }
+            body.light-mode .drv-modal-btn.secondary {
+                background: rgba(100,116,139,0.1);
+                border-color: rgba(100,116,139,0.22);
+                color: #334155;
+            }
+            body.light-mode .drv-email-overlay {
+                background: rgba(248,250,252,0.84);
+            }
+            body.light-mode .drv-email-box {
+                background: #ffffff;
+                border-color: rgba(15,23,42,0.1);
+                box-shadow: 0 18px 50px rgba(15,23,42,0.16);
+            }
+            body.light-mode .drv-email-input {
+                background: #ffffff;
+                border-color: #cbd5e1;
+                color: #0f172a;
+            }
+            body.light-mode .drv-email-input::placeholder {
+                color: #94a3b8;
+            }
         `;
         document.head.appendChild(style);
     }

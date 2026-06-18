@@ -69,6 +69,16 @@
         .matrix-table th { padding:.75rem; color:#cbd5e1; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:#374151; z-index:1; white-space:nowrap; }
         .matrix-table td { padding:.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#e5e7eb; vertical-align:middle; }
         .matrix-table tr:hover td { background:rgba(255,255,255,0.03); }
+        .dashboard-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:250; align-items:center; justify-content:center; padding:1rem; }
+        .dashboard-modal-panel { width:min(1050px,100%); max-height:80vh; overflow:hidden; background:#1f2937; border:1px solid rgba(255,255,255,.1); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+        .dashboard-modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,.08); }
+        .dashboard-modal-title { margin:0; font-family:'Merriweather',serif; color:#fff; }
+        .dashboard-modal-close { background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; }
+        .dashboard-modal-close:hover { color:#e5e7eb; }
+        .dashboard-modal-body { padding:1rem; overflow:auto; max-height:calc(80vh - 70px); }
+        .detail-date { white-space:nowrap; color:#cbd5e1; }
+        .summary-row td { border-top:2px solid rgba(255,255,255,0.12); }
+        .summary-label { font-weight:700; color:#94a3b8; }
         /* Estado pills */
         .pill { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.2rem .65rem; font-size:.74rem; font-weight:700; white-space:nowrap; }
         .pill::before { content:''; width:8px; height:8px; border-radius:50%; }
@@ -93,6 +103,16 @@
         body.light-mode .card { background:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,.06); }
         body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
         body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
+        body.light-mode .matrix-table tr:hover td { background:rgba(15,23,42,.04); }
+        body.light-mode .dashboard-modal { background:rgba(15,23,42,.38); }
+        body.light-mode .dashboard-modal-panel { background:#fff; border-color:rgba(15,23,42,.1); box-shadow:0 20px 60px rgba(15,23,42,.18); }
+        body.light-mode .dashboard-modal-header { border-bottom-color:rgba(15,23,42,.08); }
+        body.light-mode .dashboard-modal-title { color:#0f172a; }
+        body.light-mode .dashboard-modal-close { color:#64748b; }
+        body.light-mode .dashboard-modal-close:hover { color:#0f172a; }
+        body.light-mode .detail-date { color:#475569; }
+        body.light-mode .summary-row td { border-top-color:rgba(15,23,42,.12); }
+        body.light-mode .summary-label { color:#64748b; }
         body.light-mode .module-header { border-bottom-color:rgba(0,0,0,.08); }
         body.light-mode .module-header p { color:#64748b; }
         body.light-mode .alert-banner { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#b91c1c; }
@@ -254,23 +274,23 @@
 
     </div><!-- /main-container -->
 
-    <div id="recordsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this) closeRecordsModal()">
-        <div style="width:min(1050px,100%);max-height:80vh;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.1);border-radius:16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);">
-                <h3 id="recordsModalTitle" style="margin:0;font-family:'Merriweather',serif;color:#fff;">Detalle de registros</h3>
-                <button onclick="closeRecordsModal()" style="background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer;">×</button>
+    <div id="recordsModal" class="dashboard-modal" onclick="if(event.target===this) closeRecordsModal()">
+        <div class="dashboard-modal-panel">
+            <div class="dashboard-modal-header">
+                <h3 id="recordsModalTitle" class="dashboard-modal-title">Detalle de registros</h3>
+                <button onclick="closeRecordsModal()" class="dashboard-modal-close">×</button>
             </div>
-            <div style="padding:1rem;overflow:auto;max-height:calc(80vh - 70px);">
-                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+            <div class="dashboard-modal-body">
+                <table class="matrix-table">
                     <thead>
-                        <tr style="border-bottom:1px solid rgba(255,255,255,.08);">
-                            <th style="padding:.65rem;text-align:left;">Fecha</th>
-                            <th style="padding:.65rem;text-align:left;">Cliente</th>
-                            <th style="padding:.65rem;text-align:left;">Sitio</th>
-                            <th style="padding:.65rem;text-align:left;">Técnico</th>
-                            <th style="padding:.65rem;text-align:right;">% Confiabilidad</th>
-                            <th style="padding:.65rem;text-align:left;">Estado</th>
-                            <th style="padding:.65rem;text-align:left;">Acción</th>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Sitio</th>
+                            <th>Técnico</th>
+                            <th style="text-align:right;">% Confiabilidad</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody id="recordsModalBody"></tbody>
@@ -415,7 +435,7 @@
             body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para esta selección.</td></tr>';
         } else {
             body.innerHTML = rows.map(r => `<tr>
-                <td>${r.fecha}</td>
+                <td class="detail-date">${r.fecha}</td>
                 <td>${r.cliente}</td>
                 <td>${r.sitio}</td>
                 <td>${r.tecnico}</td>
@@ -706,8 +726,8 @@
             <td style="text-align:right;">${r.func.toLocaleString('es')}</td>
             <td style="text-align:right;"><span class="${eqPctClass(r.pct)}">${r.pct !== null ? r.pct.toFixed(1) + '%' : '—'}</span></td>
             <td><span class="${eqPillClass(r.pct)}">${r.estado}</span></td>
-        </tr>`).join('') + `<tr style="border-top:2px solid rgba(255,255,255,0.12);">
-            <td style="font-weight:700;color:#94a3b8;">TOTAL GENERAL</td>
+        </tr>`).join('') + `<tr class="summary-row">
+            <td class="summary-label">TOTAL GENERAL</td>
             <td style="text-align:right;font-weight:700;">${sumTotal.toLocaleString('es')}</td>
             <td style="text-align:right;font-weight:700;">${sumFunc.toLocaleString('es')}</td>
             <td style="text-align:right;"><span class="${eqPctClass(sumPct)}" style="font-weight:700;">${sumPct !== null ? sumPct.toFixed(1) + '%' : '—'}</span></td>
@@ -723,7 +743,7 @@
             return;
         }
         tbody.innerHTML = registros.map(r => `<tr>
-            <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
+            <td class="detail-date">${r.fecha}</td>
             <td>${r.cliente}</td>
             <td>${r.sitio}</td>
             <td>${r.tecnico}</td>

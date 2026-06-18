@@ -45,6 +45,15 @@
         .matrix-table th { padding:.75rem; color:#cbd5e1; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.08); position:sticky; top:0; background:#374151; z-index:1; white-space:nowrap; }
         .matrix-table td { padding:.75rem; border-bottom:1px solid rgba(255,255,255,0.06); color:#e5e7eb; vertical-align:top; }
         .matrix-table tr:hover td { background:rgba(255,255,255,0.03); }
+        .dashboard-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:250; align-items:center; justify-content:center; padding:1rem; }
+        .dashboard-modal-panel { width:min(1100px,100%); max-height:80vh; overflow:hidden; background:#1f2937; border:1px solid rgba(255,255,255,.1); border-radius:16px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+        .dashboard-modal-header { display:flex; justify-content:space-between; align-items:center; padding:1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,.08); }
+        .dashboard-modal-title-wrap { display:flex; align-items:center; gap:1.5rem; }
+        .dashboard-modal-title { margin:0; font-family:'Merriweather',serif; color:#fff; }
+        .dashboard-modal-close { background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; }
+        .dashboard-modal-close:hover { color:#e5e7eb; }
+        .dashboard-modal-body { padding:1rem; overflow:auto; max-height:calc(80vh - 70px); }
+        .detail-date { white-space:nowrap; color:#cbd5e1; }
         .badge-critico { display:inline-block; background:rgba(239,68,68,.14); color:#fca5a5; border:1px solid rgba(239,68,68,.28); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; white-space:pre-wrap; word-break:break-word; }
         .badge-accion { display:inline-block; background:rgba(245,158,11,.1); color:#fcd34d; border:1px solid rgba(245,158,11,.25); border-radius:6px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; white-space:pre-wrap; word-break:break-word; }
         .status-pill { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.2rem .55rem; font-size:.74rem; font-weight:700; }
@@ -60,6 +69,14 @@
         body.light-mode .card { background:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 12px rgba(0,0,0,.06); }
         body.light-mode .matrix-table th { background:#fff; color:#475569; border-bottom:1px solid rgba(0,0,0,.08); }
         body.light-mode .matrix-table td { color:#334155; border-bottom:1px solid rgba(0,0,0,.05); }
+        body.light-mode .matrix-table tr:hover td { background:rgba(15,23,42,.04); }
+        body.light-mode .dashboard-modal { background:rgba(15,23,42,.38); }
+        body.light-mode .dashboard-modal-panel { background:#fff; border-color:rgba(15,23,42,.1); box-shadow:0 20px 60px rgba(15,23,42,.18); }
+        body.light-mode .dashboard-modal-header { border-bottom-color:rgba(15,23,42,.08); }
+        body.light-mode .dashboard-modal-title { color:#0f172a; }
+        body.light-mode .dashboard-modal-close { color:#64748b; }
+        body.light-mode .dashboard-modal-close:hover { color:#0f172a; }
+        body.light-mode .detail-date { color:#475569; }
         body.light-mode .module-header { border-bottom-color:rgba(0,0,0,.08); }
         body.light-mode .module-header p { color:#64748b; }
         body.light-mode .alert-banner { background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3); color:#b91c1c; }
@@ -187,17 +204,17 @@
 
     </div><!-- /main-container -->
 
-    <div id="inspectionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this) closeInspectionModal()">
-        <div style="width:min(1100px,100%);max-height:80vh;overflow:hidden;background:#1f2937;border:1px solid rgba(255,255,255,.1);border-radius:16px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);">
-                <div style="display:flex;align-items:center;gap:1.5rem;">
-                    <h3 id="inspectionModalTitle" style="margin:0;font-family:'Merriweather',serif;color:#fff;">Detalle de inspecciones</h3>
+    <div id="inspectionModal" class="dashboard-modal" onclick="if(event.target===this) closeInspectionModal()">
+        <div class="dashboard-modal-panel">
+            <div class="dashboard-modal-header">
+                <div class="dashboard-modal-title-wrap">
+                    <h3 id="inspectionModalTitle" class="dashboard-modal-title">Detalle de inspecciones</h3>
                     <div id="inspectionModalActions"></div>
                 </div>
-                <button onclick="closeInspectionModal()" style="background:none;border:none;color:#94a3b8;font-size:1.5rem;cursor:pointer;">×</button>
+                <button onclick="closeInspectionModal()" class="dashboard-modal-close">×</button>
             </div>
-            <div style="padding:1rem;overflow:auto;max-height:calc(80vh - 70px);">
-                <table class="matrix-table" style="width:100%;">
+            <div class="dashboard-modal-body">
+                <table class="matrix-table">
                     <thead>
                         <tr>
                             <th>Fecha</th>
@@ -333,7 +350,7 @@
         } else {
             body.innerHTML = rows.map(r => `
                 <tr class="clickable-row">
-                    <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
+                    <td class="detail-date">${r.fecha}</td>
                     <td>${r.cliente}</td>
                     <td style="font-weight:700;color:#a5b4fc;cursor:pointer;text-decoration:underline;" onclick="closeInspectionModal(); showPlacaInspecciones('${r.placa}')" title="Ver historial de esta placa">${r.placa}</td>
                     <td>${r.responsable}</td>
@@ -665,7 +682,7 @@
             <td>${r.cliente}</td>
             <td style="white-space:nowrap;font-weight:700;color:#a5b4fc;cursor:pointer;text-decoration:underline;" onclick="showPlacaInspecciones('${r.placa}')" title="Ver historial de esta placa">${r.placa}</td>
             <td>${r.responsable}</td>
-            <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha}</td>
+            <td class="detail-date">${r.fecha}</td>
             <td><span class="badge-critico">${escHtml(r.novedades_criticas)}</span></td>
             <td><span class="badge-accion">${escHtml(r.accion_inmediata)}</span></td>
             <td>${recordViewer.actionButtonHtml(r.id)}</td>
