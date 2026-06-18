@@ -1024,6 +1024,10 @@
                 o.value = c; o.textContent = c;
                 propSelect.appendChild(o);
             });
+            if (filters.state.propertyId) {
+                propSelect.value = filters.state.propertyId;
+                filters._syncChips();
+            }
         } catch (e) { console.warn('Could not load clientes', e); }
 
         filters.activateResponsable({ url: '/dashboard/api/cumplimiento/filtros' });
@@ -1033,7 +1037,7 @@
             loadData(currentQS);
         });
 
-        loadData();
+        loadData(buildQS(filters.getState()));
 
         const _deepId = new URLSearchParams(window.location.search).get('id');
         if (_deepId) recordViewer.openRecord(_deepId);

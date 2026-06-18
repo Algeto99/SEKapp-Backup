@@ -779,24 +779,32 @@
                 o.value = c; o.textContent = c;
                 propSelect.appendChild(o);
             });
+            if (filters.state.propertyId) {
+                propSelect.value = filters.state.propertyId;
+                filters._syncChips();
+            }
         } catch (e) {
             console.warn('Could not load equipos clientes', e);
         }
 
         filters.activateResponsable({ url: '/dashboard/api/equipos/filtros' });
 
-        document.addEventListener('filtersChanged', e => {
+        const buildQS = (state) => {
             const p = new URLSearchParams();
-            const { propertyId, years, months, day, responsable } = e.detail;
+            const { propertyId, years, months, day, responsable } = state;
             if (propertyId)  p.set('cliente',     propertyId);
             if (years && years.length) p.set('year', years.join(','));
             if (months && months.length) p.set('month', months.join(','));
             if (day)         p.set('day',          day);
             if (responsable) p.set('responsable',  responsable);
-            loadData(p.toString());
+            return p.toString();
+        };
+
+        document.addEventListener('filtersChanged', e => {
+            loadData(buildQS(e.detail));
         });
 
-        loadData();
+        loadData(buildQS(filters.getState()));
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

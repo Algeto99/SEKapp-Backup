@@ -727,6 +727,10 @@
                 o.textContent = c;
                 propSelect.appendChild(o);
             });
+            if (filters.state.propertyId) {
+                propSelect.value = filters.state.propertyId;
+                filters._syncChips();
+            }
         } catch (e) {
             console.warn('Could not load visitas clientes', e);
         }
@@ -745,7 +749,7 @@
             loadData(currentQS);
         });
 
-        loadData();
+        loadData(buildQS(filters.getState()));
     });
     </script>
 

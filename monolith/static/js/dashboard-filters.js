@@ -278,8 +278,9 @@ class DashboardFilters {
     _readFromURL() {
         const params = new URLSearchParams(window.location.search);
 
-        if (params.get('property_id')) {
-            this.state.propertyId = params.get('property_id');
+        const propId = params.get('property_id') || params.get('cliente');
+        if (propId) {
+            this.state.propertyId = propId;
             this._propertySelect.value = this.state.propertyId;
         }
         if (params.get('year')) {
@@ -299,6 +300,7 @@ class DashboardFilters {
 
         this._syncMonthButtons();
         this._syncDayRow();
+        this._syncChips();
     }
 
     _syncChips() {

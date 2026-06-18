@@ -1578,6 +1578,10 @@
                 o.value = c; o.textContent = c;
                 propSelect.appendChild(o);
             });
+            if (filters.state.propertyId) {
+                propSelect.value = filters.state.propertyId;
+                filters._syncChips();
+            }
         } catch (e) { console.warn('Could not load clientes', e); }
 
         filters.activateResponsable({ url: '/dashboard/api/incidentes/filtros' });
@@ -1591,14 +1595,15 @@
                 loadData(currentQS);
                 loadAdminMatrix(currentQS);
             });
-            loadData();
-            loadAdminMatrix();
+            const initQS = buildQS(filters.getState());
+            loadData(initQS);
+            loadAdminMatrix(initQS);
         } else {
             document.addEventListener('filtersChanged', (e) => {
                 currentQS = buildQS(e.detail);
                 loadUserMatrix(currentQS);
             });
-            loadUserMatrix();
+            loadUserMatrix(buildQS(filters.getState()));
         }
 
         const _deepId = new URLSearchParams(window.location.search).get('id');

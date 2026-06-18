@@ -843,6 +843,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
     if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
 
+    document.addEventListener('filtersChanged', e => {
+        currentQS = buildQS(e.detail);
+        loadData(currentQS);
+    });
+
     try {
         const res = await fetch('/dashboard/api/capacitacion/clientes');
         const { clientes } = await res.json();
@@ -852,14 +857,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             o.value = c; o.textContent = c;
             propSelect.appendChild(o);
         });
+        if (filters.state.propertyId) {
+            propSelect.value = filters.state.propertyId;
+            filters._syncChips();
+        }
     } catch (e) { console.warn('Could not load clientes', e); }
 
-    document.addEventListener('filtersChanged', e => {
-        currentQS = buildQS(e.detail);
-        loadData(currentQS);
-    });
-
-    loadData();
+    loadData(buildQS(filters.getState()));
 });
 </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

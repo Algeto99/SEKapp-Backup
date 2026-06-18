@@ -4587,10 +4587,17 @@ def _capac_date_expr():
     """
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
+_CAPAC_CLIENTE_EXPR = (
+    "TRIM(COALESCE(NULLIF(TRIM(cliente_instalacion), ''), "
+    "(SELECT nombre FROM propiedades WHERE id_propiedad = registro_de_capacitaciones.id_propiedad)))"
+)
+
 def _capac_conds(cliente, year, month, day, company_id=None):
     conds, params = [], []
     date_expr = _capac_date_expr()
-    if cliente: conds.append('cliente_instalacion = %s'); params.append(cliente)
+    if cliente:
+        conds.append(f'{_CAPAC_CLIENTE_EXPR} = %s')
+        params.append(cliente.strip())
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     if company_id is not None: conds.append('company_id = %s'); params.append(company_id)
     return conds, params
@@ -4603,25 +4610,42 @@ def _capac_where(conds):
 @jwt_required()
 def api_capacitacion_clientes():
     conn = cur = None
+    property_names = []
     try:
+        user_email = get_jwt_identity()
+        property_names = [
+            (p.get('name') or '').strip()
+            for p in get_properties(user_email=user_email)
+            if (p.get('name') or '').strip()
+        ]
+
         conn = get_db_connection()
         if not conn:
-            return jsonify({'error': 'DB connection failed'}), 500
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        company_id = _get_user_company_id(cur, get_jwt_identity())
-        cid_cond = "AND company_id = %s" if company_id is not None else ""
+            return jsonify({'clientes': property_names})
+        cur = conn.cursor()
+        company_id = _get_user_company_id(cur, user_email)
+        cid_cond = "AND rc.company_id = %s" if company_id is not None else ""
         cid_params = [company_id] if company_id is not None else []
         cur.execute(f"""
-            SELECT DISTINCT cliente_instalacion
-            FROM registro_de_capacitaciones
-            WHERE cliente_instalacion IS NOT NULL {cid_cond}
-            ORDER BY cliente_instalacion
+            SELECT DISTINCT TRIM(rc.cliente_instalacion)
+            FROM registro_de_capacitaciones rc
+            WHERE rc.cliente_instalacion IS NOT NULL AND TRIM(rc.cliente_instalacion) <> '' {cid_cond}
+            ORDER BY 1
         """, cid_params)
-        clientes = [r['cliente_instalacion'] for r in cur.fetchall()]
+        clientes = [r[0] for r in cur.fetchall() if r[0]]
+        cur.execute(f"""
+            SELECT DISTINCT TRIM(p.nombre)
+            FROM registro_de_capacitaciones rc
+            JOIN propiedades p ON p.id_propiedad = rc.id_propiedad
+            WHERE (rc.cliente_instalacion IS NULL OR TRIM(rc.cliente_instalacion) = '') {cid_cond}
+            ORDER BY 1
+        """, cid_params)
+        clientes.extend(r[0] for r in cur.fetchall() if r[0])
+        clientes = sorted(set(property_names) | set(clientes))
         return jsonify({'clientes': clientes})
     except Exception as e:
         app_logger.error(f"api_capacitacion_clientes error: {e}", exc_info=True)
-        return jsonify({'error': 'Error interno'}), 500
+        return jsonify({'clientes': property_names})
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4816,7 +4840,10 @@ def api_capacitacion_detalles():
             SELECT
                 id_capacitacion,
                 {date_expr} AS fecha_evento,
-                cliente_instalacion,
+                TRIM(COALESCE(
+                    NULLIF(TRIM(cliente_instalacion), ''),
+                    (SELECT nombre FROM propiedades WHERE id_propiedad = registro_de_capacitaciones.id_propiedad)
+                )) AS cliente_instalacion,
                 puesto_area_especifica,
                 nombre_responsable,
                 nombre_capacitacion,
