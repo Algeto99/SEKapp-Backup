@@ -435,6 +435,7 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
                 <input type="date" id="filtEnd" class="date-input">
             </div>
             <button class="btn-apply" onclick="loadData()">Aplicar</button>
+            <button class="btn-apply" onclick="clearFilters()" style="background:#6b7280;">Limpiar</button>
             <button class="btn-pdf" onclick="exportPDF()">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Exportar PDF
@@ -1325,6 +1326,14 @@ async function loadData() {
     }
     // Re-evaluar alertas al cambiar filtros (cliente puede cambiar contexto)
     evaluateAlerts();
+}
+
+function clearFilters() {
+    document.getElementById('filtCliente').value    = '';
+    document.getElementById('filtSupervisor').value = '';
+    document.getElementById('filtStart').value      = '';
+    document.getElementById('filtEnd').value        = '';
+    loadData();
 }
 
 async function loadFiltros() {

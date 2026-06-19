@@ -1160,6 +1160,7 @@ def cgeo_api_operacion_data():
     cliente = request.args.get("cliente")
     if cliente in ('Todos', ''):
         cliente = None
+    supervisor  = request.args.get("supervisor") or None
     start_date = request.args.get("start_date") or None
     end_date = request.args.get("end_date") or None
 
@@ -1241,17 +1242,24 @@ def cgeo_api_operacion_data():
         inc_abiertos_total = int(inc_ab_row.get("total_abiertos") or 0)
         inc_mas_24h = int(inc_ab_row.get("mas_24h") or 0)
 
-        # Tendencia mensual incidentes
+        # Tendencia mensual incidentes — separate condition set so supervisor
+        # filter scopes only this chart without touching KPIs above.
+        trend_conds  = list(inc_conds)
+        trend_params = list(inc_params)
+        if supervisor:
+            trend_conds.append("TRIM(COALESCE(nombre_responsable,'')) = %s")
+            trend_params.append(supervisor.strip())
+        trend_where = _where(trend_conds)
         cur.execute(f"""
             SELECT
                 TO_CHAR(DATE_TRUNC('month', COALESCE(fecha_hora, creado_en)), 'YYYY-MM') AS label,
                 COUNT(*) AS total
             FROM reportes_incidentes
-            {inc_where}
+            {trend_where}
             GROUP BY DATE_TRUNC('month', COALESCE(fecha_hora, creado_en))
             ORDER BY DATE_TRUNC('month', COALESCE(fecha_hora, creado_en))
             LIMIT 8
-        """, tuple(inc_params))
+        """, tuple(trend_params))
         inc_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
 
         # ── Satisfacción ──────────────────────────────────────────────────────
