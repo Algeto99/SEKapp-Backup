@@ -240,6 +240,16 @@
                 border-color: rgba(59,130,246,0.3);
                 color: #bfdbfe;
             }
+            .drv-btn-asignar {
+                background: rgba(245,158,11,0.14);
+                border-color: rgba(245,158,11,0.3);
+                color: #fde68a;
+            }
+            .drv-btn-visita {
+                background: rgba(139,92,246,0.14);
+                border-color: rgba(139,92,246,0.3);
+                color: #ddd6fe;
+            }
             .drv-email-overlay {
                 display: none;
                 position: absolute;
@@ -479,6 +489,8 @@
                 </div>
                 <div class="drv-action-bar">
                     <button class="drv-modal-btn secondary drv-btn-close" type="button">Cerrar</button>
+                    <button class="drv-modal-btn drv-btn-asignar" type="button" style="display:none;">Asignar hallazgo</button>
+                    <button class="drv-modal-btn drv-btn-visita"  type="button" style="display:none;">Agendar visita</button>
                     <button class="drv-modal-btn pdf drv-btn-pdf" type="button">Descargar PDF</button>
                     <button class="drv-modal-btn excel drv-btn-excel" type="button">Descargar Excel</button>
                     <button class="drv-modal-btn email drv-btn-email" type="button">Enviar por Correo</button>
@@ -994,6 +1006,21 @@
         modal.querySelector('.drv-btn-email').onclick = showEmailPrompt;
         modal.querySelector('.drv-email-cancel').onclick = hideEmailPrompt;
         modal.querySelector('.drv-email-send').onclick = sendEmail;
+
+        const btnAsignar = modal.querySelector('.drv-btn-asignar');
+        const btnVisita  = modal.querySelector('.drv-btn-visita');
+        if (cfg.formType === 'reporte_incidente') {
+            btnAsignar.style.display = '';
+            btnVisita.style.display  = '';
+        }
+        btnAsignar.onclick = () => {
+            // Tarea 2 — placeholder hasta implementación
+            console.log('Asignar hallazgo', currentRecordId, cfg.formType);
+        };
+        btnVisita.onclick = () => {
+            // Tarea 4 — placeholder hasta implementación
+            console.log('Agendar visita', currentRecordId, cfg.formType);
+        };
         modal.addEventListener('click', (event) => {
             if (event.target === modal) closeRecord();
         });
