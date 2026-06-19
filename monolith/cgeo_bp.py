@@ -26,6 +26,7 @@ except OSError:
     _WEASYPRINT_AVAILABLE = False
 
 from db import get_db_connection
+from email_utils import send_email
 
 cgeo_bp = Blueprint("cgeo_bp", __name__)
 app_logger = logging.getLogger(__name__)
@@ -251,8 +252,24 @@ def cgeo_api_filtros():
         
         cur.execute(query, tuple(params))
         clientes = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall()]
-        
-        return jsonify({"clientes": clientes})
+
+        # Distinct supervisors from incident reports, scoped by company
+        sup_query = """
+            SELECT DISTINCT TRIM(nombre_responsable) AS name
+            FROM reportes_incidentes ri
+            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON p.customer_company_id = cc.id
+            WHERE TRIM(COALESCE(nombre_responsable,'')) <> ''
+        """
+        sup_params = []
+        if company_id is not None:
+            sup_query += " AND cc.company_id = %s"
+            sup_params.append(company_id)
+        sup_query += " ORDER BY name"
+        cur.execute(sup_query, tuple(sup_params))
+        supervisores = [r["name"] for r in cur.fetchall()]
+
+        return jsonify({"clientes": clientes, "supervisores": supervisores})
     except Exception as e:
         app_logger.error(f"cgeo_api_filtros error: {e}", exc_info=True)
         return jsonify({"error": "Error interno"}), 500
@@ -623,7 +640,9 @@ def cgeo_api_alertas():
                 id_reporte_incidente AS id,
                 COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
                 EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en))) / 3600 AS horas,
-                COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) AS ts
+                COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) AS ts,
+                COALESCE(NULLIF(TRIM(estado),''), 'Abierto') AS estado,
+                NULLIF(TRIM(COALESCE(responsable_asignado,'')), '') AS responsable_asignado
             FROM reportes_incidentes
             {_where(r2_conds)}
             ORDER BY COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) ASC
@@ -642,6 +661,8 @@ def cgeo_api_alertas():
                 "color_semaforo": "rojo",
                 "timestamp": r["ts"].isoformat() if r["ts"] else None,
                 "horas": round(h, 1),
+                "estado": r["estado"],
+                "responsable_asignado": r["responsable_asignado"],
             })
 
         # ── REGLA 3: Cliente con historial reciente pero sin supervisión hoy ──
@@ -1705,3 +1726,140 @@ def cgeo_morning_briefing_pdf():
     except Exception as e:
         app_logger.error(f"cgeo_morning_briefing_pdf error: {e}", exc_info=True)
         return jsonify({"error": "Error generando PDF"}), 500
+
+
+def _ensure_asignaciones_table(conn):
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS asignaciones_hallazgo (
+                id            SERIAL PRIMARY KEY,
+                form_type     TEXT        NOT NULL,
+                record_id     INTEGER     NOT NULL,
+                asignado_a    INTEGER     REFERENCES users(id),
+                asignado_por  TEXT,
+                fecha_limite  DATE,
+                nota          TEXT,
+                estado        TEXT        NOT NULL DEFAULT 'Asignado',
+                company_id    INTEGER,
+                creado_en     TIMESTAMP   NOT NULL DEFAULT NOW()
+            )
+        """)
+    conn.commit()
+
+
+@cgeo_bp.route('/api/usuarios-asignables', methods=['GET'])
+@jwt_required()
+def usuarios_asignables():
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            company_id = _get_user_company_id(cur, get_jwt_identity())
+            if company_id is not None:
+                cur.execute(
+                    "SELECT id, name, email FROM users "
+                    "WHERE company_id = %s AND is_active = TRUE ORDER BY name",
+                    (company_id,)
+                )
+            else:
+                cur.execute(
+                    "SELECT id, name, email FROM users "
+                    "WHERE is_active = TRUE ORDER BY name"
+                )
+            usuarios = cur.fetchall()
+            return jsonify({"usuarios": [dict(u) for u in usuarios]})
+    except Exception as e:
+        app_logger.error(f"usuarios_asignables error: {e}", exc_info=True)
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        conn.close()
+
+
+@cgeo_bp.route('/api/asignar-hallazgo', methods=['POST'])
+@jwt_required()
+def asignar_hallazgo():
+    payload = request.get_json() or {}
+    form_type   = payload.get('form_type')
+    record_id   = payload.get('record_id')
+    asignado_a  = payload.get('asignado_a')   # user id (int)
+    fecha_limite = payload.get('fecha_limite') # ISO date string or None
+    nota        = payload.get('nota', '')
+
+    if not all([form_type, record_id, asignado_a]):
+        return jsonify({"error": "Faltan campos requeridos: form_type, record_id, asignado_a"}), 400
+
+    asignado_por = get_jwt_identity()
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        _ensure_asignaciones_table(conn)
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            company_id = _get_user_company_id(cur, asignado_por)
+
+            # Fetch assignee name and email for response and notification
+            cur.execute("SELECT name, email FROM users WHERE id = %s", (asignado_a,))
+            assignee = cur.fetchone()
+            if not assignee:
+                return jsonify({"error": "Usuario asignado no encontrado"}), 404
+
+            # Insert assignment record
+            cur.execute(
+                """
+                INSERT INTO asignaciones_hallazgo
+                    (form_type, record_id, asignado_a, asignado_por, fecha_limite, nota, estado, company_id)
+                VALUES (%s, %s, %s, %s, %s, %s, 'Asignado', %s)
+                RETURNING id
+                """,
+                (form_type, record_id, asignado_a, asignado_por,
+                 fecha_limite or None, nota or None, company_id)
+            )
+            assignment_id = cur.fetchone()['id']
+
+            # Keep reportes_incidentes in sync for incident reports
+            if form_type == 'reporte_incidente':
+                cur.execute(
+                    """
+                    UPDATE reportes_incidentes
+                       SET responsable_asignado = %s, estado = 'Asignado'
+                     WHERE id_reporte_incidente = %s
+                    """,
+                    (assignee['name'], record_id)
+                )
+
+        conn.commit()
+
+        # Notify assignee by email (non-blocking — failure does not abort the response)
+        try:
+            deadline_text = f" con fecha límite <strong>{fecha_limite}</strong>" if fecha_limite else ""
+            note_text = f"<p><strong>Nota:</strong> {nota}</p>" if nota else ""
+            send_email(
+                to_emails=assignee['email'],
+                subject=f"[SEKapp] Hallazgo asignado — {form_type} #{record_id}",
+                body=(
+                    f"<p>Hola <strong>{assignee['name']}</strong>,</p>"
+                    f"<p>Se te ha asignado el hallazgo <strong>{form_type} #{record_id}</strong>"
+                    f"{deadline_text}.</p>"
+                    f"{note_text}"
+                    f"<p>Asignado por: {asignado_por}</p>"
+                ),
+                is_html=True
+            )
+        except Exception as mail_err:
+            app_logger.warning(f"asignar_hallazgo: email notification failed: {mail_err}")
+
+        return jsonify({
+            "success": True,
+            "assignment_id": assignment_id,
+            "estado": "Asignado",
+            "responsable": assignee['name'],
+            "responsable_email": assignee['email'],
+        })
+
+    except Exception as e:
+        conn.rollback()
+        app_logger.error(f"asignar_hallazgo error: {e}", exc_info=True)
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        conn.close()

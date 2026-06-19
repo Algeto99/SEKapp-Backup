@@ -1,5 +1,55 @@
 [
   {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "form_type",
+    "data_type": "text"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "record_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "asignado_a",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "asignado_por",
+    "data_type": "text"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "fecha_limite",
+    "data_type": "date"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "nota",
+    "data_type": "text"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "estado",
+    "data_type": "text"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "creado_en",
+    "data_type": "timestamp without time zone"
+  },
+  {
     "table_name": "authorized_emails",
     "column_name": "id",
     "data_type": "integer"

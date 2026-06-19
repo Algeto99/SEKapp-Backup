@@ -250,6 +250,40 @@
                 border-color: rgba(139,92,246,0.3);
                 color: #ddd6fe;
             }
+            .drv-btn-asignar-confirm {
+                background: rgba(245,158,11,0.18);
+                border-color: rgba(245,158,11,0.35);
+                color: #fde68a;
+            }
+            .drv-asignar-overlay {
+                display: none;
+                position: absolute;
+                inset: 0;
+                background: rgba(15,23,42,0.78);
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+                border-radius: 16px;
+            }
+            .drv-asignar-overlay.active { display: flex; }
+            .drv-asignar-label {
+                display: block;
+                color: #94a3b8;
+                font-size: 0.72rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                margin: 0.65rem 0 0.25rem;
+            }
+            .drv-asignar-nota {
+                resize: vertical;
+                min-height: 72px;
+                font-family: Roboto, sans-serif;
+            }
+            body.light-mode .drv-asignar-overlay {
+                background: rgba(248,250,252,0.84);
+            }
+            body.light-mode .drv-asignar-label { color: #64748b; }
             .drv-email-overlay {
                 display: none;
                 position: absolute;
@@ -504,6 +538,25 @@
                         <div class="drv-email-actions">
                             <button class="drv-modal-btn secondary drv-email-cancel" type="button">Cancelar</button>
                             <button class="drv-modal-btn email drv-email-send" type="button">Enviar</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="drv-asignar-overlay">
+                    <div class="drv-email-box">
+                        <h4>Asignar hallazgo</h4>
+                        <p>Seleccione el responsable, fecha límite y una nota opcional.</p>
+                        <label class="drv-asignar-label">Responsable</label>
+                        <select class="drv-email-input drv-asignar-select">
+                            <option value="">Cargando usuarios…</option>
+                        </select>
+                        <label class="drv-asignar-label">Fecha límite</label>
+                        <input class="drv-email-input drv-asignar-fecha" type="date">
+                        <label class="drv-asignar-label">Nota (opcional)</label>
+                        <textarea class="drv-email-input drv-asignar-nota" rows="3" placeholder="Instrucciones o contexto…"></textarea>
+                        <div class="drv-email-msg drv-asignar-msg"></div>
+                        <div class="drv-email-actions">
+                            <button class="drv-modal-btn secondary drv-asignar-cancel" type="button">Cancelar</button>
+                            <button class="drv-modal-btn drv-btn-asignar-confirm" type="button">Confirmar</button>
                         </div>
                     </div>
                 </div>
@@ -1007,20 +1060,96 @@
         modal.querySelector('.drv-email-cancel').onclick = hideEmailPrompt;
         modal.querySelector('.drv-email-send').onclick = sendEmail;
 
-        const btnAsignar = modal.querySelector('.drv-btn-asignar');
-        const btnVisita  = modal.querySelector('.drv-btn-visita');
+        const btnAsignar      = modal.querySelector('.drv-btn-asignar');
+        const btnVisita       = modal.querySelector('.drv-btn-visita');
+        const asignarOverlay  = modal.querySelector('.drv-asignar-overlay');
+        const asignarSelect   = modal.querySelector('.drv-asignar-select');
+        const asignarFecha    = modal.querySelector('.drv-asignar-fecha');
+        const asignarNota     = modal.querySelector('.drv-asignar-nota');
+        const asignarMsg      = modal.querySelector('.drv-asignar-msg');
+
         if (cfg.formType === 'reporte_incidente') {
             btnAsignar.style.display = '';
             btnVisita.style.display  = '';
         }
-        btnAsignar.onclick = () => {
-            // Tarea 2 — placeholder hasta implementación
-            console.log('Asignar hallazgo', currentRecordId, cfg.formType);
-        };
+
+        let _usuariosCached = null;
+
+        async function showAsignarOverlay() {
+            asignarMsg.textContent = '';
+            asignarFecha.value = '';
+            asignarNota.value = '';
+            asignarOverlay.classList.add('active');
+
+            if (!_usuariosCached) {
+                asignarSelect.innerHTML = '<option value="">Cargando…</option>';
+                try {
+                    const res = await fetch('/cgeo/api/usuarios-asignables', { credentials: 'include' });
+                    const data = await res.json();
+                    _usuariosCached = data.usuarios || [];
+                } catch (_) {
+                    _usuariosCached = [];
+                }
+            }
+            asignarSelect.innerHTML = '<option value="">— Seleccionar responsable —</option>' +
+                _usuariosCached.map(u =>
+                    `<option value="${escapeHtml(String(u.id))}">${escapeHtml(u.name)} (${escapeHtml(u.email)})</option>`
+                ).join('');
+        }
+
+        function hideAsignarOverlay() {
+            asignarOverlay.classList.remove('active');
+        }
+
+        async function submitAsignacion() {
+            const asignadoA = asignarSelect.value;
+            if (!asignadoA) {
+                asignarMsg.textContent = 'Seleccione un responsable.';
+                asignarMsg.style.color = '#fca5a5';
+                return;
+            }
+            const confirmBtn = modal.querySelector('.drv-btn-asignar-confirm');
+            confirmBtn.disabled = true;
+            asignarMsg.textContent = 'Guardando…';
+            asignarMsg.style.color = '#94a3b8';
+            try {
+                const res = await fetch('/cgeo/api/asignar-hallazgo', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        form_type:    cfg.formType,
+                        record_id:    currentRecordId,
+                        asignado_a:   parseInt(asignadoA, 10),
+                        fecha_limite: asignarFecha.value || null,
+                        nota:         asignarNota.value.trim() || null,
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.error || 'Error al asignar.');
+                hideAsignarOverlay();
+                showToast('drv-success-toast',
+                    'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#14532d;color:#86efac;border:1px solid #22c55e;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);',
+                    `Hallazgo asignado a ${data.responsable} correctamente.`
+                );
+            } catch (err) {
+                asignarMsg.textContent = err.message;
+                asignarMsg.style.color = '#fca5a5';
+            } finally {
+                confirmBtn.disabled = false;
+            }
+        }
+
+        btnAsignar.onclick = showAsignarOverlay;
         btnVisita.onclick = () => {
             // Tarea 4 — placeholder hasta implementación
             console.log('Agendar visita', currentRecordId, cfg.formType);
         };
+        modal.querySelector('.drv-asignar-cancel').onclick = hideAsignarOverlay;
+        modal.querySelector('.drv-btn-asignar-confirm').onclick = submitAsignacion;
         modal.addEventListener('click', (event) => {
             if (event.target === modal) closeRecord();
         });

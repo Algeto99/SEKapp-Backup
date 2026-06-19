@@ -785,11 +785,15 @@ function _alertaItemHtml(a) {
 
     // Alerts with a specific record → open the record-detail modal, no page navigation
     if (a.record_id && a.form_type) {
+        const estadoBadge = (a.estado && a.estado !== 'Abierto')
+            ? `<span style="flex-shrink:0;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.15rem .45rem;border-radius:999px;background:rgba(245,158,11,.15);color:#92400e;border:1px solid rgba(245,158,11,.3);">${a.estado}${a.responsable_asignado ? ' · ' + a.responsable_asignado : ''}</span>`
+            : '';
         return `<a href="${a.ruta_navegacion}" class="alerta-item"
                    onclick="openAlertRecord(${a.record_id},'${a.form_type}',event)">
             <div class="alerta-dot ${dotCls}"></div>
             <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
             <span class="alerta-texto">${a.texto}</span>
+            ${estadoBadge}
             <span class="alerta-ts">${ts}</span>
             <span class="alerta-btn ${btnCls}">${a.accion} →</span>
         </a>`;

@@ -417,8 +417,14 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
         <!-- Filter bar -->
         <div class="filter-bar">
             <div class="filter-group">
-                <span class="filter-label">Cliente</span>
+                <span class="filter-label">Instalación</span>
                 <select id="filtCliente" class="filter-select">
+                    <option value="">Todas</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">Supervisor</span>
+                <select id="filtSupervisor" class="filter-select">
                     <option value="">Todos</option>
                 </select>
             </div>
@@ -1298,9 +1304,11 @@ async function loadData() {
     document.getElementById('loadingOverlay').classList.remove('hidden');
     const params = new URLSearchParams();
     const cli = document.getElementById('filtCliente').value;
+    const supervisor = document.getElementById('filtSupervisor').value;
     const start = document.getElementById('filtStart').value;
     const end = document.getElementById('filtEnd').value;
     if (cli) params.set('cliente', cli);
+    if (supervisor) params.set('supervisor', supervisor);
     if (start) params.set('start_date', start);
     if (end) params.set('end_date', end);
     try {
@@ -1330,6 +1338,13 @@ async function loadFiltros() {
             o.value = c.id;
             o.textContent = c.name;
             sel.appendChild(o);
+        });
+        const supSel = document.getElementById('filtSupervisor');
+        (d.supervisores || []).forEach(name => {
+            const o = document.createElement('option');
+            o.value = name;
+            o.textContent = name;
+            supSel.appendChild(o);
         });
     } catch (e) {}
 }
