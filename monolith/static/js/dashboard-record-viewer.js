@@ -397,35 +397,34 @@
                 word-break: break-word;
                 line-height: 1.4;
             }
-            .drv-tech-detail {
-                margin-bottom: 0.75rem;
-            }
-            .drv-tech-detail > summary {
+            details.drv-detail-section > summary {
                 cursor: pointer;
                 user-select: none;
-                color: #94a3b8;
-                font-size: 0.82rem;
-                font-family: Roboto, sans-serif;
-                padding: 0.55rem 0.75rem;
-                border: 1px solid rgba(255,255,255,0.07);
-                border-radius: 10px;
-                background: rgba(255,255,255,0.03);
                 list-style: none;
                 display: flex;
                 align-items: center;
-                gap: 0.45rem;
+                gap: 0.5rem;
+                margin: -1rem -1rem 0 -1rem;
+                padding: 0.75rem 1rem;
+                border-radius: 12px;
             }
-            .drv-tech-detail > summary::before {
+            details.drv-detail-section[open] > summary {
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+                border-radius: 12px 12px 0 0;
+                margin-bottom: 0;
+            }
+            details.drv-detail-section > summary::before {
                 content: '▶';
-                font-size: 0.65rem;
+                font-size: 0.6rem;
+                color: #94a3b8;
                 transition: transform 0.18s ease;
+                flex-shrink: 0;
             }
-            .drv-tech-detail[open] > summary::before {
+            details.drv-detail-section[open] > summary::before {
                 transform: rotate(90deg);
             }
-            .drv-tech-detail > summary:hover {
+            details.drv-detail-section > summary:hover::before {
                 color: #cbd5e1;
-                background: rgba(255,255,255,0.05);
             }
             body.light-mode .drv-5q-card {
                 background: rgba(79,70,229,0.07);
@@ -433,14 +432,8 @@
             }
             body.light-mode .drv-5q-label { color: #4338ca; }
             body.light-mode .drv-5q-value { color: #1e293b; }
-            body.light-mode .drv-tech-detail > summary {
-                color: #64748b;
-                border-color: rgba(15,23,42,0.08);
-                background: #f8fafc;
-            }
-            body.light-mode .drv-tech-detail > summary:hover {
-                color: #334155;
-                background: #f1f5f9;
+            body.light-mode details.drv-detail-section[open] > summary {
+                border-bottom-color: rgba(15,23,42,0.08);
             }
             body.light-mode .drv-modal-btn.secondary {
                 background: rgba(100,116,139,0.1);
@@ -767,51 +760,42 @@
         return renderPrimitive(key, value);
     }
 
-    function renderRecordDetail(d, currentRecordId, formType) {
-        const raw = d.data || d;
-        const META_KEYS = new Set(['id', 'formType', 'submittedBy', 'dateSubmitted', 'title']);
-        const qMap = FIVE_Q_MAP[formType] || null;
-
-        // Collect which raw keys are consumed by the 5Q zone
-        const usedIn5Q = new Set();
-
-        function collectQ(labelList, fallback) {
-            if (!qMap) return escapeHtml(fallback || '—');
+    function render5Questions(d, raw, qmap) {
+        const cards = Object.entries(FIVE_Q_LABELS).map(([key, meta]) => {
+            const labels = qmap[key] || [];
             const parts = [];
-            for (const lbl of (labelList || [])) {
+            for (const lbl of labels) {
                 const val = raw[lbl];
                 if (val !== null && val !== undefined && val !== '') {
-                    usedIn5Q.add(lbl);
                     parts.push(renderValue(lbl, val, 0));
                 }
             }
-            return parts.length ? parts.join('<br>') : escapeHtml(fallback || '—');
-        }
+            // CUÁNDO falls back to dateSubmitted; QUIÉN falls back to submittedBy
+            if (!parts.length) {
+                if (key === 'CUANDO' && d.dateSubmitted) parts.push(escapeHtml(d.dateSubmitted));
+                if (key === 'QUIEN'  && d.submittedBy)  parts.push(escapeHtml(d.submittedBy));
+            }
+            const content = parts.length ? parts.join('<br>') : '<span style="opacity:.45">—</span>';
+            return `
+                <div class="drv-5q-card">
+                    <div class="drv-5q-icon">${meta.icon}</div>
+                    <div class="drv-5q-label">${meta.title}</div>
+                    <div class="drv-5q-value">${content}</div>
+                </div>`;
+        }).join('');
+        return `<div class="drv-5q-grid">${cards}</div>`;
+    }
 
-        // Zone 1 — 5Q summary
-        let zone1 = '';
-        if (qMap) {
-            const cards = Object.entries(FIVE_Q_LABELS).map(([key, meta]) => {
-                const content = collectQ(qMap[key],
-                    key === 'CUANDO' ? d.dateSubmitted : (key === 'QUIEN' ? d.submittedBy : null));
-                return `
-                    <div class="drv-5q-card">
-                        <div class="drv-5q-icon">${meta.icon}</div>
-                        <div class="drv-5q-label">${meta.title}</div>
-                        <div class="drv-5q-value">${content}</div>
-                    </div>`;
-            }).join('');
-            zone1 = `<div class="drv-5q-grid">${cards}</div>`;
-        }
+    function renderRecordDetail(d, currentRecordId, formType) {
+        const raw = d.data || d;
+        const qmap = FIVE_Q_MAP[formType] || null;
 
-        // Zone 2 — collapsible technical detail
-        const techRows = Object.entries(raw)
-            .filter(([k]) => !META_KEYS.has(k) && !usedIn5Q.has(k))
-            .map(([k, v]) => `
-                <div class="drv-detail-field">
-                    <label>${escapeHtml(k)}</label>
-                    <div>${renderValue(k, v, 0)}</div>
-                </div>`).join('');
+        // ── ZONA 1: las 5 preguntas (destacada, sin scroll) ──
+        const zona1 = qmap ? render5Questions(d, raw, qmap) : '';
+
+        // ── ZONA 2: detalle técnico completo, COLAPSADO ──
+        const usadas = qmap ? new Set(Object.values(qmap).flat()) : new Set();
+        const META_KEYS = new Set(['id', 'formType', 'submittedBy', 'dateSubmitted', 'title']);
 
         const metaRows = `
             <div class="drv-detail-field"><label>ID</label><p>${escapeHtml(d.id || currentRecordId || '—')}</p></div>
@@ -819,34 +803,24 @@
             <div class="drv-detail-field"><label>Fecha de envío</label><p>${escapeHtml(d.dateSubmitted || '—')}</p></div>
             <div class="drv-detail-field"><label>Formulario</label><p>${escapeHtml(d.title || 'Registro')}</p></div>`;
 
-        const zone2 = `
-            <details class="drv-tech-detail">
-                <summary>Detalle Técnico</summary>
-                <div class="drv-detail-section" style="margin-top:0.75rem;">
-                    <h4>Información del Registro</h4>
-                    <div class="drv-detail-grid">${metaRows}</div>
+        const rows = Object.entries(raw)
+            .filter(([k]) => !META_KEYS.has(k) && !usadas.has(k))
+            .map(([k, v]) => `
+                <div class="drv-detail-field">
+                    <label>${escapeHtml(k)}</label>
+                    <div>${renderValue(k, v, 0)}</div>
+                </div>`).join('');
+
+        const zona2 = `
+            <details class="drv-detail-section" ${qmap ? '' : 'open'}>
+                <summary><h4 style="display:inline">Detalle técnico completo</h4></summary>
+                <div class="drv-detail-grid" style="margin-top:0.85rem;">
+                    ${metaRows}
+                    ${rows}
                 </div>
-                ${techRows ? `<div class="drv-detail-section"><h4>Datos del Formulario</h4><div class="drv-detail-grid">${techRows}</div></div>` : ''}
             </details>`;
 
-        // Fallback: no map — render everything as before (no 5Q)
-        if (!qMap) {
-            const allRows = Object.entries(raw)
-                .filter(([k]) => !META_KEYS.has(k))
-                .map(([k, v]) => `
-                    <div class="drv-detail-field">
-                        <label>${escapeHtml(k)}</label>
-                        <div>${renderValue(k, v, 0)}</div>
-                    </div>`).join('');
-            return `
-                <div class="drv-detail-section">
-                    <h4>Información del Registro</h4>
-                    <div class="drv-detail-grid">${metaRows}</div>
-                </div>
-                ${allRows ? `<div class="drv-detail-section"><h4>Datos del Formulario</h4><div class="drv-detail-grid">${allRows}</div></div>` : ''}`;
-        }
-
-        return zone1 + zone2;
+        return zona1 + zona2;
     }
 
     window.createDashboardRecordViewer = function(options) {

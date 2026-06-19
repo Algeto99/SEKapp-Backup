@@ -646,7 +646,7 @@
         </div>
     </div>
 
-    <!-- ── Individual record detail modal ────────────────────────────────── -->
+    <!-- record detail modal (used by openIncidenteModal for status management) -->
     <div class="modal-backdrop" id="recordModal" onclick="if(event.target===this) this.classList.remove('active')">
         <div class="modal-container narrow" style="position:relative;">
             <div class="modal-header">
@@ -659,33 +659,11 @@
             </div>
             <div class="action-bar" id="recordActionBar" style="display:none;">
                 <button class="btn-action btn-back" onclick="closeRecordModal()">← Volver</button>
-                <button class="btn-action btn-pdf"   id="btnPdf"   onclick="exportRecord('pdf')">
-                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M5.523 10.424c.14-.082.293-.162.459-.238a7.878 7.878 0 0 0-.45.606c-.28.337-.498.516-.635.516a.067.067 0 0 1-.05-.018.232.232 0 0 1-.033-.153c0-.077.014-.15.033-.207a.985.985 0 0 1 .085-.2c.038-.065.08-.123.127-.17.047-.047.097-.084.15-.11.052-.026.106-.042.164-.042zm2.718 2.696c-.012-.018-.028-.04-.047-.065a3.695 3.695 0 0 0-.2-.219c.17-.025.375-.075.573-.135.37-.109.774-.284.97-.521a.37.37 0 0 0 .074-.22.362.362 0 0 0-.068-.22.365.365 0 0 0-.203-.121.4.4 0 0 0-.228.026 2.16 2.16 0 0 0-.343.188c-.108.069-.202.145-.285.225a4.46 4.46 0 0 0-.43.51c-.14.196-.264.416-.35.624l-.019.05c.098.026.196.056.29.087.32.106.594.247.767.418a.4.4 0 0 0 .233.094.39.39 0 0 0 .265-.104.39.39 0 0 0 .1-.266.39.39 0 0 0-.102-.267zm-.76-.29c.055-.14.124-.288.2-.43a4.46 4.46 0 0 1 .35-.506c.084-.096.176-.181.27-.252.09-.068.185-.13.276-.176.09-.044.175-.066.245-.066a.16.16 0 0 1 .1.031c.02.018.032.043.032.075a.22.22 0 0 1-.045.124c-.124.154-.412.288-.73.396a5.167 5.167 0 0 1-.698.204z"/><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/></svg>
-                    Descargar PDF
-                </button>
-                <button class="btn-action btn-excel" id="btnExcel" onclick="exportRecord('excel')">
-                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
-                    Descargar Excel
-                </button>
-                <button class="btn-action btn-email" id="btnEmail" onclick="showEmailPrompt()">
-                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/></svg>
-                    Enviar por Correo
-                </button>
-            </div>
-            <!-- Email prompt overlay -->
-            <div id="emailPrompt">
-                <div class="email-prompt-box">
-                    <h4>Enviar registro por correo</h4>
-                    <p style="font-size:0.8125rem; color:#94a3b8; margin:0 0 1rem; font-family:'Roboto',sans-serif;">Ingrese la dirección de correo del destinatario:</p>
-                    <input type="email" id="emailInput" class="email-input" placeholder="correo@ejemplo.com">
-                    <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
-                        <button class="btn-action btn-back" onclick="hideEmailPrompt()">Cancelar</button>
-                        <button class="btn-action btn-email" onclick="sendEmail()">Enviar</button>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
+    <!-- shared record viewer (used by openRecord / "Ver ↗" buttons) -->
+    <script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
 
     <script>
     let currentQS        = '';
@@ -1221,34 +1199,9 @@
         }
     }
 
-    // ── Individual record modal ───────────────────────────────────────────
-    async function openRecord(id) {
-        currentRecordId = id;
-        const modal      = document.getElementById('recordModal');
-        const body       = document.getElementById('recordContent');
-        const loading    = document.getElementById('recordLoading');
-        const actionBar  = document.getElementById('recordActionBar');
-
-        modal.classList.add('active');
-        body.style.display   = 'none';
-        loading.style.display = 'block';
-        actionBar.style.display = 'none';
-
-        try {
-            const res  = await fetch(`/viewer/api/report/${id}?form_type=reporte_incidente`, { credentials: 'include' });
-            const data = await res.json();
-
-            if (!res.ok || !data) { showError('No se encontró el registro.'); return; }
-
-            body.innerHTML = renderRecordDetail(data);
-            body.style.display = 'block';
-            actionBar.style.display = 'flex';
-        } catch (err) {
-            showError(`Error cargando registro: ${err.message}`);
-        } finally {
-            loading.style.display = 'none';
-        }
-    }
+    // ── Individual record modal (Ver ↗ button) ──────────────────────────
+    const _recordViewer = window.createDashboardRecordViewer({ formType: 'reporte_incidente', recordTitle: 'Detalle del Registro' });
+    function openRecord(id) { _recordViewer.openRecord(id); }
 
     function looksLikeJson(value) {
         if (typeof value !== 'string') return false;
