@@ -516,6 +516,12 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
                 <div class="chart-card">
                     <div class="chart-title">Tendencia Operacional</div>
                     <div class="chart-box"><canvas id="chartTendencia"></canvas></div>
+                    <div id="tendenciaAgendarWrap" style="display:none;margin-top:.75rem;text-align:right;">
+                        <button id="btnAgendarVisita" class="btn-apply" onclick="agendarVisitaDesdeInstalacion()"
+                            style="background:#7c3aed;">
+                            📅 Agendar visita
+                        </button>
+                    </div>
                 </div>
                 <div class="chart-card">
                     <div class="chart-title">Distribución de Incidentes por Severidad</div>
@@ -1326,6 +1332,22 @@ async function loadData() {
     }
     // Re-evaluar alertas al cambiar filtros (cliente puede cambiar contexto)
     evaluateAlerts();
+    _updateAgendarBtn();
+}
+
+function agendarVisitaDesdeInstalacion() {
+    const idPropiedad = document.getElementById('filtCliente').value;
+    const supervisor  = document.getElementById('filtSupervisor').value;
+    const params = new URLSearchParams();
+    if (idPropiedad) params.set('id_propiedad', idPropiedad);
+    params.set('motivo', 'Seguimiento de servicio');
+    if (supervisor) params.set('temas', `Seguimiento de indicadores — Supervisor: ${supervisor}`);
+    window.location = `/forms/registro_y_acta_de_visita?${params}`;
+}
+
+function _updateAgendarBtn() {
+    const wrap = document.getElementById('tendenciaAgendarWrap');
+    if (wrap) wrap.style.display = document.getElementById('filtCliente').value ? '' : 'none';
 }
 
 function clearFilters() {
@@ -1333,6 +1355,7 @@ function clearFilters() {
     document.getElementById('filtSupervisor').value = '';
     document.getElementById('filtStart').value      = '';
     document.getElementById('filtEnd').value        = '';
+    _updateAgendarBtn();
     loadData();
 }
 

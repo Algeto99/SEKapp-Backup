@@ -206,7 +206,7 @@
                     <div class="form-section">
                         <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
                         <textarea name="temas_tratados_0" rows="5" class="form-textarea"
-                            placeholder="Liste los puntos principales discutidos..."></textarea>
+                            placeholder="Liste los puntos principales discutidos...">{{ pre_temas | default('') }}</textarea>
                     </div>
 
                     <div class="form-section">
@@ -506,6 +506,14 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    {% if pre_motivo %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var sel = document.getElementById('motivo_visita');
+            if (sel) sel.value = {{ pre_motivo | tojson }};
+        });
+    </script>
+    {% endif %}
     <script>
         // --- GEOLOCATION ---
         (function captureLocation() {

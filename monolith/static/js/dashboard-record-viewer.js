@@ -904,15 +904,18 @@
         const emailInput = modal.querySelector('.drv-email-input');
         const emailMsg = modal.querySelector('.drv-email-msg');
         let currentRecordId = null;
+        let _currentRecord  = null;
 
         function closeRecord() {
             modal.classList.remove('active');
             emailOverlay.classList.remove('active');
             currentRecordId = null;
+            _currentRecord  = null;
         }
 
         async function openRecord(id) {
             currentRecordId = id;
+            _currentRecord  = null;
             titleEl.textContent = cfg.recordTitle || 'Detalle del Registro';
             modal.classList.add('active');
             contentEl.style.display = 'none';
@@ -931,6 +934,7 @@
                     );
                     return;
                 }
+                _currentRecord = data;
                 contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType);
                 contentEl.style.display = 'block';
                 actionBar.style.display = 'flex';
@@ -1145,8 +1149,18 @@
 
         btnAsignar.onclick = showAsignarOverlay;
         btnVisita.onclick = () => {
-            // Tarea 4 — placeholder hasta implementación
-            console.log('Agendar visita', currentRecordId, cfg.formType);
+            const raw = _currentRecord && (_currentRecord.data || _currentRecord);
+            const idPropiedad = raw && (raw['ID Propiedad'] || raw['id_propiedad'] || '');
+            const titulo      = raw && (raw['Título de Incidencia'] || '');
+            const categoria   = raw && (raw['Categoría'] || '');
+            const descripcion = raw && (raw['Descripción del Incidente'] || '');
+            const partes = [titulo, categoria, descripcion].filter(Boolean);
+            const temas  = 'Hallazgos del período:\n- ' + (partes.length ? partes.join('\n- ') : `Registro #${currentRecordId}`);
+            const params = new URLSearchParams();
+            if (idPropiedad) params.set('id_propiedad', idPropiedad);
+            params.set('motivo', 'Seguimiento de servicio');
+            params.set('temas', temas);
+            window.location = `/forms/registro_y_acta_de_visita?${params}`;
         };
         modal.querySelector('.drv-asignar-cancel').onclick = hideAsignarOverlay;
         modal.querySelector('.drv-btn-asignar-confirm').onclick = submitAsignacion;

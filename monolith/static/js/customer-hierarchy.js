@@ -150,9 +150,19 @@
             if (legacyInput) legacyInput.value = selected ? selected.name : '';
         });
 
-        // Deep link (e.g. Morning Briefing alerts): ?cliente= preselects the property
+        // Deep link by numeric id (?id_propiedad=): used by "Agendar visita" pre-fill
+        const idParam = (new URLSearchParams(window.location.search).get('id_propiedad') || '').trim();
+        if (idParam) {
+            const match = data.properties.find((p) => String(p.id) === idParam);
+            if (match) {
+                propertySelect.value = String(match.id);
+                propertySelect.dispatchEvent(new Event('change'));
+            }
+        }
+
+        // Deep link by name (?cliente=): e.g. Morning Briefing alerts
         const clienteParam = (new URLSearchParams(window.location.search).get('cliente') || '').trim().toLowerCase();
-        if (clienteParam) {
+        if (!idParam && clienteParam) {
             const match = data.properties.find((p) =>
                 (p.name || '').trim().toLowerCase() === clienteParam ||
                 (p.cliente || '').trim().toLowerCase() === clienteParam);

@@ -994,11 +994,16 @@ def submit_registro_de_capacitaciones():
 @jwt_required()
 def registro_y_acta_de_visita_form():
     user_name, is_admin = get_user_info_from_jwt()
-
+    ctx = {
+        'pre_propiedad': request.args.get('id_propiedad', ''),
+        'pre_motivo':    request.args.get('motivo', ''),
+        'pre_temas':     request.args.get('temas', ''),
+    }
     return render_template(
         'acta_visita_cliente.html',
         name=user_name,
         is_admin=is_admin,
+        **ctx,
         **get_service_urls()
     )
 
