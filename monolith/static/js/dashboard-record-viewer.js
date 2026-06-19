@@ -361,6 +361,87 @@
             body.light-mode .drv-action-bar {
                 border-top-color: rgba(15,23,42,0.08);
             }
+            .drv-5q-grid {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 0.6rem;
+                margin-bottom: 1rem;
+            }
+            @media (max-width: 600px) {
+                .drv-5q-grid { grid-template-columns: repeat(2, 1fr); }
+                .drv-5q-grid .drv-5q-card:last-child { grid-column: 1 / -1; }
+            }
+            .drv-5q-card {
+                background: rgba(99,102,241,0.1);
+                border: 1px solid rgba(99,102,241,0.22);
+                border-radius: 12px;
+                padding: 0.85rem 0.75rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+            .drv-5q-icon {
+                font-size: 1.3rem;
+                line-height: 1;
+            }
+            .drv-5q-label {
+                font-size: 0.68rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.07em;
+                color: #a5b4fc;
+            }
+            .drv-5q-value {
+                font-size: 0.86rem;
+                color: #e5e7eb;
+                word-break: break-word;
+                line-height: 1.4;
+            }
+            .drv-tech-detail {
+                margin-bottom: 0.75rem;
+            }
+            .drv-tech-detail > summary {
+                cursor: pointer;
+                user-select: none;
+                color: #94a3b8;
+                font-size: 0.82rem;
+                font-family: Roboto, sans-serif;
+                padding: 0.55rem 0.75rem;
+                border: 1px solid rgba(255,255,255,0.07);
+                border-radius: 10px;
+                background: rgba(255,255,255,0.03);
+                list-style: none;
+                display: flex;
+                align-items: center;
+                gap: 0.45rem;
+            }
+            .drv-tech-detail > summary::before {
+                content: '▶';
+                font-size: 0.65rem;
+                transition: transform 0.18s ease;
+            }
+            .drv-tech-detail[open] > summary::before {
+                transform: rotate(90deg);
+            }
+            .drv-tech-detail > summary:hover {
+                color: #cbd5e1;
+                background: rgba(255,255,255,0.05);
+            }
+            body.light-mode .drv-5q-card {
+                background: rgba(79,70,229,0.07);
+                border-color: rgba(79,70,229,0.18);
+            }
+            body.light-mode .drv-5q-label { color: #4338ca; }
+            body.light-mode .drv-5q-value { color: #1e293b; }
+            body.light-mode .drv-tech-detail > summary {
+                color: #64748b;
+                border-color: rgba(15,23,42,0.08);
+                background: #f8fafc;
+            }
+            body.light-mode .drv-tech-detail > summary:hover {
+                color: #334155;
+                background: #f1f5f9;
+            }
             body.light-mode .drv-modal-btn.secondary {
                 background: rgba(100,116,139,0.1);
                 border-color: rgba(100,116,139,0.22);
@@ -546,6 +627,95 @@
         comentario:            'Comentario',
     };
 
+    // Keys are the LABELS produced by fetch_reports_by_ids (data_mapping in viewer_bp.py)
+    const FIVE_Q_MAP = {
+        reporte_incidente: {
+            QUE:    ['Título de Incidencia', 'Categoría'],
+            CUANDO: ['Fecha del Incidente'],
+            DONDE:  ['Propiedad', 'Lugar del Incidente'],
+            COMO:   ['Nivel Severidad', 'Descripción del Incidente', 'URLs de Imágenes o PDFs'],
+            QUIEN:  ['Nombre del Supervisor', 'Responsable Asignado'],
+        },
+        supervision_puesto: {
+            QUE:    ['Puesto/Área'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  ['Cliente/Instalación'],
+            COMO:   ['Observaciones', 'Foto Evidencia'],
+            QUIEN:  ['Supervisor', 'Nombre Guardia'],
+        },
+        checklist_cumplimiento: {
+            QUE:    ['Curso Certificación', 'Nivel Cumplimiento'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  ['Cliente'],
+            COMO:   ['Evidencia URL'],
+            QUIEN:  ['Auditor', 'Agente'],
+        },
+        medicion_experiencia_cliente: {
+            QUE:    ['Categoría Evaluada', 'NPS'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  ['Cliente/Instalación'],
+            COMO:   ['Observaciones', 'Atención al Cliente'],
+            QUIEN:  ['Encuestado'],
+        },
+        informe_novedades_disciplinario: {
+            QUE:    ['Tipo Novedad'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  ['Sitio'],
+            COMO:   ['Descripción'],
+            QUIEN:  ['Empleado', 'Responsable'],
+        },
+        log_de_patrullas: {
+            QUE:    ['Nivel Riesgo', 'Estado'],
+            CUANDO: ['Fecha', 'Hora Inicio', 'Hora Fin'],
+            DONDE:  ['Sitio'],
+            COMO:   ['Detalles Incidente', 'Riesgo Detectado', 'Contexto'],
+            QUIEN:  ['Guardia'],
+        },
+        registro_de_capacitaciones: {
+            QUE:    ['Capacitación', 'Objetivo'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  [],
+            COMO:   ['Observaciones', 'Nivel Comprensión', 'URLs de Imágenes o PDFs'],
+            QUIEN:  ['Responsable'],
+        },
+        registro_y_acta_de_visita: {
+            QUE:    ['Motivo', 'Objetivo'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  ['Cliente'],
+            COMO:   ['Temas Tratados', 'Acuerdos'],
+            QUIEN:  ['Visitante', 'Atendió'],
+        },
+        planilla_vehicular: {
+            QUE:    ['Placa', 'Kilometraje'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  [],
+            COMO:   ['Novedades Críticas', 'Diagrama Daños', 'Acción Inmediata'],
+            QUIEN:  ['Responsable'],
+        },
+        planilla_motocicletas: {
+            QUE:    ['Placa', 'Kilometraje'],
+            CUANDO: ['Fecha/Hora'],
+            DONDE:  [],
+            COMO:   ['Novedades Críticas', 'Acción Inmediata'],
+            QUIEN:  ['Responsable'],
+        },
+        confiabilidad_equipos: {
+            QUE:    ['Inventario'],
+            CUANDO: ['Fecha', 'Hora'],
+            DONDE:  ['Sitio', 'Cliente'],
+            COMO:   [],
+            QUIEN:  ['Técnico Mantenimiento', 'Supervisor Seguridad'],
+        },
+    };
+
+    const FIVE_Q_LABELS = {
+        QUE:    { icon: '📋', title: 'QUÉ' },
+        CUANDO: { icon: '🕐', title: 'CUÁNDO' },
+        DONDE:  { icon: '📍', title: 'DÓNDE' },
+        COMO:   { icon: '⚙️', title: 'CÓMO' },
+        QUIEN:  { icon: '👤', title: 'QUIÉN' },
+    };
+
     function isInventarioArray(key, arr) {
         if (!arr || !arr.length || !arr[0] || typeof arr[0] !== 'object') return false;
         return String(key || '').toLowerCase().includes('inventario');
@@ -597,32 +767,86 @@
         return renderPrimitive(key, value);
     }
 
-    function renderRecordDetail(d, currentRecordId) {
+    function renderRecordDetail(d, currentRecordId, formType) {
         const raw = d.data || d;
-        const rows = Object.entries(raw)
-            .filter(([k]) => !['id', 'formType', 'submittedBy', 'dateSubmitted', 'title'].includes(k))
-            .map(([k, v]) => {
-                const display = renderValue(k, v, 0);
+        const META_KEYS = new Set(['id', 'formType', 'submittedBy', 'dateSubmitted', 'title']);
+        const qMap = FIVE_Q_MAP[formType] || null;
+
+        // Collect which raw keys are consumed by the 5Q zone
+        const usedIn5Q = new Set();
+
+        function collectQ(labelList, fallback) {
+            if (!qMap) return escapeHtml(fallback || '—');
+            const parts = [];
+            for (const lbl of (labelList || [])) {
+                const val = raw[lbl];
+                if (val !== null && val !== undefined && val !== '') {
+                    usedIn5Q.add(lbl);
+                    parts.push(renderValue(lbl, val, 0));
+                }
+            }
+            return parts.length ? parts.join('<br>') : escapeHtml(fallback || '—');
+        }
+
+        // Zone 1 — 5Q summary
+        let zone1 = '';
+        if (qMap) {
+            const cards = Object.entries(FIVE_Q_LABELS).map(([key, meta]) => {
+                const content = collectQ(qMap[key],
+                    key === 'CUANDO' ? d.dateSubmitted : (key === 'QUIEN' ? d.submittedBy : null));
                 return `
+                    <div class="drv-5q-card">
+                        <div class="drv-5q-icon">${meta.icon}</div>
+                        <div class="drv-5q-label">${meta.title}</div>
+                        <div class="drv-5q-value">${content}</div>
+                    </div>`;
+            }).join('');
+            zone1 = `<div class="drv-5q-grid">${cards}</div>`;
+        }
+
+        // Zone 2 — collapsible technical detail
+        const techRows = Object.entries(raw)
+            .filter(([k]) => !META_KEYS.has(k) && !usedIn5Q.has(k))
+            .map(([k, v]) => `
+                <div class="drv-detail-field">
+                    <label>${escapeHtml(k)}</label>
+                    <div>${renderValue(k, v, 0)}</div>
+                </div>`).join('');
+
+        const metaRows = `
+            <div class="drv-detail-field"><label>ID</label><p>${escapeHtml(d.id || currentRecordId || '—')}</p></div>
+            <div class="drv-detail-field"><label>Enviado por</label><p>${escapeHtml(d.submittedBy || '—')}</p></div>
+            <div class="drv-detail-field"><label>Fecha de envío</label><p>${escapeHtml(d.dateSubmitted || '—')}</p></div>
+            <div class="drv-detail-field"><label>Formulario</label><p>${escapeHtml(d.title || 'Registro')}</p></div>`;
+
+        const zone2 = `
+            <details class="drv-tech-detail">
+                <summary>Detalle Técnico</summary>
+                <div class="drv-detail-section" style="margin-top:0.75rem;">
+                    <h4>Información del Registro</h4>
+                    <div class="drv-detail-grid">${metaRows}</div>
+                </div>
+                ${techRows ? `<div class="drv-detail-section"><h4>Datos del Formulario</h4><div class="drv-detail-grid">${techRows}</div></div>` : ''}
+            </details>`;
+
+        // Fallback: no map — render everything as before (no 5Q)
+        if (!qMap) {
+            const allRows = Object.entries(raw)
+                .filter(([k]) => !META_KEYS.has(k))
+                .map(([k, v]) => `
                     <div class="drv-detail-field">
                         <label>${escapeHtml(k)}</label>
-                        <div>${display}</div>
-                    </div>
-                `;
-            }).join('');
-
-        return `
-            <div class="drv-detail-section">
-                <h4>Información del Registro</h4>
-                <div class="drv-detail-grid">
-                    <div class="drv-detail-field"><label>ID</label><p>${escapeHtml(d.id || currentRecordId || '—')}</p></div>
-                    <div class="drv-detail-field"><label>Enviado por</label><p>${escapeHtml(d.submittedBy || '—')}</p></div>
-                    <div class="drv-detail-field"><label>Fecha de envío</label><p>${escapeHtml(d.dateSubmitted || '—')}</p></div>
-                    <div class="drv-detail-field"><label>Formulario</label><p>${escapeHtml(d.title || 'Registro')}</p></div>
+                        <div>${renderValue(k, v, 0)}</div>
+                    </div>`).join('');
+            return `
+                <div class="drv-detail-section">
+                    <h4>Información del Registro</h4>
+                    <div class="drv-detail-grid">${metaRows}</div>
                 </div>
-            </div>
-            ${rows ? `<div class="drv-detail-section"><h4>Datos del Formulario</h4><div class="drv-detail-grid">${rows}</div></div>` : ''}
-        `;
+                ${allRows ? `<div class="drv-detail-section"><h4>Datos del Formulario</h4><div class="drv-detail-grid">${allRows}</div></div>` : ''}`;
+        }
+
+        return zone1 + zone2;
     }
 
     window.createDashboardRecordViewer = function(options) {
@@ -668,7 +892,7 @@
                     );
                     return;
                 }
-                contentEl.innerHTML = renderRecordDetail(data, currentRecordId);
+                contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType);
                 contentEl.style.display = 'block';
                 actionBar.style.display = 'flex';
             } catch (err) {
