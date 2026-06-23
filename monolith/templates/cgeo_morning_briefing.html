@@ -132,6 +132,9 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap;flex-shrink:0}
 .alerta-btn{flex-shrink:0;padding:.3rem .625rem;font-size:.72rem;font-weight:600;border-radius:.4rem;border:none;cursor:pointer;white-space:nowrap;transition:all .15s;text-decoration:none;display:inline-block}
+.alerta-estado-badge{flex-shrink:1;min-width:0;max-width:160px;display:inline-flex;align-items:center;gap:.2rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.15rem .45rem;border-radius:999px;background:rgba(245,158,11,.15);color:#92400e;border:1px solid rgba(245,158,11,.3);overflow:hidden;white-space:nowrap}
+.alerta-estado-badge .badge-estado{flex-shrink:0}
+.alerta-estado-badge .badge-resp{flex-shrink:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .alerta-btn-rojo{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
 .alerta-btn-rojo:hover{background:#fee2e2}
 .alerta-btn-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
@@ -232,6 +235,8 @@ body:not(.light-mode) .skeleton{background:linear-gradient(90deg,#1e293b 25%,#33
   .alerta-btn{display:none}
   .alerta-texto{white-space:normal}
   .chart-card{padding:1rem}
+  .alerta-estado-badge{max-width:80px}
+  .alerta-estado-badge .badge-resp{display:none}
 }
 .hidden{display:none!important}
 
@@ -786,7 +791,7 @@ function _alertaItemHtml(a) {
     // Alerts with a specific record → open the record-detail modal, no page navigation
     if (a.record_id && a.form_type) {
         const estadoBadge = (a.estado && a.estado !== 'Abierto')
-            ? `<span style="flex-shrink:0;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.15rem .45rem;border-radius:999px;background:rgba(245,158,11,.15);color:#92400e;border:1px solid rgba(245,158,11,.3);">${a.estado}${a.responsable_asignado ? ' · ' + a.responsable_asignado : ''}</span>`
+            ? `<span class="alerta-estado-badge"><span class="badge-estado">${a.estado}</span>${a.responsable_asignado ? `<span class="badge-resp">· ${a.responsable_asignado}</span>` : ''}</span>`
             : '';
         return `<a href="${a.ruta_navegacion}" class="alerta-item"
                    onclick="openAlertRecord(${a.record_id},'${a.form_type}',event)">

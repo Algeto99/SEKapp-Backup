@@ -415,6 +415,45 @@
                 .drv-5q-grid { grid-template-columns: repeat(2, 1fr); }
                 .drv-5q-grid .drv-5q-card:last-child { grid-column: 1 / -1; }
             }
+            @media (max-width: 520px) {
+                .drv-modal-backdrop { padding: 0; align-items: flex-end; }
+                .drv-modal-container {
+                    width: 100%;
+                    max-height: 92vh;
+                    border-radius: 16px 16px 0 0;
+                }
+                .drv-modal-header { padding: 0.875rem 1rem; }
+                .drv-modal-title { font-size: 0.92rem; }
+                .drv-modal-body { padding: 0.875rem 1rem; }
+                .drv-action-bar {
+                    flex-wrap: wrap;
+                    justify-content: stretch;
+                    padding: 0.75rem 1rem;
+                    gap: 0.5rem;
+                }
+                .drv-action-bar .drv-modal-btn {
+                    flex: 1 1 auto;
+                    min-width: calc(50% - 0.25rem);
+                    text-align: center;
+                    padding: 0.55rem 0.5rem;
+                    font-size: 0.78rem;
+                }
+                .drv-action-bar .drv-btn-close {
+                    flex: 1 1 100%;
+                    order: 99;
+                }
+                .drv-detail-grid {
+                    grid-template-columns: 1fr;
+                }
+                .drv-email-box,
+                .drv-asignar-overlay > .drv-email-box {
+                    width: 100%;
+                    border-radius: 12px;
+                    padding: 1rem;
+                }
+                .drv-email-actions { flex-direction: column; }
+                .drv-email-actions .drv-modal-btn { width: 100%; text-align: center; }
+            }
             .drv-5q-card {
                 background: rgba(99,102,241,0.1);
                 border: 1px solid rgba(99,102,241,0.22);
