@@ -110,6 +110,13 @@
     .btn-outline:hover { border-color:rgba(255,255,255,.5); }
     .btn-copy { background:rgba(96,165,250,.2); border:1px solid rgba(96,165,250,.4); color:#60a5fa; border-radius:.5rem; padding:.45rem 1rem; font-size:.85rem; cursor:pointer; transition:all .2s; }
     .btn-copy:hover { background:rgba(96,165,250,.35); }
+    .btn-email { background:rgba(52,211,153,.15); border:1px solid rgba(52,211,153,.35); color:#34d399; border-radius:.5rem; padding:.45rem 1rem; font-size:.85rem; cursor:pointer; transition:all .2s; }
+    .btn-email:hover { background:rgba(52,211,153,.3); }
+    #qrEmailForm { margin-top:1rem; display:none; }
+    #qrEmailForm input[type=email] { width:100%; box-sizing:border-box; padding:.45rem .7rem; border-radius:.4rem; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.07); color:#e2e8f0; font-size:.85rem; outline:none; }
+    #qrEmailForm input[type=email]:focus { border-color:#34d399; }
+    #qrEmailSendBtn { margin-top:.5rem; width:100%; padding:.45rem; border-radius:.4rem; background:#34d399; border:none; color:#0f172a; font-weight:600; font-size:.85rem; cursor:pointer; transition:opacity .2s; }
+    #qrEmailSendBtn:disabled { opacity:.5; cursor:default; }
 
     /* Empty / loading states */
     .state-placeholder { text-align:center; padding:3rem 1rem; color:#9ca3af; }
@@ -151,7 +158,13 @@
     <div class="qr-actions">
       <button class="btn-copy" id="btnCopyUrl">Copiar enlace</button>
       <a id="qrDownloadLink" download="evidencia_qr.png" class="btn-outline">Descargar PNG</a>
+      <button class="btn-email" id="btnShareEmail" onclick="toggleQrEmailForm()">Enviar por correo</button>
       <button class="btn-outline" onclick="closeQrModal()">Cerrar</button>
+    </div>
+    <div id="qrEmailForm">
+      <input type="email" id="qrEmailInput" placeholder="destinatario@correo.com">
+      <button id="qrEmailSendBtn" onclick="sendQrByEmail()">Enviar</button>
+      <p id="qrEmailMsg" style="font-size:.75rem;margin:.4rem 0 0;min-height:1em;"></p>
     </div>
   </div>
 </div>
@@ -242,7 +255,8 @@
   let currentFilter = 'ALL';
   let allEvents = [];
   let propHasGps = false;
-  let currentQrUrl = '';
+  let currentQrUrl   = '';
+  let currentQrToken = '';
 
   // ── Month labels in Spanish ───────────────────────────────────────────────
   const MONTH_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -524,7 +538,8 @@
     img.src = '';
     dl.removeAttribute('href');
     urlEl.textContent = 'Generando…';
-    currentQrUrl = '';
+    currentQrUrl   = '';
+    currentQrToken = '';
     modal.classList.add('open');
 
     const enc = encodeURIComponent(currentCliente);
@@ -532,7 +547,8 @@
       const res  = await fetch(`/expediente/api/qr-expediente-url?cliente=${enc}&days=${currentDays}&module=${currentFilter}`);
       const data = await res.json();
       if (res.ok && data.token) {
-        currentQrUrl = data.url;
+        currentQrUrl   = data.url;
+        currentQrToken = data.token;
         img.src = `/expediente/qr-expediente/${data.token}`;
         dl.href = `/expediente/qr-expediente/${data.token}`;
         dl.download = `expediente_${currentCliente.replace(/\s+/g,'_')}.png`;
@@ -548,6 +564,51 @@
   function closeQrModal() {
     document.getElementById('qrModal').classList.remove('open');
     document.getElementById('qrImg').src = '';
+    // reset email form
+    document.getElementById('qrEmailForm').style.display = 'none';
+    document.getElementById('qrEmailInput').value = '';
+    document.getElementById('qrEmailMsg').textContent = '';
+  }
+
+  function toggleQrEmailForm() {
+    const form = document.getElementById('qrEmailForm');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if (form.style.display === 'block') document.getElementById('qrEmailInput').focus();
+  }
+
+  async function sendQrByEmail() {
+    const toEmail = document.getElementById('qrEmailInput').value.trim();
+    const msgEl   = document.getElementById('qrEmailMsg');
+    const btn     = document.getElementById('qrEmailSendBtn');
+    if (!toEmail) { msgEl.style.color = '#f87171'; msgEl.textContent = 'Ingresá un correo válido.'; return; }
+    if (!currentQrToken) { msgEl.style.color = '#f87171'; msgEl.textContent = 'Generá el QR primero.'; return; }
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    msgEl.textContent = '';
+    const csrfCookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+    const csrfVal    = csrfCookie ? decodeURIComponent(csrfCookie.substring('csrf_access_token='.length)) : '';
+    try {
+      const res = await fetch('/expediente/api/qr-expediente-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfVal },
+        body: JSON.stringify({ token: currentQrToken, cliente: currentCliente, to_email: toEmail }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        msgEl.style.color = '#34d399';
+        msgEl.textContent = '¡Correo enviado!';
+        document.getElementById('qrEmailInput').value = '';
+      } else {
+        msgEl.style.color = '#f87171';
+        msgEl.textContent = data.error || 'Error al enviar el correo.';
+      }
+    } catch(e) {
+      msgEl.style.color = '#f87171';
+      msgEl.textContent = 'Error de conexión.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar';
+    }
   }
 
   document.getElementById('btnCopyUrl').addEventListener('click', () => {

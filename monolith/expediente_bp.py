@@ -20,6 +20,7 @@ except ImportError:
     QRCODE_AVAILABLE = False
 
 from db import get_db_connection
+from email_utils import send_email
 
 app_logger = logging.getLogger(__name__)
 
@@ -818,6 +819,88 @@ def qr_expediente_png(token):
     img.save(buf, format='PNG')
     buf.seek(0)
     return send_file(buf, mimetype='image/png', download_name='expediente_qr.png')
+
+
+@expediente_bp.route('/expediente/api/qr-expediente-email', methods=['POST'])
+@jwt_required()
+@admin_required
+def api_qr_expediente_email():
+    """Send the expediente QR link by email to one or more recipients."""
+    user_email = get_jwt_identity()
+    body = request.get_json() or {}
+    token    = (body.get('token') or '').strip()
+    cliente  = (body.get('cliente') or '').strip()
+    to_email = (body.get('to_email') or '').strip()
+
+    if not token or not to_email:
+        return jsonify({'error': 'Faltan campos requeridos: token, to_email'}), 400
+
+    payload = _decode_expediente_token(token)
+    if not payload:
+        return jsonify({'error': 'Token inválido o expirado'}), 400
+
+    public_url = request.host_url.rstrip('/') + f'/vexp/{token}'
+    nombre_instalacion = cliente or payload.get('cliente', 'la instalación')
+
+    # Resolve sender display name
+    try:
+        from psycopg2 import extras as _extras
+        conn2 = get_db_connection()
+        sender_name = user_email
+        if conn2:
+            with conn2.cursor(cursor_factory=_extras.RealDictCursor) as cur2:
+                cur2.execute('SELECT name FROM users WHERE email = %s', (user_email,))
+                row2 = cur2.fetchone()
+                if row2:
+                    sender_name = row2['name']
+            conn2.close()
+    except Exception:
+        sender_name = user_email
+
+    from html import escape as _esc
+    subject = f"[SEKApp] Expediente de instalación – {nombre_instalacion}"
+    html_body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;">
+      <div style="background:#1e3a5f;padding:20px 24px;border-radius:6px 6px 0 0;">
+        <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">SEKApp</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#93c5fd;">Expediente de instalación compartido</p>
+      </div>
+      <div style="background:#ffffff;padding:24px;border:1px solid #e5e7eb;border-top:none;
+                  border-radius:0 0 6px 6px;">
+        <p style="margin:0 0 16px;font-size:15px;color:#111827;">
+          <strong>{_esc(sender_name)}</strong> te ha compartido el expediente de instalación de
+          <strong>{_esc(nombre_instalacion)}</strong>.
+        </p>
+        <p style="margin:0 0 8px;font-size:13px;color:#374151;">
+          Accede al expediente completo con el siguiente enlace o escaneando el código QR:
+        </p>
+        <p style="margin:0 0 20px;font-size:12px;word-break:break-all;">
+          <a href="{_esc(public_url)}" style="color:#1d4ed8;">{_esc(public_url)}</a>
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="{_esc(public_url)}"
+             style="display:inline-block;padding:11px 28px;background:#1e3a5f;color:#ffffff;
+                    text-decoration:none;border-radius:5px;font-size:14px;font-weight:600;">
+            Ver expediente
+          </a>
+        </div>
+        <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;">
+          Kanan · SEKApp — este enlace tiene vigencia limitada según la configuración del QR.
+        </p>
+      </div>
+    </div>
+    """
+
+    try:
+        sent = send_email(to_emails=to_email, subject=subject, body=html_body, is_html=True)
+    except Exception as e:
+        app_logger.error(f"api_qr_expediente_email send error: {e}", exc_info=True)
+        return jsonify({'error': 'Error al enviar el correo'}), 500
+
+    if not sent:
+        return jsonify({'error': 'El correo no pudo ser enviado (configuración SMTP)'}), 500
+
+    return jsonify({'success': True})
 
 
 @expediente_bp.route('/vexp/<string:token>')
