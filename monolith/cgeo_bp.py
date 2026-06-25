@@ -10,6 +10,7 @@ import base64
 import logging
 import os
 from datetime import date, timedelta, datetime
+from html import escape
 from functools import wraps
 from io import BytesIO
 
@@ -1736,6 +1737,270 @@ def cgeo_morning_briefing_pdf():
         return jsonify({"error": "Error generando PDF"}), 500
 
 
+def _fetch_record_details(form_type: str, record_id: int) -> dict:
+    """Return a dict of display fields for the given form_type record, or {} on failure."""
+    conn = _get_conn()
+    if not conn:
+        return {}
+    try:
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            if form_type == 'reporte_incidente':
+                cur.execute(
+                    """
+                    SELECT cliente_instalacion  AS cliente,
+                           puesto_area_especifica AS ubicacion,
+                           fecha_hora,
+                           categoria,
+                           tipo_incidente        AS subtipo,
+                           descripcion_incidente AS descripcion,
+                           estado,
+                           responsable_asignado
+                      FROM reportes_incidentes
+                     WHERE id_reporte_incidente = %s
+                    """,
+                    (record_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                return {
+                    'tipo_label': 'Incidente',
+                    'consecutivo': f"#{record_id}",
+                    'cliente': row['cliente'] or '—',
+                    'fecha_evento': row['fecha_hora'],
+                    'categoria': row['categoria'] or '—',
+                    'subtipo': row['subtipo'] or '',
+                    'descripcion': row['descripcion'] or '—',
+                    'ubicacion': row['ubicacion'] or '—',
+                    'estado': row['estado'] or '—',
+                    'url_path': f"/dashboard/incidentes/?id={record_id}",
+                }
+
+            elif form_type == 'supervision_puesto':
+                cur.execute(
+                    """
+                    SELECT supervisor,
+                           nombre_guardia,
+                           fecha_hora,
+                           observaciones_novedades AS descripcion,
+                           submitted_by_email
+                      FROM supervision_puesto
+                     WHERE id_supervision = %s
+                    """,
+                    (record_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                return {
+                    'tipo_label': 'Supervisión de puesto',
+                    'consecutivo': f"#{record_id}",
+                    'cliente': row['supervisor'] or '—',
+                    'fecha_evento': row['fecha_hora'],
+                    'categoria': '—',
+                    'subtipo': '',
+                    'descripcion': row['descripcion'] or '—',
+                    'ubicacion': '—',
+                    'estado': '—',
+                    'url_path': f"/dashboard/supervision/?id={record_id}",
+                }
+
+            elif form_type in ('visita', 'registro_y_acta_de_visita'):
+                cur.execute(
+                    """
+                    SELECT cliente_instalacion  AS cliente,
+                           puesto_area_especifica AS ubicacion,
+                           fecha_hora,
+                           motivo_visita         AS categoria,
+                           actividades_realizadas AS descripcion,
+                           visita_realizada_por
+                      FROM registro_y_acta_de_visita
+                     WHERE id_visita = %s
+                    """,
+                    (record_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                return {
+                    'tipo_label': 'Visita',
+                    'consecutivo': f"#{record_id}",
+                    'cliente': row['cliente'] or '—',
+                    'fecha_evento': row['fecha_hora'],
+                    'categoria': row['categoria'] or '—',
+                    'subtipo': '',
+                    'descripcion': row['descripcion'] or '—',
+                    'ubicacion': row['ubicacion'] or '—',
+                    'estado': '—',
+                    'url_path': f"/dashboard/visitas/?id={record_id}",
+                }
+
+            elif form_type in ('equipo', 'confiabilidad_equipos'):
+                cur.execute(
+                    """
+                    SELECT cliente_instalacion AS cliente,
+                           sitio              AS ubicacion,
+                           fecha,
+                           tecnico_mantenimiento
+                      FROM confiabilidad_equipos
+                     WHERE id = %s
+                    """,
+                    (record_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                return {
+                    'tipo_label': 'Equipo',
+                    'consecutivo': f"#{record_id}",
+                    'cliente': row['cliente'] or '—',
+                    'fecha_evento': row['fecha'],
+                    'categoria': '—',
+                    'subtipo': '',
+                    'descripcion': f"Técnico: {row['tecnico_mantenimiento'] or '—'}",
+                    'ubicacion': row['ubicacion'] or '—',
+                    'estado': '—',
+                    'url_path': f"/dashboard/equipos/?id={record_id}",
+                }
+
+            else:
+                return {
+                    'tipo_label': form_type.replace('_', ' ').title(),
+                    'consecutivo': f"#{record_id}",
+                    'url_path': '/dashboard/',
+                }
+    except Exception as e:
+        app_logger.warning(f"_fetch_record_details({form_type}, {record_id}): {e}")
+        return {}
+    finally:
+        conn.close()
+
+
+def _format_fecha(value) -> str:
+    """Format a date/datetime value for display in email."""
+    if value is None:
+        return '—'
+    try:
+        from datetime import datetime, date
+        if isinstance(value, datetime):
+            return value.strftime('%d/%m/%Y %H:%M')
+        if isinstance(value, date):
+            return value.strftime('%d/%m/%Y')
+        return str(value)
+    except Exception:
+        return str(value)
+
+
+def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record_id,
+                                    fecha_limite, nota):
+    """Build and send the enriched assignment notification email."""
+    details = _fetch_record_details(form_type, record_id)
+
+    tipo_label  = details.get('tipo_label', form_type.replace('_', ' ').title())
+    consecutivo = details.get('consecutivo', f"#{record_id}")
+    subject = f"[SEKApp] Hallazgo asignado – {tipo_label} {consecutivo}"
+    if details.get('categoria') and details['categoria'] != '—':
+        subject += f" – {details['categoria']}"
+
+    # Resolve assigner display name
+    try:
+        conn2 = _get_conn()
+        assigner_name = asignado_por
+        if conn2:
+            with conn2.cursor(cursor_factory=extras.RealDictCursor) as cur2:
+                cur2.execute("SELECT name FROM users WHERE email = %s", (asignado_por,))
+                row2 = cur2.fetchone()
+                if row2:
+                    assigner_name = row2['name']
+            conn2.close()
+    except Exception:
+        assigner_name = asignado_por
+
+    fecha_limite_str = _format_fecha(fecha_limite) if fecha_limite else '—'
+    fecha_evento_str = _format_fecha(details.get('fecha_evento')) if details.get('fecha_evento') else '—'
+
+    # Build record URL (absolute when possible via url_for, else relative)
+    try:
+        from flask import url_for as _url_for
+        base_url = _url_for('cgeo_bp.cgeo_morning_briefing', _external=True).rsplit('/morning', 1)[0]
+        record_url = base_url + details.get('url_path', '/dashboard/')
+    except Exception:
+        record_url = details.get('url_path', '/dashboard/')
+
+    def row(label, value):
+        if not value or value == '—':
+            return ''
+        return (
+            f'<tr>'
+            f'<td style="padding:6px 12px 6px 0;color:#6b7280;font-size:13px;white-space:nowrap;'
+            f'vertical-align:top;">{escape(label)}</td>'
+            f'<td style="padding:6px 0;font-size:13px;color:#111827;">{escape(str(value))}</td>'
+            f'</tr>'
+        )
+
+    rows = ''.join([
+        row('Tipo de registro', tipo_label),
+        row('Consecutivo', consecutivo),
+        row('Cliente / Instalación', details.get('cliente', '—')),
+        row('Fecha del evento', fecha_evento_str),
+        row('Categoría', details.get('categoria', '')),
+        row('Descripción', details.get('descripcion', '')),
+        row('Ubicación', details.get('ubicacion', '')),
+        row('Estado actual', details.get('estado', '')),
+        row('Responsable asignado', assignee['name']),
+        row('Fecha límite', fecha_limite_str),
+        row('Asignado por', assigner_name),
+    ])
+
+    note_block = ''
+    if nota:
+        note_block = (
+            f'<p style="margin:16px 0 4px;font-weight:600;font-size:13px;color:#374151;">'
+            f'Observaciones del asignador:</p>'
+            f'<p style="margin:0;padding:10px 14px;background:#f9fafb;border-left:3px solid #d1d5db;'
+            f'font-size:13px;color:#374151;">{escape(nota)}</p>'
+        )
+
+    body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;">
+      <div style="background:#1e3a5f;padding:20px 24px;border-radius:6px 6px 0 0;">
+        <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">SEKApp</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#93c5fd;">Notificación de hallazgo asignado</p>
+      </div>
+      <div style="background:#ffffff;padding:24px;border:1px solid #e5e7eb;border-top:none;
+                  border-radius:0 0 6px 6px;">
+        <p style="margin:0 0 16px;font-size:15px;">
+          Hola <strong>{escape(assignee['name'])}</strong>,
+        </p>
+        <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+          Se te ha asignado un hallazgo que requiere seguimiento:
+        </p>
+        <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
+          {rows}
+        </table>
+        {note_block}
+        <div style="margin-top:28px;text-align:center;">
+          <a href="{record_url}"
+             style="display:inline-block;padding:11px 28px;background:#1e3a5f;color:#ffffff;
+                    text-decoration:none;border-radius:5px;font-size:14px;font-weight:600;">
+            Ver hallazgo
+          </a>
+        </div>
+        <p style="margin:24px 0 0;font-size:11px;color:#9ca3af;text-align:center;">
+          Kanan · SEKApp — este correo fue generado automáticamente.
+        </p>
+      </div>
+    </div>
+    """
+
+    send_email(
+        to_emails=assignee['email'],
+        subject=subject,
+        body=body,
+        is_html=True,
+    )
+
+
 def _ensure_asignaciones_table(conn):
     with conn.cursor() as cur:
         cur.execute("""
@@ -1840,19 +2105,13 @@ def asignar_hallazgo():
 
         # Notify assignee by email (non-blocking — failure does not abort the response)
         try:
-            deadline_text = f" con fecha límite <strong>{fecha_limite}</strong>" if fecha_limite else ""
-            note_text = f"<p><strong>Nota:</strong> {nota}</p>" if nota else ""
-            send_email(
-                to_emails=assignee['email'],
-                subject=f"[SEKapp] Hallazgo asignado — {form_type} #{record_id}",
-                body=(
-                    f"<p>Hola <strong>{assignee['name']}</strong>,</p>"
-                    f"<p>Se te ha asignado el hallazgo <strong>{form_type} #{record_id}</strong>"
-                    f"{deadline_text}.</p>"
-                    f"{note_text}"
-                    f"<p>Asignado por: {asignado_por}</p>"
-                ),
-                is_html=True
+            _send_hallazgo_assignment_email(
+                assignee=assignee,
+                asignado_por=asignado_por,
+                form_type=form_type,
+                record_id=record_id,
+                fecha_limite=fecha_limite,
+                nota=nota,
             )
         except Exception as mail_err:
             app_logger.warning(f"asignar_hallazgo: email notification failed: {mail_err}")
