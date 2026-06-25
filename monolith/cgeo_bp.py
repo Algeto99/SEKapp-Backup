@@ -2017,6 +2017,11 @@ def _ensure_asignaciones_table(conn):
                 creado_en     TIMESTAMP   NOT NULL DEFAULT NOW()
             )
         """)
+        # Add asignado_email column if it doesn't exist yet (external assignees)
+        cur.execute("""
+            ALTER TABLE asignaciones_hallazgo
+                ADD COLUMN IF NOT EXISTS asignado_email TEXT
+        """)
     conn.commit()
 
 
@@ -2052,15 +2057,24 @@ def usuarios_asignables():
 @cgeo_bp.route('/api/asignar-hallazgo', methods=['POST'])
 @jwt_required()
 def asignar_hallazgo():
+    import re as _re
     payload = request.get_json() or {}
-    form_type   = payload.get('form_type')
-    record_id   = payload.get('record_id')
-    asignado_a  = payload.get('asignado_a')   # user id (int)
-    fecha_limite = payload.get('fecha_limite') # ISO date string or None
-    nota        = payload.get('nota', '')
+    form_type     = payload.get('form_type')
+    record_id     = payload.get('record_id')
+    asignado_a    = payload.get('asignado_a')     # registered user id (int), or None for external
+    asignado_email_ext = (payload.get('asignado_email') or '').strip()  # external email
+    fecha_limite  = payload.get('fecha_limite')   # ISO date string or None
+    nota          = payload.get('nota', '')
 
-    if not all([form_type, record_id, asignado_a]):
-        return jsonify({"error": "Faltan campos requeridos: form_type, record_id, asignado_a"}), 400
+    if not form_type or not record_id:
+        return jsonify({"error": "Faltan campos requeridos: form_type, record_id"}), 400
+    if not asignado_a and not asignado_email_ext:
+        return jsonify({"error": "Debe indicar un responsable (usuario o correo externo)"}), 400
+
+    # Validate external email format
+    _EMAIL_RE = _re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+    if asignado_email_ext and not _EMAIL_RE.match(asignado_email_ext):
+        return jsonify({"error": "El correo externo no tiene un formato válido"}), 400
 
     asignado_por = get_jwt_identity()
     conn = _get_conn()
@@ -2071,21 +2085,31 @@ def asignar_hallazgo():
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             company_id = _get_user_company_id(cur, asignado_por)
 
-            # Fetch assignee name and email for response and notification
-            cur.execute("SELECT name, email FROM users WHERE id = %s", (asignado_a,))
-            assignee = cur.fetchone()
-            if not assignee:
-                return jsonify({"error": "Usuario asignado no encontrado"}), 404
+            if asignado_a:
+                # Registered user path
+                cur.execute("SELECT name, email FROM users WHERE id = %s", (asignado_a,))
+                assignee = cur.fetchone()
+                if not assignee:
+                    return jsonify({"error": "Usuario asignado no encontrado"}), 404
+                assignee = dict(assignee)
+                db_asignado_a     = asignado_a
+                db_asignado_email = None
+            else:
+                # External email path — no user record required
+                assignee = {'name': asignado_email_ext, 'email': asignado_email_ext}
+                db_asignado_a     = None
+                db_asignado_email = asignado_email_ext
 
             # Insert assignment record
             cur.execute(
                 """
                 INSERT INTO asignaciones_hallazgo
-                    (form_type, record_id, asignado_a, asignado_por, fecha_limite, nota, estado, company_id)
-                VALUES (%s, %s, %s, %s, %s, %s, 'Asignado', %s)
+                    (form_type, record_id, asignado_a, asignado_email, asignado_por,
+                     fecha_limite, nota, estado, company_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Asignado', %s)
                 RETURNING id
                 """,
-                (form_type, record_id, asignado_a, asignado_por,
+                (form_type, record_id, db_asignado_a, db_asignado_email, asignado_por,
                  fecha_limite or None, nota or None, company_id)
             )
             assignment_id = cur.fetchone()['id']

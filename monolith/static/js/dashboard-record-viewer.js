@@ -588,6 +588,10 @@
                         <select class="drv-email-input drv-asignar-select">
                             <option value="">Cargando usuarios…</option>
                         </select>
+                        <div class="drv-asignar-ext-wrap" style="display:none;margin-top:.5rem;">
+                            <input class="drv-email-input drv-asignar-ext-email" type="email"
+                                   placeholder="correo@externo.com" autocomplete="off">
+                        </div>
                         <label class="drv-asignar-label">Fecha límite</label>
                         <input class="drv-email-input drv-asignar-fecha" type="date">
                         <label class="drv-asignar-label">Nota (opcional)</label>
@@ -1107,6 +1111,8 @@
         const btnVisita       = modal.querySelector('.drv-btn-visita');
         const asignarOverlay  = modal.querySelector('.drv-asignar-overlay');
         const asignarSelect   = modal.querySelector('.drv-asignar-select');
+        const asignarExtWrap  = modal.querySelector('.drv-asignar-ext-wrap');
+        const asignarExtEmail = modal.querySelector('.drv-asignar-ext-email');
         const asignarFecha    = modal.querySelector('.drv-asignar-fecha');
         const asignarNota     = modal.querySelector('.drv-asignar-nota');
         const asignarMsg      = modal.querySelector('.drv-asignar-msg');
@@ -1116,12 +1122,21 @@
             btnVisita.style.display  = '';
         }
 
+        const EXT_SENTINEL = '__external__';
         let _usuariosCached = null;
+
+        asignarSelect.addEventListener('change', () => {
+            const isExt = asignarSelect.value === EXT_SENTINEL;
+            asignarExtWrap.style.display = isExt ? 'block' : 'none';
+            if (isExt) asignarExtEmail.focus();
+        });
 
         async function showAsignarOverlay() {
             asignarMsg.textContent = '';
             asignarFecha.value = '';
             asignarNota.value = '';
+            asignarExtEmail.value = '';
+            asignarExtWrap.style.display = 'none';
             asignarOverlay.classList.add('active');
 
             if (!_usuariosCached) {
@@ -1134,10 +1149,12 @@
                     _usuariosCached = [];
                 }
             }
-            asignarSelect.innerHTML = '<option value="">— Seleccionar responsable —</option>' +
+            asignarSelect.innerHTML =
+                `<option value="">— Seleccionar responsable —</option>` +
                 _usuariosCached.map(u =>
                     `<option value="${escapeHtml(String(u.id))}">${escapeHtml(u.name)} (${escapeHtml(u.email)})</option>`
-                ).join('');
+                ).join('') +
+                `<option value="${EXT_SENTINEL}">✉ Ingresar correo externo…</option>`;
         }
 
         function hideAsignarOverlay() {
@@ -1145,16 +1162,44 @@
         }
 
         async function submitAsignacion() {
-            const asignadoA = asignarSelect.value;
-            if (!asignadoA) {
+            const selectedVal = asignarSelect.value;
+            const isExt = selectedVal === EXT_SENTINEL;
+            const extEmail = asignarExtEmail.value.trim();
+            const emailRe  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!selectedVal) {
                 asignarMsg.textContent = 'Seleccione un responsable.';
                 asignarMsg.style.color = '#fca5a5';
                 return;
             }
+            if (isExt && !extEmail) {
+                asignarMsg.textContent = 'Ingrese el correo del responsable externo.';
+                asignarMsg.style.color = '#fca5a5';
+                return;
+            }
+            if (isExt && !emailRe.test(extEmail)) {
+                asignarMsg.textContent = 'El correo ingresado no tiene un formato válido.';
+                asignarMsg.style.color = '#fca5a5';
+                return;
+            }
+
             const confirmBtn = modal.querySelector('.drv-btn-asignar-confirm');
             confirmBtn.disabled = true;
             asignarMsg.textContent = 'Guardando…';
             asignarMsg.style.color = '#94a3b8';
+
+            const bodyPayload = {
+                form_type:    cfg.formType,
+                record_id:    currentRecordId,
+                fecha_limite: asignarFecha.value || null,
+                nota:         asignarNota.value.trim() || null,
+            };
+            if (isExt) {
+                bodyPayload.asignado_email = extEmail;
+            } else {
+                bodyPayload.asignado_a = parseInt(selectedVal, 10);
+            }
+
             try {
                 const res = await fetch('/cgeo/api/asignar-hallazgo', {
                     method: 'POST',
@@ -1163,13 +1208,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': getCsrfToken()
                     },
-                    body: JSON.stringify({
-                        form_type:    cfg.formType,
-                        record_id:    currentRecordId,
-                        asignado_a:   parseInt(asignadoA, 10),
-                        fecha_limite: asignarFecha.value || null,
-                        nota:         asignarNota.value.trim() || null,
-                    })
+                    body: JSON.stringify(bodyPayload)
                 });
                 const data = await res.json();
                 if (!res.ok || !data.success) throw new Error(data.error || 'Error al asignar.');
