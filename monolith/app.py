@@ -215,16 +215,20 @@ for _endpoint in _FORMS_EXEMPT_ENDPOINTS:
     if _view:
         csrf.exempt(_view)
 
-# Inject is_super_admin into every template from the active JWT
+# Inject is_super_admin and the JWT CSRF token into every template from the active JWT.
+# jwt_csrf_token is the value of the csrf_access_token cookie — use it in hidden form fields
+# for any server-side form POST that sits behind @jwt_required() instead of {{ csrf_token() }}.
 @app.context_processor
 def inject_super_admin():
     try:
         from flask_jwt_extended import get_jwt, verify_jwt_in_request
         verify_jwt_in_request(optional=True)
         claims = get_jwt()
-        return {'is_super_admin': bool(claims.get('is_super_admin', False))}
+        is_sa = bool(claims.get('is_super_admin', False))
     except Exception:
-        return {'is_super_admin': False}
+        is_sa = False
+    jwt_csrf = request.cookies.get('csrf_access_token', '')
+    return {'is_super_admin': is_sa, 'jwt_csrf_token': jwt_csrf}
 
 @app.route('/health')
 def health_check():

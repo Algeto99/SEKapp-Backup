@@ -188,7 +188,7 @@
             Crear Nuevo Usuario
         </div>
         <form method="POST" action="{{ url_for('admin_bp.create_user') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
             <div class="form-grid">
                 <div class="form-group">
                     <label>Nombre completo *</label>
@@ -295,14 +295,14 @@
                             {% if not u.is_super_admin %}
                             <div class="actions">
                                 <form method="POST" action="{{ url_for('admin_bp.toggle_admin', user_id=u.id) }}" style="display:inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
                                     <button type="submit" class="btn btn-sm {{ 'btn-warning' if u.is_admin else 'btn-ghost' }}"
                                         title="{{ 'Quitar admin' if u.is_admin else 'Hacer admin' }}">
                                         {{ '↓ Admin' if u.is_admin else '↑ Admin' }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('admin_bp.toggle_active', user_id=u.id) }}" style="display:inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
                                     <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.is_active else 'btn-success' }}">
                                         {{ 'Desactivar' if u.is_active else 'Activar' }}
                                     </button>
@@ -312,7 +312,7 @@
                                     🔑 Contraseña
                                 </button>
                                 <form method="POST" action="{{ url_for('admin_bp.toggle_force_password', user_id=u.id) }}" style="display:inline;">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
                                     <button type="submit" class="btn btn-sm {{ 'btn-danger' if u.force_password_change else 'btn-ghost' }}"
                                         title="{{ 'Quitar obligatorio' if u.force_password_change else 'Forzar cambio en próximo login' }}">
                                         {{ '🔒 Forzado' if u.force_password_change else '🔓 Forzar' }}
@@ -338,7 +338,7 @@
         <h3>Restablecer contraseña</h3>
         <p id="resetModalEmail"></p>
         <form method="POST" id="resetForm">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
             <div class="form-group">
                 <label>Nueva contraseña</label>
                 <input type="password" name="new_password" id="resetPassword" minlength="8" required placeholder="Mínimo 8 caracteres">
