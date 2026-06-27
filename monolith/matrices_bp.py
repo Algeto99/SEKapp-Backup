@@ -24,6 +24,18 @@ def _get_conn():
     return get_db_connection()
 
 
+def _ensure_visitas_schema(conn):
+    """Add columns to registro_y_acta_de_visita that may not exist in older deployments."""
+    with conn.cursor() as cur:
+        for col_def in [
+            "ADD COLUMN IF NOT EXISTS estado VARCHAR(255)",
+            "ADD COLUMN IF NOT EXISTS company_id INTEGER",
+            "ADD COLUMN IF NOT EXISTS customer_company_id INTEGER",
+        ]:
+            cur.execute(f"ALTER TABLE registro_y_acta_de_visita {col_def}")
+    conn.commit()
+
+
 def _get_user_company_id(cur, user_email):
     """Returns company_id for tenant isolation, or None for super-admins (no filter)."""
     if not user_email:
@@ -64,6 +76,7 @@ def matrices_api_stats():
     if not conn:
         return jsonify({"error": "DB no disponible"}), 500
     try:
+        _ensure_visitas_schema(conn)
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         
         date_from_arg = request.args.get("date_from")
@@ -142,6 +155,7 @@ def matrices_api_stats():
                 "pendientes": int(r.get("pendientes") or 0),
             }
         except Exception:
+            app_logger.exception("visitas stats query failed")
             stats["visitas"] = {"total": 0, "pendientes": 0}
 
         # ── Supervisiones del mes ────────────────────────────────────────────
