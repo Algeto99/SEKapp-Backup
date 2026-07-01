@@ -871,7 +871,7 @@
             editorDiv.className = 'drv-detail-section';
             editorDiv.style.borderColor = '#0ea5e9';
             editorDiv.style.background = 'rgba(14, 165, 233, 0.05)';
-            if (IS_ADMIN) {
+            {
                 editorDiv.innerHTML = `
                     <h4 style="color:#38bdf8; display:flex; justify-content:space-between; align-items:center;">
                         Gestión de Estado de Compromiso
@@ -881,11 +881,13 @@
                         <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Compromiso Seleccionado</span>
                         <p style="margin:0.25rem 0 1rem; color:#e5e7eb; font-size:0.9rem; font-style:italic;">${r.acuerdo || '—'}</p>
                     </div>
+                    ${IS_ADMIN ? `
                     <div style="margin-bottom:0.75rem;display:flex;gap:.6rem;flex-wrap:wrap;">
                         <a href="/registro_y_acta_de_visita/${r.id_visita}/editar" class="btn-action" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.35);text-decoration:none;">✎ Editar registro</a>
                         <button type="button" class="btn-action" style="background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.15);" onclick="toggleHistorialVisita(${r.id_visita})">🕒 Historial de cambios</button>
                     </div>
                     <div id="historialVisita-${r.id_visita}" style="display:none;margin-bottom:.75rem;"></div>
+                    ` : ''}
                     <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
                         <div style="flex:1; min-width:140px;">
                             <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Nuevo estado:</span>
@@ -910,32 +912,11 @@
                     </div>
                     <div id="inlineModalMsg" class="modal-msg" style="margin-top:0.5rem;"></div>
                 `;
-            } else {
-                editorDiv.innerHTML = `
-                    <h4 style="color:#38bdf8; display:flex; justify-content:space-between; align-items:center;">
-                        Estado de Compromiso
-                        <span><span class="status-pill status-${r.estado}" style="font-size:0.7rem; margin-left:0.5rem;">${r.estado.toUpperCase()}</span>${editedBadge(r)}</span>
-                    </h4>
-                    <div style="margin-bottom:0.75rem;">
-                        <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Compromiso Seleccionado</span>
-                        <p style="margin:0.25rem 0 1rem; color:#e5e7eb; font-size:0.9rem; font-style:italic;">${r.acuerdo || '—'}</p>
-                    </div>
-                    <div style="margin-top:0.85rem;">
-                        <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Acción tomada:</span>
-                        <p style="margin:0.25rem 0 1rem; color:#e5e7eb; font-size:0.9rem;">${r.accion_tomada || 'Sin acción registrada.'}</p>
-                    </div>
-                    ${r.evidencia_url ? `
-                    <div style="margin-top:0.75rem;">
-                        <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Evidencia:</span>
-                        <a href="${r.evidencia_url}" target="_blank" style="display:inline-block;margin-top:0.3rem;font-size:0.78rem;color:#60a5fa;">📎 Ver evidencia adjunta</a>
-                    </div>
-                    ` : ''}
-                `;
             }
 
             contentEl.insertBefore(editorDiv, contentEl.firstChild);
 
-            if (IS_ADMIN) {
+            {
                 // 4. Bind save event
                 const saveBtn = document.getElementById('inlineSaveBtn');
                 const msgEl = document.getElementById('inlineModalMsg');
