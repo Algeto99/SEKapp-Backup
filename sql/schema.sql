@@ -138,6 +138,9 @@ CREATE TABLE IF NOT EXISTS reportes_incidentes (
     reportado_autoridades VARCHAR(255),
     numero_reporte_autoridades TEXT,
     submitter_timezone TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -372,6 +375,9 @@ CREATE TABLE IF NOT EXISTS registro_y_acta_de_visita (
     location_accuracy NUMERIC,
     submitter_timezone TEXT,
     estado VARCHAR(255),
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -578,5 +584,28 @@ CREATE INDEX IF NOT EXISTS idx_authorized_emails_company_id ON authorized_emails
 CREATE INDEX IF NOT EXISTS idx_customer_companies_company_id ON customer_companies(company_id);
 CREATE INDEX IF NOT EXISTS idx_propiedades_customer_company_id ON propiedades(customer_company_id);
 CREATE INDEX IF NOT EXISTS idx_reportes_incidentes_company_id ON reportes_incidentes(company_id);
+
+-- Edición controlada de formularios (Incidentes y Visitas) — idempotent for existing deployments
+ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS formulario_edicion_historial (
+    id SERIAL PRIMARY KEY,
+    tabla VARCHAR(100) NOT NULL,          -- 'reportes_incidentes' | 'registro_y_acta_de_visita'
+    registro_id INTEGER NOT NULL,
+    usuario_email VARCHAR(255) NOT NULL,
+    fecha_hora TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    motivo VARCHAR(100) NOT NULL,         -- catálogo fijo + 'Otro'
+    motivo_detalle TEXT,                  -- texto libre si motivo = 'Otro'
+    campo VARCHAR(100) NOT NULL,
+    valor_anterior TEXT,
+    valor_nuevo TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_formulario_edicion_historial_tabla_registro ON formulario_edicion_historial (tabla, registro_id);
 
 COMMIT;

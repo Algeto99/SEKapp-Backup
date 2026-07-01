@@ -213,6 +213,126 @@ def get_user_info_from_jwt():
         app_logger.warning(f"Could not parse JWT info: {e}")
         return "Usuario", False
 
+
+# --- Edición controlada de formularios (Incidentes / Visitas) ---
+MOTIVOS_EDICION = [
+    'Corrección de información',
+    'Error de digitación',
+    'Actualización de datos',
+    'Ajuste solicitado por el cliente',
+    'Complemento de información',
+    'Otro',
+]
+
+
+def admin_required(f):
+    """Local copy of the admin_required decorator (see dashboard_bp.py / expediente_bp.py)
+    to avoid a circular import between forms_bp and dashboard_bp."""
+    from functools import wraps
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        is_api = request.path.startswith('/api/') or request.path.startswith('/submit_')
+        try:
+            email = get_jwt_identity()
+            conn = get_db_connection()
+            if not conn:
+                return jsonify({"error": "Service unavailable"}), 503
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT is_admin, is_active FROM users WHERE email = %s', (email,))
+                row = cur.fetchone()
+                cur.close()
+            finally:
+                conn.close()
+            if not row or not row[0] or not row[1]:
+                app_logger.warning(f"admin_required denied for {email}")
+                if is_api:
+                    return jsonify({"error": "Acceso denegado"}), 403
+                return redirect('/landing/')
+        except Exception as e:
+            app_logger.error(f"admin_required error: {e}", exc_info=True)
+            return jsonify({"error": "Error de autenticación"}), 500
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _validate_motivo_edicion(request):
+    """Returns (motivo, motivo_detalle, error_response_or_None)."""
+    motivo = (request.form.get('motivo') or '').strip()
+    motivo_detalle = (request.form.get('motivo_detalle') or '').strip() or None
+    if not motivo or motivo not in MOTIVOS_EDICION:
+        return None, None, (jsonify({'error': 'Debe indicar un motivo de modificación válido'}), 400)
+    if motivo == 'Otro' and not motivo_detalle:
+        return None, None, (jsonify({'error': 'Debe detallar el motivo cuando selecciona "Otro"'}), 400)
+    return motivo, motivo_detalle, None
+
+
+def _record_edicion_historial(cur, tabla, registro_id, usuario_email, motivo, motivo_detalle, old_row, new_data):
+    """Diffs old_row (dict-like) against new_data (dict of column -> new value) and inserts
+    one row per changed field into formulario_edicion_historial."""
+    for campo, nuevo_valor in new_data.items():
+        valor_anterior = old_row.get(campo) if old_row else None
+        # Normalize for comparison (avoid false positives from type differences, e.g. Decimal vs str)
+        str_anterior = '' if valor_anterior is None else str(valor_anterior)
+        str_nuevo = '' if nuevo_valor is None else str(nuevo_valor)
+        if str_anterior == str_nuevo:
+            continue
+        cur.execute("""
+            INSERT INTO formulario_edicion_historial
+                (tabla, registro_id, usuario_email, motivo, motivo_detalle, campo, valor_anterior, valor_nuevo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (tabla, registro_id, usuario_email, motivo, motivo_detalle, campo, str_anterior or None, str_nuevo or None))
+
+
+def _parse_incident_form_data(request, user_email, foto_url=None):
+    """Shared field-parsing for reportes_incidentes create/edit flows."""
+    form_data = {
+        'cliente_instalacion': request.form.get('cliente_instalacion'),
+        'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+        'fecha_hora': request.form.get('fecha_hora'),
+        'rol_aplicador': request.form.get('rol_aplicador'),
+        'turno': request.form.get('turno'),
+        'nombre_responsable': request.form.get('nombre_responsable'),
+        'firma_responsable': request.form.get('firma_responsable'),
+        'categoria': request.form.get('categoria'),
+        'tipo_incidente': request.form.get('tipo_incidente'),
+        'descripcion_incidente': request.form.get('descripcion'),
+        'nivel_severidad': request.form.get('nivel_severidad'),
+
+        'numero_empleado': request.form.get('numero_empleado'),
+        'razon_ausentismo': request.form.get('razon_ausentismo'),
+        'cubre_puesto': request.form.get('cubre_puesto'),
+        'nombre_persona_cubre': request.form.get('nombre_persona_cubre'),
+        'numero_empleado_cubre': request.form.get('numero_empleado_cubre'),
+        'impacto': ", ".join(request.form.getlist('impacto')),
+        'descripcion_impacto': request.form.get('descripcion_impacto'),
+        'reportado_autoridades': request.form.get('reportado_autoridades'),
+        'numero_reporte_autoridades': request.form.get('numero_reporte_autoridades') or None,
+        'plan_accion': request.form.get('plan_accion'),
+        'nombre_responsable_plan': request.form.get('nombre_responsable_plan'),
+        'fecha_cumplimiento_plan': request.form.get('fecha_cumplimiento_plan') or None,
+        'estado_seguimiento_plan': request.form.get('estado_seguimiento_plan'),
+        'user_email': user_email,
+        'latitude': _parse_float(request.form.get('latitude')),
+        'longitude': _parse_float(request.form.get('longitude')),
+        'location_accuracy': _parse_float(request.form.get('location_accuracy')),
+    }
+    if foto_url is not None:
+        form_data['foto_evidencia_url'] = foto_url
+    return form_data
+
+
+def _upload_incident_photos(request):
+    foto_urls = []
+    for file in request.files.getlist('foto_evidencia'):
+        if file and file.filename:
+            url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+            if url:
+                foto_urls.append(url)
+    return "\n".join(foto_urls) if foto_urls else None
+
+
 # --- Health Check ---
 @forms_bp.route('/health')
 def health():
@@ -344,49 +464,8 @@ def submit_incident_report():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        foto_url = None
-        foto_files = request.files.getlist('foto_evidencia')
-        foto_urls = []
-        for file in foto_files:
-            if file and file.filename:
-                url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
-                if url:
-                    foto_urls.append(url)
-        if foto_urls:
-            foto_url = "\n".join(foto_urls)
-
-        form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
-            'fecha_hora': request.form.get('fecha_hora'),
-            'rol_aplicador': request.form.get('rol_aplicador'),
-            'turno': request.form.get('turno'),
-            'nombre_responsable': request.form.get('nombre_responsable'),
-            'firma_responsable': request.form.get('firma_responsable'),
-            'categoria': request.form.get('categoria'),
-            'tipo_incidente': request.form.get('tipo_incidente'),
-            'descripcion_incidente': request.form.get('descripcion'),
-            'nivel_severidad': request.form.get('nivel_severidad'),
-
-            'numero_empleado': request.form.get('numero_empleado'),
-            'razon_ausentismo': request.form.get('razon_ausentismo'),
-            'cubre_puesto': request.form.get('cubre_puesto'),
-            'nombre_persona_cubre': request.form.get('nombre_persona_cubre'),
-            'numero_empleado_cubre': request.form.get('numero_empleado_cubre'),
-            'impacto': ", ".join(request.form.getlist('impacto')),
-            'descripcion_impacto': request.form.get('descripcion_impacto'),
-            'foto_evidencia_url': foto_url,
-            'reportado_autoridades': request.form.get('reportado_autoridades'),
-            'numero_reporte_autoridades': request.form.get('numero_reporte_autoridades') or None,
-            'plan_accion': request.form.get('plan_accion'),
-            'nombre_responsable_plan': request.form.get('nombre_responsable_plan'),
-            'fecha_cumplimiento_plan': request.form.get('fecha_cumplimiento_plan') or None,
-            'estado_seguimiento_plan': request.form.get('estado_seguimiento_plan'),
-            'user_email': user_email,
-            'latitude': _parse_float(request.form.get('latitude')),
-            'longitude': _parse_float(request.form.get('longitude')),
-            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
-        }
+        foto_url = _upload_incident_photos(request)
+        form_data = _parse_incident_form_data(request, user_email, foto_url=foto_url)
         form_data.update(_resolve_scope_fields(
             cur,
             user_email,
@@ -423,6 +502,105 @@ def submit_incident_report():
             conn.rollback()
         app_logger.error(f"Error submitting incident report: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/reporte_incidente/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def reporte_incidente_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM reportes_incidentes WHERE id_reporte_incidente = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'reporte_incidente.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading incident report {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_incident_report/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_incident_report_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM reportes_incidentes WHERE id_reporte_incidente = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        foto_url = _upload_incident_photos(request)
+        form_data = _parse_incident_form_data(request, user_email, foto_url=foto_url)
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        # Don't overwrite the existing photo evidence if no new files were uploaded
+        if foto_url is None:
+            form_data.pop('foto_evidencia_url', None)
+        # user_email above represents the editor, not the original submitter — do not overwrite it
+        form_data.pop('user_email', None)
+
+        valid_form_data = _filter_existing_columns(cur, 'reportes_incidentes', form_data)
+
+        _record_edicion_historial(
+            cur, 'reportes_incidentes', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE reportes_incidentes SET {set_clause} WHERE id_reporte_incidente = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing incident report {id}: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
@@ -1007,6 +1185,65 @@ def registro_y_acta_de_visita_form():
         **get_service_urls()
     )
 
+def _parse_visit_form_data(request, user_email):
+    """Shared field-parsing for registro_y_acta_de_visita create/edit flows."""
+    import json
+
+    # Process dynamic participants
+    detalles_participantes = []
+    for key in request.form:
+        if key.startswith('nombre_participante_cliente_'):
+            suffix = key.split('_')[-1]
+            nombre = request.form.get(f'nombre_participante_cliente_{suffix}')
+            cargo = request.form.get(f'cargo_participante_cliente_{suffix}')
+            firma = request.form.get(f'firma_participante_cliente_{suffix}')
+
+            if nombre or cargo or firma:
+                detalles_participantes.append({'nombre': nombre, 'cargo': cargo, 'firma': firma})
+
+    detalles_participantes_json = json.dumps(detalles_participantes)
+
+    # Collect all repeatable block data (indexed temas_tratados_N, acuerdos_compromisos_N, etc.)
+    bloques = {}
+    for key in request.form:
+        for prefix in ('temas_tratados_', 'acuerdos_compromisos_', 'nombre_responsable_', 'fecha_cumplimiento_', 'estado_seguimiento_'):
+            if key.startswith(prefix):
+                idx = key[len(prefix):]
+                if idx not in bloques:
+                    bloques[idx] = {}
+                bloques[idx][prefix.rstrip('_')] = request.form.get(key)
+
+    # Merge blocks into combined strings for storage in existing columns
+    temas_list = [bloques[i].get('temas_tratados', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('temas_tratados')]
+    acuerdos_list = [bloques[i].get('acuerdos_compromisos', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('acuerdos_compromisos')]
+    responsables_list = [
+        {'nombre': bloques[i].get('nombre_responsable', ''), 'fecha': bloques[i].get('fecha_cumplimiento', ''), 'estado': bloques[i].get('estado_seguimiento', '')}
+        for i in sorted(bloques.keys(), key=lambda x: int(x))
+        if bloques[i].get('nombre_responsable') or bloques[i].get('fecha_cumplimiento')
+    ]
+
+    temas_combined = '\n---\n'.join(temas_list) if temas_list else None
+    acuerdos_combined = '\n---\n'.join(acuerdos_list) if acuerdos_list else None
+    responsables_json = json.dumps(responsables_list) if responsables_list else None
+
+    return {
+        'cliente_instalacion': request.form.get('cliente_visitado'),
+        'fecha_hora': request.form.get('fecha_hora'),
+        'motivo_visita': request.form.get('motivo_visita'),
+        'nombre_visitante': request.form.get('nombre_visitante'),
+        'cargo_visitante': request.form.get('cargo_visitante'),
+        'firma_visitante': request.form.get('firma_visitante'),
+        'detalles_participantes': detalles_participantes_json,
+        'temas_tratados': temas_combined,
+        'acuerdos_compromisos': acuerdos_combined,
+        'nombre_responsable': responsables_json,
+        'submitted_by_email': user_email,
+        'latitude': _parse_float(request.form.get('latitude')),
+        'longitude': _parse_float(request.form.get('longitude')),
+        'location_accuracy': _parse_float(request.form.get('location_accuracy')),
+    }
+
+
 @forms_bp.route('/submit_registro_y_acta_de_visita', methods=['POST'])
 @jwt_required()
 def submit_registro_y_acta_de_visita():
@@ -1016,70 +1253,8 @@ def submit_registro_y_acta_de_visita():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # Process dynamic participants
-        detalles_participantes = []
-        
-        # Process default participant (index 0 or no suffix if I didn't add it, but I added _0 in HTML replacement?)
-        # Wait, in HTML I added name="nombre_participante_cliente_0" for default?
-        # Let me check the HTML replacement again.
-        # I added: name="nombre_participante_cliente_0" in the HTML replacement.
-        # And for dynamic ones: name="nombre_participante_cliente_${asistenteCount}"
-        
-        # So I should iterate to find all matching keys.
-        
-        for key in request.form:
-            if key.startswith('nombre_participante_cliente_'):
-                suffix = key.split('_')[-1]
-                nombre = request.form.get(f'nombre_participante_cliente_{suffix}')
-                cargo = request.form.get(f'cargo_participante_cliente_{suffix}')
-                firma = request.form.get(f'firma_participante_cliente_{suffix}')
-                
-                if nombre or cargo or firma:
-                    detalles_participantes.append({'nombre': nombre, 'cargo': cargo, 'firma': firma})
-        
-        import json
-        detalles_participantes_json = json.dumps(detalles_participantes)
 
-        # Collect all repeatable block data (indexed temas_tratados_N, acuerdos_compromisos_N, etc.)
-        bloques = {}
-        for key in request.form:
-            for prefix in ('temas_tratados_', 'acuerdos_compromisos_', 'nombre_responsable_', 'fecha_cumplimiento_', 'estado_seguimiento_'):
-                if key.startswith(prefix):
-                    idx = key[len(prefix):]
-                    if idx not in bloques:
-                        bloques[idx] = {}
-                    bloques[idx][prefix.rstrip('_')] = request.form.get(key)
-
-        # Merge blocks into combined strings for storage in existing columns
-        temas_list = [bloques[i].get('temas_tratados', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('temas_tratados')]
-        acuerdos_list = [bloques[i].get('acuerdos_compromisos', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('acuerdos_compromisos')]
-        responsables_list = [
-            {'nombre': bloques[i].get('nombre_responsable', ''), 'fecha': bloques[i].get('fecha_cumplimiento', ''), 'estado': bloques[i].get('estado_seguimiento', '')}
-            for i in sorted(bloques.keys(), key=lambda x: int(x))
-            if bloques[i].get('nombre_responsable') or bloques[i].get('fecha_cumplimiento')
-        ]
-
-        import json
-        temas_combined = '\n---\n'.join(temas_list) if temas_list else None
-        acuerdos_combined = '\n---\n'.join(acuerdos_list) if acuerdos_list else None
-        responsables_json = json.dumps(responsables_list) if responsables_list else None
-
-        form_data = {
-            'cliente_instalacion': request.form.get('cliente_visitado'),
-            'fecha_hora': request.form.get('fecha_hora'),
-            'motivo_visita': request.form.get('motivo_visita'),
-            'nombre_visitante': request.form.get('nombre_visitante'),
-            'cargo_visitante': request.form.get('cargo_visitante'),
-            'firma_visitante': request.form.get('firma_visitante'),
-            'detalles_participantes': detalles_participantes_json,
-            'temas_tratados': temas_combined,
-            'acuerdos_compromisos': acuerdos_combined,
-            'nombre_responsable': responsables_json,
-            'submitted_by_email': user_email,
-            'latitude': _parse_float(request.form.get('latitude')),
-            'longitude': _parse_float(request.form.get('longitude')),
-            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
-        }
+        form_data = _parse_visit_form_data(request, user_email)
         form_data.update(_resolve_scope_fields(
             cur,
             user_email,
@@ -1104,6 +1279,101 @@ def submit_registro_y_acta_de_visita():
             conn.rollback()
         app_logger.error(f"Error submitting registro y acta de visita: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/registro_y_acta_de_visita/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def registro_y_acta_de_visita_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM registro_y_acta_de_visita WHERE id_visita = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'acta_visita_cliente.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading visita {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_registro_y_acta_de_visita/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_registro_y_acta_de_visita_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM registro_y_acta_de_visita WHERE id_visita = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        form_data = _parse_visit_form_data(request, user_email)
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+        # user_email above represents the editor, not the original submitter
+        form_data.pop('submitted_by_email', None)
+
+        valid_form_data = _filter_existing_columns(cur, 'registro_y_acta_de_visita', form_data)
+
+        _record_edicion_historial(
+            cur, 'registro_y_acta_de_visita', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE registro_y_acta_de_visita SET {set_clause} WHERE id_visita = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing visita {id}: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:

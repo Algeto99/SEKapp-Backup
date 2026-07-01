@@ -201,7 +201,7 @@
                 <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-<form id="incidenteForm" action="{{ url_for('forms_bp.submit_incident_report') }}" method="POST">
+<form id="incidenteForm" action="{{ url_for('forms_bp.submit_incident_report_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_incident_report') }}" method="POST">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">
@@ -516,10 +516,30 @@
                 </div>
             </div>
 
+            {% if edit_mode %}
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="form-label">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="mt-8 text-center">
                 <button type="submit"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
-                    Enviar Reporte
+                    {{ 'Guardar Cambios' if edit_mode else 'Enviar Reporte' }}
                 </button>
             </div>
         </form>
@@ -875,6 +895,73 @@
             container.appendChild(count);
         });
     </script>
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        // Prefill form fields from the existing record for edit mode.
+        (function prefillEditForm() {
+            if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
+            var record = window.EDIT_RECORD;
+            var form = document.getElementById('incidenteForm');
+            if (!form) return;
+
+            var FIELD_MAP = {
+                'descripcion': 'descripcion_incidente'
+            };
+
+            Object.keys(record).forEach(function(key) {
+                var value = record[key];
+                if (value === null || value === undefined) return;
+                var fieldName = key;
+                // reverse-map: descripcion_incidente (DB) -> descripcion (form input name)
+                if (key === 'descripcion_incidente') fieldName = 'descripcion';
+                var els = form.querySelectorAll('[name="' + fieldName + '"]');
+                if (!els.length) return;
+                els.forEach(function(el) {
+                    if (el.type === 'checkbox') return; // handled separately below
+                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                        if (el.type === 'datetime-local' && value) {
+                            var d = new Date(value);
+                            if (!isNaN(d.getTime())) {
+                                var pad = function(n) { return String(n).padStart(2, '0'); };
+                                value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            }
+                        }
+                        el.value = value;
+                    }
+                });
+            });
+
+            // Checkboxes: 'impacto' stored as comma-separated string
+            if (record.impacto) {
+                var selected = String(record.impacto).split(',').map(function(s){ return s.trim(); });
+                form.querySelectorAll('input[name="impacto"]').forEach(function(cb) {
+                    if (selected.indexOf(cb.value) !== -1) cb.checked = true;
+                });
+            }
+
+            // Property select (id_propiedad) may be populated asynchronously by customer-hierarchy.js;
+            // re-apply the stored value shortly after load once options exist.
+            if (record.id_propiedad) {
+                setTimeout(function() {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }, 800);
+            }
+        })();
+    </script>
+    {% endif %}
     <script>
     (function() {
         var _f = document.getElementById('incidenteForm');

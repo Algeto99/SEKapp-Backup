@@ -3296,7 +3296,10 @@ def api_incidentes_detalles():
                     estado,
                     nombre_responsable,
                     accion_seguimiento,
-                    evidencia_seguimiento_url
+                    evidencia_seguimiento_url,
+                    editado,
+                    editado_por,
+                    editado_en
                 FROM reportes_incidentes
                 {where}
                 ORDER BY fecha_hora DESC NULLS LAST, id_reporte_incidente DESC
@@ -3327,6 +3330,8 @@ def api_incidentes_detalles():
             fh = r['fecha_hora']
             fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
             if fh_str == 'None': fh_str = '—'
+            r_dict = dict(r)
+            editado_en = r_dict.get('editado_en')
             detalles.append({
                 'id':              r['id_reporte_incidente'] or 0,
                 'fecha_hora':      fh_str,
@@ -3337,8 +3342,11 @@ def api_incidentes_detalles():
                 'turno':           r['turno']                or '—',
                 'estado':          r['estado']               or 'Reportado',
                 'responsable':     r['nombre_responsable']   or '—',
-                'accion_tomada':   dict(r).get('accion_seguimiento') or '',
-                'evidencia_url':   dict(r).get('evidencia_seguimiento_url') or '',
+                'accion_tomada':   r_dict.get('accion_seguimiento') or '',
+                'evidencia_url':   r_dict.get('evidencia_seguimiento_url') or '',
+                'editado':         bool(r_dict.get('editado')),
+                'editado_por':     r_dict.get('editado_por') or '',
+                'editado_en':      editado_en.strftime('%Y-%m-%d %H:%M') if hasattr(editado_en, 'strftime') else '',
             })
         return jsonify({'detalles': detalles})
     except Exception as e:
@@ -3406,6 +3414,56 @@ def api_incidentes_update_estado(id_reporte):
             conn.rollback()
         app_logger.error("api_incidentes_update_estado error: %s", e, exc_info=True)
         return jsonify({'error': 'Error al actualizar el estado'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/incidentes/<int:id_reporte>/historial')
+@jwt_required()
+def api_incidentes_historial(id_reporte):
+    """Returns the formulario_edicion_historial rows for this incident, scoped by company_id."""
+    user_email = get_jwt_identity()
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+        user_row = cur.fetchone()
+        company_id = user_row['company_id'] if user_row else None
+
+        if company_id is not None:
+            cur.execute(
+                "SELECT 1 FROM reportes_incidentes WHERE id_reporte_incidente=%s AND company_id=%s",
+                (id_reporte, company_id)
+            )
+            if not cur.fetchone():
+                return jsonify({'error': 'Registro no encontrado'}), 404
+
+        cur.execute("""
+            SELECT fecha_hora, usuario_email, campo, valor_anterior, valor_nuevo, motivo, motivo_detalle
+            FROM formulario_edicion_historial
+            WHERE tabla = 'reportes_incidentes' AND registro_id = %s
+            ORDER BY fecha_hora ASC, id ASC
+        """, (id_reporte,))
+        rows = cur.fetchall()
+
+        historial = [{
+            'fecha_hora':     r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            'usuario_email':  r['usuario_email'],
+            'campo':          r['campo'],
+            'valor_anterior': r['valor_anterior'] or '',
+            'valor_nuevo':    r['valor_nuevo'] or '',
+            'motivo':         r['motivo'],
+            'motivo_detalle': r['motivo_detalle'] or '',
+        } for r in rows]
+        return jsonify({'historial': historial})
+    except Exception as e:
+        app_logger.error(f"api_incidentes_historial error: {e}", exc_info=True)
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -4989,6 +5047,9 @@ def _visita_parse_compromisos(rows):
                 'estado': estado,
                 'accion_tomada': accion_tomada,
                 'evidencia_url': evidencia_url,
+                'editado': bool(row.get('editado')),
+                'editado_por': row.get('editado_por') or '',
+                'editado_en': row['editado_en'].strftime('%Y-%m-%d %H:%M') if row.get('editado_en') else '',
             })
     return compromisos
 
@@ -5131,7 +5192,10 @@ def api_visitas_data():
                 nombre_responsable,
                 fecha_cumplimiento,
                 nombre_visitante,
-                compromisos_estados
+                compromisos_estados,
+                editado,
+                editado_por,
+                editado_en
             FROM registro_y_acta_de_visita
             {_visita_where(trend_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
@@ -5208,7 +5272,10 @@ def api_visitas_detalles():
                 nombre_responsable,
                 fecha_cumplimiento,
                 nombre_visitante,
-                compromisos_estados
+                compromisos_estados,
+                editado,
+                editado_por,
+                editado_en
             FROM registro_y_acta_de_visita
             {_visita_where(trend_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
@@ -5309,6 +5376,56 @@ def api_visitas_update_estado(id_visita):
             conn.rollback()
         app_logger.error("api_visitas_update_estado error: %s", e, exc_info=True)
         return jsonify({'error': 'Error al actualizar el estado'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/visitas/<int:id_visita>/historial')
+@jwt_required()
+def api_visitas_historial(id_visita):
+    """Returns the formulario_edicion_historial rows for this visit, scoped by company_id."""
+    user_email = get_jwt_identity()
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
+        user_row = cur.fetchone()
+        company_id = user_row['company_id'] if user_row else None
+
+        if company_id is not None:
+            cur.execute(
+                "SELECT 1 FROM registro_y_acta_de_visita WHERE id_visita=%s AND company_id=%s",
+                (id_visita, company_id)
+            )
+            if not cur.fetchone():
+                return jsonify({'error': 'Registro no encontrado'}), 404
+
+        cur.execute("""
+            SELECT fecha_hora, usuario_email, campo, valor_anterior, valor_nuevo, motivo, motivo_detalle
+            FROM formulario_edicion_historial
+            WHERE tabla = 'registro_y_acta_de_visita' AND registro_id = %s
+            ORDER BY fecha_hora ASC, id ASC
+        """, (id_visita,))
+        rows = cur.fetchall()
+
+        historial = [{
+            'fecha_hora':     r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            'usuario_email':  r['usuario_email'],
+            'campo':          r['campo'],
+            'valor_anterior': r['valor_anterior'] or '',
+            'valor_nuevo':    r['valor_nuevo'] or '',
+            'motivo':         r['motivo'],
+            'motivo_detalle': r['motivo_detalle'] or '',
+        } for r in rows]
+        return jsonify({'historial': historial})
+    except Exception as e:
+        app_logger.error(f"api_visitas_historial error: {e}", exc_info=True)
+        return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()

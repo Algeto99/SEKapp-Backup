@@ -165,7 +165,7 @@
                 <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-<form id="visitaForm" action="{{ url_for('forms_bp.submit_registro_y_acta_de_visita') }}" method="POST">
+<form id="visitaForm" action="{{ url_for('forms_bp.submit_registro_y_acta_de_visita_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_registro_y_acta_de_visita') }}" method="POST">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">
@@ -300,10 +300,30 @@
             </div>
 
 
+            {% if edit_mode %}
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="block text-sm font-medium mb-1">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="block text-sm font-medium mb-1">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="flex justify-end pt-4">
                 <button type="submit"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
-                    Enviar Acta
+                    {{ 'Guardar Cambios' if edit_mode else 'Enviar Acta' }}
                 </button>
             </div>
         </form>
@@ -554,6 +574,75 @@
             );
         })();
     </script>
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        // Prefill the simple (non-repeatable) fields from the existing record.
+        // Note: temas_tratados / acuerdos_compromisos / nombre_responsable are stored as
+        // combined multi-block text/JSON — only the first block is prefilled here for simplicity;
+        // additional blocks can be re-entered using "Agregar" if needed.
+        (function prefillEditForm() {
+            if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
+            var record = window.EDIT_RECORD;
+            var form = document.getElementById('visitaForm');
+            if (!form) return;
+
+            function setValue(name, value) {
+                if (value === null || value === undefined) return;
+                var el = form.querySelector('[name="' + name + '"]');
+                if (!el) return;
+                if (el.type === 'datetime-local' && value) {
+                    var d = new Date(value);
+                    if (!isNaN(d.getTime())) {
+                        var pad = function(n) { return String(n).padStart(2, '0'); };
+                        value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                    }
+                }
+                el.value = value;
+            }
+
+            setValue('fecha_hora', record.fecha_hora);
+            setValue('motivo_visita', record.motivo_visita);
+            setValue('nombre_visitante', record.nombre_visitante);
+            setValue('cargo_visitante', record.cargo_visitante);
+
+            if (record.temas_tratados) {
+                setValue('temas_tratados_0', record.temas_tratados.split('\n---\n')[0]);
+            }
+            if (record.acuerdos_compromisos) {
+                setValue('acuerdos_compromisos_0', record.acuerdos_compromisos.split('\n---\n')[0]);
+            }
+            if (record.nombre_responsable) {
+                try {
+                    var responsables = JSON.parse(record.nombre_responsable);
+                    if (Array.isArray(responsables) && responsables.length) {
+                        setValue('nombre_responsable_0', responsables[0].nombre);
+                        setValue('fecha_cumplimiento_0', responsables[0].fecha);
+                        setValue('estado_seguimiento_0', responsables[0].estado);
+                    }
+                } catch (e) { /* not JSON, ignore */ }
+            }
+
+            if (record.id_propiedad) {
+                setTimeout(function() {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }, 800);
+            }
+        })();
+    </script>
+    {% endif %}
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <script>
     (function() {

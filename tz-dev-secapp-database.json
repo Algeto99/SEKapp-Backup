@@ -50,6 +50,11 @@
     "data_type": "timestamp without time zone"
   },
   {
+    "table_name": "asignaciones_hallazgo",
+    "column_name": "asignado_email",
+    "data_type": "text"
+  },
+  {
     "table_name": "authorized_emails",
     "column_name": "id",
     "data_type": "integer"
@@ -83,6 +88,11 @@
     "table_name": "authorized_emails",
     "column_name": "is_admin",
     "data_type": "boolean"
+  },
+  {
+    "table_name": "authorized_emails",
+    "column_name": "company_id",
+    "data_type": "integer"
   },
   {
     "table_name": "capacitacion_asistencia",
@@ -438,6 +448,56 @@
     "table_name": "customer_companies",
     "column_name": "created_at",
     "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "tabla",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "registro_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "usuario_email",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "fecha_hora",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "motivo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "motivo_detalle",
+    "data_type": "text"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "campo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "valor_anterior",
+    "data_type": "text"
+  },
+  {
+    "table_name": "formulario_edicion_historial",
+    "column_name": "valor_nuevo",
+    "data_type": "text"
   },
   {
     "table_name": "informe_novedades_disciplinario",
@@ -1755,6 +1815,21 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_y_acta_de_visita",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "reportes_incidentes",
     "column_name": "id_reporte_incidente",
     "data_type": "integer"
@@ -1948,6 +2023,21 @@
     "table_name": "reportes_incidentes",
     "column_name": "submitter_timezone",
     "data_type": "text"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "editado_por",
+    "data_type": "character varying"
   },
   {
     "table_name": "reportes_incidentes_personas",

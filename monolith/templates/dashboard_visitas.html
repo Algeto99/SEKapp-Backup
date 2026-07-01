@@ -68,6 +68,20 @@
         @media (max-width:900px) { .charts-row { grid-template-columns:1fr; } }
         @media (max-width:640px) { .kpi-grid { grid-template-columns:1fr; } body { } .nav-content { flex-direction:column; align-items:flex-start; } }
 
+        /* ── Edited badge ─────────────────────────────────────────────────── */
+        .edited-badge {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            padding:0.15rem 0.5rem; border-radius:999px;
+            font-size:0.7rem; font-weight:600; margin-left:0.4rem;
+            background:rgba(168,85,247,0.15); color:#c084fc; cursor:help;
+        }
+        body.light-mode .edited-badge { background:rgba(147,51,234,0.1); color:#7e22ce; }
+        .btn-action {
+            display:inline-flex; align-items:center; gap:0.4rem;
+            padding:0.45rem 0.9rem; border-radius:8px; font-size:0.8125rem; font-weight:600;
+            cursor:pointer; transition:all 0.2s; border:1px solid transparent; font-family:'Roboto',sans-serif;
+        }
+
         /* Commitment edit modal */
         .matrix-table tr.clickable-row { cursor:pointer; }
         .matrix-table tr.clickable-row:hover td { background:rgba(103,232,249,0.06); }
@@ -585,7 +599,7 @@
                         <td style="min-width:280px;">${r.acuerdo || '—'}</td>
                         <td>${r.responsable || '—'}</td>
                         <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
-                        <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
+                        <td><span class="status-pill ${statusClass}">${statusLabel}</span>${editedBadge(r)}</td>
                         <td><button type="button" class="drv-action-btn" style="pointer-events:none;">Gestionar ↗</button></td>
                     </tr>
                 `;
@@ -627,7 +641,7 @@
                 <td style="min-width:280px;">${r.acuerdo || '—'}</td>
                 <td>${r.responsable || '—'}</td>
                 <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
-                <td><span class="status-pill ${statusClass}">${statusLabel}${editHint}</span></td>
+                <td><span class="status-pill ${statusClass}">${statusLabel}${editHint}</span>${editedBadge(r)}</td>
                 <td>${recordViewer.actionButtonHtml(r.id_visita)}</td>
             </tr>`;
         }).join('');
@@ -673,6 +687,58 @@
     }
 
     const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
+    function editedBadge(r) {
+        if (!r || !r.editado) return '';
+        const title = `Editado por ${r.editado_por || '—'} el ${r.editado_en || '—'}`;
+        return `<span class="edited-badge" title="${title}">✎ Editado</span>`;
+    }
+
+    async function toggleHistorialVisita(id) {
+        const container = document.getElementById(`historialVisita-${id}`);
+        if (!container) return;
+        if (container.style.display !== 'none') {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'block';
+        container.innerHTML = '<p style="color:#94a3b8;font-size:.8rem;">Cargando historial…</p>';
+        try {
+            const res = await fetch(`/dashboard/api/visitas/${id}/historial`, { credentials: 'include' });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                container.innerHTML = `<p style="color:#f87171;font-size:.8rem;">${data.error || 'Error cargando historial.'}</p>`;
+                return;
+            }
+            const rows = data.historial || [];
+            if (!rows.length) {
+                container.innerHTML = '<p style="color:#94a3b8;font-size:.8rem;">Este registro no tiene ediciones registradas.</p>';
+                return;
+            }
+            container.innerHTML = `
+                <div style="overflow-x:auto;">
+                    <table class="matrix-table" style="font-size:.78rem;">
+                        <thead><tr>
+                            <th>Fecha</th><th>Usuario</th><th>Campo</th>
+                            <th>Valor anterior</th><th>Valor nuevo</th><th>Motivo</th>
+                        </tr></thead>
+                        <tbody>
+                            ${rows.map(h => `
+                                <tr>
+                                    <td>${h.fecha_hora}</td>
+                                    <td>${h.usuario_email}</td>
+                                    <td>${h.campo}</td>
+                                    <td>${h.valor_anterior || '—'}</td>
+                                    <td>${h.valor_nuevo || '—'}</td>
+                                    <td>${h.motivo}${h.motivo_detalle ? ' — ' + h.motivo_detalle : ''}</td>
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+        } catch (err) {
+            container.innerHTML = `<p style="color:#f87171;font-size:.8rem;">Error: ${err.message}</p>`;
+        }
+    }
 
     async function loadData(qs = '') {
         const q = qs ? '?' + qs : '';
@@ -809,12 +875,17 @@
                 editorDiv.innerHTML = `
                     <h4 style="color:#38bdf8; display:flex; justify-content:space-between; align-items:center;">
                         Gestión de Estado de Compromiso
-                        <span class="status-pill status-${r.estado}" style="font-size:0.7rem; margin-left:0.5rem;">${r.estado.toUpperCase()}</span>
+                        <span><span class="status-pill status-${r.estado}" style="font-size:0.7rem; margin-left:0.5rem;">${r.estado.toUpperCase()}</span>${editedBadge(r)}</span>
                     </h4>
                     <div style="margin-bottom:0.75rem;">
                         <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Compromiso Seleccionado</span>
                         <p style="margin:0.25rem 0 1rem; color:#e5e7eb; font-size:0.9rem; font-style:italic;">${r.acuerdo || '—'}</p>
                     </div>
+                    <div style="margin-bottom:0.75rem;display:flex;gap:.6rem;flex-wrap:wrap;">
+                        <a href="/registro_y_acta_de_visita/${r.id_visita}/editar" class="btn-action" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.35);text-decoration:none;">✎ Editar registro</a>
+                        <button type="button" class="btn-action" style="background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.15);" onclick="toggleHistorialVisita(${r.id_visita})">🕒 Historial de cambios</button>
+                    </div>
+                    <div id="historialVisita-${r.id_visita}" style="display:none;margin-bottom:.75rem;"></div>
                     <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
                         <div style="flex:1; min-width:140px;">
                             <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Nuevo estado:</span>
@@ -843,7 +914,7 @@
                 editorDiv.innerHTML = `
                     <h4 style="color:#38bdf8; display:flex; justify-content:space-between; align-items:center;">
                         Estado de Compromiso
-                        <span class="status-pill status-${r.estado}" style="font-size:0.7rem; margin-left:0.5rem;">${r.estado.toUpperCase()}</span>
+                        <span><span class="status-pill status-${r.estado}" style="font-size:0.7rem; margin-left:0.5rem;">${r.estado.toUpperCase()}</span>${editedBadge(r)}</span>
                     </h4>
                     <div style="margin-bottom:0.75rem;">
                         <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Compromiso Seleccionado</span>
