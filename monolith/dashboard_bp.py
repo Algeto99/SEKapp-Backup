@@ -1414,7 +1414,6 @@ def dashboard_home():
 
 @dashboard_bp.route('/incidentes/')
 @jwt_required()
-@admin_required
 def dashboard_incidentes():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
@@ -1564,7 +1563,6 @@ def dashboard_disciplina():
 
 @dashboard_bp.route('/visitas/')
 @jwt_required()
-@admin_required
 def dashboard_visitas():
     user_email = get_jwt_identity()
     user_name, is_admin = _get_user_info(user_email)
@@ -3353,7 +3351,6 @@ def api_incidentes_detalles():
 
 @dashboard_bp.route('/api/incidentes/<int:id_reporte>/estado', methods=['PUT'])
 @jwt_required()
-@admin_required
 def api_incidentes_update_estado(id_reporte):
     """Update estado, accion_seguimiento and evidencia_seguimiento_url on a reportes_incidentes row."""
     if request.content_type and 'multipart' in request.content_type:
@@ -5230,7 +5227,6 @@ def api_visitas_detalles():
 
 @dashboard_bp.route('/api/visitas/<int:id_visita>/estado', methods=['PUT'])
 @jwt_required()
-@admin_required
 def api_visitas_update_estado(id_visita):
     import json as _json
     # Accept either multipart/form-data (with file) or JSON
