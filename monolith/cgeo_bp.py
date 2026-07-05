@@ -857,6 +857,62 @@ def cgeo_api_alertas():
                 "horas": None,
             })
 
+        # ── REGLA 9/10: Compromisos de visitas a clientes (vencidos / próximos) ──
+        from admin_bp import get_thresholds
+        from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
+        dias_compromiso_vencer = int(get_thresholds().get('dias_compromiso_vencer') or 5)
+
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        v_date_expr = _visita_date_expr()
+        v_conds, v_params = _visita_conds(cliente, None, None, None, company_id=company_id)
+        v_conds_full = v_conds + [f"{v_date_expr} >= NOW() - INTERVAL '180 days'"]
+        cur.execute(f"""
+            SELECT
+                id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
+                temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+                nombre_visitante, compromisos_estados, editado, editado_por, editado_en
+            FROM registro_y_acta_de_visita
+            {_visita_where(v_conds_full)}
+            ORDER BY {v_date_expr} DESC
+            LIMIT 200
+        """, v_params)
+        compromisos = _visita_parse_compromisos(cur.fetchall())
+
+        today = date.today()
+        for c in compromisos:
+            if c['estado'] == 'vencido':
+                alertas.append({
+                    "id": f"r9_{c['id_visita']}_{c['bloque_idx']}",
+                    "regla": 9,
+                    "texto": f"Compromiso vencido en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']})",
+                    "accion": "Gestionar compromiso",
+                    "ruta_navegacion": "/dashboard/visitas/",
+                    "record_id": c['id_visita'],
+                    "form_type": "registro_y_acta_de_visita",
+                    "color_semaforo": "rojo",
+                    "timestamp": c['fecha_cumplimiento'] if c['fecha_cumplimiento'] != '—' else c['fecha_sort'],
+                    "horas": None,
+                })
+            elif c['estado'] == 'pendiente' and c['fecha_cumplimiento'] != '—':
+                try:
+                    fecha_limite = date.fromisoformat(c['fecha_cumplimiento'])
+                except ValueError:
+                    continue
+                dias_restantes = (fecha_limite - today).days
+                if 0 <= dias_restantes <= dias_compromiso_vencer:
+                    alertas.append({
+                        "id": f"r10_{c['id_visita']}_{c['bloque_idx']}",
+                        "regla": 10,
+                        "texto": f"Compromiso próximo a vencer en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']}, en {dias_restantes} día{'s' if dias_restantes != 1 else ''})",
+                        "accion": "Gestionar compromiso",
+                        "ruta_navegacion": "/dashboard/visitas/",
+                        "record_id": c['id_visita'],
+                        "form_type": "registro_y_acta_de_visita",
+                        "color_semaforo": "amarillo",
+                        "timestamp": c['fecha_cumplimiento'],
+                        "horas": dias_restantes * 24,
+                    })
+
         # ── Ordenar: ROJO primero, luego AMARILLO; dentro de cada color ───────
         # por timestamp ascendente (más antiguo = más urgente).
         prioridad = {"rojo": 0, "amarillo": 1}
@@ -1097,6 +1153,36 @@ def cgeo_api_morning_briefing_data():
         cert_por_nivel = {r["nivel"]: int(r["total"] or 0) for r in cur.fetchall()}
         cert_proximas = sum(cert_por_nivel.values())
 
+        # ── Compromisos de visitas a clientes (vencidos / próximos a vencer) ──
+        from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
+        today = _date.today()
+        dias_compromiso_vencer = int(thresholds.get('dias_compromiso_vencer') or 5)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        v_date_expr = _visita_date_expr()
+        v_conds, v_params = _visita_conds(None, None, None, None, company_id=company_id)
+        v_conds_full = v_conds + [f"{v_date_expr} >= NOW() - INTERVAL '180 days'"]
+        cur.execute(f"""
+            SELECT
+                id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
+                temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+                nombre_visitante, compromisos_estados, editado, editado_por, editado_en
+            FROM registro_y_acta_de_visita
+            {_visita_where(v_conds_full)}
+            ORDER BY {v_date_expr} DESC
+            LIMIT 200
+        """, v_params)
+        compromisos = _visita_parse_compromisos(cur.fetchall())
+        comp_vencidos = sum(1 for c in compromisos if c['estado'] == 'vencido')
+        comp_por_vencer = 0
+        for c in compromisos:
+            if c['estado'] == 'pendiente' and c['fecha_cumplimiento'] != '—':
+                try:
+                    dias_restantes = (_date.fromisoformat(c['fecha_cumplimiento']) - today).days
+                except ValueError:
+                    continue
+                if 0 <= dias_restantes <= dias_compromiso_vencer:
+                    comp_por_vencer += 1
+
         # ── Tendencia supervisiones — últimos 7 días ──────────────────────────
         today = _date.today()
         days7 = [today - timedelta(days=i) for i in range(6, -1, -1)]
@@ -1138,6 +1224,8 @@ def cgeo_api_morning_briefing_data():
                 "eq_por_tipo":     eq_por_tipo,
                 "cert_proximas":   cert_proximas,
                 "cert_por_nivel":  cert_por_nivel,
+                "comp_vencidos":   comp_vencidos,
+                "comp_por_vencer": comp_por_vencer,
             },
             "thresholds": {
                 "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),
@@ -1148,6 +1236,7 @@ def cgeo_api_morning_briefing_data():
                 "supervision_rojo_max":     float(thresholds.get('supervision_rojo_max', 70)),
                 "supervision_meta":         sup_programadas,
                 "supervision_periodicidad": periodicidad,
+                "dias_compromiso_vencer":   dias_compromiso_vencer,
             },
             "tendencia_semana": tendencia,
         })

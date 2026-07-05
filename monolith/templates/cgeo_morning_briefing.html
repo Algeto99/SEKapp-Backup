@@ -384,6 +384,11 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <div class="skeleton sk-val"></div>
                 <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
             </div>
+            <div class="kpi-card kpi-border-gray" id="skKpi4">
+                <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
+                <div class="skeleton sk-val"></div>
+                <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
+            </div>
         </div>
 
         <!-- ══ SECCIÓN 4: ALERTAS ══ -->
@@ -505,6 +510,12 @@ function _kpiCertColor(proximas) {
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
+function _kpiCompColor(vencidos, porVencer) {
+    if (vencidos > 0)   return { border: '#ef4444', dot: 'dot-red' };
+    if (porVencer > 0)  return { border: '#f59e0b', dot: 'dot-orange' };
+    return { border: '#22c55e', dot: 'dot-green' };
+}
+
 // ── Render KPI cards ──────────────────────────────────────────────────────────
 
 function _eqTipo(porTipo, ...claves) {
@@ -586,6 +597,20 @@ function renderKpis(k, thr) {
             action: 'Ver certificaciones →',
             color: _kpiCertColor(k.cert_proximas ?? 0),
         },
+        {
+            id: 'kpiComp',
+            href: '/dashboard/visitas/',
+            icon: '🤝', iconBg: '#f5f3ff',
+            val: k.comp_vencidos ?? 0,
+            lbl: 'Compromisos de Visitas',
+            sub: (k.comp_vencidos ?? 0) > 0
+                ? `${k.comp_vencidos} vencido${k.comp_vencidos !== 1 ? 's' : ''} · ${k.comp_por_vencer ?? 0} por vencer`
+                : (k.comp_por_vencer ?? 0) > 0
+                    ? `${k.comp_por_vencer} por vencer próximamente`
+                    : 'Sin compromisos vencidos',
+            action: 'Ver compromisos →',
+            color: _kpiCompColor(k.comp_vencidos ?? 0, k.comp_por_vencer ?? 0),
+        },
     ];
 
     const grid = document.getElementById('kpiGrid');
@@ -619,6 +644,8 @@ function computeSemaforo(alertasData, kpis, thr) {
     const eqNoOp  = kpis.eq_no_op        ?? 0;
     const eqTotal = kpis.eq_total        ?? 0;
     const certProx = kpis.cert_proximas  ?? 0;
+    const compVencidos  = kpis.comp_vencidos   ?? 0;
+    const compPorVencer = kpis.comp_por_vencer ?? 0;
 
     const supVerdeMin    = thr.supervision_verde_min    ?? 90;
     const supAmarilloMin = thr.supervision_amarillo_min ?? 70;
@@ -636,6 +663,8 @@ function computeSemaforo(alertasData, kpis, thr) {
         condiciones.push({ nivel:'rojo', texto:`${incAb} incidentes abiertos (umbral ≥ 3)` });
     if (eqTotal > 0 && eqNoPct > 15)
         condiciones.push({ nivel:'rojo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota > 15%)` });
+    if (compVencidos >= 1)
+        condiciones.push({ nivel:'rojo', texto:`${compVencidos} compromiso${compVencidos!==1?'s':''} de visita vencido${compVencidos!==1?'s':''}` });
 
     const esRojo = condiciones.some(c => c.nivel === 'rojo');
 
@@ -650,6 +679,8 @@ function computeSemaforo(alertasData, kpis, thr) {
             condiciones.push({ nivel:'amarillo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% entre 5% y 15%)` });
         if (certProx >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${certProx} certificación${certProx!==1?'es':''} por vencer en 30 días` });
+        if (compPorVencer >= 1)
+            condiciones.push({ nivel:'amarillo', texto:`${compPorVencer} compromiso${compPorVencer!==1?'s':''} de visita próximo${compPorVencer!==1?'s':''} a vencer` });
     }
 
     const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');
@@ -688,6 +719,7 @@ const _SG_GRUPOS = [
     { key: 'reporte_incidente',            titulo: 'Incidentes abiertos' },
     { key: 'supervision_puesto',           titulo: 'Supervisiones pendientes o no realizadas' },
     { key: 'checklist_cumplimiento',        titulo: 'Certificaciones vencidas o próximas a vencer' },
+    { key: 'registro_y_acta_de_visita',    titulo: 'Compromisos de visitas a clientes' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
     { key: '__otros__',                    titulo: 'Equipos y vehículos con alertas activas' },
 ];
@@ -700,31 +732,6 @@ function _sgGrupoHtml(titulo, items) {
         <div class="sg-detail-heading">${titulo}</div>
         ${body}
     </div>`;
-}
-
-async function _sgCompromisosVencidosHtml() {
-    try {
-        const res = await fetch('/dashboard/api/visitas/detalles', { headers: { Accept: 'application/json' } });
-        if (!res.ok) throw new Error('no disponible');
-        const data = await res.json();
-        const vencidos = (data.detalles || []).filter(d => d.estado === 'vencido');
-        if (!vencidos.length) {
-            return _sgGrupoHtml('Compromisos vencidos (visitas a clientes)', []);
-        }
-        const items = vencidos.slice(0, 8).map(c => `
-            <a href="/dashboard/visitas/" class="alerta-item">
-                <div class="alerta-dot alerta-dot-rojo"></div>
-                <span style="font-size:.875rem;flex-shrink:0">🔴</span>
-                <span class="alerta-texto">${c.cliente} — ${c.acuerdo} (resp. ${c.responsable}, vencía ${c.fecha_cumplimiento})</span>
-                <span class="alerta-btn alerta-btn-rojo">Gestionar →</span>
-            </a>`).join('');
-        return `<div class="sg-detail-section">
-            <div class="sg-detail-heading">Compromisos vencidos (visitas a clientes)</div>
-            <div class="sg-detail-list">${items}</div>
-        </div>`;
-    } catch (e) {
-        return _sgGrupoHtml('Compromisos vencidos (visitas a clientes)', []);
-    }
 }
 
 async function abrirDetalleSemaforo() {
@@ -749,10 +756,6 @@ async function abrirDetalleSemaforo() {
             <div class="sg-modal-title">Estado: ${textos[nivel]}</div>
             <div class="sg-modal-sub">Detalle de novedades al ${ts} — toca un registro para ver el detalle o gestionarlo</div>
             ${gruposHtml}
-            <div class="sg-detail-section" id="sgCompromisosSlot">
-                <div class="sg-detail-heading">Compromisos vencidos (visitas a clientes)</div>
-                <div class="sg-detail-loading">Cargando…</div>
-            </div>
             <button onclick="this.closest('.sg-modal-overlay').remove()"
                 style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
                 Cerrar
@@ -760,11 +763,6 @@ async function abrirDetalleSemaforo() {
         </div>`;
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
-
-    _sgCompromisosVencidosHtml().then(html => {
-        const slot = modal.querySelector('#sgCompromisosSlot');
-        if (slot) slot.outerHTML = html;
-    });
 }
 
 // ── Alertas accionables ───────────────────────────────────────────────────────
@@ -780,6 +778,7 @@ function _getAlertViewer(formType) {
             'supervision_puesto':      'Detalle de Supervisión',
             'checklist_cumplimiento':  'Detalle de Cumplimiento',
             'medicion_experiencia_cliente': 'Detalle de Encuesta de Satisfacción',
+            'registro_y_acta_de_visita': 'Detalle de Visita y Compromisos',
         };
         _alertViewers[formType] = createDashboardRecordViewer({
             formType,

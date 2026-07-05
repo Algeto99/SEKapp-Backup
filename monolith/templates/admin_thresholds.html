@@ -260,6 +260,16 @@
                                value="{{ thresholds.dias_certificacion_vencer | int }}">
                         <span class="unit">días antes de vencer</span>
                     </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Compromisos de Visitas
+                        </span>
+                        <label>Ventana de alerta (días)</label>
+                        <input type="number" name="dias_compromiso_vencer" min="1" max="90" step="1"
+                               value="{{ thresholds.dias_compromiso_vencer | int }}">
+                        <span class="unit">días antes de vencer → amarillo</span>
+                    </div>
                 </div>
             </div>
 

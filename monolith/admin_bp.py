@@ -306,6 +306,7 @@ _THRESHOLD_KEYS = [
     'dias_sin_supervision_alerta',
     'horas_incidente_escalar',
     'dias_certificacion_vencer',
+    'dias_compromiso_vencer',
 ]
 
 # Claves cuyo valor es texto (no numérico)
@@ -326,6 +327,7 @@ _THRESHOLD_DEFAULTS = {
     'dias_sin_supervision_alerta':  2,
     'horas_incidente_escalar':     24,
     'dias_certificacion_vencer':   30,
+    'dias_compromiso_vencer':       5,
 }
 
 
