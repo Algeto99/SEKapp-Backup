@@ -1018,6 +1018,20 @@
             const modalContent = document.getElementById('modal-report-content');
             const modalTitle = document.getElementById('modal-report-title');
 
+            // "Editar registro" solo existe (con auditoría) para estos tipos de formulario
+            const EDIT_ROUTES = {
+                'reporte_incidente':          `/reporte_incidente/${reportId}/editar`,
+                'registro_y_acta_de_visita':  `/registro_y_acta_de_visita/${reportId}/editar`,
+            };
+            const editLink = document.getElementById('modal-report-edit-link');
+            if (EDIT_ROUTES[formType]) {
+                editLink.href = EDIT_ROUTES[formType];
+                editLink.classList.remove('hidden');
+            } else {
+                editLink.classList.add('hidden');
+                editLink.href = '#';
+            }
+
             // Show modal with loading state
             modal.classList.remove('hidden');
             modalContent.innerHTML = '<div class="flex justify-center items-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>';
@@ -2388,7 +2402,11 @@
 
             <!-- Modal Footer -->
             <div
-                class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end bg-white dark:bg-gray-800 rounded-b-lg">
+                class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-white dark:bg-gray-800 rounded-b-lg">
+                <a id="modal-report-edit-link" href="#" target="_blank" rel="noopener"
+                    class="hidden base-button-style" style="background:rgba(168,85,247,0.12);color:#7e22ce;border:1px solid rgba(168,85,247,0.35);text-decoration:none;">
+                    ✎ Editar registro
+                </a>
                 <button onclick="closeReportDetailsModal()"
                     class="base-button-style btn-secondary-professional dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
                     Cerrar
