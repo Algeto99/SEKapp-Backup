@@ -858,9 +858,10 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 9/10: Compromisos de visitas a clientes (vencidos / próximos) ──
-        from admin_bp import get_thresholds
+        from admin_bp import get_thresholds, _periodo_inicio_actual
         from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
-        dias_compromiso_vencer = int(get_thresholds().get('dias_compromiso_vencer') or 5)
+        alertas_thresholds = get_thresholds()
+        dias_compromiso_vencer = int(alertas_thresholds.get('dias_compromiso_vencer') or 5)
 
         company_id = _get_user_company_id(cur, get_jwt_identity())
         v_date_expr = _visita_date_expr()
@@ -912,6 +913,41 @@ def cgeo_api_alertas():
                         "timestamp": c['fecha_cumplimiento'],
                         "horas": dias_restantes * 24,
                     })
+
+        # ── REGLA 11: Cliente activo sin visita en el período configurado ────
+        visita_periodicidad = alertas_thresholds.get('visita_periodicidad') or 'mensual'
+        visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
+
+        r11_conds, r11_params = _cp("id_propiedad")
+        r11_conds_hist = r11_conds + ["fecha_hora >= NOW() - INTERVAL '30 days'"]
+        cur.execute(f"""
+            SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
+            FROM supervision_puesto
+            {_where(r11_conds_hist)}
+        """, tuple(r11_params))
+        clientes_activos = [r['cliente'] for r in cur.fetchall() if r['cliente']]
+
+        v11_conds, v11_params = _visita_conds(cliente, None, None, None, company_id=company_id)
+        v11_conds_full = v11_conds + [f"{v_date_expr}::date >= %s"]
+        cur.execute(f"""
+            SELECT DISTINCT cliente_instalacion AS cliente
+            FROM registro_y_acta_de_visita
+            {_visita_where(v11_conds_full)}
+        """, v11_params + [visita_periodo_inicio])
+        clientes_con_visita = {r['cliente'] for r in cur.fetchall() if r['cliente']}
+
+        sin_visita = [c for c in clientes_activos if c not in clientes_con_visita][:5]
+        for cli in sin_visita:
+            alertas.append({
+                "id": f"r11_{cli}",
+                "regla": 11,
+                "texto": f"Cliente \"{cli}\" sin visita registrada en el período ({visita_periodicidad})",
+                "accion": "Registrar visita",
+                "ruta_navegacion": "/dashboard/visitas/",
+                "color_semaforo": "amarillo",
+                "timestamp": today.isoformat(),
+                "horas": None,
+            })
 
         # ── Ordenar: ROJO primero, luego AMARILLO; dentro de cada color ───────
         # por timestamp ascendente (más antiguo = más urgente).
@@ -1183,6 +1219,19 @@ def cgeo_api_morning_briefing_data():
                 if 0 <= dias_restantes <= dias_compromiso_vencer:
                     comp_por_vencer += 1
 
+        # ── Visitas a clientes: meta configurada vs completadas en el período ──
+        visita_meta = int(thresholds.get('visita_meta') or 0)
+        visita_periodicidad = thresholds.get('visita_periodicidad') or 'mensual'
+        visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
+        v_period_conds, v_period_params = _visita_conds(None, None, None, None, company_id=company_id)
+        v_period_conds_full = v_period_conds + [f"{v_date_expr}::date >= %s"]
+        cur.execute(f"""
+            SELECT COUNT(DISTINCT id_visita) AS total
+            FROM registro_y_acta_de_visita
+            {_visita_where(v_period_conds_full)}
+        """, v_period_params + [visita_periodo_inicio])
+        visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
+
         # ── Tendencia supervisiones — últimos 7 días ──────────────────────────
         today = _date.today()
         days7 = [today - timedelta(days=i) for i in range(6, -1, -1)]
@@ -1226,6 +1275,8 @@ def cgeo_api_morning_briefing_data():
                 "cert_por_nivel":  cert_por_nivel,
                 "comp_vencidos":   comp_vencidos,
                 "comp_por_vencer": comp_por_vencer,
+                "visita_completadas": visita_completadas,
+                "visita_programadas": visita_meta,
             },
             "thresholds": {
                 "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),
@@ -1237,6 +1288,12 @@ def cgeo_api_morning_briefing_data():
                 "supervision_meta":         sup_programadas,
                 "supervision_periodicidad": periodicidad,
                 "dias_compromiso_vencer":   dias_compromiso_vencer,
+                "visita_verde_min":    float(thresholds.get('visita_verde_min', 90)),
+                "visita_amarillo_min": float(thresholds.get('visita_amarillo_min', 70)),
+                "visita_amarillo_max": float(thresholds.get('visita_amarillo_max', 89)),
+                "visita_rojo_max":     float(thresholds.get('visita_rojo_max', 70)),
+                "visita_meta":         visita_meta,
+                "visita_periodicidad": visita_periodicidad,
             },
             "tendencia_semana": tendencia,
         })

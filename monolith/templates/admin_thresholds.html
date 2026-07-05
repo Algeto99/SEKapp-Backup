@@ -171,6 +171,86 @@
                 </div>
             </div>
 
+            <!-- Visitas a Clientes -->
+            <div class="card">
+                <div class="card-title">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-6a4 4 0 11-8 0 4 4 0 018 0zm6 3a4 4 0 10-4-4"/></svg>
+                    Visitas a Clientes
+                </div>
+
+                <div class="threshold-grid" style="margin-bottom:1rem;">
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Periodicidad
+                        </span>
+                        <label>Ventana de medición</label>
+                        <select name="visita_periodicidad" class="field-select"
+                                style="background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem; color:#e2e8f0; padding:.5rem .75rem; font-size:.9rem; width:100%;">
+                            <option value="diario"  {{ 'selected' if thresholds.visita_periodicidad == 'diario' }}>Diario</option>
+                            <option value="semanal" {{ 'selected' if thresholds.visita_periodicidad == 'semanal' }}>Semanal</option>
+                            <option value="mensual" {{ 'selected' if thresholds.visita_periodicidad == 'mensual' }}>Mensual</option>
+                        </select>
+                        <span class="unit">período sobre el que se mide la meta</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Meta de visitas
+                        </span>
+                        <label>Cantidad programada</label>
+                        <input type="number" name="visita_meta" min="1" step="1"
+                               value="{{ thresholds.visita_meta | int }}">
+                        <span class="unit">visitas esperadas en el período</span>
+                    </div>
+                </div>
+
+                <hr class="section-divider">
+
+                <div class="threshold-grid">
+                    <div class="field">
+                        <span class="color-badge badge-green">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Verde
+                        </span>
+                        <label>Mínimo (%)</label>
+                        <input type="number" name="visita_verde_min" min="0" max="100" step="1"
+                               value="{{ thresholds.visita_verde_min | int }}">
+                        <span class="unit">≥ este valor → verde</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Amarillo — desde (%)
+                        </span>
+                        <label>Mínimo (%)</label>
+                        <input type="number" name="visita_amarillo_min" min="0" max="100" step="1"
+                               value="{{ thresholds.visita_amarillo_min | int }}">
+                        <span class="unit">límite inferior</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Amarillo — hasta (%)
+                        </span>
+                        <label>Máximo (%)</label>
+                        <input type="number" name="visita_amarillo_max" min="0" max="100" step="1"
+                               value="{{ thresholds.visita_amarillo_max | int }}">
+                        <span class="unit">límite superior</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-red">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Rojo
+                        </span>
+                        <label>Por debajo de (%)</label>
+                        <input type="number" name="visita_rojo_max" min="0" max="100" step="1"
+                               value="{{ thresholds.visita_rojo_max | int }}">
+                        <span class="unit">&lt; este valor → rojo</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Equipos no operativos -->
             <div class="card">
                 <div class="card-title">

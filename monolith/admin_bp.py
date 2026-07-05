@@ -307,10 +307,15 @@ _THRESHOLD_KEYS = [
     'horas_incidente_escalar',
     'dias_certificacion_vencer',
     'dias_compromiso_vencer',
+    'visita_verde_min',
+    'visita_amarillo_min',
+    'visita_amarillo_max',
+    'visita_rojo_max',
+    'visita_meta',
 ]
 
 # Claves cuyo valor es texto (no numérico)
-_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad']
+_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad', 'visita_periodicidad']
 
 _PERIODICIDAD_VALUES = ('diario', 'semanal', 'mensual')
 
@@ -328,6 +333,11 @@ _THRESHOLD_DEFAULTS = {
     'horas_incidente_escalar':     24,
     'dias_certificacion_vencer':   30,
     'dias_compromiso_vencer':       5,
+    'visita_verde_min':            90,
+    'visita_amarillo_min':         70,
+    'visita_amarillo_max':         89,
+    'visita_rojo_max':             70,
+    'visita_meta':                 20,
 }
 
 
@@ -381,6 +391,7 @@ def get_thresholds():
         result = dict(_THRESHOLD_DEFAULTS)
         result['fecha_inicio_operacion'] = None
         result['supervision_periodicidad'] = 'diario'
+        result['visita_periodicidad'] = 'mensual'
         result.update(rows)
         return result
     except Exception as e:
@@ -415,6 +426,7 @@ def thresholds():
         t = dict(_THRESHOLD_DEFAULTS)
         t['fecha_inicio_operacion'] = None
         t['supervision_periodicidad'] = 'diario'
+        t['visita_periodicidad'] = 'mensual'
         t.update(rows)
         from flask import request as _req
         jwt_csrf = _req.cookies.get('csrf_access_token', '')
@@ -477,20 +489,21 @@ def save_thresholds():
                 flash('Fecha de inicio inválida. Use el formato YYYY-MM-DD.', 'error')
                 return redirect(url_for('admin_bp.thresholds'))
 
-        # Guardar clave de texto: supervision_periodicidad
-        periodicidad_raw = request.form.get('supervision_periodicidad', '').strip().lower()
-        if periodicidad_raw:
-            if periodicidad_raw in _PERIODICIDAD_VALUES:
-                cur.execute(
-                    """INSERT INTO kpi_thresholds (key, value, text_value, updated_at, updated_by)
-                       VALUES (%s, 0, %s, NOW(), %s)
-                       ON CONFLICT (key) DO UPDATE
-                       SET text_value = EXCLUDED.text_value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
-                    ('supervision_periodicidad', periodicidad_raw, email)
-                )
-            else:
-                flash('Periodicidad inválida.', 'error')
-                return redirect(url_for('admin_bp.thresholds'))
+        # Guardar claves de texto: periodicidad de supervisiones y de visitas
+        for periodicidad_key in ('supervision_periodicidad', 'visita_periodicidad'):
+            periodicidad_raw = request.form.get(periodicidad_key, '').strip().lower()
+            if periodicidad_raw:
+                if periodicidad_raw in _PERIODICIDAD_VALUES:
+                    cur.execute(
+                        """INSERT INTO kpi_thresholds (key, value, text_value, updated_at, updated_by)
+                           VALUES (%s, 0, %s, NOW(), %s)
+                           ON CONFLICT (key) DO UPDATE
+                           SET text_value = EXCLUDED.text_value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
+                        (periodicidad_key, periodicidad_raw, email)
+                    )
+                else:
+                    flash('Periodicidad inválida.', 'error')
+                    return redirect(url_for('admin_bp.thresholds'))
 
         conn.commit()
         cur.close()

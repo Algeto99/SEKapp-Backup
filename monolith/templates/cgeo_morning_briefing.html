@@ -389,6 +389,11 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <div class="skeleton sk-val"></div>
                 <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
             </div>
+            <div class="kpi-card kpi-border-gray" id="skKpi5">
+                <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
+                <div class="skeleton sk-val"></div>
+                <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
+            </div>
         </div>
 
         <!-- ══ SECCIÓN 4: ALERTAS ══ -->
@@ -516,6 +521,16 @@ function _kpiCompColor(vencidos, porVencer) {
     return { border: '#22c55e', dot: 'dot-green' };
 }
 
+function _kpiVisitaColor(comp, prog, thr) {
+    if (prog === 0) return { border: '#94a3b8', dot: 'dot-gray' };
+    const pct = comp / prog * 100;
+    const verdeMin    = thr?.visita_verde_min    ?? 90;
+    const amarilloMin = thr?.visita_amarillo_min ?? 70;
+    if (pct >= verdeMin)    return { border: '#22c55e', dot: 'dot-green' };
+    if (pct >= amarilloMin) return { border: '#f59e0b', dot: 'dot-orange' };
+    return { border: '#ef4444', dot: 'dot-red' };
+}
+
 // ── Render KPI cards ──────────────────────────────────────────────────────────
 
 function _eqTipo(porTipo, ...claves) {
@@ -611,6 +626,18 @@ function renderKpis(k, thr) {
             action: 'Ver compromisos →',
             color: _kpiCompColor(k.comp_vencidos ?? 0, k.comp_por_vencer ?? 0),
         },
+        {
+            id: 'kpiVisita',
+            href: '/dashboard/visitas/',
+            icon: '🚗', iconBg: '#eff6ff',
+            val: k.visita_completadas ?? 0,
+            lbl: 'Visitas a Clientes',
+            sub: k.visita_programadas > 0
+                ? `de ${k.visita_programadas} programadas (${Math.round((k.visita_completadas ?? 0) / k.visita_programadas * 100)}%)`
+                : '0 programadas',
+            action: 'Ver visitas →',
+            color: _kpiVisitaColor(k.visita_completadas ?? 0, k.visita_programadas ?? 0, thr),
+        },
     ];
 
     const grid = document.getElementById('kpiGrid');
@@ -646,12 +673,17 @@ function computeSemaforo(alertasData, kpis, thr) {
     const certProx = kpis.cert_proximas  ?? 0;
     const compVencidos  = kpis.comp_vencidos   ?? 0;
     const compPorVencer = kpis.comp_por_vencer ?? 0;
+    const visitaComp = kpis.visita_completadas ?? 0;
+    const visitaProg = kpis.visita_programadas ?? 0;
 
     const supVerdeMin    = thr.supervision_verde_min    ?? 90;
     const supAmarilloMin = thr.supervision_amarillo_min ?? 70;
+    const visitaVerdeMin    = thr.visita_verde_min    ?? 90;
+    const visitaAmarilloMin = thr.visita_amarillo_min ?? 70;
 
     const supPct  = supProg > 0 ? (supComp / supProg * 100) : 100;
     const eqNoPct = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
+    const visitaPct = visitaProg > 0 ? (visitaComp / visitaProg * 100) : 100;
 
     const condiciones = [];
 
@@ -665,6 +697,8 @@ function computeSemaforo(alertasData, kpis, thr) {
         condiciones.push({ nivel:'rojo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota > 15%)` });
     if (compVencidos >= 1)
         condiciones.push({ nivel:'rojo', texto:`${compVencidos} compromiso${compVencidos!==1?'s':''} de visita vencido${compVencidos!==1?'s':''}` });
+    if (visitaProg > 0 && visitaPct < visitaAmarilloMin)
+        condiciones.push({ nivel:'rojo', texto:`Visitas a clientes: ${visitaComp} de ${visitaProg} completadas (${Math.round(visitaPct)}% < ${visitaAmarilloMin}%)` });
 
     const esRojo = condiciones.some(c => c.nivel === 'rojo');
 
@@ -681,6 +715,8 @@ function computeSemaforo(alertasData, kpis, thr) {
             condiciones.push({ nivel:'amarillo', texto:`${certProx} certificación${certProx!==1?'es':''} por vencer en 30 días` });
         if (compPorVencer >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${compPorVencer} compromiso${compPorVencer!==1?'s':''} de visita próximo${compPorVencer!==1?'s':''} a vencer` });
+        if (visitaProg > 0 && visitaPct >= visitaAmarilloMin && visitaPct < visitaVerdeMin)
+            condiciones.push({ nivel:'amarillo', texto:`Visitas a clientes: ${Math.round(visitaPct)}% completadas (entre ${visitaAmarilloMin}% y ${visitaVerdeMin - 1}%)` });
     }
 
     const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');
@@ -743,7 +779,9 @@ async function abrirDetalleSemaforo() {
     const porTipo = {};
     for (const g of _SG_GRUPOS) porTipo[g.key] = [];
     for (const a of _alertasData) {
-        const key = _SG_GRUPOS.some(g => g.key === a.form_type) ? a.form_type : '__otros__';
+        const key = a.form_type === 'registro_y_acta_de_visita' || a.ruta_navegacion === '/dashboard/visitas/'
+            ? 'registro_y_acta_de_visita'
+            : (_SG_GRUPOS.some(g => g.key === a.form_type) ? a.form_type : '__otros__');
         porTipo[key].push(a);
     }
 
