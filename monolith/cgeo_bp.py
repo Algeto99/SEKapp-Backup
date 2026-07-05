@@ -1812,11 +1812,10 @@ def _build_briefing_html(payload: dict) -> str:
     </tr>
     """
 
-    # Alert rows (max 5)
+    # Alert rows (listado completo, sin límite)
     rojas    = [a for a in alertas if a.get('color_semaforo') == 'rojo']
     amarillas = [a for a in alertas if a.get('color_semaforo') == 'amarillo']
-    visible  = (rojas + amarillas)[:5]
-    ocultas  = max(0, len(alertas) - 5)
+    visible  = rojas + amarillas
 
     alerta_rows = ''
     if not visible:
@@ -1831,8 +1830,6 @@ def _build_briefing_html(payload: dict) -> str:
               </td>
               <td style="font-size:.82rem;color:#334155;padding:.25rem 0">{a.get('texto','')}</td>
             </tr>"""
-        if ocultas > 0:
-            alerta_rows += f'<tr><td></td><td style="font-size:.78rem;color:#64748b">+{ocultas} alerta{"s" if ocultas != 1 else ""} adicional{"es" if ocultas != 1 else ""}</td></tr>'
 
     # Tendencia section
     chart_section = ''
