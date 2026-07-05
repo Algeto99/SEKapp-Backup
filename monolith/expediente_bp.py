@@ -193,11 +193,28 @@ def _compute_status(event, prop_lat, prop_lng):
             return 'GREEN' if nps >= 7 else 'RED'
         return 'GREEN'
 
+    if module == 'CERTIFICACION':
+        # compromisos_fecha_limite is reused here to carry vigencia_hasta
+        vigencia_hasta = event.get('compromisos_fecha_limite')
+        if vigencia_hasta:
+            today = datetime.now(timezone.utc).date()
+            limit = vigencia_hasta.date() if hasattr(vigencia_hasta, 'date') else vigencia_hasta
+            if limit < today:
+                return 'RED'
+            if (limit - today).days <= 30:
+                return 'YELLOW'
+        return 'GREEN'
+
     return 'GREEN'
 
 
 def _serialize_event(row, prop_lat, prop_lng):
     e = dict(row)
+    e.setdefault('distance_m', None)
+    # Status must be computed on the raw date/datetime objects, before they
+    # are stringified below for JSON output.
+    e['status'] = _compute_status(e, prop_lat, prop_lng)
+
     ts = e.get('event_ts')
     e['timestamp'] = ts.isoformat() if ts and hasattr(ts, 'isoformat') else str(ts or '')
 
@@ -206,8 +223,6 @@ def _serialize_event(row, prop_lat, prop_lng):
         if v and hasattr(v, 'isoformat'):
             e[k] = v.isoformat()
 
-    e.setdefault('distance_m', None)
-    e['status'] = _compute_status(e, prop_lat, prop_lng)
     return e
 
 
@@ -418,10 +433,31 @@ def api_feed():
             WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}
               AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
+            UNION ALL
+
+            SELECT
+                cc.id::text,
+                'CERTIFICACION'::text,
+                COALESCE(cc.fecha_hora, cc.created_at),
+                NULL::numeric, NULL::numeric, NULL::numeric,
+                cc.evidencia_url,
+                cc.nombre_auditor,
+                COALESCE('Curso: ' || NULLIF(TRIM(cc.curso_certificacion), ''), 'Checklist de cumplimiento'),
+                cc.nivel_cumplimiento,
+                NULL::text,
+                cc.vigencia_hasta,
+                NULL::text
+            FROM checklist_cumplimiento cc
+            WHERE LOWER(TRIM(cc.cliente_instalacion)) = LOWER(TRIM(%s))
+              AND COALESCE(cc.fecha_hora, cc.created_at) >= NOW() - (%s * INTERVAL '1 day')
+
             ORDER BY event_ts DESC NULLS LAST
         """
 
-        cur.execute(query, (*bp(cliente), *bp(cliente), *bp(cliente), *bp(cliente)))
+        cur.execute(query, (
+            *bp(cliente), *bp(cliente), *bp(cliente), *bp(cliente),
+            cliente, days_int,
+        ))
         rows = cur.fetchall()
         events = [_serialize_event(dict(r), prop_lat, prop_lng) for r in rows]
 

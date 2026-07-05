@@ -63,14 +63,16 @@
     .timeline::before { content:''; position:absolute; left:22px; top:0; bottom:0; width:2px; background:rgba(255,255,255,.06); }
     .tl-item { position:relative; padding-left:52px; margin-bottom:1rem; }
     .tl-dot { position:absolute; left:14px; top:16px; width:18px; height:18px; border-radius:50%; border:2px solid #1a202c; flex-shrink:0; }
-    .dot-green { background:#34d399; }
-    .dot-red   { background:#f87171; }
-    .dot-grey  { background:#6b7280; }
+    .dot-green  { background:#34d399; }
+    .dot-yellow { background:#f59e0b; }
+    .dot-red    { background:#f87171; }
+    .dot-grey   { background:#6b7280; }
 
     .tl-card { background:rgba(45,55,72,.65); border:1px solid rgba(255,255,255,.07); border-radius:.75rem; padding:1rem 1.25rem; }
-    .tl-card-red   { border-left:3px solid #f87171; }
-    .tl-card-green { border-left:3px solid #34d399; }
-    .tl-card-grey  { border-left:3px solid #6b7280; }
+    .tl-card-red    { border-left:3px solid #f87171; }
+    .tl-card-green  { border-left:3px solid #34d399; }
+    .tl-card-yellow { border-left:3px solid #f59e0b; }
+    .tl-card-grey   { border-left:3px solid #6b7280; }
 
     .tl-header { display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem; flex-wrap:wrap; margin-bottom:.4rem; }
     .tl-module-badge { font-size:.7rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; border-radius:1rem; padding:.2rem .6rem; }
@@ -78,15 +80,17 @@
     .badge-inc  { background:rgba(248,113,113,.2); color:#f87171; }
     .badge-acu  { background:rgba(167,139,250,.2); color:#a78bfa; }
     .badge-enc  { background:rgba(245,158,11,.2);  color:#f59e0b; }
+    .badge-cert { background:rgba(52,211,153,.2);  color:#34d399; }
     .tl-ts { font-size:.75rem; color:#9ca3af; }
     .tl-summary { font-size:.875rem; color:#e2e8f0; margin-bottom:.5rem; line-height:1.45; }
     .tl-meta { font-size:.75rem; color:#9ca3af; }
     .tl-actions { display:flex; gap:.5rem; margin-top:.65rem; flex-wrap:wrap; align-items:center; }
 
     .status-pill { font-size:.7rem; font-weight:600; border-radius:1rem; padding:.2rem .65rem; }
-    .pill-green { background:rgba(52,211,153,.15); color:#34d399; border:1px solid rgba(52,211,153,.3); }
-    .pill-red   { background:rgba(248,113,113,.15); color:#f87171; border:1px solid rgba(248,113,113,.3); }
-    .pill-grey  { background:rgba(107,114,128,.15); color:#9ca3af; border:1px solid rgba(107,114,128,.3); }
+    .pill-green  { background:rgba(52,211,153,.15); color:#34d399; border:1px solid rgba(52,211,153,.3); }
+    .pill-yellow { background:rgba(245,158,11,.15); color:#f59e0b; border:1px solid rgba(245,158,11,.3); }
+    .pill-red    { background:rgba(248,113,113,.15); color:#f87171; border:1px solid rgba(248,113,113,.3); }
+    .pill-grey   { background:rgba(107,114,128,.15); color:#9ca3af; border:1px solid rgba(107,114,128,.3); }
 
     .btn-qr { background:rgba(124,58,237,.2); border:1px solid rgba(167,139,250,.4); color:#a78bfa; border-radius:.4rem; padding:.3rem .75rem; font-size:.75rem; cursor:pointer; transition:all .2s; }
     .btn-qr:hover { background:rgba(124,58,237,.4); }
@@ -102,15 +106,16 @@
     /* QR Modal */
     #qrModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:200; align-items:center; justify-content:center; }
     #qrModal.open { display:flex; }
-    .qr-box { background:#2d3748; border:1px solid rgba(255,255,255,.15); border-radius:1rem; padding:1.75rem; text-align:center; max-width:340px; width:100%; }
+    .qr-box { background:#2d3748; border:1px solid rgba(255,255,255,.15); border-radius:1rem; padding:1.75rem; text-align:center; max-width:340px; width:100%; box-sizing:border-box; max-height:90vh; overflow-y:auto; }
     .qr-box h3 { margin-bottom:1rem; font-size:1rem; }
-    #qrImg { width:240px; height:240px; border-radius:.5rem; background:#fff; }
-    .qr-actions { display:flex; gap:.75rem; justify-content:center; margin-top:1rem; }
-    .btn-outline { background:transparent; border:1px solid rgba(255,255,255,.2); color:#e2e8f0; border-radius:.5rem; padding:.45rem 1rem; font-size:.85rem; cursor:pointer; transition:all .2s; }
+    #qrImg { width:100%; max-width:240px; height:auto; aspect-ratio:1/1; border-radius:.5rem; background:#fff; }
+    .qr-actions { display:flex; flex-wrap:wrap; gap:.6rem; justify-content:center; margin-top:1rem; }
+    .qr-actions > * { flex:1 1 calc(50% - .6rem); min-width:0; box-sizing:border-box; white-space:nowrap; }
+    .btn-outline { background:transparent; border:1px solid rgba(255,255,255,.2); color:#e2e8f0; border-radius:.5rem; padding:.45rem .75rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
     .btn-outline:hover { border-color:rgba(255,255,255,.5); }
-    .btn-copy { background:rgba(96,165,250,.2); border:1px solid rgba(96,165,250,.4); color:#60a5fa; border-radius:.5rem; padding:.45rem 1rem; font-size:.85rem; cursor:pointer; transition:all .2s; }
+    .btn-copy { background:rgba(96,165,250,.2); border:1px solid rgba(96,165,250,.4); color:#60a5fa; border-radius:.5rem; padding:.45rem .75rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
     .btn-copy:hover { background:rgba(96,165,250,.35); }
-    .btn-email { background:rgba(52,211,153,.15); border:1px solid rgba(52,211,153,.35); color:#34d399; border-radius:.5rem; padding:.45rem 1rem; font-size:.85rem; cursor:pointer; transition:all .2s; }
+    .btn-email { background:rgba(52,211,153,.15); border:1px solid rgba(52,211,153,.35); color:#34d399; border-radius:.5rem; padding:.45rem .75rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
     .btn-email:hover { background:rgba(52,211,153,.3); }
     #qrEmailForm { margin-top:1rem; display:none; }
     #qrEmailForm input[type=email] { width:100%; box-sizing:border-box; padding:.45rem .7rem; border-radius:.4rem; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.07); color:#e2e8f0; font-size:.85rem; outline:none; }
@@ -217,6 +222,9 @@
       </button>
       <button class="filter-btn" data-filter="ENCUESTA">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;"></span>Encuestas
+      </button>
+      <button class="filter-btn" data-filter="CERTIFICACION">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34d399;margin-right:4px;"></span>Certificaciones
       </button>
       <button class="filter-btn" data-filter="CONFIABILIDAD" id="btnConfiabilidad">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#a78bfa;margin-right:4px;"></span>Confiabilidad
@@ -432,28 +440,40 @@
   }
 
   function moduleBadge(module) {
-    if (module === 'SUPERVISION') return '<span class="tl-module-badge badge-sup">Supervisión</span>';
-    if (module === 'INCIDENTE')   return '<span class="tl-module-badge badge-inc">Incidente</span>';
-    if (module === 'ACUERDO')     return '<span class="tl-module-badge badge-acu">Acuerdo</span>';
-    if (module === 'ENCUESTA')    return '<span class="tl-module-badge badge-enc">Encuesta</span>';
+    if (module === 'SUPERVISION')    return '<span class="tl-module-badge badge-sup">Supervisión</span>';
+    if (module === 'INCIDENTE')      return '<span class="tl-module-badge badge-inc">Incidente</span>';
+    if (module === 'ACUERDO')        return '<span class="tl-module-badge badge-acu">Visita / Acuerdo</span>';
+    if (module === 'ENCUESTA')       return '<span class="tl-module-badge badge-enc">Encuesta</span>';
+    if (module === 'CERTIFICACION')  return '<span class="tl-module-badge badge-cert">Certificación</span>';
     return `<span class="tl-module-badge">${module}</span>`;
   }
 
+  // Literal, per-module status text (distinct from the semaphore status-pill above)
+  function estadoLine(e) {
+    if (e.module === 'SUPERVISION' && e.estado) return `Estado: ${e.estado}`;
+    if (e.module === 'INCIDENTE'   && e.estado) return `Estado: ${e.estado}`;
+    if (e.module === 'CERTIFICACION' && e.estado) return `Nivel de cumplimiento: ${e.estado}`;
+    return '';
+  }
+
   function statusPill(status) {
-    if (status === 'GREEN') return '<span class="status-pill pill-green">● Verde</span>';
-    if (status === 'RED')   return '<span class="status-pill pill-red">● Rojo</span>';
+    if (status === 'GREEN')  return '<span class="status-pill pill-green">● Verde</span>';
+    if (status === 'YELLOW') return '<span class="status-pill pill-yellow">● Amarillo</span>';
+    if (status === 'RED')    return '<span class="status-pill pill-red">● Rojo</span>';
     return '<span class="status-pill pill-grey">○ Sin GPS</span>';
   }
 
   function dotClass(status) {
-    if (status === 'GREEN') return 'dot-green';
-    if (status === 'RED')   return 'dot-red';
+    if (status === 'GREEN')  return 'dot-green';
+    if (status === 'YELLOW') return 'dot-yellow';
+    if (status === 'RED')    return 'dot-red';
     return 'dot-grey';
   }
 
   function cardBorderClass(status) {
-    if (status === 'GREEN') return 'tl-card-green';
-    if (status === 'RED')   return 'tl-card-red';
+    if (status === 'GREEN')  return 'tl-card-green';
+    if (status === 'YELLOW') return 'tl-card-yellow';
+    if (status === 'RED')    return 'tl-card-red';
     return 'tl-card-grey';
   }
 
@@ -486,6 +506,12 @@
       const npsColor = nps >= 9 ? '#34d399' : nps >= 7 ? '#60a5fa' : '#f87171';
       metaHtml = `<span style="font-size:.75rem;color:${npsColor};font-weight:600;">NPS: ${e.nivel_severidad}</span>`;
     }
+    if (e.module === 'CERTIFICACION' && e.compromisos_fecha_limite) {
+      const vencColor = e.status === 'RED' ? '#f87171' : e.status === 'YELLOW' ? '#f59e0b' : '#9ca3af';
+      metaHtml = `<span style="font-size:.75rem;color:${vencColor};">Vigencia hasta: ${e.compromisos_fecha_limite}</span>`;
+    }
+
+    const estado = estadoLine(e);
 
     let photoHtml = '';
     if (e.foto_url) {
@@ -513,6 +539,7 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:.5rem;flex-wrap:wrap;">
             <div class="tl-meta">
               ${actor ? `<span style="color:#a0aec0;">${escHtml(actor)}</span>` : ''}
+              ${estado ? ` · <span style="color:#cbd5e1;">${escHtml(estado)}</span>` : ''}
               ${metaHtml ? ` · ${metaHtml}` : ''}
             </div>
             <div class="tl-actions">
