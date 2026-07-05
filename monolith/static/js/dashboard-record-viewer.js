@@ -1148,10 +1148,10 @@
         const asignarNota     = modal.querySelector('.drv-asignar-nota');
         const asignarMsg      = modal.querySelector('.drv-asignar-msg');
 
-        if (cfg.formType === 'reporte_incidente') {
-            btnAsignar.style.display = '';
-            btnVisita.style.display  = '';
-        }
+        // Acciones estandarizadas: disponibles para todos los tipos de registro,
+        // no solo incidentes (asignar-hallazgo y el formulario de visita son genéricos).
+        btnAsignar.style.display = '';
+        btnVisita.style.display  = '';
 
         const EXT_SENTINEL = '__external__';
         let _usuariosCached = null;

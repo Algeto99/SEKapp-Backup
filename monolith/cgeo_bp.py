@@ -736,15 +736,17 @@ def cgeo_api_alertas():
         # ── REGLA 5: Equipo sin registro de confiabilidad > 45 días ──────────
         r5_conds, r5_params = _cp()
         cur.execute(f"""
-            SELECT
-                cliente_instalacion AS instalacion,
-                MAX(fecha) AS ultimo_reg,
-                (CURRENT_DATE - MAX(fecha)) AS dias
-            FROM confiabilidad_equipos
-            {_where(r5_conds)}
-            GROUP BY cliente_instalacion
-            HAVING MAX(fecha) < CURRENT_DATE - INTERVAL '45 days'
-            ORDER BY MAX(fecha) ASC
+            SELECT id, cliente_instalacion AS instalacion, fecha AS ultimo_reg,
+                   (CURRENT_DATE - fecha) AS dias
+            FROM (
+                SELECT DISTINCT ON (cliente_instalacion)
+                    id, cliente_instalacion, fecha
+                FROM confiabilidad_equipos
+                {_where(r5_conds)}
+                ORDER BY cliente_instalacion, fecha DESC
+            ) ultimo
+            WHERE fecha < CURRENT_DATE - INTERVAL '45 days'
+            ORDER BY fecha ASC
             LIMIT 5
         """, tuple(r5_params))
         for r in cur.fetchall():
@@ -753,8 +755,10 @@ def cgeo_api_alertas():
                 "id": f"r5_{r['instalacion']}",
                 "regla": 5,
                 "texto": f"Equipos en \"{r['instalacion']}\" sin reporte de confiabilidad hace {d} días",
-                "accion": "Reportar estado",
+                "accion": "Ver último reporte",
                 "ruta_navegacion": f"/dashboard/equipos/?cliente={r['instalacion']}",
+                "record_id": r["id"],
+                "form_type": "confiabilidad_equipos",
                 "color_semaforo": "amarillo",
                 "timestamp": r["ultimo_reg"].isoformat() if r["ultimo_reg"] else None,
                 "horas": d * 24,
@@ -764,16 +768,20 @@ def cgeo_api_alertas():
         r6_conds, r6_params = _cp()
         r6_conds += ["placa_vehiculo IS NOT NULL", "TRIM(placa_vehiculo) != ''"]
         cur.execute(f"""
-            SELECT
-                TRIM(placa_vehiculo) AS placa,
-                cliente_instalacion AS cliente,
-                MAX(COALESCE(fecha_hora, creado_en)) AS ultimo_preop,
-                EXTRACT(EPOCH FROM (NOW() - MAX(COALESCE(fecha_hora, creado_en)))) / 3600 AS horas
-            FROM planilla_vehicular
-            {_where(r6_conds)}
-            GROUP BY TRIM(placa_vehiculo), cliente_instalacion
-            HAVING MAX(COALESCE(fecha_hora, creado_en)) < NOW() - INTERVAL '24 hours'
-            ORDER BY MAX(COALESCE(fecha_hora, creado_en)) ASC
+            SELECT id_planilla_vehicular AS id, placa, cliente, ultimo_preop,
+                   EXTRACT(EPOCH FROM (NOW() - ultimo_preop)) / 3600 AS horas
+            FROM (
+                SELECT DISTINCT ON (TRIM(placa_vehiculo), cliente_instalacion)
+                    id_planilla_vehicular,
+                    TRIM(placa_vehiculo) AS placa,
+                    cliente_instalacion AS cliente,
+                    COALESCE(fecha_hora, creado_en) AS ultimo_preop
+                FROM planilla_vehicular
+                {_where(r6_conds)}
+                ORDER BY TRIM(placa_vehiculo), cliente_instalacion, COALESCE(fecha_hora, creado_en) DESC
+            ) ultimo
+            WHERE ultimo_preop < NOW() - INTERVAL '24 hours'
+            ORDER BY ultimo_preop ASC
             LIMIT 5
         """, tuple(r6_params))
         for r in cur.fetchall():
@@ -782,8 +790,45 @@ def cgeo_api_alertas():
                 "id": f"r6_{r['placa']}",
                 "regla": 6,
                 "texto": f"Vehículo {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
-                "accion": "Registrar pre-op",
+                "accion": "Ver último pre-operacional",
                 "ruta_navegacion": f"/dashboard/vehiculos/?placa={r['placa']}&cliente={r['cliente']}",
+                "record_id": r["id"],
+                "form_type": "planilla_vehicular",
+                "color_semaforo": "amarillo",
+                "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
+                "horas": round(h, 1),
+            })
+
+        # ── REGLA 12: Motocicleta sin pre-operacional > 24 h ─────────────────
+        r12_conds, r12_params = _cp()
+        r12_conds += ["placa_motocicleta IS NOT NULL", "TRIM(placa_motocicleta) != ''"]
+        cur.execute(f"""
+            SELECT id AS id, placa, cliente, ultimo_preop,
+                   EXTRACT(EPOCH FROM (NOW() - ultimo_preop)) / 3600 AS horas
+            FROM (
+                SELECT DISTINCT ON (TRIM(placa_motocicleta), cliente_instalacion)
+                    id,
+                    TRIM(placa_motocicleta) AS placa,
+                    cliente_instalacion AS cliente,
+                    COALESCE(fecha_hora, creado_en) AS ultimo_preop
+                FROM planilla_motocicletas
+                {_where(r12_conds)}
+                ORDER BY TRIM(placa_motocicleta), cliente_instalacion, COALESCE(fecha_hora, creado_en) DESC
+            ) ultimo
+            WHERE ultimo_preop < NOW() - INTERVAL '24 hours'
+            ORDER BY ultimo_preop ASC
+            LIMIT 5
+        """, tuple(r12_params))
+        for r in cur.fetchall():
+            h = float(r["horas"] or 0)
+            alertas.append({
+                "id": f"r12_{r['placa']}",
+                "regla": 12,
+                "texto": f"Motocicleta {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
+                "accion": "Ver último pre-operacional",
+                "ruta_navegacion": f"/dashboard/motocicletas/?placa={r['placa']}&cliente={r['cliente']}",
+                "record_id": r["id"],
+                "form_type": "planilla_motocicletas",
                 "color_semaforo": "amarillo",
                 "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
                 "horas": round(h, 1),

@@ -756,8 +756,11 @@ const _SG_GRUPOS = [
     { key: 'supervision_puesto',           titulo: 'Supervisiones pendientes o no realizadas' },
     { key: 'checklist_cumplimiento',        titulo: 'Certificaciones vencidas o próximas a vencer' },
     { key: 'registro_y_acta_de_visita',    titulo: 'Compromisos de visitas a clientes' },
+    { key: 'confiabilidad_equipos',        titulo: 'Equipos pendientes de inspección' },
+    { key: 'planilla_vehicular',           titulo: 'Vehículos sin pre-operacional' },
+    { key: 'planilla_motocicletas',        titulo: 'Motocicletas sin pre-operacional' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
-    { key: '__otros__',                    titulo: 'Equipos y vehículos con alertas activas' },
+    { key: '__otros__',                    titulo: 'Otras alertas operativas' },
 ];
 
 function _sgGrupoHtml(titulo, items) {
@@ -817,6 +820,9 @@ function _getAlertViewer(formType) {
             'checklist_cumplimiento':  'Detalle de Cumplimiento',
             'medicion_experiencia_cliente': 'Detalle de Encuesta de Satisfacción',
             'registro_y_acta_de_visita': 'Detalle de Visita y Compromisos',
+            'confiabilidad_equipos':    'Detalle de Confiabilidad de Equipos',
+            'planilla_vehicular':       'Detalle de Pre-operacional de Vehículo',
+            'planilla_motocicletas':    'Detalle de Pre-operacional de Motocicleta',
         };
         _alertViewers[formType] = createDashboardRecordViewer({
             formType,
@@ -829,6 +835,29 @@ function _getAlertViewer(formType) {
 function openAlertRecord(recordId, formType, event) {
     event.preventDefault();
     _getAlertViewer(formType).openRecord(recordId);
+}
+
+// Para alertas sin registro asociado (nada se ha registrado todavía): se informa
+// dentro del propio Morning Briefing en vez de salir hacia el módulo.
+function abrirAlertaSinRegistro(texto, accion, rutaNavegacion, event) {
+    event.preventDefault();
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal">
+            <div class="sg-modal-title">Sin registro asociado</div>
+            <div class="sg-modal-sub">${texto}</div>
+            <div class="sg-detail-empty">Todavía no existe un registro específico para esta novedad — no hay nada que
+                se haya capturado aún. Puedes ir al módulo correspondiente para crear el registro faltante.</div>
+            <a href="${rutaNavegacion}" class="alerta-btn alerta-btn-amarillo"
+               style="display:block;text-align:center;margin-top:1.25rem;padding:.625rem;">${accion} →</a>
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:.75rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
 }
 
 async function downloadBriefingPdf() {
@@ -906,8 +935,10 @@ function _alertaItemHtml(a) {
             <span class="alerta-btn ${btnCls}">${a.accion} →</span>
         </a>`;
     }
-    // Alerts without a specific record → navigate directly to the targeted page/form
-    return `<a href="${a.ruta_navegacion}" class="alerta-item">
+    // Alerts without a specific record (nothing was ever registered — e.g. puesto/cliente
+    // sin actividad) → show the notice inline, never leave the Morning Briefing.
+    return `<a href="${a.ruta_navegacion}" class="alerta-item"
+               onclick="abrirAlertaSinRegistro(${JSON.stringify(a.texto)},${JSON.stringify(a.accion)},${JSON.stringify(a.ruta_navegacion)},event)">
         <div class="alerta-dot ${dotCls}"></div>
         <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
         <span class="alerta-texto">${a.texto}</span>
