@@ -298,6 +298,7 @@ _THRESHOLD_KEYS = [
     'supervision_amarillo_min',
     'supervision_amarillo_max',
     'supervision_rojo_max',
+    'supervision_meta',
     'equipos_verde_max',
     'equipos_amarillo_min',
     'equipos_amarillo_max',
@@ -308,13 +309,16 @@ _THRESHOLD_KEYS = [
 ]
 
 # Claves cuyo valor es texto (no numérico)
-_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion']
+_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad']
+
+_PERIODICIDAD_VALUES = ('diario', 'semanal', 'mensual')
 
 _THRESHOLD_DEFAULTS = {
     'supervision_verde_min':       90,
     'supervision_amarillo_min':    70,
     'supervision_amarillo_max':    89,
     'supervision_rojo_max':        70,
+    'supervision_meta':            25,
     'equipos_verde_max':            5,
     'equipos_amarillo_min':         5,
     'equipos_amarillo_max':        15,
@@ -344,6 +348,18 @@ def _ensure_thresholds_table(conn):
     cur.close()
 
 
+def _periodo_inicio_actual(periodicidad):
+    """Fecha de inicio del período vigente (día/semana/mes) según la periodicidad
+    configurada para la meta de supervisiones."""
+    from datetime import date, timedelta
+    today = date.today()
+    if periodicidad == 'semanal':
+        return today - timedelta(days=today.weekday())
+    if periodicidad == 'mensual':
+        return today.replace(day=1)
+    return today
+
+
 def get_thresholds():
     """Return current thresholds as a dict, falling back to defaults on error."""
     conn = None
@@ -362,6 +378,7 @@ def get_thresholds():
         cur.close()
         result = dict(_THRESHOLD_DEFAULTS)
         result['fecha_inicio_operacion'] = None
+        result['supervision_periodicidad'] = 'diario'
         result.update(rows)
         return result
     except Exception as e:
@@ -395,6 +412,7 @@ def thresholds():
         cur.close()
         t = dict(_THRESHOLD_DEFAULTS)
         t['fecha_inicio_operacion'] = None
+        t['supervision_periodicidad'] = 'diario'
         t.update(rows)
         from flask import request as _req
         jwt_csrf = _req.cookies.get('csrf_access_token', '')
@@ -455,6 +473,21 @@ def save_thresholds():
                 )
             else:
                 flash('Fecha de inicio inválida. Use el formato YYYY-MM-DD.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+
+        # Guardar clave de texto: supervision_periodicidad
+        periodicidad_raw = request.form.get('supervision_periodicidad', '').strip().lower()
+        if periodicidad_raw:
+            if periodicidad_raw in _PERIODICIDAD_VALUES:
+                cur.execute(
+                    """INSERT INTO kpi_thresholds (key, value, text_value, updated_at, updated_by)
+                       VALUES (%s, 0, %s, NOW(), %s)
+                       ON CONFLICT (key) DO UPDATE
+                       SET text_value = EXCLUDED.text_value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
+                    ('supervision_periodicidad', periodicidad_raw, email)
+                )
+            else:
+                flash('Periodicidad inválida.', 'error')
                 return redirect(url_for('admin_bp.thresholds'))
 
         conn.commit()

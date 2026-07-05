@@ -98,6 +98,35 @@
                     Supervisiones Completadas Diarias
                 </div>
 
+                <div class="threshold-grid" style="margin-bottom:1rem;">
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Periodicidad
+                        </span>
+                        <label>Ventana de medición</label>
+                        <select name="supervision_periodicidad" class="field-select"
+                                style="background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem; color:#e2e8f0; padding:.5rem .75rem; font-size:.9rem; width:100%;">
+                            <option value="diario"  {{ 'selected' if thresholds.supervision_periodicidad == 'diario' }}>Diario</option>
+                            <option value="semanal" {{ 'selected' if thresholds.supervision_periodicidad == 'semanal' }}>Semanal</option>
+                            <option value="mensual" {{ 'selected' if thresholds.supervision_periodicidad == 'mensual' }}>Mensual</option>
+                        </select>
+                        <span class="unit">período sobre el que se mide la meta</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Meta de supervisiones
+                        </span>
+                        <label>Cantidad programada</label>
+                        <input type="number" name="supervision_meta" min="1" step="1"
+                               value="{{ thresholds.supervision_meta | int }}">
+                        <span class="unit">supervisiones esperadas en el período</span>
+                    </div>
+                </div>
+
+                <hr class="section-divider">
+
                 <div class="threshold-grid">
                     <div class="field">
                         <span class="color-badge badge-green">

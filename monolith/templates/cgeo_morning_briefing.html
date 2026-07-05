@@ -470,11 +470,13 @@ function _kpiIncColor(val) {
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
-function _kpiSupColor(comp, prog) {
+function _kpiSupColor(comp, prog, thr) {
     if (prog === 0) return { border: '#94a3b8', dot: 'dot-gray' };
     const pct = comp / prog * 100;
-    if (pct >= 90) return { border: '#22c55e', dot: 'dot-green' };
-    if (pct >= 70) return { border: '#f59e0b', dot: 'dot-orange' };
+    const verdeMin    = thr?.supervision_verde_min    ?? 90;
+    const amarilloMin = thr?.supervision_amarillo_min ?? 70;
+    if (pct >= verdeMin)    return { border: '#22c55e', dot: 'dot-green' };
+    if (pct >= amarilloMin) return { border: '#f59e0b', dot: 'dot-orange' };
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
@@ -551,7 +553,7 @@ function renderKpis(k, thr) {
                 ? `de ${k.sup_programadas} programadas (${Math.round((k.sup_completadas ?? 0) / k.sup_programadas * 100)}%)`
                 : '0 programadas',
             action: 'Ver supervisiones →',
-            color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0),
+            color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr),
         },
         {
             id: 'kpiEq',
@@ -597,7 +599,8 @@ function renderKpis(k, thr) {
 
 // ── Semáforo global ───────────────────────────────────────────────────────────
 
-function computeSemaforo(alertasData, kpis) {
+function computeSemaforo(alertasData, kpis, thr) {
+    thr = thr || _thresholds || {};
     const rojas    = alertasData.filter(a => a.color_semaforo === 'rojo').length;
     const amarillas = alertasData.filter(a => a.color_semaforo === 'amarillo').length;
 
@@ -608,6 +611,9 @@ function computeSemaforo(alertasData, kpis) {
     const eqTotal = kpis.eq_total        ?? 0;
     const certProx = kpis.cert_proximas  ?? 0;
 
+    const supVerdeMin    = thr.supervision_verde_min    ?? 90;
+    const supAmarilloMin = thr.supervision_amarillo_min ?? 70;
+
     const supPct  = supProg > 0 ? (supComp / supProg * 100) : 100;
     const eqNoPct = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
 
@@ -615,8 +621,8 @@ function computeSemaforo(alertasData, kpis) {
 
     if (rojas >= 1)
         condiciones.push({ nivel:'rojo', texto:`${rojas} alerta${rojas!==1?'s':''} crítica${rojas!==1?'s':''} activa${rojas!==1?'s':''}` });
-    if (supProg > 0 && supPct < 70)
-        condiciones.push({ nivel:'rojo', texto:`Supervisiones: ${supComp} de ${supProg} completadas (${Math.round(supPct)}% < 70%)` });
+    if (supProg > 0 && supPct < supAmarilloMin)
+        condiciones.push({ nivel:'rojo', texto:`Supervisiones: ${supComp} de ${supProg} completadas (${Math.round(supPct)}% < ${supAmarilloMin}%)` });
     if (incAb >= 3)
         condiciones.push({ nivel:'rojo', texto:`${incAb} incidentes abiertos (umbral ≥ 3)` });
     if (eqTotal > 0 && eqNoPct > 15)
@@ -627,8 +633,8 @@ function computeSemaforo(alertasData, kpis) {
     if (!esRojo) {
         if (amarillas >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${amarillas} alerta${amarillas!==1?'s':''} requieren atención` });
-        if (supProg > 0 && supPct >= 70 && supPct < 90)
-            condiciones.push({ nivel:'amarillo', texto:`Supervisiones: ${Math.round(supPct)}% completadas (entre 70% y 89%)` });
+        if (supProg > 0 && supPct >= supAmarilloMin && supPct < supVerdeMin)
+            condiciones.push({ nivel:'amarillo', texto:`Supervisiones: ${Math.round(supPct)}% completadas (entre ${supAmarilloMin}% y ${supVerdeMin - 1}%)` });
         if (incAb === 1 || incAb === 2)
             condiciones.push({ nivel:'amarillo', texto:`${incAb} incidente${incAb!==1?'s':''} abierto${incAb!==1?'s':''}` });
         if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
@@ -753,6 +759,7 @@ async function downloadBriefingPdf() {
                 kpis:        _kpis,
                 alertas:     _alertasData,
                 semaforo,
+                thresholds:  _thresholds,
                 tendencia:   { labels: _tendencia.map(d => d.label), supervisiones: _tendencia.map(d => d.completadas ?? 0), programadas: _tendencia.map(d => d.programadas ?? 0) },
                 chart_image: chartImg,
                 cliente,

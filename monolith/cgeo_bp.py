@@ -913,22 +913,20 @@ def cgeo_api_semaforo_global():
         """, tuple(inc_params))
         inc_abiertos = int((cur.fetchone() or {}).get("total") or 0)
 
-        # Supervisiones: programadas hoy vs completadas hoy
-        # Usamos puestos activos (supervisados en los últimos 30 días) como proxy de programadas
-        sup_conds_hist, sup_params_hist = _cp("id_propiedad")
-        sup_conds_hist_full = sup_conds_hist + ["fecha_hora >= NOW() - INTERVAL '30 days'"]
-        cur.execute(f"""
-            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS programadas
-            FROM supervision_puesto {_where(sup_conds_hist_full)}
-        """, sup_params_hist)
-        sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
+        # Supervisiones: meta configurada por el Administrador vs completadas en el
+        # período vigente (día/semana/mes según la periodicidad configurada)
+        from admin_bp import get_thresholds, _periodo_inicio_actual
+        thresholds = get_thresholds()
+        sup_programadas = int(thresholds.get('supervision_meta') or 0)
+        periodicidad = thresholds.get('supervision_periodicidad') or 'diario'
+        periodo_inicio = _periodo_inicio_actual(periodicidad)
 
         sup_conds_hoy, sup_params_hoy = _cp("id_propiedad")
-        sup_conds_hoy_full = sup_conds_hoy + ["fecha_hora::date = CURRENT_DATE"]
+        sup_conds_hoy_full = sup_conds_hoy + ["fecha_hora::date >= %s"]
         cur.execute(f"""
             SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
             FROM supervision_puesto {_where(sup_conds_hoy_full)}
-        """, sup_params_hoy)
+        """, sup_params_hoy + [periodo_inicio])
         sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
 
         # Equipos no operativos vs flota total
@@ -964,9 +962,16 @@ def cgeo_api_semaforo_global():
             "inc_abiertos": inc_abiertos,
             "sup_completadas": sup_completadas,
             "sup_programadas": sup_programadas,
+            "sup_periodicidad": periodicidad,
             "eq_no_op": eq_no_op,
             "eq_total": eq_total,
             "cert_proximas": cert_proximas,
+            "thresholds": {
+                "supervision_verde_min":    float(thresholds.get('supervision_verde_min', 90)),
+                "supervision_amarillo_min": float(thresholds.get('supervision_amarillo_min', 70)),
+                "supervision_amarillo_max": float(thresholds.get('supervision_amarillo_max', 89)),
+                "supervision_rojo_max":     float(thresholds.get('supervision_rojo_max', 70)),
+            },
         })
 
     except Exception as e:
@@ -988,7 +993,7 @@ def cgeo_api_morning_briefing_data():
     trend for the last 7 days (completadas vs programadas), and greeting data.
     """
     from datetime import date as _date, timedelta
-    from admin_bp import get_thresholds
+    from admin_bp import get_thresholds, _periodo_inicio_actual
 
     conn = _get_conn()
     if not conn:
@@ -1032,20 +1037,16 @@ def cgeo_api_morning_briefing_data():
         inc_criticos  = int(inc_row.get("criticos") or 0)
         inc_mas_24h   = int(inc_row.get("mas_24h") or 0)
 
-        # ── Supervisiones hoy vs puestos activos (programadas proxy) ─────────
-        sup_inicio = fecha_inicio if fecha_inicio else (_date.today() - timedelta(days=30))
-        cur.execute("""
-            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS programadas
-            FROM supervision_puesto
-            WHERE fecha_hora >= %s
-        """, (sup_inicio,))
-        sup_programadas = int((cur.fetchone() or {}).get("programadas") or 0)
+        # ── Supervisiones: meta configurada vs completadas en el período vigente ──
+        sup_programadas = int(thresholds.get('supervision_meta') or 0)
+        periodicidad = thresholds.get('supervision_periodicidad') or 'diario'
+        periodo_inicio = _periodo_inicio_actual(periodicidad)
 
         cur.execute("""
             SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
             FROM supervision_puesto
-            WHERE fecha_hora::date = CURRENT_DATE
-        """)
+            WHERE fecha_hora::date >= %s
+        """, (periodo_inicio,))
         sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
 
         # ── Equipos no operativos ─────────────────────────────────────────────
@@ -1141,6 +1142,12 @@ def cgeo_api_morning_briefing_data():
             "thresholds": {
                 "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),
                 "eq_amarillo_max": float(thresholds.get('equipos_amarillo_max', 15)),
+                "supervision_verde_min":    float(thresholds.get('supervision_verde_min', 90)),
+                "supervision_amarillo_min": float(thresholds.get('supervision_amarillo_min', 70)),
+                "supervision_amarillo_max": float(thresholds.get('supervision_amarillo_max', 89)),
+                "supervision_rojo_max":     float(thresholds.get('supervision_rojo_max', 70)),
+                "supervision_meta":         sup_programadas,
+                "supervision_periodicidad": periodicidad,
             },
             "tendencia_semana": tendencia,
         })
@@ -1560,6 +1567,7 @@ def _build_briefing_html(payload: dict) -> str:
     kpis       = payload.get('kpis') or {}
     alertas    = payload.get('alertas') or []
     semaforo   = payload.get('semaforo') or {}
+    thr        = payload.get('thresholds') or {}
     tendencia  = payload.get('tendencia') or {}
     chart_img  = payload.get('chart_image')   # base64 data URL from canvas
     cliente    = payload.get('cliente') or 'Todos los clientes'
@@ -1583,6 +1591,8 @@ def _build_briefing_html(payload: dict) -> str:
     sup_c   = kpis.get('sup_completadas', 0)
     sup_p   = kpis.get('sup_programadas', 0)
     sup_pct = round(sup_c / sup_p * 100) if sup_p else 0
+    sup_verde_min    = thr.get('supervision_verde_min', 90)
+    sup_amarillo_min = thr.get('supervision_amarillo_min', 70)
     eq_op   = kpis.get('eq_op', 0)
     eq_tot  = kpis.get('eq_total', 0)
     eq_pct  = kpis.get('eq_pct', 0)
@@ -1596,7 +1606,7 @@ def _build_briefing_html(payload: dict) -> str:
     </tr>
     <tr>
       <td class="kpi-name">Supervisiones del día</td>
-      <td class="kpi-val" style="color:{'#16a34a' if sup_pct >= 80 else '#d97706' if sup_pct >= 50 else '#dc2626'}">{sup_c}/{sup_p}</td>
+      <td class="kpi-val" style="color:{'#16a34a' if sup_pct >= sup_verde_min else '#d97706' if sup_pct >= sup_amarillo_min else '#dc2626'}">{sup_c}/{sup_p}</td>
       <td class="kpi-sub">{sup_pct}% completado</td>
     </tr>
     <tr>
