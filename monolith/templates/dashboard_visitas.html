@@ -81,6 +81,10 @@
             padding:0.45rem 0.9rem; border-radius:8px; font-size:0.8125rem; font-weight:600;
             cursor:pointer; transition:all 0.2s; border:1px solid transparent; font-family:'Roboto',sans-serif;
         }
+        .btn-action-purple { background:rgba(168,85,247,0.12); color:#c084fc; border-color:rgba(168,85,247,0.35); }
+        .btn-action-neutral { background:rgba(255,255,255,0.05); color:#94a3b8; border-color:rgba(255,255,255,0.15); }
+        body.light-mode .btn-action-purple { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
+        body.light-mode .btn-action-neutral { background:#f1f5f9; color:#334155; border-color:#e2e8f0; }
 
         /* Commitment edit modal */
         .matrix-table tr.clickable-row { cursor:pointer; }
@@ -883,8 +887,8 @@
                     </div>
                     ${IS_ADMIN ? `
                     <div style="margin-bottom:0.75rem;display:flex;gap:.6rem;flex-wrap:wrap;">
-                        <a href="/registro_y_acta_de_visita/${r.id_visita}/editar" class="btn-action" style="background:rgba(168,85,247,0.12);color:#c084fc;border-color:rgba(168,85,247,0.35);text-decoration:none;">✎ Editar registro</a>
-                        <button type="button" class="btn-action" style="background:rgba(255,255,255,0.05);color:#94a3b8;border-color:rgba(255,255,255,0.15);" onclick="toggleHistorialVisita(${r.id_visita})">🕒 Historial de cambios</button>
+                        <a href="/registro_y_acta_de_visita/${r.id_visita}/editar" class="btn-action btn-action-purple" style="text-decoration:none;">✎ Editar registro</a>
+                        <button type="button" class="btn-action btn-action-neutral" onclick="toggleHistorialVisita(${r.id_visita})">🕒 Historial de cambios</button>
                     </div>
                     <div id="historialVisita-${r.id_visita}" style="display:none;margin-bottom:.75rem;"></div>
                     ` : ''}

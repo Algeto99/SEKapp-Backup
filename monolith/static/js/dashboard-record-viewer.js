@@ -405,6 +405,37 @@
             body.light-mode .drv-action-bar {
                 border-top-color: rgba(15,23,42,0.08);
             }
+            body.light-mode .drv-modal-btn.secondary {
+                background: #f1f5f9;
+                border-color: #e2e8f0;
+                color: #334155;
+            }
+            body.light-mode .drv-modal-btn.pdf {
+                background: #fef2f2;
+                border-color: #fecaca;
+                color: #b91c1c;
+            }
+            body.light-mode .drv-modal-btn.excel {
+                background: #f0fdf4;
+                border-color: #bbf7d0;
+                color: #15803d;
+            }
+            body.light-mode .drv-modal-btn.email {
+                background: #eff6ff;
+                border-color: #bfdbfe;
+                color: #1d4ed8;
+            }
+            body.light-mode .drv-btn-asignar,
+            body.light-mode .drv-btn-asignar-confirm {
+                background: #fffbeb;
+                border-color: #fde68a;
+                color: #92400e;
+            }
+            body.light-mode .drv-btn-visita {
+                background: #f5f3ff;
+                border-color: #ddd6fe;
+                color: #6d28d9;
+            }
             .drv-5q-grid {
                 display: grid;
                 grid-template-columns: repeat(5, 1fr);
