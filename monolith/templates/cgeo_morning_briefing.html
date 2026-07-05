@@ -161,6 +161,15 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 /* ── Modal Semáforo ──────────────────────────────────────────────────────── */
 .sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
 .sg-modal{background:#fff;border-radius:1rem;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.sg-modal-wide{max-width:620px}
+.sg-detail-section{margin-top:1.25rem}
+.sg-detail-section:first-of-type{margin-top:0}
+.sg-detail-heading{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
+.sg-detail-list{border:1px solid #f1f5f9;border-radius:.6rem;overflow:hidden}
+.sg-detail-empty{font-size:.78rem;color:#64748b;padding:.5rem 0}
+.sg-detail-loading{font-size:.78rem;color:#94a3b8;padding:.5rem 0}
+body:not(.light-mode) .sg-detail-list{border-color:#334155}
+body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
 .sg-modal-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
 .sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
 .sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
@@ -674,31 +683,76 @@ function renderSemaforo(alertasData, kpis) {
         : `${activasCond} condición${activasCond!==1?'es':''} activando este estado — toca para ver`;
 }
 
-function abrirDetalleSemaforo() {
+// Agrupa las alertas accionables por tipo de registro para el detalle del semáforo
+const _SG_GRUPOS = [
+    { key: 'reporte_incidente',            titulo: 'Incidentes abiertos' },
+    { key: 'supervision_puesto',           titulo: 'Supervisiones pendientes o no realizadas' },
+    { key: 'checklist_cumplimiento',        titulo: 'Certificaciones vencidas o próximas a vencer' },
+    { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
+    { key: '__otros__',                    titulo: 'Equipos y vehículos con alertas activas' },
+];
+
+function _sgGrupoHtml(titulo, items) {
+    const body = items.length
+        ? `<div class="sg-detail-list">${items.map(_alertaItemHtml).join('')}</div>`
+        : `<div class="sg-detail-empty">Sin novedades en esta categoría.</div>`;
+    return `<div class="sg-detail-section">
+        <div class="sg-detail-heading">${titulo}</div>
+        ${body}
+    </div>`;
+}
+
+async function _sgCompromisosVencidosHtml() {
+    try {
+        const res = await fetch('/dashboard/api/visitas/detalles', { headers: { Accept: 'application/json' } });
+        if (!res.ok) throw new Error('no disponible');
+        const data = await res.json();
+        const vencidos = (data.detalles || []).filter(d => d.estado === 'vencido');
+        if (!vencidos.length) {
+            return _sgGrupoHtml('Compromisos vencidos (visitas a clientes)', []);
+        }
+        const items = vencidos.slice(0, 8).map(c => `
+            <a href="/dashboard/visitas/" class="alerta-item">
+                <div class="alerta-dot alerta-dot-rojo"></div>
+                <span style="font-size:.875rem;flex-shrink:0">🔴</span>
+                <span class="alerta-texto">${c.cliente} — ${c.acuerdo} (resp. ${c.responsable}, vencía ${c.fecha_cumplimiento})</span>
+                <span class="alerta-btn alerta-btn-rojo">Gestionar →</span>
+            </a>`).join('');
+        return `<div class="sg-detail-section">
+            <div class="sg-detail-heading">Compromisos vencidos (visitas a clientes)</div>
+            <div class="sg-detail-list">${items}</div>
+        </div>`;
+    } catch (e) {
+        return _sgGrupoHtml('Compromisos vencidos (visitas a clientes)', []);
+    }
+}
+
+async function abrirDetalleSemaforo() {
     if (!_kpis) return;
-    const { nivel, condiciones } = computeSemaforo(_alertasData, _kpis);
+    const { nivel } = computeSemaforo(_alertasData, _kpis);
     const textos = { rojo:'ALERTA CRÍTICA', amarillo:'ATENCIÓN REQUERIDA', verde:'BAJO CONTROL' };
-    const colores = { rojo:'#ef4444', amarillo:'#f59e0b', verde:'#22c55e' };
     const ts = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
 
-    const condHtml = condiciones.length
-        ? condiciones.map(c => `
-            <div class="sg-cond-item">
-                <div class="sg-cond-dot" style="background:${colores[c.nivel]}"></div>
-                <span class="sg-cond-text">${c.texto}</span>
-            </div>`).join('')
-        : `<div class="sg-cond-item">
-               <div class="sg-cond-dot" style="background:#22c55e"></div>
-               <span class="sg-cond-text" style="color:#64748b">Ninguna condición de alerta activa — operación en orden</span>
-           </div>`;
+    const porTipo = {};
+    for (const g of _SG_GRUPOS) porTipo[g.key] = [];
+    for (const a of _alertasData) {
+        const key = _SG_GRUPOS.some(g => g.key === a.form_type) ? a.form_type : '__otros__';
+        porTipo[key].push(a);
+    }
+
+    const gruposHtml = _SG_GRUPOS.map(g => _sgGrupoHtml(g.titulo, porTipo[g.key])).join('');
 
     const modal = document.createElement('div');
     modal.className = 'sg-modal-overlay';
     modal.innerHTML = `
-        <div class="sg-modal">
+        <div class="sg-modal sg-modal-wide">
             <div class="sg-modal-title">Estado: ${textos[nivel]}</div>
-            <div class="sg-modal-sub">Condiciones evaluadas al ${ts}</div>
-            ${condHtml}
+            <div class="sg-modal-sub">Detalle de novedades al ${ts} — toca un registro para ver el detalle o gestionarlo</div>
+            ${gruposHtml}
+            <div class="sg-detail-section" id="sgCompromisosSlot">
+                <div class="sg-detail-heading">Compromisos vencidos (visitas a clientes)</div>
+                <div class="sg-detail-loading">Cargando…</div>
+            </div>
             <button onclick="this.closest('.sg-modal-overlay').remove()"
                 style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
                 Cerrar
@@ -706,6 +760,11 @@ function abrirDetalleSemaforo() {
         </div>`;
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
+
+    _sgCompromisosVencidosHtml().then(html => {
+        const slot = modal.querySelector('#sgCompromisosSlot');
+        if (slot) slot.outerHTML = html;
+    });
 }
 
 // ── Alertas accionables ───────────────────────────────────────────────────────
