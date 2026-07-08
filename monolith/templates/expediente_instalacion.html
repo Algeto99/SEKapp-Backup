@@ -110,13 +110,17 @@
     .qr-box h3 { margin-bottom:1rem; font-size:1rem; }
     #qrImg { width:100%; max-width:240px; height:auto; aspect-ratio:1/1; border-radius:.5rem; background:#fff; }
     .qr-actions { display:flex; flex-wrap:wrap; gap:.6rem; justify-content:center; margin-top:1rem; }
-    .qr-actions > * { flex:1 1 calc(50% - .6rem); min-width:0; box-sizing:border-box; white-space:nowrap; }
-    .btn-outline { background:transparent; border:1px solid rgba(255,255,255,.2); color:#e2e8f0; border-radius:.5rem; padding:.45rem .75rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
+    .qr-actions > * { flex:1 1 calc(50% - .6rem); min-width:110px; box-sizing:border-box; white-space:normal; text-align:center; line-height:1.2; }
+    .btn-outline { background:transparent; border:1px solid rgba(255,255,255,.2); color:#e2e8f0; border-radius:.5rem; padding:.45rem .5rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
     .btn-outline:hover { border-color:rgba(255,255,255,.5); }
-    .btn-copy { background:rgba(96,165,250,.2); border:1px solid rgba(96,165,250,.4); color:#60a5fa; border-radius:.5rem; padding:.45rem .75rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
+    .btn-copy { background:rgba(96,165,250,.2); border:1px solid rgba(96,165,250,.4); color:#60a5fa; border-radius:.5rem; padding:.45rem .5rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
     .btn-copy:hover { background:rgba(96,165,250,.35); }
-    .btn-email { background:rgba(52,211,153,.15); border:1px solid rgba(52,211,153,.35); color:#34d399; border-radius:.5rem; padding:.45rem .75rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
+    .btn-email { background:rgba(52,211,153,.15); border:1px solid rgba(52,211,153,.35); color:#34d399; border-radius:.5rem; padding:.45rem .5rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
     .btn-email:hover { background:rgba(52,211,153,.3); }
+    @media (max-width:420px) {
+      .qr-box { padding:1.25rem 1rem; }
+      .qr-actions > * { flex:1 1 100%; }
+    }
     #qrEmailForm { margin-top:1rem; display:none; }
     #qrEmailForm input[type=email] { width:100%; box-sizing:border-box; padding:.45rem .7rem; border-radius:.4rem; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.07); color:#e2e8f0; font-size:.85rem; outline:none; }
     #qrEmailForm input[type=email]:focus { border-color:#34d399; }
@@ -452,6 +456,8 @@
   function estadoLine(e) {
     if (e.module === 'SUPERVISION' && e.estado) return `Estado: ${e.estado}`;
     if (e.module === 'INCIDENTE'   && e.estado) return `Estado: ${e.estado}`;
+    if (e.module === 'ACUERDO'     && e.estado) return `Estado: ${e.estado}`;
+    if (e.module === 'ENCUESTA'    && e.estado) return `Encuestado: ${e.estado}`;
     if (e.module === 'CERTIFICACION' && e.estado) return `Nivel de cumplimiento: ${e.estado}`;
     return '';
   }
@@ -480,6 +486,8 @@
   function eventCard(e) {
     const summary = (e.summary || '').trim() || '—';
     const actor   = (e.actor  || '').trim();
+    const asunto  = (e.asunto || '').trim();
+    const lugar   = (e.lugar  || '').trim();
     const ts      = fmtTs(e.timestamp);
 
     let gpsHtml = '';
@@ -535,9 +543,11 @@
             </div>
             <span class="tl-ts">${ts}</span>
           </div>
+          ${asunto ? `<p class="tl-asunto" style="font-weight:600;margin:.35rem 0 0;">${escHtml(asunto)}</p>` : ''}
           <p class="tl-summary">${escHtml(summary)}</p>
           <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:.5rem;flex-wrap:wrap;">
             <div class="tl-meta">
+              ${lugar ? `<span style="color:#a0aec0;">📍 ${escHtml(lugar)}</span> · ` : ''}
               ${actor ? `<span style="color:#a0aec0;">${escHtml(actor)}</span>` : ''}
               ${estado ? ` · <span style="color:#cbd5e1;">${escHtml(estado)}</span>` : ''}
               ${metaHtml ? ` · ${metaHtml}` : ''}

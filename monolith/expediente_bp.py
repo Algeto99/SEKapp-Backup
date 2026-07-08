@@ -370,11 +370,16 @@ def api_feed():
                 sp.location_accuracy,
                 sp.foto_evidencia_url                            AS foto_url,
                 sp.supervisor                                    AS actor,
-                COALESCE(sp.observaciones_novedades, '')         AS summary,
+                COALESCE(
+                    NULLIF(TRIM(sp.observaciones_novedades), ''),
+                    'Sin novedades reportadas en la supervisión.'
+                )                                                 AS summary,
                 sp.estado_bitacora                               AS estado,
                 NULL::text                                       AS nivel_severidad,
                 NULL::date                                       AS compromisos_fecha_limite,
-                NULL::text                                       AS compromisos_estados
+                NULL::text                                       AS compromisos_estados,
+                COALESCE(sp.detalles_puestos, sp.tipo_servicio)  AS lugar,
+                sp.nombre_guardia                                AS asunto
             FROM supervision_puesto sp
             WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
               AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
@@ -388,11 +393,16 @@ def api_feed():
                 NULL::numeric, NULL::numeric, NULL::numeric,
                 ri.foto_evidencia_url,
                 ri.responsable_asignado,
-                COALESCE(ri.descripcion_incidente, ''),
+                COALESCE(
+                    NULLIF(TRIM(ri.descripcion_incidente), ''),
+                    'Incidente registrado sin descripción adicional.'
+                ),
                 ri.estado,
                 ri.nivel_severidad,
                 NULL::date,
-                NULL::text
+                NULL::text,
+                ri.puesto_area_especifica                        AS lugar,
+                ri.tipo_incidente                                AS asunto
             FROM reportes_incidentes ri
             WHERE LOWER(TRIM(ri.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_inc}
               AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
@@ -406,11 +416,16 @@ def api_feed():
                 NULL::numeric, NULL::numeric, NULL::numeric,
                 NULL::text,
                 rav.nombre_responsable,
-                COALESCE(rav.acuerdos_compromisos, ''),
+                COALESCE(
+                    NULLIF(TRIM(rav.acuerdos_compromisos), ''),
+                    'Visita registrada sin acuerdos o compromisos adicionales.'
+                ),
                 rav.compromisos_estados,
                 NULL::text,
                 NULL::date,
-                rav.compromisos_estados
+                rav.compromisos_estados,
+                NULL::text                                       AS lugar,
+                rav.motivo_visita                                AS asunto
             FROM registro_y_acta_de_visita rav
             WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
               AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
@@ -424,11 +439,16 @@ def api_feed():
                 NULL::numeric, NULL::numeric, NULL::numeric,
                 NULL::text,
                 mec.nombre_responsable,
-                COALESCE(mec.observaciones_cliente, ''),
+                COALESCE(
+                    NULLIF(TRIM(mec.observaciones_cliente), ''),
+                    'Encuesta de experiencia registrada sin observaciones adicionales.'
+                ),
                 mec.encuestado,
                 mec.calificacion_global_nps::text,
                 NULL::date,
-                NULL::text
+                NULL::text,
+                NULL::text                                       AS lugar,
+                mec.categoria_evaluada                           AS asunto
             FROM medicion_experiencia_cliente mec
             WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}
               AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
@@ -442,11 +462,16 @@ def api_feed():
                 NULL::numeric, NULL::numeric, NULL::numeric,
                 cc.evidencia_url,
                 cc.nombre_auditor,
-                COALESCE('Curso: ' || NULLIF(TRIM(cc.curso_certificacion), ''), 'Checklist de cumplimiento'),
+                COALESCE(
+                    'Certificación de ' || NULLIF(TRIM(cc.agente_nombre_completo), '') || ' — ' || NULLIF(TRIM(cc.curso_certificacion), ''),
+                    'Checklist de cumplimiento normativo.'
+                ),
                 cc.nivel_cumplimiento,
                 NULL::text,
                 cc.vigencia_hasta,
-                NULL::text
+                NULL::text,
+                cc.puesto_area_especifica                        AS lugar,
+                cc.curso_certificacion                           AS asunto
             FROM checklist_cumplimiento cc
             WHERE LOWER(TRIM(cc.cliente_instalacion)) = LOWER(TRIM(%s))
               AND COALESCE(cc.fecha_hora, cc.created_at) >= NOW() - (%s * INTERVAL '1 day')
