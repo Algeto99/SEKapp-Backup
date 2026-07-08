@@ -378,6 +378,18 @@
             color: #a0aec0 !important;
         }
 
+        /* Dark mode for the report detail modal (openReportDetailsModal) — these classes are
+           written with dark: variants for a real Tailwind config, but this app loads Tailwind
+           via CDN without darkMode enabled, so dark: never activates. Cover the light-toned
+           classes actually used there so cards don't stay light-on-light in dark mode. */
+        body:not(.light-mode) .bg-gray-50 {
+            background-color: #374151 !important;
+        }
+
+        body:not(.light-mode) .bg-blue-50 {
+            background-color: rgba(30, 58, 138, 0.3) !important;
+        }
+
         /* Dark mode for red/logout links */
         body:not(.light-mode) .text-red-600 {
             color: #f87171 !important;
