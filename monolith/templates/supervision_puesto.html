@@ -403,7 +403,13 @@
                                     <input type="checkbox" name="problemas_uniforme[]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
                                     <span class="ml-2 text-sm">Pantalón</span>
                                 </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="problemasUniformeOtroCheck" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                    <span class="ml-2 text-sm">Otra</span>
+                                </label>
                             </div>
+                            <input type="text" id="problemasUniformeOtroInput" name="problemas_uniforme[]"
+                                placeholder="Especifique la prenda" class="hidden mt-3 form-input" disabled>
                         </div>
                     </div>
                     <div>
@@ -536,6 +542,22 @@
                 if (!guardiaPad.isEmpty()) document.getElementById('firma_guardia_edit').value = guardiaPad.toDataURL();
             });
 
+            var otroCheck = document.getElementById('problemasUniformeOtroCheck');
+            var otroInput = document.getElementById('problemasUniformeOtroInput');
+            if (otroCheck && otroInput) {
+                otroCheck.addEventListener('change', function() {
+                    if (this.checked) {
+                        otroInput.classList.remove('hidden');
+                        otroInput.disabled = false;
+                        otroInput.focus();
+                    } else {
+                        otroInput.classList.add('hidden');
+                        otroInput.disabled = true;
+                        otroInput.value = '';
+                    }
+                });
+            }
+
             var record = window.EDIT_RECORD;
             Object.keys(record).forEach(function(key) {
                 var value = record[key];
@@ -558,10 +580,22 @@
             });
 
             if (record.problemas_uniforme) {
-                var selected = String(record.problemas_uniforme).split(',').map(function(s){ return s.trim(); });
-                form.querySelectorAll('input[name="problemas_uniforme[]"]').forEach(function(cb) {
+                var selected = String(record.problemas_uniforme).split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+                var knownValues = ['Gorra', 'Camisa', 'Pantalon'];
+                form.querySelectorAll('input[name="problemas_uniforme[]"][type="checkbox"]').forEach(function(cb) {
                     if (selected.indexOf(cb.value) !== -1) cb.checked = true;
                 });
+                var otroValues = selected.filter(function(v) { return knownValues.indexOf(v) === -1; });
+                if (otroValues.length) {
+                    var otroCheck = document.getElementById('problemasUniformeOtroCheck');
+                    var otroInput = document.getElementById('problemasUniformeOtroInput');
+                    if (otroCheck && otroInput) {
+                        otroCheck.checked = true;
+                        otroInput.classList.remove('hidden');
+                        otroInput.disabled = false;
+                        otroInput.value = otroValues.join(', ');
+                    }
+                }
             }
 
             if (record.id_propiedad) {
@@ -808,7 +842,13 @@
                                         <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
                                         <span class="ml-2 text-sm">Pantalón</span>
                                     </label>
+                                    <label class="inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600 problemas-uniforme-otro-check" data-index="${index}">
+                                        <span class="ml-2 text-sm">Otra</span>
+                                    </label>
                                 </div>
+                                <input type="text" id="problemasUniformeOtroInput_${index}" name="supervisions[${index}][problemas_uniforme][]"
+                                    placeholder="Especifique la prenda" class="hidden mt-3 form-input" disabled>
                             </div>
                         </div>
 
@@ -959,6 +999,25 @@
                             // Opcional: limpiar los checkboxes si se oculta
                             const checkboxes = fieldsUniforme.querySelectorAll('input[type="checkbox"]');
                             checkboxes.forEach(cb => cb.checked = false);
+                            const otroInputToClear = document.getElementById(`problemasUniformeOtroInput_${index}`);
+                            if (otroInputToClear) { otroInputToClear.value = ''; otroInputToClear.classList.add('hidden'); otroInputToClear.disabled = true; }
+                        }
+                    });
+                }
+
+                // Prendas con problemas "Otra" logic
+                const otroCheckUniforme = block.querySelector('.problemas-uniforme-otro-check');
+                const otroInputUniforme = document.getElementById(`problemasUniformeOtroInput_${index}`);
+                if (otroCheckUniforme && otroInputUniforme) {
+                    otroCheckUniforme.addEventListener('change', function () {
+                        if (this.checked) {
+                            otroInputUniforme.classList.remove('hidden');
+                            otroInputUniforme.disabled = false;
+                            otroInputUniforme.focus();
+                        } else {
+                            otroInputUniforme.classList.add('hidden');
+                            otroInputUniforme.disabled = true;
+                            otroInputUniforme.value = '';
                         }
                     });
                 }
