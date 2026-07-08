@@ -567,6 +567,8 @@ def _format_structured_value_as_text(val):
                 # Add any other keys not in our preferred ordering
                 for k, v in item.items():
                     if k not in _INV_LABELS:
+                        if 'firma' in k.lower() and isinstance(v, str) and v.startswith('data:image'):
+                            v = '[Firma adjunta]'
                         parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
                 items.append(f"[{i}] " + ", ".join(parts))
             else:
@@ -580,6 +582,8 @@ def _format_structured_value_as_text(val):
                 parts.append(f"{label}: {val[k]}")
         for k, v in val.items():
             if k not in _INV_LABELS:
+                if 'firma' in k.lower() and isinstance(v, str) and v.startswith('data:image'):
+                    v = '[Firma adjunta]'
                 parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
         return ", ".join(parts)
     return str(val)
@@ -1538,6 +1542,20 @@ def email_selected_reports_api():
         <td colspan="2" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;background:#fafafa;">
           <strong style="font-size:11px;color:#374151;display:block;margin-bottom:6px;">Inventario:</strong>
           {inv_table_html}
+        </td>
+      </tr>
+""")
+                    row_idx += 1
+                    continue
+
+            if key == 'Lista Asistencia':
+                lista_table_html = _render_lista_asistencia_html(value)
+                if lista_table_html:
+                    bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                    p.append(f"""      <tr style="background:{bg};">
+        <td colspan="2" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;background:#fafafa;">
+          <strong style="font-size:11px;color:#374151;display:block;margin-bottom:6px;">Lista de Asistencia:</strong>
+          {lista_table_html}
         </td>
       </tr>
 """)

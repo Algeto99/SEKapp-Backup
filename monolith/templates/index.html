@@ -1161,6 +1161,7 @@
                             isFullWidth = true;
                             const allKeys = [...new Set(listData.flatMap(row => Object.keys(row)))];
                             const isInventario = lowerKey.includes('inventario');
+                            const isAsistencia = lowerKey.includes('asistencia');
                             const _INV_LABELS = {
                                 tipo_equipo:           'Tipo de Equipo',
                                 total_equipos:         'Total',
@@ -1170,11 +1171,20 @@
                                 pendiente_compra:      'Pend. Compra',
                                 comentario:            'Comentario',
                             };
+                            const _ASISTENCIA_LABELS = {
+                                nombre:            'Nombre',
+                                cargo:             'Cargo',
+                                numero_empleado:   'N° Empleado',
+                                documento:         'Documento',
+                                firma:             'Firma',
+                                via:               'Vía de registro',
+                            };
+                            const _LIST_LABELS = isInventario ? _INV_LABELS : (isAsistencia ? _ASISTENCIA_LABELS : null);
 
                             let headers;
-                            if (isInventario) {
-                                const cols = Object.keys(_INV_LABELS).filter(k => allKeys.includes(k));
-                                const extras = allKeys.filter(k => !_INV_LABELS[k]);
+                            if (_LIST_LABELS) {
+                                const cols = Object.keys(_LIST_LABELS).filter(k => allKeys.includes(k));
+                                const extras = allKeys.filter(k => !_LIST_LABELS[k]);
                                 headers = [...cols, ...extras];
                             } else {
                                 headers = Object.keys(listData[0]);
@@ -1197,8 +1207,8 @@
                                 tableRows += '</tr>';
                             });
 
-                            const headerLabels = isInventario
-                                ? headers.map(h => _INV_LABELS[h] || h.replace(/_/g, ' '))
+                            const headerLabels = _LIST_LABELS
+                                ? headers.map(h => _LIST_LABELS[h] || h.replace(/_/g, ' '))
                                 : headers;
 
                             displayContent = `
