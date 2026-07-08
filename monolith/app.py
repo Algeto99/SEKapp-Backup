@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 from datetime import timedelta
+from urllib.parse import quote
 from flask import Flask, jsonify, request, redirect
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -132,35 +133,44 @@ bcrypt = Bcrypt(app)
 def _is_api_request():
     return '/api/' in request.path or request.headers.get('X-SecApp-Replay') == '1'
 
+def _redirect_to_login():
+    """Redirect to login preserving the original destination (path + query string) as
+    ?next=, so login_bp.py can send the user back where they were headed after
+    authenticating — e.g. a deep link from an email notification."""
+    dest = request.full_path if request.query_string else request.path
+    if dest.endswith('?'):
+        dest = dest[:-1]
+    return redirect(f"/?next={quote(dest, safe='')}")
+
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
     if _is_api_request():
         return jsonify({"success": False, "message": "Session expired. Please refresh the page."}), 401
-    return redirect('/')
+    return _redirect_to_login()
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error_string):
     if _is_api_request():
         return jsonify({"success": False, "message": "Invalid session. Please log in again."}), 401
-    return redirect('/')
+    return _redirect_to_login()
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error_string):
     if _is_api_request():
         return jsonify({"success": False, "message": "Authentication required."}), 401
-    return redirect('/')
+    return _redirect_to_login()
 
 @jwt.revoked_token_loader
 def revoked_token_callback(jwt_header, jwt_payload):
     if _is_api_request():
         return jsonify({"success": False, "message": "Session revoked. Please log in again."}), 401
-    return redirect('/')
+    return _redirect_to_login()
 
 @jwt.needs_fresh_token_loader
 def needs_fresh_token_callback(jwt_header, jwt_payload):
     if _is_api_request():
         return jsonify({"success": False, "message": "Fresh authentication required."}), 401
-    return redirect('/')
+    return _redirect_to_login()
 
 # --- Mount Applications/Blueprints Here ---
 # Prefixing them is important to prevent route collisions.

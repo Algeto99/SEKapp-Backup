@@ -41,6 +41,8 @@ def _safe_redirect(next_url, fallback):
     path = parsed.path
     if not path.startswith('/') or path.startswith('//'):
         return fallback
+    if parsed.query:
+        return f"{path}?{parsed.query}"
     return path
 
 # Extensions (from main app)
