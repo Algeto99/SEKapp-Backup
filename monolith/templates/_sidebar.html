@@ -107,7 +107,9 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <a href="/forms/reporte_incidente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/reporte_incidente') else '' }}">Reporte de Incidente</a>
             <a href="/forms/supervision_puesto" class="snw-subitem {{ 'active' if request.path.startswith('/forms/supervision_puesto') else '' }}">Supervisión de Puesto</a>
             <a href="/forms/informe_novedades_disciplinario" class="snw-subitem {{ 'active' if request.path.startswith('/forms/informe_novedades_disciplinario') else '' }}">Reporte Disciplinario</a>
+            {% if 'log_de_patrullas' in (enabled_modules or []) %}
             <a href="/forms/log_de_patrullas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/log_de_patrullas') else '' }}">Log de Patrullas</a>
+            {% endif %}
             <a href="/forms/registro_de_capacitaciones" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_de_capacitaciones') else '' }}">Registro de Capacitaciones</a>
             <a href="/forms/registro_y_acta_de_visita" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_y_acta_de_visita') else '' }}">Acta de Visita a Cliente</a>
             <a href="/forms/planilla_vehicular" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_vehicular') else '' }}">Planilla Vehicular</a>

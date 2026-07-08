@@ -630,6 +630,9 @@ ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAU
 ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
 ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
 
+-- Módulos opcionales activables por licencia (ej. 'log_de_patrullas') — idempotent for existing deployments
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS enabled_modules JSONB NOT NULL DEFAULT '[]'::jsonb;
+
 CREATE TABLE IF NOT EXISTS formulario_edicion_historial (
     id SERIAL PRIMARY KEY,
     tabla VARCHAR(100) NOT NULL,          -- 'reportes_incidentes' | 'registro_y_acta_de_visita'

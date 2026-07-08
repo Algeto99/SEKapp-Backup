@@ -761,7 +761,9 @@
                     <option value="medicion_experiencia_cliente">Medición Experiencia Cliente</option>
                     <option value="supervision_puesto">Supervisión de Puesto</option>
                     <option value="informe_novedades_disciplinario">Informe Disciplinario</option>
+                    {% if 'log_de_patrullas' in (enabled_modules or []) %}
                     <option value="log_de_patrullas">Log de Patrullas</option>
+                    {% endif %}
                     <option value="registro_de_capacitaciones">Registro de Capacitaciones</option>
                     <option value="registro_y_acta_de_visita">Acta de Visita</option>
                     <option value="planilla_vehicular">Planilla Vehicular</option>

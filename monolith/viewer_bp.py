@@ -145,6 +145,19 @@ def _get_user_company_id(cur, user_email):
     return row[0] if row and row[0] is not None else None
 
 
+# Optional modules gated by license (companies.enabled_modules JSONB) — e.g. 'log_de_patrullas'
+# is not part of the standard offering and must be excluded from Reportes unless enabled.
+OPTIONAL_MODULE_FORM_TYPES = {'log_de_patrullas'}
+
+
+def _module_enabled(cur, company_id, module_key):
+    if company_id is None:
+        return False
+    cur.execute('SELECT enabled_modules FROM companies WHERE id = %s', (company_id,))
+    row = cur.fetchone()
+    return bool(row and row[0] and module_key in row[0])
+
+
 # --- Form Configurations ---
 FORM_CONFIGS = {
     'reporte_incidente': {
@@ -654,9 +667,15 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         user_email = _get_current_user_email()
         company_id = _get_user_company_id(cur, user_email)
-        
+
+        # Exclude optional modules (e.g. log_de_patrullas) not enabled for this company's license.
+        types_to_fetch = [
+            t for t in types_to_fetch
+            if t not in OPTIONAL_MODULE_FORM_TYPES or _module_enabled(cur, company_id, t)
+        ]
+
         total_count = 0
-        
+
         for f_type in types_to_fetch:
             config = FORM_CONFIGS[f_type]
             
@@ -858,7 +877,11 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         user_email = _get_current_user_email()
         company_id = _get_user_company_id(cur, user_email)
-        
+
+        if form_type in OPTIONAL_MODULE_FORM_TYPES and not _module_enabled(cur, company_id, form_type):
+            app_logger.warning(f"fetch_reports_by_ids: module '{form_type}' not enabled for company {company_id}")
+            return reports
+
         # Log the raw report_ids before cleaning
         app_logger.info(f"Raw report_ids received by fetch_reports_by_ids: {report_ids}")
 

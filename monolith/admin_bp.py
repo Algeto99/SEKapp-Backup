@@ -84,8 +84,10 @@ def panel():
             FROM users ORDER BY created_at DESC
         """)
         users = [dict(r) for r in cur.fetchall()]
-        cur.execute("SELECT id, name FROM companies WHERE is_active = TRUE ORDER BY name")
+        cur.execute("SELECT id, name, enabled_modules FROM companies WHERE is_active = TRUE ORDER BY name")
         companies = [dict(r) for r in cur.fetchall()]
+        for c in companies:
+            c['enabled_modules'] = list(c['enabled_modules']) if c.get('enabled_modules') else []
         cur.close()
         claims = get_jwt()
         return render_template('admin_panel.html', users=users, companies=companies,
@@ -177,6 +179,59 @@ def toggle_admin(user_id):
             conn.rollback()
         app_logger.error(f"Error toggling admin: {e}", exc_info=True)
         flash('Error al actualizar el rol. Intente nuevamente.', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.panel'))
+
+
+OPTIONAL_MODULES = {
+    'log_de_patrullas': 'Log de Patrullas',
+}
+
+
+@admin_bp.route('/companies/<int:company_id>/toggle-module', methods=['POST'])
+@jwt_required()
+def toggle_company_module(company_id):
+    if not _is_super_admin():
+        return redirect('/landing/')
+
+    module_key = request.form.get('module_key', '')
+    if module_key not in OPTIONAL_MODULES:
+        flash('Módulo desconocido.', 'error')
+        return redirect(url_for('admin_bp.panel'))
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT name, enabled_modules FROM companies WHERE id = %s', (company_id,))
+        company = cur.fetchone()
+        if not company:
+            flash('Licencia no encontrada.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+
+        modules = set(company['enabled_modules'] or [])
+        if module_key in modules:
+            modules.discard(module_key)
+            action = 'desactivado'
+        else:
+            modules.add(module_key)
+            action = 'activado'
+
+        cur.execute(
+            'UPDATE companies SET enabled_modules = %s WHERE id = %s',
+            (psycopg2.extras.Json(sorted(modules)), company_id)
+        )
+        conn.commit()
+        cur.close()
+        app_logger.info(f"Super admin {action} module '{module_key}' for company {company['name']} ({company_id})")
+        flash(f'{OPTIONAL_MODULES[module_key]} {action} para {company["name"]}.', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error toggling company module: {e}", exc_info=True)
+        flash('Error al actualizar el módulo. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()

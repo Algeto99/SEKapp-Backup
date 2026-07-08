@@ -215,20 +215,49 @@ for _endpoint in _FORMS_EXEMPT_ENDPOINTS:
     if _view:
         csrf.exempt(_view)
 
-# Inject is_super_admin and the JWT CSRF token into every template from the active JWT.
+# Inject is_super_admin, enabled_modules and the JWT CSRF token into every template from the active JWT.
 # jwt_csrf_token is the value of the csrf_access_token cookie — use it in hidden form fields
 # for any server-side form POST that sits behind @jwt_required() instead of {{ csrf_token() }}.
+# enabled_modules is the set of optional-module keys (e.g. 'log_de_patrullas') enabled for the
+# current user's company license — resolved here so every template can gate UI on it without
+# each blueprint having to pass it into render_template explicitly.
 @app.context_processor
 def inject_super_admin():
     try:
-        from flask_jwt_extended import get_jwt, verify_jwt_in_request
+        from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
         verify_jwt_in_request(optional=True)
         claims = get_jwt()
         is_sa = bool(claims.get('is_super_admin', False))
+        email = get_jwt_identity()
     except Exception:
         is_sa = False
+        email = None
+
+    enabled_modules = set()
+    if email:
+        try:
+            from db import get_db_connection
+            conn = get_db_connection()
+            if conn:
+                try:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        SELECT c.enabled_modules
+                        FROM users u
+                        JOIN companies c ON c.id = u.company_id
+                        WHERE u.email = %s
+                    """, (email,))
+                    row = cur.fetchone()
+                    cur.close()
+                    if row and row[0]:
+                        enabled_modules = set(row[0])
+                finally:
+                    conn.close()
+        except Exception:
+            enabled_modules = set()
+
     jwt_csrf = request.cookies.get('csrf_access_token', '')
-    return {'is_super_admin': is_sa, 'jwt_csrf_token': jwt_csrf}
+    return {'is_super_admin': is_sa, 'jwt_csrf_token': jwt_csrf, 'enabled_modules': enabled_modules}
 
 @app.route('/health')
 def health_check():

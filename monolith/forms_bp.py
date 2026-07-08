@@ -257,6 +257,47 @@ def admin_required(f):
     return decorated
 
 
+def module_required(module_key):
+    """Blocks access to an optional module (e.g. 'log_de_patrullas') unless it's enabled
+    for the current user's company license (companies.enabled_modules JSONB)."""
+    from functools import wraps
+
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            is_api = request.path.startswith('/api/') or request.path.startswith('/submit_')
+            try:
+                email = get_jwt_identity()
+                conn = get_db_connection()
+                if not conn:
+                    return jsonify({"error": "Service unavailable"}), 503
+                try:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        SELECT c.enabled_modules
+                        FROM users u
+                        JOIN companies c ON c.id = u.company_id
+                        WHERE u.email = %s
+                    """, (email,))
+                    row = cur.fetchone()
+                    cur.close()
+                finally:
+                    conn.close()
+                enabled = set(row[0]) if row and row[0] else set()
+                if module_key not in enabled:
+                    app_logger.warning(f"module_required('{module_key}') denied for {email}")
+                    if is_api:
+                        return jsonify({"error": "Este módulo no está habilitado para su licencia"}), 403
+                    flash('Este módulo no está habilitado para su licencia.', 'error')
+                    return redirect('/forms/select')
+            except Exception as e:
+                app_logger.error(f"module_required('{module_key}') error: {e}", exc_info=True)
+                return jsonify({"error": "Error de autenticación"}), 500
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
 def _validate_motivo_edicion(request):
     """Returns (motivo, motivo_detalle, error_response_or_None)."""
     motivo = (request.form.get('motivo') or '').strip()
@@ -1325,9 +1366,10 @@ def submit_informe_novedades_disciplinario_editar(id):
         if conn:
             conn.close()
 
-# --- LOG DE PATRULLAS ---
+# --- LOG DE PATRULLAS (módulo opcional, activable por licencia) ---
 @forms_bp.route('/log_de_patrullas')
 @jwt_required()
+@module_required('log_de_patrullas')
 def log_de_patrullas_form():
     user_name, is_admin = get_user_info_from_jwt()
 
@@ -1340,6 +1382,7 @@ def log_de_patrullas_form():
 
 @forms_bp.route('/submit_log_de_patrullas', methods=['POST'])
 @jwt_required()
+@module_required('log_de_patrullas')
 def submit_log_de_patrullas():
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
@@ -1392,6 +1435,7 @@ def submit_log_de_patrullas():
 @forms_bp.route('/log_de_patrullas/<int:id>/editar', methods=['GET'])
 @jwt_required()
 @admin_required
+@module_required('log_de_patrullas')
 def log_de_patrullas_editar_form(id):
     user_name, is_admin = get_user_info_from_jwt()
     conn = None
@@ -1425,6 +1469,7 @@ def log_de_patrullas_editar_form(id):
 @forms_bp.route('/submit_log_de_patrullas/<int:id>/editar', methods=['POST'])
 @jwt_required()
 @admin_required
+@module_required('log_de_patrullas')
 def submit_log_de_patrullas_editar(id):
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']

@@ -234,6 +234,43 @@
         </form>
     </div>
 
+    <!-- Optional Modules per License -->
+    <div class="card">
+        <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Módulos opcionales por licencia
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Licencia</th>
+                        <th>Log de Patrullas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in companies %}
+                    <tr>
+                        <td>{{ c.name }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('admin_bp.toggle_company_module', company_id=c.id) }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
+                                <input type="hidden" name="module_key" value="log_de_patrullas">
+                                <button type="submit" class="btn btn-sm {{ 'btn-warning' if 'log_de_patrullas' in c.enabled_modules else 'btn-ghost' }}">
+                                    {{ 'Habilitado — desactivar' if 'log_de_patrullas' in c.enabled_modules else 'Deshabilitado — activar' }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- User Table -->
     <div class="card">
         <div class="card-title">
