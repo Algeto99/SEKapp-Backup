@@ -38,7 +38,7 @@
                 position: fixed;
                 inset: 0;
                 background: rgba(2,6,23,0.72);
-                z-index: 400;
+                z-index: 550;
                 align-items: center;
                 justify-content: center;
                 padding: 1rem;
