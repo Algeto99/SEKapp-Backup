@@ -300,6 +300,21 @@
     "data_type": "text"
   },
   {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "checklist_cumplimiento",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "companies",
     "column_name": "id",
     "data_type": "integer"
@@ -323,6 +338,11 @@
     "table_name": "companies",
     "column_name": "created_at",
     "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "companies",
+    "column_name": "enabled_modules",
+    "data_type": "jsonb"
   },
   {
     "table_name": "confiabilidad_equipos",
@@ -418,6 +438,21 @@
     "table_name": "confiabilidad_equipos",
     "column_name": "submitter_timezone",
     "data_type": "text"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "confiabilidad_equipos",
+    "column_name": "editado_por",
+    "data_type": "character varying"
   },
   {
     "table_name": "customer_companies",
@@ -670,6 +705,21 @@
     "data_type": "text"
   },
   {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "kpi_thresholds",
     "column_name": "key",
     "data_type": "character varying"
@@ -793,6 +843,21 @@
     "table_name": "log_de_patrullas",
     "column_name": "submitter_timezone",
     "data_type": "text"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "log_de_patrullas",
+    "column_name": "editado_por",
+    "data_type": "character varying"
   },
   {
     "table_name": "medicion_experiencia_cliente",
@@ -943,6 +1008,21 @@
     "table_name": "medicion_experiencia_cliente",
     "column_name": "submitter_timezone",
     "data_type": "text"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "medicion_experiencia_cliente",
+    "column_name": "editado_por",
+    "data_type": "character varying"
   },
   {
     "table_name": "password_reset_tokens",
@@ -1230,6 +1310,21 @@
     "data_type": "text"
   },
   {
+    "table_name": "planilla_motocicletas",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "planilla_vehicular",
     "column_name": "id_planilla_vehicular",
     "data_type": "integer"
@@ -1490,6 +1585,21 @@
     "data_type": "text"
   },
   {
+    "table_name": "planilla_vehicular",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "propiedades",
     "column_name": "id_propiedad",
     "data_type": "integer"
@@ -1643,6 +1753,21 @@
     "table_name": "registro_de_capacitaciones",
     "column_name": "submitter_timezone",
     "data_type": "text"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "registro_de_capacitaciones",
+    "column_name": "editado_por",
+    "data_type": "character varying"
   },
   {
     "table_name": "registro_y_acta_de_visita",
@@ -2338,6 +2463,21 @@
     "table_name": "supervision_puesto",
     "column_name": "problemas_uniforme",
     "data_type": "text"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "supervision_puesto",
+    "column_name": "editado_por",
+    "data_type": "character varying"
   },
   {
     "table_name": "users",
