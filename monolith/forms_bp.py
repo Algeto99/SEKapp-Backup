@@ -689,6 +689,121 @@ def submit_medicion_experiencia_cliente():
         if conn:
             conn.close()
 
+
+@forms_bp.route('/medicion_experiencia_cliente/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def medicion_experiencia_cliente_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM medicion_experiencia_cliente WHERE id_encuesta = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'encuesta_cliente.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading encuesta {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_medicion_experiencia_cliente/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_medicion_experiencia_cliente_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM medicion_experiencia_cliente WHERE id_encuesta = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'atencion_cliente': int(v) if (v := request.form.get('atencion_cliente', '').strip()) else None,
+            'comunicacion': int(v) if (v := request.form.get('comunicacion', '').strip()) else None,
+            'confiabilidad': int(v) if (v := request.form.get('confiabilidad', '').strip()) else None,
+            'capacidad_reaccion': int(v) if (v := request.form.get('capacidad_reaccion', '').strip()) else None,
+            'cumplimiento': int(v) if (v := request.form.get('cumplimiento', '').strip()) else None,
+            'competencia_personal': int(v) if (v := request.form.get('competencia_personal', '').strip()) else None,
+            'actitud_servicio': int(v) if (v := request.form.get('actitud_servicio', '').strip()) else None,
+            'atencion_quejas': int(v) if (v := request.form.get('atencion_quejas', '').strip()) else None,
+            'calificacion_global_nps': int(v) if (v := request.form.get('calificacion_global_nps', '').strip()) else None,
+            'recomendaria_servicio': request.form.get('recomendaria_servicio'),
+            'observaciones_cliente': request.form.get('observaciones_cliente'),
+            'encuestado': request.form.get('encuestado'),
+            'firma_encuestado': request.form.get('firma_encuestado'),
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
+        }
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'medicion_experiencia_cliente', form_data)
+
+        _record_edicion_historial(
+            cur, 'medicion_experiencia_cliente', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE medicion_experiencia_cliente SET {set_clause} WHERE id_encuesta = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing encuesta {id}: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
 # --- SUPERVISION PUESTO ---
 @forms_bp.route('/supervision_puesto')
 @jwt_required()
@@ -824,6 +939,141 @@ def submit_supervision_puesto():
         if conn:
             conn.close()
 
+
+@forms_bp.route('/supervision_puesto/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def supervision_puesto_editar_form(id):
+    """Edita una sola fila de supervision_puesto (cada envío de creación genera N filas
+    independientes; la edición opera sobre una fila puntual ya existente, no sobre el lote)."""
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM supervision_puesto WHERE id_supervision = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'supervision_puesto.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading supervision puesto {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_supervision_puesto/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_supervision_puesto_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM supervision_puesto WHERE id_supervision = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        # Edición de una fila puntual: campos planos (no indexados como en la creación).
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'supervisor': request.form.get('supervisor'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'detalles_puestos': request.form.get('detalles_puestos'),
+            'horario_servicio': request.form.get('horario_servicio'),
+            'hora_entrada': request.form.get('hora_entrada'),
+            'hora_salida': request.form.get('hora_salida'),
+            'tipo_servicio': request.form.get('tipo_servicio'),
+            'nombre_guardia': request.form.get('nombre_guardia'),
+            'numero_empleado': request.form.get('numero_empleado'),
+            'documento_guardia': request.form.get('documento_guardia'),
+            'tiempo_en_puesto': request.form.get('tiempo_en_puesto'),
+            'licencia_portar_arma': request.form.get('licencia_portar_arma'),
+            'realiza_induccion': request.form.get('realiza_induccion'),
+            'conoce_ordenes_consignas': request.form.get('conoce_ordenes_consignas'),
+            'horario_detalles_claros': request.form.get('horario_detalles_claros'),
+            'porta_arma': request.form.get('porta_arma'),
+            'tipo_arma': request.form.get('tipo_arma'),
+            'serie_arma': request.form.get('serie_arma'),
+            'matricula_arma': request.form.get('matricula_arma'),
+            'cantidad_municion': request.form.get('cantidad_municion'),
+            'fecha_vencimiento_permiso_porte': request.form.get('fecha_vencimiento_permiso_porte') or None,
+            'fecha_ultimo_mtto_arma': request.form.get('fecha_ultimo_mtto_arma') or None,
+            'radio_asignado_serial': request.form.get('radio_asignado_serial'),
+            'marca_radio': request.form.get('marca_radio'),
+            'tipo_radio': request.form.get('tipo_radio'),
+            'fecha_ultimo_mtto_radio': request.form.get('fecha_ultimo_mtto_radio') or None,
+            'presentacion_uniforme': request.form.get('presentacion_uniforme'),
+            'problemas_uniforme': ', '.join(request.form.getlist('problemas_uniforme[]')),
+            'observaciones_novedades': request.form.get('observaciones_novedades'),
+            'firma_supervisor': request.form.get('firma_supervisor'),
+            'firma_guardia': request.form.get('firma_guardia'),
+        }
+        if 'foto_evidencia' in request.files and request.files['foto_evidencia'].filename:
+            url = upload_file_to_gcs(request.files['foto_evidencia'], GCS_BUCKET_NAME)
+            if url:
+                form_data['foto_evidencia_url'] = url
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'supervision_puesto', form_data)
+        valid_form_data = {k: v for k, v in valid_form_data.items() if v is not None and v != ''}
+
+        _record_edicion_historial(
+            cur, 'supervision_puesto', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE supervision_puesto SET {set_clause} WHERE id_supervision = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing supervision puesto {id}: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
 # --- INFORME NOVEDADES DISCIPLINARIO ---
 @forms_bp.route('/informe_novedades_disciplinario')
 @jwt_required()
@@ -947,6 +1197,134 @@ def submit_informe_novedades_disciplinario():
         if conn:
             conn.close()
 
+
+@forms_bp.route('/informe_novedades_disciplinario/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def informe_novedades_disciplinario_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM informe_novedades_disciplinario WHERE id_informe = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'reporte_disciplinario.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading informe {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_informe_novedades_disciplinario/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_informe_novedades_disciplinario_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM informe_novedades_disciplinario WHERE id_informe = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        anexos_urls = []
+        if 'anexos_files' in request.files:
+            for file in request.files.getlist('anexos_files'):
+                if file and file.filename:
+                    url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                    if url:
+                        anexos_urls.append(url)
+        anexos_str = "\n".join(anexos_urls) if anexos_urls else None
+
+        form_data = {
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'realizado_por_cargo': request.form.get('rol_aplicador'),
+            'empleado_nombre': request.form.get('empleado_nombre'),
+            'empleado_numero': request.form.get('empleado_numero'),
+            'empleado_documento': request.form.get('empleado_documento'),
+            'empleado_cargo': request.form.get('empleado_cargo'),
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'tipo_novedad': request.form.get('tipo_novedad'),
+            'sitio_ocurrencia': request.form.get('sitio_ocurrencia'),
+            'descripcion_novedad': request.form.get('descripcion_novedad'),
+            'otras_personas_involucradas': request.form.get('otras_personas_involucradas'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'firma_recibido_revisado': request.form.get('firma_recibido_revisado'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'empleado_niega_firmar': True if request.form.get('empleado_niega_firmar') else False,
+            'nombre_testigo': request.form.get('nombre_testigo'),
+            'firma_testigo': request.form.get('firma_testigo'),
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
+        }
+        if anexos_urls:
+            form_data['anexos'] = anexos_str
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'informe_novedades_disciplinario', form_data)
+
+        _record_edicion_historial(
+            cur, 'informe_novedades_disciplinario', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE informe_novedades_disciplinario SET {set_clause} WHERE id_informe = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing informe {id}: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
 # --- LOG DE PATRULLAS ---
 @forms_bp.route('/log_de_patrullas')
 @jwt_required()
@@ -1005,6 +1383,107 @@ def submit_log_de_patrullas():
             conn.rollback()
         app_logger.error(f"Error submitting log: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/log_de_patrullas/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def log_de_patrullas_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM log_de_patrullas WHERE id_patrulla = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'log_de_patrullas.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading log de patrullas {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_log_de_patrullas/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_log_de_patrullas_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM log_de_patrullas WHERE id_patrulla = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        form_data = {
+            'id_guardia_nombre_guardia': request.form.get('id_guardia_nombre_guardia'),
+            'sitio_ubicacion': request.form.get('sitio_ubicacion'),
+            'id_patrulla_consecutivo': request.form.get('id_patrulla_consecutivo'),
+            'fecha': request.form.get('fecha'),
+            'hora_inicio': request.form.get('hora_inicio'),
+            'hora_fin': request.form.get('hora_fin'),
+            'detalles_incidente': request.form.get('detalles_incidente'),
+            'riesgo_detectado': request.form.get('riesgo_detectado'),
+            'nivel_riesgo': request.form.get('nivel_riesgo'),
+            'estado_patrulla': request.form.get('estado_patrulla'),
+            'contexto_observaciones': request.form.get('contexto_observaciones'),
+            'firma_guardia': request.form.get('firma_guardia'),
+            'firma_supervisor': request.form.get('firma_supervisor'),
+        }
+        form_data.update(_resolve_scope_fields(cur, user_email))
+
+        valid_form_data = _filter_existing_columns(cur, 'log_de_patrullas', form_data)
+
+        _record_edicion_historial(
+            cur, 'log_de_patrullas', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE log_de_patrullas SET {set_clause} WHERE id_patrulla = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing log de patrullas {id}: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
@@ -1162,6 +1641,130 @@ def submit_registro_de_capacitaciones():
             conn.rollback()
         app_logger.error(f"Error submitting capacitacion: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/registro_de_capacitaciones/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def registro_de_capacitaciones_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM registro_de_capacitaciones WHERE id_capacitacion = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'registro_de_capacitaciones.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading capacitacion {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_registro_de_capacitaciones/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_registro_de_capacitaciones_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM registro_de_capacitaciones WHERE id_capacitacion = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        capacitacion_urls = []
+        if 'capacitacion_files' in request.files:
+            for file in request.files.getlist('capacitacion_files'):
+                if file and file.filename:
+                    url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                    if url:
+                        capacitacion_urls.append(url)
+
+        fecha_hora = request.form.get('fecha_hora') or None
+        if not fecha_hora:
+            fecha = (request.form.get('fecha') or '').strip()
+            hora_inicio = (request.form.get('hora_inicio') or '').strip()
+            if fecha:
+                fecha_hora = f"{fecha} {hora_inicio or '00:00'}"
+
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': fecha_hora,
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'nombre_capacitacion': request.form.get('nombre_capacitacion') or request.form.get('tema_capacitacion'),
+            'objetivo_capacitacion': request.form.get('objetivo_capacitacion'),
+            'observaciones_retroalimentacion': request.form.get('observaciones_retroalimentacion'),
+            'practica_simulacro_realizado': request.form.get('practica_simulacro_realizado'),
+            'nivel_comprension': request.form.get('nivel_comprension'),
+            'recomendaciones': request.form.get('recomendaciones'),
+        }
+        if capacitacion_urls:
+            form_data['foto_evidencia_url'] = "\n".join(capacitacion_urls)
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'registro_de_capacitaciones', form_data)
+
+        _record_edicion_historial(
+            cur, 'registro_de_capacitaciones', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE registro_de_capacitaciones SET {set_clause} WHERE id_capacitacion = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing capacitacion {id}: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
@@ -1477,6 +2080,143 @@ def submit_planilla_vehicular():
         if conn:
             conn.close()
 
+
+@forms_bp.route('/planilla_vehicular/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def planilla_vehicular_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM planilla_vehicular WHERE id_planilla_vehicular = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'planilla_vehicular.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading planilla vehicular {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_planilla_vehicular/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_planilla_vehicular_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM planilla_vehicular WHERE id_planilla_vehicular = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'numero_empleado': request.form.get('numero_empleado'),
+            'fecha_ultimo_mantenimiento': request.form.get('fecha_ultimo_mantenimiento'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'placa_vehiculo': request.form.get('placa_vehiculo'),
+            'kilometraje_vehiculo': request.form.get('kilometraje_vehiculo'),
+            'estado_rines': request.form.get('estado_rines'),
+            'juego_senales_carretera': request.form.get('juego_senales_carretera'),
+            'gato_hidraulico': request.form.get('gato_hidraulico'),
+            'palanca_gato': request.form.get('palanca_gato'),
+            'estado_asientos': request.form.get('estado_asientos'),
+            'estado_tapetes_alfombras': request.form.get('estado_tapetes_alfombras'),
+            'limpieza_carroceria': request.form.get('limpieza_carroceria'),
+            'luces_delanteras': request.form.get('luces_delanteras'),
+            'luces_direccionales': request.form.get('luces_direccionales'),
+            'luces_traseras': request.form.get('luces_traseras'),
+            'parabrisas_delantero': request.form.get('parabrisas_delantero'),
+            'parabrisas_trasero': request.form.get('parabrisas_trasero'),
+            'defensa_delantera': request.form.get('defensa_delantera'),
+            'defensa_trasera': request.form.get('defensa_trasera'),
+            'puertas_vidrios': request.form.get('puertas_vidrios'),
+            'tapa_radiador': request.form.get('tapa_radiador'),
+            'tapa_aceite_motor': request.form.get('tapa_aceite_motor'),
+            'bateria_tapa': request.form.get('bateria_tapa'),
+            'espejo_retrovisor_interno': request.form.get('espejo_retrovisor_interno'),
+            'espejos_retrovisores_externos': request.form.get('espejos_retrovisores_externos'),
+            'limpia_brisas': request.form.get('limpia_brisas'),
+            'antena_radio': request.form.get('antena_radio'),
+            'radio_funciona': request.form.get('radio_funciona'),
+            'llanta_repuesto': request.form.get('llanta_repuesto'),
+            'aire_acondicionado': request.form.get('aire_acondicionado'),
+            'diagrama_danos': request.form.get('diagrama_danos'),
+            'novedades_criticas': request.form.get('novedades_criticas'),
+            'accion_inmediata': request.form.get('accion_inmediata'),
+            'firma_entrega': request.form.get('firma_entrega'),
+            'firma_recibe': request.form.get('firma_recibe'),
+            'oficial_operaciones_nombre': request.form.get('oficial_operaciones_nombre'),
+            'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
+        }
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
+
+        _record_edicion_historial(
+            cur, 'planilla_vehicular', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE planilla_vehicular SET {set_clause} WHERE id_planilla_vehicular = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing planilla vehicular {id}: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
 # --- PLANILLA MOTOCICLETAS ---
 @forms_bp.route('/planilla_motocicletas')
 @jwt_required()
@@ -1555,6 +2295,121 @@ def submit_planilla_motocicletas():
             conn.rollback()
         app_logger.error(f"Error submitting planilla motocicletas: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/planilla_motocicletas/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def planilla_motocicletas_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM planilla_motocicletas WHERE id = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'planilla_motocicletas.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading planilla motocicletas {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_planilla_motocicletas/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_planilla_motocicletas_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM planilla_motocicletas WHERE id = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora'),
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'turno': request.form.get('turno'),
+            'nombre_responsable': request.form.get('nombre_responsable'),
+            'firma_responsable': request.form.get('firma_responsable'),
+            'placa_motocicleta': request.form.get('placa_motocicleta'),
+            'kilometraje_motocicleta': request.form.get('kilometraje_motocicleta') or None,
+            'numero_empleado': request.form.get('numero_empleado'),
+            'fecha_ultimo_mantenimiento': request.form.get('fecha_ultimo_mantenimiento') or None,
+            'diagrama_danos': request.form.get('diagrama_danos'),
+            'novedades_criticas_detectadas': request.form.get('novedades_criticas_detectadas'),
+            'accion_inmediata_tomada': request.form.get('accion_inmediata_tomada'),
+            'firma_entrega': request.form.get('firma_entrega'),
+            'firma_recibe': request.form.get('firma_recibe'),
+            'oficial_operaciones_nombre': request.form.get('oficial_operaciones_nombre'),
+            'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
+        }
+        for key in request.form.keys():
+            if key.startswith('estado_') and key not in form_data:
+                form_data[key] = request.form.get(key)
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
+
+        _record_edicion_historial(
+            cur, 'planilla_motocicletas', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE planilla_motocicletas SET {set_clause} WHERE id = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing planilla motocicletas {id}: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:
@@ -1675,6 +2530,132 @@ def submit_checklist_cumplimiento():
             conn.close()
 
 
+@forms_bp.route('/checklist_cumplimiento/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def checklist_cumplimiento_editar_form(id):
+    """Edita una sola fila de checklist_cumplimiento (cada envío de creación genera N filas
+    independientes; la edición opera sobre una fila puntual ya existente, no sobre el lote)."""
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM checklist_cumplimiento WHERE id = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'checklist_cumplimiento.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading checklist_cumplimiento {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_checklist_cumplimiento/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_checklist_cumplimiento_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM checklist_cumplimiento WHERE id = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        # Edición de una fila puntual: campos planos (no listas indexadas como en la creación).
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'fecha_hora': request.form.get('fecha_hora') or None,
+            'rol_aplicador': request.form.get('rol_aplicador'),
+            'nombre_auditor': request.form.get('nombre_auditor'),
+            'agente_nombre_completo': request.form.get('agente_nombre_completo'),
+            'agente_tipo_documento': request.form.get('agente_tipo_documento'),
+            'agente_numero_documento': request.form.get('agente_numero_documento'),
+            'agente_cargo_rol': request.form.get('agente_cargo_rol'),
+            'agente_numero_empleado': request.form.get('agente_numero_empleado'),
+            'agente_puesto': request.form.get('agente_puesto'),
+            'curso_certificacion': request.form.get('curso_certificacion'),
+            'academia_certifica': request.form.get('academia_certifica'),
+            'nro_resolucion': request.form.get('nro_resolucion'),
+            'fecha_resolucion': request.form.get('fecha_resolucion') or None,
+            'vigencia_desde': request.form.get('vigencia_desde') or None,
+            'vigencia_hasta': request.form.get('vigencia_hasta') or None,
+            'nivel_cumplimiento': request.form.get('nivel_cumplimiento'),
+            'copia_certificados_fisica': request.form.get('copia_certificados_fisica'),
+            'certificados_cargados_sistema': request.form.get('certificados_cargados_sistema'),
+            'documentacion_coincide_hv': request.form.get('documentacion_coincide_hv'),
+            'fechas_vigentes': request.form.get('fechas_vigentes'),
+            'firma_auditor': request.form.get('firma_auditor'),
+            'firma_guarda_supervisado': request.form.get('firma_guarda_supervisado'),
+        }
+        if 'cargue_evidencia' in request.files and request.files['cargue_evidencia'].filename:
+            url = upload_file_to_gcs(request.files['cargue_evidencia'], GCS_BUCKET_NAME)
+            if url:
+                form_data['evidencia_url'] = url
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'checklist_cumplimiento', form_data)
+        valid_form_data = {k: v for k, v in valid_form_data.items() if v is not None and v != ''}
+
+        _record_edicion_historial(
+            cur, 'checklist_cumplimiento', id, user_email, motivo, motivo_detalle,
+            old_record, valid_form_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE checklist_cumplimiento SET {set_clause} WHERE id = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing checklist_cumplimiento {id}: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
 # --- CONFIABILIDAD DE EQUIPOS ---
 @forms_bp.route('/confiabilidad_equipos')
 @jwt_required()
@@ -1759,6 +2740,133 @@ def submit_confiabilidad_equipos():
             conn.rollback()
         app_logger.error(f"Error submitting confiabilidad_equipos: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/confiabilidad_equipos/<int:id>/editar', methods=['GET'])
+@jwt_required()
+@admin_required
+def confiabilidad_equipos_editar_form(id):
+    user_name, is_admin = get_user_info_from_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM confiabilidad_equipos WHERE id = %s", (id,))
+        record = cur.fetchone()
+        cur.close()
+        if not record:
+            return render_template('error.html', error='Registro no encontrado.'), 404
+
+        return render_template(
+            'confiabilidad_equipos.html',
+            name=user_name,
+            is_admin=is_admin,
+            edit_mode=True,
+            record_id=id,
+            record=dict(record),
+            motivos_edicion=MOTIVOS_EDICION,
+            **get_service_urls()
+        )
+    except Exception as e:
+        app_logger.error(f"Error loading confiabilidad_equipos {id} for edit: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno del servidor.'), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/submit_confiabilidad_equipos/<int:id>/editar', methods=['POST'])
+@jwt_required()
+@admin_required
+def submit_confiabilidad_equipos_editar(id):
+    identity = get_jwt_identity()
+    user_email = identity if isinstance(identity, str) else identity['email']
+    conn = None
+    try:
+        motivo, motivo_detalle, error = _validate_motivo_edicion(request)
+        if error:
+            return error
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute("SELECT * FROM confiabilidad_equipos WHERE id = %s", (id,))
+        old_record = cur.fetchone()
+        if not old_record:
+            cur.close()
+            return jsonify({'error': 'Registro no encontrado'}), 404
+        old_record = dict(old_record)
+
+        inventario_map = {}
+        pattern = re.compile(r'inventario\[(\d+)\]\[(.+)\]')
+        for key, value in request.form.items():
+            match = pattern.match(key)
+            if match:
+                idx = int(match.group(1))
+                field = match.group(2)
+                if idx not in inventario_map:
+                    inventario_map[idx] = {}
+                inventario_map[idx][field] = value
+
+        inventario_list = []
+        for idx in sorted(inventario_map.keys()):
+            row = {k: v for k, v in inventario_map[idx].items() if v}
+            if row:
+                inventario_list.append(row)
+
+        form_data = {
+            'cliente_instalacion': request.form.get('cliente_instalacion'),
+            'fecha': request.form.get('fecha') or None,
+            'hora': request.form.get('hora') or None,
+            'sitio': request.form.get('sitio'),
+            'inventario': psycopg2.extras.Json(inventario_list),
+            'tecnico_mantenimiento': request.form.get('tecnico_mantenimiento'),
+            'firma_tecnico': request.form.get('firma_tecnico'),
+            'supervisor_seguridad': request.form.get('supervisor_seguridad'),
+            'firma_supervisor': request.form.get('firma_supervisor'),
+            'latitude': _parse_float(request.form.get('latitude')),
+            'longitude': _parse_float(request.form.get('longitude')),
+            'location_accuracy': _parse_float(request.form.get('location_accuracy')),
+        }
+        form_data.update(_resolve_scope_fields(
+            cur,
+            user_email,
+            legacy_customer_value=form_data.get('cliente_instalacion'),
+            property_id=request.form.get('id_propiedad'),
+            customer_company_id=request.form.get('customer_company_id'),
+        ))
+
+        valid_form_data = _filter_existing_columns(cur, 'confiabilidad_equipos', form_data)
+
+        # inventario is JSON — diff against the raw list, not the Json() wrapper
+        old_record_for_diff = dict(old_record)
+        diff_new_data = dict(valid_form_data)
+        diff_new_data['inventario'] = inventario_list
+        _record_edicion_historial(
+            cur, 'confiabilidad_equipos', id, user_email, motivo, motivo_detalle,
+            old_record_for_diff, diff_new_data
+        )
+
+        valid_form_data['editado'] = True
+        valid_form_data['editado_en'] = datetime.utcnow()
+        valid_form_data['editado_por'] = user_email
+
+        set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
+        sql = f"UPDATE confiabilidad_equipos SET {set_clause} WHERE id = %s"
+        cur.execute(sql, list(valid_form_data.values()) + [id])
+
+        conn.commit()
+        cur.close()
+
+        return _form_success_response()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error editing confiabilidad_equipos {id}: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
         if conn:

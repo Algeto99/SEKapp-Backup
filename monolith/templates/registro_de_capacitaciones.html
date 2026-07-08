@@ -171,7 +171,7 @@
         <header class="text-center mb-8">
             <h1 class="text-3xl font-bold">Control de Capacitaciones</h1>
         </header>
-        <form id="capacitacionForm" action="{{ url_for('forms_bp.submit_registro_de_capacitaciones') }}" method="POST"
+        <form id="capacitacionForm" action="{{ url_for('forms_bp.submit_registro_de_capacitaciones_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_registro_de_capacitaciones') }}" method="POST"
             enctype="multipart/form-data">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
             <div class="form-section">
@@ -247,9 +247,29 @@
                 </button>
                 <input type="hidden" name="lista_asistencia" id="lista_asistencia">
             </div>
+            {% if edit_mode %}
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="form-label">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="flex justify-end pt-4">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
-                    Enviar Registro
+                    {{ 'Guardar Cambios' if edit_mode else 'Enviar Registro' }}
                 </button>
             </div>
         </form>
@@ -448,6 +468,81 @@
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
+            var record = window.EDIT_RECORD;
+            var form = document.getElementById('capacitacionForm');
+            if (!form) return;
+
+            var FIELD_MAP = { 'nombre_capacitacion': 'tema_capacitacion' };
+
+            setTimeout(function() {
+                Object.keys(record).forEach(function(key) {
+                    var value = record[key];
+                    if (value === null || value === undefined) return;
+                    if (key === 'lista_asistencia' || key === 'foto_evidencia_url') return;
+                    var fieldName = FIELD_MAP[key] || key;
+                    var els = form.querySelectorAll('[name="' + fieldName + '"]');
+                    if (!els.length) return;
+                    els.forEach(function(el) {
+                        if (el.type === 'checkbox' || el.type === 'radio') return;
+                        if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                            if (el.type === 'datetime-local' && value) {
+                                var d = new Date(value);
+                                if (!isNaN(d.getTime())) {
+                                    var pad = function(n) { return String(n).padStart(2, '0'); };
+                                    value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                                }
+                            }
+                            el.value = value;
+                        }
+                    });
+                });
+
+                // Populate the dynamic attendees builder from the stored lista_asistencia JSON.
+                var lista = record.lista_asistencia;
+                if (lista) {
+                    try { if (typeof lista === 'string') lista = JSON.parse(lista); } catch (e) { lista = []; }
+                    if (Array.isArray(lista) && lista.length) {
+                        var container = document.getElementById('attendees-container');
+                        var addBtn = document.getElementById('add-attendee');
+                        while (container.children.length < lista.length) {
+                            addBtn.click();
+                        }
+                        var blocks = container.querySelectorAll('.attendee-block');
+                        lista.forEach(function(att, i) {
+                            var block = blocks[i];
+                            if (!block) return;
+                            ['nombre', 'cargo', 'numero_empleado', 'documento'].forEach(function(f) {
+                                var el = block.querySelector('[data-field="' + f + '"]');
+                                if (el && att[f] !== undefined) el.value = att[f];
+                            });
+                        });
+                    }
+                }
+
+                if (record.id_propiedad) {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }
+            }, 300);
+        });
+    </script>
+    {% endif %}
     <script>
     (function() {
         var _f = document.getElementById('capacitacionForm');

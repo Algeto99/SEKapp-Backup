@@ -105,7 +105,7 @@
             <h1 class="text-2xl md:text-3xl font-bold">Log de Patrullas</h1>
         </header>
 
-        <form id="patrullaForm" action="{{ url_for('forms_bp.submit_log_de_patrullas') }}" method="POST"
+        <form id="patrullaForm" action="{{ url_for('forms_bp.submit_log_de_patrullas_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_log_de_patrullas') }}" method="POST"
             class="space-y-6">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
@@ -207,14 +207,77 @@
                 </div>
             </div>
 
+            {% if edit_mode %}
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="form-label">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="flex justify-end pt-4">
                 <button type="submit"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
-                    Enviar Log
+                    {{ 'Guardar Cambios' if edit_mode else 'Enviar Log' }}
                 </button>
             </div>
         </form>
     </div>
+
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        (function prefillEditForm() {
+            if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
+            var record = window.EDIT_RECORD;
+            var form = document.getElementById('patrullaForm');
+            if (!form) return;
+
+            Object.keys(record).forEach(function(key) {
+                var value = record[key];
+                if (value === null || value === undefined) return;
+                var els = form.querySelectorAll('[name="' + key + '"]');
+                if (!els.length) return;
+                els.forEach(function(el) {
+                    if (el.type === 'checkbox' || el.type === 'radio') return;
+                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                        if (el.type === 'datetime-local' && value) {
+                            var d = new Date(value);
+                            if (!isNaN(d.getTime())) {
+                                var pad = function(n) { return String(n).padStart(2, '0'); };
+                                value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            }
+                        }
+                        el.value = value;
+                    }
+                });
+            });
+        })();
+    </script>
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>

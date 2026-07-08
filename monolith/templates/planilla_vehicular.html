@@ -265,7 +265,7 @@
             <p class="text-gray-400 mt-2">Control y inspección de flota vehicular</p>
         </div>
 
-        <form id="planillaVehicularForm" action="{{ url_for('forms_bp.submit_planilla_vehicular') }}" method="POST">
+        <form id="planillaVehicularForm" action="{{ url_for('forms_bp.submit_planilla_vehicular_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_planilla_vehicular') }}" method="POST">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
             <div class="form-section">
@@ -647,14 +647,84 @@
                 </div>
             </div>
 
+            {% if edit_mode %}
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="form-label">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="mt-8 text-center">
                 <button type="submit"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
-                    Enviar Planilla Vehicular
+                    {{ 'Guardar Cambios' if edit_mode else 'Enviar Planilla Vehicular' }}
                 </button>
             </div>
         </form>
     </div>
+
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        (function prefillEditForm() {
+            if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
+            var record = window.EDIT_RECORD;
+            var form = document.getElementById('planillaVehicularForm');
+            if (!form) return;
+
+            Object.keys(record).forEach(function(key) {
+                var value = record[key];
+                if (value === null || value === undefined) return;
+                var els = form.querySelectorAll('[name="' + key + '"]');
+                if (!els.length) return;
+                els.forEach(function(el) {
+                    if (el.type === 'checkbox' || el.type === 'radio') return;
+                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                        if (el.type === 'datetime-local' && value) {
+                            var d = new Date(value);
+                            if (!isNaN(d.getTime())) {
+                                var pad = function(n) { return String(n).padStart(2, '0'); };
+                                value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            }
+                        }
+                        el.value = value;
+                    }
+                });
+            });
+
+            if (record.id_propiedad) {
+                setTimeout(function() {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }, 800);
+            }
+        })();
+    </script>
+    {% endif %}
 
     <script>
         // Define the public URL for the car diagram image

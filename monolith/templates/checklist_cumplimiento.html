@@ -205,7 +205,7 @@
             <p class="text-gray-400 mt-2">Verificación de Cursos y Certificaciones de Agentes</p>
         </div>
 
-        <form id="checklistForm" action="{{ url_for('forms_bp.submit_checklist_cumplimiento') }}" method="POST"
+        <form id="checklistForm" action="{{ url_for('forms_bp.submit_checklist_cumplimiento_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_checklist_cumplimiento') }}" method="POST"
             enctype="multipart/form-data">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
             <div class="form-section">
@@ -270,11 +270,11 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label class="form-label">Nombre Completo</label>
-                                    <input type="text" name="agente_nombre_completo[]" class="form-input">
+                                    <input type="text" name="agente_nombre_completo{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Tipo de Documento</label>
-                                    <select name="agente_tipo_documento[]" class="form-select">
+                                    <select name="agente_tipo_documento{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option value="CC">Cédula de Ciudadanía (CC)</option>
                                         <option value="CE">Cédula de Extranjería (CE)</option>
@@ -284,15 +284,15 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Documento</label>
-                                    <input type="text" name="agente_numero_documento[]" class="form-input">
+                                    <input type="text" name="agente_numero_documento{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Cargo/Rol</label>
-                                    <input type="text" name="agente_cargo_rol[]" class="form-input">
+                                    <input type="text" name="agente_cargo_rol{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Empleado</label>
-                                    <input type="text" name="agente_numero_empleado[]" class="form-input">
+                                    <input type="text" name="agente_numero_empleado{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                             </div>
                         </div>
@@ -303,7 +303,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="md:col-span-2">
                                     <label class="form-label">Curso/Certificacion</label>
-                                    <select name="curso_certificacion[]" class="form-select">
+                                    <select name="curso_certificacion{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option>Certificado de Aptitud Psicofisica</option>
                                         <option>Fundamentacion en Seguridad</option>
@@ -319,30 +319,30 @@
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Academia o Escuela que Certifica</label>
-                                    <input type="text" name="academia_certifica[]" class="form-input">
+                                    <input type="text" name="academia_certifica{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
 
                                 <h3 class="subsection-title md:col-span-2">Resolucion de Aprobacion de la Academia</h3>
 
                                 <div>
                                     <label class="form-label">Nro. Resolucion</label>
-                                    <input type="text" name="nro_resolucion[]" class="form-input">
+                                    <input type="text" name="nro_resolucion{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Fecha de Resolucion</label>
-                                    <input type="date" name="fecha_resolucion[]" class="form-input">
+                                    <input type="date" name="fecha_resolucion{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Vigencia del Curso Desde</label>
-                                    <input type="date" name="vigencia_desde[]" class="form-input">
+                                    <input type="date" name="vigencia_desde{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Vigencia del Curso Hasta</label>
-                                    <input type="date" name="vigencia_hasta[]" class="form-input">
+                                    <input type="date" name="vigencia_hasta{{ '' if edit_mode else '[]' }}" class="form-input">
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Cargue de Evidencia</label>
-                                    <input type="file" name="cargue_evidencia_0"
+                                    <input type="file" name="{{ 'cargue_evidencia' if edit_mode else 'cargue_evidencia_0' }}"
                                         class="form-input file-input-evidencia file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                         accept="image/*,application/pdf">
                                     <p class="text-xs text-gray-400 mt-1">Cargue una foto, PDF o documento como
@@ -350,7 +350,7 @@
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Nivel de Cumplimiento</label>
-                                    <select name="nivel_cumplimiento[]" class="form-select">
+                                    <select name="nivel_cumplimiento{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option>Cumple</option>
                                         <option>No Cumple</option>
@@ -366,7 +366,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label class="form-label">Copia de Certificados en Carpeta Fisica</label>
-                                    <select name="copia_certificados_fisica[]" class="form-select">
+                                    <select name="copia_certificados_fisica{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option>Si</option>
                                         <option>No</option>
@@ -374,7 +374,7 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Certificados Cargados en Sistema</label>
-                                    <select name="certificados_cargados_sistema[]" class="form-select">
+                                    <select name="certificados_cargados_sistema{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option>Si</option>
                                         <option>No</option>
@@ -382,7 +382,7 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Documentacion coincide con Datos en Hoja de Vida</label>
-                                    <select name="documentacion_coincide_hv[]" class="form-select">
+                                    <select name="documentacion_coincide_hv{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option>Si</option>
                                         <option>No</option>
@@ -390,7 +390,7 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Fechas Dentro del Periodo de Vigencia</label>
-                                    <select name="fechas_vigentes[]" class="form-select">
+                                    <select name="fechas_vigentes{{ '' if edit_mode else '[]' }}" class="form-select">
                                         <option value="" disabled selected>Seleccione...</option>
                                         <option>Si</option>
                                         <option>No</option>
@@ -411,7 +411,7 @@
                                     <button type="button" data-pad="firma_auditor_pad_0"
                                         class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
                                         Firma</button>
-                                    <input type="hidden" name="firma_auditor[]" class="hidden-supervisor-sig-input">
+                                    <input type="hidden" name="firma_auditor{{ '' if edit_mode else '[]' }}" class="hidden-supervisor-sig-input">
                                 </div>
                                 <div>
                                     <label class="form-label">Firma del Guarda Supervisado</label>
@@ -422,13 +422,14 @@
                                     <button type="button" data-pad="firma_guarda_supervisado_pad_0"
                                         class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
                                         Firma</button>
-                                    <input type="hidden" name="firma_guarda_supervisado[]" class="hidden-sig-input">
+                                    <input type="hidden" name="firma_guarda_supervisado{{ '' if edit_mode else '[]' }}" class="hidden-sig-input">
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                {% if not edit_mode %}
                 <div class="mt-4 mb-8 text-center">
                     <button type="button" onclick="addChecklistBlock()"
                         class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-lg flex items-center justify-center mx-auto gap-2">
@@ -439,15 +440,87 @@
                         Añadir otro checklist
                     </button>
                 </div>
+                {% endif %}
+
+                {% if edit_mode %}
+                <div class="form-section">
+                    <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Motivo de la modificación</h2>
+                    <div>
+                        <label for="motivo" class="form-label">Motivo *</label>
+                        <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                            <option value="" disabled selected>Seleccione un motivo...</option>
+                            {% for m in motivos_edicion %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                        <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                        <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                            placeholder="Describa el motivo de la modificación..."></textarea>
+                    </div>
+                </div>
+                {% endif %}
 
                 <div class="mt-8 text-center">
                     <button type="submit"
                         class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition duration-300">
-                        Enviar Checklist(s)
+                        {{ 'Guardar Cambios' if edit_mode else 'Enviar Checklist(s)' }}
                     </button>
                 </div>
         </form>
     </div>
+
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        (function prefillEditForm() {
+            if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
+            var record = window.EDIT_RECORD;
+            var form = document.getElementById('checklistForm');
+            if (!form) return;
+
+            Object.keys(record).forEach(function(key) {
+                var value = record[key];
+                if (value === null || value === undefined) return;
+                if (key === 'evidencia_url') return; // file field, kept unless replaced
+                var els = form.querySelectorAll('[name="' + key + '"]');
+                if (!els.length) return;
+                els.forEach(function(el) {
+                    if (el.type === 'checkbox' || el.type === 'radio' || el.type === 'file' || el.type === 'hidden') return;
+                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                        if (el.type === 'datetime-local' && value) {
+                            var d = new Date(value);
+                            if (!isNaN(d.getTime())) {
+                                var pad = function(n) { return String(n).padStart(2, '0'); };
+                                value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            }
+                        }
+                        el.value = value;
+                    }
+                });
+            });
+
+            if (record.id_propiedad) {
+                setTimeout(function() {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }, 800);
+            }
+        })();
+    </script>
+    {% endif %}
 
     <script>
         let signaturePads = {};

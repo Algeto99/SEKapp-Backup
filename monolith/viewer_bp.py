@@ -782,7 +782,10 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     mapped_data[label] = val
 
                 # 2. Add unmapped fields, filtering out system columns
-                system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone'}
+                system_cols = {
+                    config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone',
+                    'editado', 'editado_por', 'editado_en',
+                }
                 for col_name, val in row_dict.items():
                     if col_name not in processed_cols and col_name not in system_cols:
                         # Sign signatures if they are GCS URLs
@@ -800,6 +803,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
 
                         mapped_data[display_label] = val
 
+                editado_en_val = row_dict.get('editado_en')
                 report = {
                     "id": row_dict.get(config['id_col']),
                     "title": f"{config['title_prefix']} #{row_dict.get(config['id_col'])}",
@@ -807,7 +811,10 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     "dateSubmitted": date_str,
                     "submitterTimezone": submitter_tz,
                     "data": mapped_data,
-                    "formType": f_type
+                    "formType": f_type,
+                    "editado": bool(row_dict.get('editado')),
+                    "editado_por": row_dict.get('editado_por') or '',
+                    "editado_en": editado_en_val.strftime('%Y-%m-%d %H:%M') if hasattr(editado_en_val, 'strftime') else '',
                 }
                 all_reports.append(report)
 
@@ -937,7 +944,10 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 data_content[label] = val
 
             # 2. Add unmapped fields, filtering out system columns
-            system_cols = {config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone'}
+            system_cols = {
+                config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone',
+                'editado', 'editado_por', 'editado_en',
+            }
             for col_name, val in row_dict.items():
                 if col_name not in processed_cols and col_name not in system_cols:
                     # Sign signatures if they are GCS URLs
@@ -960,6 +970,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
 
                     data_content[display_label] = val
 
+            editado_en_val = row_dict.get('editado_en')
             forms_data = {
                 "id": row_dict[config['id_col']],
                 "title": f"{config['title_prefix']} #{row_dict[config['id_col']]}",
@@ -967,7 +978,10 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 "dateSubmitted": date_str,
                 "submitterTimezone": submitter_tz,
                 "data": data_content,
-                "formType": form_type
+                "formType": form_type,
+                "editado": bool(row_dict.get('editado')),
+                "editado_por": row_dict.get('editado_por') or '',
+                "editado_en": editado_en_val.strftime('%Y-%m-%d %H:%M') if hasattr(editado_en_val, 'strftime') else '',
             }
             reports.append(forms_data)
 

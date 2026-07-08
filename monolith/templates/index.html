@@ -593,6 +593,14 @@
                 display: block !important;
             }
         }
+
+        .edited-badge {
+            display:inline-flex; align-items:center; gap:0.25rem;
+            padding:0.15rem 0.5rem; border-radius:999px;
+            font-size:0.7rem; font-weight:600; margin-left:0.4rem;
+            background:rgba(168,85,247,0.15); color:#c084fc; cursor:help;
+        }
+        body.light-mode .edited-badge { background:rgba(147,51,234,0.1); color:#7e22ce; }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -1018,10 +1026,19 @@
             const modalContent = document.getElementById('modal-report-content');
             const modalTitle = document.getElementById('modal-report-title');
 
-            // "Editar registro" solo existe (con auditoría) para estos tipos de formulario
+            // "Editar registro" solo existe (con auditoría) para estos 11 tipos de formulario
             const EDIT_ROUTES = {
-                'reporte_incidente':          `/reporte_incidente/${reportId}/editar`,
-                'registro_y_acta_de_visita':  `/registro_y_acta_de_visita/${reportId}/editar`,
+                'reporte_incidente':                    `/forms/reporte_incidente/${reportId}/editar`,
+                'registro_y_acta_de_visita':             `/forms/registro_y_acta_de_visita/${reportId}/editar`,
+                'medicion_experiencia_cliente':          `/forms/medicion_experiencia_cliente/${reportId}/editar`,
+                'supervision_puesto':                    `/forms/supervision_puesto/${reportId}/editar`,
+                'informe_novedades_disciplinario':       `/forms/informe_novedades_disciplinario/${reportId}/editar`,
+                'log_de_patrullas':                      `/forms/log_de_patrullas/${reportId}/editar`,
+                'registro_de_capacitaciones':            `/forms/registro_de_capacitaciones/${reportId}/editar`,
+                'planilla_vehicular':                    `/forms/planilla_vehicular/${reportId}/editar`,
+                'planilla_motocicletas':                 `/forms/planilla_motocicletas/${reportId}/editar`,
+                'checklist_cumplimiento':                `/forms/checklist_cumplimiento/${reportId}/editar`,
+                'confiabilidad_equipos':                 `/forms/confiabilidad_equipos/${reportId}/editar`,
             };
             const editLink = document.getElementById('modal-report-edit-link');
             if (EDIT_ROUTES[formType]) {
@@ -1051,7 +1068,7 @@
                 }
 
                 const reportDetails = await response.json();
-                modalTitle.textContent = reportDetails.title || 'Detalles del Reporte';
+                modalTitle.innerHTML = `${reportDetails.title || 'Detalles del Reporte'}${editedBadge(reportDetails)}`;
 
                 let detailsHtml = '<div class="grid grid-cols-1 gap-4">';
 
@@ -1275,6 +1292,12 @@
             };
         }
 
+        function editedBadge(r) {
+            if (!r || !r.editado) return '';
+            const title = `Editado por ${r.editado_por || '—'} el ${r.editado_en || '—'}`;
+            return `<span class="edited-badge" title="${title}">✎ Editado</span>`;
+        }
+
         function createReportBlock(form) {
             const reportBlock = document.createElement('div');
             reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
@@ -1300,7 +1323,7 @@
             reportBlock.innerHTML = `
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <h2 class="text-xl font-semibold text-gray-800">${form.title}</h2>
+                        <h2 class="text-xl font-semibold text-gray-800">${form.title}${editedBadge(form)}</h2>
                         <p class="text-gray-600 text-sm">Enviado por: ${form.submittedBy} el <span class="local-time" data-utc="${form.dateSubmitted}" data-submitter-tz="${form.submitterTimezone || 'UTC'}">${form.dateSubmitted}</span></p>
                     </div>
                     <div class="flex items-start gap-2">
@@ -2403,7 +2426,7 @@
             <!-- Modal Footer -->
             <div
                 class="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 bg-white dark:bg-gray-800 rounded-b-lg">
-                <a id="modal-report-edit-link" href="#" target="_blank" rel="noopener"
+                <a id="modal-report-edit-link" href="#"
                     class="hidden base-button-style" style="background:rgba(168,85,247,0.12);color:#7e22ce;border:1px solid rgba(168,85,247,0.35);text-decoration:none;">
                     ✎ Editar registro
                 </a>

@@ -192,7 +192,7 @@
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
 <form id="confiabilidadForm"
-              action="{{ url_for('forms_bp.submit_confiabilidad_equipos') }}"
+              action="{{ url_for('forms_bp.submit_confiabilidad_equipos_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_confiabilidad_equipos') }}"
               method="POST"
               class="space-y-6">
             <input type="hidden" name="latitude" id="latitude">
@@ -361,12 +361,32 @@
                 </div>
             </div>
 
+            {% if edit_mode %}
+            <div class="form-section">
+                <h2 class="text-xl font-bold mb-4 pb-2 border-b border-gray-600">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="form-label">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Submit -->
             <div class="flex justify-end pb-8">
                 <button type="submit" id="submitBtn"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg
                            transition duration-300 focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    Enviar Formulario
+                    {{ 'Guardar Cambios' if edit_mode else 'Enviar Formulario' }}
                 </button>
             </div>
         </form>
@@ -717,6 +737,74 @@
         }, true);
     })();
     </script>
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                var record = window.EDIT_RECORD;
+                var form = document.getElementById('confiabilidadForm');
+                if (!form) return;
+
+                ['sitio', 'supervisor_seguridad'].forEach(function(key) {
+                    var el = form.querySelector('[name="' + key + '"]');
+                    if (el && record[key] !== null && record[key] !== undefined) el.value = record[key];
+                });
+                if (record.fecha) {
+                    var timeVal = record.hora ? String(record.hora).substring(0, 5) : '00:00';
+                    var display = document.getElementById('fecha_hora_display');
+                    if (display) display.value = String(record.fecha).substring(0, 10) + 'T' + timeVal;
+                    var fechaHidden = document.getElementById('fecha');
+                    var horaHidden = document.getElementById('hora');
+                    if (fechaHidden) fechaHidden.value = record.fecha;
+                    if (horaHidden) horaHidden.value = record.hora;
+                }
+
+                // Reconstruct the dynamic inventario rows from the stored JSON list.
+                var inventario = record.inventario;
+                if (inventario) {
+                    try { if (typeof inventario === 'string') inventario = JSON.parse(inventario); } catch (e) { inventario = []; }
+                }
+                if (Array.isArray(inventario) && inventario.length) {
+                    var container = document.getElementById('inventarioContainer');
+                    var addBtn = document.getElementById('addInventarioBtn');
+                    while (container.children.length < inventario.length) {
+                        addBtn.click();
+                    }
+                    var blocks = container.querySelectorAll('.inventory-block');
+                    inventario.forEach(function(item, i) {
+                        var block = blocks[i];
+                        if (!block) return;
+                        Object.keys(item).forEach(function(field) {
+                            var el = block.querySelector('[name$="[' + field + ']"]');
+                            if (el && item[field] !== undefined) {
+                                el.value = item[field];
+                                el.dispatchEvent(new Event('input', { bubbles: true }));
+                                el.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        });
+                    });
+                }
+
+                if (record.id_propiedad) {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }
+            }, 300);
+        });
+    </script>
+    {% endif %}
     </div><!-- /sidebar-main-content -->
 </body>
 </html>

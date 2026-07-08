@@ -594,6 +594,42 @@ ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado BOOLEAN D
 ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
 ALTER TABLE registro_y_acta_de_visita ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
 
+ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE log_de_patrullas ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE log_de_patrullas ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE log_de_patrullas ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
+ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
+ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
 CREATE TABLE IF NOT EXISTS formulario_edicion_historial (
     id SERIAL PRIMARY KEY,
     tabla VARCHAR(100) NOT NULL,          -- 'reportes_incidentes' | 'registro_y_acta_de_visita'

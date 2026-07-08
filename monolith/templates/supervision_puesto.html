@@ -179,7 +179,7 @@
         <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-        <form id="supervisionForm" action="{{ url_for('forms_bp.submit_supervision_puesto') }}" method="POST"
+        <form id="supervisionForm" action="{{ url_for('forms_bp.submit_supervision_puesto_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_supervision_puesto') }}" method="POST"
             enctype="multipart/form-data" class="space-y-6">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
@@ -218,6 +218,281 @@
                 </div>
             </div>
 
+            {% if edit_mode %}
+            <!-- Edit mode: a single flat block for the one record being edited (no supervisions[N][...] indexing). -->
+            <div class="form-section border-l-4 border-blue-500 pl-4 bg-gray-800 bg-opacity-50 mt-8">
+                <h2 class="text-2xl font-bold text-blue-400 mb-6">Datos de la Supervisión</h2>
+
+                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Puesto</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Tipo de turno</label>
+                                <select name="horario_servicio" class="form-select">
+                                    <option value="">Seleccione...</option>
+                                    <option>Diurno</option>
+                                    <option>Nocturno</option>
+                                    <option>Mixto</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Entrada</label>
+                                <input type="time" name="hora_entrada" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Salida</label>
+                                <input type="time" name="hora_salida" class="form-input">
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
+                        <select name="tipo_servicio" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Residencial</option>
+                            <option>Industrial</option>
+                            <option>Comercial</option>
+                            <option>Escolta</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Guardia de Seguridad</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
+                        <input type="text" name="nombre_guardia" class="form-input" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Número de Empleado</label>
+                        <input type="text" name="numero_empleado" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Documento</label>
+                        <input type="text" name="documento_guardia" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
+                        <input type="text" name="tiempo_en_puesto" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
+                        <input type="text" name="licencia_portar_arma" class="form-input">
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inducción de Puesto</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">¿Se realiza inducción al puesto?</label>
+                        <select name="realiza_induccion" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Sí</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">¿Conoce Órdenes y Consignas?</label>
+                        <select name="conoce_ordenes_consignas" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Sí</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">¿Horario y detalles claros?</label>
+                        <select name="horario_detalles_claros" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Sí</option>
+                            <option>No</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium mb-1">Porta arma en el puesto</label>
+                        <select name="porta_arma" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="Si">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tipo de Arma</label>
+                        <select name="tipo_arma" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option>Escopeta</option>
+                            <option>Pistola</option>
+                            <option>Revolver</option>
+                            <option>No Aplica</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Serie del Arma</label>
+                        <input type="text" name="serie_arma" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Matrícula</label>
+                        <input type="text" name="matricula_arma" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
+                        <input type="text" name="cantidad_municion" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
+                        <input type="date" name="fecha_vencimiento_permiso_porte" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha último mtto (arma)</label>
+                        <input type="date" name="fecha_ultimo_mtto_arma" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
+                        <input type="text" name="radio_asignado_serial" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Marca radio</label>
+                        <input type="text" name="marca_radio" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tipo de radio</label>
+                        <input type="text" name="tipo_radio" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
+                        <input type="date" name="fecha_ultimo_mtto_radio" class="form-input">
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inspección de Puesto</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Asistencia y puntualidad</label>
+                        <select name="asistencia_puntualidad" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="1">1 — Muy deficiente</option>
+                            <option value="2">2 — Deficiente</option>
+                            <option value="3">3 — Aceptable</option>
+                            <option value="4">4 — Bueno</option>
+                            <option value="5">5 — Excelente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
+                        <select name="presentacion_uniforme" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="1">1 — Muy deficiente</option>
+                            <option value="2">2 — Deficiente</option>
+                            <option value="3">3 — Aceptable</option>
+                            <option value="4">4 — Bueno</option>
+                            <option value="5">5 — Excelente</option>
+                        </select>
+                        <div class="mt-3 p-3 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
+                            <label class="block text-sm font-medium mb-2">Prendas con problemas</label>
+                            <div class="flex flex-wrap gap-4">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="problemas_uniforme[]" value="Gorra" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                    <span class="ml-2 text-sm">Gorra</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="problemas_uniforme[]" value="Camisa" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                    <span class="ml-2 text-sm">Camisa</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="problemas_uniforme[]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
+                                    <span class="ml-2 text-sm">Pantalón</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Estado y limpieza del puesto</label>
+                        <select name="estado_limpieza_puesto" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="1">1 — Muy deficiente</option>
+                            <option value="2">2 — Deficiente</option>
+                            <option value="3">3 — Aceptable</option>
+                            <option value="4">4 — Bueno</option>
+                            <option value="5">5 — Excelente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Equipamiento (radio, etc.)</label>
+                        <select name="equipamiento_completo" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="1">1 — Muy deficiente</option>
+                            <option value="2">2 — Deficiente</option>
+                            <option value="3">3 — Aceptable</option>
+                            <option value="4">4 — Bueno</option>
+                            <option value="5">5 — Excelente</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Estado de bitácora y registros</label>
+                        <select name="estado_bitacora" class="form-select">
+                            <option value="">Seleccione...</option>
+                            <option value="1">1 — Muy deficiente</option>
+                            <option value="2">2 — Deficiente</option>
+                            <option value="3">3 — Aceptable</option>
+                            <option value="4">4 — Bueno</option>
+                            <option value="5">5 — Excelente</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Observaciones</h3>
+                <div class="mb-6">
+                    <textarea name="observaciones_novedades" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
+                </div>
+
+                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Foto/Evidencia</h3>
+                <div class="mb-6">
+                    <input type="file" name="foto_evidencia" class="form-input" accept="image/*,application/pdf">
+                    <p class="text-xs text-gray-400 mt-1">Deje en blanco para conservar la evidencia actual.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma Supervisor</h3>
+                        <canvas id="signaturePadSupervisorEdit" class="signature-pad w-full h-32"></canvas>
+                        <button type="button" id="clearSigSupervisorEdit" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_supervisor" id="firma_supervisor_edit">
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Firma del Guardia</h3>
+                        <canvas id="signaturePadGuardiaEdit" class="signature-pad w-full h-32"></canvas>
+                        <button type="button" id="clearSigGuardiaEdit" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <input type="hidden" name="firma_guardia" id="firma_guardia_edit">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">Motivo de la modificación</h2>
+                <div>
+                    <label for="motivo" class="form-label">Motivo *</label>
+                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                        <option value="" disabled selected>Seleccione un motivo...</option>
+                        {% for m in motivos_edicion %}
+                        <option value="{{ m }}">{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="motivoDetalleWrap" style="display:none; margin-top:1rem;">
+                    <label for="motivo_detalle" class="form-label">Detalle del motivo *</label>
+                    <textarea id="motivo_detalle" name="motivo_detalle" rows="3" class="form-textarea"
+                        placeholder="Describa el motivo de la modificación..."></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-4">
+                <button type="submit"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
+                    Guardar Cambios
+                </button>
+            </div>
+            {% else %}
             <!-- Container for Dynamic Supervision Blocks -->
             <div id="supervisionsContainer"></div>
 
@@ -232,8 +507,72 @@
                     Enviar Todas las Supervisiones
                 </button>
             </div>
+            {% endif %}
         </form>
     </div>
+
+    {% if edit_mode and record %}
+    <script>
+        window.EDIT_MODE = true;
+        window.EDIT_RECORD = {{ record | tojson | safe }};
+    </script>
+    <script>
+        function toggleMotivoDetalle() {
+            var sel = document.getElementById('motivo');
+            var wrap = document.getElementById('motivoDetalleWrap');
+            var detalle = document.getElementById('motivo_detalle');
+            var isOtro = sel && sel.value === 'Otro';
+            if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
+            if (detalle) detalle.required = isOtro;
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            var supervisorPad = new SignaturePad(document.getElementById('signaturePadSupervisorEdit'));
+            var guardiaPad = new SignaturePad(document.getElementById('signaturePadGuardiaEdit'));
+            document.getElementById('clearSigSupervisorEdit').addEventListener('click', function() { supervisorPad.clear(); });
+            document.getElementById('clearSigGuardiaEdit').addEventListener('click', function() { guardiaPad.clear(); });
+            var form = document.getElementById('supervisionForm');
+            form.addEventListener('submit', function() {
+                if (!supervisorPad.isEmpty()) document.getElementById('firma_supervisor_edit').value = supervisorPad.toDataURL();
+                if (!guardiaPad.isEmpty()) document.getElementById('firma_guardia_edit').value = guardiaPad.toDataURL();
+            });
+
+            var record = window.EDIT_RECORD;
+            Object.keys(record).forEach(function(key) {
+                var value = record[key];
+                if (value === null || value === undefined) return;
+                var els = form.querySelectorAll('[name="' + key + '"]');
+                if (!els.length) return;
+                els.forEach(function(el) {
+                    if (el.type === 'checkbox' || el.type === 'radio') return;
+                    if (el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                        if (el.type === 'datetime-local' && value) {
+                            var d = new Date(value);
+                            if (!isNaN(d.getTime())) {
+                                var pad = function(n) { return String(n).padStart(2, '0'); };
+                                value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+                            }
+                        }
+                        el.value = value;
+                    }
+                });
+            });
+
+            if (record.problemas_uniforme) {
+                var selected = String(record.problemas_uniforme).split(',').map(function(s){ return s.trim(); });
+                form.querySelectorAll('input[name="problemas_uniforme[]"]').forEach(function(cb) {
+                    if (selected.indexOf(cb.value) !== -1) cb.checked = true;
+                });
+            }
+
+            if (record.id_propiedad) {
+                setTimeout(function() {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = record.id_propiedad;
+                }, 800);
+            }
+        });
+    </script>
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
@@ -248,6 +587,9 @@
             document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
             // --- SUPERVISION BLOCK LOGIC ---
+            // Not used in edit_mode: the edit template renders a single static block instead
+            // of the dynamic multi-row builder (see supervisionsContainer guard below).
+            if (!document.getElementById('supervisionsContainer')) { return; }
             let supervisionCount = 0;
             const container = document.getElementById('supervisionsContainer');
             const addBtn = document.getElementById('addSupervisionBtn');
