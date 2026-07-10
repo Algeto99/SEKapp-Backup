@@ -720,6 +720,16 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "hora_entrada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "informe_novedades_disciplinario",
+    "column_name": "hora_salida",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "kpi_thresholds",
     "column_name": "key",
     "data_type": "character varying"
@@ -1325,6 +1335,16 @@
     "data_type": "character varying"
   },
   {
+    "table_name": "planilla_motocicletas",
+    "column_name": "hora_entrada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_motocicletas",
+    "column_name": "hora_salida",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "planilla_vehicular",
     "column_name": "id_planilla_vehicular",
     "data_type": "integer"
@@ -1597,6 +1617,16 @@
   {
     "table_name": "planilla_vehicular",
     "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "hora_entrada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "planilla_vehicular",
+    "column_name": "hora_salida",
     "data_type": "character varying"
   },
   {
@@ -2162,6 +2192,16 @@
   {
     "table_name": "reportes_incidentes",
     "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "hora_entrada",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "reportes_incidentes",
+    "column_name": "hora_salida",
     "data_type": "character varying"
   },
   {

@@ -286,7 +286,21 @@
                             <option value="" disabled selected>Seleccione un turno...</option>
                             <option>Diurno</option>
                             <option>Nocturno</option>
+                            <option>Mixto</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="form-label">Horario de Servicio</label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Hora de Ingreso</label>
+                                <input type="time" name="hora_entrada" class="form-input">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Hora de Salida</label>
+                                <input type="time" name="hora_salida" class="form-input">
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label for="numero_empleado" class="form-label">Número de Empleado</label>
