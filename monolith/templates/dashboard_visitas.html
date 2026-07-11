@@ -820,6 +820,9 @@
         });
 
         loadData(buildQS(filters.getState()));
+
+        const _deepId = new URLSearchParams(window.location.search).get('id');
+        if (_deepId) recordViewer.openRecord(_deepId);
     });
     </script>
 
