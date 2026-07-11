@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS companies (
     name VARCHAR(255),
     slug VARCHAR(255),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    enabled_modules JSONB
 );
 
 CREATE TABLE IF NOT EXISTS customer_companies (
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS authorized_emails (
     is_active BOOLEAN DEFAULT TRUE,
     notes TEXT,
     is_admin BOOLEAN DEFAULT FALSE,
+    company_id INTEGER,
     FOREIGN KEY (company_id) REFERENCES companies(id)
 );
 
@@ -141,6 +143,8 @@ CREATE TABLE IF NOT EXISTS reportes_incidentes (
     editado BOOLEAN DEFAULT FALSE,
     editado_en TIMESTAMPTZ,
     editado_por VARCHAR(255),
+    hora_entrada VARCHAR(10),
+    hora_salida VARCHAR(10),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -205,6 +209,9 @@ CREATE TABLE IF NOT EXISTS supervision_puesto (
     horario_servicio VARCHAR(255),
     tipo_servicio VARCHAR(255),
     problemas_uniforme TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -241,6 +248,9 @@ CREATE TABLE IF NOT EXISTS medicion_experiencia_cliente (
     longitude NUMERIC,
     location_accuracy NUMERIC,
     submitter_timezone TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -267,6 +277,9 @@ CREATE TABLE IF NOT EXISTS log_de_patrullas (
     customer_company_id INTEGER,
     id_propiedad INTEGER,
     submitter_timezone TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -307,6 +320,11 @@ CREATE TABLE IF NOT EXISTS informe_novedades_disciplinario (
     longitude NUMERIC,
     location_accuracy NUMERIC,
     submitter_timezone TEXT,
+    hora_entrada VARCHAR(10),
+    hora_salida VARCHAR(10),
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -335,6 +353,9 @@ CREATE TABLE IF NOT EXISTS registro_de_capacitaciones (
     id_propiedad INTEGER,
     foto_evidencia_url TEXT,
     submitter_timezone TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -436,6 +457,11 @@ CREATE TABLE IF NOT EXISTS planilla_vehicular (
     numero_empleado VARCHAR(255),
     fecha_ultimo_mantenimiento DATE,
     submitter_timezone TEXT,
+    hora_entrada VARCHAR(10),
+    hora_salida VARCHAR(10),
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -494,6 +520,11 @@ CREATE TABLE IF NOT EXISTS planilla_motocicletas (
     numero_empleado VARCHAR(255),
     fecha_ultimo_mantenimiento DATE,
     submitter_timezone TEXT,
+    hora_entrada VARCHAR(10),
+    hora_salida VARCHAR(10),
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -533,6 +564,9 @@ CREATE TABLE IF NOT EXISTS checklist_cumplimiento (
     id_propiedad INTEGER,
     agente_numero_empleado VARCHAR(255),
     submitter_timezone TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -558,6 +592,9 @@ CREATE TABLE IF NOT EXISTS confiabilidad_equipos (
     longitude NUMERIC,
     location_accuracy NUMERIC,
     submitter_timezone TEXT,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
@@ -574,6 +611,7 @@ CREATE TABLE IF NOT EXISTS asignaciones_hallazgo (
     estado TEXT DEFAULT 'Asignado',
     company_id INTEGER,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    asignado_email TEXT,
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (asignado_a) REFERENCES users(id)
 );

@@ -326,6 +326,15 @@ def _record_edicion_historial(cur, tabla, registro_id, usuario_email, motivo, mo
         """, (tabla, registro_id, usuario_email, motivo, motivo_detalle, campo, str_anterior or None, str_nuevo or None))
 
 
+def _preservar_firmas_existentes(form_data):
+    """En edición, un campo de firma vacío significa 'sin cambios': se excluye
+    del UPDATE para conservar la firma original del registro."""
+    for campo in list(form_data.keys()):
+        if (campo.startswith('firma') or campo.endswith('_firma')) and not form_data[campo]:
+            del form_data[campo]
+    return form_data
+
+
 def _parse_incident_form_data(request, user_email, foto_url=None):
     """Shared field-parsing for reportes_incidentes create/edit flows."""
     form_data = {
@@ -621,6 +630,7 @@ def submit_incident_report_editar(id):
         # user_email above represents the editor, not the original submitter — do not overwrite it
         form_data.pop('user_email', None)
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'reportes_incidentes', form_data)
 
         _record_edicion_historial(
@@ -819,6 +829,7 @@ def submit_medicion_experiencia_cliente_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'medicion_experiencia_cliente', form_data)
 
         _record_edicion_historial(
@@ -1088,6 +1099,7 @@ def submit_supervision_puesto_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'supervision_puesto', form_data)
         valid_form_data = {k: v for k, v in valid_form_data.items() if v is not None and v != ''}
 
@@ -1344,6 +1356,7 @@ def submit_informe_novedades_disciplinario_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'informe_novedades_disciplinario', form_data)
 
         _record_edicion_historial(
@@ -1512,6 +1525,7 @@ def submit_log_de_patrullas_editar(id):
         }
         form_data.update(_resolve_scope_fields(cur, user_email))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'log_de_patrullas', form_data)
 
         _record_edicion_historial(
@@ -1793,6 +1807,7 @@ def submit_registro_de_capacitaciones_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'registro_de_capacitaciones', form_data)
 
         _record_edicion_historial(
@@ -2005,6 +2020,7 @@ def submit_registro_y_acta_de_visita_editar(id):
         # user_email above represents the editor, not the original submitter
         form_data.pop('submitted_by_email', None)
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'registro_y_acta_de_visita', form_data)
 
         _record_edicion_historial(
@@ -2244,6 +2260,7 @@ def submit_planilla_vehicular_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
 
         _record_edicion_historial(
@@ -2446,6 +2463,7 @@ def submit_planilla_motocicletas_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         _record_edicion_historial(
@@ -2685,6 +2703,7 @@ def submit_checklist_cumplimiento_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'checklist_cumplimiento', form_data)
         valid_form_data = {k: v for k, v in valid_form_data.items() if v is not None and v != ''}
 
@@ -2899,6 +2918,7 @@ def submit_confiabilidad_equipos_editar(id):
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        form_data = _preservar_firmas_existentes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'confiabilidad_equipos', form_data)
 
         # inventario is JSON — diff against the raw list, not the Json() wrapper

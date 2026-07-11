@@ -213,6 +213,18 @@ _FORMS_EXEMPT_ENDPOINTS = [
     'forms_bp.submit_planilla_motocicletas',
     'forms_bp.submit_checklist_cumplimiento',
     'forms_bp.submit_confiabilidad_equipos',
+    # JWT-authenticated admin edit routes — protected via JWT double-submit cookie
+    'forms_bp.submit_incident_report_editar',
+    'forms_bp.submit_medicion_experiencia_cliente_editar',
+    'forms_bp.submit_supervision_puesto_editar',
+    'forms_bp.submit_informe_novedades_disciplinario_editar',
+    'forms_bp.submit_log_de_patrullas_editar',
+    'forms_bp.submit_registro_de_capacitaciones_editar',
+    'forms_bp.submit_registro_y_acta_de_visita_editar',
+    'forms_bp.submit_planilla_vehicular_editar',
+    'forms_bp.submit_planilla_motocicletas_editar',
+    'forms_bp.submit_checklist_cumplimiento_editar',
+    'forms_bp.submit_confiabilidad_equipos_editar',
     # JWT-authenticated API endpoints
     'forms_bp.get_csrf_token',
     'forms_bp.get_my_reports',

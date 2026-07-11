@@ -303,6 +303,24 @@
             {% if edit_mode %}
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">Motivo de la modificación</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label class="form-label">Modificado por</label>
+                        <input type="text" class="form-input" value="{{ name }}" readonly>
+                    </div>
+                    <div>
+                        <label class="form-label">Fecha y hora de la modificación</label>
+                        <input type="text" class="form-input" id="fecha_modificacion_display" value="" readonly>
+                    </div>
+                </div>
+                <script>
+                    (function () {
+                        var el = document.getElementById('fecha_modificacion_display');
+                        if (!el) return;
+                        var d = new Date(), p = function (n) { return String(n).padStart(2, '0'); };
+                        el.value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+                    })();
+                </script>
                 <div>
                     <label for="motivo" class="block text-sm font-medium mb-1">Motivo *</label>
                     <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
@@ -337,7 +355,7 @@
             // Set current date and time
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-            document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
+            if (!window.EDIT_MODE) document.getElementById('fecha_hora').value = now.toISOString().slice(0, 16);
 
             // Signature Pad Logic for Visitante
             const canvasVisitante = document.getElementById('firma-visitante-pad');
