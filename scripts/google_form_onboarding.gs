@@ -18,7 +18,7 @@
 
 const TITULO_FORMULARIO = 'SEKapp — Onboarding de Nueva Empresa';
 const MAX_CLIENTES = 5;
-const MAX_INSTALACIONES = 10;
+const MAX_INSTALACIONES_POR_CLIENTE = 3;
 
 function crearFormularioOnboarding() {
   const form = FormApp.create(TITULO_FORMULARIO);
@@ -89,16 +89,20 @@ function crearFormularioOnboarding() {
     .setRequired(true);
 
   // ==========================================================
-  // Secciones 2..N — Clientes (bloques repetibles)
+  // Secciones — Clientes e Instalaciones (intercalados)
   // ==========================================================
   const pbClientes = [];
-  const navClientes = []; // preguntas de navegación; las opciones se conectan al final
+  const pbInstalaciones = []; // Array 2D: [i][j]
+  const pbConfirmaciones = []; // Array 1D: [i]
+  const navInstalaciones = []; // Array 2D: [i][j]
+  const navClientes = []; // Array 1D: [i]
 
-  for (let i = 1; i <= MAX_CLIENTES; i++) {
-    const pb = form.addPageBreakItem()
-      .setTitle('Cliente ' + i)
+  for (let i = 0; i < MAX_CLIENTES; i++) {
+    const clientNum = i + 1;
+    const pbCli = form.addPageBreakItem()
+      .setTitle('Cliente ' + clientNum)
       .setHelpText('Empresa cliente a la que su compañía presta servicios de seguridad.');
-    pbClientes.push(pb);
+    pbClientes.push(pbCli);
 
     form.addTextItem()
       .setTitle('Nombre completo del cliente')
@@ -109,60 +113,59 @@ function crearFormularioOnboarding() {
       .setTitle('Código corto del cliente (ej.: DEF)')
       .setRequired(true);
 
-    if (i < MAX_CLIENTES) {
-      const nav = form.addMultipleChoiceItem()
+    pbInstalaciones[i] = [];
+    navInstalaciones[i] = [];
+
+    for (let j = 0; j < MAX_INSTALACIONES_POR_CLIENTE; j++) {
+      const instNum = j + 1;
+      const pbInst = form.addPageBreakItem()
+        .setTitle('Cliente ' + clientNum + ' — Instalación ' + instNum)
+        .setHelpText('Propiedad o sitio donde se presta el servicio de seguridad para el Cliente ' + clientNum + '.');
+      pbInstalaciones[i].push(pbInst);
+
+      form.addTextItem()
+        .setTitle('Nombre de la instalación')
+        .setHelpText('Como se le conoce operativamente (ej.: Planta Central, Torre Norte).')
+        .setRequired(true);
+
+      form.addTextItem()
+        .setTitle('Tipo o descripción')
+        .setHelpText('Ej.: planta industrial, oficina, bodega, residencial.');
+
+      form.addParagraphTextItem()
+        .setTitle('Dirección completa')
+        .setRequired(true);
+
+      form.addTextItem()
+        .setTitle('Coordenadas GPS (latitud, longitud)')
+        .setHelpText('Ej.: 14.634915, -90.506882. Puede obtenerlas en Google Maps (clic derecho sobre el sitio). Si no las conoce, déjelo en blanco.');
+
+      if (j < MAX_INSTALACIONES_POR_CLIENTE - 1) {
+        const navInst = form.addMultipleChoiceItem()
+          .setTitle('¿Desea registrar otra instalación?')
+          .setRequired(true);
+        navInstalaciones[i].push(navInst);
+      } else {
+        form.addSectionHeaderItem()
+          .setTitle('Ha alcanzado el máximo de instalaciones para este cliente')
+          .setHelpText('Si tiene más instalaciones para este cliente, indíquelo en la sección final de comentarios.');
+      }
+    }
+
+    const pbConf = form.addPageBreakItem()
+      .setTitle('Cliente ' + clientNum + ' — Completado')
+      .setHelpText('Registro de instalaciones para el Cliente ' + clientNum + ' finalizado.');
+    pbConfirmaciones.push(pbConf);
+
+    if (i < MAX_CLIENTES - 1) {
+      const navCli = form.addMultipleChoiceItem()
         .setTitle('¿Desea registrar otro cliente?')
         .setRequired(true);
-      navClientes.push(nav);
+      navClientes.push(navCli);
     } else {
       form.addSectionHeaderItem()
-        .setTitle('Ha alcanzado el máximo de clientes de este formulario')
-        .setHelpText('Si tiene más clientes, indíquelo en la sección final de comentarios y los registraremos por usted.');
-    }
-  }
-
-  // ==========================================================
-  // Secciones — Instalaciones (bloques repetibles)
-  // ==========================================================
-  const pbInstalaciones = [];
-  const navInstalaciones = [];
-
-  for (let j = 1; j <= MAX_INSTALACIONES; j++) {
-    const pb = form.addPageBreakItem()
-      .setTitle('Instalación ' + j)
-      .setHelpText('Propiedad o sitio donde se presta el servicio de seguridad.');
-    pbInstalaciones.push(pb);
-
-    form.addTextItem()
-      .setTitle('¿A qué cliente pertenece esta instalación? (use el código, ej.: DEF)')
-      .setRequired(true);
-
-    form.addTextItem()
-      .setTitle('Nombre de la instalación')
-      .setHelpText('Como se le conoce operativamente (ej.: Planta Central, Torre Norte).')
-      .setRequired(true);
-
-    form.addTextItem()
-      .setTitle('Tipo o descripción')
-      .setHelpText('Ej.: planta industrial, oficina, bodega, residencial.');
-
-    form.addParagraphTextItem()
-      .setTitle('Dirección completa')
-      .setRequired(true);
-
-    form.addTextItem()
-      .setTitle('Coordenadas GPS (latitud, longitud)')
-      .setHelpText('Ej.: 14.634915, -90.506882. Puede obtenerlas en Google Maps (clic derecho sobre el sitio). Si no las conoce, déjelo en blanco.');
-
-    if (j < MAX_INSTALACIONES) {
-      const nav = form.addMultipleChoiceItem()
-        .setTitle('¿Desea registrar otra instalación?')
-        .setRequired(true);
-      navInstalaciones.push(nav);
-    } else {
-      form.addSectionHeaderItem()
-        .setTitle('Ha alcanzado el máximo de instalaciones de este formulario')
-        .setHelpText('Si tiene más instalaciones, indíquelo en la sección final de comentarios y las registraremos por usted.');
+        .setTitle('Ha alcanzado el máximo de clientes en este formulario')
+        .setHelpText('Si tiene más clientes, indíquelo en la sección final de comentarios.');
     }
   }
 
@@ -276,19 +279,28 @@ function crearFormularioOnboarding() {
   // Conectar la navegación condicional (requiere que todas las
   // secciones ya existan, por eso se hace al final)
   // ==========================================================
-  navClientes.forEach(function (nav, idx) {
-    nav.setChoices([
-      nav.createChoice('Sí, registrar otro cliente', pbClientes[idx + 1]),
-      nav.createChoice('No, continuar con las instalaciones', pbInstalaciones[0]),
-    ]);
-  });
+  for (let i = 0; i < MAX_CLIENTES; i++) {
+    // Conectar navegación de instalaciones del cliente i
+    for (let j = 0; j < MAX_INSTALACIONES_POR_CLIENTE - 1; j++) {
+      const navInst = navInstalaciones[i][j];
+      const nextInstPb = pbInstalaciones[i][j + 1];
+      const confPb = pbConfirmaciones[i];
+      navInst.setChoices([
+        navInst.createChoice('Sí', nextInstPb),
+        navInst.createChoice('No', confPb)
+      ]);
+    }
 
-  navInstalaciones.forEach(function (nav, idx) {
-    nav.setChoices([
-      nav.createChoice('Sí, registrar otra instalación', pbInstalaciones[idx + 1]),
-      nav.createChoice('No, continuar con los usuarios', pbUsuarios),
-    ]);
-  });
+    // Conectar navegación de confirmación de otro cliente
+    if (i < MAX_CLIENTES - 1) {
+      const navCli = navClientes[i];
+      const nextCliPb = pbClientes[i + 1];
+      navCli.setChoices([
+        navCli.createChoice('Sí', nextCliPb),
+        navCli.createChoice('No', pbUsuarios)
+      ]);
+    }
+  }
 
   Logger.log('Formulario creado con éxito.');
   Logger.log('URL de edición (para usted):   ' + form.getEditUrl());
