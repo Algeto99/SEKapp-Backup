@@ -50,11 +50,12 @@ body:not(.light-mode) .snw-usr-drop a:hover{background:rgba(239,68,68,0.1)}
 .snw-group-chevron{margin-left:auto;width:12px;height:12px;flex-shrink:0;transition:transform .2s}
 .snw-group-toggle.open .snw-group-chevron{transform:rotate(90deg)}
 .snw-submenu{overflow:hidden;max-height:0;transition:max-height .25s ease}
-.snw-submenu.open{max-height:600px}
+.snw-submenu.open{max-height:700px}
 .snw-subitem{display:flex;align-items:center;gap:.5rem;padding:.45rem 1.25rem .45rem 2.75rem;color:#64748b;text-decoration:none;font-size:.775rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
 .snw-subitem:hover{color:#cbd5e1;background:rgba(255,255,255,0.04)}
 .snw-subitem.active{color:#38bdf8;background:rgba(56,189,248,0.06);border-left-color:#38bdf8}
 .snw-subitem::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.6}
+.snw-subsection{padding:.5rem 1.25rem .25rem 2.75rem;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#475569}
 
 /* ── Main content offset ── */
 .sidebar-main-content{margin-left:220px;flex:1;min-height:100vh;transition:margin-left 0.3s ease;overflow:auto;display:flex;flex-direction:column}
@@ -104,18 +105,26 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
         </button>
         <div id="snwFormsMenu" class="snw-submenu {{ 'open' if request.path.startswith('/forms') else '' }}">
             <a href="/forms/select" class="snw-subitem {{ 'active' if request.path in ('/forms/select', '/forms/select_form', '/forms/') else '' }}">Seleccionar Formulario</a>
-            <a href="/forms/reporte_incidente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/reporte_incidente') else '' }}">Reporte de Incidente</a>
+
+            {# Orden y agrupación replicados de la pantalla de selección (select_form.html),
+               organizada por procesos operativos. Mantener ambos en sincronía. #}
+            <div class="snw-subsection">Supervisión de campo</div>
             <a href="/forms/supervision_puesto" class="snw-subitem {{ 'active' if request.path.startswith('/forms/supervision_puesto') else '' }}">Supervisión de Puesto</a>
-            <a href="/forms/informe_novedades_disciplinario" class="snw-subitem {{ 'active' if request.path.startswith('/forms/informe_novedades_disciplinario') else '' }}">Reporte Disciplinario</a>
             {% if 'log_de_patrullas' in (enabled_modules or []) %}
             <a href="/forms/log_de_patrullas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/log_de_patrullas') else '' }}">Log de Patrullas</a>
             {% endif %}
-            <a href="/forms/registro_de_capacitaciones" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_de_capacitaciones') else '' }}">Registro de Capacitaciones</a>
-            <a href="/forms/registro_y_acta_de_visita" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_y_acta_de_visita') else '' }}">Acta de Visita a Cliente</a>
+            <a href="/forms/confiabilidad_equipos" class="snw-subitem {{ 'active' if request.path.startswith('/forms/confiabilidad_equipos') else '' }}">Confiabilidad de Equipos</a>
             <a href="/forms/planilla_vehicular" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_vehicular') else '' }}">Planilla Vehicular</a>
             <a href="/forms/planilla_motocicletas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_motocicletas') else '' }}">Planilla Motocicletas</a>
+
+            <div class="snw-subsection">Gestión de personal</div>
+            <a href="/forms/registro_de_capacitaciones" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_de_capacitaciones') else '' }}">Registro de Capacitaciones</a>
+            <a href="/forms/informe_novedades_disciplinario" class="snw-subitem {{ 'active' if request.path.startswith('/forms/informe_novedades_disciplinario') else '' }}">Reporte Disciplinario</a>
+
+            <div class="snw-subsection">Eventos y cumplimiento</div>
+            <a href="/forms/reporte_incidente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/reporte_incidente') else '' }}">Reporte de Incidente</a>
+            <a href="/forms/registro_y_acta_de_visita" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_y_acta_de_visita') else '' }}">Acta de Visita a Cliente</a>
             <a href="/forms/checklist_cumplimiento" class="snw-subitem {{ 'active' if request.path.startswith('/forms/checklist_cumplimiento') else '' }}">Checklist Cumplimiento</a>
-            <a href="/forms/confiabilidad_equipos" class="snw-subitem {{ 'active' if request.path.startswith('/forms/confiabilidad_equipos') else '' }}">Confiabilidad de Equipos</a>
             <a href="/forms/medicion_experiencia_cliente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/medicion_experiencia_cliente') else '' }}">Encuesta de Cliente</a>
         </div>
         {% if is_admin %}
