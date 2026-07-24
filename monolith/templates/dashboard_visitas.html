@@ -897,7 +897,7 @@
                     <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
                         <div style="flex:1; min-width:140px;">
                             <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Nuevo estado:</span>
-                            <select id="inlineEstadoSelect" class="modal-select" style="margin-top:0.25rem; background:#1f2937;">
+                            <select id="inlineEstadoSelect" class="modal-select" style="margin-top:0.25rem;">
                                 <option value="pendiente" ${r.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
                                 <option value="cumplido" ${r.estado === 'cumplido' ? 'selected' : ''}>Cumplido</option>
                                 <option value="vencido" ${r.estado === 'vencido' ? 'selected' : ''}>Vencido</option>
@@ -935,6 +935,10 @@
                     msgEl.textContent = 'Guardando…';
                     msgEl.className = 'modal-msg';
                     try {
+                        // El endpoint está protegido por JWT_COOKIE_CSRF_PROTECT: hay que
+                        // enviar el token del cookie csrf_access_token en el header X-CSRF-TOKEN.
+                        const jwtCsrf = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+                        const csrfVal = jwtCsrf ? decodeURIComponent(jwtCsrf.substring('csrf_access_token='.length)) : '';
                         const fd = new FormData();
                         fd.append('bloque_idx', r.bloque_idx);
                         fd.append('estado', nuevoEstado);
@@ -943,7 +947,9 @@
 
                         const resp = await fetch('/dashboard/api/visitas/' + r.id_visita + '/estado', {
                             method: 'PUT',
-                            body: fd
+                            body: fd,
+                            credentials: 'include',
+                            headers: { 'X-CSRF-TOKEN': csrfVal }
                         });
                         const data = await resp.json();
                         if (!resp.ok) throw new Error(data.error || 'Error al guardar');
