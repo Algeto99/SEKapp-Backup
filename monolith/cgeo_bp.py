@@ -2117,10 +2117,15 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
     fecha_limite_str = _format_fecha(fecha_limite) if fecha_limite else '—'
     fecha_evento_str = _format_fecha(details.get('fecha_evento')) if details.get('fecha_evento') else '—'
 
-    # Build record URL (absolute when possible via url_for, else relative)
+    # Build record URL (absolute when possible, else relative).
+    # url_path is an absolute path from the site root (e.g. /dashboard/incidentes/?id=123),
+    # so we must prepend only the ORIGIN (scheme + host) — NOT the /cgeo blueprint prefix,
+    # or the link 404s and the user never reaches the deep link after logging in.
     try:
         from flask import url_for as _url_for
-        base_url = _url_for('cgeo_bp.cgeo_morning_briefing', _external=True).rsplit('/morning', 1)[0]
+        from urllib.parse import urlparse as _urlparse
+        _p = _urlparse(_url_for('cgeo_bp.cgeo_morning_briefing', _external=True))
+        base_url = f"{_p.scheme}://{_p.netloc}"
         record_url = base_url + details.get('url_path', '/dashboard/')
     except Exception:
         record_url = details.get('url_path', '/dashboard/')
