@@ -129,6 +129,10 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
 
         <div class="nav-cards">
 
+            <!-- NOTA: el orden de estas tarjetas sigue el mismo criterio del menú lateral
+                 (_sidebar.html): Formularios → Reportes → Dashboards → Consultar Matrices →
+                 Umbrales KPI → Bases de Datos → Morning Briefing. Mantener ambos en sincronía. -->
+
             <!-- Formularios — all users -->
             <a id="forms-button" class="nav-card" href="#">
                 <div class="card-icon" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">
@@ -137,34 +141,6 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <div class="card-body">
                     <div class="card-title">Formularios</div>
                     <div class="card-desc">Registro de novedades, inspecciones e incidentes</div>
-                </div>
-                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            </a>
-
-            <!-- Consultar Matrices — all users -->
-            <a id="matrices-button" class="nav-card hidden" href="/matrices/">
-                <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                </div>
-                <div class="card-body">
-                    <div class="card-title">Consultar Matrices</div>
-                    <div class="card-desc">Seguimiento de incidentes, compromisos y pendientes</div>
-                </div>
-                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            </a>
-
-            <!-- Admin-only divider -->
-            <div id="admin-divider" class="cards-divider hidden"></div>
-
-            <!-- Morning Briefing — admin -->
-            <a id="cgeo-button" class="nav-card hidden" href="/cgeo/morning-briefing/" style="position:relative">
-                <span class="card-badge">CGEO</span>
-                <div class="card-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                </div>
-                <div class="card-body">
-                    <div class="card-title">Morning Briefing</div>
-                    <div class="card-desc">Estado general de la operación en tiempo real</div>
                 </div>
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
@@ -193,14 +169,14 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <!-- Bases de Datos — admin -->
-            <a id="databases-button" class="nav-card hidden" href="#">
-                <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            <!-- Consultar Matrices — all users -->
+            <a id="matrices-button" class="nav-card hidden" href="/matrices/">
+                <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
                 </div>
                 <div class="card-body">
-                    <div class="card-title">Bases de Datos</div>
-                    <div class="card-desc">Inventarios, personal y equipos consolidados</div>
+                    <div class="card-title">Consultar Matrices</div>
+                    <div class="card-desc">Seguimiento de incidentes, compromisos y pendientes</div>
                 </div>
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
@@ -213,6 +189,31 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <div class="card-body">
                     <div class="card-title">Umbrales KPI</div>
                     <div class="card-desc">Configura indicadores y rangos de semáforo</div>
+                </div>
+                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <!-- Bases de Datos — admin -->
+            <a id="databases-button" class="nav-card hidden" href="#">
+                <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                </div>
+                <div class="card-body">
+                    <div class="card-title">Bases de Datos</div>
+                    <div class="card-desc">Inventarios, personal y equipos consolidados</div>
+                </div>
+                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <!-- Morning Briefing — admin -->
+            <a id="cgeo-button" class="nav-card hidden" href="/cgeo/morning-briefing/" style="position:relative">
+                <span class="card-badge">CGEO</span>
+                <div class="card-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                </div>
+                <div class="card-body">
+                    <div class="card-title">Morning Briefing</div>
+                    <div class="card-desc">Estado general de la operación en tiempo real</div>
                 </div>
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
@@ -286,7 +287,6 @@ function updateUI() {
         show('logout-divider');
 
         if (currentUserIsAdmin) {
-            show('admin-divider');
             show('cgeo-button');
             show('reports-button');
             show('dashboard-button');
