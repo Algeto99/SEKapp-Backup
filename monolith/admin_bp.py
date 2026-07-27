@@ -403,9 +403,14 @@ def _ensure_thresholds_table(conn):
             key        VARCHAR(100) PRIMARY KEY,
             value      NUMERIC      NOT NULL,
             updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-            updated_by TEXT
+            updated_by TEXT,
+            text_value TEXT
         )
     """)
+    # Auto-reparar tablas creadas por versiones anteriores que no tienen
+    # la columna text_value ni una restricción única sobre `key`.
+    cur.execute("ALTER TABLE kpi_thresholds ADD COLUMN IF NOT EXISTS text_value TEXT")
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS kpi_thresholds_key_uidx ON kpi_thresholds (key)")
     for k, v in _THRESHOLD_DEFAULTS.items():
         cur.execute(
             "INSERT INTO kpi_thresholds (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
