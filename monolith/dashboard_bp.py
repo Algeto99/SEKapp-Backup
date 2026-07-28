@@ -3384,17 +3384,10 @@ def api_incidentes_update_estado(id_reporte):
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # Verify the row belongs to this user's company before updating
-        cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
-        user_row = cur.fetchone()
-        company_id = user_row['company_id'] if user_row else None
-
-        if company_id is None:
-            return jsonify({'error': 'Acceso denegado'}), 403
-
+        # SEKapp es single-tenant: no se filtra por company_id (regla del proyecto).
         cur.execute(
-            "SELECT 1 FROM reportes_incidentes WHERE id_reporte_incidente=%s AND company_id=%s",
-            (id_reporte, company_id)
+            "SELECT 1 FROM reportes_incidentes WHERE id_reporte_incidente=%s",
+            (id_reporte,)
         )
         if not cur.fetchone():
             return jsonify({'error': 'Registro no encontrado'}), 404
@@ -5329,17 +5322,10 @@ def api_visitas_update_estado(id_visita):
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # Verify ownership by company before fetching/updating
-        cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
-        user_row = cur.fetchone()
-        company_id = user_row['company_id'] if user_row else None
-
-        if company_id is None:
-            return jsonify({'error': 'Acceso denegado'}), 403
-
+        # SEKapp es single-tenant: no se filtra por company_id (regla del proyecto).
         cur.execute(
-            "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s AND company_id = %s",
-            (id_visita, company_id)
+            "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s",
+            (id_visita,)
         )
         row = cur.fetchone()
         if row is None:

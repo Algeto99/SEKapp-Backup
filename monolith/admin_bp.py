@@ -99,6 +99,13 @@ def panel():
             conn.close()
 
 
+def _default_company_id(cur):
+    """SEKapp corre una instancia por empresa: id de la única empresa activa."""
+    cur.execute("SELECT id FROM companies WHERE is_active = TRUE ORDER BY id LIMIT 1")
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
 @admin_bp.route('/users/create', methods=['POST'])
 @jwt_required()
 def create_user():
@@ -125,6 +132,10 @@ def create_user():
         if cur.fetchone():
             flash(f'Ya existe un usuario con el correo {email}.', 'error')
             return redirect(url_for('admin_bp.panel'))
+
+        # Si no se eligió empresa, asignar la única empresa activa por defecto.
+        if not company_id:
+            company_id = _default_company_id(cur)
 
         force_pw = request.form.get('force_password_change') == '1'
         hashed = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -248,7 +259,7 @@ def toggle_active(user_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute('SELECT email, is_active, is_super_admin FROM users WHERE id = %s', (user_id,))
+        cur.execute('SELECT email, is_active, is_super_admin, company_id FROM users WHERE id = %s', (user_id,))
         user = cur.fetchone()
         if not user:
             flash('Usuario no encontrado.', 'error')
@@ -257,7 +268,14 @@ def toggle_active(user_id):
             flash('No se puede desactivar a un super administrador.', 'error')
             return redirect(url_for('admin_bp.panel'))
         new_val = not user['is_active']
-        cur.execute('UPDATE users SET is_active = %s, updated_at = NOW() WHERE id = %s', (new_val, user_id))
+        # Al activar, asignar la empresa si el usuario no tiene (una instancia por empresa).
+        if new_val and user['company_id'] is None:
+            cur.execute(
+                'UPDATE users SET is_active = %s, company_id = %s, updated_at = NOW() WHERE id = %s',
+                (new_val, _default_company_id(cur), user_id)
+            )
+        else:
+            cur.execute('UPDATE users SET is_active = %s, updated_at = NOW() WHERE id = %s', (new_val, user_id))
         conn.commit()
         cur.close()
         label = 'activado' if new_val else 'desactivado'
@@ -268,6 +286,39 @@ def toggle_active(user_id):
             conn.rollback()
         app_logger.error(f"Error toggling active: {e}", exc_info=True)
         flash('Error al actualizar el estado. Intente nuevamente.', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.panel'))
+
+
+@admin_bp.route('/users/assign-company', methods=['POST'])
+@jwt_required()
+def assign_company_all():
+    """Asigna la única empresa activa a todos los usuarios que no tienen empresa.
+    SEKapp corre una instancia por empresa, así que el vínculo es permanente."""
+    if not _is_super_admin():
+        return redirect('/landing/')
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        company_id = _default_company_id(cur)
+        if company_id is None:
+            flash('No hay una empresa activa configurada.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+        cur.execute('UPDATE users SET company_id = %s, updated_at = NOW() WHERE company_id IS NULL', (company_id,))
+        n = cur.rowcount
+        conn.commit()
+        cur.close()
+        app_logger.info(f"Super admin asignó empresa {company_id} a {n} usuario(s)")
+        flash(f'{n} usuario(s) asignados a la empresa.', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error assigning company: {e}", exc_info=True)
+        flash('Error al asignar empresa. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()

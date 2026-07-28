@@ -256,9 +256,16 @@ def register():
                 flash('El correo electrónico ya está registrado.', 'warning')
                 return redirect(url_for('login_bp.register'))
 
+            # SEKapp es single-tenant: asignar la (única) empresa activa y marcar
+            # la cuenta como activa para que el usuario tenga acceso completo tras
+            # el registro (evita el bug de company_id NULL / "Acceso denegado").
+            cur.execute('SELECT "id" FROM "companies" WHERE "is_active" = TRUE ORDER BY "id" LIMIT 1')
+            comp = cur.fetchone()
+            company_id = comp[0] if comp else None
+
             cur.execute(
-                'INSERT INTO "users" ("name", "email", "phone_number", "password_hash", "is_admin") VALUES (%s, %s, %s, %s, %s)',
-                (name, email, phone, hashed_password, False)
+                'INSERT INTO "users" ("name", "email", "phone_number", "password_hash", "is_admin", "is_active", "company_id") VALUES (%s, %s, %s, %s, %s, TRUE, %s)',
+                (name, email, phone, hashed_password, False, company_id)
             )
             conn.commit()
             flash('Registro exitoso. Revise su correo (y spam) para la bienvenida.', 'success')
