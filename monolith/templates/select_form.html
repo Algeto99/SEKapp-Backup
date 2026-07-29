@@ -644,7 +644,9 @@
 
     <script>
         const SECAPP_PROPERTIES_URL = '/forms/api/properties';
-        const SECAPP_PROPERTIES_STORAGE_KEY = 'secapp:properties:v1';
+        // Must match customer-hierarchy.js / offline-sync.js — both read this snapshot.
+        const SECAPP_PROPERTIES_STORAGE_KEY = 'secapp:properties:v2';
+        const SECAPP_PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v1'];
         const SECAPP_CACHE_NAME = 'secapp-v6';
 
         function secappValidPropertiesPayload(data) {
@@ -662,13 +664,18 @@
         }
 
         function secappReadPropertiesSnapshot() {
-            try {
-                return secappValidPropertiesPayload(
-                    JSON.parse(localStorage.getItem(SECAPP_PROPERTIES_STORAGE_KEY) || 'null')
-                );
-            } catch {
-                return null;
+            const keys = [SECAPP_PROPERTIES_STORAGE_KEY, ...SECAPP_PROPERTIES_LEGACY_STORAGE_KEYS];
+            for (const key of keys) {
+                try {
+                    const data = secappValidPropertiesPayload(
+                        JSON.parse(localStorage.getItem(key) || 'null')
+                    );
+                    if (data) return data;
+                } catch {
+                    // Try the next snapshot.
+                }
             }
+            return null;
         }
 
         async function secappReadPropertiesFromCache() {

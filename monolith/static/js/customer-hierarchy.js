@@ -1,8 +1,351 @@
 (function () {
+    'use strict';
+
     const PROPERTIES_URL = '/forms/api/properties';
-    const PROPERTIES_STORAGE_KEY = 'secapp:properties:v1';
+    // v2 adds customer_company_id per property. v1 is still read so a device that
+    // went offline before the upgrade keeps working (its properties just land in
+    // the "sin cliente asignado" group until the next online load).
+    const PROPERTIES_STORAGE_KEY = 'secapp:properties:v2';
+    const PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v1'];
     const PROPERTIES_FETCH_TIMEOUT_MS = 4000;
 
+    // Pseudo-client for properties with no customer_company_id. Never a valid id,
+    // so the server ignores it and resolves the client from the property instead.
+    const NO_CUSTOMER = '__sin_cliente__';
+    const NO_CUSTOMER_LABEL = 'Sin cliente asignado';
+
+    function normalize(text) {
+        return String(text == null ? '' : text)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    // ── Searchable single-select ─────────────────────────────────────────────
+    // Enhances an existing <select> instead of replacing it: the select stays in
+    // the DOM (hidden) as the submitted value, so FormData, the offline queue and
+    // every existing `select.value = x` caller keep working untouched.
+    class SearchableSelect {
+        constructor(select, options = {}) {
+            this.select = select;
+            this.placeholder = options.placeholder || 'Seleccione...';
+            this.emptyText = options.emptyText || 'Sin resultados';
+            this.invalidMessage = options.invalidMessage || 'Seleccione una opción de la lista.';
+            this.filter = options.filter || null;
+            this.isOpen = false;
+            this.activeIndex = -1;
+            this.rendered = [];
+
+            this.required = select.hasAttribute('required');
+            // Validation moves to the visible input: a required control that is
+            // display:none makes the browser refuse to submit the whole form.
+            select.removeAttribute('required');
+
+            this._build();
+            this.syncFromSelect();
+        }
+
+        // ── Public API ───────────────────────────────────────────────────────
+
+        setFilter(fn) {
+            this.filter = fn;
+            if (this.isOpen) this._renderPanel(this.input.value);
+        }
+
+        setPlaceholder(text) {
+            this.placeholder = text;
+            if (!this.select.value) this.input.placeholder = text;
+        }
+
+        setEmptyText(text) {
+            this.emptyText = text;
+        }
+
+        syncFromSelect() {
+            const option = this._selectedOption();
+            this.input.value = option ? option.dataset.label || option.textContent.trim() : '';
+            this.input.placeholder = this.placeholder;
+            this._updateValidity();
+            if (this.isOpen) this._renderPanel('');
+        }
+
+        // ── Build ────────────────────────────────────────────────────────────
+
+        _build() {
+            injectStyles();
+
+            const wrap = document.createElement('div');
+            wrap.className = 'ss-wrap';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = this.select.className + ' ss-input';
+            input.autocomplete = 'off';
+            input.setAttribute('autocapitalize', 'off');
+            input.setAttribute('autocorrect', 'off');
+            input.setAttribute('spellcheck', 'false');
+            input.setAttribute('role', 'combobox');
+            input.setAttribute('aria-autocomplete', 'list');
+            input.setAttribute('aria-expanded', 'false');
+            input.placeholder = this.placeholder;
+            if (this.required) input.required = true;
+            if (this.select.id) input.id = this.select.id + '_search';
+            this.input = input;
+
+            const panel = document.createElement('div');
+            panel.className = 'ss-panel';
+            panel.setAttribute('role', 'listbox');
+            if (input.id) {
+                panel.id = input.id + '_listbox';
+                input.setAttribute('aria-controls', panel.id);
+            }
+            this.panel = panel;
+
+            this.select.parentNode.insertBefore(wrap, this.select);
+            wrap.appendChild(this.select);
+            wrap.appendChild(input);
+            wrap.appendChild(panel);
+            this.select.classList.add('ss-native');
+            this.wrap = wrap;
+
+            // Point the existing <label for="..."> at the control the user can focus.
+            if (this.select.id) {
+                const label = document.querySelector('label[for="' + this.select.id + '"]');
+                if (label) label.setAttribute('for', input.id);
+            }
+
+            this._bind();
+        }
+
+        _bind() {
+            const input = this.input;
+
+            input.addEventListener('focus', () => this._open());
+            input.addEventListener('click', () => { if (!this.isOpen) this._open(); });
+            input.addEventListener('input', () => {
+                if (!this.isOpen) this._open(input.value);
+                else this._renderPanel(input.value);
+            });
+
+            input.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    if (!this.isOpen) { this._open(); return; }
+                    this._moveActive(event.key === 'ArrowDown' ? 1 : -1);
+                } else if (event.key === 'Enter') {
+                    if (this.isOpen) {
+                        event.preventDefault();
+                        const option = this.rendered[this.activeIndex];
+                        if (option) this._commit(option.value);
+                        else this._close();
+                    }
+                } else if (event.key === 'Escape') {
+                    if (this.isOpen) { event.preventDefault(); this._close(); }
+                } else if (event.key === 'Tab') {
+                    this._close();
+                }
+            });
+
+            // Pointerdown fires before the input's blur, so the click still registers.
+            this.panel.addEventListener('pointerdown', (event) => {
+                const row = event.target.closest('.ss-opt');
+                if (!row) return;
+                event.preventDefault();
+                this._commit(row.dataset.value);
+            });
+
+            input.addEventListener('blur', () => {
+                // Delayed so a pointerdown on the panel wins the race.
+                setTimeout(() => { if (this.isOpen) this._close(); }, 120);
+            });
+
+            document.addEventListener('pointerdown', (event) => {
+                if (this.isOpen && !this.wrap.contains(event.target)) this._close();
+            });
+
+            // Reflect programmatic changes (draft restore, deep links, reset).
+            this.select.addEventListener('change', () => this.syncFromSelect());
+            const form = this.select.form;
+            if (form) form.addEventListener('reset', () => setTimeout(() => this.syncFromSelect(), 0));
+        }
+
+        // ── Panel ────────────────────────────────────────────────────────────
+
+        _selectedOption() {
+            const value = this.select.value;
+            if (!value) return null;
+            return Array.from(this.select.options).find((option) => option.value === value) || null;
+        }
+
+        _candidates() {
+            const options = Array.from(this.select.options).filter((option) => option.value !== '');
+            return this.filter ? options.filter(this.filter) : options;
+        }
+
+        _open(query) {
+            // Selecting an option refocuses the input; that must not reopen the panel.
+            if (this._justCommitted) return;
+            this.isOpen = true;
+            this.input.setAttribute('aria-expanded', 'true');
+            this.panel.classList.add('ss-open');
+            this._renderPanel(query === undefined ? '' : query);
+            if (query === undefined) this.input.select();
+        }
+
+        _close() {
+            this.isOpen = false;
+            this.activeIndex = -1;
+            this.input.setAttribute('aria-expanded', 'false');
+            this.panel.classList.remove('ss-open');
+            // Drop any half-typed search text and show the actual selection.
+            const option = this._selectedOption();
+            this.input.value = option ? option.dataset.label || option.textContent.trim() : '';
+            this._updateValidity();
+        }
+
+        _renderPanel(query) {
+            const needle = normalize(query);
+            const pool = this._candidates();
+            const matches = needle
+                ? pool.filter((option) => normalize(option.dataset.search || option.textContent).includes(needle))
+                : pool;
+
+            this.rendered = matches;
+            this.panel.innerHTML = '';
+
+            if (!matches.length) {
+                const empty = document.createElement('div');
+                empty.className = 'ss-empty';
+                empty.textContent = pool.length ? 'Sin resultados para "' + query + '"' : this.emptyText;
+                this.panel.appendChild(empty);
+                this.activeIndex = -1;
+                return;
+            }
+
+            if (matches.length > 8) {
+                const count = document.createElement('div');
+                count.className = 'ss-count';
+                count.textContent = matches.length + ' opciones — escribe para filtrar';
+                this.panel.appendChild(count);
+            }
+
+            const selected = this.select.value;
+            this.activeIndex = -1;
+            matches.forEach((option, index) => {
+                const row = document.createElement('div');
+                row.className = 'ss-opt';
+                row.setAttribute('role', 'option');
+                row.dataset.value = option.value;
+                if (option.value === selected) {
+                    row.classList.add('ss-selected');
+                    row.setAttribute('aria-selected', 'true');
+                    this.activeIndex = index;
+                }
+                row.textContent = option.dataset.label || option.textContent.trim();
+                if (option.dataset.sublabel) {
+                    const sub = document.createElement('span');
+                    sub.className = 'ss-opt-sub';
+                    sub.textContent = option.dataset.sublabel;
+                    row.appendChild(sub);
+                }
+                this.panel.appendChild(row);
+            });
+
+            // Scroll a long list straight to the current selection.
+            const scrollToSelection = this.activeIndex >= 0;
+            if (this.activeIndex < 0 && matches.length === 1) this.activeIndex = 0;
+            this._paintActive(scrollToSelection);
+        }
+
+        _moveActive(step) {
+            if (!this.rendered.length) return;
+            this.activeIndex = (this.activeIndex + step + this.rendered.length) % this.rendered.length;
+            this._paintActive(true);
+        }
+
+        _paintActive(scroll) {
+            const rows = this.panel.querySelectorAll('.ss-opt');
+            rows.forEach((row, index) => row.classList.toggle('ss-active', index === this.activeIndex));
+            if (scroll && rows[this.activeIndex]) {
+                rows[this.activeIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        _commit(value) {
+            this.select.value = value;
+            // The value hook dispatches `change` for us; dispatch here only if it
+            // could not be installed (older engines).
+            if (!this.select.__secappValueHook) {
+                this.select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            this._close();
+            // focus() dispatches synchronously, so the guard closes right after.
+            this._justCommitted = true;
+            this.input.focus();
+            this._justCommitted = false;
+        }
+
+        _updateValidity() {
+            if (!this.required) return;
+            this.input.setCustomValidity(this.select.value ? '' : this.invalidMessage);
+        }
+    }
+
+    // Make `select.value = x` emit a change event, so the draft-restore code that
+    // every form template already ships keeps the comboboxes in sync unmodified.
+    function hookValueSetter(select) {
+        const descriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+        if (!descriptor || !descriptor.set || select.__secappValueHook) return;
+        try {
+            Object.defineProperty(select, 'value', {
+                configurable: true,
+                enumerable: true,
+                get() { return descriptor.get.call(this); },
+                set(value) {
+                    const changed = descriptor.get.call(this) !== value;
+                    descriptor.set.call(this, value);
+                    if (changed) this.dispatchEvent(new Event('change', { bubbles: true }));
+                },
+            });
+            select.__secappValueHook = true;
+        } catch {
+            // Leave the native setter in place; _commit dispatches manually.
+        }
+    }
+
+    function injectStyles() {
+        if (document.getElementById('secapp-searchable-select-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'secapp-searchable-select-styles';
+        style.textContent = `
+.ss-wrap { position: relative; width: 100%; }
+.ss-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; margin: 0; padding: 0; border: 0; }
+.ss-input { width: 100%; cursor: pointer; padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a0aec0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.1rem; }
+.ss-input::placeholder { opacity: 0.75; }
+.ss-panel { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 9999;
+    display: none; background-color: #2d3748; border: 1px solid #718096; border-radius: 0.375rem;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.45); max-height: min(280px, 50vh); overflow-y: auto;
+    -webkit-overflow-scrolling: touch; padding: 0.25rem 0; }
+.ss-panel.ss-open { display: block; }
+.ss-opt { padding: 0.65rem 1rem; font-size: 0.9rem; line-height: 1.35; color: #e2e8f0; cursor: pointer; }
+.ss-opt:hover, .ss-opt.ss-active { background-color: #4a5568; }
+.ss-opt.ss-selected { color: #93c5fd; font-weight: 600; }
+.ss-opt-sub { display: block; font-size: 0.72rem; color: #a0aec0; margin-top: 0.1rem; font-weight: 400; }
+.ss-empty { padding: 0.85rem 1rem; font-size: 0.85rem; color: #a0aec0; }
+.ss-count { padding: 0.4rem 1rem; font-size: 0.7rem; color: #a0aec0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+body.light-mode .ss-panel { background-color: #ffffff; border-color: #ced4da; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
+body.light-mode .ss-opt { color: #212529; }
+body.light-mode .ss-opt:hover, body.light-mode .ss-opt.ss-active { background-color: #e9ecef; }
+body.light-mode .ss-opt.ss-selected { color: #1d4ed8; }
+body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-count { color: #6c757d; }
+`;
+        document.head.appendChild(style);
+    }
+
+    // ── Offline fallback (unchanged behaviour) ───────────────────────────────
     function showOfflineTextFallback(propertySelect, legacyInput) {
         const wrapper = propertySelect.parentElement;
 
@@ -32,6 +375,7 @@
         }
     }
 
+    // ── Properties payload ───────────────────────────────────────────────────
     function validPropertiesPayload(data) {
         return data && Array.isArray(data.properties) ? data : null;
     }
@@ -47,11 +391,15 @@
     }
 
     function readPropertiesFromLocalStorage() {
-        try {
-            return validPropertiesPayload(JSON.parse(localStorage.getItem(PROPERTIES_STORAGE_KEY) || 'null'));
-        } catch {
-            return null;
+        for (const key of [PROPERTIES_STORAGE_KEY, ...PROPERTIES_LEGACY_STORAGE_KEYS]) {
+            try {
+                const data = validPropertiesPayload(JSON.parse(localStorage.getItem(key) || 'null'));
+                if (data) return data;
+            } catch {
+                // Try the next key.
+            }
         }
+        return null;
     }
 
     async function readPropertiesFromCacheStorage() {
@@ -110,9 +458,104 @@
         propertySelect.appendChild(option);
     }
 
+    // ── Client selector ──────────────────────────────────────────────────────
+    function customerKey(property) {
+        return property.customer_company_id == null ? NO_CUSTOMER : String(property.customer_company_id);
+    }
+
+    function buildCustomers(properties) {
+        const byKey = new Map();
+        properties.forEach((property) => {
+            const key = customerKey(property);
+            if (!byKey.has(key)) {
+                byKey.set(key, {
+                    key,
+                    name: key === NO_CUSTOMER ? NO_CUSTOMER_LABEL : (property.cliente || 'Cliente ' + key),
+                    count: 0,
+                });
+            }
+            byKey.get(key).count += 1;
+        });
+        return Array.from(byKey.values()).sort((a, b) => {
+            if (a.key === NO_CUSTOMER) return 1;
+            if (b.key === NO_CUSTOMER) return -1;
+            return a.name.localeCompare(b.name, 'es');
+        });
+    }
+
+    function buildClientField(propertySelect, customers) {
+        const propertyWrapper = propertySelect.parentElement;
+        const propertyLabel = document.querySelector('label[for="id_propiedad"]');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = propertyWrapper.className;
+
+        const label = document.createElement('label');
+        label.className = propertyLabel ? propertyLabel.className : 'form-label';
+        label.setAttribute('for', 'customer_company_id');
+        label.textContent = 'Cliente / Empresa ';
+        // Reuse the template's own "required" marker markup when it has one.
+        const marker = propertyLabel ? propertyLabel.querySelector('span') : null;
+        if (marker) label.appendChild(marker.cloneNode(true));
+
+        const select = document.createElement('select');
+        select.name = 'customer_company_id';
+        select.id = 'customer_company_id';
+        select.className = propertySelect.className;
+        if (propertySelect.hasAttribute('required')) select.setAttribute('required', 'required');
+
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '';
+        select.appendChild(empty);
+
+        customers.forEach((customer) => {
+            const option = document.createElement('option');
+            option.value = customer.key;
+            option.textContent = customer.name;
+            option.dataset.label = customer.name;
+            option.dataset.sublabel = customer.count === 1
+                ? '1 propiedad'
+                : customer.count + ' propiedades';
+            option.dataset.search = customer.name;
+            select.appendChild(option);
+        });
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(select);
+        propertyWrapper.parentNode.insertBefore(wrapper, propertyWrapper);
+
+        return select;
+    }
+
+    function fillPropertyOptions(propertySelect, properties) {
+        propertySelect.innerHTML = '';
+
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = '';
+        propertySelect.appendChild(empty);
+
+        properties.forEach((property) => {
+            const option = document.createElement('option');
+            option.value = String(property.id);
+            option.textContent = property.cliente ? property.name + ' (' + property.cliente + ')' : property.name;
+            option.dataset.label = property.name;
+            if (property.cliente) option.dataset.sublabel = property.cliente;
+            // Searching the property list by client name works too.
+            option.dataset.search = property.name + ' ' + (property.cliente || '');
+            option.dataset.customerKey = customerKey(property);
+            propertySelect.appendChild(option);
+        });
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────────
     async function initPropertySelector() {
         const propertySelect = document.getElementById('id_propiedad');
         if (!propertySelect) return;
+        // Enhance once, whatever fires us (duplicate script tag, bfcache restore).
+        if (propertySelect.dataset.secappEnhanced) return;
+        propertySelect.dataset.secappEnhanced = '1';
 
         const legacyInput = document.getElementById('cliente_instalacion')
                          || document.getElementById('cliente_visitado');
@@ -130,46 +573,79 @@
             return;
         }
 
-        propertySelect.innerHTML = '';
-        const empty = document.createElement('option');
-        empty.value = '';
-        empty.textContent = 'Seleccione una propiedad / instalación...';
-        empty.selected = true;
-        empty.disabled = true;
-        propertySelect.appendChild(empty);
+        const customers = buildCustomers(data.properties);
+        const clientSelect = buildClientField(propertySelect, customers);
+        fillPropertyOptions(propertySelect, data.properties);
 
-        data.properties.forEach((p) => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.cliente ? `${p.name} (${p.cliente})` : p.name;
-            propertySelect.appendChild(opt);
+        hookValueSetter(clientSelect);
+        hookValueSetter(propertySelect);
+
+        const clientCombo = new SearchableSelect(clientSelect, {
+            placeholder: 'Seleccione o busque un cliente...',
+            emptyText: 'No hay clientes disponibles',
+            invalidMessage: 'Seleccione un cliente de la lista.',
+        });
+
+        const propertyCombo = new SearchableSelect(propertySelect, {
+            placeholder: 'Seleccione primero un cliente...',
+            emptyText: 'Seleccione primero un cliente',
+            invalidMessage: 'Seleccione una propiedad / instalación de la lista.',
+            filter: (option) => option.dataset.customerKey === clientSelect.value,
+        });
+
+        function applyClientScope() {
+            const key = clientSelect.value;
+            propertyCombo.setFilter((option) => option.dataset.customerKey === key);
+            propertyCombo.setPlaceholder(key
+                ? 'Seleccione o busque una propiedad...'
+                : 'Seleccione primero un cliente...');
+            propertyCombo.setEmptyText(key
+                ? 'Este cliente no tiene propiedades activas'
+                : 'Seleccione primero un cliente');
+        }
+
+        clientSelect.addEventListener('change', () => {
+            const selected = propertySelect.options[propertySelect.selectedIndex];
+            // Drop a property that no longer belongs to the chosen client.
+            if (selected && selected.value && selected.dataset.customerKey !== clientSelect.value) {
+                propertySelect.value = '';
+            }
+            applyClientScope();
+            propertyCombo.syncFromSelect();
         });
 
         propertySelect.addEventListener('change', () => {
-            const selected = data.properties.find((p) => String(p.id) === propertySelect.value);
-            if (legacyInput) legacyInput.value = selected ? selected.name : '';
+            const selected = propertySelect.options[propertySelect.selectedIndex];
+            if (legacyInput) legacyInput.value = selected && selected.value ? selected.dataset.label : '';
+            // Keep the client in step when the property is set from elsewhere
+            // (draft restore, deep link) — this re-enters the handler above once.
+            if (selected && selected.value && selected.dataset.customerKey !== clientSelect.value) {
+                clientSelect.value = selected.dataset.customerKey;
+            }
         });
 
+        applyClientScope();
+
+        // A single client is not a choice — pick it so the user goes straight to
+        // the property list.
+        if (customers.length === 1) {
+            clientSelect.value = customers[0].key;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+
         // Deep link by numeric id (?id_propiedad=): used by "Agendar visita" pre-fill
-        const idParam = (new URLSearchParams(window.location.search).get('id_propiedad') || '').trim();
-        if (idParam) {
-            const match = data.properties.find((p) => String(p.id) === idParam);
-            if (match) {
-                propertySelect.value = String(match.id);
-                propertySelect.dispatchEvent(new Event('change'));
-            }
+        const idParam = (params.get('id_propiedad') || '').trim();
+        if (idParam && data.properties.some((p) => String(p.id) === idParam)) {
+            propertySelect.value = idParam;
         }
 
         // Deep link by name (?cliente=): e.g. Morning Briefing alerts
-        const clienteParam = (new URLSearchParams(window.location.search).get('cliente') || '').trim().toLowerCase();
+        const clienteParam = normalize(params.get('cliente') || '');
         if (!idParam && clienteParam) {
             const match = data.properties.find((p) =>
-                (p.name || '').trim().toLowerCase() === clienteParam ||
-                (p.cliente || '').trim().toLowerCase() === clienteParam);
-            if (match) {
-                propertySelect.value = String(match.id);
-                propertySelect.dispatchEvent(new Event('change'));
-            }
+                normalize(p.name) === clienteParam || normalize(p.cliente) === clienteParam);
+            if (match) propertySelect.value = String(match.id);
         }
     }
 

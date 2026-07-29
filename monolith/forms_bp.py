@@ -115,11 +115,12 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         scope['company_id'] = company_id
 
     property_name = None
+    property_customer_id = None
 
     # Resolve by property id (preferred path — set by the property selector)
     if property_id and str(property_id).isdigit():
         cur.execute("""
-            SELECT id_propiedad, nombre
+            SELECT id_propiedad, nombre, customer_company_id
             FROM propiedades
             WHERE id_propiedad = %s
               AND COALESCE(activa, TRUE) = TRUE
@@ -128,11 +129,12 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         if row:
             scope['id_propiedad'] = row[0]
             property_name = row[1]
+            property_customer_id = row[2]
 
     # Fallback: match property by name when submitted via legacy text input
     if 'id_propiedad' not in scope and legacy_customer_value:
         cur.execute("""
-            SELECT id_propiedad, nombre
+            SELECT id_propiedad, nombre, customer_company_id
             FROM propiedades
             WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(%s))
               AND COALESCE(activa, TRUE) = TRUE
@@ -142,11 +144,20 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         if row:
             scope['id_propiedad'] = row[0]
             property_name = row[1]
+            property_customer_id = row[2]
 
     if property_name:
         scope['cliente_instalacion'] = property_name
     elif legacy_customer_value:
         scope['cliente_instalacion'] = legacy_customer_value
+
+    # Client (customer company). The property is authoritative — the selector only
+    # narrows the property list, so a stale or hand-crafted value never wins over it.
+    # Non-numeric values (e.g. the "sin cliente asignado" group) are ignored.
+    if property_customer_id is not None:
+        scope['customer_company_id'] = property_customer_id
+    elif customer_company_id and str(customer_company_id).isdigit():
+        scope['customer_company_id'] = int(customer_company_id)
 
     scope['submitter_timezone'] = request.form.get('submitter_timezone') or 'UTC'
 
@@ -418,16 +429,25 @@ def api_form_properties():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute("""
-            SELECT p.id_propiedad, p.nombre, COALESCE(cc.name, '') AS cliente
+            SELECT p.id_propiedad,
+                   p.nombre,
+                   p.customer_company_id,
+                   COALESCE(cc.name, '') AS cliente
             FROM propiedades p
             LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
             WHERE COALESCE(p.activa, TRUE) = TRUE
-            ORDER BY p.nombre
+            ORDER BY cliente, p.nombre
         """)
         rows = cur.fetchall()
         return jsonify({
             'properties': [
-                {'id': r['id_propiedad'], 'name': r['nombre'], 'cliente': r['cliente']}
+                {
+                    'id': r['id_propiedad'],
+                    'name': r['nombre'],
+                    'cliente': r['cliente'],
+                    # Drives the client selector that filters this list in the forms.
+                    'customer_company_id': r['customer_company_id'],
+                }
                 for r in rows
             ]
         })

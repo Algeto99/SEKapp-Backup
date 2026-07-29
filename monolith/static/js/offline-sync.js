@@ -6,7 +6,8 @@
     const DB_VERSION = 1;
     const STORE_NAME = 'pending_submissions';
     const PROPERTIES_URL = '/forms/api/properties';
-    const PROPERTIES_STORAGE_KEY = 'secapp:properties:v1';
+    // Newest first — v1 is still read for devices that cached before the upgrade.
+    const PROPERTIES_STORAGE_KEYS = ['secapp:properties:v2', 'secapp:properties:v1'];
     const AUTO_SYNC_DELAY_MS = 750;
     const SYNC_REQUEST_TIMEOUT_MS = 90000;
 
@@ -262,11 +263,13 @@
             }
         }
 
-        try {
-            const data = JSON.parse(localStorage.getItem(PROPERTIES_STORAGE_KEY) || 'null');
-            if (data && Array.isArray(data.properties)) return data;
-        } catch {
-            // No usable properties snapshot.
+        for (const key of PROPERTIES_STORAGE_KEYS) {
+            try {
+                const data = JSON.parse(localStorage.getItem(key) || 'null');
+                if (data && Array.isArray(data.properties)) return data;
+            } catch {
+                // Try the next snapshot.
+            }
         }
 
         return { properties: [] };

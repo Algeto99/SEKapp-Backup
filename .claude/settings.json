@@ -8,7 +8,27 @@
       "Bash(bash /tmp/final_check.sh)",
       "Bash(xargs ls *)",
       "Bash(sed --version)",
-      "Bash(sed -V)"
+      "Bash(sed -V)",
+      "Bash(awk '/\\\\.form-input,|\\\\.form-input \\\\{|\\\\.form-select/{p=1} p{print NR\": \"$0} /^\\\\s*\\\\}/{if\\(p\\)c++; if\\(c>8\\)exit}' reporte_incidente.html)",
+      "Bash(node --check static/js/offline-sync.js)",
+      "Bash(node --check sw.js)",
+      "Bash(node -e \"require\\('jsdom'\\); console.log\\('jsdom available'\\)\")",
+      "Bash(npm ls *)",
+      "Read(//Applications/**)",
+      "Bash(node test-hierarchy.mjs)",
+      "Bash(venv/bin/python -c \"import flask, psycopg2; print\\('venv has flask+psycopg2'\\)\")",
+      "Bash(\"/Users/rcanton/Library/CloudStorage/GoogleDrive-roberto.j.canton@gmail.com/My Drive/SMT/git/secapp/monolith/venv/bin/python\" test_scope.py)",
+      "Read(//opt/homebrew/opt/**)",
+      "Bash(\"/Users/rcanton/Library/CloudStorage/GoogleDrive-roberto.j.canton@gmail.com/My Drive/SMT/git/secapp/monolith/venv/bin/python\" -c \"import pglast; print\\('pglast ok'\\)\")",
+      "Bash(\"/Users/rcanton/Library/CloudStorage/GoogleDrive-roberto.j.canton@gmail.com/My Drive/SMT/git/secapp/monolith/venv/bin/pip\" install pglast)",
+      "Bash(\"/Users/rcanton/Library/CloudStorage/GoogleDrive-roberto.j.canton@gmail.com/My Drive/SMT/git/secapp/monolith/venv/bin/python\" -)",
+      "Bash(\"monolith/venv/bin/pip\" uninstall *)",
+      "Bash(node --check /tmp/sf_check.js)",
+      "Bash(node --check /tmp/sf_block.js)",
+      "Bash(rm -rf \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/dbg.mjs\" \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/dbg2.mjs\" \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/node_modules\" \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/package.json\" \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/package-lock.json\" \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/test-hierarchy.mjs\" \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/test_scope.py\" /tmp/sf_check.js /tmp/sf_block.js && echo \"removed\" && ls -A \"/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad\" | wc -l)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/node_modules"
     ]
   }
 }
