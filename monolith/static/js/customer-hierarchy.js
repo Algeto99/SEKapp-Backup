@@ -19,6 +19,8 @@
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
+            // Collapse runs of whitespace so "Planta  Tocumen" matches "Planta Tocumen".
+            .replace(/\s+/g, ' ')
             .trim();
     }
 
@@ -267,8 +269,9 @@
         _paintActive(scroll) {
             const rows = this.panel.querySelectorAll('.ss-opt');
             rows.forEach((row, index) => row.classList.toggle('ss-active', index === this.activeIndex));
-            if (scroll && rows[this.activeIndex]) {
-                rows[this.activeIndex].scrollIntoView({ block: 'nearest' });
+            const active = scroll ? rows[this.activeIndex] : null;
+            if (active && typeof active.scrollIntoView === 'function') {
+                active.scrollIntoView({ block: 'nearest' });
             }
         }
 
@@ -458,32 +461,61 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         propertySelect.appendChild(option);
     }
 
-    // ── Client selector ──────────────────────────────────────────────────────
-    function customerKey(property) {
-        return property.customer_company_id == null ? NO_CUSTOMER : String(property.customer_company_id);
-    }
+    // ── Client → properties tree ─────────────────────────────────────────────
+    // Neither `customer_companies` nor `propiedades` enforces a unique name, so
+    // the payload can carry the same client (or the same installation) more than
+    // once. Both filters must still read as a clean list, so:
+    //   · clients are merged by name — duplicate rows become one entry whose
+    //     properties are pooled;
+    //   · inside a client, installations with the same name collapse to the
+    //     lowest id, which is the original row the history hangs off.
+    // Comparison is accent- and case-insensitive: "Bodega Colón" and
+    // "Bodega Colon" are the same place.
+    function buildClientTree(properties) {
+        const byName = new Map();
+        const orphans = { key: NO_CUSTOMER, name: NO_CUSTOMER_LABEL, properties: [] };
 
-    function buildCustomers(properties) {
-        const byKey = new Map();
         properties.forEach((property) => {
-            const key = customerKey(property);
-            if (!byKey.has(key)) {
-                byKey.set(key, {
-                    key,
-                    name: key === NO_CUSTOMER ? NO_CUSTOMER_LABEL : (property.cliente || 'Cliente ' + key),
-                    count: 0,
-                });
+            const clientName = String(property.cliente || '').trim();
+            const nameKey = normalize(clientName);
+            if (!nameKey) { orphans.properties.push(property); return; }
+
+            let client = byName.get(nameKey);
+            if (!client) {
+                client = {
+                    key: property.customer_company_id == null
+                        ? NO_CUSTOMER
+                        : String(property.customer_company_id),
+                    name: clientName,
+                    properties: [],
+                };
+                byName.set(nameKey, client);
             }
-            byKey.get(key).count += 1;
+            client.properties.push(property);
         });
-        return Array.from(byKey.values()).sort((a, b) => {
+
+        const clients = Array.from(byName.values());
+        if (orphans.properties.length) clients.push(orphans);
+
+        clients.forEach((client) => {
+            const unique = new Map();
+            client.properties.forEach((property) => {
+                const nameKey = normalize(property.name);
+                const kept = unique.get(nameKey);
+                if (!kept || Number(property.id) < Number(kept.id)) unique.set(nameKey, property);
+            });
+            client.properties = Array.from(unique.values())
+                .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
+        });
+
+        return clients.sort((a, b) => {
             if (a.key === NO_CUSTOMER) return 1;
             if (b.key === NO_CUSTOMER) return -1;
             return a.name.localeCompare(b.name, 'es');
         });
     }
 
-    function buildClientField(propertySelect, customers) {
+    function buildClientField(propertySelect, clients) {
         const propertyWrapper = propertySelect.parentElement;
         const propertyLabel = document.querySelector('label[for="id_propiedad"]');
 
@@ -509,15 +541,15 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         empty.textContent = '';
         select.appendChild(empty);
 
-        customers.forEach((customer) => {
+        clients.forEach((client) => {
             const option = document.createElement('option');
-            option.value = customer.key;
-            option.textContent = customer.name;
-            option.dataset.label = customer.name;
-            option.dataset.sublabel = customer.count === 1
+            option.value = client.key;
+            option.textContent = client.name;
+            option.dataset.label = client.name;
+            option.dataset.sublabel = client.properties.length === 1
                 ? '1 propiedad'
-                : customer.count + ' propiedades';
-            option.dataset.search = customer.name;
+                : client.properties.length + ' propiedades';
+            option.dataset.search = client.name;
             select.appendChild(option);
         });
 
@@ -528,7 +560,7 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         return select;
     }
 
-    function fillPropertyOptions(propertySelect, properties) {
+    function fillPropertyOptions(propertySelect, clients) {
         propertySelect.innerHTML = '';
 
         const empty = document.createElement('option');
@@ -536,16 +568,20 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         empty.textContent = '';
         propertySelect.appendChild(empty);
 
-        properties.forEach((property) => {
-            const option = document.createElement('option');
-            option.value = String(property.id);
-            option.textContent = property.cliente ? property.name + ' (' + property.cliente + ')' : property.name;
-            option.dataset.label = property.name;
-            if (property.cliente) option.dataset.sublabel = property.cliente;
-            // Searching the property list by client name works too.
-            option.dataset.search = property.name + ' ' + (property.cliente || '');
-            option.dataset.customerKey = customerKey(property);
-            propertySelect.appendChild(option);
+        clients.forEach((client) => {
+            client.properties.forEach((property) => {
+                const option = document.createElement('option');
+                option.value = String(property.id);
+                option.textContent = property.cliente
+                    ? property.name + ' (' + property.cliente + ')'
+                    : property.name;
+                option.dataset.label = property.name;
+                if (property.cliente) option.dataset.sublabel = property.cliente;
+                // Searching the property list by client name works too.
+                option.dataset.search = property.name + ' ' + (property.cliente || '');
+                option.dataset.customerKey = client.key;
+                propertySelect.appendChild(option);
+            });
         });
     }
 
@@ -573,9 +609,9 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
             return;
         }
 
-        const customers = buildCustomers(data.properties);
-        const clientSelect = buildClientField(propertySelect, customers);
-        fillPropertyOptions(propertySelect, data.properties);
+        const clients = buildClientTree(data.properties);
+        const clientSelect = buildClientField(propertySelect, clients);
+        fillPropertyOptions(propertySelect, clients);
 
         hookValueSetter(clientSelect);
         hookValueSetter(propertySelect);
@@ -628,25 +664,41 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
 
         // A single client is not a choice — pick it so the user goes straight to
         // the property list.
-        if (customers.length === 1) {
-            clientSelect.value = customers[0].key;
+        if (clients.length === 1) {
+            clientSelect.value = clients[0].key;
         }
 
         const params = new URLSearchParams(window.location.search);
+        // Match against the rendered options, not the raw payload: a deep link may
+        // point at a duplicate row that was collapsed away.
+        const options = Array.from(propertySelect.options).filter((option) => option.value !== '');
 
         // Deep link by numeric id (?id_propiedad=): used by "Agendar visita" pre-fill
         const idParam = (params.get('id_propiedad') || '').trim();
-        if (idParam && data.properties.some((p) => String(p.id) === idParam)) {
-            propertySelect.value = idParam;
+        let target = idParam
+            ? options.find((option) => option.value === idParam)
+            : null;
+
+        // The linked id may be the duplicate that lost — fall back to its name,
+        // matched within its own client (the same name can exist under several).
+        if (idParam && !target) {
+            const linked = data.properties.find((p) => String(p.id) === idParam);
+            if (linked) {
+                target = options.find((option) =>
+                    normalize(option.dataset.label) === normalize(linked.name)
+                    && normalize(option.dataset.sublabel) === normalize(linked.cliente));
+            }
         }
 
         // Deep link by name (?cliente=): e.g. Morning Briefing alerts
         const clienteParam = normalize(params.get('cliente') || '');
-        if (!idParam && clienteParam) {
-            const match = data.properties.find((p) =>
-                normalize(p.name) === clienteParam || normalize(p.cliente) === clienteParam);
-            if (match) propertySelect.value = String(match.id);
+        if (!target && !idParam && clienteParam) {
+            target = options.find((option) =>
+                normalize(option.dataset.label) === clienteParam
+                || normalize(option.dataset.sublabel) === clienteParam);
         }
+
+        if (target) propertySelect.value = target.value;
     }
 
     // Exposed for the "Preparar modo offline" button — fetches and lets the SW cache the response
