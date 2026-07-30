@@ -8,6 +8,7 @@
     const PROPERTIES_STORAGE_KEY = 'secapp:properties:v2';
     const PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v1'];
     const PROPERTIES_FETCH_TIMEOUT_MS = 4000;
+    const CACHE_READ_TIMEOUT_MS = 1500;
 
     // Pseudo-client for properties with no customer_company_id. Never a valid id,
     // so the server ignores it and resolves the client from the property instead.
@@ -139,7 +140,7 @@
                     if (this.isOpen) {
                         event.preventDefault();
                         const option = this.rendered[this.activeIndex];
-                        if (option) this._commit(option.value);
+                        if (option) this._commit(option.index);
                         else this._close();
                     }
                 } else if (event.key === 'Escape') {
@@ -154,7 +155,18 @@
                 const row = event.target.closest('.ss-opt');
                 if (!row) return;
                 event.preventDefault();
-                this._commit(row.dataset.value);
+                this._lastPointerCommit = Date.now();
+                this._commit(Number(row.dataset.index));
+            });
+
+            // Fallback for engines that don't fire Pointer Events (older mobile
+            // WebViews). The timestamp keeps a normal tap from committing twice.
+            this.panel.addEventListener('click', (event) => {
+                if (Date.now() - (this._lastPointerCommit || 0) < 700) return;
+                const row = event.target.closest('.ss-opt');
+                if (!row) return;
+                event.preventDefault();
+                this._commit(Number(row.dataset.index));
             });
 
             input.addEventListener('blur', () => {
@@ -175,9 +187,10 @@
         // ── Panel ────────────────────────────────────────────────────────────
 
         _selectedOption() {
-            const value = this.select.value;
-            if (!value) return null;
-            return Array.from(this.select.options).find((option) => option.value === value) || null;
+            // By index, never by value: client options legitimately share a value
+            // when the payload carries no ids, and find-by-value picks the wrong one.
+            const option = this.select.options[this.select.selectedIndex];
+            return option && option.value !== '' ? option : null;
         }
 
         _candidates() {
@@ -232,14 +245,14 @@
                 this.panel.appendChild(count);
             }
 
-            const selected = this.select.value;
+            const selected = this._selectedOption();
             this.activeIndex = -1;
             matches.forEach((option, index) => {
                 const row = document.createElement('div');
                 row.className = 'ss-opt';
                 row.setAttribute('role', 'option');
-                row.dataset.value = option.value;
-                if (option.value === selected) {
+                row.dataset.index = String(option.index);
+                if (option === selected) {
                     row.classList.add('ss-selected');
                     row.setAttribute('aria-selected', 'true');
                     this.activeIndex = index;
@@ -275,13 +288,11 @@
             }
         }
 
-        _commit(value) {
-            this.select.value = value;
-            // The value hook dispatches `change` for us; dispatch here only if it
-            // could not be installed (older engines).
-            if (!this.select.__secappValueHook) {
-                this.select.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+        _commit(index) {
+            if (!Number.isInteger(index) || index < 0) return;
+            // selectedIndex bypasses the `value` hook, so always announce the change.
+            this.select.selectedIndex = index;
+            this.select.dispatchEvent(new Event('change', { bubbles: true }));
             this._close();
             // focus() dispatches synchronously, so the guard closes right after.
             this._justCommitted = true;
@@ -439,8 +450,18 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         }
     }
 
+    // Some engines (and locked-down/private modes) leave caches.match() pending
+    // forever. Without this the field would sit on "Cargando propiedades..." for good.
+    function withTimeout(promise, ms, fallback) {
+        return Promise.race([
+            promise,
+            new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+        ]);
+    }
+
     async function loadProperties() {
-        const cached = await readPropertiesFromCacheStorage() || readPropertiesFromLocalStorage();
+        const cached = await withTimeout(readPropertiesFromCacheStorage(), CACHE_READ_TIMEOUT_MS, null)
+            || readPropertiesFromLocalStorage();
         if (navigator.onLine === false && cached) return cached;
 
         try {
@@ -473,7 +494,7 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
     // "Bodega Colon" are the same place.
     function buildClientTree(properties) {
         const byName = new Map();
-        const orphans = { key: NO_CUSTOMER, name: NO_CUSTOMER_LABEL, properties: [] };
+        const orphans = { groupKey: NO_CUSTOMER, name: NO_CUSTOMER_LABEL, properties: [] };
 
         properties.forEach((property) => {
             const clientName = String(property.cliente || '').trim();
@@ -482,13 +503,10 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
 
             let client = byName.get(nameKey);
             if (!client) {
-                client = {
-                    key: property.customer_company_id == null
-                        ? NO_CUSTOMER
-                        : String(property.customer_company_id),
-                    name: clientName,
-                    properties: [],
-                };
+                // Grouping is keyed on the NAME, never on customer_company_id: an
+                // offline snapshot cached before that field existed would otherwise
+                // collapse every client onto one key and defeat the filter entirely.
+                client = { groupKey: 'n:' + nameKey, name: clientName, properties: [] };
                 byName.set(nameKey, client);
             }
             client.properties.push(property);
@@ -496,6 +514,13 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
 
         const clients = Array.from(byName.values());
         if (orphans.properties.length) clients.push(orphans);
+
+        clients.forEach((client) => {
+            // The id is only what gets submitted; the server re-derives it from the
+            // property anyway, so a payload without it stays perfectly usable.
+            const withId = client.properties.find((p) => p.customer_company_id != null);
+            client.value = withId ? String(withId.customer_company_id) : NO_CUSTOMER;
+        });
 
         clients.forEach((client) => {
             const unique = new Map();
@@ -509,8 +534,8 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         });
 
         return clients.sort((a, b) => {
-            if (a.key === NO_CUSTOMER) return 1;
-            if (b.key === NO_CUSTOMER) return -1;
+            if (a.groupKey === NO_CUSTOMER) return 1;
+            if (b.groupKey === NO_CUSTOMER) return -1;
             return a.name.localeCompare(b.name, 'es');
         });
     }
@@ -543,7 +568,8 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
 
         clients.forEach((client) => {
             const option = document.createElement('option');
-            option.value = client.key;
+            option.value = client.value;
+            option.dataset.groupKey = client.groupKey;
             option.textContent = client.name;
             option.dataset.label = client.name;
             option.dataset.sublabel = client.properties.length === 1
@@ -579,7 +605,7 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
                 if (property.cliente) option.dataset.sublabel = property.cliente;
                 // Searching the property list by client name works too.
                 option.dataset.search = property.name + ' ' + (property.cliente || '');
-                option.dataset.customerKey = client.key;
+                option.dataset.groupKey = client.groupKey;
                 propertySelect.appendChild(option);
             });
         });
@@ -622,16 +648,32 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
             invalidMessage: 'Seleccione un cliente de la lista.',
         });
 
+        // The client is identified by its group key, not by the submitted value:
+        // several clients share the "sin cliente" value when the payload has no ids.
+        function selectedClientKey() {
+            const option = clientSelect.options[clientSelect.selectedIndex];
+            return option && option.value !== '' ? (option.dataset.groupKey || '') : '';
+        }
+
+        function selectClientByKey(groupKey) {
+            const option = Array.from(clientSelect.options)
+                .find((candidate) => candidate.dataset.groupKey === groupKey);
+            const index = option ? option.index : 0;
+            if (clientSelect.selectedIndex === index) return;
+            clientSelect.selectedIndex = index;
+            clientSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
         const propertyCombo = new SearchableSelect(propertySelect, {
             placeholder: 'Seleccione primero un cliente...',
             emptyText: 'Seleccione primero un cliente',
             invalidMessage: 'Seleccione una propiedad / instalación de la lista.',
-            filter: (option) => option.dataset.customerKey === clientSelect.value,
+            filter: (option) => option.dataset.groupKey === selectedClientKey(),
         });
 
         function applyClientScope() {
-            const key = clientSelect.value;
-            propertyCombo.setFilter((option) => option.dataset.customerKey === key);
+            const key = selectedClientKey();
+            propertyCombo.setFilter((option) => option.dataset.groupKey === key);
             propertyCombo.setPlaceholder(key
                 ? 'Seleccione o busque una propiedad...'
                 : 'Seleccione primero un cliente...');
@@ -643,8 +685,9 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         clientSelect.addEventListener('change', () => {
             const selected = propertySelect.options[propertySelect.selectedIndex];
             // Drop a property that no longer belongs to the chosen client.
-            if (selected && selected.value && selected.dataset.customerKey !== clientSelect.value) {
-                propertySelect.value = '';
+            if (selected && selected.value && selected.dataset.groupKey !== selectedClientKey()) {
+                propertySelect.selectedIndex = 0;
+                propertySelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
             applyClientScope();
             propertyCombo.syncFromSelect();
@@ -655,8 +698,8 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
             if (legacyInput) legacyInput.value = selected && selected.value ? selected.dataset.label : '';
             // Keep the client in step when the property is set from elsewhere
             // (draft restore, deep link) — this re-enters the handler above once.
-            if (selected && selected.value && selected.dataset.customerKey !== clientSelect.value) {
-                clientSelect.value = selected.dataset.customerKey;
+            if (selected && selected.value && selected.dataset.groupKey !== selectedClientKey()) {
+                selectClientByKey(selected.dataset.groupKey);
             }
         });
 
@@ -665,7 +708,7 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         // A single client is not a choice — pick it so the user goes straight to
         // the property list.
         if (clients.length === 1) {
-            clientSelect.value = clients[0].key;
+            selectClientByKey(clients[0].groupKey);
         }
 
         const params = new URLSearchParams(window.location.search);

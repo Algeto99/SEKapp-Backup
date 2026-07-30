@@ -67,19 +67,22 @@ self.addEventListener('fetch', event => {
 
     if (url.origin !== location.origin) return;
 
-    // Cache-first for API endpoints needed offline — network updates cache in background
+    // Network-first for API endpoints needed offline, falling back to cache.
+    // These payloads gain fields over time (properties grew customer_company_id,
+    // which the client filter depends on), and cache-first pinned clients to a
+    // stale shape for as long as the old cache survived. Offline still works:
+    // any network failure falls straight back to the cached copy.
     if (CACHED_API_PATHS.includes(url.pathname)) {
         event.respondWith(
-            caches.open(CACHE_VERSION).then(cache => cache.match(url.pathname, { ignoreVary: true }).then(cached => {
-                const networkFetch = fetch(request).then(response => {
-                    if (response.ok) {
-                        cache.put(url.pathname, response.clone());
-                    }
-                    return response;
-                }).catch(() => cached || Response.error());
-                // Return cache immediately if available, otherwise wait for network
-                return cached || networkFetch;
-            }))
+            caches.open(CACHE_VERSION).then(cache =>
+                fetch(request)
+                    .then(response => {
+                        if (response.ok) cache.put(url.pathname, response.clone());
+                        return response;
+                    })
+                    .catch(() => cache.match(url.pathname, { ignoreVary: true })
+                        .then(cached => cached || Response.error()))
+            )
         );
         return;
     }
