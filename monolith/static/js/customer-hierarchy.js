@@ -9,6 +9,8 @@
     const PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v1'];
     const PROPERTIES_FETCH_TIMEOUT_MS = 4000;
     const CACHE_READ_TIMEOUT_MS = 1500;
+    // Window after the panel opens in which a tap is treated as a ghost click.
+    const GHOST_TAP_MS = 500;
 
     // Pseudo-client for properties with no customer_company_id. Never a valid id,
     // so the server ignores it and resolves the client from the property instead.
@@ -150,28 +152,66 @@
                 }
             });
 
-            // Pointerdown fires before the input's blur, so the click still registers.
+            // Selection commits on RELEASE, and only when the press began on that
+            // same row. Committing on pointerdown broke touch in two ways:
+            //   · opening the panel scrolls the page (the keyboard slides up), so
+            //     the synthetic click that follows the tap lands on whatever row
+            //     has moved under the finger — auto-selecting the first option;
+            //   · dragging to scroll a long list selected whatever row was touched.
+            // A ghost tap has no matching press, and a drag releases somewhere else,
+            // so both are rejected without relying on timing heuristics.
             this.panel.addEventListener('pointerdown', (event) => {
                 const row = event.target.closest('.ss-opt');
                 if (!row) return;
-                event.preventDefault();
-                this._lastPointerCommit = Date.now();
-                this._commit(Number(row.dataset.index));
+                // Mouse only: hold focus on the input so the panel can't blur-close
+                // mid-click. Never for touch — it would stop the list scrolling.
+                if (event.pointerType === 'mouse') event.preventDefault();
+                this._press = {
+                    index: Number(row.dataset.index),
+                    x: event.clientX,
+                    y: event.clientY,
+                    pointerType: event.pointerType,
+                };
             });
 
-            // Fallback for engines that don't fire Pointer Events (older mobile
-            // WebViews). The timestamp keeps a normal tap from committing twice.
-            this.panel.addEventListener('click', (event) => {
-                if (Date.now() - (this._lastPointerCommit || 0) < 700) return;
+            this.panel.addEventListener('pointerup', (event) => {
+                const press = this._press;
+                this._press = null;
+                if (!press) return;
+
                 const row = event.target.closest('.ss-opt');
                 if (!row) return;
-                event.preventDefault();
-                this._commit(Number(row.dataset.index));
+
+                if (press.pointerType === 'mouse') {
+                    // Follow the native select: release decides.
+                    this._commit(Number(row.dataset.index));
+                    return;
+                }
+                // Touch/pen: same row, and the finger barely moved (else it's a scroll).
+                const moved = Math.abs(event.clientX - press.x) + Math.abs(event.clientY - press.y);
+                if (Number(row.dataset.index) !== press.index || moved > 12) return;
+                this._commit(press.index);
             });
 
+            // Scrolling the list takes the gesture away from us.
+            this.panel.addEventListener('pointercancel', () => { this._press = null; });
+
+            // Last-resort path for engines with no Pointer Events at all. Ignored
+            // right after opening, which is exactly when ghost clicks arrive.
+            if (!('PointerEvent' in window)) {
+                this.panel.addEventListener('click', (event) => {
+                    if (Date.now() - (this._openedAt || 0) < GHOST_TAP_MS) return;
+                    const row = event.target.closest('.ss-opt');
+                    if (!row) return;
+                    event.preventDefault();
+                    this._commit(Number(row.dataset.index));
+                });
+            }
+
             input.addEventListener('blur', () => {
-                // Delayed so a pointerdown on the panel wins the race.
-                setTimeout(() => { if (this.isOpen) this._close(); }, 120);
+                // Delayed so a press on the panel wins the race; and never close
+                // while a finger is still down on a row.
+                setTimeout(() => { if (this.isOpen && !this._press) this._close(); }, 180);
             });
 
             document.addEventListener('pointerdown', (event) => {
@@ -201,6 +241,8 @@
         _open(query) {
             // Selecting an option refocuses the input; that must not reopen the panel.
             if (this._justCommitted) return;
+            this._openedAt = Date.now();
+            this._press = null;
             this.isOpen = true;
             this.input.setAttribute('aria-expanded', 'true');
             this.panel.classList.add('ss-open');
@@ -342,9 +384,14 @@
 .ss-panel { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 9999;
     display: none; background-color: #2d3748; border: 1px solid #718096; border-radius: 0.375rem;
     box-shadow: 0 12px 32px rgba(0,0,0,0.45); max-height: min(280px, 50vh); overflow-y: auto;
-    -webkit-overflow-scrolling: touch; padding: 0.25rem 0; }
+    -webkit-overflow-scrolling: touch; padding: 0.25rem 0;
+    /* Let a finger scroll the list vertically without the page scrolling with it. */
+    touch-action: pan-y; overscroll-behavior: contain; }
 .ss-panel.ss-open { display: block; }
-.ss-opt { padding: 0.65rem 1rem; font-size: 0.9rem; line-height: 1.35; color: #e2e8f0; cursor: pointer; }
+.ss-opt { padding: 0.65rem 1rem; font-size: 0.9rem; line-height: 1.35; color: #e2e8f0; cursor: pointer;
+    /* Big enough to hit reliably, and no long-press text selection on touch. */
+    min-height: 44px; display: flex; flex-direction: column; justify-content: center;
+    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .ss-opt:hover, .ss-opt.ss-active { background-color: #4a5568; }
 .ss-opt.ss-selected { color: #93c5fd; font-weight: 600; }
 .ss-opt-sub { display: block; font-size: 0.72rem; color: #a0aec0; margin-top: 0.1rem; font-weight: 400; }
