@@ -17,6 +17,16 @@
     const NO_CUSTOMER = '__sin_cliente__';
     const NO_CUSTOMER_LABEL = 'Sin cliente asignado';
 
+    // Touch-primary device: no hover, coarse pointer. Drives the "picker, not a
+    // text box" behaviour — no keyboard on tap, search lives inside the panel.
+    function isTouchDevice() {
+        try {
+            return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        } catch {
+            return 'ontouchstart' in window;
+        }
+    }
+
     function normalize(text) {
         return String(text == null ? '' : text)
             .normalize('NFD')
@@ -96,16 +106,47 @@
             input.placeholder = this.placeholder;
             if (this.required) input.required = true;
             if (this.select.id) input.id = this.select.id + '_search';
+            if (isTouchDevice()) {
+                // This field is picked from a list, so tapping it must not raise the
+                // on-screen keyboard. inputmode=none keeps the control focusable —
+                // and therefore still constraint-validated, which `readonly` would
+                // not be — while suppressing the keyboard. Typing moves into the
+                // search box inside the panel below.
+                input.setAttribute('inputmode', 'none');
+                input.classList.add('ss-input-picker');
+            }
             this.input = input;
 
             const panel = document.createElement('div');
             panel.className = 'ss-panel';
-            panel.setAttribute('role', 'listbox');
             if (input.id) {
                 panel.id = input.id + '_listbox';
                 input.setAttribute('aria-controls', panel.id);
             }
             this.panel = panel;
+
+            if (isTouchDevice()) {
+                const searchWrap = document.createElement('div');
+                searchWrap.className = 'ss-search';
+                const search = document.createElement('input');
+                search.type = 'search';
+                search.className = 'ss-search-input';
+                search.placeholder = 'Buscar...';
+                search.autocomplete = 'off';
+                search.setAttribute('autocapitalize', 'off');
+                search.setAttribute('autocorrect', 'off');
+                search.setAttribute('spellcheck', 'false');
+                search.setAttribute('aria-label', 'Buscar en la lista');
+                searchWrap.appendChild(search);
+                panel.appendChild(searchWrap);
+                this.searchInput = search;
+            }
+
+            const list = document.createElement('div');
+            list.className = 'ss-list';
+            list.setAttribute('role', 'listbox');
+            panel.appendChild(list);
+            this.list = list;
 
             this.select.parentNode.insertBefore(wrap, this.select);
             wrap.appendChild(this.select);
@@ -133,24 +174,7 @@
                 else this._renderPanel(input.value);
             });
 
-            input.addEventListener('keydown', (event) => {
-                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    if (!this.isOpen) { this._open(); return; }
-                    this._moveActive(event.key === 'ArrowDown' ? 1 : -1);
-                } else if (event.key === 'Enter') {
-                    if (this.isOpen) {
-                        event.preventDefault();
-                        const option = this.rendered[this.activeIndex];
-                        if (option) this._commit(option.index);
-                        else this._close();
-                    }
-                } else if (event.key === 'Escape') {
-                    if (this.isOpen) { event.preventDefault(); this._close(); }
-                } else if (event.key === 'Tab') {
-                    this._close();
-                }
-            });
+            input.addEventListener('keydown', (event) => this._onKeydown(event));
 
             // Selection commits on RELEASE, and only when the press began on that
             // same row. Committing on pointerdown broke touch in two ways:
@@ -208,11 +232,27 @@
                 });
             }
 
-            input.addEventListener('blur', () => {
-                // Delayed so a press on the panel wins the race; and never close
-                // while a finger is still down on a row.
-                setTimeout(() => { if (this.isOpen && !this._press) this._close(); }, 180);
-            });
+            // In-panel search box (touch): the one place typing is expected, so
+            // this is the only control that should raise the keyboard.
+            if (this.searchInput) {
+                this.searchInput.addEventListener('input', () => this._renderPanel(this.searchInput.value));
+                this.searchInput.addEventListener('keydown', (event) => this._onKeydown(event));
+                // Tapping the search box must not read as "clicked outside".
+                this.searchInput.addEventListener('pointerdown', (event) => event.stopPropagation());
+            }
+
+            const closeIfFocusLeft = () => {
+                setTimeout(() => {
+                    if (!this.isOpen || this._press) return;
+                    // Focus moving into the panel's search box is not leaving the field.
+                    if (this.wrap.contains(document.activeElement)) return;
+                    this._close();
+                }, 180);
+            };
+            // Delayed so a press on the panel wins the race, and never closes
+            // while a finger is still down on a row.
+            input.addEventListener('blur', closeIfFocusLeft);
+            if (this.searchInput) this.searchInput.addEventListener('blur', closeIfFocusLeft);
 
             document.addEventListener('pointerdown', (event) => {
                 if (this.isOpen && !this.wrap.contains(event.target)) this._close();
@@ -225,6 +265,25 @@
         }
 
         // ── Panel ────────────────────────────────────────────────────────────
+
+        _onKeydown(event) {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (!this.isOpen) { this._open(); return; }
+                this._moveActive(event.key === 'ArrowDown' ? 1 : -1);
+            } else if (event.key === 'Enter') {
+                if (this.isOpen) {
+                    event.preventDefault();
+                    const option = this.rendered[this.activeIndex];
+                    if (option) this._commit(option.index);
+                    else this._close();
+                }
+            } else if (event.key === 'Escape') {
+                if (this.isOpen) { event.preventDefault(); this._close(); }
+            } else if (event.key === 'Tab') {
+                this._close();
+            }
+        }
 
         _selectedOption() {
             // By index, never by value: client options legitimately share a value
@@ -246,8 +305,11 @@
             this.isOpen = true;
             this.input.setAttribute('aria-expanded', 'true');
             this.panel.classList.add('ss-open');
+            if (this.searchInput) this.searchInput.value = '';
             this._renderPanel(query === undefined ? '' : query);
-            if (query === undefined) this.input.select();
+            // Highlighting the text is for typing in place; on a picker there is
+            // nothing to type and it only summons the selection handles.
+            if (query === undefined && !this.searchInput) this.input.select();
         }
 
         _close() {
@@ -255,6 +317,7 @@
             this.activeIndex = -1;
             this.input.setAttribute('aria-expanded', 'false');
             this.panel.classList.remove('ss-open');
+            if (this.searchInput) this.searchInput.value = '';
             // Drop any half-typed search text and show the actual selection.
             const option = this._selectedOption();
             this.input.value = option ? option.dataset.label || option.textContent.trim() : '';
@@ -269,13 +332,13 @@
                 : pool;
 
             this.rendered = matches;
-            this.panel.innerHTML = '';
+            this.list.innerHTML = '';
 
             if (!matches.length) {
                 const empty = document.createElement('div');
                 empty.className = 'ss-empty';
                 empty.textContent = pool.length ? 'Sin resultados para "' + query + '"' : this.emptyText;
-                this.panel.appendChild(empty);
+                this.list.appendChild(empty);
                 this.activeIndex = -1;
                 return;
             }
@@ -284,7 +347,7 @@
                 const count = document.createElement('div');
                 count.className = 'ss-count';
                 count.textContent = matches.length + ' opciones — escribe para filtrar';
-                this.panel.appendChild(count);
+                this.list.appendChild(count);
             }
 
             const selected = this._selectedOption();
@@ -306,7 +369,7 @@
                     sub.textContent = option.dataset.sublabel;
                     row.appendChild(sub);
                 }
-                this.panel.appendChild(row);
+                this.list.appendChild(row);
             });
 
             // Scroll a long list straight to the current selection.
@@ -322,7 +385,7 @@
         }
 
         _paintActive(scroll) {
-            const rows = this.panel.querySelectorAll('.ss-opt');
+            const rows = this.list.querySelectorAll('.ss-opt');
             rows.forEach((row, index) => row.classList.toggle('ss-active', index === this.activeIndex));
             const active = scroll ? rows[this.activeIndex] : null;
             if (active && typeof active.scrollIntoView === 'function') {
@@ -381,13 +444,21 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a0aec0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.1rem; }
 .ss-input::placeholder { opacity: 0.75; }
+.ss-input-picker { cursor: pointer; caret-color: transparent; }
 .ss-panel { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 9999;
     display: none; background-color: #2d3748; border: 1px solid #718096; border-radius: 0.375rem;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.45); max-height: min(280px, 50vh); overflow-y: auto;
-    -webkit-overflow-scrolling: touch; padding: 0.25rem 0;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.45); overflow: hidden; }
+.ss-panel.ss-open { display: block; }
+.ss-search { padding: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.ss-search-input { box-sizing: border-box; width: 100%; padding: 0.55rem 0.75rem;
+    border: 1px solid #718096; border-radius: 0.375rem; background-color: #4a5568; color: #e2e8f0;
+    /* 16px keeps iOS from zooming the page when this gets focus. */
+    font-size: 16px; line-height: 1.3; -webkit-appearance: none; appearance: none; }
+.ss-search-input:focus { outline: none; border-color: #60a5fa; }
+.ss-list { max-height: min(260px, 44vh); overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 0.25rem 0;
     /* Let a finger scroll the list vertically without the page scrolling with it. */
     touch-action: pan-y; overscroll-behavior: contain; }
-.ss-panel.ss-open { display: block; }
 .ss-opt { padding: 0.65rem 1rem; font-size: 0.9rem; line-height: 1.35; color: #e2e8f0; cursor: pointer;
     /* Big enough to hit reliably, and no long-press text selection on touch. */
     min-height: 44px; display: flex; flex-direction: column; justify-content: center;
@@ -398,6 +469,8 @@
 .ss-empty { padding: 0.85rem 1rem; font-size: 0.85rem; color: #a0aec0; }
 .ss-count { padding: 0.4rem 1rem; font-size: 0.7rem; color: #a0aec0; border-bottom: 1px solid rgba(255,255,255,0.08); }
 body.light-mode .ss-panel { background-color: #ffffff; border-color: #ced4da; box-shadow: 0 12px 32px rgba(0,0,0,0.15); }
+body.light-mode .ss-search { border-bottom-color: rgba(0,0,0,0.1); }
+body.light-mode .ss-search-input { background-color: #f1f3f5; border-color: #ced4da; color: #495057; }
 body.light-mode .ss-opt { color: #212529; }
 body.light-mode .ss-opt:hover, body.light-mode .ss-opt.ss-active { background-color: #e9ecef; }
 body.light-mode .ss-opt.ss-selected { color: #1d4ed8; }
