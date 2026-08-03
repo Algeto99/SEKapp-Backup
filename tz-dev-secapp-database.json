@@ -485,6 +485,86 @@
     "data_type": "timestamp with time zone"
   },
   {
+    "table_name": "flota",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "placa",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "tipo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "marca",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "modelo",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "anio",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "estado",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "sucursal",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "ubicacion",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "customer_company_id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "flota",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "formulario_edicion_historial",
     "column_name": "id",
     "data_type": "integer"

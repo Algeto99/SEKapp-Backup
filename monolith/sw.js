@@ -32,7 +32,7 @@ self.addEventListener('activate', event => {
 const CDN_ORIGINS = ['cdn.tailwindcss.com', 'cdn.jsdelivr.net', 'fonts.googleapis.com', 'fonts.gstatic.com', 'unpkg.com'];
 
 // API responses that must be cached for offline form use
-const CACHED_API_PATHS = ['/forms/api/properties'];
+const CACHED_API_PATHS = ['/forms/api/properties', '/forms/api/fleet'];
 
 self.addEventListener('fetch', event => {
     const { request } = event;
@@ -73,14 +73,17 @@ self.addEventListener('fetch', event => {
     // stale shape for as long as the old cache survived. Offline still works:
     // any network failure falls straight back to the cached copy.
     if (CACHED_API_PATHS.includes(url.pathname)) {
+        // Key on path + query: /forms/api/fleet?tipo=moto and ?tipo=vehiculo are
+        // different lists and must not overwrite each other in the cache.
+        const cacheKey = url.pathname + url.search;
         event.respondWith(
             caches.open(CACHE_VERSION).then(cache =>
                 fetch(request)
                     .then(response => {
-                        if (response.ok) cache.put(url.pathname, response.clone());
+                        if (response.ok) cache.put(cacheKey, response.clone());
                         return response;
                     })
-                    .catch(() => cache.match(url.pathname, { ignoreVary: true })
+                    .catch(() => cache.match(cacheKey, { ignoreVary: true })
                         .then(cached => cached || Response.error()))
             )
         );

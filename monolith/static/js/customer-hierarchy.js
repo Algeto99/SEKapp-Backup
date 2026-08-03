@@ -48,6 +48,11 @@
             this.emptyText = options.emptyText || 'Sin resultados';
             this.invalidMessage = options.invalidMessage || 'Seleccione una opción de la lista.';
             this.filter = options.filter || null;
+            // allowCustom turns the control into a combobox: whatever the user types
+            // can be committed as a value of its own, not just picked from the list.
+            this.allowCustom = !!options.allowCustom;
+            this.customLabel = options.customLabel || ((text) => '➕ Usar "' + text + '"');
+            this.customHint = options.customHint || 'No está en la lista';
             this.isOpen = false;
             this.activeIndex = -1;
             this.rendered = [];
@@ -191,7 +196,7 @@
                 // mid-click. Never for touch — it would stop the list scrolling.
                 if (event.pointerType === 'mouse') event.preventDefault();
                 this._press = {
-                    index: Number(row.dataset.index),
+                    pos: Number(row.dataset.pos),
                     x: event.clientX,
                     y: event.clientY,
                     pointerType: event.pointerType,
@@ -208,13 +213,13 @@
 
                 if (press.pointerType === 'mouse') {
                     // Follow the native select: release decides.
-                    this._commit(Number(row.dataset.index));
+                    this._commit(Number(row.dataset.pos));
                     return;
                 }
                 // Touch/pen: same row, and the finger barely moved (else it's a scroll).
                 const moved = Math.abs(event.clientX - press.x) + Math.abs(event.clientY - press.y);
-                if (Number(row.dataset.index) !== press.index || moved > 12) return;
-                this._commit(press.index);
+                if (Number(row.dataset.pos) !== press.pos || moved > 12) return;
+                this._commit(press.pos);
             });
 
             // Scrolling the list takes the gesture away from us.
@@ -228,7 +233,7 @@
                     const row = event.target.closest('.ss-opt');
                     if (!row) return;
                     event.preventDefault();
-                    this._commit(Number(row.dataset.index));
+                    this._commit(Number(row.dataset.pos));
                 });
             }
 
@@ -274,8 +279,7 @@
             } else if (event.key === 'Enter') {
                 if (this.isOpen) {
                     event.preventDefault();
-                    const option = this.rendered[this.activeIndex];
-                    if (option) this._commit(option.index);
+                    if (this.rendered[this.activeIndex]) this._commit(this.activeIndex);
                     else this._close();
                 }
             } else if (event.key === 'Escape') {
@@ -283,6 +287,23 @@
             } else if (event.key === 'Tab') {
                 this._close();
             }
+        }
+
+        // One reusable <option> holds whatever the user typed, so the value submits
+        // through the select exactly like a listed one.
+        _customOption(text) {
+            let option = this.select.querySelector('option[data-custom="1"]');
+            if (!option) {
+                option = document.createElement('option');
+                option.dataset.custom = '1';
+                this.select.appendChild(option);
+            }
+            option.value = text;
+            option.textContent = text;
+            option.dataset.label = text;
+            option.dataset.sublabel = this.customHint;
+            option.dataset.search = text;
+            return option;
         }
 
         _selectedOption() {
@@ -331,10 +352,18 @@
                 ? pool.filter((option) => normalize(option.dataset.search || option.textContent).includes(needle))
                 : pool;
 
-            this.rendered = matches;
+            const typed = String(query == null ? '' : query).trim();
+            // With allowCustom, what the user typed can be committed as a new entry —
+            // that is how a plate outside the fleet gets in. Only offered when nothing
+            // matches: while a partial search like "hilux" is still showing hits,
+            // proposing to create an asset literally named "HILUX" invites junk rows.
+            const offerCustom = this.allowCustom && typed.length > 0 && matches.length === 0;
+
+            this.rendered = matches.map((option) => ({ kind: 'option', option }));
+            if (offerCustom) this.rendered.push({ kind: 'custom', text: typed });
             this.list.innerHTML = '';
 
-            if (!matches.length) {
+            if (!this.rendered.length) {
                 const empty = document.createElement('div');
                 empty.className = 'ss-empty';
                 empty.textContent = pool.length ? 'Sin resultados para "' + query + '"' : this.emptyText;
@@ -352,11 +381,24 @@
 
             const selected = this._selectedOption();
             this.activeIndex = -1;
-            matches.forEach((option, index) => {
+            this.rendered.forEach((entry, index) => {
                 const row = document.createElement('div');
                 row.className = 'ss-opt';
                 row.setAttribute('role', 'option');
-                row.dataset.index = String(option.index);
+                row.dataset.pos = String(index);
+
+                if (entry.kind === 'custom') {
+                    row.classList.add('ss-opt-custom');
+                    row.textContent = this.customLabel(entry.text);
+                    const sub = document.createElement('span');
+                    sub.className = 'ss-opt-sub';
+                    sub.textContent = this.customHint;
+                    row.appendChild(sub);
+                    this.list.appendChild(row);
+                    return;
+                }
+
+                const option = entry.option;
                 if (option === selected) {
                     row.classList.add('ss-selected');
                     row.setAttribute('aria-selected', 'true');
@@ -374,7 +416,7 @@
 
             // Scroll a long list straight to the current selection.
             const scrollToSelection = this.activeIndex >= 0;
-            if (this.activeIndex < 0 && matches.length === 1) this.activeIndex = 0;
+            if (this.activeIndex < 0 && this.rendered.length === 1) this.activeIndex = 0;
             this._paintActive(scrollToSelection);
         }
 
@@ -393,7 +435,16 @@
             }
         }
 
-        _commit(index) {
+        _commit(pos) {
+            const entry = this.rendered[pos];
+            if (!entry) return;
+
+            let index;
+            if (entry.kind === 'custom') {
+                index = this._customOption(entry.text).index;
+            } else {
+                index = entry.option.index;
+            }
             if (!Number.isInteger(index) || index < 0) return;
             // selectedIndex bypasses the `value` hook, so always announce the change.
             this.select.selectedIndex = index;
@@ -473,7 +524,10 @@ body.light-mode .ss-search { border-bottom-color: rgba(0,0,0,0.1); }
 body.light-mode .ss-search-input { background-color: #f1f3f5; border-color: #ced4da; color: #495057; }
 body.light-mode .ss-opt { color: #212529; }
 body.light-mode .ss-opt:hover, body.light-mode .ss-opt.ss-active { background-color: #e9ecef; }
+.ss-opt-custom { color: #6ee7b7; font-weight: 600; border-top: 1px solid rgba(255,255,255,0.08); }
+.ss-opt-custom .ss-opt-sub { color: #9ca3af; font-weight: 400; }
 body.light-mode .ss-opt.ss-selected { color: #1d4ed8; }
+body.light-mode .ss-opt-custom { color: #047857; border-top-color: rgba(0,0,0,0.08); }
 body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-count { color: #6c757d; }
 `;
         document.head.appendChild(style);
@@ -863,6 +917,11 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
 
         if (target) propertySelect.value = target.value;
     }
+
+    // Shared with other form scripts (e.g. the fleet plate selector) so there is
+    // exactly one combobox implementation in the app.
+    window.SecappSearchableSelect = SearchableSelect;
+    window.SecappNormalizeText = normalize;
 
     // Exposed for the "Preparar modo offline" button — fetches and lets the SW cache the response
     window.secappPrefetchProperties = async function () {

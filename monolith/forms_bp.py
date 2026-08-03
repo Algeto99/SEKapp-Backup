@@ -3,6 +3,7 @@ import os
 import re
 import threading
 import time
+import unicodedata
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -457,6 +458,120 @@ def api_form_properties():
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+# --- FLOTA (fleet of vehicles and motorcycles) ---
+# `flota.tipo` is free text, so classification is deliberately tolerant: anything
+# that is not recognisably a motorcycle or a vehicle shows up in BOTH forms rather
+# than vanishing from one. An unexpected spelling can never empty a dropdown.
+_MOTO_HINTS = ('moto', 'scooter')
+_VEHICLE_HINTS = ('veh', 'carro', 'auto', 'camion', 'camioneta', 'pick', 'suv',
+                  'bus', 'furgon', 'sedan', 'jeep', 'panel')
+
+
+def _normalize_text(value):
+    text = unicodedata.normalize('NFD', str(value or ''))
+    text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')
+    return ' '.join(text.lower().split())
+
+
+def _fleet_kind(tipo):
+    """'moto', 'vehiculo', or None when the type is unrecognised (shown in both)."""
+    text = _normalize_text(tipo)
+    if not text:
+        return None
+    if text in ('m',) or any(hint in text for hint in _MOTO_HINTS):
+        return 'moto'
+    if text in ('v',) or any(hint in text for hint in _VEHICLE_HINTS):
+        return 'vehiculo'
+    return None
+
+
+def _fleet_matches(tipo, wanted):
+    kind = _fleet_kind(tipo)
+    return kind is None or kind == wanted
+
+
+def _normalize_plate(placa):
+    return ' '.join(str(placa or '').split()).upper()
+
+
+def _register_fleet_asset(cur, placa, kind, company_id):
+    """Add a manually entered plate to the fleet. No-op when it already exists.
+
+    Matching ignores case and surrounding whitespace so "abc 123 " does not create
+    a twin of "ABC 123". Scoped to company_id only — the asset belongs to the
+    security company, not to whichever client it was inspected at.
+    """
+    plate = _normalize_plate(placa)
+    if not plate:
+        return
+
+    columns = _get_table_columns(cur, 'flota')
+    if not columns or 'placa' not in columns:
+        app_logger.warning("flota table missing or has no 'placa' column; skipping fleet registration")
+        return
+
+    cur.execute("SELECT 1 FROM flota WHERE UPPER(TRIM(placa)) = %s LIMIT 1", (plate,))
+    if cur.fetchone():
+        return
+
+    values = {'placa': plate}
+    if 'tipo' in columns:
+        values['tipo'] = 'Motocicleta' if kind == 'moto' else 'Vehículo'
+    if 'estado' in columns:
+        values['estado'] = 'Activo'
+    if 'company_id' in columns and company_id is not None:
+        values['company_id'] = company_id
+
+    names = ', '.join(values.keys())
+    placeholders = ', '.join(['%s'] * len(values))
+    cur.execute(f"INSERT INTO flota ({names}) VALUES ({placeholders})", list(values.values()))
+    app_logger.info(f"Fleet asset registered from form submission: {plate} ({kind})")
+
+
+@forms_bp.route('/api/fleet')
+@jwt_required()
+def api_fleet():
+    """Fleet assets for the plate selector. ?tipo=moto|vehiculo narrows the list."""
+    wanted = _normalize_text(request.args.get('tipo'))
+    wanted = wanted if wanted in ('moto', 'vehiculo') else None
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT id, placa, tipo, marca, modelo, anio, estado
+            FROM flota
+            WHERE placa IS NOT NULL AND TRIM(placa) <> ''
+            ORDER BY placa
+        """)
+        rows = cur.fetchall()
+
+        assets = []
+        for row in rows:
+            if wanted and not _fleet_matches(row['tipo'], wanted):
+                continue
+            # Out-of-service units stay listed but are flagged, so a Supervisor can
+            # still file the inspection that takes one out of service.
+            assets.append({
+                'placa': _normalize_plate(row['placa']),
+                'tipo': row['tipo'] or '',
+                'marca': row['marca'] or '',
+                'modelo': row['modelo'] or '',
+                'anio': row['anio'],
+                'estado': row['estado'] or '',
+            })
+        return jsonify({'assets': assets})
+    except Exception as e:
+        app_logger.error(f"api_fleet error: {e}", exc_info=True)
+        return jsonify({'assets': []}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 @forms_bp.route('/api/customer-hierarchy')
@@ -2154,6 +2269,10 @@ def submit_planilla_vehicular():
         sql = f"INSERT INTO planilla_vehicular ({columns}) VALUES ({placeholders})"
 
         cur.execute(sql, list(form_data.values()))
+        # A plate typed by hand is a fleet asset we did not know about yet.
+        # Registered in the same transaction as the inspection, so an offline
+        # form that replays later still records the unit exactly once.
+        _register_fleet_asset(cur, form_data.get('placa_vehiculo'), 'vehiculo', form_data.get('company_id'))
         conn.commit()
         cur.close()
 
@@ -2295,6 +2414,10 @@ def submit_planilla_vehicular_editar(id):
         set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
         sql = f"UPDATE planilla_vehicular SET {set_clause} WHERE id_planilla_vehicular = %s"
         cur.execute(sql, list(valid_form_data.values()) + [id])
+        # A plate typed by hand is a fleet asset we did not know about yet.
+        # Registered in the same transaction as the inspection, so an offline
+        # form that replays later still records the unit exactly once.
+        _register_fleet_asset(cur, valid_form_data.get('placa_vehiculo'), 'vehiculo', form_data.get('company_id'))
 
         conn.commit()
         cur.close()
@@ -2378,6 +2501,10 @@ def submit_planilla_motocicletas():
         
         app_logger.info(f"Inserting into planilla_motocicletas with keys: {list(valid_form_data.keys())}")
         cur.execute(sql, list(valid_form_data.values()))
+        # A plate typed by hand is a fleet asset we did not know about yet.
+        # Registered in the same transaction as the inspection, so an offline
+        # form that replays later still records the unit exactly once.
+        _register_fleet_asset(cur, valid_form_data.get('placa_motocicleta'), 'moto', form_data.get('company_id'))
         conn.commit()
         cur.close()
         app_logger.info("Motorcycle form submitted successfully.")
@@ -2498,6 +2625,10 @@ def submit_planilla_motocicletas_editar(id):
         set_clause = ', '.join(f"{k} = %s" for k in valid_form_data.keys())
         sql = f"UPDATE planilla_motocicletas SET {set_clause} WHERE id = %s"
         cur.execute(sql, list(valid_form_data.values()) + [id])
+        # A plate typed by hand is a fleet asset we did not know about yet.
+        # Registered in the same transaction as the inspection, so an offline
+        # form that replays later still records the unit exactly once.
+        _register_fleet_asset(cur, valid_form_data.get('placa_motocicleta'), 'moto', form_data.get('company_id'))
 
         conn.commit()
         cur.close()

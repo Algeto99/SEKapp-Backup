@@ -317,7 +317,9 @@
                     <div>
                         <label for="placa_motocicleta" class="form-label">Placa de Motocicleta <span
                                 class="text-red-400">*</span></label>
-                        <input type="text" name="placa_motocicleta" id="placa_motocicleta" class="form-input" required>
+                        <select name="placa_motocicleta" id="placa_motocicleta" class="form-input form-select" required>
+                            <option value="" disabled selected>Cargando flota...</option>
+                        </select>
                     </div>
                     <div>
                         <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
@@ -763,6 +765,8 @@
         }
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    <!-- Must load after customer-hierarchy.js: it reuses that file's combobox. -->
+    <script src="{{ url_for('static', filename='js/fleet-select.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <script>
     (function() {
