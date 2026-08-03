@@ -127,6 +127,107 @@
         return wanted;
     }
 
+    function injectStyles() {
+        if (document.getElementById('secapp-fleet-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'secapp-fleet-styles';
+        style.textContent = `
+.fleet-switch { background: none; border: none; padding: .35rem 0 0; margin: 0;
+    font: inherit; font-size: .8rem; color: #93c5fd; cursor: pointer; text-align: left;
+    text-decoration: underline; text-underline-offset: 2px; }
+.fleet-switch:hover { color: #bfdbfe; }
+.fleet-manual { display: none; }
+.fleet-manual.fleet-on { display: block; }
+.fleet-manual-hint { font-size: .75rem; color: #9ca3af; margin: .3rem 0 0; }
+body.light-mode .fleet-switch { color: #1d4ed8; }
+body.light-mode .fleet-manual-hint { color: #6b7280; }
+`;
+        document.head.appendChild(style);
+    }
+
+    /* An explicit way in. Typing a plate that matches nothing already offers to add
+     * it, but that is invisible until you happen to type — and on a phone the field
+     * is a picker whose box just says "Buscar...". This button says it outright. */
+    function addManualEntry(select, combo, field) {
+        injectStyles();
+        const host = select.closest('.ss-wrap').parentElement;
+
+        const toList = document.createElement('button');
+        toList.type = 'button';
+        toList.className = 'fleet-switch';
+        toList.textContent = '← Volver a la lista de la flota';
+
+        const manual = document.createElement('div');
+        manual.className = 'fleet-manual';
+
+        const box = document.createElement('input');
+        box.type = 'text';
+        box.className = select.className.replace('ss-native', '').trim();
+        box.placeholder = 'Escriba la placa (ej. ABC-1234)';
+        box.autocomplete = 'off';
+        box.setAttribute('autocapitalize', 'characters');
+        box.setAttribute('autocorrect', 'off');
+        box.setAttribute('spellcheck', 'false');
+        box.disabled = true;
+
+        const hint = document.createElement('p');
+        hint.className = 'fleet-manual-hint';
+        hint.textContent = 'Se agregará a la flota al enviar el formulario.';
+
+        manual.appendChild(box);
+        manual.appendChild(hint);
+        manual.appendChild(toList);
+
+        const toManual = document.createElement('button');
+        toManual.type = 'button';
+        toManual.className = 'fleet-switch';
+        toManual.textContent = '➕ La placa no está en la lista';
+
+        host.appendChild(toManual);
+        host.appendChild(manual);
+
+        const required = combo.required;
+
+        function setManual(on) {
+            combo.setEnabled(!on);
+            manual.classList.toggle('fleet-on', on);
+            toManual.style.display = on ? 'none' : '';
+            box.disabled = !on;
+            box.required = on && required;
+            if (on) {
+                box.value = plate(select.value);
+                box.focus();
+            }
+            updateBoxValidity();
+        }
+
+        function updateBoxValidity() {
+            if (!box.required) { box.setCustomValidity(''); return; }
+            box.setCustomValidity(plate(box.value) ? '' : 'Escriba la placa del ' + field.noun + '.');
+        }
+
+        box.addEventListener('input', () => {
+            const caretAtEnd = box.selectionStart === box.value.length;
+            const upper = box.value.toUpperCase();
+            if (upper !== box.value) {
+                box.value = upper;
+                if (caretAtEnd) box.setSelectionRange(upper.length, upper.length);
+            }
+            combo.setCustomValue(box.value);
+            updateBoxValidity();
+        });
+
+        toManual.addEventListener('click', () => setManual(true));
+        toList.addEventListener('click', () => {
+            setManual(false);
+            const option = select.options[select.selectedIndex];
+            // Drop a half-typed plate rather than leaving it selected invisibly.
+            if (option && option.dataset.custom === '1') combo.setCustomValue('');
+        });
+
+        return { setManual };
+    }
+
     async function initField(field) {
         const select = document.getElementById(field.id);
         if (!select || select.tagName !== 'SELECT') return;
@@ -171,10 +272,16 @@
             combo.syncFromSelect();
         });
 
+        const manual = addManualEntry(select, combo, field);
+
         if (kept || preset) {
             select.value = preset;
             select.dispatchEvent(new Event('change', { bubbles: true }));
         }
+
+        // Nothing to pick from (empty fleet, or offline with no cached list) —
+        // go straight to manual entry instead of showing a dead dropdown.
+        if (!data.assets.length && !preset) manual.setManual(true);
     }
 
     function init() {

@@ -82,6 +82,41 @@
             this.emptyText = text;
         }
 
+        /* Hand the field over to another control (e.g. a free-text box for a plate
+         * that is not in the fleet). Disabling the visible input takes it out of
+         * constraint validation; the native select stays in the DOM so whatever
+         * value it holds is still submitted. */
+        setEnabled(on) {
+            if (!on) this._close();
+            this.wrap.style.display = on ? '' : 'none';
+            this.input.disabled = !on;
+            if (on) this._updateValidity(); else this.input.setCustomValidity('');
+        }
+
+        /* Set a value that is not one of the listed options. An exact match against
+         * a real option wins, so typing a plate that does exist selects that one
+         * instead of creating a duplicate entry. */
+        setCustomValue(text) {
+            const trimmed = String(text == null ? '' : text).trim();
+            if (!trimmed) {
+                // Drop the option entirely, or a discarded entry lingers in the list
+                // looking like a real one.
+                const stale = this.select.querySelector('option[data-custom="1"]');
+                if (stale) stale.remove();
+                this.select.selectedIndex = 0;
+            } else {
+                const needle = normalize(trimmed);
+                const existing = Array.from(this.select.options).find((option) =>
+                    option.value !== '' && option.dataset.custom !== '1'
+                    && normalize(option.value) === needle);
+                this.select.selectedIndex = existing
+                    ? existing.index
+                    : this._customOption(trimmed).index;
+            }
+            this.select.dispatchEvent(new Event('change', { bubbles: true }));
+            this.syncFromSelect();
+        }
+
         syncFromSelect() {
             const option = this._selectedOption();
             this.input.value = option ? option.dataset.label || option.textContent.trim() : '';
