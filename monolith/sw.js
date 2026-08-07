@@ -1,7 +1,8 @@
 /* SecApp Service Worker - Offline-first form queue */
-// Bumped to v8: /forms/api/properties now carries customer_company_id, which the
-// client selector in the forms needs — stale v7 payloads must not be served.
-const CACHE_VERSION = 'secapp-v8';
+// Bumped to v9: /forms/api/properties now carries the `puestos` of each property,
+// which the "Puesto o Área Específica" selector in the forms needs — stale v8
+// payloads must not be served.
+const CACHE_VERSION = 'secapp-v9';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';

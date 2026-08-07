@@ -225,6 +225,10 @@
 
                 <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Puesto</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
+                        <input type="text" name="detalles_puestos" class="form-input">
+                    </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
@@ -663,7 +667,11 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                            <input type="text" name="supervisions[${index}][puesto_area_especifica]" class="form-input" required>
+                            <!-- detalles_puestos, not puesto_area_especifica: supervision_puesto has
+                                 no such column, so the insert in forms_bp dropped the old name and the
+                                 puesto was never stored. This is the column the Expediente already
+                                 reads as the "lugar" of the supervision. -->
+                            <input type="text" name="supervisions[${index}][detalles_puestos]" class="form-input" required>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Horario del Servicio</label>

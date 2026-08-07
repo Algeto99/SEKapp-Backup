@@ -1755,6 +1755,51 @@
     "data_type": "numeric"
   },
   {
+    "table_name": "puestos",
+    "column_name": "id_puesto",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "id_propiedad",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "nombre",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "descripcion",
+    "data_type": "text"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "activo",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "creado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "editado",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "editado_en",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "puestos",
+    "column_name": "editado_por",
+    "data_type": "character varying"
+  },
+  {
     "table_name": "registro_de_capacitaciones",
     "column_name": "id_capacitacion",
     "data_type": "integer"

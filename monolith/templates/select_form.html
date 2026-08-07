@@ -645,9 +645,12 @@
     <script>
         const SECAPP_PROPERTIES_URL = '/forms/api/properties';
         // Must match customer-hierarchy.js / offline-sync.js — both read this snapshot.
-        const SECAPP_PROPERTIES_STORAGE_KEY = 'secapp:properties:v2';
-        const SECAPP_PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v1'];
-        const SECAPP_CACHE_NAME = 'secapp-v6';
+        const SECAPP_PROPERTIES_STORAGE_KEY = 'secapp:properties:v3';
+        const SECAPP_PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v2', 'secapp:properties:v1'];
+        // Must match CACHE_VERSION in sw.js: the service worker deletes every other
+        // cache when it activates, so a stale name here silently throws away
+        // everything "Preparar modo offline" just downloaded.
+        const SECAPP_CACHE_NAME = 'secapp-v9';
 
         function secappValidPropertiesPayload(data) {
             return data && Array.isArray(data.properties) ? data : null;

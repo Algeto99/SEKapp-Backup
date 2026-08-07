@@ -440,6 +440,26 @@ def api_form_properties():
             ORDER BY cliente, p.nombre
         """)
         rows = cur.fetchall()
+
+        # Third level of the hierarchy: cliente → propiedad → puesto. Guarded on the
+        # table existing so a database that has not been migrated yet still serves
+        # the property list instead of failing the whole endpoint.
+        puestos_by_property = {}
+        cur.execute("SELECT to_regclass('puestos')")
+        if cur.fetchone()[0] is not None:
+            cur.execute("""
+                SELECT id_puesto, id_propiedad, nombre
+                FROM puestos
+                WHERE COALESCE(activo, TRUE) = TRUE
+                  AND NULLIF(TRIM(nombre), '') IS NOT NULL
+                ORDER BY nombre
+            """)
+            for p in cur.fetchall():
+                puestos_by_property.setdefault(p['id_propiedad'], []).append({
+                    'id': p['id_puesto'],
+                    'name': p['nombre'],
+                })
+
         return jsonify({
             'properties': [
                 {
@@ -448,6 +468,9 @@ def api_form_properties():
                     'cliente': r['cliente'],
                     # Drives the client selector that filters this list in the forms.
                     'customer_company_id': r['customer_company_id'],
+                    # Drives the "Puesto o Área Específica" selector, scoped to
+                    # whichever property is chosen. Empty means free-text entry.
+                    'puestos': puestos_by_property.get(r['id_propiedad'], []),
                 }
                 for r in rows
             ]

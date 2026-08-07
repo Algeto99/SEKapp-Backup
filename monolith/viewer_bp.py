@@ -253,7 +253,7 @@ FORM_CONFIGS = {
             "Conoce Ordenes": "conoce_ordenes_consignas",
             "Horario Detalles": "horario_detalles_claros",
             "Nombre Guardia Firma": "nombre_guardia_firma",
-            "Detalles Puestos": "detalles_puestos",
+            "Puesto o Área Específica": "detalles_puestos",
             "Porta Arma": "porta_arma",
             "Número Empleado": "numero_empleado",
             "Rol Aplicador": "rol_aplicador",

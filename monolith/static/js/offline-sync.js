@@ -6,8 +6,9 @@
     const DB_VERSION = 1;
     const STORE_NAME = 'pending_submissions';
     const PROPERTIES_URL = '/forms/api/properties';
-    // Newest first — v1 is still read for devices that cached before the upgrade.
-    const PROPERTIES_STORAGE_KEYS = ['secapp:properties:v2', 'secapp:properties:v1'];
+    // Newest first — older keys are still read for devices that cached before an
+    // upgrade. Only `name` is used here, which every version has carried.
+    const PROPERTIES_STORAGE_KEYS = ['secapp:properties:v3', 'secapp:properties:v2', 'secapp:properties:v1'];
     const AUTO_SYNC_DELAY_MS = 750;
     const SYNC_REQUEST_TIMEOUT_MS = 90000;
 

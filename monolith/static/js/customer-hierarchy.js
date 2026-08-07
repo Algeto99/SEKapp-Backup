@@ -2,11 +2,12 @@
     'use strict';
 
     const PROPERTIES_URL = '/forms/api/properties';
-    // v2 adds customer_company_id per property. v1 is still read so a device that
-    // went offline before the upgrade keeps working (its properties just land in
-    // the "sin cliente asignado" group until the next online load).
-    const PROPERTIES_STORAGE_KEY = 'secapp:properties:v2';
-    const PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v1'];
+    // v3 adds the `puestos` of each property; v2 added customer_company_id. Older
+    // snapshots are still read so a device that went offline before an upgrade keeps
+    // working — it just loses the field that snapshot predates (v2 properties offer
+    // no puesto list, v1 ones also land in the "sin cliente asignado" group).
+    const PROPERTIES_STORAGE_KEY = 'secapp:properties:v3';
+    const PROPERTIES_LEGACY_STORAGE_KEYS = ['secapp:properties:v2', 'secapp:properties:v1'];
     const PROPERTIES_FETCH_TIMEOUT_MS = 4000;
     const CACHE_READ_TIMEOUT_MS = 1500;
     // Window after the panel opens in which a tap is treated as a ghost click.
@@ -519,6 +520,97 @@
         }
     }
 
+    /* An explicit way into free text, for lists that cannot cover every case.
+     * Typing something the list does not match already offers to use it, but that
+     * is invisible until you happen to type — and on a phone the field is a picker
+     * whose panel just says "Buscar...". This states it outright, and can be opened
+     * automatically when there is nothing to pick from at all.
+     *
+     * The visible box is disabled while hidden: a hidden `required` input makes the
+     * browser refuse to submit the form with nothing to point the user at. */
+    function attachManualEntry(select, combo, options) {
+        const opts = options || {};
+        const host = select.closest('.ss-wrap').parentElement;
+
+        const toManual = document.createElement('button');
+        toManual.type = 'button';
+        toManual.className = 'ss-switch';
+        toManual.textContent = opts.openLabel || '➕ No está en la lista';
+
+        const manual = document.createElement('div');
+        manual.className = 'ss-manual';
+
+        const box = document.createElement('input');
+        box.type = 'text';
+        box.className = select.className.replace('ss-native', '').trim();
+        box.placeholder = opts.placeholder || 'Escriba el valor';
+        box.autocomplete = 'off';
+        box.disabled = true;
+
+        const hint = document.createElement('p');
+        hint.className = 'ss-manual-hint';
+
+        const toList = document.createElement('button');
+        toList.type = 'button';
+        toList.className = 'ss-switch';
+        toList.textContent = opts.closeLabel || '← Volver a la lista';
+
+        manual.appendChild(box);
+        manual.appendChild(hint);
+        manual.appendChild(toList);
+        host.appendChild(toManual);
+        host.appendChild(manual);
+
+        const required = combo.required;
+        let isManual = false;
+
+        function updateValidity() {
+            if (!box.required) { box.setCustomValidity(''); return; }
+            box.setCustomValidity(box.value.trim() ? '' : (opts.invalidMessage || 'Complete este campo.'));
+        }
+
+        function setManual(on, focus) {
+            isManual = !!on;
+            combo.setEnabled(!isManual);
+            manual.classList.toggle('ss-manual-on', isManual);
+            toManual.style.display = isManual ? 'none' : '';
+            box.disabled = !isManual;
+            box.required = isManual && required;
+            if (isManual) {
+                box.value = select.value;
+                if (focus) box.focus();
+            }
+            updateValidity();
+        }
+
+        box.addEventListener('input', () => {
+            combo.setCustomValue(box.value);
+            updateValidity();
+        });
+
+        toManual.addEventListener('click', () => setManual(true, true));
+        toList.addEventListener('click', () => {
+            setManual(false);
+            const option = select.options[select.selectedIndex];
+            // Drop a half-typed entry rather than leaving it selected invisibly.
+            if (option && option.dataset.custom === '1') combo.setCustomValue('');
+        });
+
+        setManual(false);
+
+        return {
+            setManual,
+            isManual: () => isManual,
+            setHint(text) { hint.textContent = text || ''; },
+            // For when the value changes underneath an open box (e.g. the field is
+            // rescoped) — the box is the only thing the user can see at that point.
+            syncBox() { if (isManual) { box.value = select.value; updateValidity(); } },
+            // Hides the way back when the list behind it is empty — offering to
+            // return to a dropdown with nothing in it is a dead end.
+            setLocked(locked) { toList.style.display = locked ? 'none' : ''; },
+        };
+    }
+
     function injectStyles() {
         if (document.getElementById('secapp-searchable-select-styles')) return;
         const style = document.createElement('style');
@@ -564,6 +656,15 @@ body.light-mode .ss-opt:hover, body.light-mode .ss-opt.ss-active { background-co
 body.light-mode .ss-opt.ss-selected { color: #1d4ed8; }
 body.light-mode .ss-opt-custom { color: #047857; border-top-color: rgba(0,0,0,0.08); }
 body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-count { color: #6c757d; }
+.ss-switch { background: none; border: none; padding: .35rem 0 0; margin: 0;
+    font: inherit; font-size: .8rem; color: #93c5fd; cursor: pointer; text-align: left;
+    text-decoration: underline; text-underline-offset: 2px; }
+.ss-switch:hover { color: #bfdbfe; }
+.ss-manual { display: none; }
+.ss-manual.ss-manual-on { display: block; }
+.ss-manual-hint { font-size: .75rem; color: #9ca3af; margin: .3rem 0 0; }
+body.light-mode .ss-switch { color: #1d4ed8; }
+body.light-mode .ss-manual-hint { color: #6b7280; }
 `;
         document.head.appendChild(style);
     }
@@ -820,6 +921,181 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
         });
     }
 
+    // ── Puesto o Área Específica (third level) ───────────────────────────────
+    // The client and property comboboxes above narrow down to one installation;
+    // this narrows down to the post inside it. The field was free text before, and
+    // stays free text whenever the list cannot answer — a property with no `puestos`
+    // rows, or a post that simply is not registered yet. What gets submitted is the
+    // puesto NAME either way, exactly as the column has always stored it, so nothing
+    // downstream (dashboards, expedientes, the offline queue) needs to know.
+
+    // supervision_puesto keeps this value in `detalles_puestos`; every other form in
+    // `puesto_area_especifica`. Both are matched bare and in the supervisions[N][...]
+    // shape the multi-block builder emits.
+    const PUESTO_FIELD_NAMES = ['puesto_area_especifica', 'detalles_puestos'];
+
+    const PUESTO_FIELD_SELECTOR = PUESTO_FIELD_NAMES
+        .map((name) => 'input[name="' + name + '"], input[name$="[' + name + ']"]')
+        .join(', ');
+
+    function buildPuestoIndex(properties) {
+        const byProperty = new Map();
+        properties.forEach((property) => {
+            const unique = new Map();
+            (property.puestos || []).forEach((puesto) => {
+                const name = String(puesto && puesto.name != null ? puesto.name : '').trim();
+                // Same guard the property list needs: `puestos` does not enforce a
+                // unique name, and a duplicate row must not show up as two choices.
+                if (name && !unique.has(normalize(name))) unique.set(normalize(name), name);
+            });
+            if (unique.size) {
+                byProperty.set(String(property.id), Array.from(unique.values())
+                    .sort((a, b) => a.localeCompare(b, 'es')));
+            }
+        });
+        return byProperty;
+    }
+
+    function initPuestoField(input, byProperty, propertySelect) {
+        if (input.dataset.secappPuesto) return null;
+        input.dataset.secappPuesto = '1';
+
+        // Edit mode and restored drafts write into the field before we get here.
+        const preset = String(input.value || '').trim();
+
+        const select = document.createElement('select');
+        select.name = input.name;
+        if (input.id) select.id = input.id;
+        select.className = input.className;
+        if (input.hasAttribute('required')) select.setAttribute('required', 'required');
+        select.appendChild(document.createElement('option'));
+
+        input.replaceWith(select);
+        hookValueSetter(select);
+
+        const combo = new SearchableSelect(select, {
+            placeholder: 'Seleccione primero una propiedad...',
+            emptyText: 'Seleccione primero una propiedad',
+            invalidMessage: 'Seleccione un puesto de la lista o escriba uno.',
+            allowCustom: true,
+            customHint: 'No está en la lista de puestos',
+        });
+
+        const manual = attachManualEntry(select, combo, {
+            openLabel: '➕ El puesto no está en la lista',
+            closeLabel: '← Volver a la lista de puestos',
+            placeholder: 'Escriba el puesto o área específica',
+            invalidMessage: 'Escriba el puesto o área específica.',
+        });
+
+        function selectedIsCustom() {
+            const option = select.options[select.selectedIndex];
+            return !!(option && option.value && option.dataset.custom === '1');
+        }
+
+        // null = no property chosen yet; [] = chosen, and it has no puestos.
+        function scopedNames() {
+            return propertySelect.value ? (byProperty.get(propertySelect.value) || []) : null;
+        }
+
+        // The options are rebuilt per property rather than rendered once and
+        // filtered: the same puesto name legitimately exists under several
+        // properties ("GARITA DE ACCESO" under half the list), and matching a value
+        // against one flat option set would keep landing on the wrong property's row.
+        function fillOptions(names) {
+            select.innerHTML = '';
+            select.appendChild(document.createElement('option'));
+            names.forEach((name) => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                option.dataset.label = name;
+                option.dataset.search = name;
+                select.appendChild(option);
+            });
+        }
+
+        function scopeHas(names, value) {
+            const needle = normalize(value);
+            return !!needle && names.some((name) => normalize(name) === needle);
+        }
+
+        function applyScope() {
+            const scoped = scopedNames();
+            const hasProperty = scoped !== null;
+            const names = scoped || [];
+            const hasList = names.length > 0;
+            // Keep whatever still means something here: text the user typed, or a
+            // puesto this property registers too (half the properties have their own
+            // "GARITA DE ACCESO"). Only a listed puesto the new property does not
+            // have is dropped — that one belonged to the property just replaced.
+            // Deciding on the value rather than on "the property changed" also makes
+            // this idempotent: the client/property sync can emit a second change
+            // event for the same property, and it must not clear a valid answer.
+            const previous = select.value;
+            const keep = selectedIsCustom() || scopeHas(names, previous) ? previous : '';
+
+            fillOptions(names);
+            // Resolves against the new scope: a name registered under this property
+            // becomes a real selection, anything else is parked as free text rather
+            // than dropped, so an existing record never loses its puesto.
+            combo.setCustomValue(keep);
+
+            combo.setPlaceholder(hasList
+                ? 'Seleccione o busque un puesto...'
+                : 'Seleccione primero una propiedad...');
+            combo.setEmptyText(hasProperty
+                ? 'Esta propiedad no tiene puestos registrados'
+                : 'Seleccione primero una propiedad');
+
+            if (hasProperty && !hasList) {
+                // Nothing to pick from — go straight to free text rather than show a
+                // dropdown that can only ever say "no hay puestos".
+                manual.setHint('Esta propiedad no tiene puestos registrados.');
+                manual.setLocked(true);
+                manual.setManual(true);
+            } else {
+                manual.setHint('Se guardará tal como lo escriba.');
+                manual.setLocked(false);
+                // Back to the picker once a real list is available again, unless the
+                // user is standing on something they typed themselves.
+                if (hasList && manual.isManual() && !selectedIsCustom()) manual.setManual(false);
+            }
+            manual.syncBox();
+        }
+
+        // Edit mode and restored drafts wrote into the original input before we got
+        // here; applyScope re-resolves that text against whatever property is set.
+        if (preset) combo.setCustomValue(preset);
+        applyScope();
+        // A preset matching no registered puesto must stay visible and editable.
+        if (selectedIsCustom()) manual.setManual(true);
+
+        return { onPropertyChange: applyScope };
+    }
+
+    function initPuestoFields(propertySelect, properties) {
+        const byProperty = buildPuestoIndex(properties);
+        const fields = [];
+
+        function enhanceAll() {
+            document.querySelectorAll(PUESTO_FIELD_SELECTOR).forEach((input) => {
+                const field = initPuestoField(input, byProperty, propertySelect);
+                if (field) fields.push(field);
+            });
+        }
+
+        enhanceAll();
+
+        // Supervisión de Puesto builds its blocks in JS and adds more on demand.
+        const blocks = document.getElementById('supervisionsContainer');
+        if (blocks) new MutationObserver(enhanceAll).observe(blocks, { childList: true });
+
+        propertySelect.addEventListener('change', () => {
+            fields.forEach((field) => field.onPropertyChange());
+        });
+    }
+
     // ── Init ─────────────────────────────────────────────────────────────────
     async function initPropertySelector() {
         const propertySelect = document.getElementById('id_propiedad');
@@ -914,6 +1190,10 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
 
         applyClientScope();
 
+        // Third level. Registered before the deep-link handling below so a
+        // pre-selected property scopes the puesto list on the way in.
+        initPuestoFields(propertySelect, data.properties);
+
         // A single client is not a choice — pick it so the user goes straight to
         // the property list.
         if (clients.length === 1) {
@@ -956,6 +1236,7 @@ body.light-mode .ss-opt-sub, body.light-mode .ss-empty, body.light-mode .ss-coun
     // Shared with other form scripts (e.g. the fleet plate selector) so there is
     // exactly one combobox implementation in the app.
     window.SecappSearchableSelect = SearchableSelect;
+    window.SecappManualEntry = attachManualEntry;
     window.SecappNormalizeText = normalize;
 
     // Exposed for the "Preparar modo offline" button — fetches and lets the SW cache the response
