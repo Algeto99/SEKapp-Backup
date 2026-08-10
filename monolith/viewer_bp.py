@@ -20,7 +20,10 @@ import psycopg2
 from psycopg2 import extras, errors as pg_errors
 from flask import Blueprint, current_app, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
+import google.auth
+from google.auth.transport import requests as google_auth_requests
 from google.cloud import storage
+from google.oauth2 import service_account
 
 from markupsafe import escape
 from db import get_db_connection
@@ -35,6 +38,50 @@ except OSError:
     HTML = None
 
 viewer_bp = Blueprint('viewer', __name__)
+
+# Cached so a record with ten photos does not make ten metadata-server round trips.
+_signing_credentials = None
+
+
+def _signing_kwargs():
+    """Extra arguments that let generate_signed_url actually sign on Cloud Run.
+
+    The ambient credentials there come from the metadata server and carry only a
+    bearer token, no private key, so the storage client cannot produce a v4
+    signature locally — it raises "you need a private key to sign credentials" and
+    the caller below falls back to an unsigned URL, which a private bucket answers
+    with 403. Handing the client a service account email plus a live access token
+    makes it sign through the IAM SignBlob API instead.
+
+    Requires the runtime service account to hold roles/iam.serviceAccountTokenCreator
+    on itself, and the IAM Service Account Credentials API to be enabled. Without
+    that grant signing still fails, just with a 403 from iamcredentials instead.
+
+    A JSON-key service account (local development) holds its own private key and
+    signs locally, so it gets nothing added.
+    """
+    global _signing_credentials
+
+    if _signing_credentials is None:
+        _signing_credentials, _ = google.auth.default()
+
+    if isinstance(_signing_credentials, service_account.Credentials):
+        return {}
+
+    # service_account_email is only filled in from the metadata server on the first
+    # refresh, and SignBlob rejects a stale token, so both need a live credential.
+    if not _signing_credentials.valid:
+        _signing_credentials.refresh(google_auth_requests.Request())
+
+    email = getattr(_signing_credentials, 'service_account_email', None)
+    if not email or email == 'default' or not _signing_credentials.token:
+        return {}
+
+    return {
+        'service_account_email': email,
+        'access_token': _signing_credentials.token,
+    }
+
 
 def generate_signed_url(gcs_url):
     """Generates a v4 signed URL for a GCS blob."""
@@ -58,7 +105,8 @@ def generate_signed_url(gcs_url):
         url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=60), # 1 hour expiration
-            method="GET"
+            method="GET",
+            **_signing_kwargs()
         )
         app_logger.info(f"Generated signed URL for {blob_name}")
         return url
