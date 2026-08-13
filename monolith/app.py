@@ -287,6 +287,12 @@ def health_check():
 
 @app.errorhandler(404)
 def page_not_found(e):
+    # Un fetch() sigue el redirect automáticamente y termina recibiendo el HTML de
+    # la página raíz con status 200, así que response.ok es true y response.json()
+    # revienta con "Unexpected token '<'" — ocultando el 404 real. Las peticiones
+    # de API deben recibir un 404 en JSON; solo la navegación del navegador se redirige.
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Recurso no encontrado."}), 404
     return redirect('/')
 
 # --- Main Entry Point ---

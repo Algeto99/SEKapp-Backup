@@ -1078,7 +1078,15 @@
                         window.location.href = '/logout';
                         return;
                     }
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    // El servidor responde JSON en los errores de API; mostrar su mensaje junto
+                    // con el id y el tipo pedidos hace que el fallo sea diagnosticable desde el
+                    // modal, en vez de dejar sólo un número de status sin contexto.
+                    let serverMsg = '';
+                    try {
+                        const errBody = await response.json();
+                        serverMsg = errBody.message || errBody.error || '';
+                    } catch (e) { /* respuesta sin cuerpo JSON */ }
+                    throw new Error(`HTTP ${response.status}${serverMsg ? ' — ' + serverMsg : ''} (id: ${reportId}, tipo: ${formType})`);
                 }
 
                 const reportDetails = await response.json();
@@ -1291,6 +1299,9 @@
 
             } catch (error) {
                 console.error('Error fetching report details:', error);
+                // El título quedaba en "Cargando detalles..." indefinidamente al fallar,
+                // dando la impresión de que la carga seguía en curso.
+                modalTitle.textContent = 'Detalles del Reporte';
                 modalContent.innerHTML = `
                     <div class="text-center p-6 text-red-600">
                         <p>Error al cargar los detalles del reporte.</p>
