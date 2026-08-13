@@ -19,11 +19,11 @@ from werkzeug.utils import secure_filename
 
 from db import get_db_connection
 from email_utils import send_email
+from gcs_utils import resolve_upload_bucket
 
 app_logger = logging.getLogger(__name__)
 
 forms_bp = Blueprint("forms_bp", __name__)
-GCS_BUCKET_NAME = 'smt-uploads'
 
 try:
     gcs_client = storage.Client()
@@ -31,6 +31,10 @@ try:
 except Exception as e:
     app_logger.warning(f"Failed to initialize global GCS Client: {e}")
     gcs_client = None
+
+# El bucket depende del proyecto GCP del despliegue (cada cliente tiene el suyo),
+# así que se resuelve en runtime en vez de estar fijo. Ver gcs_utils.
+GCS_BUCKET_NAME = resolve_upload_bucket(gcs_client)
 
 
 # Process-global schema cache. Populated lazily on first request per table.
@@ -168,6 +172,12 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
 def upload_file_to_gcs(file, bucket_name):
     """Uploads a file to Google Cloud Storage."""
     if not file or not file.filename:
+        return None
+    if not bucket_name:
+        app_logger.error(
+            f"Subida omitida para '{file.filename}': no hay bucket configurado para este "
+            f"despliegue. Definí GCS_BUCKET_NAME en el servicio."
+        )
         return None
     try:
         # Use global client if available, else fallback (though global should be preferred)

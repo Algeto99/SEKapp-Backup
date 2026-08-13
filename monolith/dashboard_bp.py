@@ -13,13 +13,21 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jw
 from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
+from gcs_utils import resolve_upload_bucket
 
 app_logger = logging.getLogger(__name__)
 
-_GCS_BUCKET_NAME = 'smt-uploads'
+# Resuelto en runtime según el proyecto GCP del despliegue. Ver gcs_utils.
+_GCS_BUCKET_NAME = resolve_upload_bucket()
 
 def _upload_file_to_gcs(file_storage):
     if not file_storage or not file_storage.filename:
+        return None
+    if not _GCS_BUCKET_NAME:
+        app_logger.error(
+            f"Subida omitida para '{file_storage.filename}': no hay bucket configurado "
+            f"para este despliegue. Definí GCS_BUCKET_NAME en el servicio."
+        )
         return None
     import uuid
     from werkzeug.utils import secure_filename
