@@ -89,7 +89,12 @@
       "Bash(psql postgresql://postgres:test@localhost:55433/sesursa_test -q -c 'CREATE TABLE roto_test \\(id_reporte_incidente INTEGER, cliente VARCHAR\\(50\\)\\);')",
       "Bash(psql postgresql://postgres:test@localhost:55433/sesursa_test -v ON_ERROR_STOP=0 -c 'INSERT INTO roto_test \\(cliente\\) VALUES \\('\\\\''X'\\\\''\\); SELECT lastval\\(\\);')",
       "Bash(docker stop *)",
-      "Bash(gcloud sql *)"
+      "Bash(gcloud sql *)",
+      "Bash(gcloud compute *)",
+      "Bash(dig +short kanansentinel.com A)",
+      "Bash(dig +short kanansentinel.com MX)",
+      "Bash(dig +short kanansentinel.com TXT)",
+      "Bash(whois 68.65.122.59)"
     ],
     "additionalDirectories": [
       "/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/node_modules"
