@@ -97,6 +97,56 @@ def admin_required(f):
     return decorated
 
 
+# Shown for properties that have no customer_company_id yet, so they still appear
+# in the client selector instead of vanishing from the module.
+SIN_CLIENTE_LABEL = 'Sin cliente asignado'
+
+
+def _anchor_sql(alias):
+    """WHERE fragment matching one installation, by FK first and by name second.
+
+    Takes two params in this order: (id_propiedad, nombre). id_propiedad may be
+    None — the comparison is then NULL, never true, and the legacy name match
+    carries the query on its own, which is what pre-FK records depend on.
+    The FK arm is what makes supervisions visible at all: supervision_puesto
+    never stores cliente_instalacion, so name matching alone always missed them.
+    """
+    return (f"({alias}.id_propiedad = %s"
+            f" OR LOWER(TRIM({alias}.cliente_instalacion)) = LOWER(TRIM(%s)))")
+
+
+def _prop_id_arg(value):
+    """Parse an id_propiedad query param into an int, or None when absent/junk."""
+    try:
+        return int(str(value).strip()) if value not in (None, '') else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _resolve_identidad(cur, cliente, prop_id=None):
+    """Resolve (id_propiedad, propiedad_nombre, cliente_empresa) for an expediente.
+
+    Accepts whichever half the caller has — a QR token minted before the property
+    id existed only carries the name — and fills the rest in from the catalogue.
+    """
+    cur.execute("""
+        SELECT p.id_propiedad,
+               p.nombre,
+               COALESCE(NULLIF(TRIM(cc.name), ''), %s) AS cliente
+        FROM propiedades p
+        LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+        WHERE p.id_propiedad = %s OR LOWER(TRIM(p.nombre)) = LOWER(TRIM(%s))
+        ORDER BY (p.id_propiedad = %s) DESC NULLS LAST
+        LIMIT 1
+    """, (SIN_CLIENTE_LABEL, prop_id, cliente, prop_id))
+    row = cur.fetchone()
+    if not row:
+        # Property deleted or renamed: keep whatever the caller gave us so the
+        # expediente still renders instead of erroring out.
+        return prop_id, cliente, ''
+    return row['id_propiedad'], row['nombre'], row['cliente']
+
+
 # ─── Geo helpers ─────────────────────────────────────────────────────────────
 
 def haversine_m(lat1, lon1, lat2, lon2):
@@ -111,38 +161,38 @@ def haversine_m(lat1, lon1, lat2, lon2):
 
 MIN_RECORDS_FOR_AUTO_CENTER = 3
 
-def _resolve_geofence_center(cur, cliente_instalacion):
+def _resolve_geofence_center(cur, cliente_instalacion, prop_id=None):
     """
     Returns (lat, lng, source) for the geofence center of a client installation.
 
     Priority:
-      1. Manual coordinates on propiedades matched by name.
+      1. Manual coordinates on propiedades, matched by id first and by name second.
       2. Median GPS of supervision_puesto records for this client
          — self-calibrates from historical data, no config required.
       3. None if no GPS data exists at all.
     """
-    # Try propiedades name match first (manual override)
+    # Try propiedades match first (manual override)
     cur.execute("""
         SELECT latitude, longitude FROM propiedades
-        WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(%s))
+        WHERE (id_propiedad = %s OR LOWER(TRIM(nombre)) = LOWER(TRIM(%s)))
           AND latitude IS NOT NULL AND longitude IS NOT NULL
         LIMIT 1
-    """, (cliente_instalacion,))
+    """, (prop_id, cliente_instalacion))
     row = cur.fetchone()
     if row:
         return float(row['latitude']), float(row['longitude']), 'manual'
 
-    # Fall back to median GPS from supervision history (supervision_puesto uses `cliente`)
-    cur.execute("""
+    # Fall back to median GPS from supervision history
+    cur.execute(f"""
         SELECT
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latitude)::float  AS med_lat,
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY longitude)::float AS med_lng,
             COUNT(*) AS gps_count
-        FROM supervision_puesto
-        WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s))
+        FROM supervision_puesto sp
+        WHERE {_anchor_sql('sp')}
           AND latitude  IS NOT NULL
           AND longitude IS NOT NULL
-    """, (cliente_instalacion,))
+    """, (prop_id, cliente_instalacion))
     row = cur.fetchone()
     if row and row['gps_count'] >= MIN_RECORDS_FOR_AUTO_CENTER:
         return float(row['med_lat']), float(row['med_lng']), 'auto'
@@ -241,9 +291,14 @@ def _decode_qr_token(token):
         return None
 
 
-def _make_expediente_token(cliente, days, module_filter, company_id):
+def _make_expediente_token(cliente, days, module_filter, company_id, prop_id=None):
     s = URLSafeSerializer(current_app.config['SECRET_KEY'], salt=EXPEDIENTE_QR_SALT)
-    return s.dumps({'c': cliente, 'd': int(days), 'm': module_filter, 'cid': int(company_id or 0)})
+    # 'p' is optional: tokens minted before it existed decode without it and fall
+    # back to matching by name alone, exactly as they did before.
+    payload = {'c': cliente, 'd': int(days), 'm': module_filter, 'cid': int(company_id or 0)}
+    if prop_id is not None:
+        payload['p'] = int(prop_id)
+    return s.dumps(payload)
 
 
 def _decode_expediente_token(token):
@@ -274,50 +329,41 @@ def expediente_index():
 @jwt_required()
 @admin_required
 def api_clientes():
-    """Distinct client names across supervision, incidents and visit records."""
-    user_email = get_jwt_identity()
+    """Installations available for an expediente, each with the client it belongs to.
+
+    Reads the property catalogue itself instead of scraping distinct names off the
+    record tables. Scraping missed three groups: properties with no records yet,
+    every supervision (supervision_puesto never stores cliente_instalacion), and
+    anything whose company_id is NULL — which between them left a single option.
+    """
     conn = cur = None
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'DB unavailable'}), 503
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
-        company_id = _get_user_company_id(cur, user_email)
 
-        cf = 'AND company_id = %s' if company_id is not None else ''
-        params = (company_id,) * 4 if company_id is not None else ()
+        cur.execute("""
+            SELECT p.id_propiedad,
+                   p.nombre,
+                   p.customer_company_id,
+                   COALESCE(NULLIF(TRIM(cc.name), ''), %s) AS cliente
+            FROM propiedades p
+            LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+            WHERE COALESCE(p.activa, TRUE) = TRUE
+              AND NULLIF(TRIM(p.nombre), '') IS NOT NULL
+            ORDER BY cliente, p.nombre
+        """, (SIN_CLIENTE_LABEL,))
 
-        cur.execute(f"""
-            SELECT DISTINCT TRIM(cliente_name) AS nombre
-            FROM (
-                SELECT NULLIF(TRIM(cliente_instalacion), '') AS cliente_name
-                FROM supervision_puesto
-                WHERE cliente_instalacion IS NOT NULL {cf}
-
-                UNION
-
-                SELECT NULLIF(TRIM(cliente_instalacion), '')
-                FROM reportes_incidentes
-                WHERE cliente_instalacion IS NOT NULL {cf}
-
-                UNION
-
-                SELECT NULLIF(TRIM(cliente_instalacion), '')
-                FROM registro_y_acta_de_visita
-                WHERE cliente_instalacion IS NOT NULL {cf}
-
-                UNION
-
-                SELECT NULLIF(TRIM(cliente_instalacion), '')
-                FROM medicion_experiencia_cliente
-                WHERE cliente_instalacion IS NOT NULL {cf}
-            ) AS t
-            WHERE cliente_name IS NOT NULL
-            ORDER BY nombre
-        """, params)
-
-        rows = cur.fetchall()
-        return jsonify([r['nombre'] for r in rows])
+        return jsonify([
+            {
+                'id_propiedad': r['id_propiedad'],
+                'nombre': r['nombre'],
+                'cliente': r['cliente'],
+                'customer_company_id': r['customer_company_id'],
+            }
+            for r in cur.fetchall()
+        ])
     except Exception as e:
         app_logger.error(f"api_clientes error: {e}", exc_info=True)
         return jsonify({'error': 'Error interno'}), 500
@@ -333,7 +379,8 @@ def api_feed():
     """Aggregated timeline for one client. Query params: ?cliente=X&days=90 (max 365)."""
     user_email = get_jwt_identity()
     cliente = (request.args.get('cliente') or '').strip()
-    if not cliente:
+    prop_id = _prop_id_arg(request.args.get('id_propiedad'))
+    if not cliente and prop_id is None:
         return jsonify({'error': 'Parámetro cliente requerido'}), 400
     try:
         days = max(1, min(int(request.args.get('days', 90)), 365))
@@ -348,7 +395,7 @@ def api_feed():
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         company_id = _get_user_company_id(cur, user_email)
 
-        prop_lat, prop_lng, gps_source = _resolve_geofence_center(cur, cliente)
+        prop_lat, prop_lng, gps_source = _resolve_geofence_center(cur, cliente, prop_id)
 
         cf_sup = 'AND sp.company_id = %s' if company_id is not None else ''
         cf_inc = 'AND ri.company_id = %s' if company_id is not None else ''
@@ -357,8 +404,10 @@ def api_feed():
 
         days_int = int(days)
 
-        def bp(text_val):
-            return (text_val, company_id, days_int) if company_id is not None else (text_val, days_int)
+        # Params for one UNION arm, in the order _anchor_sql() expects them.
+        def bp():
+            return ((prop_id, cliente, company_id, days_int) if company_id is not None
+                    else (prop_id, cliente, days_int))
 
         query = f"""
             SELECT
@@ -381,7 +430,7 @@ def api_feed():
                 COALESCE(sp.detalles_puestos, sp.tipo_servicio)  AS lugar,
                 sp.nombre_guardia                                AS asunto
             FROM supervision_puesto sp
-            WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
+            WHERE {_anchor_sql('sp')} {cf_sup}
               AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -404,7 +453,7 @@ def api_feed():
                 ri.puesto_area_especifica                        AS lugar,
                 ri.tipo_incidente                                AS asunto
             FROM reportes_incidentes ri
-            WHERE LOWER(TRIM(ri.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_inc}
+            WHERE {_anchor_sql('ri')} {cf_inc}
               AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -427,7 +476,7 @@ def api_feed():
                 NULL::text                                       AS lugar,
                 rav.motivo_visita                                AS asunto
             FROM registro_y_acta_de_visita rav
-            WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
+            WHERE {_anchor_sql('rav')} {cf_vis}
               AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -450,7 +499,7 @@ def api_feed():
                 NULL::text                                       AS lugar,
                 mec.categoria_evaluada                           AS asunto
             FROM medicion_experiencia_cliente mec
-            WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}
+            WHERE {_anchor_sql('mec')} {cf_enc}
               AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -473,21 +522,23 @@ def api_feed():
                 cc.puesto_area_especifica                        AS lugar,
                 cc.curso_certificacion                           AS asunto
             FROM checklist_cumplimiento cc
-            WHERE LOWER(TRIM(cc.cliente_instalacion)) = LOWER(TRIM(%s))
+            WHERE {_anchor_sql('cc')}
               AND COALESCE(cc.fecha_hora, cc.created_at) >= NOW() - (%s * INTERVAL '1 day')
 
             ORDER BY event_ts DESC NULLS LAST
         """
 
         cur.execute(query, (
-            *bp(cliente), *bp(cliente), *bp(cliente), *bp(cliente),
-            cliente, days_int,
+            *bp(), *bp(), *bp(), *bp(),
+            # checklist_cumplimiento carries no company_id filter in this query.
+            prop_id, cliente, days_int,
         ))
         rows = cur.fetchall()
         events = [_serialize_event(dict(r), prop_lat, prop_lng) for r in rows]
 
         return jsonify({
             'cliente': cliente,
+            'id_propiedad': prop_id,
             'events': events,
             'total': len(events),
             'prop_has_gps': gps_source != 'none',
@@ -523,15 +574,15 @@ def _eq_estado_color(pct):
     return 'red'
 
 
-def _fetch_equipos_data(cur, cliente, days=None, company_id=None):
+def _fetch_equipos_data(cur, cliente, days=None, company_id=None, prop_id=None):
     """Shared equipment reliability query for both authenticated and public views."""
     conds = [
         "c.inventario IS NOT NULL",
         "c.inventario != 'null'::jsonb",
         "jsonb_array_length(c.inventario) > 0",
-        "LOWER(TRIM(c.cliente_instalacion)) = LOWER(TRIM(%s))",
+        _anchor_sql('c'),
     ]
-    params = [cliente]
+    params = [prop_id, cliente]
     if days:
         conds.append("c.fecha >= CURRENT_DATE - (%s * INTERVAL '1 day')")
         params.append(int(days))
@@ -603,7 +654,8 @@ def api_equipos():
     """Equipment reliability summary for one client. Query params: ?cliente=X&days=N"""
     user_email = get_jwt_identity()
     cliente = (request.args.get('cliente') or '').strip()
-    if not cliente:
+    prop_id = _prop_id_arg(request.args.get('id_propiedad'))
+    if not cliente and prop_id is None:
         return jsonify({'error': 'Parámetro cliente requerido'}), 400
     try:
         days = max(1, min(int(request.args.get('days', 365)), 730))
@@ -617,7 +669,7 @@ def api_equipos():
             return jsonify({'error': 'DB unavailable'}), 503
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         company_id = _get_user_company_id(cur, user_email)
-        data = _fetch_equipos_data(cur, cliente, days, company_id)
+        data = _fetch_equipos_data(cur, cliente, days, company_id, prop_id)
         return jsonify(data or {})
     except Exception as e:
         app_logger.error(f"api_equipos error (cliente '{cliente}'): {e}", exc_info=True)
@@ -634,7 +686,8 @@ def api_kpi():
     """Monthly KPI aggregates for the last 6 months. Query param: ?cliente=X"""
     user_email = get_jwt_identity()
     cliente = (request.args.get('cliente') or '').strip()
-    if not cliente:
+    prop_id = _prop_id_arg(request.args.get('id_propiedad'))
+    if not cliente and prop_id is None:
         return jsonify({'error': 'Parámetro cliente requerido'}), 400
 
     conn = cur = None
@@ -645,12 +698,14 @@ def api_kpi():
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         company_id = _get_user_company_id(cur, user_email)
 
-        prop_lat, prop_lng, gps_source = _resolve_geofence_center(cur, cliente)
+        prop_lat, prop_lng, gps_source = _resolve_geofence_center(cur, cliente, prop_id)
 
         cf = 'AND company_id = %s' if company_id is not None else ''
 
-        def p(text_val):
-            return (text_val, company_id) if company_id is not None else (text_val,)
+        # Params for one aggregate, in the order _anchor_sql() expects them.
+        def p():
+            return ((prop_id, cliente, company_id) if company_id is not None
+                    else (prop_id, cliente))
 
         if prop_lat and prop_lng:
             geofence_sql = f"""
@@ -672,10 +727,10 @@ def api_kpi():
                 COUNT(*) AS supervisiones,
                 {geofence_sql}
             FROM supervision_puesto
-            WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s)) {cf}
+            WHERE {_anchor_sql('supervision_puesto')} {cf}
               AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
-        """, p(cliente))
+        """, p())
         sup = {r['mes']: dict(r) for r in cur.fetchall()}
 
         cur.execute(f"""
@@ -687,10 +742,10 @@ def api_kpi():
                 COUNT(*) FILTER (WHERE estado ILIKE ANY(ARRAY['ABIERTO','EN PROCESO','EN_PROCESO','PENDIENTE','REPORTADO']))
                          AS abiertos
             FROM reportes_incidentes
-            WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s)) {cf}
+            WHERE {_anchor_sql('reportes_incidentes')} {cf}
               AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
-        """, p(cliente))
+        """, p())
         inc = {r['mes']: dict(r) for r in cur.fetchall()}
 
         cur.execute(f"""
@@ -703,10 +758,10 @@ def api_kpi():
                            OR compromisos_estados NOT ILIKE '%CUMPLIDO%')
                 ) AS vencidos
             FROM registro_y_acta_de_visita
-            WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s)) {cf}
+            WHERE {_anchor_sql('registro_y_acta_de_visita')} {cf}
               AND creado_en >= NOW() - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
-        """, p(cliente))
+        """, p())
         vis = {r['mes']: dict(r) for r in cur.fetchall()}
 
         cur.execute(f"""
@@ -715,10 +770,10 @@ def api_kpi():
                 COUNT(*) AS encuestas,
                 ROUND(AVG(calificacion_global_nps)::numeric, 1) AS nps_promedio
             FROM medicion_experiencia_cliente
-            WHERE LOWER(TRIM(cliente_instalacion)) = LOWER(TRIM(%s)) {cf}
+            WHERE {_anchor_sql('medicion_experiencia_cliente')} {cf}
               AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
-        """, p(cliente))
+        """, p())
         enc = {r['mes']: dict(r) for r in cur.fetchall()}
 
         all_months = sorted(set(list(sup) + list(inc) + list(vis) + list(enc)))
@@ -836,13 +891,14 @@ def api_qr_expediente_url():
     """Returns signed token + public URL for the combined expediente viewer."""
     user_email = get_jwt_identity()
     cliente = (request.args.get('cliente') or '').strip()
+    prop_id = _prop_id_arg(request.args.get('id_propiedad'))
     module_filter = (request.args.get('module') or 'ALL').strip().upper()
     try:
         days = max(1, min(int(request.args.get('days', 30)), 365))
     except (ValueError, TypeError):
         days = 30
 
-    if not cliente:
+    if not cliente and prop_id is None:
         return jsonify({'error': 'Parámetro cliente requerido'}), 400
 
     conn = cur = None
@@ -853,7 +909,7 @@ def api_qr_expediente_url():
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         company_id = _get_user_company_id(cur, user_email)
 
-        token = _make_expediente_token(cliente, days, module_filter, company_id)
+        token = _make_expediente_token(cliente, days, module_filter, company_id, prop_id)
         public_url = request.host_url.rstrip('/') + f'/vexp/{token}'
         return jsonify({'url': public_url, 'token': token})
     except Exception as e:
@@ -972,6 +1028,7 @@ def public_expediente_viewer(token):
         return render_template('error.html', message='Enlace inválido o expirado.'), 400
 
     cliente       = payload.get('c', '')
+    prop_id       = payload.get('p')
     days          = payload.get('d', 30)
     module_filter = payload.get('m', 'ALL')
     company_id    = payload.get('cid') or None
@@ -985,7 +1042,8 @@ def public_expediente_viewer(token):
             return render_template('error.html', message='Servicio temporalmente no disponible.'), 503
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
-        prop_lat, prop_lng, gps_source = _resolve_geofence_center(cur, cliente)
+        prop_id, cliente, cliente_empresa = _resolve_identidad(cur, cliente, prop_id)
+        prop_lat, prop_lng, gps_source = _resolve_geofence_center(cur, cliente, prop_id)
 
         cf_sup = 'AND sp.company_id = %s' if company_id is not None else ''
         cf_inc = 'AND ri.company_id = %s' if company_id is not None else ''
@@ -994,8 +1052,10 @@ def public_expediente_viewer(token):
 
         days_int = int(days)
 
-        def bp(text_val):
-            return (text_val, company_id, days_int) if company_id is not None else (text_val, days_int)
+        # Params for one UNION arm, in the order _anchor_sql() expects them.
+        def bp():
+            return ((prop_id, cliente, company_id, days_int) if company_id is not None
+                    else (prop_id, cliente, days_int))
 
         query = f"""
             SELECT
@@ -1011,7 +1071,7 @@ def public_expediente_viewer(token):
                 NULL::date               AS compromisos_fecha_limite,
                 NULL::text               AS compromisos_estados
             FROM supervision_puesto sp
-            WHERE LOWER(TRIM(sp.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_sup}
+            WHERE {_anchor_sql('sp')} {cf_sup}
               AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -1024,7 +1084,7 @@ def public_expediente_viewer(token):
                 COALESCE(ri.descripcion_incidente, ''),
                 ri.estado, ri.nivel_severidad, NULL::date, NULL::text
             FROM reportes_incidentes ri
-            WHERE LOWER(TRIM(ri.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_inc}
+            WHERE {_anchor_sql('ri')} {cf_inc}
               AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -1038,7 +1098,7 @@ def public_expediente_viewer(token):
                 rav.compromisos_estados, NULL::text,
                 NULL::date, rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
-            WHERE LOWER(TRIM(rav.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_vis}
+            WHERE {_anchor_sql('rav')} {cf_vis}
               AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
@@ -1053,12 +1113,12 @@ def public_expediente_viewer(token):
                 mec.calificacion_global_nps::text,
                 NULL::date, NULL::text
             FROM medicion_experiencia_cliente mec
-            WHERE LOWER(TRIM(mec.cliente_instalacion)) = LOWER(TRIM(%s)) {cf_enc}
+            WHERE {_anchor_sql('mec')} {cf_enc}
               AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             ORDER BY event_ts DESC NULLS LAST
         """
-        cur.execute(query, (*bp(cliente), *bp(cliente), *bp(cliente), *bp(cliente)))
+        cur.execute(query, (*bp(), *bp(), *bp(), *bp()))
         rows = cur.fetchall()
         events = [_serialize_event(dict(r), prop_lat, prop_lng) for r in rows]
 
@@ -1094,7 +1154,8 @@ def public_expediente_viewer(token):
 
         equipos_data = None
         try:
-            equipos_data = _fetch_equipos_data(cur, cliente, days=None, company_id=company_id)
+            equipos_data = _fetch_equipos_data(cur, cliente, days=None,
+                                               company_id=company_id, prop_id=prop_id)
         except Exception as eq_err:
             app_logger.warning(f"Could not fetch equipos for public viewer: {eq_err}")
 
@@ -1104,6 +1165,7 @@ def public_expediente_viewer(token):
 
         return render_template('expediente_public_combined.html',
                                cliente=cliente,
+                               cliente_empresa=cliente_empresa,
                                days=days,
                                module_label=MODULE_LABELS.get(module_filter, module_filter),
                                events=events,
@@ -1162,9 +1224,13 @@ def public_evidence_viewer(hash_token):
 
         record = dict(row)
 
-        # Resolve geofence center — auto-derives from supervision history if not manually set
+        # Resolve geofence center — auto-derives from supervision history if not manually set.
+        # The record's own cliente_instalacion is empty on this table, so the property
+        # id is what actually resolves; the name is kept as the legacy fallback.
         center_lat, center_lng, _ = _resolve_geofence_center(
-            cur, record.get('cliente_instalacion', '')
+            cur,
+            record.get('cliente_instalacion') or record.get('propiedad_nombre') or '',
+            record.get('id_propiedad'),
         )
 
         distance_m = None

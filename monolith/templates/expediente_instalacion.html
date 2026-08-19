@@ -22,6 +22,7 @@
     body.light-mode .kpi-val, body.light-mode .tl-summary { color:#334155; }
     body.light-mode .kpi-label, body.light-mode .tl-ts, body.light-mode .tl-meta { color:#64748b; }
     body.light-mode .select-field { background:#f8fafc; border-color:rgba(0,0,0,0.15); color:#0f172a; }
+    body.light-mode #expedienteIdent > div { background:rgba(167,139,250,.07); border-color:rgba(124,58,237,.2); }
     body.light-mode .qr-box { background-color:#fff; border-color:rgba(0,0,0,0.1); }
     body.light-mode .qr-box h3 { color:#0f172a; }
     body.light-mode .timeline::before { background:rgba(0,0,0,.08); }
@@ -186,9 +187,15 @@
   <!-- Property picker + date range -->
   <div class="property-bar">
     <div style="display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:200px;">
-      <label for="propertySelect" style="font-size:.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Instalación</label>
+      <label for="clienteSelect" style="font-size:.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Cliente / Empresa</label>
+      <select id="clienteSelect" class="select-field">
+        <option value="">— Cargando clientes… —</option>
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:200px;">
+      <label for="propertySelect" style="font-size:.75rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;">Propiedad / Instalación</label>
       <select id="propertySelect" class="select-field">
-        <option value="">— Cargando propiedades… —</option>
+        <option value="">— Seleccione primero un cliente —</option>
       </select>
     </div>
     <div style="display:flex;flex-direction:column;gap:.3rem;">
@@ -202,6 +209,21 @@
     </div>
     <div style="align-self:flex-end;">
       <div id="gpsBadge" style="font-size:.75rem;color:#9ca3af;padding:.3rem 0;"></div>
+    </div>
+  </div>
+
+  <!-- Identification of the expediente currently loaded -->
+  <div id="expedienteIdent" style="display:none;margin-bottom:1.5rem;">
+    <div style="display:flex;flex-wrap:wrap;gap:2rem;padding:.9rem 1.15rem;border-radius:.65rem;
+                background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.22);">
+      <div>
+        <div style="font-size:.68rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Cliente / Empresa</div>
+        <div id="identCliente" style="font-size:.95rem;font-weight:600;margin-top:.15rem;">—</div>
+      </div>
+      <div>
+        <div style="font-size:.68rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Propiedad / Instalación</div>
+        <div id="identPropiedad" style="font-size:.95rem;font-weight:600;margin-top:.15rem;">—</div>
+      </div>
     </div>
   </div>
 
@@ -262,7 +284,10 @@
 <script>
   const INITIAL_CLIENTE = {{ initial_cliente | tojson }};
 
-  let currentCliente = null;
+  let currentCliente = null;      // property name — the module's historical key
+  let currentPropId  = null;      // id_propiedad — what actually anchors the queries
+  let currentEmpresa = '';        // customer company the property belongs to
+  let allProperties  = [];        // full catalogue, grouped client-side
   let currentDays = 30;
   let currentFilter = 'ALL';
   let allEvents = [];
@@ -285,48 +310,116 @@
            + ' ' + d.toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' });
   }
 
-  // ── Load property list ────────────────────────────────────────────────────
+  // ── Load client → property catalogue ──────────────────────────────────────
+  // The list comes from the propiedades table, so every active installation is
+  // selectable — including ones that have no records yet.
   async function loadProperties() {
-    const sel = document.getElementById('propertySelect');
+    const cSel = document.getElementById('clienteSelect');
+    const pSel = document.getElementById('propertySelect');
     try {
       const res = await fetch('/expediente/api/clientes');
       const data = await res.json();
       if (!res.ok) {
-        sel.innerHTML = `<option value="">— Error: ${data.error || res.status} —</option>`;
+        cSel.innerHTML = `<option value="">— Error: ${data.error || res.status} —</option>`;
         return;
       }
-      if (!data.length) {
-        sel.innerHTML = '<option value="">— Sin instalaciones con registros —</option>';
+      if (!Array.isArray(data) || !data.length) {
+        cSel.innerHTML = '<option value="">— Sin instalaciones registradas —</option>';
         return;
       }
-      sel.innerHTML = '<option value="">— Seleccionar instalación —</option>';
-      data.forEach(nombre => {
+
+      allProperties = data;
+
+      const clientes = [...new Set(data.map(p => p.cliente))].sort((a, b) => a.localeCompare(b, 'es'));
+      cSel.innerHTML = '<option value="">— Seleccionar cliente —</option>';
+      clientes.forEach(nombre => {
         const opt = document.createElement('option');
         opt.value = nombre;
-        opt.textContent = nombre;
-        if (INITIAL_CLIENTE && nombre === INITIAL_CLIENTE) opt.selected = true;
-        sel.appendChild(opt);
+        opt.textContent = `${nombre} (${data.filter(p => p.cliente === nombre).length})`;
+        cSel.appendChild(opt);
       });
-      if (INITIAL_CLIENTE) {
-        loadExpediente(INITIAL_CLIENTE);
+
+      // A deep link (?cliente=<propiedad>) names a property, not a company — find
+      // its client so both selectors land on the right entry.
+      const linked = INITIAL_CLIENTE
+        ? data.find(p => p.nombre.toLowerCase().trim() === INITIAL_CLIENTE.toLowerCase().trim())
+        : null;
+
+      // One client is not a choice — preselect it and go straight to properties.
+      const preselect = linked ? linked.cliente : (clientes.length === 1 ? clientes[0] : '');
+      if (preselect) {
+        cSel.value = preselect;
+        fillProperties(preselect);
       }
-    } catch(e) {
+
+      if (linked) {
+        pSel.value = String(linked.id_propiedad);
+        loadExpediente(linked.nombre, linked.id_propiedad, linked.cliente);
+      } else if (INITIAL_CLIENTE) {
+        // Link to a property that is no longer in the catalogue (deactivated or
+        // renamed). It still has history, so load it by name as before.
+        loadExpediente(INITIAL_CLIENTE, null, '');
+      }
+    } catch (e) {
       console.error('loadProperties:', e);
-      sel.innerHTML = '<option value="">— Error de conexión —</option>';
+      cSel.innerHTML = '<option value="">— Error de conexión —</option>';
     }
   }
 
+  // Scope the installation list to one client.
+  function fillProperties(cliente) {
+    const pSel = document.getElementById('propertySelect');
+    const props = allProperties
+      .filter(p => p.cliente === cliente)
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+    if (!cliente) {
+      pSel.innerHTML = '<option value="">— Seleccione primero un cliente —</option>';
+      return;
+    }
+    if (!props.length) {
+      pSel.innerHTML = '<option value="">— Este cliente no tiene instalaciones activas —</option>';
+      return;
+    }
+    pSel.innerHTML = '<option value="">— Seleccionar instalación —</option>';
+    props.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = String(p.id_propiedad);
+      opt.textContent = p.nombre;
+      opt.dataset.nombre = p.nombre;
+      opt.dataset.cliente = p.cliente;
+      pSel.appendChild(opt);
+    });
+  }
+
+  // Both halves of the identity travel on every call: the id is what anchors the
+  // queries, the name keeps pre-FK records reachable.
+  function propQuery() {
+    const parts = [`cliente=${encodeURIComponent(currentCliente || '')}`];
+    if (currentPropId != null) parts.push(`id_propiedad=${encodeURIComponent(currentPropId)}`);
+    return parts.join('&');
+  }
+
+  function showIdent() {
+    document.getElementById('identCliente').textContent   = currentEmpresa || '—';
+    document.getElementById('identPropiedad').textContent = currentCliente || '—';
+    document.getElementById('expedienteIdent').style.display = 'block';
+  }
+
   // ── Load feed + KPI ───────────────────────────────────────────────────────
-  async function loadExpediente(cliente) {
-    if (!cliente) return;
+  async function loadExpediente(cliente, propId, empresa) {
+    if (!cliente && propId == null) return;
     currentCliente = cliente;
+    if (propId !== undefined) currentPropId = propId;
+    if (empresa !== undefined) currentEmpresa = empresa;
+    showIdent();
     showLoading();
 
-    const enc = encodeURIComponent(cliente);
+    const q = propQuery();
     try {
       const [feedRes, kpiRes] = await Promise.all([
-        fetch(`/expediente/api/feed?cliente=${enc}&days=${currentDays}`),
-        fetch(`/expediente/api/kpi?cliente=${enc}`)
+        fetch(`/expediente/api/feed?${q}&days=${currentDays}`),
+        fetch(`/expediente/api/kpi?${q}`)
       ]);
       const feed = await feedRes.json();
       const kpi  = await kpiRes.json();
@@ -350,7 +443,7 @@
 
       renderKpi(kpi.kpi || []);
       if (currentFilter === 'CONFIABILIDAD') {
-        loadConfiabilidad(cliente);
+        loadConfiabilidad();
       } else {
         renderTimeline();
       }
@@ -579,9 +672,8 @@
     currentQrToken = '';
     modal.classList.add('open');
 
-    const enc = encodeURIComponent(currentCliente);
     try {
-      const res  = await fetch(`/expediente/api/qr-expediente-url?cliente=${enc}&days=${currentDays}&module=${currentFilter}`);
+      const res  = await fetch(`/expediente/api/qr-expediente-url?${propQuery()}&days=${currentDays}&module=${currentFilter}`);
       const data = await res.json();
       if (res.ok && data.token) {
         currentQrUrl   = data.url;
@@ -662,11 +754,17 @@
   });
 
   // ── Event listeners ───────────────────────────────────────────────────────
+  document.getElementById('clienteSelect').addEventListener('change', function() {
+    fillProperties(this.value);
+  });
+
   document.getElementById('propertySelect').addEventListener('change', function() {
-    if (this.value) {
-      history.replaceState(null, '', `/expediente/?cliente=${encodeURIComponent(this.value)}`);
-      loadExpediente(this.value);
-    }
+    const opt = this.options[this.selectedIndex];
+    if (!this.value || !opt) return;
+    const nombre = opt.dataset.nombre;
+    // The deep link still names the property, so existing links keep working.
+    history.replaceState(null, '', `/expediente/?cliente=${encodeURIComponent(nombre)}`);
+    loadExpediente(nombre, parseInt(this.value, 10), opt.dataset.cliente);
   });
 
   document.querySelectorAll('.range-chip').forEach(btn => {
@@ -674,7 +772,7 @@
       document.querySelectorAll('.range-chip').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       currentDays = parseInt(this.dataset.days, 10);
-      if (currentCliente) loadExpediente(currentCliente);
+      if (currentCliente) loadExpediente(currentCliente, currentPropId, currentEmpresa);
     });
   });
 
@@ -687,7 +785,7 @@
     if (currentFilter === 'CONFIABILIDAD') {
       document.getElementById('timelineWrap').style.display = 'none';
       document.getElementById('confiabilidadPanel').style.display = 'block';
-      if (currentCliente) loadConfiabilidad(currentCliente);
+      if (currentCliente) loadConfiabilidad();
     } else {
       document.getElementById('timelineWrap').style.display = 'block';
       document.getElementById('confiabilidadPanel').style.display = 'none';
@@ -700,12 +798,11 @@
   const EQ_BG    = { green: 'rgba(52,211,153,.1)', yellow: 'rgba(245,158,11,.1)', orange: 'rgba(249,115,22,.1)', red: 'rgba(248,113,113,.1)' };
   const EQ_BORDER = { green: 'rgba(52,211,153,.3)', yellow: 'rgba(245,158,11,.3)', orange: 'rgba(249,115,22,.3)', red: 'rgba(248,113,113,.3)' };
 
-  async function loadConfiabilidad(cliente) {
+  async function loadConfiabilidad() {
     const panel = document.getElementById('confiabilidadPanel');
     panel.innerHTML = `<div class="state-placeholder"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:36px;height:36px;margin:0 auto 1rem;opacity:.35;animation:spin 1s linear infinite;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg><p>Cargando confiabilidad…</p></div>`;
     try {
-      const enc = encodeURIComponent(cliente);
-      const res = await fetch(`/expediente/api/equipos?cliente=${enc}&days=${currentDays}`);
+      const res = await fetch(`/expediente/api/equipos?${propQuery()}&days=${currentDays}`);
       const data = await res.json();
       if (data.error || !data.pct_general === undefined) {
         renderConfiabilidadEmpty(panel, data.error);
