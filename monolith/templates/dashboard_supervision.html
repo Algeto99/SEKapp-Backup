@@ -1107,6 +1107,7 @@
             p.set('propiedad',   state.propertyId);
             p.set('property_id', state.propertyId);
         }
+        if (state.puesto)      p.set('puesto',      state.puesto);
         if (state.years && state.years.length) {
             p.set('year', state.years.join(','));
         } else if (state.year) {
@@ -1153,6 +1154,7 @@
         const filters = new DashboardFilters();
         await filters.init();
 
+        filters.activatePuesto();
         filters.activateResponsable({ url: '/dashboard/api/supervision/filtros' });
 
         document.addEventListener('filtersChanged', e => {

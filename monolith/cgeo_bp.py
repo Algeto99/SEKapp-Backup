@@ -112,18 +112,29 @@ def _cliente_cond(cliente):
         return "TRIM(cliente_instalacion) = TRIM(%s)", cliente
 
 
-def _add_cliente(conds, params, cliente, alias=''):
-    """Append client filter to existing conds/params lists. alias: e.g. 'c.'"""
-    if not cliente:
-        return
-    try:
-        c_val = int(cliente)
-        conds.append(f"{alias}id_propiedad = %s")
-        params.append(c_val)
-    except (ValueError, TypeError):
-        # We check whether the condition should use TRIM
-        conds.append(f"TRIM({alias}cliente_instalacion) = %s")
-        params.append(str(cliente).strip())
+def _add_scope(conds, params, cliente=None, propiedad=None, alias=''):
+    """Append client and property scope filters to existing conds/params lists. alias: e.g. 'c.'"""
+    if propiedad and str(propiedad).strip() not in ('Todas', 'Todos', ''):
+        try:
+            p_val = int(propiedad)
+            conds.append(f"{alias}id_propiedad = %s")
+            params.append(p_val)
+        except (ValueError, TypeError):
+            conds.append(f"({alias}id_propiedad IN (SELECT id_propiedad FROM propiedades WHERE TRIM(LOWER(nombre)) = TRIM(LOWER(%s))) OR TRIM(LOWER({alias}cliente_instalacion)) = TRIM(LOWER(%s)))")
+            params.extend([str(propiedad).strip(), str(propiedad).strip()])
+    elif cliente and str(cliente).strip() not in ('Todos', 'Todas', ''):
+        try:
+            c_val = int(cliente)
+            conds.append(f"({alias}id_propiedad IN (SELECT id_propiedad FROM propiedades WHERE customer_company_id = %s) OR TRIM(LOWER({alias}cliente_instalacion)) IN (SELECT TRIM(LOWER(name)) FROM customer_companies WHERE id = %s))")
+            params.extend([c_val, c_val])
+        except (ValueError, TypeError):
+            conds.append(f"({alias}id_propiedad IN (SELECT p.id_propiedad FROM propiedades p JOIN customer_companies cc ON cc.id = p.customer_company_id WHERE TRIM(LOWER(cc.name)) = TRIM(LOWER(%s))) OR TRIM(LOWER({alias}cliente_instalacion)) = TRIM(LOWER(%s)))")
+            params.extend([str(cliente).strip(), str(cliente).strip()])
+
+
+def _add_cliente(conds, params, cliente, alias='', propiedad=None):
+    """Append client and property filter to existing conds/params lists. alias: e.g. 'c.'"""
+    _add_scope(conds, params, cliente=cliente, propiedad=propiedad, alias=alias)
 
 
 # ── SQL constants (mirrors dashboard_bp) ────────────────────────────────────
@@ -238,23 +249,54 @@ def cgeo_api_filtros():
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        query = """
-            SELECT p.id_propiedad AS id, p.nombre AS name
+        
+        # 1. Propiedades
+        prop_query = """
+            SELECT p.id_propiedad AS id, p.nombre AS name, p.customer_company_id, COALESCE(cc.name, '') AS cliente
             FROM propiedades p
             LEFT JOIN customer_companies cc ON p.customer_company_id = cc.id
             WHERE p.activa = TRUE OR p.activa IS NULL
         """
-        params = []
+        prop_params = []
         if company_id is not None:
-            query += " AND cc.company_id = %s"
-            params.append(company_id)
-            
-        query += " ORDER BY p.nombre"
-        
-        cur.execute(query, tuple(params))
-        clientes = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall()]
+            prop_query += " AND (cc.company_id = %s OR p.customer_company_id IS NULL)"
+            prop_params.append(company_id)
+        prop_query += " ORDER BY cliente, p.nombre"
+        cur.execute(prop_query, tuple(prop_params))
+        prop_rows = cur.fetchall()
+        propiedades = [
+            {
+                "id": r["id"],
+                "name": r["name"],
+                "customer_company_id": r["customer_company_id"],
+                "cliente": r["cliente"]
+            }
+            for r in prop_rows
+        ]
 
-        # Distinct supervisors from incident reports, scoped by company
+        # 2. Clientes (Customer Companies)
+        cli_query = """
+            SELECT DISTINCT cc.id, cc.name
+            FROM customer_companies cc
+            WHERE 1=1
+        """
+        cli_params = []
+        if company_id is not None:
+            cli_query += " AND cc.company_id = %s"
+            cli_params.append(company_id)
+        cli_query += " ORDER BY cc.name"
+        cur.execute(cli_query, tuple(cli_params))
+        cli_rows = cur.fetchall()
+        clientes = [{"id": r["id"], "name": r["name"]} for r in cli_rows]
+        
+        if not clientes and propiedades:
+            seen_c = set()
+            for p in propiedades:
+                if p["cliente"] and p["cliente"] not in seen_c:
+                    seen_c.add(p["cliente"])
+                    clientes.append({"id": p["cliente"], "name": p["cliente"]})
+
+        # 3. Distinct supervisors from incident reports, scoped by company
         sup_query = """
             SELECT DISTINCT TRIM(nombre_responsable) AS name
             FROM reportes_incidentes ri
@@ -270,7 +312,11 @@ def cgeo_api_filtros():
         cur.execute(sup_query, tuple(sup_params))
         supervisores = [r["name"] for r in cur.fetchall()]
 
-        return jsonify({"clientes": clientes, "supervisores": supervisores})
+        return jsonify({
+            "clientes": clientes,
+            "propiedades": propiedades,
+            "supervisores": supervisores
+        })
     except Exception as e:
         app_logger.error(f"cgeo_api_filtros error: {e}", exc_info=True)
         return jsonify({"error": "Error interno"}), 500
@@ -285,8 +331,11 @@ def cgeo_api_filtros():
 @_admin_required
 def cgeo_api_recursos_data():
     cliente = request.args.get("cliente")
-    if cliente in ('Todos', ''):
+    if cliente in ('Todos', 'Todas', ''):
         cliente = None
+    propiedad = request.args.get("propiedad") or request.args.get("property_id") or request.args.get("id_propiedad") or None
+    if propiedad in ('Todos', 'Todas', ''):
+        propiedad = None
     start_date = request.args.get("start_date") or None
     end_date = request.args.get("end_date") or None
 
@@ -299,7 +348,7 @@ def cgeo_api_recursos_data():
 
         # ── Equipos ──────────────────────────────────────────────────────────
         eq_conds, eq_params = [], []
-        _add_cliente(eq_conds, eq_params, cliente, alias='c.')
+        _add_cliente(eq_conds, eq_params, cliente, alias='c.', propiedad=propiedad)
         if start_date:
             eq_conds.append("c.fecha >= %s")
             eq_params.append(start_date)
@@ -360,7 +409,7 @@ def cgeo_api_recursos_data():
         # ── Vehículos ─────────────────────────────────────────────────────────
         veh_date = _veh_date()
         veh_conds, veh_params = [], []
-        _add_cliente(veh_conds, veh_params, cliente)
+        _add_cliente(veh_conds, veh_params, cliente, propiedad=propiedad)
         if start_date:
             veh_conds.append(f"{veh_date} >= %s")
             veh_params.append(start_date)
@@ -385,7 +434,7 @@ def cgeo_api_recursos_data():
 
         # ── Certificaciones / Cumplimiento ────────────────────────────────────
         cum_conds, cum_params = [], []
-        _add_cliente(cum_conds, cum_params, cliente)
+        _add_cliente(cum_conds, cum_params, cliente, propiedad=propiedad)
         if start_date:
             cum_conds.append("fecha_hora >= %s")
             cum_params.append(start_date)
@@ -1357,8 +1406,11 @@ def cgeo_api_morning_briefing_data():
 @_admin_required
 def cgeo_api_operacion_data():
     cliente = request.args.get("cliente")
-    if cliente in ('Todos', ''):
+    if cliente in ('Todos', 'Todas', ''):
         cliente = None
+    propiedad = request.args.get("propiedad") or request.args.get("property_id") or request.args.get("id_propiedad") or None
+    if propiedad in ('Todos', 'Todas', ''):
+        propiedad = None
     supervisor  = request.args.get("supervisor") or None
     start_date = request.args.get("start_date") or None
     end_date = request.args.get("end_date") or None
@@ -1379,7 +1431,7 @@ def cgeo_api_operacion_data():
 
         # ── Incidentes ────────────────────────────────────────────────────────
         inc_conds, inc_params = [], []
-        _add_cliente(inc_conds, inc_params, cliente)
+        _add_cliente(inc_conds, inc_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", inc_conds, inc_params)
         inc_where = _where(inc_conds)
         cur.execute(f"""
@@ -1463,7 +1515,7 @@ def cgeo_api_operacion_data():
 
         # ── Satisfacción ──────────────────────────────────────────────────────
         sat_conds, sat_params = [], []
-        _add_cliente(sat_conds, sat_params, cliente)
+        _add_cliente(sat_conds, sat_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", sat_conds, sat_params)
         sat_where = _where(sat_conds)
         cur.execute(f"""
@@ -1513,7 +1565,7 @@ def cgeo_api_operacion_data():
 
         # ── Supervisión ───────────────────────────────────────────────────────
         sup_conds, sup_params = [], []
-        _add_cliente(sup_conds, sup_params, cliente)
+        _add_cliente(sup_conds, sup_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", sup_conds, sup_params)
         sup_where = _where(sup_conds)
         _sup_score = " + ".join(
@@ -1559,7 +1611,7 @@ def cgeo_api_operacion_data():
         cap_date = _capac_date()
         cap_safe = _capac_safe_len()
         cap_conds, cap_params = [], []
-        _add_cliente(cap_conds, cap_params, cliente)
+        _add_cliente(cap_conds, cap_params, cliente, propiedad=propiedad)
         if start_date:
             cap_conds.append(f"{cap_date} >= %s")
             cap_params.append(start_date)
@@ -1590,7 +1642,7 @@ def cgeo_api_operacion_data():
 
         # ── Disciplina ────────────────────────────────────────────────────────
         disc_conds, disc_params = [], []
-        _add_cliente(disc_conds, disc_params, cliente)
+        _add_cliente(disc_conds, disc_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", disc_conds, disc_params)
         disc_where = _where(disc_conds)
         cur.execute(f"""
@@ -1601,7 +1653,7 @@ def cgeo_api_operacion_data():
 
         # ── Compromisos / visitas (resumen operativo) ─────────────────────────
         vis_conds, vis_params = [], []
-        _add_cliente(vis_conds, vis_params, cliente)
+        _add_cliente(vis_conds, vis_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", vis_conds, vis_params)
         vis_where = _where(vis_conds)
         compromisos_pend = []

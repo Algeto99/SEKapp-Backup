@@ -5,6 +5,7 @@
  * Standard filters supported:
  *   - Cliente / Empresa (Customer Company)
  *   - Propiedad / Instalación (Property / Site) with cascading support
+ *   - Puesto (Position / Post) with cascading support
  *   - Año (Year - multi-select)
  *   - Mes (Month - multi-select)
  *   - Día (Day - select)
@@ -14,6 +15,7 @@
  *   cliente     : string | null   — null = all clients
  *   propertyId  : string | null   — null = all properties
  *   propiedad   : string | null   — alias of propertyId
+ *   puesto      : string | null   — null = all puestos
  *   years       : number[]        — empty = all years (multi-select)
  *   months      : number[]        — 1-12, empty = all months (multi-select)
  *   day         : number | null   — 1-31, null = all days
@@ -24,6 +26,7 @@ class DashboardFilters {
         this.state = {
             cliente:     null,
             propertyId:  null,
+            puesto:      null,
             years:       [],   // multi-select
             months:      [],   // multi-select
             day:         null,
@@ -37,6 +40,8 @@ class DashboardFilters {
         // DOM refs
         this._clienteSelect     = null;
         this._propertySelect    = null;
+        this._puestoSelect      = null;
+        this._puestoWrap        = null;
         this._yearMS            = null;   // MultiSelect instance
         this._monthBtns         = null;
         this._dayRow            = null;
@@ -55,6 +60,8 @@ class DashboardFilters {
     async init() {
         this._clienteSelect  = document.getElementById('df-cliente');
         this._propertySelect = document.getElementById('df-property');
+        this._puestoSelect   = document.getElementById('df-puesto');
+        this._puestoWrap     = document.getElementById('df-puesto-wrap');
         this._monthBtns      = document.querySelectorAll('.df-month-btn');
         this._dayRow         = document.getElementById('df-day-row');
         this._daySelect      = document.getElementById('df-day');
@@ -101,6 +108,9 @@ class DashboardFilters {
             params.set('propiedad',   this.state.propertyId);
             params.set('property_id', this.state.propertyId);
         }
+        if (this.state.puesto) {
+            params.set('puesto', this.state.puesto);
+        }
         if (this.state.years.length) {
             params.set('year', this.state.years.join(','));
         }
@@ -114,6 +124,33 @@ class DashboardFilters {
             params.set('responsable', this.state.responsable);
         }
         return params.toString();
+    }
+
+    /**
+     * Show the Puesto filter section and sync options.
+     * @param {object} opts
+     *   label — optional label text (default 'Puesto')
+     */
+    activatePuesto({ label = 'Puesto' } = {}) {
+        const wrap = document.getElementById('df-puesto-wrap');
+        const sel  = document.getElementById('df-puesto');
+        if (!wrap || !sel) return;
+        wrap.style.display = 'contents';
+        this._puestoWrap   = wrap;
+        this._puestoSelect = sel;
+
+        const labelEl = wrap.querySelector('.df-label');
+        if (labelEl) labelEl.textContent = label;
+
+        this._refreshPuestoOptions();
+
+        if (!sel._hasSecappListener) {
+            sel.addEventListener('change', () => {
+                this.state.puesto = sel.value || null;
+                this._emit();
+            });
+            sel._hasSecappListener = true;
+        }
     }
 
     /**
@@ -195,6 +232,7 @@ class DashboardFilters {
 
             this._populateClients();
             this._refreshPropertyOptions();
+            this._refreshPuestoOptions();
         } catch (err) {
             console.warn('DashboardFilters: could not load property hierarchy.', err);
         }
@@ -262,6 +300,76 @@ class DashboardFilters {
         } else {
             this._propertySelect.value = '';
         }
+
+        this._refreshPuestoOptions();
+    }
+
+    _refreshPuestoOptions() {
+        if (!this._puestoSelect) return;
+        while (this._puestoSelect.options.length > 1) {
+            this._puestoSelect.remove(1);
+        }
+
+        let availablePuestos = [];
+
+        if (this.state.propertyId) {
+            const prop = this._allProperties.find(p => String(p.id != null ? p.id : p.id_propiedad) === String(this.state.propertyId));
+            if (prop && prop.puestos && Array.isArray(prop.puestos)) {
+                availablePuestos = prop.puestos;
+            }
+        } else if (this.state.cliente) {
+            const selectedClient = String(this.state.cliente).trim().toLowerCase();
+            const filteredProps = this._allProperties.filter(p => {
+                const pCustId = p.customer_company_id != null ? String(p.customer_company_id).trim().toLowerCase() : null;
+                const pClient = p.cliente ? String(p.cliente).trim().toLowerCase() : null;
+                return pCustId === selectedClient || pClient === selectedClient;
+            });
+            filteredProps.forEach(p => {
+                if (p.puestos && Array.isArray(p.puestos)) {
+                    availablePuestos.push(...p.puestos);
+                }
+            });
+        } else {
+            this._allProperties.forEach(p => {
+                if (p.puestos && Array.isArray(p.puestos)) {
+                    availablePuestos.push(...p.puestos);
+                }
+            });
+        }
+
+        // Deduplicate by name/id
+        const seen = new Set();
+        const uniquePuestos = [];
+        availablePuestos.forEach(pu => {
+            const val = String(pu.name || pu.nombre || pu.id);
+            if (val && !seen.has(val.toLowerCase())) {
+                seen.add(val.toLowerCase());
+                uniquePuestos.push(pu);
+            }
+        });
+
+        const frag = document.createDocumentFragment();
+        uniquePuestos.forEach(pu => {
+            const opt = document.createElement('option');
+            const val = pu.name || pu.nombre || pu.id;
+            opt.value = String(val);
+            opt.textContent = pu.name || pu.nombre || `Puesto ${pu.id}`;
+            frag.appendChild(opt);
+        });
+        this._puestoSelect.appendChild(frag);
+
+        // Check if currently selected puesto is still in options
+        if (this.state.puesto) {
+            const exists = Array.from(this._puestoSelect.options).some(o => o.value.toLowerCase() === String(this.state.puesto).toLowerCase());
+            if (exists) {
+                this._puestoSelect.value = String(this.state.puesto);
+            } else {
+                this.state.puesto = null;
+                this._puestoSelect.value = '';
+            }
+        } else {
+            this._puestoSelect.value = '';
+        }
     }
 
     _bindEvents() {
@@ -292,8 +400,17 @@ class DashboardFilters {
                 }
             }
             
+            this._refreshPuestoOptions();
             this._emit();
         });
+
+        // Puesto
+        if (this._puestoSelect) {
+            this._puestoSelect.addEventListener('change', () => {
+                this.state.puesto = this._puestoSelect.value || null;
+                this._emit();
+            });
+        }
 
         // Month buttons — multi-select: each click toggles that month
         this._monthBtns.forEach(btn => {
@@ -372,6 +489,7 @@ class DashboardFilters {
         this.state = {
             cliente:     null,
             propertyId:  null,
+            puesto:      null,
             years:       [],
             months:      [],
             day:         null,
@@ -381,6 +499,8 @@ class DashboardFilters {
         if (this._clienteSelect) this._clienteSelect.value = '';
         this._refreshPropertyOptions();
         this._propertySelect.value = '';
+        if (this._puestoSelect) this._puestoSelect.value = '';
+        this._refreshPuestoOptions();
         if (this._yearMS) this._yearMS.reset();
         if (this._daySelect) this._daySelect.value = '';
         if (this._responsableSelect) this._responsableSelect.value = '';
@@ -421,6 +541,22 @@ class DashboardFilters {
                 this._propertySelect.appendChild(opt);
             }
             this._propertySelect.value = String(propId);
+            this._refreshPuestoOptions();
+        }
+
+        const puestoParam = params.get('puesto');
+        if (puestoParam) {
+            this.state.puesto = puestoParam;
+            if (this._puestoSelect) {
+                const optExists = Array.from(this._puestoSelect.options).some(o => o.value === puestoParam);
+                if (!optExists && puestoParam) {
+                    const opt = document.createElement('option');
+                    opt.value = puestoParam;
+                    opt.textContent = puestoParam;
+                    this._puestoSelect.appendChild(opt);
+                }
+                this._puestoSelect.value = puestoParam;
+            }
         }
 
         if (params.get('year')) {
@@ -463,6 +599,10 @@ class DashboardFilters {
             const propLabel = (this._propertySelect && this._propertySelect.options[this._propertySelect.selectedIndex]?.text) || this.state.propertyId;
             chips.push({ key: 'propertyId', label: `Propiedad / Instalación: ${propLabel}` });
         }
+        if (this.state.puesto) {
+            const puestoLabel = (this._puestoSelect && this._puestoSelect.options[this._puestoSelect.selectedIndex]?.text) || this.state.puesto;
+            chips.push({ key: 'puesto', label: `Puesto: ${puestoLabel}` });
+        }
         if (this.state.years.length) {
             chips.push({ key: 'year', label: `Año: ${this.state.years.join(', ')}` });
         }
@@ -504,6 +644,10 @@ class DashboardFilters {
         } else if (key === 'propertyId') {
             this.state.propertyId = null;
             this._propertySelect.value = '';
+            this._refreshPuestoOptions();
+        } else if (key === 'puesto') {
+            this.state.puesto = null;
+            if (this._puestoSelect) this._puestoSelect.value = '';
         } else if (key === 'year') {
             this.state.years  = [];
             this.state.months = [];

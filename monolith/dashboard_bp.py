@@ -54,15 +54,16 @@ def _get_user_company_id(cur, user_email):
     return row[0] if row and row[0] is not None else None
 
 
-def _add_scope_filters(conds, params, cliente=None, propiedad=None, col_cliente_inst="cliente_instalacion", col_id_prop="id_propiedad", col_cust_id="customer_company_id", prefix=""):
+def _add_scope_filters(conds, params, cliente=None, propiedad=None, puesto=None, col_cliente_inst="cliente_instalacion", col_id_prop="id_propiedad", col_cust_id="customer_company_id", col_puesto="puesto_area_especifica", prefix=""):
     """
     Standard scope filtering helper for all dashboard queries.
-    Handles both Cliente (Customer Company) and Propiedad / Instalación.
+    Handles Cliente (Customer Company), Propiedad / Instalación, and Puesto.
     Supports filtering by integer IDs or string names and gracefully matches legacy rows.
     """
-    c_inst = f"{prefix}{col_cliente_inst}" if col_cliente_inst else None
-    c_prop = f"{prefix}{col_id_prop}" if col_id_prop else None
-    c_cust = f"{prefix}{col_cust_id}" if col_cust_id else None
+    c_inst   = f"{prefix}{col_cliente_inst}" if col_cliente_inst else None
+    c_prop   = f"{prefix}{col_id_prop}" if col_id_prop else None
+    c_cust   = f"{prefix}{col_cust_id}" if col_cust_id else None
+    c_puesto = f"{prefix}{col_puesto}" if col_puesto else None
 
     if cliente:
         cl_str = str(cliente).strip()
@@ -119,6 +120,16 @@ def _add_scope_filters(conds, params, cliente=None, propiedad=None, col_cliente_
                 params.append(pr_str)
             if clauses:
                 conds.append(f"({' OR '.join(clauses)})")
+
+    if puesto and c_puesto:
+        pu_str = str(puesto).strip()
+        if pu_str.isdigit():
+            pu_id = int(pu_str)
+            conds.append(f"({c_puesto} IN (SELECT nombre FROM puestos WHERE id_puesto = %s) OR {c_puesto} = %s)")
+            params.extend([pu_id, str(pu_id)])
+        else:
+            conds.append(f"LOWER(TRIM({c_puesto})) = LOWER(TRIM(%s))")
+            params.append(pu_str)
 
 
 INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora AT TIME ZONE 'UTC', ri.creado_en) AS date)"
@@ -206,12 +217,33 @@ def get_properties(user_email=None):
             cur.execute(query)
             
         rows = cur.fetchall()
+
+        puestos_by_property = {}
+        try:
+            cur.execute("SELECT to_regclass('puestos')")
+            if cur.fetchone()[0] is not None:
+                cur.execute("""
+                    SELECT id_puesto, id_propiedad, nombre
+                    FROM puestos
+                    WHERE COALESCE(activo, TRUE) = TRUE
+                      AND NULLIF(TRIM(nombre), '') IS NOT NULL
+                    ORDER BY nombre
+                """)
+                for p in cur.fetchall():
+                    puestos_by_property.setdefault(p['id_propiedad'], []).append({
+                        'id': p['id_puesto'],
+                        'name': p['nombre'],
+                    })
+        except Exception as pe:
+            app_logger.warning(f"Could not load puestos in get_properties: {pe}")
+
         return [
             {
                 "id": row["id_propiedad"],
                 "name": row["nombre"],
                 "customer_company_id": row["customer_company_id"],
-                "cliente": row["cliente"]
+                "cliente": row["cliente"],
+                "puestos": puestos_by_property.get(row["id_propiedad"], [])
             }
             for row in rows
         ]
@@ -3075,9 +3107,9 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None, puesto=None):
     conds, params = [], []
-    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if categoria:
         conds.append("categoria = %s")
@@ -3098,7 +3130,7 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
     return where, params
 
 
-def _inc_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
+def _inc_prev_where(cliente, year, month, day, company_id=None, propiedad=None, puesto=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3109,7 +3141,7 @@ def _inc_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     if not year:
         return None, None
     conds, params = [], []
-    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -3190,6 +3222,7 @@ def api_incidentes_clientes():
 def api_incidentes_data():
     cliente     = request.args.get('cliente')     or None
     propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
+    puesto      = request.args.get('puesto')      or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -3205,8 +3238,8 @@ def api_incidentes_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id, propiedad=propiedad)
-        where_prev, params_prev = _inc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        where_prev, params_prev = _inc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # ── KPI summary ───────────────────────────────────────────────────
         cur.execute(f"""
@@ -3346,6 +3379,7 @@ def api_incidentes_data():
 def api_incidentes_detalles():
     cliente   = request.args.get('cliente')   or None
     propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
+    puesto    = request.args.get('puesto')    or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day       = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3361,7 +3395,7 @@ def api_incidentes_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id, propiedad=propiedad)
+        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # Fetch with optional tracking columns (may not exist yet)
         try:
@@ -3547,9 +3581,9 @@ def api_incidentes_historial(id_reporte):
 
 # ── Disciplina Dashboard ─────────────────────────────────────────────────────
 
-def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None, propiedad=None):
+def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None, propiedad=None, puesto=None):
     conds, params = [], []
-    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if tipo:
         conds.append("tipo_novedad = %s")
@@ -3564,7 +3598,7 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company
     return where, params
 
 
-def _disc_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
+def _disc_prev_where(cliente, year, month, day, company_id=None, propiedad=None, puesto=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3575,7 +3609,7 @@ def _disc_prev_where(cliente, year, month, day, company_id=None, propiedad=None)
     if not year:
         return None, None
     conds, params = [], []
-    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -3629,6 +3663,7 @@ def api_disciplina_clientes():
 def api_disciplina_data():
     cliente   = request.args.get('cliente') or None
     propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
+    puesto    = request.args.get('puesto')    or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3641,8 +3676,8 @@ def api_disciplina_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _disc_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
-        where_prev, params_prev = _disc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        where, params           = _disc_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        where_prev, params_prev = _disc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # ── KPIs via CTE on employee counts ──────────────────────────────
         # Use empleado_numero as the canonical employee key, fall back to name
@@ -3819,6 +3854,7 @@ def api_disciplina_data():
 def api_disciplina_detalles():
     cliente      = request.args.get('cliente') or None
     propiedad    = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
+    puesto       = request.args.get('puesto') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day          = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3833,7 +3869,7 @@ def api_disciplina_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id, propiedad=propiedad)
+        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         cur.execute(f"""
             SELECT
@@ -3904,9 +3940,9 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None):
+def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, puesto=None):
     conds, params = [], []
-    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
@@ -3920,7 +3956,7 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
-def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
+def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None, puesto=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3931,7 +3967,7 @@ def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     if not year:
         return None, None
     conds, params = [], []
-    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -4019,6 +4055,7 @@ def api_supervision_clientes():
 def api_supervision_data():
     cliente     = request.args.get('cliente') or None
     propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
+    puesto      = request.args.get('puesto') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -4034,8 +4071,8 @@ def api_supervision_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
-        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
         # Some records store 'Excelente'/'Bueno'/etc. instead of 1-5.
@@ -4248,6 +4285,7 @@ def api_supervision_data():
 def api_supervision_detalles():
     cliente        = request.args.get('cliente')        or None
     propiedad      = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
+    puesto         = request.args.get('puesto')         or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day            = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -4265,7 +4303,7 @@ def api_supervision_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
+        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]
