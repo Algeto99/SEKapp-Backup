@@ -2098,9 +2098,194 @@ def _render_lista_asistencia_html(value):
     )
 
 
+_VISITA_ESTADO_LABELS = {
+    'cumplido':   'Cumplido',
+    'cerrado':    'Cumplido',
+    'completado': 'Cumplido',
+    'finalizado': 'Cumplido',
+    'ejecutado':  'Cumplido',
+    'vencido':    'Vencido',
+    'pendiente':  'Pendiente',
+}
+
+_VISITA_ESTADO_COLORS = {
+    'Cumplido':  '#15803d',
+    'Pendiente': '#b45309',
+    'Vencido':   '#b91c1c',
+}
+
+# Fields of the acta that are folded into the single "Acuerdos y Compromisos" table.
+_VISITA_COMPROMISO_KEYS = (
+    'Temas Tratados', 'Acuerdos', 'Nombre Responsable',
+    'Compromisos Estados', 'Fecha Cumplimiento',
+)
+
+
+def _visita_clean_text(val):
+    """Return a trimmed string, treating the viewer's placeholders as empty."""
+    text = str(val).strip() if val is not None else ''
+    return '' if text in ('N/A', 'None') else text
+
+
+def _visita_parse_fecha(raw):
+    """Parse an ISO-ish date string into a date, or None."""
+    text = _visita_clean_text(raw)
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text).date()
+    except Exception:
+        return None
+
+
+def _visita_fecha_legible(raw):
+    """Format a date as dd/mm/yyyy for the document; fall back to the raw text."""
+    parsed = _visita_parse_fecha(raw)
+    if parsed:
+        return parsed.strftime('%d/%m/%Y')
+    return _visita_clean_text(raw)
+
+
+def _render_participantes_visita_html(value):
+    """Render detalles_participantes as a Nombre/Cargo/Firma table for PDF."""
+    participantes = _ensure_json_serializable(value)
+    if isinstance(participantes, dict):
+        participantes = [participantes]
+    if not isinstance(participantes, list):
+        return None
+
+    rows = []
+    for item in participantes:
+        if isinstance(item, dict):
+            nombre = _visita_clean_text(item.get('nombre'))
+            cargo  = _visita_clean_text(item.get('cargo'))
+            firma  = _visita_clean_text(item.get('firma'))
+        else:
+            nombre, cargo, firma = _visita_clean_text(item), '', ''
+
+        if not (nombre or cargo or firma):
+            continue
+
+        if firma.startswith('data:image'):
+            firma_html = ('<img src="' + firma + '" style="max-width:110px;max-height:50px;'
+                          'border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">')
+        else:
+            firma_html = '<span style="font-size:7pt;color:#6b7280;">Sin firma</span>'
+
+        td = 'padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;'
+        rows.append(
+            '<tr>'
+            '<td style="' + td + '">' + str(escape(nombre or '—')) + '</td>'
+            '<td style="' + td + '">' + str(escape(cargo or '—')) + '</td>'
+            '<td style="' + td + 'text-align:center;">' + firma_html + '</td>'
+            '</tr>'
+        )
+
+    if not rows:
+        return None
+
+    th = 'padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;'
+    header = (
+        '<tr style="background:#f1f5f9;">'
+        '<th style="' + th + '">Nombre</th>'
+        '<th style="' + th + '">Cargo</th>'
+        '<th style="' + th + 'text-align:center;">Firma</th>'
+        '</tr>'
+    )
+    return ('<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:3px;">'
+            '<thead>' + header + '</thead><tbody>' + ''.join(rows) + '</tbody></table>')
+
+
+def _render_compromisos_visita_html(data):
+    """Render the acta's temas/acuerdos/responsables/estados as one readable table.
+
+    Reuses the same parsing and status precedence as the Gestión dashboard so the
+    PDF and the dashboard never disagree about a commitment's state.
+    """
+    from dashboard_bp import _visita_split_blocks, _visita_parse_responsables, _visita_status
+
+    temas    = _visita_split_blocks(_visita_clean_text(data.get('Temas Tratados')))
+    acuerdos = _visita_split_blocks(_visita_clean_text(data.get('Acuerdos')))
+
+    raw_resp = data.get('Nombre Responsable')
+    if isinstance(raw_resp, str) and not _visita_clean_text(raw_resp):
+        raw_resp = None
+    responsables = _visita_parse_responsables(raw_resp)
+
+    estados_override = _ensure_json_serializable(data.get('Compromisos Estados'))
+    if not isinstance(estados_override, dict):
+        estados_override = {}
+
+    fecha_general = _visita_clean_text(data.get('Fecha Cumplimiento'))
+    hoy = datetime.now().date()
+
+    total = max(len(temas), len(acuerdos), len(responsables))
+    if not total:
+        return None
+
+    show_tema = any(temas)
+    filas = []
+    for idx in range(total):
+        tema    = temas[idx] if idx < len(temas) else ''
+        acuerdo = acuerdos[idx] if idx < len(acuerdos) else ''
+        item    = responsables[idx] if idx < len(responsables) and isinstance(responsables[idx], dict) else {}
+
+        nombre = _visita_clean_text(item.get('nombre'))
+        if nombre.startswith('[') or nombre.startswith('{'):
+            nombre = ''
+
+        fecha_raw  = _visita_clean_text(item.get('fecha')) or fecha_general
+        fecha_dt   = _visita_parse_fecha(fecha_raw)
+        fecha_text = _visita_fecha_legible(fecha_raw)
+
+        override = estados_override.get(str(idx))
+        if isinstance(override, dict):
+            raw_estado = _visita_clean_text(override.get('estado'))
+        else:
+            raw_estado = _visita_clean_text(override)
+        if not raw_estado:
+            raw_estado = _visita_clean_text(item.get('estado'))
+        if not raw_estado:
+            raw_estado = _visita_status(acuerdo, fecha_dt)
+
+        estado = _VISITA_ESTADO_LABELS.get(raw_estado.lower(), raw_estado.capitalize())
+        if estado == 'Pendiente' and fecha_dt and fecha_dt < hoy:
+            estado = 'Vencido'
+
+        color = _VISITA_ESTADO_COLORS.get(estado, '#374151')
+        td = 'padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;vertical-align:top;'
+
+        celdas = ['<td style="' + td + 'text-align:center;color:#6b7280;">' + str(idx + 1) + '</td>']
+        if show_tema:
+            celdas.append('<td style="' + td + '">' + str(escape(tema or '—')).replace('\n', '<br>') + '</td>')
+        celdas.append('<td style="' + td + '">' + str(escape(acuerdo or '—')).replace('\n', '<br>') + '</td>')
+        celdas.append('<td style="' + td + '">' + str(escape(nombre or '—')) + '</td>')
+        celdas.append('<td style="' + td + 'white-space:nowrap;">' + str(escape(fecha_text or '—')) + '</td>')
+        celdas.append('<td style="' + td + 'white-space:nowrap;font-weight:bold;color:' + color + ';">'
+                      + str(escape(estado or '—')) + '</td>')
+        filas.append('<tr>' + ''.join(celdas) + '</tr>')
+
+    th = 'padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;'
+    encabezados = ['<th style="' + th + 'text-align:center;width:18px;">#</th>']
+    if show_tema:
+        encabezados.append('<th style="' + th + '">Tema tratado</th>')
+    encabezados.append('<th style="' + th + '">Acuerdo / Compromiso</th>')
+    encabezados.append('<th style="' + th + '">Responsable</th>')
+    encabezados.append('<th style="' + th + '">Fecha compromiso</th>')
+    encabezados.append('<th style="' + th + '">Estado</th>')
+
+    return ('<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:3px;">'
+            '<thead><tr style="background:#f1f5f9;">' + ''.join(encabezados) + '</tr></thead>'
+            '<tbody>' + ''.join(filas) + '</tbody></table>')
+
+
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos'}
+    # Internal identifiers and raw coordinates: the PDF is handed to the client, so they
+    # never appear. Kept apart from SKIP_KEYS, whose values are parsed as attachment URLs.
+    HIDDEN_KEYS = {'Company Id', 'Customer Company Id', 'Id Propiedad',
+                   'Location Accuracy', 'Latitude', 'Longitude'}
 
     def _is_signature(key, val_str):
         return 'firma' in key.lower() or val_str.startswith('data:image')
@@ -2215,12 +2400,17 @@ td.val { color: #1f2937; }
 
         signatures = []  # list of (label, data_url)
         image_urls, pdf_urls, other_urls = [], [], []
+        is_acta = report.get('formType') == 'registro_y_acta_de_visita'
+        compromisos_rendered = False
 
         for key, value in data.items():
             val_str = str(value).strip() if value is not None else ""
             if not val_str:
                 val_str = "N/A"
-            
+
+            if key in HIDDEN_KEYS:
+                continue
+
             if key in SKIP_KEYS:
                 # Parse attachment URLs
                 for url in str(value).split('\n'):
@@ -2257,6 +2447,34 @@ td.val { color: #1f2937; }
                         f'</td></tr>'
                     )
                     continue
+
+            if key == 'Detalles Participantes':
+                participantes_html = _render_participantes_visita_html(value)
+                if participantes_html:
+                    html_parts.append(
+                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
+                        f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Participantes:</strong>'
+                        f'{participantes_html}'
+                        f'</td></tr>'
+                    )
+                else:
+                    html_parts.append('<tr><td class="lbl">Participantes</td>'
+                                      '<td class="val">Sin participantes registrados</td></tr>')
+                continue
+
+            if is_acta and key in _VISITA_COMPROMISO_KEYS:
+                # Rendered once, as a single table, in place of the raw per-field values.
+                if not compromisos_rendered:
+                    compromisos_rendered = True
+                    compromisos_html = _render_compromisos_visita_html(data)
+                    if compromisos_html:
+                        html_parts.append(
+                            f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
+                            f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Acuerdos y Compromisos:</strong>'
+                            f'{compromisos_html}'
+                            f'</td></tr>'
+                        )
+                continue
 
             val_str = str(value).strip()
 
