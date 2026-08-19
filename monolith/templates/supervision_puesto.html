@@ -345,7 +345,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
-                        <input type="date" name="fecha_vencimiento_permiso_porte" class="form-input" tabindex="-1" readonly>
+                        <input type="date" name="fecha_vencimiento_permiso_porte" class="form-input allow-future" data-allow-future="true" tabindex="-1" readonly>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha último mtto (arma)</label>
@@ -811,7 +811,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
-                                <input type="date" name="supervisions[${index}][fecha_vencimiento_permiso_porte]" class="form-input" tabindex="-1" readonly>
+                                <input type="date" name="supervisions[${index}][fecha_vencimiento_permiso_porte]" class="form-input allow-future" data-allow-future="true" tabindex="-1" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha último mtto (arma)</label>

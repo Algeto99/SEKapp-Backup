@@ -6,7 +6,8 @@ import time
 import unicodedata
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
+import zoneinfo
 
 import psycopg2
 import psycopg2.extras
@@ -344,6 +345,73 @@ def module_required(module_key):
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+
+def _validate_not_future(date_val_str, field_label="Fecha", tz_str=None, tolerance_minutes=10):
+    """
+    Valida que date_val_str no represente una fecha u hora posterior al momento actual.
+    Soporta formatos ISO de fecha ('YYYY-MM-DD') y fecha-hora ('YYYY-MM-DDTHH:MM', 'YYYY-MM-DD HH:MM:SS', etc.).
+    Retorna None si es válido, o un mensaje de error si es una fecha/hora futura.
+    """
+    if not date_val_str:
+        return None
+
+    val_str = str(date_val_str).strip()
+    if not val_str:
+        return None
+
+    # Determinar zona horaria (default: America/Costa_Rica)
+    tz = None
+    if tz_str:
+        try:
+            tz = zoneinfo.ZoneInfo(tz_str)
+        except Exception:
+            tz = None
+    if tz is None:
+        try:
+            tz = zoneinfo.ZoneInfo("America/Costa_Rica")
+        except Exception:
+            tz = None
+
+    now_local = datetime.now(tz) if tz else datetime.now()
+
+    parsed = None
+    is_time_included = False
+
+    for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+        try:
+            parsed = datetime.strptime(val_str, fmt)
+            is_time_included = True
+            break
+        except ValueError:
+            pass
+
+    if not parsed:
+        try:
+            parsed = datetime.strptime(val_str[:10], '%Y-%m-%d')
+            is_time_included = False
+        except ValueError:
+            # Formato no reconocido, no bloquear
+            return None
+
+    if is_time_included:
+        if tz:
+            parsed = parsed.replace(tzinfo=tz)
+        max_allowed = now_local + timedelta(minutes=tolerance_minutes)
+        if parsed > max_allowed:
+            return f"El campo '{field_label}' no puede ser una fecha u hora posterior a la actual."
+    else:
+        if parsed.date() > now_local.date():
+            return f"El campo '{field_label}' no puede ser posterior a la fecha actual."
+
+    return None
+
+
+def _return_form_error(message, status=400):
+    """Retorna respuesta de error JSON o HTML según el tipo de petición."""
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+        return jsonify({'error': message, 'message': message}), status
+    return render_template('error.html', error=message, message=message), status
 
 
 def _validate_motivo_edicion(request):
@@ -721,6 +789,11 @@ def submit_incident_report():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora del Incidente', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -815,6 +888,11 @@ def submit_incident_report_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora del Incidente', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -891,6 +969,11 @@ def submit_medicion_experiencia_cliente():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
             'fecha_hora': request.form.get('fecha_hora'),
@@ -1002,6 +1085,11 @@ def submit_medicion_experiencia_cliente_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -1096,6 +1184,15 @@ def submit_supervision_puesto():
     import re
     
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mtto_arma'), 'Fecha último mtto (arma)', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mtto_radio'), 'Fecha último mtto (radio)', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -1259,6 +1356,15 @@ def submit_supervision_puesto_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mtto_arma'), 'Fecha último mtto (arma)', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mtto_radio'), 'Fecha último mtto (radio)', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -1369,6 +1475,11 @@ def submit_informe_novedades_disciplinario():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
         # [DEBUG] Start of execution
@@ -1522,6 +1633,11 @@ def submit_informe_novedades_disciplinario_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -1631,6 +1747,11 @@ def submit_log_de_patrullas():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha'), 'Fecha de la Patrulla', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         form_data = {
             'id_guardia_nombre_guardia': request.form.get('id_guardia_nombre_guardia'),
             'sitio_ubicacion': request.form.get('sitio_ubicacion'),
@@ -1667,7 +1788,7 @@ def submit_log_de_patrullas():
     except Exception as e:
         if conn:
             conn.rollback()
-        app_logger.error(f"Error submitting log: {e}", exc_info=True)
+        app_logger.error(f"Error submitting log de patrullas: {e}", exc_info=True)
         app_logger.error(f"Unhandled form error: {e}", exc_info=True)
         return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
     finally:
@@ -1723,6 +1844,11 @@ def submit_log_de_patrullas_editar(id):
         motivo, motivo_detalle, error = _validate_motivo_edicion(request)
         if error:
             return error
+
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha'), 'Fecha de la Patrulla', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -1850,6 +1976,12 @@ def submit_registro_de_capacitaciones():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        raw_fh = request.form.get('fecha_hora') or request.form.get('fecha')
+        date_err = _validate_not_future(raw_fh, 'Fecha y Hora de la Capacitación', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -1992,6 +2124,12 @@ def submit_registro_de_capacitaciones_editar(id):
         motivo, motivo_detalle, error = _validate_motivo_edicion(request)
         if error:
             return error
+
+        tz = request.form.get('submitter_timezone')
+        raw_fh = request.form.get('fecha_hora') or request.form.get('fecha')
+        date_err = _validate_not_future(raw_fh, 'Fecha y Hora de la Capacitación', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -2313,6 +2451,13 @@ def submit_planilla_vehicular():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
         form_data = {
@@ -2445,6 +2590,13 @@ def submit_planilla_vehicular_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -2565,6 +2717,13 @@ def submit_planilla_motocicletas():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
         form_data = {
@@ -2679,6 +2838,13 @@ def submit_planilla_motocicletas_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -2779,6 +2945,18 @@ def submit_checklist_cumplimiento():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            fechas_res = request.form.getlist('fecha_resolucion[]') or [request.form.get('fecha_resolucion')]
+            for fr in fechas_res:
+                if fr:
+                    date_err = _validate_not_future(fr, 'Fecha de Resolución', tz)
+                    if date_err:
+                        break
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -2928,6 +3106,18 @@ def submit_checklist_cumplimiento_editar(id):
         if error:
             return error
 
+        tz = request.form.get('submitter_timezone')
+        date_err = _validate_not_future(request.form.get('fecha_hora'), 'Fecha y Hora', tz)
+        if not date_err:
+            fechas_res = request.form.getlist('fecha_resolucion[]') or [request.form.get('fecha_resolucion')]
+            for fr in fechas_res:
+                if fr:
+                    date_err = _validate_not_future(fr, 'Fecha de Resolución', tz)
+                    if date_err:
+                        break
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
@@ -3030,6 +3220,14 @@ def submit_confiabilidad_equipos():
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
     try:
+        tz = request.form.get('submitter_timezone')
+        fecha = request.form.get('fecha')
+        hora = request.form.get('hora')
+        fh_to_check = f"{fecha} {hora}" if (fecha and hora) else fecha
+        date_err = _validate_not_future(fh_to_check, 'Fecha', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
+
         conn = get_db_connection()
         cur  = conn.cursor()
         # Parse dynamic inventario rows from form data
@@ -3146,6 +3344,14 @@ def submit_confiabilidad_equipos_editar(id):
         motivo, motivo_detalle, error = _validate_motivo_edicion(request)
         if error:
             return error
+
+        tz = request.form.get('submitter_timezone')
+        fecha = request.form.get('fecha')
+        hora = request.form.get('hora')
+        fh_to_check = f"{fecha} {hora}" if (fecha and hora) else fecha
+        date_err = _validate_not_future(fh_to_check, 'Fecha', tz)
+        if date_err:
+            return _return_form_error(date_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)

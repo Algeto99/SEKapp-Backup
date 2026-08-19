@@ -379,7 +379,7 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Vigencia del Curso Hasta</label>
-                                    <input type="date" name="vigencia_hasta{{ '' if edit_mode else '[]' }}" class="form-input" tabindex="-1" readonly>
+                                    <input type="date" name="vigencia_hasta{{ '' if edit_mode else '[]' }}" class="form-input allow-future" data-allow-future="true" tabindex="-1" readonly>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Cargue de Evidencia</label>

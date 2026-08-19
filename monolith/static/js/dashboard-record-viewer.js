@@ -624,7 +624,7 @@
                                    placeholder="correo@externo.com" autocomplete="off">
                         </div>
                         <label class="drv-asignar-label">Fecha límite</label>
-                        <input class="drv-email-input drv-asignar-fecha" type="date">
+                        <input class="drv-email-input drv-asignar-fecha allow-future" data-allow-future="true" type="date">
                         <label class="drv-asignar-label">Nota (opcional)</label>
                         <textarea class="drv-email-input drv-asignar-nota" rows="3" placeholder="Instrucciones o contexto…"></textarea>
                         <div class="drv-email-msg drv-asignar-msg"></div>
