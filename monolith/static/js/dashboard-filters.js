@@ -3,7 +3,7 @@
  * Reusable filter bar for all dashboard sub-pages.
  *
  * Standard filters supported:
- *   - Cliente (Customer Company)
+ *   - Cliente / Empresa (Customer Company)
  *   - Propiedad / Instalación (Property / Site) with cascading support
  *   - Año (Year - multi-select)
  *   - Mes (Month - multi-select)
@@ -457,11 +457,11 @@ class DashboardFilters {
 
         if (this.state.cliente) {
             const clientLabel = (this._clienteSelect && this._clienteSelect.options[this._clienteSelect.selectedIndex]?.text) || this.state.cliente;
-            chips.push({ key: 'cliente', label: `Cliente: ${clientLabel}` });
+            chips.push({ key: 'cliente', label: `Cliente / Empresa: ${clientLabel}` });
         }
         if (this.state.propertyId) {
             const propLabel = (this._propertySelect && this._propertySelect.options[this._propertySelect.selectedIndex]?.text) || this.state.propertyId;
-            chips.push({ key: 'propertyId', label: `Instalación: ${propLabel}` });
+            chips.push({ key: 'propertyId', label: `Propiedad / Instalación: ${propLabel}` });
         }
         if (this.state.years.length) {
             chips.push({ key: 'year', label: `Año: ${this.state.years.join(', ')}` });
