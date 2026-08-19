@@ -1,6 +1,5 @@
-/* SecApp Service Worker - Offline-first form queue */
-// Bumped to v10: Local vehicle and motorcycle diagram assets cached for offline use
-const CACHE_VERSION = 'secapp-v10';
+// Bumped to v11: Robust AJAX form submission and vector canvas handling
+const CACHE_VERSION = 'secapp-v11';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
@@ -164,6 +163,20 @@ async function handleFormPost(request) {
 
         const clients = await self.clients.matchAll({ type: 'window' });
         clients.forEach(c => c.postMessage({ type: 'OFFLINE_QUEUED', formType }));
+
+        const isAjax = request.headers.get('X-Requested-With') === 'XMLHttpRequest' ||
+                       (request.headers.get('Accept') && request.headers.get('Accept').includes('application/json'));
+
+        if (isAjax) {
+            return new Response(JSON.stringify({
+                success: true,
+                offline: true,
+                redirect_url: '/forms/success?message=' + encodeURIComponent('Registro guardado localmente (sin conexión). Se sincronizará automáticamente.')
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
 
         return new Response(buildOfflineSavedHTML(formType, hasFiles), {
             status: 202,

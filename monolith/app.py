@@ -364,8 +364,8 @@ def method_not_allowed(e):
     if _is_api_request():
         return jsonify({"success": False, "message": "Método no permitido para la URL solicitada."}), 405
 
-    # If the user or browser refreshed/navigated to a form submit URL via GET, redirect gracefully to the form
-    if request.method == 'GET' and request.path.startswith('/forms/submit_'):
+    # If the user or browser refreshed/navigated to a form submit URL or form route via an unexpected method, redirect gracefully
+    if request.path.startswith('/forms/'):
         safe_url = _map_to_safe_get_url(request.path, fallback='/forms/select_form')
         return redirect(safe_url)
 

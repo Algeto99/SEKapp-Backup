@@ -199,12 +199,26 @@ def upload_file_to_gcs(file, bucket_name):
         app_logger.error(f"Error uploading file to GCS: {e}", exc_info=True)
         return None # Return None or raise an exception based on desired error handling
 
+def _is_ajax_request():
+    return (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.headers.get('X-SecApp-Replay') == '1' or
+        (request.accept_mimetypes.accept_json and not request.accept_mimetypes.accept_html)
+    )
+
 def _form_success_response(message=None):
-    """For sync replays return plain JSON so the client doesn't have to follow a redirect."""
-    if request.headers.get('X-SecApp-Replay') == '1':
-        return jsonify({'success': True}), 200
+    """Returns JSON for AJAX/replay requests or redirects to success page for standard browser submissions."""
+    if _is_ajax_request():
+        kwargs = {'message': message} if message else {}
+        return jsonify({'success': True, 'redirect_url': url_for('forms_bp.success', **kwargs)}), 200
     kwargs = {'message': message} if message else {}
     return redirect(url_for('forms_bp.success', **kwargs))
+
+def _form_error_response(message="Error interno del servidor. Por favor intente nuevamente.", status=500):
+    """Returns JSON error for AJAX requests or renders error template for standard submissions."""
+    if _is_ajax_request():
+        return jsonify({'success': False, 'message': message}), status
+    return render_template('error.html', error=message), status
 
 def get_service_urls():
     """Helper to get all service URLs for templates."""
@@ -1800,9 +1814,11 @@ def submit_asistencia_qr(session_token):
             conn.close()
 
 # --- REGISTRO DE CAPACITACIONES ---
-@forms_bp.route('/registro_de_capacitaciones')
+@forms_bp.route('/registro_de_capacitaciones', methods=['GET', 'POST'])
 @jwt_required()
 def registro_de_capacitaciones_form():
+    if request.method == 'POST':
+        return submit_registro_de_capacitaciones()
     user_name, is_admin = get_user_info_from_jwt()
 
     return render_template(
@@ -1885,6 +1901,7 @@ def submit_registro_de_capacitaciones():
             'nivel_comprension': request.form.get('nivel_comprension'),
             'recomendaciones': request.form.get('recomendaciones'),
             'foto_evidencia_url': foto_evidencia_url,
+            'submitter_timezone': request.form.get('submitter_timezone'),
             'submitted_by_email': user_email
         }
         form_data.update(_resolve_scope_fields(
@@ -1903,23 +1920,24 @@ def submit_registro_de_capacitaciones():
         conn.commit()
         cur.close()
 
-        return _form_success_response()
+        return _form_success_response(message='Control de Capacitaciones enviado exitosamente!')
 
     except Exception as e:
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting capacitacion: {e}", exc_info=True)
-        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return _form_error_response(f'Error al guardar la capacitación: {str(e)}', status=500)
     finally:
         if conn:
             conn.close()
 
 
-@forms_bp.route('/registro_de_capacitaciones/<int:id>/editar', methods=['GET'])
+@forms_bp.route('/registro_de_capacitaciones/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def registro_de_capacitaciones_editar_form(id):
+    if request.method == 'POST':
+        return submit_registro_de_capacitaciones_editar(id)
     user_name, is_admin = get_user_info_from_jwt()
     conn = None
     try:
@@ -1943,7 +1961,7 @@ def registro_de_capacitaciones_editar_form(id):
         )
     except Exception as e:
         app_logger.error(f"Error loading capacitacion {id} for edit: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor.'), 500
+        return _form_error_response(f'Error al cargar la capacitación para edición: {str(e)}', status=500)
     finally:
         if conn:
             conn.close()
@@ -2032,12 +2050,12 @@ def submit_registro_de_capacitaciones_editar(id):
         conn.commit()
         cur.close()
 
-        return _form_success_response()
+        return _form_success_response(message='Registro de Capacitación modificado exitosamente!')
     except Exception as e:
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing capacitacion {id}: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return _form_error_response(f'Error al editar la capacitación: {str(e)}', status=500)
     finally:
         if conn:
             conn.close()
@@ -2726,10 +2744,12 @@ def submit_planilla_motocicletas_editar(id):
             conn.close()
 
 # --- CHECKLIST DE CUMPLIMIENTO NORMATIVO (UPDATED ROUTE) ---
-@forms_bp.route('/checklist_cumplimiento')
+@forms_bp.route('/checklist_cumplimiento', methods=['GET', 'POST'])
 @jwt_required()
 def checklist_cumplimiento():
-    """Renders the updated compliance checklist form."""
+    """Renders the updated compliance checklist form or handles POST submission."""
+    if request.method == 'POST':
+        return submit_checklist_cumplimiento()
     user_name, is_admin = get_user_info_from_jwt()
 
     return render_template('checklist_cumplimiento.html',
@@ -2758,7 +2778,7 @@ def submit_checklist_cumplimiento():
             'fecha_hora': request.form.get('fecha_hora') or None,
             'rol_aplicador': request.form.get('rol_aplicador'),
             'nombre_auditor': request.form.get('nombre_auditor'),
-             # 'turno' is removed/ignored
+            'submitter_timezone': request.form.get('submitter_timezone'),
         }
         header_data.update(_resolve_scope_fields(
             cur,
@@ -2771,7 +2791,7 @@ def submit_checklist_cumplimiento():
         # Row Data - Sections 2-5 (Lists)
         # We assume 'agente_nombre_completo[]' exists and controls the number of rows
         agente_nombres = request.form.getlist('agente_nombre_completo[]')
-        num_rows = len(agente_nombres)
+        num_rows = len(agente_nombres) if agente_nombres else 1
         app_logger.info(f"Submitting checklist fulfillment for {user_email}. Rows: {num_rows}")
 
         for i in range(num_rows):
@@ -2782,37 +2802,41 @@ def submit_checklist_cumplimiento():
             if evidencia_key in request.files and request.files[evidencia_key].filename != '':
                 file = request.files[evidencia_key]
                 evidencia_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+            elif 'cargue_evidencia' in request.files and request.files['cargue_evidencia'].filename != '':
+                file = request.files['cargue_evidencia']
+                evidencia_url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
 
             # Build row data combining header and indexed lists
             row_data = header_data.copy()
+            agente_nom = agente_nombres[i] if (agente_nombres and len(agente_nombres) > i) else request.form.get('agente_nombre_completo')
             row_data.update({
                 # Section 2
-                'agente_nombre_completo': agente_nombres[i],
-                'agente_tipo_documento': request.form.getlist('agente_tipo_documento[]')[i] if len(request.form.getlist('agente_tipo_documento[]')) > i else None,
-                'agente_numero_documento': request.form.getlist('agente_numero_documento[]')[i] if len(request.form.getlist('agente_numero_documento[]')) > i else None,
-                'agente_cargo_rol': request.form.getlist('agente_cargo_rol[]')[i] if len(request.form.getlist('agente_cargo_rol[]')) > i else None,
-                'agente_numero_empleado': request.form.getlist('agente_numero_empleado[]')[i] if len(request.form.getlist('agente_numero_empleado[]')) > i else None,
-                'agente_puesto': request.form.getlist('agente_puesto[]')[i] if len(request.form.getlist('agente_puesto[]')) > i else None,
+                'agente_nombre_completo': agente_nom,
+                'agente_tipo_documento': request.form.getlist('agente_tipo_documento[]')[i] if len(request.form.getlist('agente_tipo_documento[]')) > i else request.form.get('agente_tipo_documento'),
+                'agente_numero_documento': request.form.getlist('agente_numero_documento[]')[i] if len(request.form.getlist('agente_numero_documento[]')) > i else request.form.get('agente_numero_documento'),
+                'agente_cargo_rol': request.form.getlist('agente_cargo_rol[]')[i] if len(request.form.getlist('agente_cargo_rol[]')) > i else request.form.get('agente_cargo_rol'),
+                'agente_numero_empleado': request.form.getlist('agente_numero_empleado[]')[i] if len(request.form.getlist('agente_numero_empleado[]')) > i else request.form.get('agente_numero_empleado'),
+                'agente_puesto': request.form.getlist('agente_puesto[]')[i] if len(request.form.getlist('agente_puesto[]')) > i else request.form.get('agente_puesto'),
 
                 # Section 3
-                'curso_certificacion': request.form.getlist('curso_certificacion[]')[i] if len(request.form.getlist('curso_certificacion[]')) > i else None,
-                'academia_certifica': request.form.getlist('academia_certifica[]')[i] if len(request.form.getlist('academia_certifica[]')) > i else None,
-                'nro_resolucion': request.form.getlist('nro_resolucion[]')[i] if len(request.form.getlist('nro_resolucion[]')) > i else None,
-                'fecha_resolucion': (request.form.getlist('fecha_resolucion[]')[i] or None) if len(request.form.getlist('fecha_resolucion[]')) > i else None,
-                'vigencia_desde': (request.form.getlist('vigencia_desde[]')[i] or None) if len(request.form.getlist('vigencia_desde[]')) > i else None,
-                'vigencia_hasta': (request.form.getlist('vigencia_hasta[]')[i] or None) if len(request.form.getlist('vigencia_hasta[]')) > i else None,
+                'curso_certificacion': request.form.getlist('curso_certificacion[]')[i] if len(request.form.getlist('curso_certificacion[]')) > i else request.form.get('curso_certificacion'),
+                'academia_certifica': request.form.getlist('academia_certifica[]')[i] if len(request.form.getlist('academia_certifica[]')) > i else request.form.get('academia_certifica'),
+                'nro_resolucion': request.form.getlist('nro_resolucion[]')[i] if len(request.form.getlist('nro_resolucion[]')) > i else request.form.get('nro_resolucion'),
+                'fecha_resolucion': (request.form.getlist('fecha_resolucion[]')[i] or None) if len(request.form.getlist('fecha_resolucion[]')) > i else (request.form.get('fecha_resolucion') or None),
+                'vigencia_desde': (request.form.getlist('vigencia_desde[]')[i] or None) if len(request.form.getlist('vigencia_desde[]')) > i else (request.form.get('vigencia_desde') or None),
+                'vigencia_hasta': (request.form.getlist('vigencia_hasta[]')[i] or None) if len(request.form.getlist('vigencia_hasta[]')) > i else (request.form.get('vigencia_hasta') or None),
                 'evidencia_url': evidencia_url,
-                'nivel_cumplimiento': request.form.getlist('nivel_cumplimiento[]')[i] if len(request.form.getlist('nivel_cumplimiento[]')) > i else None,
+                'nivel_cumplimiento': request.form.getlist('nivel_cumplimiento[]')[i] if len(request.form.getlist('nivel_cumplimiento[]')) > i else request.form.get('nivel_cumplimiento'),
 
                 # Section 4
-                'copia_certificados_fisica': request.form.getlist('copia_certificados_fisica[]')[i] if len(request.form.getlist('copia_certificados_fisica[]')) > i else None,
-                'certificados_cargados_sistema': request.form.getlist('certificados_cargados_sistema[]')[i] if len(request.form.getlist('certificados_cargados_sistema[]')) > i else None,
-                'documentacion_coincide_hv': request.form.getlist('documentacion_coincide_hv[]')[i] if len(request.form.getlist('documentacion_coincide_hv[]')) > i else None,
-                'fechas_vigentes': request.form.getlist('fechas_vigentes[]')[i] if len(request.form.getlist('fechas_vigentes[]')) > i else None,
+                'copia_certificados_fisica': request.form.getlist('copia_certificados_fisica[]')[i] if len(request.form.getlist('copia_certificados_fisica[]')) > i else request.form.get('copia_certificados_fisica'),
+                'certificados_cargados_sistema': request.form.getlist('certificados_cargados_sistema[]')[i] if len(request.form.getlist('certificados_cargados_sistema[]')) > i else request.form.get('certificados_cargados_sistema'),
+                'documentacion_coincide_hv': request.form.getlist('documentacion_coincide_hv[]')[i] if len(request.form.getlist('documentacion_coincide_hv[]')) > i else request.form.get('documentacion_coincide_hv'),
+                'fechas_vigentes': request.form.getlist('fechas_vigentes[]')[i] if len(request.form.getlist('fechas_vigentes[]')) > i else request.form.get('fechas_vigentes'),
 
                 # Section 5
-                'firma_auditor': request.form.getlist('firma_auditor[]')[i] if len(request.form.getlist('firma_auditor[]')) > i else None,
-                'firma_guarda_supervisado': request.form.getlist('firma_guarda_supervisado[]')[i] if len(request.form.getlist('firma_guarda_supervisado[]')) > i else None,
+                'firma_auditor': request.form.getlist('firma_auditor[]')[i] if len(request.form.getlist('firma_auditor[]')) > i else request.form.get('firma_auditor'),
+                'firma_guarda_supervisado': request.form.getlist('firma_guarda_supervisado[]')[i] if len(request.form.getlist('firma_guarda_supervisado[]')) > i else request.form.get('firma_guarda_supervisado'),
             })
 
             # Filter None/Empty
@@ -2829,25 +2853,26 @@ def submit_checklist_cumplimiento():
 
         conn.commit()
         cur.close()
-        return _form_success_response(message='Checklist(s) enviado(s) exitosamente!')
+        return _form_success_response(message='Checklist(s) de cumplimiento guardado(s) exitosamente!')
 
     except Exception as e:
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting updated checklist_cumplimiento: {e}", exc_info=True)
-        # Redirect to a generic error page, passing the error message
-        return redirect(url_for('forms_bp.error'))
+        return _form_error_response(f'Error al guardar el checklist: {str(e)}', status=500)
     finally:
         if conn:
             conn.close()
 
 
-@forms_bp.route('/checklist_cumplimiento/<int:id>/editar', methods=['GET'])
+@forms_bp.route('/checklist_cumplimiento/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def checklist_cumplimiento_editar_form(id):
     """Edita una sola fila de checklist_cumplimiento (cada envío de creación genera N filas
     independientes; la edición opera sobre una fila puntual ya existente, no sobre el lote)."""
+    if request.method == 'POST':
+        return submit_checklist_cumplimiento_editar(id)
     user_name, is_admin = get_user_info_from_jwt()
     conn = None
     try:
@@ -2871,7 +2896,7 @@ def checklist_cumplimiento_editar_form(id):
         )
     except Exception as e:
         app_logger.error(f"Error loading checklist_cumplimiento {id} for edit: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor.'), 500
+        return _form_error_response(f'Error al cargar el checklist para edición: {str(e)}', status=500)
     finally:
         if conn:
             conn.close()
@@ -2960,12 +2985,12 @@ def submit_checklist_cumplimiento_editar(id):
         conn.commit()
         cur.close()
 
-        return _form_success_response()
+        return _form_success_response(message='Checklist de cumplimiento modificado exitosamente!')
     except Exception as e:
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing checklist_cumplimiento {id}: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return _form_error_response(f'Error al editar el checklist: {str(e)}', status=500)
     finally:
         if conn:
             conn.close()

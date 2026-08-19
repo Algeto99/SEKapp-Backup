@@ -164,9 +164,42 @@
             border-top-color: #e2e8f0;
         }
 
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 1.15rem;
+            font-weight: 600;
+        }
+
         @media (max-width: 768px) {
-
-
             body {
             }
         }
@@ -175,6 +208,12 @@
 </head>
 
 <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Guardando checklist de cumplimiento...</div>
+    </div>
+
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -204,9 +243,11 @@
             <h1 class="text-3xl font-bold">Checklist de Cumplimiento Normativo</h1>
             <p class="text-gray-400 mt-2">Verificación de Cursos y Certificaciones de Agentes</p>
         </div>
+        <div id="errorBanner" style="display:none;" class="error-banner mb-6 p-4 rounded-lg bg-red-900 bg-opacity-80 border border-red-500 text-red-100 flex items-center justify-between"></div>
 
         <form id="checklistForm" action="{{ url_for('forms_bp.submit_checklist_cumplimiento_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_checklist_cumplimiento') }}" method="POST"
             enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" id="_jwt_csrf_form" value="{{ jwt_csrf_token }}">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
@@ -542,7 +583,6 @@
 
     <script>
         let signaturePads = {};
-        let signatureImages = {}; // Store as image data URLs
         let blockCount = 1;
 
         function initPad(canvasId) {
@@ -553,51 +593,39 @@
                 backgroundColor: 'rgb(255, 255, 255)',
                 penColor: 'rgb(0, 0, 0)',
                 minWidth: 0.5,
-                maxWidth: 2.5,
-                throttle: 0
+                maxWidth: 2.5
             });
 
             signaturePads[canvasId] = pad;
-            signatureImages[canvasId] = null;
 
-            // Save as image immediately after each stroke
-            pad.addEventListener('endStroke', () => {
-                if (!pad.isEmpty()) {
-                    signatureImages[canvasId] = pad.toDataURL('image/png');
-                }
-            });
-
-            // Set initial canvas size
+            // Set canvas size preserving vector data points
             function setCanvasSize() {
                 const ratio = Math.max(window.devicePixelRatio || 1, 1);
                 const rect = canvas.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
 
+                const data = pad.toData();
                 canvas.width = rect.width * ratio;
                 canvas.height = rect.height * ratio;
                 canvas.getContext('2d').scale(ratio, ratio);
-
-                // Restore image if exists
-                if (signatureImages[canvasId]) {
-                    const img = new Image();
-                    img.onload = function () {
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
-                    };
-                    img.src = signatureImages[canvasId];
+                pad.clear();
+                if (data && data.length > 0) {
+                    pad.fromData(data);
                 }
             }
 
             setCanvasSize();
 
-            // Only resize on actual window resize (debounced) - NOT on scroll
             let resizeTimer;
             const resizeObserver = new ResizeObserver(() => {
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(() => {
                     setCanvasSize();
-                }, 100);
+                }, 150);
             });
-            resizeObserver.observe(canvas.parentElement);
+            if (canvas.parentElement) {
+                resizeObserver.observe(canvas.parentElement);
+            }
         }
 
         function addChecklistBlock() {
@@ -662,23 +690,35 @@
             });
         }
 
+        function showErrorBanner(msg, isWarning) {
+            let banner = document.getElementById('errorBanner');
+            if (!banner) return;
+            banner.className = isWarning 
+                ? 'error-banner mb-6 p-4 rounded-lg bg-amber-900 bg-opacity-80 border border-amber-500 text-amber-100 flex items-center justify-between'
+                : 'error-banner mb-6 p-4 rounded-lg bg-red-900 bg-opacity-80 border border-red-500 text-red-100 flex items-center justify-between';
+            banner.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">${isWarning ? '🔒' : '⚠️'}</span>
+                    <div>
+                        <div class="font-bold">${isWarning ? 'Tu sesión ha expirado' : 'No se pudo enviar el checklist'}</div>
+                        <div class="text-sm">${msg}</div>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('errorBanner').style.display='none'" class="text-white hover:text-gray-300 font-bold text-lg px-2">✕</button>
+            `;
+            banner.style.display = 'flex';
+            banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            // Theme Toggle
-            const themeToggle = document.getElementById('themeToggle');
-            const darkModeIcon = document.getElementById('darkModeIcon');
-            const lightModeIcon = document.getElementById('lightModeIcon');
-
             
-            
-            
-            initializeTheme();
             // Set current date & time
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             const formattedDateTime = now.toISOString().slice(0, 16);
             const fechaHoraInput = document.getElementById('fecha_hora');
-            if (fechaHoraInput) fechaHoraInput.value = formattedDateTime;
+            if (fechaHoraInput && !fechaHoraInput.value) fechaHoraInput.value = formattedDateTime;
 
             // Initialize Signature Pads
             initPad('firma_auditor_pad_0');
@@ -690,13 +730,22 @@
                     const padId = btn.dataset.pad;
                     if (signaturePads[padId]) {
                         signaturePads[padId].clear();
-                        signatureImages[padId] = null;
                     }
                 });
             });
 
-            // Form submission
-            document.getElementById('checklistForm').addEventListener('submit', function (event) {
+            // Asynchronous Form submission
+            const form = document.getElementById('checklistForm');
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                const banner = document.getElementById('errorBanner');
+                if (banner) banner.style.display = 'none';
+
+                if (!form.checkValidity()) {
+                    form.reportValidity();
+                    return;
+                }
+
                 // Loop through all dynamic blocks and capture both signatures per block
                 const blocks = document.querySelectorAll('.checklist-block');
                 let supervisorSigned = false;
@@ -707,7 +756,7 @@
                         const padId = supervisorCanvas.id;
                         const hiddenInput = block.querySelector('.hidden-supervisor-sig-input');
                         if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
-                            if (hiddenInput) hiddenInput.value = signatureImages[padId] || signaturePads[padId].toDataURL();
+                            if (hiddenInput) hiddenInput.value = signaturePads[padId].toDataURL('image/png');
                             supervisorSigned = true;
                         }
                     }
@@ -717,33 +766,74 @@
                         const padId = guardaCanvas.id;
                         const hiddenInput = block.querySelector('.hidden-sig-input');
                         if (signaturePads[padId] && !signaturePads[padId].isEmpty()) {
-                            if (hiddenInput) hiddenInput.value = signatureImages[padId] || signaturePads[padId].toDataURL();
+                            if (hiddenInput) hiddenInput.value = signaturePads[padId].toDataURL('image/png');
                         }
                     }
                 });
 
                 if (!supervisorSigned) {
-                    event.preventDefault();
-                    alert('Por favor, proporcione la firma del supervisor en la sección 5.');
-                    return false;
+                    showErrorBanner('Por favor incluya la firma del supervisor en la sección 5 antes de enviar.', false);
+                    return;
+                }
+
+                // Ensure CSRF token is attached
+                var _c = document.cookie.split(';').map(function(x){return x.trim();}).find(function(x){return x.startsWith('csrf_access_token=');});
+                var _csrf = _c ? decodeURIComponent(_c.substring('csrf_access_token='.length)) : '';
+                var _i = document.getElementById('_jwt_csrf_form');
+                if (_i && _csrf) { _i.value = _csrf; }
+
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                if (loadingOverlay) loadingOverlay.style.display = 'flex';
+
+                try {
+                    const formData = new FormData(form);
+                    const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+                    if (_csrf) {
+                        headers['X-CSRF-TOKEN'] = _csrf;
+                    }
+
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: headers,
+                        credentials: 'include'
+                    });
+
+                    if (response.status === 401 || response.url?.includes('/login')) {
+                        if (loadingOverlay) loadingOverlay.style.display = 'none';
+                        showErrorBanner('Tus datos <strong>NO se han perdido</strong>. Por favor <a href="/" target="_blank" class="underline font-bold text-yellow-300">inicia sesión en una nueva pestaña</a> y luego vuelve a presionar "Enviar" en esta ventana.', true);
+                        return;
+                    }
+
+                    if (response.ok) {
+                        let data = null;
+                        const ct = response.headers.get('content-type') || '';
+                        if (ct.includes('application/json')) {
+                            try { data = await response.json(); } catch(e) {}
+                        }
+                        window.location.href = (data && data.redirect_url) ? data.redirect_url : '/forms/success?message=' + encodeURIComponent('Checklist(s) de cumplimiento guardado(s) exitosamente!');
+                        return;
+                    }
+
+                    let errorMsg = 'Error en el servidor (' + response.status + '). Por favor verifique e intente nuevamente.';
+                    try {
+                        const errJson = await response.json();
+                        if (errJson && errJson.message) errorMsg = errJson.message;
+                    } catch(e) {}
+
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    showErrorBanner(errorMsg, false);
+
+                } catch (netErr) {
+                    console.error('Error enviando checklist:', netErr);
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    showErrorBanner('No fue posible enviar el formulario debido a un problema de conexión. Tus datos siguen intactos en pantalla. Por favor presiona "Enviar" nuevamente.', false);
                 }
             });
         });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
-    <script>
-    (function() {
-        var _f = document.getElementById('checklistForm');
-        if (_f) _f.addEventListener('submit', function() {
-            var _c = document.cookie.split(';').map(function(x){return x.trim();}).find(function(x){return x.startsWith('csrf_access_token=');});
-            var _v = _c ? decodeURIComponent(_c.substring('csrf_access_token='.length)) : '';
-            var _i = document.getElementById('_jwt_csrf_form');
-            if (!_i) { _i = document.createElement('input'); _i.type='hidden'; _i.name='csrf_token'; _i.id='_jwt_csrf_form'; _f.appendChild(_i); }
-            _i.value = _v;
-        }, true);
-    })();
-    </script>
     </div><!-- /sidebar-main-content -->
 </body>
 
