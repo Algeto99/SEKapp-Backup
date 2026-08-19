@@ -278,10 +278,25 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Supervisión de Puesto',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        # cliente_instalacion queda NULL en esta tabla (el INSERT la descarta), así que
+        # el cliente y la propiedad se resuelven por sus FKs. cc2 es el respaldo para
+        # registros antiguos sin customer_company_id: el cliente sale de la propiedad.
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(cc.name, cc2.name) AS cliente_nombre,
+            COALESCE(p.nombre, t.cliente_instalacion) AS propiedad_nombre,
+            u.name AS user_name
+        """,
         'data_mapping': {
-            "Cliente/Instalación": "cliente_instalacion",
+            "Cliente": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
             "Fecha/Hora": "fecha_hora",
             "Supervisor": "supervisor",
             "Puesto/Área": "puesto_area_especifica",
@@ -2285,7 +2300,10 @@ def generate_reports_html(reports):
     # Internal identifiers and raw coordinates: the PDF is handed to the client, so they
     # never appear. Kept apart from SKIP_KEYS, whose values are parsed as attachment URLs.
     HIDDEN_KEYS = {'Company Id', 'Customer Company Id', 'Id Propiedad',
-                   'Location Accuracy', 'Latitude', 'Longitude'}
+                   'Location Accuracy', 'Latitude', 'Longitude',
+                   # Columna cruda de Supervisión de Puesto: el dato ya se muestra
+                   # como "Propiedad / Instalación", resuelto desde id_propiedad.
+                   'Cliente Instalacion'}
 
     def _is_signature(key, val_str):
         return 'firma' in key.lower() or val_str.startswith('data:image')

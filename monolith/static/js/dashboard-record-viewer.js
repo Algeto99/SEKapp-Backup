@@ -771,7 +771,7 @@
         supervision_puesto: {
             QUE:    ['Puesto/Área'],
             CUANDO: ['Fecha/Hora'],
-            DONDE:  ['Cliente/Instalación'],
+            DONDE:  ['Cliente', 'Propiedad / Instalación'],
             COMO:   ['Observaciones', 'Foto Evidencia'],
             QUIEN:  ['Supervisor', 'Nombre Guardia'],
         },
