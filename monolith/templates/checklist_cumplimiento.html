@@ -229,7 +229,7 @@
                         <div>
                             <label for="fecha_hora" class="form-label">Fecha y Hora <span
                                     class="text-red-400">*</span></label>
-                            <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
+                            <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
                         </div>
                         <div>
                             <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span
@@ -330,15 +330,15 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Fecha de Resolucion</label>
-                                    <input type="date" name="fecha_resolucion{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="date" name="fecha_resolucion{{ '' if edit_mode else '[]' }}" class="form-input" tabindex="-1" readonly>
                                 </div>
                                 <div>
                                     <label class="form-label">Vigencia del Curso Desde</label>
-                                    <input type="date" name="vigencia_desde{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="date" name="vigencia_desde{{ '' if edit_mode else '[]' }}" class="form-input" tabindex="-1" readonly>
                                 </div>
                                 <div>
                                     <label class="form-label">Vigencia del Curso Hasta</label>
-                                    <input type="date" name="vigencia_hasta{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="date" name="vigencia_hasta{{ '' if edit_mode else '[]' }}" class="form-input" tabindex="-1" readonly>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Cargue de Evidencia</label>

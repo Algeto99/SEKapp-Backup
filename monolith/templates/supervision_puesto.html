@@ -199,7 +199,7 @@
                     </div>
                     <div>
                         <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" required>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
                     </div>
                     <div>
                         <label for="supervisor" class="block text-sm font-medium mb-1">Nombre Supervisor</label>
@@ -345,11 +345,11 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
-                        <input type="date" name="fecha_vencimiento_permiso_porte" class="form-input">
+                        <input type="date" name="fecha_vencimiento_permiso_porte" class="form-input" tabindex="-1" readonly>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha último mtto (arma)</label>
-                        <input type="date" name="fecha_ultimo_mtto_arma" class="form-input">
+                        <input type="date" name="fecha_ultimo_mtto_arma" class="form-input" tabindex="-1" readonly>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
@@ -365,7 +365,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
-                        <input type="date" name="fecha_ultimo_mtto_radio" class="form-input">
+                        <input type="date" name="fecha_ultimo_mtto_radio" class="form-input" tabindex="-1" readonly>
                     </div>
                 </div>
 
@@ -811,11 +811,11 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
-                                <input type="date" name="supervisions[${index}][fecha_vencimiento_permiso_porte]" class="form-input">
+                                <input type="date" name="supervisions[${index}][fecha_vencimiento_permiso_porte]" class="form-input" tabindex="-1" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha último mtto (arma)</label>
-                                <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_arma]" class="form-input">
+                                <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_arma]" class="form-input" tabindex="-1" readonly>
                             </div>
                         </div>
                         <div>
@@ -832,7 +832,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
-                            <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_radio]" class="form-input">
+                            <input type="date" name="supervisions[${index}][fecha_ultimo_mtto_radio]" class="form-input" tabindex="-1" readonly>
                         </div>
                     </div>
 
