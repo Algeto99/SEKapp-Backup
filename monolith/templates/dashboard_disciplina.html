@@ -925,8 +925,12 @@
 
     function buildQS(state) {
         const p = new URLSearchParams();
-        const clienteToUse = activeClienteFilter || state.propertyId;
+        const clienteToUse = activeClienteFilter || state.cliente;
         if (clienteToUse) p.set('cliente', clienteToUse);
+        if (state.propertyId) {
+            p.set('propiedad',   state.propertyId);
+            p.set('property_id', state.propertyId);
+        }
         if (state.years && state.years.length) {
             p.set('year', state.years.join(','));
         } else if (state.year) {
@@ -963,27 +967,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
         initTheme();
         const filters = new DashboardFilters();
-        filters.init();
-
-        // Relabel property filter
-        const propSelect = document.getElementById('df-property');
-        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
-        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
-
-        try {
-            const res = await fetch('/dashboard/api/disciplina/clientes');
-            const { clientes } = await res.json();
-            while (propSelect.options.length > 1) propSelect.remove(1);
-            clientes.forEach(c => {
-                const o = document.createElement('option');
-                o.value = c; o.textContent = c;
-                propSelect.appendChild(o);
-            });
-            if (filters.state.propertyId) {
-                propSelect.value = filters.state.propertyId;
-                filters._syncChips();
-            }
-        } catch (e) { console.warn('Could not load clientes', e); }
+        await filters.init();
 
         document.addEventListener('filtersChanged', e => {
             lastFilterBarState = e.detail;

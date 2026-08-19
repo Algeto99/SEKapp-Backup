@@ -784,35 +784,18 @@
     /* ── Init ───────────────────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', async () => {
         const filters = new DashboardFilters();
-        filters.init();
-
-        const propSelect = document.getElementById('df-property');
-        const propLabel  = propSelect?.closest('.df-section')?.querySelector('.df-label');
-        if (propLabel) propLabel.textContent = 'CLIENTE / INSTALACIÓN';
-
-        try {
-            const res = await fetch('/dashboard/api/equipos/clientes');
-            const { clientes } = await res.json();
-            while (propSelect.options.length > 1) propSelect.remove(1);
-            (clientes || []).forEach(c => {
-                const o = document.createElement('option');
-                o.value = c; o.textContent = c;
-                propSelect.appendChild(o);
-            });
-            if (filters.state.propertyId) {
-                propSelect.value = filters.state.propertyId;
-                filters._syncChips();
-            }
-        } catch (e) {
-            console.warn('Could not load equipos clientes', e);
-        }
+        await filters.init();
 
         filters.activateResponsable({ url: '/dashboard/api/equipos/filtros' });
 
         const buildQS = (state) => {
             const p = new URLSearchParams();
-            const { propertyId, years, months, day, responsable } = state;
-            if (propertyId)  p.set('cliente',     propertyId);
+            const { cliente, propertyId, years, months, day, responsable } = state;
+            if (cliente)     p.set('cliente',     cliente);
+            if (propertyId) {
+                p.set('propiedad',   propertyId);
+                p.set('property_id', propertyId);
+            }
             if (years && years.length) p.set('year', years.join(','));
             if (months && months.length) p.set('month', months.join(','));
             if (day)         p.set('day',          day);

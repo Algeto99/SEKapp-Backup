@@ -704,19 +704,31 @@
         }
     }
 
+    function buildQS(state) {
+        const p = new URLSearchParams();
+        if (state.cliente) p.set('cliente', state.cliente);
+        if (state.propertyId) {
+            p.set('propiedad',   state.propertyId);
+            p.set('property_id', state.propertyId);
+        }
+        if (state.years && state.years.length) {
+            p.set('year', state.years.join(','));
+        } else if (state.year) {
+            p.set('year', state.year);
+        }
+        if (state.months && state.months.length) {
+            p.set('month', state.months.join(','));
+        } else if (state.month) {
+            p.set('month', state.month);
+        }
+        if (state.day) p.set('day', state.day);
+        return p.toString();
+    }
+
     /* ── Init ───────────────────────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', async () => {
         const filters = new DashboardFilters();
-        filters.init();
-
-        // Hide the Cliente / Instalación filter section
-        const propSelect = document.getElementById('df-property');
-        const propSection = propSelect?.closest('.df-section');
-        if (propSection) {
-            propSection.style.display = 'none';
-            const divider = propSection.nextElementSibling;
-            if (divider && divider.classList.contains('df-divider')) divider.style.display = 'none';
-        }
+        await filters.init();
 
         const banner = document.getElementById('alertBanner');
         if (banner) {
@@ -728,15 +740,10 @@
         }
 
         document.addEventListener('filtersChanged', e => {
-            const p = new URLSearchParams();
-            const { years, months, day } = e.detail;
-            if (years && years.length) p.set('year', years.join(','));
-            if (months && months.length) p.set('month', months.join(','));
-            if (day)   p.set('day',   day);
-            loadData(p.toString());
+            loadData(buildQS(e.detail));
         });
 
-        loadData();
+        loadData(buildQS(filters.getState()));
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

@@ -2,30 +2,27 @@
  * DashboardFilters
  * Reusable filter bar for all dashboard sub-pages.
  *
- * Usage (after including _dashboard_filters.html in the template):
- *
- *   const filters = new DashboardFilters();
- *   filters.init();
- *
- *   document.addEventListener('filtersChanged', (e) => {
- *     const { propertyId, years, months, day } = e.detail;
- *     // re-fetch your dashboard data here
- *   });
+ * Standard filters supported:
+ *   - Cliente (Customer Company)
+ *   - Propiedad / Instalación (Property / Site) with cascading support
+ *   - Año (Year - multi-select)
+ *   - Mes (Month - multi-select)
+ *   - Día (Day - select)
+ *   - Responsable / Rol (optional)
  *
  * Filter state shape:
+ *   cliente     : string | null   — null = all clients
  *   propertyId  : string | null   — null = all properties
- *   years       : number[]        — empty = all years  (multi-select)
+ *   propiedad   : string | null   — alias of propertyId
+ *   years       : number[]        — empty = all years (multi-select)
  *   months      : number[]        — 1-12, empty = all months (multi-select)
  *   day         : number | null   — 1-31, null = all days
  *   responsable : string | null   — null = all; activated via activateResponsable()
- *
- * Backwards-compat aliases exposed on getState():
- *   year  = years[0] || null
- *   month = months[0] || null
  */
 class DashboardFilters {
     constructor() {
         this.state = {
+            cliente:     null,
             propertyId:  null,
             years:       [],   // multi-select
             months:      [],   // multi-select
@@ -33,7 +30,12 @@ class DashboardFilters {
             responsable: null,
         };
 
-        // DOM refs — populated in init()
+        // Cache for hierarchy
+        this._allProperties = [];
+        this._allClients    = [];
+
+        // DOM refs
+        this._clienteSelect     = null;
         this._propertySelect    = null;
         this._yearMS            = null;   // MultiSelect instance
         this._monthBtns         = null;
@@ -50,7 +52,8 @@ class DashboardFilters {
     }
 
     /** Call once after the DOM is ready. */
-    init() {
+    async init() {
+        this._clienteSelect  = document.getElementById('df-cliente');
         this._propertySelect = document.getElementById('df-property');
         this._monthBtns      = document.querySelectorAll('.df-month-btn');
         this._dayRow         = document.getElementById('df-day-row');
@@ -64,9 +67,7 @@ class DashboardFilters {
         }
 
         this._populateYears();
-        if (!this._propertySelect.hasAttribute('data-custom-loader')) {
-            this._loadProperties();
-        }
+        await this._loadHierarchy();
         this._bindEvents();
 
         // Apply any state already in the URL query string
@@ -80,6 +81,7 @@ class DashboardFilters {
         const { years, months } = this.state;
         return {
             ...this.state,
+            propiedad: this.state.propertyId, // alias for consistency
             // Backwards-compat single-value aliases
             year:  years.length  ? years[0]  : null,
             month: months.length ? months[0] : null,
@@ -92,11 +94,25 @@ class DashboardFilters {
      */
     toQueryString() {
         const params = new URLSearchParams();
-        if (this.state.propertyId)        params.set('property_id',  this.state.propertyId);
-        if (this.state.years.length)      params.set('year',          this.state.years.join(','));
-        if (this.state.months.length)     params.set('month',         this.state.months.join(','));
-        if (this.state.day)               params.set('day',           this.state.day);
-        if (this.state.responsable)       params.set('responsable',   this.state.responsable);
+        if (this.state.cliente) {
+            params.set('cliente', this.state.cliente);
+        }
+        if (this.state.propertyId) {
+            params.set('propiedad',   this.state.propertyId);
+            params.set('property_id', this.state.propertyId);
+        }
+        if (this.state.years.length) {
+            params.set('year', this.state.years.join(','));
+        }
+        if (this.state.months.length) {
+            params.set('month', this.state.months.join(','));
+        }
+        if (this.state.day) {
+            params.set('day', this.state.day);
+        }
+        if (this.state.responsable) {
+            params.set('responsable', this.state.responsable);
+        }
         return params.toString();
     }
 
@@ -162,30 +178,120 @@ class DashboardFilters {
         });
     }
 
-    async _loadProperties() {
+    async _loadHierarchy() {
         try {
             const res  = await fetch('/dashboard/api/properties');
             if (!res.ok) return;
             const data = await res.json();
-            const props = data.properties || data; // handle both shapes
 
-            const frag = document.createDocumentFragment();
-            props.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value       = p.id || p.id_propiedad;
-                opt.textContent = p.name || p.nombre;
-                frag.appendChild(opt);
-            });
-            this._propertySelect.appendChild(frag);
+            this._allProperties = data.properties || (Array.isArray(data) ? data : []);
+            this._allClients    = data.clientes || [];
+
+            // If no explicit clients returned, extract unique clients from properties
+            if (!this._allClients.length && this._allProperties.length) {
+                const uniqueClientNames = [...new Set(this._allProperties.map(p => p.cliente).filter(Boolean))].sort();
+                this._allClients = uniqueClientNames.map(name => ({ id: name, name: name }));
+            }
+
+            this._populateClients();
+            this._refreshPropertyOptions();
         } catch (err) {
-            console.warn('DashboardFilters: could not load properties.', err);
+            console.warn('DashboardFilters: could not load property hierarchy.', err);
+        }
+    }
+
+    _populateClients() {
+        if (!this._clienteSelect) return;
+        while (this._clienteSelect.options.length > 1) {
+            this._clienteSelect.remove(1);
+        }
+
+        const frag = document.createDocumentFragment();
+        this._allClients.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value       = String(c.id != null ? c.id : c.name);
+            opt.textContent = c.name || c.nombre || String(c.id);
+            frag.appendChild(opt);
+        });
+        this._clienteSelect.appendChild(frag);
+    }
+
+    _refreshPropertyOptions() {
+        if (!this._propertySelect) return;
+        while (this._propertySelect.options.length > 1) {
+            this._propertySelect.remove(1);
+        }
+
+        const selectedClient = this.state.cliente ? String(this.state.cliente).trim().toLowerCase() : null;
+
+        // Filter properties by selected client if any
+        let filteredProps = this._allProperties;
+        if (selectedClient) {
+            filteredProps = this._allProperties.filter(p => {
+                const pCustId = p.customer_company_id != null ? String(p.customer_company_id).trim().toLowerCase() : null;
+                const pClient = p.cliente ? String(p.cliente).trim().toLowerCase() : null;
+                return pCustId === selectedClient || pClient === selectedClient;
+            });
+        }
+
+        const frag = document.createDocumentFragment();
+        filteredProps.forEach(p => {
+            const opt = document.createElement('option');
+            const propId = p.id != null ? p.id : p.id_propiedad;
+            opt.value = String(propId != null ? propId : (p.name || p.nombre));
+            
+            let label = p.name || p.nombre || `Instalación ${propId}`;
+            // If viewing all clients and property has client info, append client name for clarity
+            if (!selectedClient && p.cliente) {
+                label = `${label} (${p.cliente})`;
+            }
+            opt.textContent = label;
+            frag.appendChild(opt);
+        });
+        this._propertySelect.appendChild(frag);
+
+        // Check if selected property is still in filtered options
+        if (this.state.propertyId) {
+            const optionExists = Array.from(this._propertySelect.options).some(o => o.value === String(this.state.propertyId));
+            if (optionExists) {
+                this._propertySelect.value = String(this.state.propertyId);
+            } else {
+                this.state.propertyId = null;
+                this._propertySelect.value = '';
+            }
+        } else {
+            this._propertySelect.value = '';
         }
     }
 
     _bindEvents() {
-        // Property
+        // Cliente
+        if (this._clienteSelect) {
+            this._clienteSelect.addEventListener('change', () => {
+                this.state.cliente = this._clienteSelect.value || null;
+                this._refreshPropertyOptions();
+                this._emit();
+            });
+        }
+
+        // Propiedad / Instalación
         this._propertySelect.addEventListener('change', () => {
             this.state.propertyId = this._propertySelect.value || null;
+            
+            // If property selected and no client selected, optionally auto-select the client
+            if (this.state.propertyId && !this.state.cliente && this._clienteSelect) {
+                const matchedProp = this._allProperties.find(p => String(p.id || p.id_propiedad) === String(this.state.propertyId));
+                if (matchedProp && (matchedProp.customer_company_id || matchedProp.cliente)) {
+                    const clientVal = String(matchedProp.customer_company_id || matchedProp.cliente);
+                    const clientOptExists = Array.from(this._clienteSelect.options).some(o => o.value === clientVal);
+                    if (clientOptExists) {
+                        this.state.cliente = clientVal;
+                        this._clienteSelect.value = clientVal;
+                        this._refreshPropertyOptions();
+                    }
+                }
+            }
+            
             this._emit();
         });
 
@@ -263,8 +369,17 @@ class DashboardFilters {
     }
 
     _reset() {
-        this.state = { propertyId: null, years: [], months: [], day: null, responsable: null };
+        this.state = {
+            cliente:     null,
+            propertyId:  null,
+            years:       [],
+            months:      [],
+            day:         null,
+            responsable: null
+        };
 
+        if (this._clienteSelect) this._clienteSelect.value = '';
+        this._refreshPropertyOptions();
         this._propertySelect.value = '';
         if (this._yearMS) this._yearMS.reset();
         if (this._daySelect) this._daySelect.value = '';
@@ -278,11 +393,36 @@ class DashboardFilters {
     _readFromURL() {
         const params = new URLSearchParams(window.location.search);
 
-        const propId = params.get('property_id') || params.get('cliente');
+        const clienteParam = params.get('cliente');
+        if (clienteParam) {
+            this.state.cliente = clienteParam;
+            if (this._clienteSelect) {
+                // If option exists, select it; if not, add it as fallback
+                const optExists = Array.from(this._clienteSelect.options).some(o => o.value === clienteParam);
+                if (!optExists && clienteParam) {
+                    const opt = document.createElement('option');
+                    opt.value = clienteParam;
+                    opt.textContent = clienteParam;
+                    this._clienteSelect.appendChild(opt);
+                }
+                this._clienteSelect.value = clienteParam;
+            }
+            this._refreshPropertyOptions();
+        }
+
+        const propId = params.get('propiedad') || params.get('property_id') || params.get('id_propiedad');
         if (propId) {
             this.state.propertyId = propId;
-            this._propertySelect.value = this.state.propertyId;
+            const optExists = Array.from(this._propertySelect.options).some(o => o.value === String(propId));
+            if (!optExists && propId) {
+                const opt = document.createElement('option');
+                opt.value = propId;
+                opt.textContent = `Instalación ${propId}`;
+                this._propertySelect.appendChild(opt);
+            }
+            this._propertySelect.value = String(propId);
         }
+
         if (params.get('year')) {
             this.state.years = params.get('year').split(',')
                 .map(v => parseInt(v.trim(), 10))
@@ -297,6 +437,12 @@ class DashboardFilters {
         if (params.get('day')) {
             this.state.day = parseInt(params.get('day'), 10);
         }
+        if (params.get('responsable')) {
+            this.state.responsable = params.get('responsable');
+            if (this._responsableSelect) {
+                this._responsableSelect.value = this.state.responsable;
+            }
+        }
 
         this._syncMonthButtons();
         this._syncDayRow();
@@ -309,24 +455,28 @@ class DashboardFilters {
 
         const chips = [];
 
+        if (this.state.cliente) {
+            const clientLabel = (this._clienteSelect && this._clienteSelect.options[this._clienteSelect.selectedIndex]?.text) || this.state.cliente;
+            chips.push({ key: 'cliente', label: `Cliente: ${clientLabel}` });
+        }
         if (this.state.propertyId) {
-            const label = this._propertySelect.options[this._propertySelect.selectedIndex]?.text || this.state.propertyId;
-            chips.push({ key: 'propertyId', label: `${label}` });
+            const propLabel = (this._propertySelect && this._propertySelect.options[this._propertySelect.selectedIndex]?.text) || this.state.propertyId;
+            chips.push({ key: 'propertyId', label: `Instalación: ${propLabel}` });
         }
         if (this.state.years.length) {
-            chips.push({ key: 'year', label: this.state.years.join(', ') });
+            chips.push({ key: 'year', label: `Año: ${this.state.years.join(', ')}` });
         }
         if (this.state.months.length) {
             const mLabels = this.state.months
                 .slice().sort((a,b) => a-b)
                 .map(m => this._MONTH_SHORT[m - 1]);
-            chips.push({ key: 'month', label: mLabels.join(', ') });
+            chips.push({ key: 'month', label: `Mes: ${mLabels.join(', ')}` });
         }
         if (this.state.day) {
-            chips.push({ key: 'day', label: `Día ${this.state.day}` });
+            chips.push({ key: 'day', label: `Día: ${this.state.day}` });
         }
         if (this.state.responsable) {
-            chips.push({ key: 'responsable', label: this.state.responsable });
+            chips.push({ key: 'responsable', label: `Resp: ${this.state.responsable}` });
         }
 
         if (chips.length === 0) {
@@ -347,7 +497,11 @@ class DashboardFilters {
     }
 
     _removeFilter(key) {
-        if (key === 'propertyId') {
+        if (key === 'cliente') {
+            this.state.cliente = null;
+            if (this._clienteSelect) this._clienteSelect.value = '';
+            this._refreshPropertyOptions();
+        } else if (key === 'propertyId') {
             this.state.propertyId = null;
             this._propertySelect.value = '';
         } else if (key === 'year') {

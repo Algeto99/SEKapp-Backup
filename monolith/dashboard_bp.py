@@ -54,6 +54,73 @@ def _get_user_company_id(cur, user_email):
     return row[0] if row and row[0] is not None else None
 
 
+def _add_scope_filters(conds, params, cliente=None, propiedad=None, col_cliente_inst="cliente_instalacion", col_id_prop="id_propiedad", col_cust_id="customer_company_id", prefix=""):
+    """
+    Standard scope filtering helper for all dashboard queries.
+    Handles both Cliente (Customer Company) and Propiedad / Instalación.
+    Supports filtering by integer IDs or string names and gracefully matches legacy rows.
+    """
+    c_inst = f"{prefix}{col_cliente_inst}" if col_cliente_inst else None
+    c_prop = f"{prefix}{col_id_prop}" if col_id_prop else None
+    c_cust = f"{prefix}{col_cust_id}" if col_cust_id else None
+
+    if cliente:
+        cl_str = str(cliente).strip()
+        if cl_str.isdigit():
+            cid = int(cl_str)
+            clauses = []
+            if c_cust:
+                clauses.append(f"{c_cust} = %s")
+                params.append(cid)
+            if c_prop:
+                clauses.append(f"{c_prop} IN (SELECT id_propiedad FROM propiedades WHERE customer_company_id = %s)")
+                params.append(cid)
+            if c_inst:
+                clauses.append(f"{c_inst} IN (SELECT nombre FROM propiedades WHERE customer_company_id = %s)")
+                params.append(cid)
+            if clauses:
+                conds.append(f"({' OR '.join(clauses)})")
+        else:
+            clauses = []
+            if c_cust:
+                clauses.append(f"{c_cust} IN (SELECT id FROM customer_companies WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s)))")
+                params.append(cl_str)
+            if c_prop:
+                clauses.append(f"{c_prop} IN (SELECT p.id_propiedad FROM propiedades p JOIN customer_companies cc ON cc.id = p.customer_company_id WHERE LOWER(TRIM(cc.name)) = LOWER(TRIM(%s)))")
+                params.append(cl_str)
+            if c_inst:
+                clauses.append(f"LOWER(TRIM({c_inst})) IN (SELECT LOWER(TRIM(p.nombre)) FROM propiedades p JOIN customer_companies cc ON cc.id = p.customer_company_id WHERE LOWER(TRIM(cc.name)) = LOWER(TRIM(%s)))")
+                params.append(cl_str)
+                clauses.append(f"LOWER(TRIM({c_inst})) = LOWER(TRIM(%s))")
+                params.append(cl_str)
+            if clauses:
+                conds.append(f"({' OR '.join(clauses)})")
+
+    if propiedad:
+        pr_str = str(propiedad).strip()
+        if pr_str.isdigit():
+            pid = int(pr_str)
+            clauses = []
+            if c_prop:
+                clauses.append(f"{c_prop} = %s")
+                params.append(pid)
+            if c_inst:
+                clauses.append(f"LOWER(TRIM({c_inst})) IN (SELECT LOWER(TRIM(nombre)) FROM propiedades WHERE id_propiedad = %s)")
+                params.append(pid)
+            if clauses:
+                conds.append(f"({' OR '.join(clauses)})")
+        else:
+            clauses = []
+            if c_prop:
+                clauses.append(f"{c_prop} IN (SELECT id_propiedad FROM propiedades WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(%s)))")
+                params.append(pr_str)
+            if c_inst:
+                clauses.append(f"LOWER(TRIM({c_inst})) = LOWER(TRIM(%s))")
+                params.append(pr_str)
+            if clauses:
+                conds.append(f"({' OR '.join(clauses)})")
+
+
 INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora AT TIME ZONE 'UTC', ri.creado_en) AS date)"
 INCIDENT_TIME_EXPR = "CAST(ri.fecha_hora AT TIME ZONE 'UTC' AS time)"
 INCIDENT_TYPE_EXPR = "COALESCE(NULLIF(TRIM(ri.tipo_incidente), ''), 'Sin Tipo')"
@@ -120,25 +187,34 @@ def get_properties(user_email=None):
             
         if company_id is not None:
             query = """
-                SELECT p.id_propiedad, p.nombre
+                SELECT p.id_propiedad, p.nombre, p.customer_company_id, COALESCE(cc.name, '') AS cliente
                 FROM propiedades p
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE COALESCE(p.activa, TRUE) = TRUE
-                  AND cc.company_id = %s
-                ORDER BY p.nombre;
+                  AND (cc.company_id = %s OR p.customer_company_id IS NULL)
+                ORDER BY cliente, p.nombre;
             """
             cur.execute(query, (company_id,))
         else:
             query = """
-                SELECT id_propiedad, nombre
-                FROM propiedades
-                WHERE COALESCE(activa, TRUE) = TRUE
-                ORDER BY nombre;
+                SELECT p.id_propiedad, p.nombre, p.customer_company_id, COALESCE(cc.name, '') AS cliente
+                FROM propiedades p
+                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+                WHERE COALESCE(p.activa, TRUE) = TRUE
+                ORDER BY cliente, p.nombre;
             """
             cur.execute(query)
             
         rows = cur.fetchall()
-        return [{"id": row["id_propiedad"], "name": row["nombre"]} for row in rows]
+        return [
+            {
+                "id": row["id_propiedad"],
+                "name": row["nombre"],
+                "customer_company_id": row["customer_company_id"],
+                "cliente": row["cliente"]
+            }
+            for row in rows
+        ]
     except Exception as e:
         app_logger.error(f"Error fetching properties: {e}")
         return []
@@ -1883,24 +1959,42 @@ def api_gestion_nombres_por_rol():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
         rol_cond = "AND TRIM(rol_aplicador) = %s" if rol else ""
-        rol_params = [rol] if rol else []
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "AND company_id = %s" if company_id is not None else ""
+        cid_params = [company_id] if company_id is not None else []
+
+        conds, params = [], []
+        if rol:
+            conds.append("TRIM(rol_aplicador) = %s")
+            params.append(rol)
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
+        where = ("WHERE " + " AND ".join(conds)) if conds else ""
 
         cur.execute(f"""
-            SELECT DISTINCT nombre FROM (
-                SELECT TRIM(nombre_responsable) AS nombre
-                FROM medicion_experiencia_cliente
-                WHERE nombre_responsable IS NOT NULL AND TRIM(nombre_responsable) <> ''
-                {rol_cond}
+            SELECT DISTINCT TRIM(nombre_responsable) AS nombre
+            FROM (
+                SELECT rol_aplicador, nombre_responsable, company_id FROM medicion_experiencia_cliente
                 UNION
-                SELECT TRIM(supervisor) AS nombre
-                FROM supervision_puesto
-                WHERE supervisor IS NOT NULL AND TRIM(supervisor) <> ''
-                {rol_cond}
+                SELECT rol_aplicador, supervisor AS nombre_responsable, company_id FROM supervision_puesto
+                UNION
+                SELECT rol_aplicador, nombre_responsable, company_id FROM reportes_incidentes
+                UNION
+                SELECT rol_aplicador, nombre_responsable, company_id FROM checklist_cumplimiento
+                UNION
+                SELECT rol_aplicador, nombre_responsable, company_id FROM registro_de_capacitaciones
+                UNION
+                SELECT rol_aplicador, nombre_responsable, company_id FROM informe_novedades_disciplinario
+                UNION
+                SELECT rol_aplicador, visita_realizada_por AS nombre_responsable, company_id FROM registro_y_acta_de_visita
+                UNION
+                SELECT rol_aplicador, nombre_responsable, company_id FROM planilla_vehicular
             ) q
-            WHERE nombre IS NOT NULL AND nombre <> ''
+            {where}
             ORDER BY nombre
-        """, rol_params + rol_params)
-        nombres = [r['nombre'] for r in cur.fetchall()]
+        """, params)
+        nombres = [r['nombre'] for r in cur.fetchall() if r['nombre']]
         return jsonify({'nombres': nombres})
     except Exception as e:
         app_logger.error(f"api_gestion_nombres_por_rol error: {e}", exc_info=True)
@@ -1915,6 +2009,7 @@ def api_gestion_nombres_por_rol():
 @admin_required
 def api_gestion_data():
     cliente = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     proyecto = request.args.get('proyecto') or None
     turno = request.args.get('turno') or None
     # Accept comma-separated multi-values for year and month
@@ -1931,9 +2026,7 @@ def api_gestion_data():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         sat_conds, sat_params = [], []
-        if cliente:
-            sat_conds.append("cliente_instalacion = %s")
-            sat_params.append(cliente)
+        _add_scope_filters(sat_conds, sat_params, cliente=cliente, propiedad=propiedad)
         if turno:
             sat_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
             sat_params.append(turno.lower())
@@ -1958,9 +2051,7 @@ def api_gestion_data():
         sat_score = _gestion_clamp((sat_avg / 40) * 100 if sat_avg is not None else None)
 
         inc_conds, inc_params = [], []
-        if cliente:
-            inc_conds.append("cliente_instalacion = %s")
-            inc_params.append(cliente)
+        _add_scope_filters(inc_conds, inc_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
             inc_conds.append("puesto_area_especifica = %s")
             inc_params.append(proyecto)
@@ -1999,9 +2090,7 @@ def api_gestion_data():
             return sup_safe % (col, col, col, col, col, col)
         sup_score_expr = " + ".join(f"COALESCE(({_sup_expr(f)}),0)" for f, _ in _SUP_CRITERIA)
         sup_conds, sup_params = [], []
-        if cliente:
-            sup_conds.append("cliente_instalacion = %s")
-            sup_params.append(cliente)
+        _add_scope_filters(sup_conds, sup_params, cliente=cliente, propiedad=propiedad)
         if turno:
             sup_conds.append("LOWER(COALESCE(rol_aplicador, '')) = %s")
             sup_params.append(turno.lower())
@@ -2024,9 +2113,7 @@ def api_gestion_data():
         sup_score = _gestion_clamp((sup_avg / 25) * 100 if sup_avg is not None else None)
 
         cum_conds, cum_params = [], []
-        if cliente:
-            cum_conds.append("cliente_instalacion = %s")
-            cum_params.append(cliente)
+        _add_scope_filters(cum_conds, cum_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
             cum_conds.append("puesto_area_especifica = %s")
             cum_params.append(proyecto)
@@ -2055,9 +2142,7 @@ def api_gestion_data():
         cap_date_expr = _capac_date_expr()
         cap_safe_len = _capac_safe_len()
         cap_conds, cap_params = [], []
-        if cliente:
-            cap_conds.append("cliente_instalacion = %s")
-            cap_params.append(cliente)
+        _add_scope_filters(cap_conds, cap_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
             cap_conds.append("puesto_area_especifica = %s")
             cap_params.append(proyecto)
@@ -2083,9 +2168,7 @@ def api_gestion_data():
         cap_score = _gestion_clamp(cap_prom * 5 if cap_total else 0)
 
         disc_conds, disc_params = [], []
-        if cliente:
-            disc_conds.append("cliente_instalacion = %s")
-            disc_params.append(cliente)
+        _add_scope_filters(disc_conds, disc_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
             disc_conds.append("puesto_area_especifica = %s")
             disc_params.append(proyecto)
@@ -2121,9 +2204,7 @@ def api_gestion_data():
 
         vis_date_expr = _visita_date_expr()
         vis_conds, vis_params = [], []
-        if cliente:
-            vis_conds.append("cliente_instalacion = %s")
-            vis_params.append(cliente)
+        _add_scope_filters(vis_conds, vis_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
             vis_conds.append("puesto_area_especifica = %s")
             vis_params.append(proyecto)
@@ -2149,9 +2230,7 @@ def api_gestion_data():
 
         veh_date_expr = _veh_date_expr()
         veh_conds, veh_params = [], []
-        if cliente:
-            veh_conds.append("cliente_instalacion = %s")
-            veh_params.append(cliente)
+        _add_scope_filters(veh_conds, veh_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
             veh_conds.append("puesto_area_especifica = %s")
             veh_params.append(proyecto)
@@ -2178,9 +2257,7 @@ def api_gestion_data():
         veh_score = veh_aptas_pct
 
         eq_conds, eq_params = [], []
-        if cliente:
-            eq_conds.append("c.cliente_instalacion = %s")
-            eq_params.append(cliente)
+        _add_scope_filters(eq_conds, eq_params, cliente=cliente, propiedad=propiedad, prefix="c.")
         if proyecto:
             eq_conds.append("c.sitio = %s")
             eq_params.append(proyecto)
@@ -2564,11 +2641,9 @@ def _sat_add_multi_date_filter(conds, params, text_expr, year, month, day):
     _gestion_add_multi_date_filter(conds, params, text_expr, year, month, day)
 
 
-def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None):
+def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
@@ -2583,7 +2658,7 @@ def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
     return where, params
 
 
-def _sat_prev_where(cliente, year, month, day, company_id=None):
+def _sat_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     """Build WHERE clause for the previous comparison period.
     Accepts comma-separated year/month but uses only the first value
     (prev-period comparison only makes sense for a single period).
@@ -2598,9 +2673,7 @@ def _sat_prev_where(cliente, year, month, day, company_id=None):
         return None, None
 
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -2723,6 +2796,7 @@ def api_satisfaccion_debug():
 @jwt_required()
 def api_satisfaccion_data():
     cliente     = request.args.get('cliente')     or None
+    propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -2737,8 +2811,8 @@ def api_satisfaccion_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
-        where_prev, params_prev = _sat_prev_where(cliente, year, month, day, company_id=company_id)
+        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
+        where_prev, params_prev = _sat_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
 
         # ── Main summary ─────────────────────────────────────────────────
         def _safe_avg(col):
@@ -2897,6 +2971,7 @@ def api_satisfaccion_data():
 @jwt_required()
 def api_satisfaccion_detalles():
     cliente        = request.args.get('cliente')        or None
+    propiedad      = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day            = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -2911,7 +2986,7 @@ def api_satisfaccion_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
+        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
@@ -3000,11 +3075,9 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if categoria:
         conds.append("categoria = %s")
@@ -3025,7 +3098,7 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
     return where, params
 
 
-def _inc_prev_where(cliente, year, month, day, company_id=None):
+def _inc_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3036,9 +3109,7 @@ def _inc_prev_where(cliente, year, month, day, company_id=None):
     if not year:
         return None, None
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -3118,6 +3189,7 @@ def api_incidentes_clientes():
 @jwt_required()
 def api_incidentes_data():
     cliente     = request.args.get('cliente')     or None
+    propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -3133,8 +3205,8 @@ def api_incidentes_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id)
-        where_prev, params_prev = _inc_prev_where(cliente, year, month, day, company_id=company_id)
+        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id, propiedad=propiedad)
+        where_prev, params_prev = _inc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
 
         # ── KPI summary ───────────────────────────────────────────────────
         cur.execute(f"""
@@ -3273,6 +3345,7 @@ def api_incidentes_data():
 @jwt_required()
 def api_incidentes_detalles():
     cliente   = request.args.get('cliente')   or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day       = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3288,7 +3361,7 @@ def api_incidentes_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id)
+        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id, propiedad=propiedad)
 
         # Fetch with optional tracking columns (may not exist yet)
         try:
@@ -3474,11 +3547,9 @@ def api_incidentes_historial(id_reporte):
 
 # ── Disciplina Dashboard ─────────────────────────────────────────────────────
 
-def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None):
+def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if tipo:
         conds.append("tipo_novedad = %s")
@@ -3493,7 +3564,7 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company
     return where, params
 
 
-def _disc_prev_where(cliente, year, month, day, company_id=None):
+def _disc_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3504,9 +3575,7 @@ def _disc_prev_where(cliente, year, month, day, company_id=None):
     if not year:
         return None, None
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -3558,7 +3627,8 @@ def api_disciplina_clientes():
 @dashboard_bp.route('/api/disciplina/data')
 @jwt_required()
 def api_disciplina_data():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day     = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3571,8 +3641,8 @@ def api_disciplina_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _disc_where(cliente, year, month, day, company_id=company_id)
-        where_prev, params_prev = _disc_prev_where(cliente, year, month, day, company_id=company_id)
+        where, params           = _disc_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        where_prev, params_prev = _disc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
 
         # ── KPIs via CTE on employee counts ──────────────────────────────
         # Use empleado_numero as the canonical employee key, fall back to name
@@ -3748,6 +3818,7 @@ def api_disciplina_data():
 @jwt_required()
 def api_disciplina_detalles():
     cliente      = request.args.get('cliente') or None
+    propiedad    = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day          = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3762,7 +3833,7 @@ def api_disciplina_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id)
+        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id, propiedad=propiedad)
 
         cur.execute(f"""
             SELECT
@@ -3833,11 +3904,9 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None):
+def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
@@ -3851,7 +3920,7 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
-def _sup_prev_where(cliente, year, month, day, company_id=None):
+def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -3862,9 +3931,7 @@ def _sup_prev_where(cliente, year, month, day, company_id=None):
     if not year:
         return None, None
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -3951,6 +4018,7 @@ def api_supervision_clientes():
 @jwt_required()
 def api_supervision_data():
     cliente     = request.args.get('cliente') or None
+    propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))   if request.args.get('day')   else None
@@ -3966,8 +4034,8 @@ def api_supervision_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id)
-        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id)
+        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
+        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
         # Some records store 'Excelente'/'Bueno'/etc. instead of 1-5.
@@ -4179,6 +4247,7 @@ def api_supervision_data():
 @jwt_required()
 def api_supervision_detalles():
     cliente        = request.args.get('cliente')        or None
+    propiedad      = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day            = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -4196,7 +4265,7 @@ def api_supervision_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id)
+        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]
@@ -4276,10 +4345,9 @@ _CUMPL_CRITERIA = [
     ('fechas_vigentes',               'Vigente'),
 ]
 
-def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None):
+def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append('cliente_instalacion = %s'); params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
@@ -4349,6 +4417,7 @@ def api_cumplimiento_clientes():
 @jwt_required()
 def api_cumplimiento_data():
     cliente     = request.args.get('cliente')     or None
+    propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -4362,7 +4431,7 @@ def api_cumplimiento_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable, company_id=company_id)
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad)
         where = _cumpl_where(base_conds)
 
         # ── KPI summary ────────────────────────────────────────────────────
@@ -4574,10 +4643,11 @@ def api_cumplimiento_data():
 @dashboard_bp.route('/api/cumplimiento/detalles')
 @jwt_required()
 def api_cumplimiento_detalles():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -4586,7 +4656,7 @@ def api_cumplimiento_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where = _cumpl_where(base_conds)
 
         cur.execute(f"""
@@ -4650,12 +4720,10 @@ _CAPAC_CLIENTE_EXPR = (
     "(SELECT nombre FROM propiedades WHERE id_propiedad = registro_de_capacitaciones.id_propiedad)))"
 )
 
-def _capac_conds(cliente, year, month, day, company_id=None):
+def _capac_conds(cliente, year, month, day, company_id=None, propiedad=None):
     conds, params = [], []
     date_expr = _capac_date_expr()
-    if cliente:
-        conds.append(f'{_CAPAC_CLIENTE_EXPR} = %s')
-        params.append(cliente.strip())
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     if company_id is not None: conds.append('company_id = %s'); params.append(company_id)
     return conds, params
@@ -4712,10 +4780,11 @@ def api_capacitacion_clientes():
 @dashboard_bp.route('/api/capacitacion/data')
 @jwt_required()
 def api_capacitacion_data():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -4724,7 +4793,7 @@ def api_capacitacion_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where = _capac_where(base_conds)
         safe_len = _capac_safe_len()
         date_expr = _capac_date_expr()
@@ -4877,10 +4946,11 @@ def api_capacitacion_data():
 @dashboard_bp.route('/api/capacitacion/detalles')
 @jwt_required()
 def api_capacitacion_detalles():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -4889,7 +4959,7 @@ def api_capacitacion_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where = _capac_where(base_conds)
         safe_len = _capac_safe_len()
         date_expr = _capac_date_expr()
@@ -4948,11 +5018,10 @@ def api_capacitacion_detalles():
 def _visita_date_expr():
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
-def _visita_conds(cliente, year, month, day, company_id=None):
+def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None):
     conds, params = [], []
     date_expr = _visita_date_expr()
-    if cliente:
-        conds.append('cliente_instalacion = %s'); params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     if company_id is not None:
         conds.append('company_id = %s'); params.append(company_id)
@@ -5087,10 +5156,11 @@ def api_visitas_clientes():
 @dashboard_bp.route('/api/visitas/data')
 @jwt_required()
 def api_visitas_data():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -5100,7 +5170,7 @@ def api_visitas_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
-        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where = _visita_where(base_conds)
 
         cur.execute(f"""
@@ -5248,10 +5318,11 @@ def api_visitas_data():
 @dashboard_bp.route('/api/visitas/detalles')
 @jwt_required()
 def api_visitas_detalles():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -5261,7 +5332,7 @@ def api_visitas_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
-        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
 
         cur.execute(f"""
@@ -5471,11 +5542,9 @@ def _moto_date_expr():
     return "COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en)"
 
 
-def _moto_conds(cliente, year, month, day, company_id=None):
+def _moto_conds(cliente, year, month, day, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     de = _moto_date_expr()
     _gestion_add_multi_date_filter(conds, params, f"({de})::TEXT", year, month, day)
     if company_id is not None:
@@ -5518,10 +5587,11 @@ def api_motocicletas_clientes():
 @dashboard_bp.route('/api/motocicletas/data')
 @jwt_required()
 def api_motocicletas_data():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -5530,7 +5600,7 @@ def api_motocicletas_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where = _moto_where(base_conds)
 
         # ── KPIs ──────────────────────────────────────────────────────────
@@ -5670,10 +5740,11 @@ def api_motocicletas_data():
 @dashboard_bp.route('/api/motocicletas/detalles')
 @jwt_required()
 def api_motocicletas_detalles():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -5683,7 +5754,7 @@ def api_motocicletas_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _moto_date_expr()
-        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         nov_conds = base_conds + [
             "novedades_criticas_detectadas IS NOT NULL",
             "TRIM(novedades_criticas_detectadas) <> ''"
@@ -5805,11 +5876,9 @@ def _veh_date_expr():
     return "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
 
 
-def _veh_conds(cliente, year, month, day, company_id=None):
+def _veh_conds(cliente, year, month, day, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     de = _veh_date_expr()
     _gestion_add_multi_date_filter(conds, params, f"({de})::TEXT", year, month, day)
     if company_id is not None:
@@ -5852,10 +5921,11 @@ def api_vehiculos_clientes():
 @dashboard_bp.route('/api/vehiculos/data')
 @jwt_required()
 def api_vehiculos_data():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -5864,7 +5934,7 @@ def api_vehiculos_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where = _veh_where(base_conds)
 
         # ── KPIs ──────────────────────────────────────────────────────────
@@ -6004,10 +6074,11 @@ def api_vehiculos_data():
 @dashboard_bp.route('/api/vehiculos/detalles')
 @jwt_required()
 def api_vehiculos_detalles():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -6017,7 +6088,7 @@ def api_vehiculos_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _veh_date_expr()
-        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         nov_conds = base_conds + [
             "novedades_criticas IS NOT NULL",
             "TRIM(novedades_criticas) <> ''"
@@ -6109,11 +6180,9 @@ _EQ_BASE = [
 ]
 
 
-def _eq_conds(cliente, year, month, day, responsable=None, company_id=None):
+def _eq_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None):
     conds, params = [], []
-    if cliente:
-        conds.append("c.cliente_instalacion = %s")
-        params.append(cliente)
+    _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, prefix="c.")
     _gestion_add_multi_date_filter(conds, params, "c.fecha::TEXT", year, month, day)
     if responsable:
         conds.append("TRIM(c.rol_aplicador) = %s")
@@ -6196,6 +6265,7 @@ def api_equipos_clientes():
 @jwt_required()
 def api_equipos_data():
     cliente     = request.args.get('cliente')     or None
+    propiedad   = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
     day         = int(request.args.get('day'))    if request.args.get('day')   else None
@@ -6208,7 +6278,7 @@ def api_equipos_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id)
+        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad)
         where = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,
@@ -6340,10 +6410,11 @@ def api_equipos_data():
 @dashboard_bp.route('/api/equipos/detalles')
 @jwt_required()
 def api_equipos_detalles():
-    cliente = request.args.get('cliente') or None
+    cliente   = request.args.get('cliente') or None
+    propiedad = request.args.get('propiedad') or request.args.get('property_id') or request.args.get('id_propiedad') or None
     year = request.args.get('year') or None
     month = request.args.get('month') or None
-    day     = int(request.args.get('day'))   if request.args.get('day')   else None
+    day       = int(request.args.get('day'))   if request.args.get('day')   else None
 
     conn = cur = None
     try:
@@ -6352,7 +6423,7 @@ def api_equipos_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id)
+        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
         where  = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,
@@ -6624,10 +6695,41 @@ def dashboard_redirect():
 @dashboard_bp.route('/api/properties')
 @jwt_required()
 def api_properties():
-    """API endpoint to get all available properties"""
-    user_email = get_jwt_identity()
-    properties = get_properties(user_email=user_email)
-    return jsonify(properties)
+    """API endpoint to get all available properties and customer companies"""
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        user_email = get_jwt_identity()
+        company_id = None
+        clientes = []
+        if conn:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            company_id = _get_user_company_id(cur, user_email)
+            cid_cond = "WHERE company_id = %s" if company_id is not None else ""
+            cid_params = (company_id,) if company_id is not None else ()
+            cur.execute(f"""
+                SELECT id, name
+                FROM customer_companies
+                {cid_cond}
+                ORDER BY name
+            """, cid_params)
+            clientes = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall() if r["name"]]
+
+        properties = get_properties(user_email=user_email)
+        if not clientes:
+            unique_cl_names = sorted(list(set(p['cliente'] for p in properties if p.get('cliente'))))
+            clientes = [{"id": name, "name": name} for name in unique_cl_names]
+
+        return jsonify({
+            'properties': properties,
+            'clientes': clientes
+        })
+    except Exception as e:
+        app_logger.error(f"api_properties error: {e}", exc_info=True)
+        return jsonify({'properties': [], 'clientes': []})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 @dashboard_bp.route('/api/reports/<stat_type>')
 @jwt_required()

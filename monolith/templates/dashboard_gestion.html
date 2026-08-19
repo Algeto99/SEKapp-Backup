@@ -473,6 +473,12 @@
                     <select id="filterCliente" class="filter-select"></select>
                 </div>
                 <div>
+                    <label class="filter-label" for="filterPropiedad">Propiedad / Instalación</label>
+                    <select id="filterPropiedad" class="filter-select">
+                        <option value="">Todas las instalaciones</option>
+                    </select>
+                </div>
+                <div>
                     <label class="filter-label">Año</label>
                     <div id="filterYear-wrap" style="min-width:110px;"></div>
                 </div>
@@ -731,6 +737,9 @@
         const modulesGrid = document.getElementById('modulesGrid');
 
         const filterCliente = document.getElementById('filterCliente');
+        const filterPropiedad = document.getElementById('filterPropiedad');
+        let allGestionProperties = [];
+        let allGestionClientes = [];
         let filterYearMS   = null;  // MultiSelect instance (set in buildDateFilters)
         let filterMonthMS  = null;  // MultiSelect instance (set in buildDateFilters)
         const filterDay = document.getElementById('filterDay');
@@ -828,9 +837,59 @@
             fillSelect(filterDay, Array.from({ length: 31 }, (_, i) => String(i + 1)), 'Todos');
         }
 
+        function refreshGestionProperties() {
+            if (!filterPropiedad) return;
+            const selectedClient = (filterCliente.value || '').trim().toLowerCase();
+            const currentProp = filterPropiedad.value;
+
+            let filtered = allGestionProperties;
+            if (selectedClient) {
+                filtered = allGestionProperties.filter(p => {
+                    const pCust = p.customer_company_id != null ? String(p.customer_company_id).trim().toLowerCase() : null;
+                    const pCli = p.cliente ? String(p.cliente).trim().toLowerCase() : null;
+                    return pCust === selectedClient || pCli === selectedClient;
+                });
+            }
+
+            filterPropiedad.innerHTML = '<option value="">Todas las instalaciones</option>';
+            filtered.forEach(p => {
+                const opt = document.createElement('option');
+                const pid = p.id != null ? p.id : p.id_propiedad;
+                opt.value = String(pid != null ? pid : (p.name || p.nombre));
+                let label = p.name || p.nombre || `Instalación ${pid}`;
+                if (!selectedClient && p.cliente) {
+                    label = `${label} (${p.cliente})`;
+                }
+                opt.textContent = label;
+                filterPropiedad.appendChild(opt);
+            });
+
+            // Restore selection if still in options
+            if (currentProp) {
+                const exists = Array.from(filterPropiedad.options).some(o => o.value === currentProp);
+                if (exists) {
+                    filterPropiedad.value = currentProp;
+                } else {
+                    filterPropiedad.value = '';
+                }
+            }
+        }
+
         function readFromUrl() {
             const params = new URLSearchParams(window.location.search);
             filterCliente.value = params.get('cliente') || '';
+            refreshGestionProperties();
+            const propVal = params.get('propiedad') || params.get('property_id') || params.get('id_propiedad') || '';
+            if (propVal && filterPropiedad) {
+                const exists = Array.from(filterPropiedad.options).some(o => o.value === propVal);
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = propVal;
+                    opt.textContent = `Instalación ${propVal}`;
+                    filterPropiedad.appendChild(opt);
+                }
+                filterPropiedad.value = propVal;
+            }
             if (params.get('year') && filterYearMS) {
                 const vals = params.get('year').split(',').map(v => v.trim()).filter(Boolean);
                 filterYearMS.setValues(vals);
@@ -847,6 +906,10 @@
         function updateUrl() {
             const params = new URLSearchParams();
             if (filterCliente.value) params.set('cliente', filterCliente.value);
+            if (filterPropiedad && filterPropiedad.value) {
+                params.set('propiedad', filterPropiedad.value);
+                params.set('property_id', filterPropiedad.value);
+            }
             const yVals = filterYearMS ? filterYearMS.getValues() : [];
             const mVals = filterMonthMS ? filterMonthMS.getValues() : [];
             if (yVals.length) params.set('year', yVals.join(','));
@@ -861,6 +924,10 @@
         function queryString() {
             const params = new URLSearchParams();
             if (filterCliente.value) params.set('cliente', filterCliente.value);
+            if (filterPropiedad && filterPropiedad.value) {
+                params.set('propiedad', filterPropiedad.value);
+                params.set('property_id', filterPropiedad.value);
+            }
             const yVals = filterYearMS ? filterYearMS.getValues() : [];
             const mVals = filterMonthMS ? filterMonthMS.getValues() : [];
             if (yVals.length) params.set('year', yVals.join(','));
@@ -1003,11 +1070,15 @@
             try {
                 const res = await fetch('/dashboard/api/gestion/filtros');
                 const data = await res.json();
-                fillSelect(filterCliente, data.clientes || [], 'Todos');
+                allGestionClientes = data.clientes || [];
+                allGestionProperties = data.properties || [];
+                fillSelect(filterCliente, allGestionClientes, 'Todos');
                 fillSelect(filterResponsable, data.responsables || [], 'Todos');
+                refreshGestionProperties();
             } catch (err) {
                 fillSelect(filterCliente, [], 'Todos');
                 fillSelect(filterResponsable, [], 'Todos');
+                refreshGestionProperties();
             }
         }
 
@@ -1673,7 +1744,12 @@
         }
 
         function bindEvents() {
-            [filterCliente, filterDay, filterNombre].forEach(el => {
+            filterCliente.addEventListener('change', () => {
+                refreshGestionProperties();
+                loadDashboard();
+            });
+            filterPropiedad.addEventListener('change', () => loadDashboard());
+            [filterDay, filterNombre].forEach(el => {
                 el.addEventListener('change', () => loadDashboard());
             });
             filterResponsable.addEventListener('change', async () => {
@@ -1683,6 +1759,8 @@
             });
             resetFilters.addEventListener('click', () => {
                 filterCliente.value = '';
+                if (filterPropiedad) filterPropiedad.value = '';
+                refreshGestionProperties();
                 if (filterYearMS) filterYearMS.reset();
                 if (filterMonthMS) filterMonthMS.reset();
                 filterDay.value = '';

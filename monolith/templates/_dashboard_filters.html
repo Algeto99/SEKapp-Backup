@@ -271,11 +271,21 @@
 
 <div class="df-bar" id="dashboard-filters">
 
-  <!-- ① Propiedad / Cliente ──────────────────────────────────────────── -->
-  <div class="df-section">
-    <span class="df-label">Propiedad / Cliente</span>
-    <select id="df-property" class="df-select" data-custom-loader="true">
-      <option value="">Todas las propiedades</option>
+  <!-- ① Cliente ────────────────────────────────────────────────── -->
+  <div class="df-section" id="df-cliente-section">
+    <span class="df-label">Cliente</span>
+    <select id="df-cliente" class="df-select" style="min-width:180px;">
+      <option value="">Todos los clientes</option>
+    </select>
+  </div>
+
+  <div class="df-divider"></div>
+
+  <!-- ② Propiedad / Instalación ─────────────────────────────────── -->
+  <div class="df-section" id="df-property-section">
+    <span class="df-label">Propiedad / Instalación</span>
+    <select id="df-property" class="df-select" style="min-width:190px;">
+      <option value="">Todas las instalaciones</option>
     </select>
   </div>
 
