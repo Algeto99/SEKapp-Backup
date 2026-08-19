@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 import hashlib
 from datetime import datetime, timezone
@@ -32,6 +33,21 @@ def enforce_force_password_change():
     if claims.get('force_pw') and request.endpoint not in _FORCE_PW_ALLOWED:
         return redirect(url_for('login_bp.change_password', forced='1'))
 
+_SUBMIT_TO_FORM_MAP = {
+    'incident_report': 'reporte_incidente',
+    'medicion_experiencia_cliente': 'medicion_experiencia_cliente',
+    'supervision_puesto': 'supervision_puesto',
+    'informe_novedades_disciplinario': 'informe_novedades_disciplinario',
+    'log_de_patrullas': 'log_de_patrullas',
+    'asistencia_qr': 'asistencia_qr',
+    'registro_de_capacitaciones': 'registro_de_capacitaciones',
+    'registro_y_acta_de_visita': 'registro_y_acta_de_visita',
+    'planilla_vehicular': 'planilla_vehicular',
+    'planilla_motocicletas': 'planilla_motocicletas',
+    'checklist_cumplimiento': 'checklist_cumplimiento',
+    'confiabilidad_equipos': 'confiabilidad_equipos',
+}
+
 def _safe_redirect(next_url, fallback):
     if not next_url:
         return fallback
@@ -41,6 +57,29 @@ def _safe_redirect(next_url, fallback):
     path = parsed.path
     if not path.startswith('/') or path.startswith('//'):
         return fallback
+
+    clean_path = path.rstrip('/')
+    if '/api/' in clean_path or clean_path.endswith('/logout') or clean_path in ('', '/'):
+        return fallback
+
+    # Avoid redirecting to POST-only submit routes: map to GET form equivalent
+    if clean_path.startswith('/forms/submit_'):
+        edit_match = re.match(r'^/forms/submit_([a-zA-Z0-9_]+)/(\d+)/editar$', clean_path)
+        if edit_match:
+            form_key, rec_id = edit_match.groups()
+            form_route = _SUBMIT_TO_FORM_MAP.get(form_key, form_key)
+            return f"/forms/{form_route}/{rec_id}/editar"
+
+        std_match = re.match(r'^/forms/submit_([a-zA-Z0-9_]+)$', clean_path)
+        if std_match:
+            form_key = std_match.group(1)
+            form_route = _SUBMIT_TO_FORM_MAP.get(form_key, form_key)
+            return f"/forms/{form_route}"
+        return fallback
+
+    if clean_path.startswith('/admin/users/') or clean_path.startswith('/admin/companies/'):
+        return '/admin/'
+
     if parsed.query:
         return f"{path}?{parsed.query}"
     return path
@@ -127,6 +166,7 @@ def delete_reset_token(token):
 # --- Routes Blueprint ---
 
 @login_bp.route('/', methods=['GET', 'POST'])
+@login_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("20 per minute; 5 per second")
 def login():
     if request.method == 'POST':

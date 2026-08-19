@@ -1,12 +1,13 @@
 import os
+import re
 import sys
 import logging
 from datetime import timedelta
-from urllib.parse import quote
-from flask import Flask, jsonify, request, redirect
+from urllib.parse import quote, urlparse
+from flask import Flask, jsonify, request, redirect, flash, url_for
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_bcrypt import Bcrypt
 from extensions import limiter
 from google.cloud import secretmanager
@@ -129,48 +130,110 @@ CORS(app, origins=_allowed_origins, supports_credentials=True)
 csrf = CSRFProtect(app)
 bcrypt = Bcrypt(app)
 
-# --- JWT Error Handlers ---
+# --- JWT Error Handlers & Navigation Helpers ---
+_SUBMIT_TO_FORM_MAP = {
+    'incident_report': 'reporte_incidente',
+    'medicion_experiencia_cliente': 'medicion_experiencia_cliente',
+    'supervision_puesto': 'supervision_puesto',
+    'informe_novedades_disciplinario': 'informe_novedades_disciplinario',
+    'log_de_patrullas': 'log_de_patrullas',
+    'asistencia_qr': 'asistencia_qr',
+    'registro_de_capacitaciones': 'registro_de_capacitaciones',
+    'registro_y_acta_de_visita': 'registro_y_acta_de_visita',
+    'planilla_vehicular': 'planilla_vehicular',
+    'planilla_motocicletas': 'planilla_motocicletas',
+    'checklist_cumplimiento': 'checklist_cumplimiento',
+    'confiabilidad_equipos': 'confiabilidad_equipos',
+}
+
 def _is_api_request():
     return '/api/' in request.path or request.headers.get('X-SecApp-Replay') == '1'
 
-def _redirect_to_login():
-    """Redirect to login preserving the original destination (path + query string) as
+def _map_to_safe_get_url(path, referrer=None, fallback='/landing/'):
+    """Maps a requested path (including POST endpoints) to a valid GET navigation destination,
+    preventing 405 Method Not Allowed when following redirects after login."""
+    if not path:
+        return fallback
+
+    parsed = urlparse(path)
+    clean_path = parsed.path.rstrip('/')
+
+    # Discard pure API routes, logout, or root
+    if '/api/' in clean_path or clean_path.endswith('/logout') or clean_path in ('', '/'):
+        if referrer:
+            ref_parsed = urlparse(referrer)
+            ref_path = ref_parsed.path.rstrip('/')
+            if ref_path and not ref_path.startswith('/forms/submit_') and '/api/' not in ref_path and ref_path != '/login':
+                return ref_path + (f"?{ref_parsed.query}" if ref_parsed.query else "")
+        return fallback
+
+    # If it's a form submit route, map it back to the corresponding GET form route
+    if clean_path.startswith('/forms/submit_'):
+        # Check edit mode: /forms/submit_<name>/<id>/editar
+        edit_match = re.match(r'^/forms/submit_([a-zA-Z0-9_]+)/(\d+)/editar$', clean_path)
+        if edit_match:
+            form_key, rec_id = edit_match.groups()
+            form_route = _SUBMIT_TO_FORM_MAP.get(form_key, form_key)
+            return f"/forms/{form_route}/{rec_id}/editar"
+
+        # Check standard submit: /forms/submit_<name>
+        std_match = re.match(r'^/forms/submit_([a-zA-Z0-9_]+)$', clean_path)
+        if std_match:
+            form_key = std_match.group(1)
+            form_route = _SUBMIT_TO_FORM_MAP.get(form_key, form_key)
+            return f"/forms/{form_route}"
+
+    if clean_path.startswith('/admin/users/') or clean_path.startswith('/admin/companies/'):
+        return '/admin/'
+
+    return path
+
+def _redirect_to_login(message="Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente para continuar."):
+    """Redirect to login preserving the original destination (sanitized to safe GET) as
     ?next=, so login_bp.py can send the user back where they were headed after
-    authenticating — e.g. a deep link from an email notification."""
+    authenticating without triggering 405 Method Not Allowed."""
     dest = request.full_path if request.query_string else request.path
     if dest.endswith('?'):
         dest = dest[:-1]
-    return redirect(f"/?next={quote(dest, safe='')}")
+
+    safe_dest = _map_to_safe_get_url(dest, referrer=request.referrer, fallback=None)
+
+    if message:
+        flash(message, "warning")
+
+    if safe_dest and safe_dest not in ('/', '/login', '/landing/', '/landing'):
+        return redirect(f"/?next={quote(safe_dest, safe='')}")
+    return redirect("/")
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
     if _is_api_request():
-        return jsonify({"success": False, "message": "Session expired. Please refresh the page."}), 401
-    return _redirect_to_login()
+        return jsonify({"success": False, "message": "Tu sesión ha expirado. Por favor recarga la página o inicia sesión."}), 401
+    return _redirect_to_login(message="Tu sesión ha expirado por inactividad. Inicia sesión nuevamente para continuar.")
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error_string):
     if _is_api_request():
-        return jsonify({"success": False, "message": "Invalid session. Please log in again."}), 401
-    return _redirect_to_login()
+        return jsonify({"success": False, "message": "Sesión inválida. Por favor inicia sesión nuevamente."}), 401
+    return _redirect_to_login(message="Tu sesión no es válida. Por favor inicia sesión nuevamente.")
 
 @jwt.unauthorized_loader
 def unauthorized_callback(error_string):
     if _is_api_request():
-        return jsonify({"success": False, "message": "Authentication required."}), 401
-    return _redirect_to_login()
+        return jsonify({"success": False, "message": "Autenticación requerida."}), 401
+    return _redirect_to_login(message="Debes iniciar sesión para acceder a esta página.")
 
 @jwt.revoked_token_loader
 def revoked_token_callback(jwt_header, jwt_payload):
     if _is_api_request():
-        return jsonify({"success": False, "message": "Session revoked. Please log in again."}), 401
-    return _redirect_to_login()
+        return jsonify({"success": False, "message": "Sesión cerrada. Por favor inicia sesión nuevamente."}), 401
+    return _redirect_to_login(message="Tu sesión fue cerrada. Por favor inicia sesión nuevamente.")
 
 @jwt.needs_fresh_token_loader
 def needs_fresh_token_callback(jwt_header, jwt_payload):
     if _is_api_request():
-        return jsonify({"success": False, "message": "Fresh authentication required."}), 401
-    return _redirect_to_login()
+        return jsonify({"success": False, "message": "Autenticación reciente requerida."}), 401
+    return _redirect_to_login(message="Por seguridad, debes volver a identificarte.")
 
 # --- Mount Applications/Blueprints Here ---
 # Prefixing them is important to prevent route collisions.
@@ -293,6 +356,31 @@ def page_not_found(e):
     # de API deben recibir un 404 en JSON; solo la navegación del navegador se redirige.
     if _is_api_request():
         return jsonify({"success": False, "message": "Recurso no encontrado."}), 404
+    return redirect('/')
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    app_logger.warning(f"405 Method Not Allowed on {request.method} {request.path}")
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Método no permitido para la URL solicitada."}), 405
+
+    # If the user or browser refreshed/navigated to a form submit URL via GET, redirect gracefully to the form
+    if request.method == 'GET' and request.path.startswith('/forms/submit_'):
+        safe_url = _map_to_safe_get_url(request.path, fallback='/forms/select_form')
+        return redirect(safe_url)
+
+    # For general web navigation with 405, redirect to landing or login
+    token_present = bool(request.cookies.get('access_token_cookie'))
+    return redirect(url_for('landing_bp.landing_page') if token_present else '/')
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    app_logger.warning(f"CSRF Error: {e.description} on {request.method} {request.path}")
+    if _is_api_request():
+        return jsonify({"success": False, "message": "Token de seguridad inválido o expirado. Por favor recarga la página."}), 400
+    flash("Tu sesión o token de seguridad expiró por inactividad. Por favor intenta de nuevo.", "warning")
+    if request.referrer and not request.referrer.endswith('/login') and not request.referrer.endswith('/'):
+        return redirect(request.referrer)
     return redirect('/')
 
 # --- Main Entry Point ---

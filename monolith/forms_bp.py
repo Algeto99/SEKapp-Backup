@@ -674,9 +674,11 @@ def reporte_incidente_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_incident_report', methods=['POST'])
+@forms_bp.route('/submit_incident_report', methods=['GET', 'POST'])
 @jwt_required()
 def submit_incident_report():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.reporte_incidente_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -761,10 +763,12 @@ def reporte_incidente_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_incident_report/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_incident_report/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_incident_report_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.reporte_incidente_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -840,9 +844,11 @@ def medicion_experiencia_cliente_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_medicion_experiencia_cliente', methods=['POST'])
+@forms_bp.route('/submit_medicion_experiencia_cliente', methods=['GET', 'POST'])
 @jwt_required()
 def submit_medicion_experiencia_cliente():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.medicion_experiencia_cliente_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -944,10 +950,12 @@ def medicion_experiencia_cliente_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_medicion_experiencia_cliente/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_medicion_experiencia_cliente/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_medicion_experiencia_cliente_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.medicion_experiencia_cliente_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1039,9 +1047,11 @@ def supervision_puesto_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_supervision_puesto', methods=['POST'])
+@forms_bp.route('/submit_supervision_puesto', methods=['GET', 'POST'])
 @jwt_required()
 def submit_supervision_puesto():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.supervision_puesto_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1197,10 +1207,12 @@ def supervision_puesto_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_supervision_puesto/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_supervision_puesto/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_supervision_puesto_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.supervision_puesto_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1310,9 +1322,11 @@ def informe_novedades_disciplinario_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_informe_novedades_disciplinario', methods=['POST'])
+@forms_bp.route('/submit_informe_novedades_disciplinario', methods=['GET', 'POST'])
 @jwt_required()
 def submit_informe_novedades_disciplinario():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.informe_novedades_disciplinario_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1456,10 +1470,12 @@ def informe_novedades_disciplinario_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_informe_novedades_disciplinario/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_informe_novedades_disciplinario/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_informe_novedades_disciplinario_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.informe_novedades_disciplinario_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1567,10 +1583,12 @@ def log_de_patrullas_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_log_de_patrullas', methods=['POST'])
+@forms_bp.route('/submit_log_de_patrullas', methods=['GET', 'POST'])
 @jwt_required()
 @module_required('log_de_patrullas')
 def submit_log_de_patrullas():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.log_de_patrullas_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1653,11 +1671,13 @@ def log_de_patrullas_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_log_de_patrullas/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_log_de_patrullas/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 @module_required('log_de_patrullas')
 def submit_log_de_patrullas_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.log_de_patrullas_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -1730,9 +1750,11 @@ def asistencia_qr_form(session_token):
     topic = request.args.get('topic', '')
     return render_template('asistencia_qr.html', session_token=session_token, topic=topic)
 
-@forms_bp.route('/submit_asistencia_qr/<session_token>', methods=['POST'])
+@forms_bp.route('/submit_asistencia_qr/<session_token>', methods=['GET', 'POST'])
 def submit_asistencia_qr(session_token):
     """Save a guest attendance entry; no JWT needed."""
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.asistencia_qr_form', session_token=session_token))
     conn = None
     try:
         nombre = request.form.get('nombre', '').strip()
@@ -1778,9 +1800,11 @@ def registro_de_capacitaciones_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_registro_de_capacitaciones', methods=['POST'])
+@forms_bp.route('/submit_registro_de_capacitaciones', methods=['GET', 'POST'])
 @jwt_required()
 def submit_registro_de_capacitaciones():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.registro_de_capacitaciones_form'))
     import json as _json
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
@@ -1913,10 +1937,12 @@ def registro_de_capacitaciones_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_registro_de_capacitaciones/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_registro_de_capacitaciones/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_registro_de_capacitaciones_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.registro_de_capacitaciones_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2081,9 +2107,11 @@ def _parse_visit_form_data(request, user_email):
     }
 
 
-@forms_bp.route('/submit_registro_y_acta_de_visita', methods=['POST'])
+@forms_bp.route('/submit_registro_y_acta_de_visita', methods=['GET', 'POST'])
 @jwt_required()
 def submit_registro_y_acta_de_visita():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.registro_y_acta_de_visita_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2155,10 +2183,12 @@ def registro_y_acta_de_visita_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_registro_y_acta_de_visita/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_registro_y_acta_de_visita/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_registro_y_acta_de_visita_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.registro_y_acta_de_visita_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2232,9 +2262,11 @@ def planilla_vehicular_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_planilla_vehicular', methods=['POST'])
+@forms_bp.route('/submit_planilla_vehicular', methods=['GET', 'POST'])
 @jwt_required()
 def submit_planilla_vehicular():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.planilla_vehicular_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2355,10 +2387,12 @@ def planilla_vehicular_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_planilla_vehicular/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_planilla_vehicular/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_planilla_vehicular_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.planilla_vehicular_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2478,9 +2512,11 @@ def planilla_motocicletas_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_planilla_motocicletas', methods=['POST'])
+@forms_bp.route('/submit_planilla_motocicletas', methods=['GET', 'POST'])
 @jwt_required()
 def submit_planilla_motocicletas():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.planilla_motocicletas_form'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2588,10 +2624,12 @@ def planilla_motocicletas_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_planilla_motocicletas/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_planilla_motocicletas/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_planilla_motocicletas_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.planilla_motocicletas_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2688,10 +2726,12 @@ def checklist_cumplimiento():
                            is_admin=is_admin,
                            **get_service_urls())
 
-@forms_bp.route('/submit_checklist_cumplimiento', methods=['POST'])
+@forms_bp.route('/submit_checklist_cumplimiento', methods=['GET', 'POST'])
 @jwt_required()
 def submit_checklist_cumplimiento():
     """Handles the submission of the updated compliance checklist form with multiple entries."""
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.checklist_cumplimiento'))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2826,10 +2866,12 @@ def checklist_cumplimiento_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_checklist_cumplimiento/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_checklist_cumplimiento/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_checklist_cumplimiento_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.checklist_cumplimiento_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
@@ -2930,9 +2972,11 @@ def confiabilidad_equipos_form():
         **get_service_urls()
     )
 
-@forms_bp.route('/submit_confiabilidad_equipos', methods=['POST'])
+@forms_bp.route('/submit_confiabilidad_equipos', methods=['GET', 'POST'])
 @jwt_required()
 def submit_confiabilidad_equipos():
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.confiabilidad_equipos_form'))
     import json as _json
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
@@ -3041,10 +3085,12 @@ def confiabilidad_equipos_editar_form(id):
             conn.close()
 
 
-@forms_bp.route('/submit_confiabilidad_equipos/<int:id>/editar', methods=['POST'])
+@forms_bp.route('/submit_confiabilidad_equipos/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
 def submit_confiabilidad_equipos_editar(id):
+    if request.method == 'GET':
+        return redirect(url_for('forms_bp.confiabilidad_equipos_editar_form', id=id))
     identity = get_jwt_identity()
     user_email = identity if isinstance(identity, str) else identity['email']
     conn = None
