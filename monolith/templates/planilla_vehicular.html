@@ -265,18 +265,24 @@
             <p class="text-gray-400 mt-2">Control y inspección de flota vehicular</p>
         </div>
 
-        <form id="planillaVehicularForm" action="{{ url_for('forms_bp.submit_planilla_vehicular_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_planilla_vehicular') }}" method="POST">
+        <form id="planillaVehicularForm" action="{{ url_for('forms_bp.submit_planilla_vehicular_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_planilla_vehicular') }}" method="POST" data-skip-customer-hierarchy="true">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
 
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="id_propiedad" class="form-label">Propiedad / Instalación</label>
-                        <select name="id_propiedad" id="id_propiedad" class="form-select">
-                            <option value="" disabled selected>Cargando propiedades...</option>
+                        <label for="customer_company_id" class="form-label">Cliente / Empresa</label>
+                        <select name="customer_company_id" id="customer_company_id" class="form-select">
+                            <option value="Sesursa" selected>Sesursa</option>
                         </select>
-                        <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
+                    </div>
+                    <div>
+                        <label for="cliente_instalacion" class="form-label">Propiedad / Instalación</label>
+                        <select name="cliente_instalacion" id="cliente_instalacion" class="form-select">
+                            <option value="NO APLICA" selected>NO APLICA</option>
+                        </select>
+                        <input type="hidden" name="id_propiedad" id="id_propiedad" value="" data-skip-hierarchy="true">
                     </div>
                     <div>
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable</label>

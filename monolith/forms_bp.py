@@ -137,7 +137,7 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
             property_customer_id = row[2]
 
     # Fallback: match property by name when submitted via legacy text input
-    if 'id_propiedad' not in scope and legacy_customer_value:
+    if 'id_propiedad' not in scope and legacy_customer_value and str(legacy_customer_value).strip().upper() != 'NO APLICA':
         cur.execute("""
             SELECT id_propiedad, nombre, customer_company_id
             FROM propiedades
@@ -163,6 +163,18 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         scope['customer_company_id'] = property_customer_id
     elif customer_company_id and str(customer_company_id).isdigit():
         scope['customer_company_id'] = int(customer_company_id)
+    elif customer_company_id and isinstance(customer_company_id, str) and customer_company_id.strip():
+        # Match customer company by name (e.g. "Sesursa")
+        cur.execute("""
+            SELECT id FROM customer_companies
+            WHERE LOWER(TRIM(name)) LIKE LOWER(TRIM(%s))
+              AND (company_id = %s OR company_id IS NULL)
+            ORDER BY id
+            LIMIT 1
+        """, (f"%{customer_company_id.strip()}%", company_id))
+        cc_row = cur.fetchone()
+        if cc_row:
+            scope['customer_company_id'] = cc_row[0]
 
     scope['submitter_timezone'] = request.form.get('submitter_timezone') or 'UTC'
 
@@ -2304,8 +2316,8 @@ def submit_planilla_vehicular():
         conn = get_db_connection()
         cur = conn.cursor()
         form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'cliente_instalacion': request.form.get('cliente_instalacion') or 'NO APLICA',
+            'puesto_area_especifica': request.form.get('puesto_area_especifica') or 'NO APLICA',
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
@@ -2356,7 +2368,7 @@ def submit_planilla_vehicular():
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id'),
+            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
         ))
         for key in request.form.keys():
             if key not in form_data and key != 'csrf_token':
@@ -2444,8 +2456,8 @@ def submit_planilla_vehicular_editar(id):
         old_record = dict(old_record)
 
         form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'cliente_instalacion': request.form.get('cliente_instalacion') or 'NO APLICA',
+            'puesto_area_especifica': request.form.get('puesto_area_especifica') or 'NO APLICA',
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
@@ -2495,7 +2507,7 @@ def submit_planilla_vehicular_editar(id):
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id'),
+            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
@@ -2556,8 +2568,8 @@ def submit_planilla_motocicletas():
         conn = get_db_connection()
         cur = conn.cursor()
         form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'cliente_instalacion': request.form.get('cliente_instalacion') or 'NO APLICA',
+            'puesto_area_especifica': request.form.get('puesto_area_especifica') or 'NO APLICA',
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
@@ -2583,7 +2595,7 @@ def submit_planilla_motocicletas():
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id'),
+            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
         ))
 
         # Add all form fields (checklist and inspection properties)
@@ -2678,8 +2690,8 @@ def submit_planilla_motocicletas_editar(id):
         old_record = dict(old_record)
 
         form_data = {
-            'cliente_instalacion': request.form.get('cliente_instalacion'),
-            'puesto_area_especifica': request.form.get('puesto_area_especifica'),
+            'cliente_instalacion': request.form.get('cliente_instalacion') or 'NO APLICA',
+            'puesto_area_especifica': request.form.get('puesto_area_especifica') or 'NO APLICA',
             'fecha_hora': request.form.get('fecha_hora'),
             'rol_aplicador': request.form.get('rol_aplicador'),
             'turno': request.form.get('turno'),
@@ -2707,7 +2719,7 @@ def submit_planilla_motocicletas_editar(id):
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id'),
+            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
         ))
 
         form_data = _preservar_firmas_existentes(form_data)

@@ -1100,6 +1100,14 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
     async function initPropertySelector() {
         const propertySelect = document.getElementById('id_propiedad');
         if (!propertySelect) return;
+        // Skip enhancement if form or select explicitly opts out (e.g. fixed Sesursa / internal forms)
+        if (propertySelect.dataset.skipHierarchy === 'true' ||
+            propertySelect.dataset.skipHierarchy === '1' ||
+            propertySelect.dataset.static === 'true' ||
+            propertySelect.dataset.secappFixed === 'true' ||
+            propertySelect.closest('form[data-skip-customer-hierarchy]')) {
+            return;
+        }
         // Enhance once, whatever fires us (duplicate script tag, bfcache restore).
         if (propertySelect.dataset.secappEnhanced) return;
         propertySelect.dataset.secappEnhanced = '1';
