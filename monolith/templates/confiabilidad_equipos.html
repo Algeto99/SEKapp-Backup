@@ -149,6 +149,30 @@
             padding: 1.25rem 1.25rem 1.25rem 1.5rem;
         }
 
+        .inv-input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.35) !important;
+            background-color: rgba(239, 68, 68, 0.08) !important;
+        }
+
+        .conf-toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 99999;
+            max-width: 90vw;
+            width: max-content;
+        }
+        .conf-toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
         /* Table overflow on mobile */
         .table-wrapper { overflow-x: auto; }
     </style>
@@ -451,6 +475,35 @@
             'Control de Acceso'
         ];
 
+        const MSG_OPERATIVOS_INVALID = 'El número de equipos operativos no puede ser mayor al total de equipos registrados. Verifique la información ingresada.';
+
+        let toastTimer = null;
+        function showConfiabilidadToast(msg, isError = true) {
+            let toast = document.getElementById('confiabilidadToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'confiabilidadToast';
+                toast.className = 'conf-toast';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `
+                <div class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl ${
+                    isError
+                    ? 'bg-red-900/95 text-red-100 border border-red-500/80 backdrop-blur-md'
+                    : 'bg-green-900/95 text-green-100 border border-green-500/80 backdrop-blur-md'
+                }">
+                    <span class="text-xl flex-shrink-0">${isError ? '⚠️' : '✓'}</span>
+                    <span class="text-sm font-medium pr-1">${msg}</span>
+                    <button type="button" onclick="this.closest('.conf-toast').classList.remove('show')" class="text-white/70 hover:text-white ml-2 text-lg font-bold">✕</button>
+                </div>
+            `;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 6000);
+        }
+
         /* ─── Confiabilidad Table Helpers ─── */
         function getStatusBadge(pct) {
             if (pct === null) return '<span class="status-badge status-na">N/A</span>';
@@ -473,15 +526,15 @@
                 if (!tipoSel || !totalIn || !funcIn) return;
 
                 const tipo  = tipoSel.value;
-                const total = parseInt(totalIn.value, 10);
-                const func  = parseInt(funcIn.value,  10);
+                const total = totalIn.value.trim() !== '' ? parseInt(totalIn.value, 10) : null;
+                const func  = funcIn.value.trim()  !== '' ? parseInt(funcIn.value,  10) : null;
 
                 if (!tipo || !TIPOS.includes(tipo)) return;
 
-                if (!isNaN(total)) {
+                if (total !== null && !isNaN(total) && total >= 0) {
                     data[tipo].total = (data[tipo].total || 0) + total;
                 }
-                if (!isNaN(func)) {
+                if (func !== null && !isNaN(func) && func >= 0) {
                     data[tipo].func = (data[tipo].func || 0) + func;
                 }
             });
@@ -497,8 +550,12 @@
 
                 const totalVal = hasData ? total : null;
                 const funcVal  = (hasData && func !== null) ? func : null;
-                const pct      = (totalVal && totalVal > 0 && funcVal !== null)
-                                 ? Math.round((funcVal / totalVal) * 100) : null;
+
+                // Avoid percentages > 100% or < 0%
+                let pct = null;
+                if (totalVal !== null && totalVal > 0 && funcVal !== null) {
+                    pct = Math.min(100, Math.max(0, Math.round((funcVal / totalVal) * 100)));
+                }
 
                 row.querySelector('.cell-total').textContent  = totalVal !== null ? totalVal : '—';
                 row.querySelector('.cell-func').textContent   = funcVal  !== null ? funcVal  : '—';
@@ -514,7 +571,7 @@
 
             // Average row
             const avgPct = (countValid > 0 && sumTotal > 0)
-                           ? Math.round((sumFunc / sumTotal) * 100) : null;
+                           ? Math.min(100, Math.max(0, Math.round((sumFunc / sumTotal) * 100))) : null;
             document.getElementById('avg-total').textContent  = countValid > 0 ? sumTotal : '—';
             document.getElementById('avg-func').textContent   = countValid > 0 ? sumFunc  : '—';
             document.getElementById('avg-pct').textContent    = avgPct !== null ? avgPct + '%' : '—';
@@ -589,6 +646,13 @@
                         </select>
                     </div>
 
+                    <div class="inv-error-msg hidden col-span-1 md:col-span-2 lg:col-span-3 bg-red-900/30 border border-red-500/50 text-red-200 px-3.5 py-2.5 rounded-lg text-sm flex items-start gap-2.5 mt-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="inv-error-text">El número de equipos operativos no puede ser mayor al total de equipos registrados. Verifique la información ingresada.</span>
+                    </div>
+
                     <div class="md:col-span-2 lg:col-span-3">
                         <label class="block text-sm font-medium mb-1">Comentario</label>
                         <textarea name="inventario[${index}][comentario]"
@@ -601,17 +665,96 @@
             return div;
         }
 
-        function toggleFallaField(block) {
-            const total = parseInt(block.querySelector('.inv-total')?.value, 10);
-            const func  = parseInt(block.querySelector('.inv-func')?.value,  10);
-            const fallaInput = block.querySelector('.inv-falla');
-            if (!fallaInput) return;
-            if (!isNaN(total) && !isNaN(func)) {
-                fallaInput.value = Math.max(0, total - func);
-            } else if (!isNaN(total) && isNaN(func)) {
-                fallaInput.value = total;
+        function validateInventarioBlock(block, triggerAlert = false) {
+            const totalIn = block.querySelector('.inv-total');
+            const funcIn  = block.querySelector('.inv-func');
+            const fallaIn = block.querySelector('.inv-falla');
+            const errorBox = block.querySelector('.inv-error-msg');
+            const errorText = block.querySelector('.inv-error-text');
+
+            if (!totalIn || !funcIn || !fallaIn) return true;
+
+            const totalVal = totalIn.value.trim() !== '' ? parseInt(totalIn.value, 10) : null;
+            const funcVal  = funcIn.value.trim()  !== '' ? parseInt(funcIn.value,  10) : null;
+
+            // Dynamically set max attribute on funcIn
+            if (totalVal !== null && !isNaN(totalVal) && totalVal >= 0) {
+                funcIn.max = totalVal;
             } else {
-                fallaInput.value = '';
+                funcIn.removeAttribute('max');
+            }
+
+            // Check negative values
+            if (totalVal !== null && !isNaN(totalVal) && totalVal < 0) {
+                totalIn.setCustomValidity('El total de equipos no puede ser negativo.');
+                totalIn.classList.add('inv-input-error');
+                if (errorBox && errorText) {
+                    errorText.textContent = 'El total de equipos no puede ser negativo.';
+                    errorBox.classList.remove('hidden');
+                }
+                if (triggerAlert) {
+                    showConfiabilidadToast('El total de equipos no puede ser negativo.', true);
+                    totalIn.reportValidity();
+                }
+                return false;
+            } else {
+                totalIn.setCustomValidity('');
+                totalIn.classList.remove('inv-input-error');
+            }
+
+            if (funcVal !== null && !isNaN(funcVal) && funcVal < 0) {
+                funcIn.setCustomValidity('El número de equipos operativos no puede ser negativo.');
+                funcIn.classList.add('inv-input-error');
+                if (errorBox && errorText) {
+                    errorText.textContent = 'El número de equipos operativos no puede ser negativo.';
+                    errorBox.classList.remove('hidden');
+                }
+                if (triggerAlert) {
+                    showConfiabilidadToast('El número de equipos operativos no puede ser negativo.', true);
+                    funcIn.reportValidity();
+                }
+                return false;
+            }
+
+            // Check funcVal > totalVal
+            if (totalVal !== null && funcVal !== null && !isNaN(totalVal) && !isNaN(funcVal)) {
+                if (funcVal > totalVal) {
+                    funcIn.setCustomValidity(MSG_OPERATIVOS_INVALID);
+                    funcIn.classList.add('inv-input-error');
+                    totalIn.classList.add('inv-input-error');
+                    if (errorBox && errorText) {
+                        errorText.textContent = MSG_OPERATIVOS_INVALID;
+                        errorBox.classList.remove('hidden');
+                    }
+                    fallaIn.value = '';
+                    if (triggerAlert) {
+                        showConfiabilidadToast(MSG_OPERATIVOS_INVALID, true);
+                        funcIn.reportValidity();
+                    }
+                    return false;
+                } else {
+                    // Valid relation
+                    funcIn.setCustomValidity('');
+                    funcIn.classList.remove('inv-input-error');
+                    totalIn.classList.remove('inv-input-error');
+                    if (errorBox) errorBox.classList.add('hidden');
+                    fallaIn.value = Math.max(0, totalVal - funcVal);
+                    return true;
+                }
+            } else if (totalVal !== null && !isNaN(totalVal) && (funcVal === null || isNaN(funcVal))) {
+                funcIn.setCustomValidity('');
+                funcIn.classList.remove('inv-input-error');
+                totalIn.classList.remove('inv-input-error');
+                if (errorBox) errorBox.classList.add('hidden');
+                fallaIn.value = totalVal;
+                return true;
+            } else {
+                funcIn.setCustomValidity('');
+                funcIn.classList.remove('inv-input-error');
+                totalIn.classList.remove('inv-input-error');
+                if (errorBox) errorBox.classList.add('hidden');
+                fallaIn.value = '';
+                return true;
             }
         }
 
@@ -630,12 +773,39 @@
                 el.addEventListener('change', updateConfiabilidadTable);
                 el.addEventListener('input',  updateConfiabilidadTable);
             });
-            // Auto-calculate equipos con falla = total - operativos
-            block.querySelectorAll('.inv-total, .inv-func').forEach(el => {
-                el.addEventListener('change', () => toggleFallaField(block));
-                el.addEventListener('input',  () => toggleFallaField(block));
-            });
-            toggleFallaField(block);
+
+            // Auto-validate and calculate falla
+            const totalIn = block.querySelector('.inv-total');
+            const funcIn  = block.querySelector('.inv-func');
+
+            if (totalIn) {
+                totalIn.addEventListener('input', () => {
+                    const totalVal = totalIn.value.trim() !== '' ? parseInt(totalIn.value, 10) : null;
+                    const funcVal  = funcIn.value.trim()  !== '' ? parseInt(funcIn.value,  10) : null;
+                    if (totalVal !== null && funcVal !== null && !isNaN(totalVal) && !isNaN(funcVal) && funcVal > totalVal) {
+                        validateInventarioBlock(block, true);
+                    } else {
+                        validateInventarioBlock(block, false);
+                    }
+                });
+                totalIn.addEventListener('change', () => validateInventarioBlock(block, true));
+                totalIn.addEventListener('blur', () => validateInventarioBlock(block, true));
+            }
+            if (funcIn) {
+                funcIn.addEventListener('input', () => {
+                    const totalVal = totalIn.value.trim() !== '' ? parseInt(totalIn.value, 10) : null;
+                    const funcVal  = funcIn.value.trim()  !== '' ? parseInt(funcIn.value,  10) : null;
+                    if (totalVal !== null && funcVal !== null && !isNaN(totalVal) && !isNaN(funcVal) && funcVal > totalVal) {
+                        validateInventarioBlock(block, true);
+                    } else {
+                        validateInventarioBlock(block, false);
+                    }
+                });
+                funcIn.addEventListener('change', () => validateInventarioBlock(block, true));
+                funcIn.addEventListener('blur', () => validateInventarioBlock(block, true));
+            }
+
+            validateInventarioBlock(block, false);
         }
 
         function renumberInventarioBlocks() {
@@ -693,7 +863,33 @@
         document.getElementById('clearSignatureSupervisor').addEventListener('click', () => padSupervisor.clear());
 
         /* ─── Form Submit ─── */
-        document.getElementById('confiabilidadForm').addEventListener('submit', function (e) {
+        const confiabilidadForm = document.getElementById('confiabilidadForm');
+        confiabilidadForm.addEventListener('submit', function (e) {
+            // Validate all inventory blocks before submission
+            const blocks = document.querySelectorAll('.inventory-block');
+            let firstInvalidInput = null;
+
+            for (let block of blocks) {
+                const isValid = validateInventarioBlock(block, false);
+                if (!isValid && !firstInvalidInput) {
+                    const funcIn = block.querySelector('.inv-func');
+                    const totalIn = block.querySelector('.inv-total');
+                    firstInvalidInput = (funcIn && !funcIn.validity.valid) ? funcIn : totalIn;
+                }
+            }
+
+            if (firstInvalidInput) {
+                e.preventDefault();
+                e.stopPropagation();
+                showConfiabilidadToast(MSG_OPERATIVOS_INVALID, true);
+                firstInvalidInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalidInput.focus();
+                if (typeof firstInvalidInput.reportValidity === 'function') {
+                    firstInvalidInput.reportValidity();
+                }
+                return false;
+            }
+
             // Capture signatures
             document.getElementById('firma_supervisor').value =
                 padSupervisor.isEmpty() ? '' : padSupervisor.toDataURL();

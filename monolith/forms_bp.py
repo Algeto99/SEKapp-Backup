@@ -3203,6 +3203,41 @@ def submit_checklist_cumplimiento_editar(id):
 
 
 # --- CONFIABILIDAD DE EQUIPOS ---
+def _validate_inventario_confiabilidad(inventario_list):
+    """Valida que en cada fila de inventario el número de equipos operativos no sea mayor al total."""
+    msg = 'El número de equipos operativos no puede ser mayor al total de equipos registrados. Verifique la información ingresada.'
+    for row in inventario_list:
+        total_raw = row.get('total_equipos')
+        func_raw = row.get('equipos_operativos')
+        t_val = None
+        f_val = None
+
+        if total_raw is not None and str(total_raw).strip() != '':
+            try:
+                t_val = int(total_raw)
+                if t_val < 0:
+                    return 'El total de equipos no puede ser un número negativo.'
+            except (ValueError, TypeError):
+                return 'El total de equipos debe ser un número entero válido.'
+
+        if func_raw is not None and str(func_raw).strip() != '':
+            try:
+                f_val = int(func_raw)
+                if f_val < 0:
+                    return 'El número de equipos operativos no puede ser un número negativo.'
+            except (ValueError, TypeError):
+                return 'El número de equipos operativos debe ser un número entero válido.'
+
+        if t_val is not None and f_val is not None:
+            if f_val > t_val:
+                return msg
+            row['equipos_con_falla'] = str(max(0, t_val - f_val))
+        elif t_val is not None and f_val is None:
+            row['equipos_con_falla'] = str(t_val)
+
+    return None
+
+
 @forms_bp.route('/confiabilidad_equipos')
 @jwt_required()
 def confiabilidad_equipos_form():
@@ -3253,6 +3288,12 @@ def submit_confiabilidad_equipos():
             row = {k: v for k, v in inventario_map[idx].items() if v}
             if row:
                 inventario_list.append(row)
+
+        inv_err = _validate_inventario_confiabilidad(inventario_list)
+        if inv_err:
+            if cur: cur.close()
+            if conn: conn.close()
+            return _return_form_error(inv_err, 400)
 
         inventario_json = psycopg2.extras.Json(inventario_list)
 
@@ -3383,6 +3424,12 @@ def submit_confiabilidad_equipos_editar(id):
             row = {k: v for k, v in inventario_map[idx].items() if v}
             if row:
                 inventario_list.append(row)
+
+        inv_err = _validate_inventario_confiabilidad(inventario_list)
+        if inv_err:
+            if cur: cur.close()
+            if conn: conn.close()
+            return _return_form_error(inv_err, 400)
 
         form_data = {
             'cliente_instalacion': request.form.get('cliente_instalacion'),
