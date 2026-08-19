@@ -218,9 +218,9 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos de la Capacitación/Reunión/Entrenamiento</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        <label for="id_propiedad" class="block text-sm font-medium mb-1">Propiedad / Instalación / Cliente</label>
-                        <select name="id_propiedad" id="id_propiedad" class="form-select">
+                    <div>
+                        <label for="id_propiedad" class="block text-sm font-medium mb-1">Propiedad / Instalación</label>
+                        <select name="id_propiedad" id="id_propiedad" class="form-select" data-allow-sesursa="true">
                             <option value="" disabled selected>Cargando propiedades…</option>
                         </select>
                         <input type="hidden" id="cliente_instalacion" name="cliente_instalacion">
@@ -685,6 +685,16 @@
                 if (record.id_propiedad) {
                     var propSel = document.getElementById('id_propiedad');
                     if (propSel) propSel.value = record.id_propiedad;
+                } else if (record.cliente_instalacion && record.cliente_instalacion.toUpperCase() === 'NO APLICA') {
+                    var propSel = document.getElementById('id_propiedad');
+                    if (propSel) propSel.value = 'NO APLICA';
+                    var clientSel = document.getElementById('customer_company_id');
+                    if (clientSel) {
+                        var sesursaOpt = Array.from(clientSel.options).find(function(o) {
+                            return o.textContent && o.textContent.toUpperCase().indexOf('SESURSA') !== -1;
+                        });
+                        if (sesursaOpt) clientSel.value = sesursaOpt.value;
+                    }
                 }
             }, 300);
         });

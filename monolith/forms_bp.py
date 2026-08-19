@@ -176,6 +176,10 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         cc_row = cur.fetchone()
         if cc_row:
             scope['customer_company_id'] = cc_row[0]
+        elif 'sesursa' in customer_company_id.lower():
+            def_cc = _ensure_default_customer_company(cur, company_id)
+            if def_cc:
+                scope['customer_company_id'] = def_cc['id']
 
     scope['submitter_timezone'] = request.form.get('submitter_timezone') or 'UTC'
 

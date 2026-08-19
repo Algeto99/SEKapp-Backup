@@ -802,7 +802,7 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
     //     lowest id, which is the original row the history hangs off.
     // Comparison is accent- and case-insensitive: "Bodega Colón" and
     // "Bodega Colon" are the same place.
-    function buildClientTree(properties) {
+    function buildClientTree(properties, allowSesursa = false) {
         const byName = new Map();
         const orphans = { groupKey: NO_CUSTOMER, name: NO_CUSTOMER_LABEL, properties: [] };
 
@@ -829,7 +829,7 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
             // The id is only what gets submitted; the server re-derives it from the
             // property anyway, so a payload without it stays perfectly usable.
             const withId = client.properties.find((p) => p.customer_company_id != null);
-            client.value = withId ? String(withId.customer_company_id) : NO_CUSTOMER;
+            client.value = withId ? String(withId.customer_company_id) : (client.groupKey === 'n:sesursa' ? 'Sesursa' : NO_CUSTOMER);
         });
 
         clients.forEach((client) => {
@@ -842,6 +842,27 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
             client.properties = Array.from(unique.values())
                 .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
         });
+
+        if (allowSesursa) {
+            const sesursaGroupKey = 'n:sesursa';
+            let sesursaClient = clients.find((c) => normalize(c.name) === 'sesursa' || c.groupKey === sesursaGroupKey);
+            if (!sesursaClient) {
+                sesursaClient = {
+                    groupKey: sesursaGroupKey,
+                    name: 'SESURSA',
+                    value: 'Sesursa',
+                    properties: [
+                        { id: 'NO APLICA', name: 'NO APLICA', cliente: 'SESURSA' }
+                    ]
+                };
+                clients.push(sesursaClient);
+            } else {
+                const hasNoAplica = sesursaClient.properties.some((p) => normalize(p.name) === 'no aplica');
+                if (!hasNoAplica) {
+                    sesursaClient.properties.unshift({ id: 'NO APLICA', name: 'NO APLICA', cliente: sesursaClient.name });
+                }
+            }
+        }
 
         return clients.sort((a, b) => {
             if (a.groupKey === NO_CUSTOMER) return 1;
@@ -1112,6 +1133,12 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
         if (propertySelect.dataset.secappEnhanced) return;
         propertySelect.dataset.secappEnhanced = '1';
 
+        const allowSesursa = propertySelect.dataset.allowSesursa === 'true' ||
+            propertySelect.dataset.allowSesursa === '1' ||
+            propertySelect.dataset.includeSesursa === 'true' ||
+            (propertySelect.form && propertySelect.form.id === 'capacitacionForm') ||
+            (propertySelect.form && propertySelect.form.getAttribute('action') && propertySelect.form.getAttribute('action').includes('capacitacion'));
+
         const legacyInput = document.getElementById('cliente_instalacion')
                          || document.getElementById('cliente_visitado');
 
@@ -1123,12 +1150,12 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
             return;
         }
 
-        if (!data.properties.length) {
+        if (!data.properties.length && !allowSesursa) {
             renderEmptyState(propertySelect, 'No hay propiedades disponibles');
             return;
         }
 
-        const clients = buildClientTree(data.properties);
+        const clients = buildClientTree(data.properties, allowSesursa);
         const clientSelect = buildClientField(propertySelect, clients);
         fillPropertyOptions(propertySelect, clients);
 
@@ -1176,14 +1203,35 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
         }
 
         clientSelect.addEventListener('change', () => {
+            const currentKey = selectedClientKey();
+            const isSesursa = currentKey === 'n:sesursa' || currentKey === 'sesursa';
             const selected = propertySelect.options[propertySelect.selectedIndex];
+
             // Drop a property that no longer belongs to the chosen client.
-            if (selected && selected.value && selected.dataset.groupKey !== selectedClientKey()) {
+            if (selected && selected.value && selected.dataset.groupKey !== currentKey) {
                 propertySelect.selectedIndex = 0;
-                propertySelect.dispatchEvent(new Event('change', { bubbles: true }));
             }
             applyClientScope();
+
+            // When SESURSA is selected, automatically select 'NO APLICA' by default
+            if (isSesursa) {
+                const noAplicaOpt = Array.from(propertySelect.options).find(
+                    (opt) => opt.dataset.groupKey === currentKey && normalize(opt.dataset.label || opt.textContent) === 'no aplica'
+                );
+                if (noAplicaOpt) {
+                    propertySelect.selectedIndex = noAplicaOpt.index;
+                    if (legacyInput) legacyInput.value = noAplicaOpt.dataset.label || 'NO APLICA';
+                }
+            } else if (selected && selected.value && selected.dataset.groupKey === currentKey) {
+                if (legacyInput) legacyInput.value = selected.dataset.label || selected.value;
+            } else {
+                if (legacyInput) legacyInput.value = '';
+            }
+
             propertyCombo.syncFromSelect();
+            if (isSesursa && legacyInput && !legacyInput.value) {
+                legacyInput.value = 'NO APLICA';
+            }
         });
 
         propertySelect.addEventListener('change', () => {
