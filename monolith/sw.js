@@ -1,13 +1,15 @@
 /* SecApp Service Worker - Offline-first form queue */
-// Bumped to v9: /forms/api/properties now carries the `puestos` of each property,
-// which the "Puesto o Área Específica" selector in the forms needs — stale v8
-// payloads must not be served.
-const CACHE_VERSION = 'secapp-v9';
+// Bumped to v10: Local vehicle and motorcycle diagram assets cached for offline use
+const CACHE_VERSION = 'secapp-v10';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
 
-const STATIC_FALLBACKS = ['/forms/offline.html'];
+const STATIC_FALLBACKS = [
+    '/forms/offline.html',
+    '/static/img/car.png',
+    '/static/img/motorcycle.png',
+];
 
 // ── Install ──────────────────────────────────────────────────────────────────
 self.addEventListener('install', event => {

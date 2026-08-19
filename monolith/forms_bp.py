@@ -535,32 +535,44 @@ def _register_fleet_asset(cur, placa, kind, company_id):
     Matching ignores case and surrounding whitespace so "abc 123 " does not create
     a twin of "ABC 123". Scoped to company_id only — the asset belongs to the
     security company, not to whichever client it was inspected at.
+    Uses SAVEPOINT so fleet registration failure never aborts the parent transaction.
     """
-    plate = _normalize_plate(placa)
-    if not plate:
-        return
+    try:
+        plate = _normalize_plate(placa)
+        if not plate:
+            return
 
-    columns = _get_table_columns(cur, 'flota')
-    if not columns or 'placa' not in columns:
-        app_logger.warning("flota table missing or has no 'placa' column; skipping fleet registration")
-        return
+        cur.execute("SAVEPOINT fleet_asset_reg")
+        try:
+            columns = _get_table_columns(cur, 'flota')
+            if not columns or 'placa' not in columns:
+                app_logger.warning("flota table missing or has no 'placa' column; skipping fleet registration")
+                cur.execute("RELEASE SAVEPOINT fleet_asset_reg")
+                return
 
-    cur.execute("SELECT 1 FROM flota WHERE UPPER(TRIM(placa)) = %s LIMIT 1", (plate,))
-    if cur.fetchone():
-        return
+            cur.execute("SELECT 1 FROM flota WHERE UPPER(TRIM(placa)) = %s LIMIT 1", (plate,))
+            if cur.fetchone():
+                cur.execute("RELEASE SAVEPOINT fleet_asset_reg")
+                return
 
-    values = {'placa': plate}
-    if 'tipo' in columns:
-        values['tipo'] = 'Motocicleta' if kind == 'moto' else 'Vehículo'
-    if 'estado' in columns:
-        values['estado'] = 'Activo'
-    if 'company_id' in columns and company_id is not None:
-        values['company_id'] = company_id
+            values = {'placa': plate}
+            if 'tipo' in columns:
+                values['tipo'] = 'Motocicleta' if kind == 'moto' else 'Vehículo'
+            if 'estado' in columns:
+                values['estado'] = 'Activo'
+            if 'company_id' in columns and company_id is not None:
+                values['company_id'] = company_id
 
-    names = ', '.join(values.keys())
-    placeholders = ', '.join(['%s'] * len(values))
-    cur.execute(f"INSERT INTO flota ({names}) VALUES ({placeholders})", list(values.values()))
-    app_logger.info(f"Fleet asset registered from form submission: {plate} ({kind})")
+            names = ', '.join(values.keys())
+            placeholders = ', '.join(['%s'] * len(values))
+            cur.execute(f"INSERT INTO flota ({names}) VALUES ({placeholders})", list(values.values()))
+            cur.execute("RELEASE SAVEPOINT fleet_asset_reg")
+            app_logger.info(f"Fleet asset registered from form submission: {plate} ({kind})")
+        except Exception as inner_e:
+            cur.execute("ROLLBACK TO SAVEPOINT fleet_asset_reg")
+            app_logger.warning(f"Could not register fleet asset '{placa}': {inner_e}")
+    except Exception as e:
+        app_logger.warning(f"Error in fleet asset registration wrapper for '{placa}': {e}")
 
 
 @forms_bp.route('/api/fleet')
@@ -2328,6 +2340,9 @@ def submit_planilla_vehicular():
             property_id=request.form.get('id_propiedad'),
             customer_company_id=request.form.get('customer_company_id'),
         ))
+        for key in request.form.keys():
+            if key not in form_data and key != 'csrf_token':
+                form_data[key] = request.form.get(key)
         form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
@@ -2347,8 +2362,7 @@ def submit_planilla_vehicular():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla vehicular: {e}", exc_info=True)
-        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return render_template('error.html', message=f"Error al guardar la Planilla Vehicular: {e}", error=str(e)), 500
     finally:
         if conn:
             conn.close()
@@ -2554,14 +2568,12 @@ def submit_planilla_motocicletas():
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
-        # Add dynamic checklist items
+        # Add all form fields (checklist and inspection properties)
         for key in request.form.keys():
-            if key.startswith('estado_') and key not in form_data:
+            if key not in form_data and key != 'csrf_token':
                 form_data[key] = request.form.get(key)
 
         app_logger.info(f"Submitting motorcycle form for {user_email}")
-
-        app_logger.info("Fetching schema columns for planilla_motocicletas...")
         valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         columns = ', '.join(valid_form_data.keys())
@@ -2584,8 +2596,7 @@ def submit_planilla_motocicletas():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla motocicletas: {e}", exc_info=True)
-        app_logger.error(f"Unhandled form error: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return render_template('error.html', message=f"Error al guardar la Planilla Motocicletas: {e}", error=str(e)), 500
     finally:
         if conn:
             conn.close()
@@ -2671,7 +2682,7 @@ def submit_planilla_motocicletas_editar(id):
             'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
         }
         for key in request.form.keys():
-            if key.startswith('estado_') and key not in form_data:
+            if key not in form_data and key != 'csrf_token':
                 form_data[key] = request.form.get(key)
         form_data.update(_resolve_scope_fields(
             cur,
@@ -2709,7 +2720,7 @@ def submit_planilla_motocicletas_editar(id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing planilla motocicletas {id}: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return render_template('error.html', message=f"Error al editar la Planilla Motocicletas: {e}", error=str(e)), 500
     finally:
         if conn:
             conn.close()

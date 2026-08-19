@@ -102,10 +102,13 @@
     
     <h1 class="text-3xl font-bold mb-2">Error</h1>
     <div class="bg-red-500 text-white p-4 rounded-lg mb-6">
-      <p class="font-medium">{{ message }}</p>
+      <p class="font-medium">{{ message or error or 'Ha ocurrido un error inesperado al procesar el formulario.' }}</p>
     </div>
     
     <div class="space-y-3">
+      <a href="javascript:history.back()" class="block text-blue-400 hover:underline font-medium">
+        ← Volver al formulario
+      </a>
       <a href="{{ login_service_url }}/login" class="block text-blue-400 hover:underline">
         Volver al inicio de sesión
       </a>

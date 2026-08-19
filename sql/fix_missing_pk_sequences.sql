@@ -43,7 +43,9 @@ BEGIN
             ('log_de_patrullas',                'id_patrulla',           'creado_en'),
             ('registro_de_capacitaciones',      'id_capacitacion',       'creado_en'),
             ('registro_y_acta_de_visita',       'id_visita',             'creado_en'),
-            ('planilla_vehicular',              'id_planilla_vehicular', 'creado_en')
+            ('planilla_vehicular',              'id_planilla_vehicular', 'creado_en'),
+            ('planilla_motocicletas',           'id',                    'creado_en'),
+            ('flota',                           'id',                    'creado_en')
         ) AS t(tabla, id_col, date_col)
     LOOP
         -- La tabla puede no existir en un tenant que no tenga todos los módulos.

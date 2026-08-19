@@ -339,7 +339,7 @@
                     </div>
                     <div>
                         <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
-                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input" tabindex="-1" readonly required>
+                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input">
                     </div>
                     <div>
                         <label for="kilometraje_vehiculo" class="form-label">Kilometraje del Vehículo</label>
@@ -761,8 +761,8 @@
     {% endif %}
 
     <script>
-        // Define the public URL for the car diagram image
-        const carImageURL = 'https://storage.googleapis.com/smt-misc/car.png';
+        // Define the URL for the car diagram image (local asset for reliability and offline support)
+        const carImageURL = '/static/img/car.png';
 
         let entregaPad, recibePad, oficialPad;
         let carCanvas, carCtx;
@@ -872,19 +872,29 @@
             // Form submission
             const form = document.getElementById('planillaVehicularForm');
             form.addEventListener('submit', function (event) {
-                // Save all signatures
-                if (!entregaPad.isEmpty()) {
-                    document.getElementById('firma_entrega').value = entregaPad.toDataURL();
-                }
-                if (!recibePad.isEmpty()) {
-                    document.getElementById('firma_recibe').value = recibePad.toDataURL();
-                }
-                if (!oficialPad.isEmpty()) {
-                    document.getElementById('oficial_operaciones_firma').value = oficialPad.toDataURL();
-                }
+                try {
+                    // Save all signatures
+                    if (entregaPad && !entregaPad.isEmpty()) {
+                        const el = document.getElementById('firma_entrega');
+                        if (el) el.value = entregaPad.toDataURL();
+                    }
+                    if (recibePad && !recibePad.isEmpty()) {
+                        const el = document.getElementById('firma_recibe');
+                        if (el) el.value = recibePad.toDataURL();
+                    }
+                    if (oficialPad && !oficialPad.isEmpty()) {
+                        const el = document.getElementById('oficial_operaciones_firma');
+                        if (el) el.value = oficialPad.toDataURL();
+                    }
 
-                // Save car diagram with markings
-                document.getElementById('diagrama_danos').value = carCanvas.toDataURL();
+                    // Save car diagram with markings
+                    if (carCanvas) {
+                        const el = document.getElementById('diagrama_danos');
+                        if (el) el.value = carCanvas.toDataURL('image/png');
+                    }
+                } catch (e) {
+                    console.warn('[planilla_vehicular] Error exporting canvas/signature data:', e);
+                }
             });
         });
 
@@ -894,6 +904,7 @@
 
             // Load and draw the car image
             const carImage = new Image();
+            carImage.crossOrigin = 'anonymous';
             carImage.onload = function () {
                 // Set canvas size to match the image
                 carCanvas.width = carImage.width;

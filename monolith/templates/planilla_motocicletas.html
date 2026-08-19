@@ -263,6 +263,18 @@
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                        <label for="id_propiedad" class="form-label">Propiedad / Instalación</label>
+                        <select name="id_propiedad" id="id_propiedad" class="form-select">
+                            <option value="" disabled selected>Cargando propiedades...</option>
+                        </select>
+                        <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
+                    </div>
+                    <div>
+                        <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica</label>
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
+                            placeholder="Ej. Garita Principal">
+                    </div>
+                    <div>
                         <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable</label>
                         <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
                             <option value="" disabled>Seleccione un rol...</option>
@@ -323,7 +335,7 @@
                     </div>
                     <div>
                         <label for="fecha_ultimo_mantenimiento" class="form-label">Fecha de Último Mantenimiento</label>
-                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input" tabindex="-1" readonly>
+                        <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input">
                     </div>
                     <div>
                         <label for="kilometraje_motocicleta" class="form-label">Kilometraje de Motocicleta</label>
@@ -392,14 +404,14 @@
                         <canvas id="firma_entrega_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="firma_entrega_pad"
                             class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_entrega">
+                        <input type="hidden" name="firma_entrega" id="firma_entrega">
                     </div>
                     <div>
                         <label class="form-label">Firma de Recibe</label>
                         <canvas id="firma_recibe_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="firma_recibe_pad"
                             class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
-                        <input type="hidden" name="firma_recibe">
+                        <input type="hidden" name="firma_recibe" id="firma_recibe">
                     </div>
                 </div>
             </div>
@@ -523,7 +535,7 @@
 
     <script>
         // --- START CONFIGURATION ---
-        const motoImageURL = 'https://storage.googleapis.com/smt-misc/Motorcycle.png';
+        const motoImageURL = '/static/img/motorcycle.png';
         const checklistItems = [
             { label: "Estado de los (2) Neumáticos", name: "estado_neumaticos", options: ["Funciona", "No Funciona", "No aplica"] },
             { label: "Estado de los 2 Rines", name: "estado_rines", options: ["Funciona", "No Funciona", "No aplica"] },
@@ -665,18 +677,26 @@
 
             // Form submission logic
             document.getElementById('motocicletaForm').addEventListener('submit', function (event) {
-                if (signaturePads['firma_entrega_pad'] && !signaturePads['firma_entrega_pad'].isEmpty()) {
-                    document.querySelector('input[name="firma_entrega"]').value = signaturePads['firma_entrega_pad'].toDataURL();
-                }
-                if (signaturePads['firma_recibe_pad'] && !signaturePads['firma_recibe_pad'].isEmpty()) {
-                    document.querySelector('input[name="firma_recibe"]').value = signaturePads['firma_recibe_pad'].toDataURL();
-                }
-                if (signaturePads['oficial_firma_pad'] && !signaturePads['oficial_firma_pad'].isEmpty()) {
-                    document.querySelector('input[name="oficial_operaciones_firma"]').value = signaturePads['oficial_firma_pad'].toDataURL();
-                }
+                try {
+                    if (signaturePads['firma_entrega_pad'] && !signaturePads['firma_entrega_pad'].isEmpty()) {
+                        const el = document.getElementById('firma_entrega') || document.querySelector('input[name="firma_entrega"]');
+                        if (el) el.value = signaturePads['firma_entrega_pad'].toDataURL();
+                    }
+                    if (signaturePads['firma_recibe_pad'] && !signaturePads['firma_recibe_pad'].isEmpty()) {
+                        const el = document.getElementById('firma_recibe') || document.querySelector('input[name="firma_recibe"]');
+                        if (el) el.value = signaturePads['firma_recibe_pad'].toDataURL();
+                    }
+                    if (signaturePads['oficial_firma_pad'] && !signaturePads['oficial_firma_pad'].isEmpty()) {
+                        const el = document.getElementById('oficial_operaciones_firma') || document.querySelector('input[name="oficial_operaciones_firma"]');
+                        if (el) el.value = signaturePads['oficial_firma_pad'].toDataURL();
+                    }
 
-                if (motoCanvas) {
-                    document.getElementById('diagrama_danos').value = motoCanvas.toDataURL();
+                    if (motoCanvas) {
+                        const el = document.getElementById('diagrama_danos');
+                        if (el) el.value = motoCanvas.toDataURL('image/png');
+                    }
+                } catch (e) {
+                    console.warn('[planilla_motocicletas] Error exporting canvas/signature data:', e);
                 }
             });
         });
@@ -686,6 +706,7 @@
             motoCanvas = document.getElementById('motoDiagramCanvas');
             motoCtx = motoCanvas.getContext('2d');
             const motoImage = new Image();
+            motoImage.crossOrigin = 'anonymous';
             motoImage.onload = function () {
                 motoCanvas.width = motoImage.width;
                 motoCanvas.height = motoImage.height;
