@@ -607,9 +607,7 @@
             if (detalle) detalle.required = isOtro;
         }
         // Prefill the simple (non-repeatable) fields from the existing record.
-        // Note: temas_tratados / acuerdos_compromisos / nombre_responsable are stored as
-        // combined multi-block text/JSON — only the first block is prefilled here for simplicity;
-        // additional blocks can be re-entered using "Agregar" if needed.
+        // Prefill the fields from the existing record.
         (function prefillEditForm() {
             if (!window.EDIT_MODE || !window.EDIT_RECORD) return;
             var record = window.EDIT_RECORD;
@@ -635,21 +633,38 @@
             setValue('nombre_visitante', record.nombre_visitante);
             setValue('cargo_visitante', record.cargo_visitante);
 
-            if (record.temas_tratados) {
-                setValue('temas_tratados_0', record.temas_tratados.split('\n---\n')[0]);
-            }
-            if (record.acuerdos_compromisos) {
-                setValue('acuerdos_compromisos_0', record.acuerdos_compromisos.split('\n---\n')[0]);
-            }
+            var temasList = record.temas_tratados ? record.temas_tratados.split('\n---\n') : [];
+            var acuerdosList = record.acuerdos_compromisos ? record.acuerdos_compromisos.split('\n---\n') : [];
+            var responsablesList = [];
             if (record.nombre_responsable) {
                 try {
-                    var responsables = JSON.parse(record.nombre_responsable);
-                    if (Array.isArray(responsables) && responsables.length) {
-                        setValue('nombre_responsable_0', responsables[0].nombre);
-                        setValue('fecha_cumplimiento_0', responsables[0].fecha);
-                        setValue('estado_seguimiento_0', responsables[0].estado);
+                    var parsed = JSON.parse(record.nombre_responsable);
+                    if (Array.isArray(parsed)) {
+                        responsablesList = parsed;
+                    } else if (parsed && typeof parsed === 'object') {
+                        responsablesList = [parsed];
                     }
-                } catch (e) { /* not JSON, ignore */ }
+                } catch (e) {
+                    var parts = record.nombre_responsable.split('\n---\n');
+                    responsablesList = parts.map(function(p) { return { nombre: p.trim() }; });
+                }
+            }
+
+            var totalBlocks = Math.max(temasList.length, acuerdosList.length, responsablesList.length, 1);
+            var addBlockBtn = document.getElementById('addBlockBtn');
+            for (var b = 1; b < totalBlocks; b++) {
+                if (addBlockBtn) addBlockBtn.click();
+            }
+
+            for (var idx = 0; idx < totalBlocks; idx++) {
+                if (temasList[idx]) setValue('temas_tratados_' + idx, temasList[idx]);
+                if (acuerdosList[idx]) setValue('acuerdos_compromisos_' + idx, acuerdosList[idx]);
+                if (responsablesList[idx]) {
+                    var rItem = responsablesList[idx];
+                    setValue('nombre_responsable_' + idx, rItem.nombre || '');
+                    setValue('fecha_cumplimiento_' + idx, rItem.fecha || '');
+                    setValue('estado_seguimiento_' + idx, rItem.estado || '');
+                }
             }
 
             if (record.id_propiedad) {

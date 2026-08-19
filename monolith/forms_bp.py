@@ -2260,18 +2260,28 @@ def _parse_visit_form_data(request, user_email):
                     bloques[idx] = {}
                 bloques[idx][prefix.rstrip('_')] = request.form.get(key)
 
-    # Merge blocks into combined strings for storage in existing columns
-    temas_list = [bloques[i].get('temas_tratados', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('temas_tratados')]
-    acuerdos_list = [bloques[i].get('acuerdos_compromisos', '') for i in sorted(bloques.keys(), key=lambda x: int(x)) if bloques[i].get('acuerdos_compromisos')]
-    responsables_list = [
-        {'nombre': bloques[i].get('nombre_responsable', ''), 'fecha': bloques[i].get('fecha_cumplimiento', ''), 'estado': bloques[i].get('estado_seguimiento', '')}
-        for i in sorted(bloques.keys(), key=lambda x: int(x))
-        if bloques[i].get('nombre_responsable') or bloques[i].get('fecha_cumplimiento')
+    # Merge blocks into combined strings preserving positional alignment per block index
+    sorted_keys = sorted(bloques.keys(), key=lambda x: int(x))
+    # Filter to indices that have at least some content
+    active_keys = [
+        i for i in sorted_keys
+        if any((bloques[i].get(f) or '').strip() for f in ('temas_tratados', 'acuerdos_compromisos', 'nombre_responsable', 'fecha_cumplimiento', 'estado_seguimiento'))
     ]
 
-    temas_combined = '\n---\n'.join(temas_list) if temas_list else None
-    acuerdos_combined = '\n---\n'.join(acuerdos_list) if acuerdos_list else None
-    responsables_json = json.dumps(responsables_list) if responsables_list else None
+    temas_list = [(bloques[i].get('temas_tratados') or '').strip() for i in active_keys]
+    acuerdos_list = [(bloques[i].get('acuerdos_compromisos') or '').strip() for i in active_keys]
+    responsables_list = [
+        {
+            'nombre': (bloques[i].get('nombre_responsable') or '').strip(),
+            'fecha': (bloques[i].get('fecha_cumplimiento') or '').strip(),
+            'estado': (bloques[i].get('estado_seguimiento') or '').strip()
+        }
+        for i in active_keys
+    ]
+
+    temas_combined = '\n---\n'.join(temas_list) if any(temas_list) else None
+    acuerdos_combined = '\n---\n'.join(acuerdos_list) if any(acuerdos_list) else None
+    responsables_json = json.dumps(responsables_list) if any(r['nombre'] or r['fecha'] or r['estado'] for r in responsables_list) else None
 
     return {
         'cliente_instalacion': request.form.get('cliente_visitado'),

@@ -5077,11 +5077,42 @@ def _visita_parse_responsables(raw_value):
     if not raw_value:
         return []
     import json as _json
-    try:
-        parsed = _json.loads(raw_value)
-        return parsed if isinstance(parsed, list) else []
-    except Exception:
-        return []
+    if isinstance(raw_value, list):
+        return [item if isinstance(item, dict) else {'nombre': str(item).strip()} for item in raw_value]
+    if isinstance(raw_value, dict):
+        return [raw_value]
+    if isinstance(raw_value, str):
+        text = raw_value.strip()
+        if not text:
+            return []
+        try:
+            parsed = _json.loads(text)
+            if isinstance(parsed, list):
+                result = []
+                for item in parsed:
+                    if isinstance(item, dict):
+                        result.append(item)
+                    elif isinstance(item, str):
+                        result.append({'nombre': item.strip()})
+                return result
+            elif isinstance(parsed, dict):
+                return [parsed]
+            elif isinstance(parsed, str):
+                return [{'nombre': parsed.strip()}]
+        except Exception:
+            pass
+
+        # Fallback if raw text starts with JSON brackets but had a syntax flaw
+        if text.startswith('[') or text.startswith('{'):
+            nombres = re.findall(r'"nombre"\s*:\s*"([^"]+)"', text)
+            if nombres:
+                return [{'nombre': n.strip()} for n in nombres]
+            return []
+
+        # Plain text string (legacy single or delimited records)
+        parts = [p.strip() for p in re.split(r'\n\s*---\s*\n', text) if p and p.strip()]
+        return [{'nombre': p} for p in parts] if parts else [{'nombre': text}]
+    return []
 
 def _visita_status(acuerdo_text, fecha_limite):
     text = (acuerdo_text or '').lower()
@@ -5096,9 +5127,9 @@ def _visita_parse_compromisos(rows):
     import json as _json
     compromisos = []
     for row in rows:
-        acuerdos = _visita_split_blocks(row['acuerdos_compromisos'])
-        responsables = []
-        temas = _visita_split_blocks(row['temas_tratados'])
+        acuerdos = _visita_split_blocks(row.get('acuerdos_compromisos'))
+        responsables = _visita_parse_responsables(row.get('nombre_responsable'))
+        temas = _visita_split_blocks(row.get('temas_tratados'))
 
         estados_override = {}
         raw_estados = row.get('compromisos_estados')
@@ -5112,15 +5143,27 @@ def _visita_parse_compromisos(rows):
         for idx in range(max_len):
             acuerdo = acuerdos[idx] if idx < len(acuerdos) else ''
             responsable_item = responsables[idx] if idx < len(responsables) and isinstance(responsables[idx], dict) else {}
+
+            # Extract clean person name (never technical JSON structures)
+            nombre_val = (responsable_item.get('nombre') or '').strip() if responsable_item else ''
+            if not nombre_val:
+                raw_nr = row.get('nombre_responsable')
+                if raw_nr and isinstance(raw_nr, str):
+                    raw_nr_stripped = raw_nr.strip()
+                    if not raw_nr_stripped.startswith('[') and not raw_nr_stripped.startswith('{'):
+                        nombre_val = raw_nr_stripped
+
             responsable = (
-                responsable_item.get('nombre')
-                or row.get('nombre_responsable')
-                or row.get('nombre_visitante')
+                nombre_val
+                or (row.get('nombre_visitante') or '').strip()
                 or 'Por definir'
             )
+            # Final sanity guard against any stringified JSON
+            if responsable.startswith('[') or responsable.startswith('{'):
+                responsable = (row.get('nombre_visitante') or '').strip() or 'Por definir'
 
             fecha_limite = None
-            raw_fecha = responsable_item.get('fecha') if responsable_item else None
+            raw_fecha = (responsable_item.get('fecha') or '').strip() if responsable_item else ''
             if raw_fecha:
                 try:
                     fecha_limite = datetime.fromisoformat(raw_fecha).date()
@@ -5133,16 +5176,38 @@ def _visita_parse_compromisos(rows):
             if not acuerdo and not tema and not fecha_limite and not responsable_item:
                 continue
 
-            estado_from_form = responsable_item.get('estado') or ''
+            raw_form_estado = (responsable_item.get('estado') or '').strip().lower() if responsable_item else ''
+            if raw_form_estado in ('cerrado', 'cumplido', 'completado', 'finalizado', 'ejecutado'):
+                estado_from_form = 'cumplido'
+            elif raw_form_estado == 'vencido':
+                estado_from_form = 'vencido'
+            elif raw_form_estado == 'pendiente':
+                estado_from_form = 'pendiente'
+            else:
+                estado_from_form = ''
+
             override_val = estados_override.get(str(idx))
             if isinstance(override_val, dict):
-                estado = override_val.get('estado') or estado_from_form or _visita_status(acuerdo, fecha_limite)
+                raw_st = (override_val.get('estado') or estado_from_form or _visita_status(acuerdo, fecha_limite)).lower().strip()
                 accion_tomada = override_val.get('accion_tomada') or ''
                 evidencia_url = override_val.get('evidencia_url') or ''
             else:
-                estado = override_val or estado_from_form or _visita_status(acuerdo, fecha_limite)
+                raw_st = (override_val or estado_from_form or _visita_status(acuerdo, fecha_limite)).lower().strip()
                 accion_tomada = ''
                 evidencia_url = ''
+
+            if raw_st in ('cerrado', 'cumplido', 'completado', 'finalizado', 'ejecutado'):
+                estado = 'cumplido'
+            elif raw_st == 'vencido':
+                estado = 'vencido'
+            elif raw_st == 'pendiente':
+                if fecha_limite and fecha_limite < datetime.now().date():
+                    estado = 'vencido'
+                else:
+                    estado = 'pendiente'
+            else:
+                estado = _visita_status(acuerdo, fecha_limite)
+
             compromisos.append({
                 'id_visita': row['id_visita'],
                 'bloque_idx': idx,

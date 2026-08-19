@@ -584,6 +584,37 @@
         renderMatrix(detalles);
     }
 
+    function formatResponsable(val) {
+        if (!val) return '—';
+        if (typeof val === 'string') {
+            const trimmed = val.trim();
+            if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) {
+                        const names = parsed.map(p => typeof p === 'object' && p ? (p.nombre || '') : String(p)).filter(Boolean);
+                        return names.length ? names.join(', ') : '—';
+                    } else if (typeof parsed === 'object' && parsed) {
+                        return parsed.nombre || '—';
+                    }
+                } catch (_) {
+                    const matches = [...trimmed.matchAll(/"nombre"\s*:\s*"([^"]+)"/g)];
+                    if (matches.length) return matches.map(m => m[1]).join(', ');
+                    return '—';
+                }
+            }
+            return trimmed || '—';
+        }
+        if (typeof val === 'object') {
+            if (Array.isArray(val)) {
+                const names = val.map(p => typeof p === 'object' && p ? (p.nombre || '') : String(p)).filter(Boolean);
+                return names.length ? names.join(', ') : '—';
+            }
+            return val.nombre || '—';
+        }
+        return String(val);
+    }
+
     function openDetailListModal(rows, title) {
         const overlay = document.getElementById('detailListModal');
         const titleEl = document.getElementById('detailListTitle');
@@ -601,7 +632,7 @@
                         <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_visita || '—'}</td>
                         <td>${r.motivo_visita || '—'}</td>
                         <td style="min-width:280px;">${r.acuerdo || '—'}</td>
-                        <td>${r.responsable || '—'}</td>
+                        <td>${formatResponsable(r.responsable)}</td>
                         <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
                         <td><span class="status-pill ${statusClass}">${statusLabel}</span>${editedBadge(r)}</td>
                         <td><button type="button" class="drv-action-btn" style="pointer-events:none;">Gestionar ↗</button></td>
@@ -643,7 +674,7 @@
                 <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_visita || '—'}</td>
                 <td>${r.motivo_visita || '—'}</td>
                 <td style="min-width:280px;">${r.acuerdo || '—'}</td>
-                <td>${r.responsable || '—'}</td>
+                <td>${formatResponsable(r.responsable)}</td>
                 <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
                 <td><span class="status-pill ${statusClass}">${statusLabel}${editHint}</span>${editedBadge(r)}</td>
                 <td>${recordViewer.actionButtonHtml(r.id_visita)}</td>
