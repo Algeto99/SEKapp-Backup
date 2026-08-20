@@ -372,7 +372,8 @@
                                 Supervisor de Seguridad / Agente
                             </label>
                             <input type="text" name="supervisor_seguridad" id="supervisor_seguridad"
-                                   class="form-input" placeholder="Nombre completo">
+                                   class="form-input" placeholder="Nombre completo"
+                                   value="{{ '' if edit_mode else name }}">
                         </div>
                         <label class="block text-sm font-medium mb-2">Firma</label>
                         <canvas id="signaturePadSupervisor" class="signature-pad w-full h-36"></canvas>
