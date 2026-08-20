@@ -21,6 +21,16 @@
  *   day         : number | null   — 1-31, null = all days
  *   responsable : string | null   — null = all; activated via activateResponsable()
  */
+// Clave de sessionStorage: la seleccion sobrevive la navegacion entre dashboards
+// (el sidebar usa hrefs pelados, asi que sin esto el filtro se perdia en cada clic)
+// pero muere al cerrar la pestana, que es lo que se espera de un filtro de vista.
+const DF_STORAGE_KEY = 'secapp:dashboard-filters:v1';
+
+// Parametros que la barra considera suyos y por lo tanto reescribe en la URL.
+// Cualquier otro (?id=... de un deep link a un registro) se conserva intacto.
+const DF_OWNED_PARAMS = ['cliente', 'propiedad', 'property_id', 'id_propiedad',
+                         'puesto', 'year', 'month', 'day', 'responsable'];
+
 class DashboardFilters {
     constructor() {
         this.state = {
@@ -36,6 +46,11 @@ class DashboardFilters {
         // Cache for hierarchy
         this._allProperties = [];
         this._allClients    = [];
+
+        // Puesto solo se restaura si el dashboard llama activatePuesto(); de lo
+        // contrario seria un filtro invisible acotando datos sin control visible.
+        this._puestoActive  = false;
+        this._pendingPuesto = null;
 
         // DOM refs
         this._clienteSelect     = null;
@@ -77,8 +92,11 @@ class DashboardFilters {
         await this._loadHierarchy();
         this._bindEvents();
 
-        // Apply any state already in the URL query string
-        this._readFromURL();
+        // La URL manda sobre lo guardado: un deep link compartido debe mostrar
+        // exactamente lo que quiso quien lo mando, no el ultimo filtro del receptor.
+        if (!this._readFromURL()) {
+            this._restoreFromStorage();
+        }
     }
 
     // ─── Public API ──────────────────────────────────────────────────────────
@@ -142,7 +160,18 @@ class DashboardFilters {
         const labelEl = wrap.querySelector('.df-label');
         if (labelEl) labelEl.textContent = label;
 
+        // A partir de aqui el Puesto es visible, asi que ya puede restaurarse el
+        // valor que _restoreFromStorage() dejo en espera. Los dashboards llaman a
+        // activatePuesto() despues de init() y antes de su primera carga de datos,
+        // asi que el valor alcanza a entrar en la consulta inicial.
+        this._puestoActive = true;
+        if (this._pendingPuesto && !this.state.puesto) {
+            this.state.puesto = this._pendingPuesto;
+        }
+        this._pendingPuesto = null;
+
         this._refreshPuestoOptions();
+        this._syncChips();
 
         if (!sel._hasSecappListener) {
             sel.addEventListener('change', () => {
@@ -510,8 +539,10 @@ class DashboardFilters {
         this._emit();
     }
 
+    /** @returns {boolean} true si la URL traia algun filtro (y por tanto manda). */
     _readFromURL() {
         const params = new URLSearchParams(window.location.search);
+        const hadAny = DF_OWNED_PARAMS.some(k => params.get(k));
 
         const clienteParam = params.get('cliente');
         if (clienteParam) {
@@ -583,6 +614,8 @@ class DashboardFilters {
         this._syncMonthButtons();
         this._syncDayRow();
         this._syncChips();
+        if (hadAny) this._persist();
+        return hadAny;
     }
 
     _syncChips() {
@@ -670,8 +703,110 @@ class DashboardFilters {
         this._emit();
     }
 
+    // ─── Persistencia entre dashboards ───────────────────────────────────────
+
+    /**
+     * Guarda el alcance actual en sessionStorage y refleja los filtros en la URL.
+     * `responsable` queda deliberadamente fuera del almacenamiento: es un valor
+     * propio de cada dashboard (el rol aplicador de Supervision no existe en
+     * Vehiculos), y arrastrarlo dejaria el siguiente dashboard vacio sin motivo
+     * visible. Si esta en la URL sigue siendo un deep link valido.
+     */
+    _persist() {
+        const payload = {
+            cliente:    this.state.cliente,
+            propertyId: this.state.propertyId,
+            puesto:     this._puestoActive ? this.state.puesto : null,
+            years:      this.state.years,
+            months:     this.state.months,
+            day:        this.state.day,
+        };
+        try {
+            sessionStorage.setItem(DF_STORAGE_KEY, JSON.stringify(payload));
+        } catch (e) {
+            // Modo privado o almacenamiento deshabilitado: la barra sigue
+            // funcionando, solo se pierde la persistencia entre paginas.
+        }
+        this._syncURL();
+    }
+
+    /** Reescribe el query string sin tocar el historial ni los params ajenos. */
+    _syncURL() {
+        if (!window.history || !window.history.replaceState) return;
+        try {
+            const url = new URL(window.location.href);
+            DF_OWNED_PARAMS.forEach(k => url.searchParams.delete(k));
+
+            if (this.state.cliente)     url.searchParams.set('cliente', this.state.cliente);
+            if (this.state.propertyId)  url.searchParams.set('propiedad', this.state.propertyId);
+            if (this.state.puesto)      url.searchParams.set('puesto', this.state.puesto);
+            if (this.state.years.length)  url.searchParams.set('year', this.state.years.join(','));
+            if (this.state.months.length) url.searchParams.set('month', this.state.months.join(','));
+            if (this.state.day)         url.searchParams.set('day', this.state.day);
+            if (this.state.responsable) url.searchParams.set('responsable', this.state.responsable);
+
+            window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+        } catch (e) {
+            console.warn('DashboardFilters: no se pudo sincronizar la URL', e);
+        }
+    }
+
+    /**
+     * Rehidrata el estado desde sessionStorage. Solo corre cuando la URL no trae
+     * filtros. Cliente, Propiedad y Puesto se validan contra la jerarquia que el
+     * usuario tiene cargada, de modo que una instalacion que ya no le corresponde
+     * (cambio de permisos, propiedad eliminada) se descarta en vez de filtrar a cero.
+     */
+    _restoreFromStorage() {
+        let raw;
+        try {
+            const stored = sessionStorage.getItem(DF_STORAGE_KEY);
+            if (!stored) return;
+            raw = JSON.parse(stored);
+        } catch (e) {
+            return;
+        }
+        if (!raw || typeof raw !== 'object') return;
+
+        if (raw.cliente && this._clienteSelect) {
+            const exists = Array.from(this._clienteSelect.options)
+                .some(o => o.value === String(raw.cliente));
+            if (exists) {
+                this.state.cliente = String(raw.cliente);
+                this._clienteSelect.value = String(raw.cliente);
+            }
+        }
+
+        // _refreshPropertyOptions() revalida la propiedad contra el cliente activo
+        // y limpia el estado sola si la opcion ya no existe.
+        this.state.propertyId = raw.propertyId ? String(raw.propertyId) : null;
+        this._refreshPropertyOptions();
+
+        // El puesto espera a activatePuesto(): ver el comentario alli.
+        this._pendingPuesto = raw.puesto ? String(raw.puesto) : null;
+
+        if (Array.isArray(raw.years)) {
+            this.state.years = raw.years.map(Number).filter(v => !isNaN(v));
+            if (this._yearMS) this._yearMS.setValues(this.state.years.map(String));
+        }
+        if (Array.isArray(raw.months)) {
+            this.state.months = raw.months.map(Number).filter(v => !isNaN(v));
+        }
+        const day = raw.day != null ? Number(raw.day) : NaN;
+        this.state.day = isNaN(day) ? null : day;
+
+        this._syncMonthButtons();
+        this._syncDayRow();
+        if (this._daySelect && this.state.day) {
+            this._daySelect.value = String(this.state.day);
+        }
+        this._syncChips();
+        this._syncURL();
+    }
+
     _emit() {
         this._syncChips();
+        this._persist();
         document.dispatchEvent(new CustomEvent('filtersChanged', {
             detail: this.getState(),
             bubbles: true,

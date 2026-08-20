@@ -278,6 +278,12 @@
                         <option value="">Todos los clientes</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <span class="filter-label">Propiedad / Instalación</span>
+                    <select id="armas-propiedad" class="filter-select">
+                        <option value="">Todas las instalaciones</option>
+                    </select>
+                </div>
                 <div class="filter-group" style="max-width:130px;">
                     <span class="filter-label">Año</span>
                     <select id="armas-year" class="filter-select"></select>
@@ -316,6 +322,12 @@
                         <option value="">Todos los clientes</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <span class="filter-label">Propiedad / Instalación</span>
+                    <select id="radios-propiedad" class="filter-select">
+                        <option value="">Todas las instalaciones</option>
+                    </select>
+                </div>
                 <div class="filter-group" style="max-width:130px;">
                     <span class="filter-label">Año</span>
                     <select id="radios-year" class="filter-select"></select>
@@ -352,6 +364,12 @@
                     <span class="filter-label">Cliente</span>
                     <select id="personal-cliente" class="filter-select">
                         <option value="">Todos los clientes</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <span class="filter-label">Propiedad / Instalación</span>
+                    <select id="personal-propiedad" class="filter-select">
+                        <option value="">Todas las instalaciones</option>
                     </select>
                 </div>
                 <div class="filter-group" style="max-width:130px;">
@@ -422,30 +440,112 @@
     }
     ['armas-year','radios-year','personal-year'].forEach(populateYears);
 
-    // ── Load clients then auto-load the active tab ───────────────────
-    fetch('/dashboard/api/bases_de_datos/clientes')
-        .then(r => r.json())
-        .then(data => {
-            ['armas-cliente','radios-cliente','personal-cliente'].forEach(id => {
-                const sel = document.getElementById(id);
-                data.clientes.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c; opt.textContent = c;
-                    sel.appendChild(opt);
+    // ── Propiedad / Instalación ──────────────────────────────────────
+    // Esta página tiene barra de filtros propia (una por pestaña) en vez de
+    // _dashboard_filters.html, así que replica aquí el filtro estándar.
+    const PREFIXES = ['armas', 'radios', 'personal'];
+    let ALL_PROPERTIES = [];
+
+    // Misma clave que static/js/dashboard-filters.js: la instalación elegida en
+    // cualquier dashboard sigue vigente al entrar a Bases de Datos y viceversa.
+    // Solo se comparte la propiedad: el Cliente de esta página son nombres de
+    // cliente_instalacion, mientras que la barra estándar maneja ids de empresa.
+    // Nombre distinto al DF_STORAGE_KEY de dashboard-filters.js a proposito: si algun
+    // dia esta pagina tambien carga ese script, dos `const` homonimos en el ambito
+    // global romperian todo el bloque inline.
+    const SHARED_FILTERS_KEY = 'secapp:dashboard-filters:v1';
+
+    function readSharedFilters() {
+        try { return JSON.parse(sessionStorage.getItem(SHARED_FILTERS_KEY)) || {}; }
+        catch (e) { return {}; }
+    }
+
+    function writeSharedProperty(propertyId) {
+        try {
+            const cur = readSharedFilters();
+            cur.propertyId = propertyId || null;
+            sessionStorage.setItem(SHARED_FILTERS_KEY, JSON.stringify(cur));
+        } catch (e) { /* modo privado: se pierde solo la persistencia */ }
+    }
+
+    /** Repuebla el selector de instalaciones de una pestaña según su Cliente. */
+    function refreshPropiedades(prefix) {
+        const sel = document.getElementById(prefix + '-propiedad');
+        if (!sel) return;
+        const current = sel.value;
+        const cliente = (document.getElementById(prefix + '-cliente').value || '').trim().toLowerCase();
+
+        sel.innerHTML = '<option value="">Todas las instalaciones</option>';
+        ALL_PROPERTIES
+            .filter(p => !cliente || String(p.cliente || '').trim().toLowerCase() === cliente)
+            .forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = String(p.id);
+                opt.textContent = p.name;
+                sel.appendChild(opt);
+            });
+
+        // Conservar la selección solo si sigue existiendo tras filtrar por cliente.
+        const stillThere = Array.from(sel.options).some(o => o.value === current);
+        sel.value = stillThere ? current : '';
+    }
+
+    // ── Load clients + properties, then auto-load the active tab ─────
+    Promise.all([
+        fetch('/dashboard/api/bases_de_datos/clientes').then(r => r.json()).catch(() => ({ clientes: [] })),
+        fetch('/dashboard/api/properties').then(r => r.json()).catch(() => ({ properties: [] })),
+    ]).then(([clientData, propData]) => {
+        (clientData.clientes || []).forEach(c => {
+            PREFIXES.forEach(prefix => {
+                const sel = document.getElementById(prefix + '-cliente');
+                const opt = document.createElement('option');
+                opt.value = c; opt.textContent = c;
+                sel.appendChild(opt);
+            });
+        });
+
+        ALL_PROPERTIES = propData.properties || [];
+        const shared = readSharedFilters();
+
+        PREFIXES.forEach(prefix => {
+            refreshPropiedades(prefix);
+
+            // Heredar la instalación elegida en otro dashboard, si aplica al usuario.
+            const propSel = document.getElementById(prefix + '-propiedad');
+            if (shared.propertyId) {
+                const exists = Array.from(propSel.options).some(o => o.value === String(shared.propertyId));
+                if (exists) propSel.value = String(shared.propertyId);
+            }
+
+            document.getElementById(prefix + '-cliente')
+                .addEventListener('change', () => refreshPropiedades(prefix));
+
+            // Un cambio aquí se propaga al resto de dashboards y a las otras pestañas.
+            propSel.addEventListener('change', () => {
+                writeSharedProperty(propSel.value);
+                PREFIXES.filter(o => o !== prefix).forEach(other => {
+                    const otherSel = document.getElementById(other + '-propiedad');
+                    if (!otherSel) return;
+                    const exists = Array.from(otherSel.options).some(o => o.value === propSel.value);
+                    otherSel.value = exists ? propSel.value : '';
                 });
             });
-            // Auto-load the default (armas) tab after clients are ready
-            _tabLoaded.armas = true;
-            loadArmas();
         });
+
+        // Auto-load the default (armas) tab after filters are ready
+        _tabLoaded.armas = true;
+        loadArmas();
+    });
 
     // ── Helpers ──────────────────────────────────────────────────────
     function buildParams(prefix) {
         const p = new URLSearchParams();
         const c = document.getElementById(prefix + '-cliente').value;
+        const prop = document.getElementById(prefix + '-propiedad').value;
         const y = document.getElementById(prefix + '-year').value;
         const m = document.getElementById(prefix + '-month').value;
         if (c) p.set('cliente', c);
+        if (prop) p.set('propiedad', prop);
         if (y) p.set('year', y);
         if (m) p.set('month', m);
         return p;

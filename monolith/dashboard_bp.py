@@ -7118,6 +7118,8 @@ def api_bases_de_datos_clientes():
 @jwt_required()
 def api_bases_de_datos_armas():
     cliente = request.args.get('cliente') or None
+    propiedad = (request.args.get('propiedad') or request.args.get('property_id')
+                 or request.args.get('id_propiedad') or None)
     year = request.args.get('year') or None
     month = request.args.get('month') or None
 
@@ -7134,9 +7136,12 @@ def api_bases_de_datos_armas():
 
         conds, params = [], []
         conds.append("LOWER(TRIM(COALESCE(porta_arma,''))) = 'si'")
-        if cliente:
-            conds.append("cliente_instalacion = %s")
-            params.append(cliente)
+        # _add_scope_filters es el helper estandar del resto de dashboards: resuelve
+        # Cliente y Propiedad / Instalacion contra id_propiedad, customer_company_id y
+        # el nombre legado en cliente_instalacion, en vez de la igualdad exacta que
+        # se usaba aqui y que dejaba fuera los registros sin nombre de cliente.
+        _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad,
+                           col_puesto=None)
         if company_id is not None:
             conds.append("company_id = %s")
             params.append(company_id)
@@ -7212,6 +7217,8 @@ def api_bases_de_datos_armas():
 @jwt_required()
 def api_bases_de_datos_radios():
     cliente = request.args.get('cliente') or None
+    propiedad = (request.args.get('propiedad') or request.args.get('property_id')
+                 or request.args.get('id_propiedad') or None)
     year = request.args.get('year') or None
     month = request.args.get('month') or None
 
@@ -7225,9 +7232,12 @@ def api_bases_de_datos_radios():
 
         conds, params = [], []
         conds.append("TRIM(COALESCE(equipamiento_completo, '')) <> ''")
-        if cliente:
-            conds.append("cliente_instalacion = %s")
-            params.append(cliente)
+        # _add_scope_filters es el helper estandar del resto de dashboards: resuelve
+        # Cliente y Propiedad / Instalacion contra id_propiedad, customer_company_id y
+        # el nombre legado en cliente_instalacion, en vez de la igualdad exacta que
+        # se usaba aqui y que dejaba fuera los registros sin nombre de cliente.
+        _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad,
+                           col_puesto=None)
         if company_id is not None:
             conds.append("company_id = %s")
             params.append(company_id)
@@ -7312,6 +7322,8 @@ def _bd_score_expr():
 @jwt_required()
 def api_bases_de_datos_personal():
     cliente = request.args.get('cliente') or None
+    propiedad = (request.args.get('propiedad') or request.args.get('property_id')
+                 or request.args.get('id_propiedad') or None)
     year = request.args.get('year') or None
     month = request.args.get('month') or None
 
@@ -7328,9 +7340,9 @@ def api_bases_de_datos_personal():
         month_int = int(month) if month else None
 
         sup_conds, params = [], []
-        if cliente:
-            sup_conds.append("cliente_instalacion = %s")
-            params.append(cliente)
+        # Mismo helper estandar que en armas/radios y en el resto de dashboards.
+        _add_scope_filters(sup_conds, params, cliente=cliente, propiedad=propiedad,
+                           col_puesto=None)
         if company_id is not None:
             sup_conds.append("company_id = %s")
             params.append(company_id)
