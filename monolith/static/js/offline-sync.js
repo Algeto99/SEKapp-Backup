@@ -128,13 +128,29 @@
         return match ? decodeURIComponent(match.substring('csrf_access_token='.length)) : null;
     }
 
+    // `_redirect_to_login()` en app.py manda a `/` o `/?next=...`, nunca a '/login',
+    // asi que buscar la cadena '/login' en res.url dejaba pasar la sesion expirada.
+    // Se compara el pathname del destino final; '/forms/success' no debe matchear.
+    function bouncedToLogin(res) {
+        const landed = (res && res.url) || '';
+        if (!landed) return false;
+        try {
+            const u = new URL(landed, location.origin);
+            if (u.origin !== location.origin) return false;
+            const path = u.pathname.replace(/\/+$/, '') || '/';
+            return path === '/' || path === '/login';
+        } catch (e) {
+            return landed.indexOf('/login') !== -1;
+        }
+    }
+
     async function fetchCsrfToken() {
         const res = await fetchWithTimeout(
             '/forms/api/csrf_token',
             { credentials: 'include' },
             SYNC_REQUEST_TIMEOUT_MS
         );
-        if (res.status === 401 || res.url?.includes('/login')) throw new Error('session_expired');
+        if (res.status === 401 || bouncedToLogin(res)) throw new Error('session_expired');
         if (!res.ok) throw new Error('Could not obtain CSRF token');
         const json = await res.json();
         return json.csrf_token;
@@ -318,7 +334,7 @@
         // Success: the server returned JSON {success:true} (replay path) or
         // redirected to the /success page (normal browser path).
         const landed = res.url || '';
-        if (res.status === 401 || landed.includes('/login') || landed === location.origin + '/') {
+        if (res.status === 401 || bouncedToLogin(res)) {
             throw new Error('session_expired');
         }
 

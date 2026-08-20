@@ -8,7 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <!-- Auto-hospedado: en datos moviles el CDN fallaba y `new SignaturePad(...)` lanzaba
+         ReferenceError dentro de DOMContentLoaded, dejando el formulario sin su listener
+         de submit AJAX y provocando un POST nativo de pagina completa. -->
+    <script src="{{ url_for('static', filename='js/signature_pad.umd.min.js') }}"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -585,7 +588,12 @@
         let signaturePads = {};
         let blockCount = 1;
 
+        // Toda la inicializacion va dentro de un try: si SignaturePad o ResizeObserver
+        // fallan, la excepcion escalaba hasta abortar el DOMContentLoaded, el listener de
+        // submit AJAX nunca se registraba y el navegador hacia un POST nativo de pagina
+        // completa (sin banner de error y perdiendo lo diligenciado).
         function initPad(canvasId) {
+          try {
             const canvas = document.getElementById(canvasId);
             if (!canvas) return;
 
@@ -626,6 +634,9 @@
             if (canvas.parentElement) {
                 resizeObserver.observe(canvas.parentElement);
             }
+          } catch (padErr) {
+            console.error(`No se pudo inicializar la firma "${canvasId}":`, padErr);
+          }
         }
 
         function addChecklistBlock() {
@@ -688,6 +699,22 @@
                 const fileInput = block.querySelector('.file-input-evidencia');
                 if (fileInput) fileInput.name = `cargue_evidencia_${index}`;
             });
+        }
+
+        // `_redirect_to_login()` en app.py manda a `/` o `/?next=...`, nunca a '/login',
+        // asi que buscar la cadena '/login' en response.url nunca acertaba y la sesion
+        // expirada se leia como envio exitoso. Se compara el pathname del destino final.
+        function bouncedToLogin(response) {
+            const landed = response && response.url;
+            if (!landed) return false;
+            try {
+                const u = new URL(landed, location.origin);
+                if (u.origin !== location.origin) return false;
+                const path = u.pathname.replace(/\/+$/, '') || '/';
+                return path === '/' || path === '/login';
+            } catch (e) {
+                return landed.indexOf('/login') !== -1;
+            }
         }
 
         function showErrorBanner(msg, isWarning) {
@@ -799,7 +826,12 @@
                         credentials: 'include'
                     });
 
-                    if (response.status === 401 || response.url?.includes('/login')) {
+                    // Sesion expirada: el servidor ya responde 401 JSON para AJAX, pero un
+                    // service worker viejo puede seguir entregando el 302 al login, que
+                    // aterriza en HTML 200 y se confundia con un guardado exitoso. El
+                    // destino es `/` o `/?next=...` (nunca '/login'), asi que se compara
+                    // el pathname en vez de buscar la cadena '/login'.
+                    if (response.status === 401 || bouncedToLogin(response)) {
                         if (loadingOverlay) loadingOverlay.style.display = 'none';
                         showErrorBanner('Tus datos <strong>NO se han perdido</strong>. Por favor <a href="/" target="_blank" class="underline font-bold text-yellow-300">inicia sesión en una nueva pestaña</a> y luego vuelve a presionar "Enviar" en esta ventana.', true);
                         return;

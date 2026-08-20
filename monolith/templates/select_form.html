@@ -650,7 +650,7 @@
         // Must match CACHE_VERSION in sw.js: the service worker deletes every other
         // cache when it activates, so a stale name here silently throws away
         // everything "Preparar modo offline" just downloaded.
-        const SECAPP_CACHE_NAME = 'secapp-v9';
+        const SECAPP_CACHE_NAME = 'secapp-v12';
 
         function secappValidPropertiesPayload(data) {
             return data && Array.isArray(data.properties) ? data : null;
@@ -773,6 +773,8 @@
                         '/static/js/offline-sync.js',
                         '/static/js/theme-toggle.js',
                         '/static/js/date-picker-mobile.js',
+                        '/static/js/signature_pad.umd.min.js',
+                        '/static/js/qrcode.min.js',
                         '/static/img/car.png',
                         '/static/img/motorcycle.png',
                     ];

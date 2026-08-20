@@ -1,11 +1,16 @@
-// Bumped to v11: Robust AJAX form submission and vector canvas handling
-const CACHE_VERSION = 'secapp-v11';
+// Bumped to v12: 401 JSON on expired sessions + signature_pad/qrcode auto-hospedados
+// OJO: SECAPP_CACHE_NAME en templates/select_form.html debe coincidir con este valor.
+const CACHE_VERSION = 'secapp-v12';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
 
 const STATIC_FALLBACKS = [
     '/forms/offline.html',
+    // Los formularios de firma dependen de estas libs; se auto-hospedaron porque el
+    // CDN fallando en datos moviles rompia el listener de submit de los formularios.
+    '/static/js/signature_pad.umd.min.js',
+    '/static/js/qrcode.min.js',
     '/static/img/car.png',
     '/static/img/motorcycle.png',
 ];

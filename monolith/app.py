@@ -147,7 +147,17 @@ _SUBMIT_TO_FORM_MAP = {
 }
 
 def _is_api_request():
-    return '/api/' in request.path or request.headers.get('X-SecApp-Replay') == '1'
+    """True for requests that must receive JSON (never an HTML redirect).
+
+    AJAX form submissions belong here: a fetch() follows the 302 to the login page
+    and lands on 200 HTML, so response.ok is true and the client mistakes an expired
+    session for a successful save, discarding the user's typed data. Returning 401
+    JSON lets the form show its "tu sesion expiro, tus datos NO se han perdido" banner."""
+    return (
+        '/api/' in request.path
+        or request.headers.get('X-SecApp-Replay') == '1'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    )
 
 def _map_to_safe_get_url(path, referrer=None, fallback='/landing/'):
     """Maps a requested path (including POST endpoints) to a valid GET navigation destination,
