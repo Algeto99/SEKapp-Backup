@@ -755,7 +755,7 @@ def api_kpi():
                 COUNT(*) FILTER (
                     WHERE fecha_cumplimiento < CURRENT_DATE - INTERVAL '1 day'
                       AND (compromisos_estados IS NULL
-                           OR compromisos_estados NOT ILIKE '%CUMPLIDO%')
+                           OR compromisos_estados NOT ILIKE '%%CUMPLIDO%%')
                 ) AS vencidos
             FROM registro_y_acta_de_visita
             WHERE {_anchor_sql('registro_y_acta_de_visita')} {cf}
