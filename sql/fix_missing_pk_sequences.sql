@@ -1,7 +1,8 @@
 -- ============================================================================
--- Restaura las claves primarias autoincrementales que faltan.
+-- Restaura las claves primarias autoincrementales y los timestamps de creación
+-- que faltan.
 --
--- PROBLEMA
+-- PROBLEMA 1 — claves primarias sin secuencia
 -- En la base de tz-prod-sesursa, 8 tablas de formularios tienen su columna de
 -- ID declarada pero SIN secuencia, SIN default y SIN primary key. Cada INSERT
 -- deja el ID en NULL, así que todo lo que busca un registro por ID falla:
@@ -11,12 +12,28 @@
 -- Las tablas cuya PK se llama 'id' (checklist_cumplimiento, confiabilidad_equipos,
 -- planilla_motocicletas) están sanas y este script no las toca.
 --
+-- PROBLEMA 2 — timestamps de creación sin default
+-- Las mismas tablas perdieron el DEFAULT CURRENT_TIMESTAMP de su columna de
+-- creación (creado_en / created_at). La app NUNCA inserta esa columna: depende
+-- por completo del default de la base. Sin él cada registro nuevo queda con la
+-- fecha en NULL, y eso no es cosmético:
+--   * el listado muestra "Enviado por: X el N/A";
+--   * los filtros por rango de fechas del visor comparan contra esa columna
+--     (t.<date_col> >= %s), así que TODO registro con NULL queda invisible;
+--   * el orden del listado (ORDER BY <date_col> DESC NULLS LAST) los manda
+--     siempre al final, sin importar cuándo se crearon.
+--
+-- Este script NO rellena las fechas ya perdidas: no hay de dónde recuperar el
+-- instante real de creación, e inventarlo corrompería el rastro de auditoría.
+-- Sólo repone el default para que de aquí en adelante se llenen solas.
+--
 -- QUÉ HACE, por tabla y de forma idempotente:
 --   1. Crea la secuencia <tabla>_<columna>_seq si no existe.
 --   2. Backfillea los ID nulos en orden cronológico por creado_en, para que la
 --      numeración siga el orden real de creación y no uno arbitrario.
 --   3. Fija el default a nextval(), pone NOT NULL y agrega la primary key.
 --   4. Deja la secuencia sincronizada con el máximo ID existente.
+--   5. Repone DEFAULT CURRENT_TIMESTAMP en la columna de creación si le falta.
 --
 -- Es seguro re-ejecutarlo: cada paso verifica su estado antes de actuar.
 --
@@ -123,6 +140,62 @@ BEGIN
     END LOOP;
 END $$;
 
+-- ----------------------------------------------------------------------------
+-- Paso 5: DEFAULT CURRENT_TIMESTAMP en la columna de creación.
+--
+-- La lista incluye las 11 tablas de formulario que lee el visor más 'flota'.
+-- Ojo con los nombres: 9 tablas usan 'creado_en' y dos usan 'created_at'.
+-- (confiabilidad_equipos ordena y filtra por 'fecha', que sí captura el
+-- formulario; 'created_at' es igual su columna de auditoría y también la
+-- necesita.)
+-- ----------------------------------------------------------------------------
+DO $$
+DECLARE
+    objetivo       RECORD;
+    default_actual TEXT;
+BEGIN
+    FOR objetivo IN
+        SELECT * FROM (VALUES
+            ('reportes_incidentes',             'creado_en'),
+            ('medicion_experiencia_cliente',    'creado_en'),
+            ('supervision_puesto',              'creado_en'),
+            ('informe_novedades_disciplinario', 'creado_en'),
+            ('log_de_patrullas',                'creado_en'),
+            ('registro_de_capacitaciones',      'creado_en'),
+            ('registro_y_acta_de_visita',       'creado_en'),
+            ('planilla_vehicular',              'creado_en'),
+            ('planilla_motocicletas',           'creado_en'),
+            ('checklist_cumplimiento',          'created_at'),
+            ('confiabilidad_equipos',           'created_at'),
+            ('flota',                           'creado_en')
+        ) AS t(tabla, ts_col)
+    LOOP
+        -- SELECT INTO deja FOUND en false si la columna no existe en este tenant.
+        -- Si existe pero no tiene default, FOUND es true y default_actual es NULL:
+        -- justo el caso que hay que reparar.
+        SELECT c.column_default
+          INTO default_actual
+          FROM information_schema.columns c
+         WHERE c.table_schema = 'public'
+           AND c.table_name   = objetivo.tabla
+           AND c.column_name  = objetivo.ts_col;
+
+        IF NOT FOUND THEN
+            RAISE NOTICE '[--] %.% no existe, se omite', objetivo.tabla, objetivo.ts_col;
+            CONTINUE;
+        END IF;
+
+        IF default_actual IS NULL THEN
+            EXECUTE format('ALTER TABLE public.%I ALTER COLUMN %I SET DEFAULT CURRENT_TIMESTAMP',
+                           objetivo.tabla, objetivo.ts_col);
+            RAISE NOTICE '[OK] %.%: default CURRENT_TIMESTAMP repuesto', objetivo.tabla, objetivo.ts_col;
+        ELSE
+            RAISE NOTICE '[--] %.% ya tenía default (%), se deja igual',
+                         objetivo.tabla, objetivo.ts_col, default_actual;
+        END IF;
+    END LOOP;
+END $$;
+
 COMMIT;
 
 -- ============================================================================
@@ -152,5 +225,32 @@ SELECT c.table_name,
         ('checklist_cumplimiento',          'id'),
         ('confiabilidad_equipos',           'id'),
         ('planilla_motocicletas',           'id')
+   )
+ ORDER BY c.table_name;
+
+-- ============================================================================
+-- Verificación de los timestamps de creación.
+-- Las 12 columnas deben mostrar un column_default con CURRENT_TIMESTAMP / now().
+-- Los registros que ya quedaron con la fecha en NULL siguen así a propósito:
+-- este script sólo evita que se sumen nuevos.
+-- ============================================================================
+SELECT c.table_name,
+       c.column_name,
+       c.column_default
+  FROM information_schema.columns c
+ WHERE c.table_schema = 'public'
+   AND (c.table_name, c.column_name) IN (
+        ('reportes_incidentes',             'creado_en'),
+        ('medicion_experiencia_cliente',    'creado_en'),
+        ('supervision_puesto',              'creado_en'),
+        ('informe_novedades_disciplinario', 'creado_en'),
+        ('log_de_patrullas',                'creado_en'),
+        ('registro_de_capacitaciones',      'creado_en'),
+        ('registro_y_acta_de_visita',       'creado_en'),
+        ('planilla_vehicular',              'creado_en'),
+        ('planilla_motocicletas',           'creado_en'),
+        ('checklist_cumplimiento',          'created_at'),
+        ('confiabilidad_equipos',           'created_at'),
+        ('flota',                           'creado_en')
    )
  ORDER BY c.table_name;

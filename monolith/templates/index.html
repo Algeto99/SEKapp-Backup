@@ -839,6 +839,11 @@
         </div>
         </div><!-- end filter-panel wrapper -->
 
+        <div class="text-sm text-gray-500 mb-4">
+            Mostrando <span id="currentCount" class="font-medium">{{ forms | length }}</span> de <span id="totalCount"
+                class="font-medium">{{ total_reports }}</span> reportes
+        </div>
+
         <div id="reports-container" class="space-y-6">
             {% for form in forms %}
             <div class="report-block bg-white shadow-md rounded-lg p-6" data-report-id="{{ form.id }}"
@@ -859,11 +864,6 @@
                         <input type="checkbox" class="report-checkbox h-5 w-5 text-blue-600 rounded cursor-pointer"
                             data-report-id="{{ form.id }}">
                     </div>
-                </div>
-
-                <div class="text-sm text-gray-500 mt-4 md:mt-0">
-                    Mostrando <span id="currentCount" class="font-medium">0</span> de <span id="totalCount"
-                        class="font-medium">0</span> reportes
                 </div>
                 <div class="text-gray-700 mb-4">
                     {% set count = namespace(value=0) %}
@@ -946,7 +946,15 @@
         }
 
         // --- Event Listeners and State Management ---
+        function updateReportCounts() {
+            const current = document.getElementById('currentCount');
+            const total = document.getElementById('totalCount');
+            if (current) current.textContent = offset;
+            if (total) total.textContent = totalReports;
+        }
+
         function checkLoadMoreButtonVisibility() {
+            updateReportCounts();
             const loadMoreContainer = document.getElementById('load-more-container');
             if (loadMoreContainer) {
                 if (offset >= totalReports) {
