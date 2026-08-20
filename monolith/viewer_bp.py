@@ -413,6 +413,11 @@ FORM_CONFIGS = {
             "Fecha/Hora": "fecha_hora",
             "Temas Tratados": "temas_tratados",
             "Acuerdos": "acuerdos_compromisos",
+            # Kept as stable, explicit labels so the PDF renderer can fold their
+            # structured storage values into the formal commitments table.
+            "Nombre Responsable": "nombre_responsable",
+            "Compromisos Estados": "compromisos_estados",
+            "Fecha Cumplimiento": "fecha_cumplimiento",
             "Rol Aplicador": "rol_aplicador",
             "Turno": "turno",
             "Visita Realizada Por": "visita_realizada_por",
@@ -2179,18 +2184,26 @@ def _render_participantes_visita_html(value):
 
     rows = []
     for item in participantes:
-        if isinstance(item, dict):
-            nombre = _visita_clean_text(item.get('nombre'))
-            cargo  = _visita_clean_text(item.get('cargo'))
-            firma  = _visita_clean_text(item.get('firma'))
-        else:
-            nombre, cargo, firma = _visita_clean_text(item), '', ''
+        # Participant entries are structured records.  Never print an unknown
+        # scalar/object representation because it may contain internal data or a
+        # complete base64 signature string.
+        if not isinstance(item, dict):
+            continue
+        nombre = _visita_clean_text(item.get('nombre'))
+        cargo  = _visita_clean_text(item.get('cargo'))
+        firma  = _visita_clean_text(item.get('firma'))
 
         if not (nombre or cargo or firma):
             continue
 
+        firma_src = ''
         if firma.startswith('data:image'):
-            firma_html = ('<img src="' + firma + '" style="max-width:110px;max-height:50px;'
+            firma_src = firma
+        elif firma.startswith(('https://', 'http://')):
+            firma_src = generate_signed_url(firma)
+
+        if firma_src:
+            firma_html = ('<img src="' + str(escape(firma_src)) + '" style="max-width:110px;max-height:50px;'
                           'border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">')
         else:
             firma_html = '<span style="font-size:7pt;color:#6b7280;">Sin firma</span>'
