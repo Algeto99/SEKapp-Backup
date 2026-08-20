@@ -317,7 +317,7 @@
     const cSel = document.getElementById('clienteSelect');
     const pSel = document.getElementById('propertySelect');
     try {
-      const res = await fetch('/expediente/api/clientes');
+      const res = await fetch('/expediente/api/clientes', { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) {
         cSel.innerHTML = `<option value="">— Error: ${data.error || res.status} —</option>`;
@@ -330,12 +330,23 @@
 
       allProperties = data;
 
-      const clientes = [...new Set(data.map(p => p.cliente))].sort((a, b) => a.localeCompare(b, 'es'));
+      // Group by the actual customer relationship. Names alone are not unique and
+      // could merge two customer_company records, making installations disappear.
+      const clienteMap = new Map();
+      data.forEach(p => {
+        const key = p.customer_company_id != null
+          ? `id:${p.customer_company_id}`
+          : `nombre:${String(p.cliente || '').trim().toLocaleLowerCase('es')}`;
+        if (!clienteMap.has(key)) clienteMap.set(key, { key, nombre: p.cliente, propiedades: [] });
+        clienteMap.get(key).propiedades.push(p);
+        p._clienteKey = key;
+      });
+      const clientes = [...clienteMap.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
       cSel.innerHTML = '<option value="">— Seleccionar cliente —</option>';
-      clientes.forEach(nombre => {
+      clientes.forEach(cliente => {
         const opt = document.createElement('option');
-        opt.value = nombre;
-        opt.textContent = `${nombre} (${data.filter(p => p.cliente === nombre).length})`;
+        opt.value = cliente.key;
+        opt.textContent = `${cliente.nombre} (${cliente.propiedades.length})`;
         cSel.appendChild(opt);
       });
 
@@ -346,7 +357,7 @@
         : null;
 
       // One client is not a choice — preselect it and go straight to properties.
-      const preselect = linked ? linked.cliente : (clientes.length === 1 ? clientes[0] : '');
+      const preselect = linked ? linked._clienteKey : (clientes.length === 1 ? clientes[0].key : '');
       if (preselect) {
         cSel.value = preselect;
         fillProperties(preselect);
@@ -367,13 +378,13 @@
   }
 
   // Scope the installation list to one client.
-  function fillProperties(cliente) {
+  function fillProperties(clienteKey) {
     const pSel = document.getElementById('propertySelect');
     const props = allProperties
-      .filter(p => p.cliente === cliente)
+      .filter(p => p._clienteKey === clienteKey)
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 
-    if (!cliente) {
+    if (!clienteKey) {
       pSel.innerHTML = '<option value="">— Seleccione primero un cliente —</option>';
       return;
     }

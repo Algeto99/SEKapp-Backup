@@ -355,7 +355,7 @@ def api_clientes():
             ORDER BY cliente, p.nombre
         """, (SIN_CLIENTE_LABEL,))
 
-        return jsonify([
+        response = jsonify([
             {
                 'id_propiedad': r['id_propiedad'],
                 'nombre': r['nombre'],
@@ -364,6 +364,11 @@ def api_clientes():
             }
             for r in cur.fetchall()
         ])
+        # The property catalogue changes independently of application deploys.
+        # Never let a browser/service worker keep an older one-option response.
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        return response
     except Exception as e:
         app_logger.error(f"api_clientes error: {e}", exc_info=True)
         return jsonify({'error': 'Error interno'}), 500
