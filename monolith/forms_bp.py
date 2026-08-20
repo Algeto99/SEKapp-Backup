@@ -114,6 +114,18 @@ def _ensure_default_customer_company(cur, company_id):
     return {'id': row[0], 'name': row[1]} if row else None
 
 
+# Columnas cuyo valor decide _resolve_scope_fields a partir de las FKs, nunca el
+# formulario. El <select> de Cliente/Empresa postea el NOMBRE ("Sesursa"), no el id,
+# así que si el volcado de campos crudos las copiara tal cual, ese string terminaría
+# en una columna integer y el INSERT reventaría con InvalidTextRepresentation,
+# perdiendo todo lo diligenciado. Cuando el cliente no se puede resolver la columna
+# queda NULL, que es lo que hacen el resto de los formularios.
+_SCOPE_OWNED_FIELDS = {
+    'company_id', 'customer_company_id', 'id_propiedad',
+    'cliente_instalacion', 'submitter_timezone',
+}
+
+
 def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_id=None, customer_company_id=None):
     scope = {}
     company_id = _get_user_company_id(cur, user_email)
@@ -166,13 +178,21 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         scope['customer_company_id'] = int(customer_company_id)
     elif customer_company_id and isinstance(customer_company_id, str) and customer_company_id.strip():
         # Match customer company by name (e.g. "Sesursa")
-        cur.execute("""
+        # Con company_id en NULL —lo habitual— la condicion (company_id = NULL OR
+        # company_id IS NULL) se reduce a company_id IS NULL, y entonces solo matchea
+        # clientes sin empresa: el cliente real nunca se encontraba. Sin company_id el
+        # nombre resuelve por si solo; con company_id el filtro se mantiene.
+        company_clause = "AND (company_id = %s OR company_id IS NULL)" if company_id is not None else ""
+        cc_params = [f"%{customer_company_id.strip()}%"]
+        if company_id is not None:
+            cc_params.append(company_id)
+        cur.execute(f"""
             SELECT id FROM customer_companies
             WHERE LOWER(TRIM(name)) LIKE LOWER(TRIM(%s))
-              AND (company_id = %s OR company_id IS NULL)
+              {company_clause}
             ORDER BY id
             LIMIT 1
-        """, (f"%{customer_company_id.strip()}%", company_id))
+        """, tuple(cc_params))
         cc_row = cur.fetchone()
         if cc_row:
             scope['customer_company_id'] = cc_row[0]
@@ -2530,7 +2550,8 @@ def submit_planilla_vehicular():
             customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
         ))
         for key in request.form.keys():
-            if key not in form_data and key != 'csrf_token':
+            if (key not in form_data and key != 'csrf_token'
+                    and key not in _SCOPE_OWNED_FIELDS):
                 form_data[key] = request.form.get(key)
         form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
         columns = ', '.join(form_data.keys())
@@ -2773,7 +2794,8 @@ def submit_planilla_motocicletas():
 
         # Add all form fields (checklist and inspection properties)
         for key in request.form.keys():
-            if key not in form_data and key != 'csrf_token':
+            if (key not in form_data and key != 'csrf_token'
+                    and key not in _SCOPE_OWNED_FIELDS):
                 form_data[key] = request.form.get(key)
 
         app_logger.info(f"Submitting motorcycle form for {user_email}")
@@ -2892,7 +2914,8 @@ def submit_planilla_motocicletas_editar(id):
             'oficial_operaciones_firma': request.form.get('oficial_operaciones_firma'),
         }
         for key in request.form.keys():
-            if key not in form_data and key != 'csrf_token':
+            if (key not in form_data and key != 'csrf_token'
+                    and key not in _SCOPE_OWNED_FIELDS):
                 form_data[key] = request.form.get(key)
         form_data.update(_resolve_scope_fields(
             cur,
