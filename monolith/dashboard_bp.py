@@ -5062,7 +5062,17 @@ def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None):
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     if company_id is not None:
-        conds.append('company_id = %s'); params.append(company_id)
+        # Historical visits predate the company_id column.  Keep those records
+        # visible only when their submitter belongs to the current tenant; a bare
+        # ``company_id IS NULL`` would leak unowned records across companies.
+        conds.append("""(
+            company_id = %s OR (
+                company_id IS NULL AND submitted_by_email IN (
+                    SELECT email FROM users WHERE company_id = %s
+                )
+            )
+        )""")
+        params.extend([company_id, company_id])
     return conds, params
 
 def _visita_where(conds):
@@ -5145,7 +5155,8 @@ def _visita_parse_compromisos(rows):
             responsable_item = responsables[idx] if idx < len(responsables) and isinstance(responsables[idx], dict) else {}
 
             # Extract clean person name (never technical JSON structures)
-            nombre_val = (responsable_item.get('nombre') or '').strip() if responsable_item else ''
+            raw_nombre = responsable_item.get('nombre') if responsable_item else ''
+            nombre_val = str(raw_nombre or '').strip()
             if not nombre_val:
                 raw_nr = row.get('nombre_responsable')
                 if raw_nr and isinstance(raw_nr, str):
@@ -5155,12 +5166,11 @@ def _visita_parse_compromisos(rows):
 
             responsable = (
                 nombre_val
-                or (row.get('nombre_visitante') or '').strip()
                 or 'Por definir'
             )
             # Final sanity guard against any stringified JSON
             if responsable.startswith('[') or responsable.startswith('{'):
-                responsable = (row.get('nombre_visitante') or '').strip() or 'Por definir'
+                responsable = 'Por definir'
 
             fecha_limite = None
             raw_fecha = (responsable_item.get('fecha') or '').strip() if responsable_item else ''
@@ -5239,8 +5249,16 @@ def api_visitas_clientes():
             return jsonify({'clientes': []})
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        cid_cond = "AND company_id = %s" if company_id is not None else ""
-        cid_params = [company_id] if company_id is not None else []
+        cid_cond = """
+            AND (
+                company_id = %s OR (
+                    company_id IS NULL AND submitted_by_email IN (
+                        SELECT email FROM users WHERE company_id = %s
+                    )
+                )
+            )
+        """ if company_id is not None else ""
+        cid_params = [company_id, company_id] if company_id is not None else []
         cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM registro_y_acta_de_visita
@@ -5456,7 +5474,6 @@ def api_visitas_detalles():
             FROM registro_y_acta_de_visita
             {_visita_where(trend_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
-            LIMIT 200
         """, base_params)
         compromisos = _visita_parse_compromisos(cur.fetchall())
         compromisos.sort(key=lambda item: (item['fecha_sort'], item['cliente']), reverse=True)

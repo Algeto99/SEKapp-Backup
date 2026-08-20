@@ -758,8 +758,13 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                         config['table']
                     )
                     return [], 0
-                where_conditions.append("t.company_id = %s")
-                query_params.append(company_id)
+                # Legacy rows can have no company_id.  Attribute them through the
+                # submitter already joined as ``u`` instead of hiding them or
+                # admitting every unscoped row.
+                where_conditions.append(
+                    "(t.company_id = %s OR (t.company_id IS NULL AND u.company_id = %s))"
+                )
+                query_params.extend([company_id, company_id])
 
             if filters:
                 # Report ID filter
@@ -972,8 +977,11 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                     config['table']
                 )
                 return []
-            tenant_clause = "AND t.company_id = %s"
-            params.append(company_id)
+            tenant_clause = (
+                "AND (t.company_id = %s OR "
+                "(t.company_id IS NULL AND u.company_id = %s))"
+            )
+            params.extend([company_id, company_id])
 
         # ORDER BY: Sort by creation date (newest reports first - most recent submissions at the top)
         query = f"""
