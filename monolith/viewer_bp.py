@@ -278,20 +278,41 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Supervisión de Puesto',
-        # cliente_instalacion queda NULL en esta tabla (el INSERT la descarta), así que
-        # el cliente y la propiedad se resuelven por sus FKs. cc2 es el respaldo para
-        # registros antiguos sin customer_company_id: el cliente sale de la propiedad.
+        # Resolve current records through their FKs and legacy records through the
+        # installation name saved before id_propiedad/customer_company_id existed.
+        # Client and installation remain separate aliases for both PDF and Excel.
         'joins': """
             LEFT JOIN users u ON t.submitted_by_email = u.email
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
         """,
         'columns': """
             t.creado_en,
             t.*,
-            COALESCE(cc.name, cc2.name) AS cliente_nombre,
-            COALESCE(p.nombre, t.cliente_instalacion) AS propiedad_nombre,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
             u.name AS user_name
         """,
         'data_mapping': {
