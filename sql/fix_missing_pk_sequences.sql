@@ -34,6 +34,7 @@
 --   3. Fija el default a nextval(), pone NOT NULL y agrega la primary key.
 --   4. Deja la secuencia sincronizada con el máximo ID existente.
 --   5. Repone DEFAULT CURRENT_TIMESTAMP en la columna de creación si le falta.
+--   6. Verifica contra pg_catalog que todo quedó aplicado y ABORTA si no.
 --
 -- Es seguro re-ejecutarlo: cada paso verifica su estado antes de actuar.
 --
@@ -194,6 +195,107 @@ BEGIN
                          objetivo.tabla, objetivo.ts_col, default_actual;
         END IF;
     END LOOP;
+END $$;
+
+-- ----------------------------------------------------------------------------
+-- Paso 6: verificación dura. Aborta la transacción si algo NO quedó aplicado.
+--
+-- Los pasos anteriores detectan la tabla con information_schema, que SÓLO
+-- muestra objetos sobre los que el rol tiene privilegios. Si el rol no es dueño
+-- de las tablas, esa consulta no devuelve nada y el script las salta con un
+-- '[--] no existe' — parece que corrió bien y no cambió nada. Este bloque usa
+-- pg_catalog, que no filtra por privilegios, así que ve la verdad.
+--
+-- Falla ruidosamente a propósito: es preferible un ROLLBACK con el detalle a
+-- creer que el arreglo quedó aplicado cuando no.
+-- ----------------------------------------------------------------------------
+DO $$
+DECLARE
+    objetivo     RECORD;
+    rel_oid      OID;
+    dueno        TEXT;
+    id_tiene_def BOOLEAN;
+    id_notnull   BOOLEAN;
+    ts_tiene_def BOOLEAN;
+    tiene_pk     BOOLEAN;
+    faltas       TEXT;
+    pendientes   TEXT := '';
+    encontradas  INT  := 0;
+BEGIN
+    FOR objetivo IN
+        SELECT * FROM (VALUES
+            ('reportes_incidentes',             'id_reporte_incidente',  'creado_en'),
+            ('medicion_experiencia_cliente',    'id_encuesta',           'creado_en'),
+            ('supervision_puesto',              'id_supervision',        'creado_en'),
+            ('informe_novedades_disciplinario', 'id_informe',            'creado_en'),
+            ('log_de_patrullas',                'id_patrulla',           'creado_en'),
+            ('registro_de_capacitaciones',      'id_capacitacion',       'creado_en'),
+            ('registro_y_acta_de_visita',       'id_visita',             'creado_en'),
+            ('planilla_vehicular',              'id_planilla_vehicular', 'creado_en'),
+            ('planilla_motocicletas',           'id',                    'creado_en'),
+            ('checklist_cumplimiento',          'id',                    'created_at'),
+            ('confiabilidad_equipos',           'id',                    'created_at'),
+            ('flota',                           'id',                    'creado_en')
+        ) AS t(tabla, id_col, ts_col)
+    LOOP
+        SELECT c.oid,
+               pg_get_userbyid(c.relowner),
+               a.atthasdef,
+               a.attnotnull,
+               ts.atthasdef
+          INTO rel_oid, dueno, id_tiene_def, id_notnull, ts_tiene_def
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          LEFT JOIN pg_attribute a  ON a.attrelid  = c.oid AND a.attname  = objetivo.id_col
+                                   AND a.attnum  > 0 AND NOT a.attisdropped
+          LEFT JOIN pg_attribute ts ON ts.attrelid = c.oid AND ts.attname = objetivo.ts_col
+                                   AND ts.attnum > 0 AND NOT ts.attisdropped
+         WHERE n.nspname = 'public' AND c.relname = objetivo.tabla AND c.relkind = 'r';
+
+        -- Tabla ausente de verdad (tenant sin ese módulo): no es un pendiente,
+        -- pero sí se cuenta para detectar el caso de "base equivocada" más abajo.
+        IF NOT FOUND THEN
+            CONTINUE;
+        END IF;
+
+        encontradas := encontradas + 1;
+
+        SELECT EXISTS (SELECT 1 FROM pg_constraint pc
+                        WHERE pc.conrelid = rel_oid AND pc.contype = 'p')
+          INTO tiene_pk;
+
+        faltas := '';
+        IF id_tiene_def IS NULL THEN faltas := faltas || format(' columna %s ausente;', objetivo.id_col);
+        ELSE
+            IF NOT id_tiene_def THEN faltas := faltas || ' sin default nextval();'; END IF;
+            IF NOT id_notnull   THEN faltas := faltas || ' acepta NULL;';           END IF;
+        END IF;
+        IF NOT tiene_pk THEN faltas := faltas || ' sin primary key;'; END IF;
+        IF ts_tiene_def IS NULL THEN faltas := faltas || format(' columna %s ausente;', objetivo.ts_col);
+        ELSIF NOT ts_tiene_def THEN faltas := faltas || format(' %s sin default;', objetivo.ts_col);
+        END IF;
+
+        IF faltas <> '' THEN
+            pendientes := pendientes || format(E'\n  - %s (dueño: %s):%s', objetivo.tabla, dueno, faltas);
+        END IF;
+    END LOOP;
+
+    -- Si NINGUNA tabla objetivo existe, los pasos anteriores imprimieron doce
+    -- '[--] no existe' y salieron sin tocar nada: se ve idéntico a un éxito.
+    -- El caso típico es conectarse a la base 'postgres' de la instancia en vez
+    -- de a la base de la aplicación — ambas conviven en el mismo servidor.
+    IF encontradas = 0 THEN
+        RAISE EXCEPTION 'Ninguna de las tablas objetivo existe en la base "%" (rol: %). Es casi seguro que está conectado a la base equivocada de la instancia: conéctese a la base de la aplicación, no a "postgres". Liste las bases con: gcloud sql databases list --instance <INSTANCIA>.',
+                        current_database(), current_user;
+    END IF;
+
+    IF pendientes <> '' THEN
+        RAISE EXCEPTION E'El arreglo NO quedó aplicado. Rol actual: %. Base: %.%\n\nCausas típicas:\n  (a) el rol no es dueño de las tablas — ALTER TABLE exige ser dueño; compare el dueño de arriba con el rol actual;\n  (b) se corrió contra otra base o instancia distinta de la que lee la app (revise DATABASE_URL del servicio de Cloud Run).',
+                        current_user, current_database(), pendientes;
+    END IF;
+
+    RAISE NOTICE '[OK] verificación final: % tablas revisadas en la base "%", todas con PK, default y timestamp.',
+                 encontradas, current_database();
 END $$;
 
 COMMIT;
