@@ -632,6 +632,13 @@ def cgeo_api_alertas():
     cliente = request.args.get("cliente")
     if cliente in ('Todos', ''):
         cliente = None
+    # La pagina de Operacion ya enviaba `propiedad` en estas dos llamadas, pero
+    # aqui se ignoraba: al elegir una instalacion las tarjetas y graficos se
+    # acotaban y el panel de alertas y el semaforo global seguian consolidados.
+    propiedad = (request.args.get("propiedad") or request.args.get("property_id")
+                 or request.args.get("id_propiedad") or None)
+    if propiedad in ('Todos', 'Todas', ''):
+        propiedad = None
 
     conn = _get_conn()
     if not conn:
@@ -642,8 +649,12 @@ def cgeo_api_alertas():
         alertas = []
 
         def _cp(col="id_propiedad"):
-            cond, val = _cliente_cond(cliente)
-            return ([cond], [val]) if cond else ([], [])
+            # _add_scope resuelve Propiedad y Cliente igual que /api/recursos-data y
+            # /api/operacion-data. Ademas corrige el alcance por Cliente: _cliente_cond
+            # trataba un cliente numerico como id_propiedad, cuando es un id de empresa.
+            conds, params = [], []
+            _add_scope(conds, params, cliente=cliente, propiedad=propiedad)
+            return conds, params
 
         # ── REGLA 1: Puesto sin supervisión > 48 h ────────────────────────────
         r1_conds, r1_params = _cp("id_propiedad")
@@ -959,7 +970,10 @@ def cgeo_api_alertas():
 
         company_id = _get_user_company_id(cur, get_jwt_identity())
         v_date_expr = _visita_date_expr()
-        v_conds, v_params = _visita_conds(cliente, None, None, None, company_id=company_id)
+        # _visita_conds ya acepta propiedad; no pasarla dejaba los compromisos de
+        # visitas (reglas 9/10) fuera del alcance de la instalacion seleccionada.
+        v_conds, v_params = _visita_conds(cliente, None, None, None,
+                                          company_id=company_id, propiedad=propiedad)
         v_conds_full = v_conds + [f"{v_date_expr} >= NOW() - INTERVAL '180 days'"]
         cur.execute(f"""
             SELECT
@@ -1021,7 +1035,8 @@ def cgeo_api_alertas():
         """, tuple(r11_params))
         clientes_activos = [r['cliente'] for r in cur.fetchall() if r['cliente']]
 
-        v11_conds, v11_params = _visita_conds(cliente, None, None, None, company_id=company_id)
+        v11_conds, v11_params = _visita_conds(cliente, None, None, None,
+                                              company_id=company_id, propiedad=propiedad)
         v11_conds_full = v11_conds + [f"{v_date_expr}::date >= %s"]
         cur.execute(f"""
             SELECT DISTINCT cliente_instalacion AS cliente
@@ -1078,6 +1093,13 @@ def cgeo_api_semaforo_global():
     cliente = request.args.get("cliente")
     if cliente in ('Todos', ''):
         cliente = None
+    # La pagina de Operacion ya enviaba `propiedad` en estas dos llamadas, pero
+    # aqui se ignoraba: al elegir una instalacion las tarjetas y graficos se
+    # acotaban y el panel de alertas y el semaforo global seguian consolidados.
+    propiedad = (request.args.get("propiedad") or request.args.get("property_id")
+                 or request.args.get("id_propiedad") or None)
+    if propiedad in ('Todos', 'Todas', ''):
+        propiedad = None
 
     conn = _get_conn()
     if not conn:
@@ -1086,8 +1108,12 @@ def cgeo_api_semaforo_global():
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         def _cp(col="id_propiedad"):
-            cond, val = _cliente_cond(cliente)
-            return ([cond], [val]) if cond else ([], [])
+            # _add_scope resuelve Propiedad y Cliente igual que /api/recursos-data y
+            # /api/operacion-data. Ademas corrige el alcance por Cliente: _cliente_cond
+            # trataba un cliente numerico como id_propiedad, cuando es un id de empresa.
+            conds, params = [], []
+            _add_scope(conds, params, cliente=cliente, propiedad=propiedad)
+            return conds, params
 
         # Incidentes abiertos
         inc_conds, inc_params = _cp()

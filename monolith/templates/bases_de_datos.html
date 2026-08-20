@@ -273,7 +273,7 @@
         <div id="tab-armas" class="tab-content">
             <div class="filter-bar">
                 <div class="filter-group">
-                    <span class="filter-label">Cliente</span>
+                    <span class="filter-label">Cliente / Empresa</span>
                     <select id="armas-cliente" class="filter-select">
                         <option value="">Todos los clientes</option>
                     </select>
@@ -317,7 +317,7 @@
         <div id="tab-radios" class="tab-content" style="display:none;">
             <div class="filter-bar">
                 <div class="filter-group">
-                    <span class="filter-label">Cliente</span>
+                    <span class="filter-label">Cliente / Empresa</span>
                     <select id="radios-cliente" class="filter-select">
                         <option value="">Todos los clientes</option>
                     </select>
@@ -361,7 +361,7 @@
         <div id="tab-personal" class="tab-content" style="display:none;">
             <div class="filter-bar">
                 <div class="filter-group">
-                    <span class="filter-label">Cliente</span>
+                    <span class="filter-label">Cliente / Empresa</span>
                     <select id="personal-cliente" class="filter-select">
                         <option value="">Todos los clientes</option>
                     </select>
@@ -446,13 +446,11 @@
     const PREFIXES = ['armas', 'radios', 'personal'];
     let ALL_PROPERTIES = [];
 
-    // Misma clave que static/js/dashboard-filters.js: la instalación elegida en
-    // cualquier dashboard sigue vigente al entrar a Bases de Datos y viceversa.
-    // Solo se comparte la propiedad: el Cliente de esta página son nombres de
-    // cliente_instalacion, mientras que la barra estándar maneja ids de empresa.
-    // Nombre distinto al DF_STORAGE_KEY de dashboard-filters.js a proposito: si algun
-    // dia esta pagina tambien carga ese script, dos `const` homonimos en el ambito
-    // global romperian todo el bloque inline.
+    // Misma clave que static/js/dashboard-filters.js: cliente e instalación elegidos
+    // en cualquier dashboard siguen vigentes al entrar a Bases de Datos y viceversa.
+    // Nombre distinto al DF_STORAGE_KEY de ese script a propósito: si algún día esta
+    // página también lo carga, dos `const` homónimos en el ámbito global romperían
+    // todo el bloque inline.
     const SHARED_FILTERS_KEY = 'secapp:dashboard-filters:v1';
 
     function readSharedFilters() {
@@ -460,10 +458,10 @@
         catch (e) { return {}; }
     }
 
-    function writeSharedProperty(propertyId) {
+    function writeShared(patch) {
         try {
             const cur = readSharedFilters();
-            cur.propertyId = propertyId || null;
+            Object.assign(cur, patch);
             sessionStorage.setItem(SHARED_FILTERS_KEY, JSON.stringify(cur));
         } catch (e) { /* modo privado: se pierde solo la persistencia */ }
     }
@@ -473,11 +471,15 @@
         const sel = document.getElementById(prefix + '-propiedad');
         if (!sel) return;
         const current = sel.value;
-        const cliente = (document.getElementById(prefix + '-cliente').value || '').trim().toLowerCase();
+        // El Cliente son ids de customer_companies, igual que en la barra estándar,
+        // así que la cascada compara contra customer_company_id y no contra nombres.
+        const cliente = (document.getElementById(prefix + '-cliente').value || '').trim();
 
         sel.innerHTML = '<option value="">Todas las instalaciones</option>';
         ALL_PROPERTIES
-            .filter(p => !cliente || String(p.cliente || '').trim().toLowerCase() === cliente)
+            .filter(p => !cliente
+                || String(p.customer_company_id || '').trim() === cliente
+                || String(p.cliente || '').trim().toLowerCase() === cliente.toLowerCase())
             .forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = String(p.id);
@@ -490,16 +492,30 @@
         sel.value = stillThere ? current : '';
     }
 
-    // ── Load clients + properties, then auto-load the active tab ─────
-    Promise.all([
-        fetch('/dashboard/api/bases_de_datos/clientes').then(r => r.json()).catch(() => ({ clientes: [] })),
-        fetch('/dashboard/api/properties').then(r => r.json()).catch(() => ({ properties: [] })),
-    ]).then(([clientData, propData]) => {
-        (clientData.clientes || []).forEach(c => {
+    /** Replica un valor en las otras dos pestañas, si allí existe esa opción. */
+    function mirrorToOtherTabs(prefix, field, value) {
+        PREFIXES.filter(o => o !== prefix).forEach(other => {
+            const sel = document.getElementById(other + '-' + field);
+            if (!sel) return;
+            const exists = Array.from(sel.options).some(o => o.value === value);
+            sel.value = exists ? value : '';
+            if (field === 'cliente') refreshPropiedades(other);
+        });
+    }
+
+    // ── Load properties + companies, then auto-load the active tab ───
+    // Se usa /dashboard/api/properties (y no /bases_de_datos/clientes) porque
+    // devuelve las empresas reales con id, que es lo que espera _add_scope_filters
+    // y lo que permite encadenar Cliente / Empresa → Propiedad / Instalación.
+    fetch('/dashboard/api/properties')
+        .then(r => r.json())
+        .catch(() => ({ properties: [], clientes: [] }))
+        .then(propData => {
+        (propData.clientes || []).forEach(c => {
             PREFIXES.forEach(prefix => {
                 const sel = document.getElementById(prefix + '-cliente');
                 const opt = document.createElement('option');
-                opt.value = c; opt.textContent = c;
+                opt.value = String(c.id); opt.textContent = c.name;
                 sel.appendChild(opt);
             });
         });
@@ -508,6 +524,13 @@
         const shared = readSharedFilters();
 
         PREFIXES.forEach(prefix => {
+            // Heredar el cliente elegido en otro dashboard antes de armar la cascada.
+            const cliSel = document.getElementById(prefix + '-cliente');
+            if (shared.cliente) {
+                const exists = Array.from(cliSel.options).some(o => o.value === String(shared.cliente));
+                if (exists) cliSel.value = String(shared.cliente);
+            }
+
             refreshPropiedades(prefix);
 
             // Heredar la instalación elegida en otro dashboard, si aplica al usuario.
@@ -517,18 +540,17 @@
                 if (exists) propSel.value = String(shared.propertyId);
             }
 
-            document.getElementById(prefix + '-cliente')
-                .addEventListener('change', () => refreshPropiedades(prefix));
+            cliSel.addEventListener('change', () => {
+                refreshPropiedades(prefix);
+                // Al cambiar de empresa la instalación anterior deja de aplicar.
+                writeShared({ cliente: cliSel.value || null, propertyId: propSel.value || null });
+                mirrorToOtherTabs(prefix, 'cliente', cliSel.value);
+            });
 
             // Un cambio aquí se propaga al resto de dashboards y a las otras pestañas.
             propSel.addEventListener('change', () => {
-                writeSharedProperty(propSel.value);
-                PREFIXES.filter(o => o !== prefix).forEach(other => {
-                    const otherSel = document.getElementById(other + '-propiedad');
-                    if (!otherSel) return;
-                    const exists = Array.from(otherSel.options).some(o => o.value === propSel.value);
-                    otherSel.value = exists ? propSel.value : '';
-                });
+                writeShared({ propertyId: propSel.value || null });
+                mirrorToOtherTabs(prefix, 'propiedad', propSel.value);
             });
         });
 
