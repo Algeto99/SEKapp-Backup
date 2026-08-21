@@ -371,7 +371,7 @@ def module_required(module_key):
     return decorator
 
 
-def _validate_not_future(date_val_str, field_label="Fecha", tz_str=None, tolerance_minutes=10):
+def _validate_not_future(date_val_str, field_label="Fecha", tz_str=None, tolerance_minutes=60):
     """
     Valida que date_val_str no represente una fecha u hora posterior al momento actual.
     Soporta formatos ISO de fecha ('YYYY-MM-DD') y fecha-hora ('YYYY-MM-DDTHH:MM', 'YYYY-MM-DD HH:MM:SS', etc.).
@@ -1303,8 +1303,7 @@ def submit_supervision_puesto():
             
             valid_row_data = {k: v for k, v in filtered_data.items() if k in column_cache}
             
-            # Remove the generated column so Python doesn't try to insert it
-            valid_row_data.pop('cliente_instalacion', None)
+            # cliente_instalacion is preserved from global_data / _resolve_scope_fields
             
             if not valid_row_data:
                 continue # Skip empty rows
