@@ -90,6 +90,25 @@
     background-color: #2d3748;
   }
 
+  /* Campo estático — mismo peso visual que un .df-select pero sin nada que
+     elegir. Se usa en las vistas de un solo tenant (Empresa). */
+  .df-static {
+    box-sizing: border-box;
+    background-color: #374151;
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    min-width: 180px;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
   /* Month grid */
   .df-months {
     display: flex;
@@ -234,6 +253,12 @@
 
   body.light-mode .df-select option { background-color: #ffffff; }
 
+  body.light-mode .df-static {
+    background-color: #f8fafc;
+    color: #1e293b;
+    border-color: rgba(0,0,0,0.12);
+  }
+
   body.light-mode .df-month-btn {
     background-color: #f1f5f9;
     color: #64748b;
@@ -270,6 +295,16 @@
 </style>
 
 <div class="df-bar" id="dashboard-filters">
+
+  <!-- ⓪ Empresa — oculta por defecto; se activa con filters.useSingleTenant()
+       en los dashboards cuyos datos pertenecen todos al mismo tenant y por lo
+       tanto no tienen Cliente ni Instalación que elegir. -->
+  <div id="df-empresa-wrap" style="display:none;">
+    <div class="df-section" id="df-empresa-section">
+      <span class="df-label">Empresa</span>
+      <div id="df-empresa-value" class="df-static">—</div>
+    </div>
+  </div>
 
   <!-- ① Cliente / Empresa ──────────────────────────────────────── -->
   <div class="df-section" id="df-cliente-section">

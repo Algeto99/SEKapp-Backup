@@ -329,6 +329,7 @@ def inject_super_admin():
         email = None
 
     enabled_modules = set()
+    company_name = ''
     if email:
         try:
             from db import get_db_connection
@@ -343,16 +344,35 @@ def inject_super_admin():
                         WHERE u.email = %s
                     """, (email,))
                     row = cur.fetchone()
-                    cur.close()
                     if row and row[0]:
                         enabled_modules = set(row[0])
+
+                    # Nombre del tenant, para las vistas que no tienen nada que
+                    # elegir y solo muestran a quien pertenecen los datos. Va en
+                    # consulta aparte a proposito: el COALESCE cae a la unica
+                    # empresa cuando el usuario tiene company_id NULL, y meterlo
+                    # en la consulta de arriba cambiaria que modulos ve.
+                    cur.execute("""
+                        SELECT name
+                        FROM companies
+                        WHERE id = COALESCE(
+                            (SELECT company_id FROM users WHERE email = %s),
+                            (SELECT MIN(id) FROM companies)
+                        )
+                    """, (email,))
+                    crow = cur.fetchone()
+                    if crow and crow[0]:
+                        company_name = crow[0]
+                    cur.close()
                 finally:
                     conn.close()
         except Exception:
             enabled_modules = set()
+            company_name = ''
 
     jwt_csrf = request.cookies.get('csrf_access_token', '')
-    return {'is_super_admin': is_sa, 'jwt_csrf_token': jwt_csrf, 'enabled_modules': enabled_modules}
+    return {'is_super_admin': is_sa, 'jwt_csrf_token': jwt_csrf,
+            'enabled_modules': enabled_modules, 'company_name': company_name}
 
 @app.route('/health')
 def health_check():

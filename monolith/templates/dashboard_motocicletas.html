@@ -729,6 +729,8 @@
     document.addEventListener('DOMContentLoaded', async () => {
         const filters = new DashboardFilters();
         await filters.init();
+        // La flota es propia: no hay Cliente ni Instalación que elegir.
+        filters.useSingleTenant({ name: {{ (company_name or '')|tojson }} });
 
         const banner = document.getElementById('alertBanner');
         if (banner) {

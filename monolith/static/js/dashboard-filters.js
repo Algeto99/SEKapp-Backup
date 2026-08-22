@@ -52,6 +52,9 @@ class DashboardFilters {
         this._puestoActive  = false;
         this._pendingPuesto = null;
 
+        // Modo un-solo-tenant: ver useSingleTenant().
+        this._singleTenant = false;
+
         // DOM refs
         this._clienteSelect     = null;
         this._propertySelect    = null;
@@ -180,6 +183,49 @@ class DashboardFilters {
             });
             sel._hasSecappListener = true;
         }
+    }
+
+    /**
+     * Un-solo-tenant: reemplaza Cliente / Empresa y Propiedad / Instalación por
+     * un campo fijo "Empresa". Para dashboards cuyos datos pertenecen todos a la
+     * misma empresa (flota propia, por ejemplo), donde esos dos selects solo
+     * ofrecen una eleccion que no existe.
+     *
+     * Llamar despues de init() y antes de la primera carga de datos.
+     *
+     * @param {object} opts
+     *   name — nombre del tenant a mostrar
+     */
+    useSingleTenant({ name = '' } = {}) {
+        this._singleTenant = true;
+
+        const wrap  = document.getElementById('df-empresa-wrap');
+        const value = document.getElementById('df-empresa-value');
+        if (wrap)  wrap.style.display = 'contents'; // transparente al layout flex
+        if (value) value.textContent = name || '—';
+
+        // Ocultar Cliente y Propiedad junto con el divisor que los separa. El
+        // divisor que precede a Año se queda y ahora separa Empresa de Año.
+        const clienteSection = document.getElementById('df-cliente-section');
+        if (clienteSection) {
+            clienteSection.style.display = 'none';
+            const divider = clienteSection.nextElementSibling;
+            if (divider && divider.classList.contains('df-divider')) {
+                divider.style.display = 'none';
+            }
+        }
+        const propertySection = document.getElementById('df-property-section');
+        if (propertySection) propertySection.style.display = 'none';
+
+        // Sin estos dos en cero, un valor heredado de otro dashboard via
+        // sessionStorage seguiria acotando los datos sin que se vea por que.
+        this.state.cliente    = null;
+        this.state.propertyId = null;
+        if (this._clienteSelect)  this._clienteSelect.value  = '';
+        if (this._propertySelect) this._propertySelect.value = '';
+
+        this._syncChips();
+        this._persist();
     }
 
     /**
@@ -721,6 +767,16 @@ class DashboardFilters {
             months:     this.state.months,
             day:        this.state.day,
         };
+
+        // En modo un-solo-tenant Cliente y Propiedad estan en cero porque la
+        // pagina no los muestra, no porque el usuario los haya limpiado. Se
+        // arrastra lo guardado para no borrarle el alcance a los demas
+        // dashboards al pasar por aqui.
+        if (this._singleTenant) {
+            const prev = this._readStored();
+            payload.cliente    = prev.cliente    != null ? prev.cliente    : null;
+            payload.propertyId = prev.propertyId != null ? prev.propertyId : null;
+        }
         try {
             sessionStorage.setItem(DF_STORAGE_KEY, JSON.stringify(payload));
         } catch (e) {
@@ -757,16 +813,21 @@ class DashboardFilters {
      * usuario tiene cargada, de modo que una instalacion que ya no le corresponde
      * (cambio de permisos, propiedad eliminada) se descarta en vez de filtrar a cero.
      */
-    _restoreFromStorage() {
-        let raw;
+    /** Lee el alcance guardado. Devuelve {} si no hay nada o esta corrupto. */
+    _readStored() {
         try {
             const stored = sessionStorage.getItem(DF_STORAGE_KEY);
-            if (!stored) return;
-            raw = JSON.parse(stored);
+            if (!stored) return {};
+            const raw = JSON.parse(stored);
+            return (raw && typeof raw === 'object') ? raw : {};
         } catch (e) {
-            return;
+            return {};
         }
-        if (!raw || typeof raw !== 'object') return;
+    }
+
+    _restoreFromStorage() {
+        const raw = this._readStored();
+        if (!Object.keys(raw).length) return;
 
         if (raw.cliente && this._clienteSelect) {
             const exists = Array.from(this._clienteSelect.options)

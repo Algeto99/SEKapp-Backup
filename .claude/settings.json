@@ -100,7 +100,13 @@
       "Bash(git --no-pager diff)",
       "Bash(grep -n \"fetch\\('/cgeo\\\\|fetch\\(\\\\`/cgeo\\\\|/api/filtros\\\\|clientes\" monolith/templates/cgeo_operacion.html monolith/templates/cgeo_recursos.html)",
       "Bash(grep -rn \"clientes\\\\`\\\\|/clientes'\\\\|clientes\\\\\"\" monolith/templates monolith/static/js)",
-      "Bash(git --no-pager diff --stat monolith/)"
+      "Bash(git --no-pager diff --stat monolith/)",
+      "Bash(node --check monolith/static/js/dashboard-filters.js)",
+      "Bash(monolith/venv/bin/python -c ' *)",
+      "Bash(node test_single_tenant.js)",
+      "Bash(sed -i '' \"s|createElement:\\(\\)=>el\\('t'\\),dispatchEvent\\(\\){}|createElement:\\(\\)=>el\\('t'\\),createDocumentFragment:\\(\\)=>el\\('frag'\\),dispatchEvent\\(\\){}|\" test_restore.js)",
+      "Bash(node test_restore.js)",
+      "Bash(git --no-pager diff monolith/app.py monolith/templates/dashboard_vehiculos.html monolith/templates/dashboard_motocicletas.html)"
     ],
     "additionalDirectories": [
       "/private/tmp/claude-502/-Users-rcanton-Library-CloudStorage-GoogleDrive-roberto-j-canton-gmail-com-My-Drive-SMT-git-secapp/5240befe-ac09-45e3-8aba-d54310922079/scratchpad/node_modules"
