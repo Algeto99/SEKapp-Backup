@@ -79,6 +79,11 @@ def _add_scope_filters(conds, params, cliente=None, propiedad=None, puesto=None,
             if c_inst:
                 clauses.append(f"{c_inst} IN (SELECT nombre FROM propiedades WHERE customer_company_id = %s)")
                 params.append(cid)
+                # Registros viejos que guardaron el nombre del cliente (no el de la
+                # propiedad) en cliente_instalacion: sin esto se pierden al filtrar
+                # por ID, que es como viajan hoy todos los dashboards.
+                clauses.append(f"LOWER(TRIM({c_inst})) IN (SELECT LOWER(TRIM(name)) FROM customer_companies WHERE id = %s)")
+                params.append(cid)
             if clauses:
                 conds.append(f"({' OR '.join(clauses)})")
         else:
@@ -1875,40 +1880,33 @@ def api_gestion_filtros():
     try:
         conn = get_db_connection()
         if not conn:
-            return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
+            return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        company_id = _get_user_company_id(cur, get_jwt_identity())
+        user_email = get_jwt_identity()
+        company_id = _get_user_company_id(cur, user_email)
         cid_cond = "WHERE company_id = %s" if company_id is not None else ""
-        cid9 = [company_id] * 9 if company_id is not None else []
         cid7 = [company_id] * 7 if company_id is not None else []
         cid6 = [company_id] * 6 if company_id is not None else []
         cid2 = [company_id] * 2 if company_id is not None else []
 
+        # El catalogo manda, no los datos capturados: antes esta lista salia de un
+        # DISTINCT sobre cliente_instalacion en las 9 tablas transaccionales, asi que
+        # un cliente sin registros todavia nunca aparecia y si se colaba texto libre.
+        # Mismo contrato que /dashboard/api/properties: [{id, name}] + properties,
+        # que es lo que permite encadenar Cliente / Empresa -> Propiedad / Instalacion.
         cur.execute(f"""
-            SELECT DISTINCT cliente FROM (
-                SELECT TRIM(cliente_instalacion) AS cliente FROM medicion_experiencia_cliente {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM reportes_incidentes {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM supervision_puesto {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM checklist_cumplimiento {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_de_capacitaciones {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM informe_novedades_disciplinario {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM registro_y_acta_de_visita {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM planilla_vehicular {cid_cond}
-                UNION
-                SELECT TRIM(cliente_instalacion) AS cliente FROM confiabilidad_equipos {cid_cond}
-            ) q
-            WHERE cliente IS NOT NULL AND cliente <> ''
-            ORDER BY cliente
-        """, cid9)
-        clientes = [r['cliente'] for r in cur.fetchall()]
+            SELECT id, name
+            FROM customer_companies
+            {cid_cond}
+            ORDER BY name
+        """, [company_id] if company_id is not None else [])
+        clientes = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall() if r["name"]]
+
+        properties = get_properties(user_email=user_email)
+        if not clientes:
+            unique_cl_names = sorted({p['cliente'] for p in properties if p.get('cliente')})
+            clientes = [{"id": name, "name": name} for name in unique_cl_names]
 
         cur.execute(f"""
             SELECT DISTINCT proyecto FROM (
@@ -1964,6 +1962,7 @@ def api_gestion_filtros():
 
         return jsonify({
             'clientes': clientes,
+            'properties': properties,
             'proyectos': proyectos,
             'paises': [],
             'turnos': turnos,
@@ -1971,7 +1970,7 @@ def api_gestion_filtros():
         })
     except Exception as e:
         app_logger.error(f"api_gestion_filtros error: {e}", exc_info=True)
-        return jsonify({'clientes': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'], 'responsables': []})
+        return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'], 'responsables': []})
     finally:
         if cur: cur.close()
         if conn: conn.close()

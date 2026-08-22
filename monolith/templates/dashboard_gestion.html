@@ -793,12 +793,20 @@
             return +(valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1);
         }
 
+        // Acepta strings sueltos (Responsable, Día) y objetos {id, name} del
+        // catálogo de clientes, donde el value tiene que ser el id para que
+        // encadene con Propiedad / Instalación y lo entienda _add_scope_filters.
         function fillSelect(select, options, placeholder) {
             select.innerHTML = `<option value="">${placeholder}</option>`;
             options.forEach(option => {
                 const el = document.createElement('option');
-                el.value = option;
-                el.textContent = option;
+                if (option !== null && typeof option === 'object') {
+                    el.value = String(option.id != null ? option.id : option.name);
+                    el.textContent = option.name != null ? option.name : String(option.id);
+                } else {
+                    el.value = option;
+                    el.textContent = option;
+                }
                 select.appendChild(el);
             });
         }
