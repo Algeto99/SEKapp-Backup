@@ -156,8 +156,13 @@ _VEH_FAULT_COLS = [
     "espejo_retrovisor_interno", "espejos_retrovisores_externos", "limpia_brisas",
     "antena_radio", "radio_funciona", "llanta_repuesto", "aire_acondicionado",
 ]
+# La planilla vehicular registra 'Funciona' / 'No Funciona' / 'No aplica'. Sólo
+# 'No Funciona' cuenta como falla; 'malo' se conserva únicamente por los registros
+# anteriores a mayo 2026, cuando el formulario ofrecía 'Bueno' / 'Malo'.
+_VEH_FAULT_VALUES_SQL = "'no funciona', 'malo'"
 _VEH_FAULT_EXPR = " OR ".join(
-    f"LOWER(COALESCE({c},''))='malo'" for c in _VEH_FAULT_COLS
+    f"LOWER(TRIM(COALESCE({c}, ''))) IN ({_VEH_FAULT_VALUES_SQL})"
+    for c in _VEH_FAULT_COLS
 )
 
 

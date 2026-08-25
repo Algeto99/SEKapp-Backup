@@ -5614,6 +5614,25 @@ def api_visitas_historial(id_visita):
         if conn: conn.close()
 
 
+# ── Inspección de flota: valores de estado ────────────────────────────────────
+# Las planillas vehicular y de motocicletas registran 'Funciona' / 'No Funciona'
+# / 'No aplica'. Sólo 'No Funciona' cuenta como falla: 'No aplica' y los campos
+# vacíos se ignoran. 'malo' se conserva únicamente por los registros anteriores a
+# mayo 2026, cuando los formularios ofrecían 'Bueno' / 'Malo'.
+_FLEET_FAULT_VALUES = ('no funciona', 'malo')
+_FLEET_FAULT_VALUES_SQL = ", ".join(f"'{v}'" for v in _FLEET_FAULT_VALUES)
+
+
+def _fleet_fault_sql(col):
+    """Condición SQL: el item de checklist está reportado como falla."""
+    return f"LOWER(TRIM(COALESCE({col}, ''))) IN ({_FLEET_FAULT_VALUES_SQL})"
+
+
+def _fleet_is_fault(value):
+    """Equivalente en Python de _fleet_fault_sql, para filas ya materializadas."""
+    return (value or '').strip().lower() in _FLEET_FAULT_VALUES
+
+
 # ── Motocicletas Dashboard ────────────────────────────────────────────────────
 
 _MOTO_COMPONENTS = [
@@ -5646,10 +5665,10 @@ _MOTO_COMPONENTS = [
 ]
 
 _MOTO_FAULT_EXPR = " OR ".join(
-    [f"LOWER(COALESCE({col},''))='malo'" for col, _ in _MOTO_COMPONENTS]
+    [_fleet_fault_sql(col) for col, _ in _MOTO_COMPONENTS]
 )
 _MOTO_FAULT_SUM = " + ".join(
-    [f"CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END"
+    [f"CASE WHEN {_fleet_fault_sql(col)} THEN 1 ELSE 0 END"
      for col, _ in _MOTO_COMPONENTS]
 )
 
@@ -5740,7 +5759,7 @@ def api_motocicletas_data():
 
         # ── Fallas por componente ──────────────────────────────────────────
         comp_cases = ", ".join([
-            f"SUM(CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END) AS \"{col}\""
+            f"SUM(CASE WHEN {_fleet_fault_sql(col)} THEN 1 ELSE 0 END) AS \"{col}\""
             for col, _ in _MOTO_COMPONENTS
         ])
         cur.execute(f"SELECT {comp_cases} FROM planilla_motocicletas {where}", tuple(base_params))
@@ -5928,7 +5947,7 @@ def api_motocicletas_detalles():
         for r in cur.fetchall():
             componentes_malos = [
                 label for col, label in _MOTO_COMPONENTS
-                if (r[col] or '').strip().lower() == 'malo'
+                if _fleet_is_fault(r[col])
             ]
             inspecciones.append({
                 'id': r['id'],
@@ -5983,10 +6002,10 @@ _VEH_COMPONENTS = [
 ]
 
 _VEH_FAULT_EXPR = " OR ".join(
-    [f"LOWER(COALESCE({col},''))='malo'" for col, _ in _VEH_COMPONENTS]
+    [_fleet_fault_sql(col) for col, _ in _VEH_COMPONENTS]
 )
 _VEH_FAULT_SUM = " + ".join(
-    [f"CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END"
+    [f"CASE WHEN {_fleet_fault_sql(col)} THEN 1 ELSE 0 END"
      for col, _ in _VEH_COMPONENTS]
 )
 
@@ -6074,7 +6093,7 @@ def api_vehiculos_data():
 
         # ── Fallas por componente ──────────────────────────────────────────
         comp_cases = ", ".join([
-            f"SUM(CASE WHEN LOWER(COALESCE({col},''))='malo' THEN 1 ELSE 0 END) AS \"{col}\""
+            f"SUM(CASE WHEN {_fleet_fault_sql(col)} THEN 1 ELSE 0 END) AS \"{col}\""
             for col, _ in _VEH_COMPONENTS
         ])
         cur.execute(f"SELECT {comp_cases} FROM planilla_vehicular {where}", tuple(base_params))
@@ -6262,7 +6281,7 @@ def api_vehiculos_detalles():
         for r in cur.fetchall():
             componentes_malos = [
                 label for col, label in _VEH_COMPONENTS
-                if (r[col] or '').strip().lower() == 'malo'
+                if _fleet_is_fault(r[col])
             ]
             inspecciones.append({
                 'id': r['id_planilla_vehicular'],
