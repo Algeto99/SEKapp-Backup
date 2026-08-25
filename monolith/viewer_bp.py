@@ -631,6 +631,26 @@ def _ensure_json_serializable(val):
             pass
     return val
 
+_EXPORT_BLANK_TEXT = {'', 'N/A', 'None', 'null', '[]', '{}'}
+
+def _is_blank_export_value(value):
+    """True when a field holds nothing the form actually captured.
+
+    A record carries every column of its table, including the ones the current
+    form no longer asks for, and the fetch helpers turn those NULLs into the
+    "N/A" placeholder.  Exports use this to leave them out instead of printing
+    rows and columns that the form being exported never had.
+
+    Zero and False are answers, not blanks, so only text-ish emptiness counts.
+    """
+    if value is None:
+        return True
+    if isinstance(value, (bool, int, float, Decimal)):
+        return False
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value) == 0
+    return str(value).strip() in _EXPORT_BLANK_TEXT
+
 _INV_LABELS = {
     'tipo_equipo':           'Tipo de Equipo',
     'total_equipos':         'Total',
@@ -1623,7 +1643,7 @@ def email_selected_reports_api():
 
         row_idx = 0
         for key, value in data.items():
-            if not value or str(value).strip() in ('N/A', 'None', ''):
+            if _is_blank_export_value(value):
                 continue
             if key in SKIP_KEYS:
                 for url in str(value).split('\n'):
@@ -1814,8 +1834,14 @@ def export_excel():
             # Standard headers first
             headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
             
-            # Dynamic headers from mapping
-            dynamic_headers = list(config['data_mapping'].keys())
+            # Dynamic headers from the mapping, minus the columns this form never
+            # fills: a label left blank by every selected record is a leftover of
+            # the table's legacy columns, not a field of the form being exported.
+            dynamic_headers = [
+                label for label in config['data_mapping']
+                if any(not _is_blank_export_value(r.get('data', {}).get(label))
+                       for r in type_reports)
+            ]
             headers.extend(dynamic_headers)
 
             # Write headers
@@ -1840,6 +1866,8 @@ def export_excel():
                     # Map header key to data key using config
                     data_key = header_key # The keys in report['data'] match the keys in data_mapping (labels)
                     val = report['data'].get(data_key, '')
+                    if _is_blank_export_value(val):
+                        val = ''
                     
                     col_index = 4 + i
                     if isinstance(val, (list, dict)):
@@ -1948,9 +1976,6 @@ def export_excel():
             
             # Set header row height
             ws.row_dimensions[1].height = 25
-
-        # Set row height for header
-        ws.row_dimensions[1].height = 25
 
         # Create filename
         custom_filename = data.get('filename')
@@ -2464,11 +2489,13 @@ td.val { color: #1f2937; }
         compromisos_rendered = False
 
         for key, value in data.items():
-            val_str = str(value).strip() if value is not None else ""
-            if not val_str:
-                val_str = "N/A"
-
             if key in HIDDEN_KEYS:
+                continue
+
+            # Only what this record actually captured: columns the form no longer
+            # asks for arrive as the "N/A" placeholder and used to print as rows
+            # of a form that never had them.
+            if _is_blank_export_value(value):
                 continue
 
             if key in SKIP_KEYS:
@@ -2517,9 +2544,6 @@ td.val { color: #1f2937; }
                         f'{participantes_html}'
                         f'</td></tr>'
                     )
-                else:
-                    html_parts.append('<tr><td class="lbl">Participantes</td>'
-                                      '<td class="val">Sin participantes registrados</td></tr>')
                 continue
 
             if is_acta and key in _VISITA_COMPROMISO_KEYS:
@@ -2539,9 +2563,6 @@ td.val { color: #1f2937; }
             val_str = str(value).strip()
 
             if _is_signature(key, val_str):
-                if val_str == "N/A":
-                    html_parts.append(f'<tr><td class="lbl">{key}</td><td class="val">Sin firma</td></tr>')
-                    continue
                 # val may be a JSON array of data URLs (multiple guards)
                 try:
                     sig_list = json.loads(val_str) if val_str.startswith('[') else None
@@ -2550,12 +2571,10 @@ td.val { color: #1f2937; }
                 if isinstance(sig_list, list):
                     for i, sv in enumerate(sig_list):
                         sv = str(sv).strip()
-                        if sv and sv not in ('N/A', 'None', ''):
-                            label = f"{key} {i+1}" if len(sig_list) > 1 else key
-                            signatures.append((label, sv))
-                        else:
-                            label = f"{key} {i+1}" if len(sig_list) > 1 else key
-                            html_parts.append(f'<tr><td class="lbl">{label}</td><td class="val">Sin firma</td></tr>')
+                        if _is_blank_export_value(sv):
+                            continue
+                        label = f"{key} {i+1}" if len(sig_list) > 1 else key
+                        signatures.append((label, sv))
                 else:
                     signatures.append((key, val_str))
                 continue
