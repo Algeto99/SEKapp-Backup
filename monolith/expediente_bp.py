@@ -2,6 +2,7 @@ import json
 import logging
 import math
 import os
+import re
 from datetime import datetime, timezone
 from functools import wraps
 from io import BytesIO
@@ -21,6 +22,8 @@ except ImportError:
 
 from db import get_db_connection
 from email_utils import send_email
+from gcs_utils import (generate_signed_url, get_public_media_url,
+                       verify_media_token, _get_storage_client)
 
 app_logger = logging.getLogger(__name__)
 
@@ -258,6 +261,53 @@ def _compute_status(event, prop_lat, prop_lng):
     return 'GREEN'
 
 
+def _parse_and_sign_foto_urls(raw_fotos):
+    """Parses raw photo DB field and returns a list of signed GCS URLs."""
+    if not raw_fotos:
+        return []
+
+    urls = []
+    if isinstance(raw_fotos, (list, tuple)):
+        for item in raw_fotos:
+            if isinstance(item, str):
+                urls.append(item.strip())
+    elif isinstance(raw_fotos, str):
+        trimmed = raw_fotos.strip()
+        if not trimmed or trimmed.lower() in ('null', 'none', '[]', '{}'):
+            return []
+        if trimmed.startswith('['):
+            try:
+                parsed = json.loads(trimmed)
+                if isinstance(parsed, list):
+                    for item in parsed:
+                        if isinstance(item, str) and item.strip():
+                            urls.append(item.strip())
+                elif isinstance(parsed, str) and parsed.strip():
+                    urls.append(parsed.strip())
+            except Exception:
+                urls.append(trimmed)
+        else:
+            items = re.split(r'[\r\n,]+', trimmed)
+            urls = [u.strip() for u in items if u.strip()]
+
+    secret_key = None
+    try:
+        if current_app:
+            secret_key = current_app.config.get('SECRET_KEY')
+    except Exception:
+        pass
+
+    signed_urls = []
+    for u in urls:
+        if u:
+            clean_u = u.strip('\'"')
+            if clean_u:
+                signed = get_public_media_url(clean_u, secret_key=secret_key)
+                if signed:
+                    signed_urls.append(signed)
+    return signed_urls
+
+
 def _serialize_event(row, prop_lat, prop_lng):
     e = dict(row)
     e.setdefault('distance_m', None)
@@ -272,6 +322,12 @@ def _serialize_event(row, prop_lat, prop_lng):
         v = e.get(k)
         if v and hasattr(v, 'isoformat'):
             e[k] = v.isoformat()
+
+    # Parse and sign photo URLs for the event
+    raw_foto = e.get('foto_url')
+    foto_list = _parse_and_sign_foto_urls(raw_foto)
+    e['foto_list'] = foto_list
+    e['foto_url'] = foto_list[0] if foto_list else None
 
     return e
 
@@ -1121,27 +1177,38 @@ def public_expediente_viewer(token):
             WHERE {_anchor_sql('mec')} {cf_enc}
               AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
+            UNION ALL
+
+            SELECT
+                cc.id::text,
+                'CERTIFICACION'::text,
+                COALESCE(cc.fecha_hora, cc.created_at),
+                NULL::numeric, NULL::numeric, NULL::numeric,
+                cc.evidencia_url,
+                cc.nombre_auditor,
+                COALESCE(
+                    'Certificación de ' || NULLIF(TRIM(cc.agente_nombre_completo), '') || ' — ' || NULLIF(TRIM(cc.curso_certificacion), ''),
+                    'Checklist de cumplimiento normativo.'
+                ),
+                cc.nivel_cumplimiento,
+                NULL::text,
+                cc.vigencia_hasta,
+                NULL::text
+            FROM checklist_cumplimiento cc
+            WHERE {_anchor_sql('cc')}
+              AND COALESCE(cc.fecha_hora, cc.created_at) >= NOW() - (%s * INTERVAL '1 day')
+
             ORDER BY event_ts DESC NULLS LAST
         """
-        cur.execute(query, (*bp(), *bp(), *bp(), *bp()))
+        cur.execute(query, (*bp(), *bp(), *bp(), *bp(), prop_id, cliente, days_int))
         rows = cur.fetchall()
         events = [_serialize_event(dict(r), prop_lat, prop_lng) for r in rows]
 
         if module_filter != 'ALL':
             events = [e for e in events if e['module'] == module_filter]
 
-        # Pre-parse photo lists and sanitize for JSON embedding
+        # Sanitize for JSON embedding
         for e in events:
-            raw = e.get('foto_url') or ''
-            if raw.startswith('['):
-                try:
-                    e['foto_list'] = json.loads(raw)
-                except Exception:
-                    e['foto_list'] = [raw] if raw else []
-            elif raw:
-                e['foto_list'] = [u.strip() for u in raw.split(',') if u.strip()]
-            else:
-                e['foto_list'] = []
             # Convert Decimal GPS values to float for JSON serialization
             for k in ('latitude', 'longitude', 'location_accuracy'):
                 if e.get(k) is not None:
@@ -1154,6 +1221,7 @@ def public_expediente_viewer(token):
             'incidentes':    sum(1 for e in events if e['module'] == 'INCIDENTE'),
             'acuerdos':      sum(1 for e in events if e['module'] == 'ACUERDO'),
             'encuestas':     sum(1 for e in events if e['module'] == 'ENCUESTA'),
+            'certificaciones': sum(1 for e in events if e['module'] == 'CERTIFICACION'),
             'alertas':       sum(1 for e in events if e['status'] == 'RED'),
         }
 
@@ -1166,7 +1234,8 @@ def public_expediente_viewer(token):
 
         MODULE_LABELS = {'ALL': 'Todos los módulos', 'SUPERVISION': 'Supervisiones',
                          'INCIDENTE': 'Incidentes', 'ACUERDO': 'Acuerdos',
-                         'ENCUESTA': 'Encuestas a cliente'}
+                         'ENCUESTA': 'Encuestas a cliente',
+                         'CERTIFICACION': 'Certificaciones'}
 
         return render_template('expediente_public_combined.html',
                                cliente=cliente,
@@ -1253,15 +1322,7 @@ def public_evidence_viewer(hash_token):
         ts = record.get('fecha_hora') or record.get('creado_en')
         timestamp_str = ts.strftime('%d/%m/%Y %H:%M:%S') if ts else 'N/D'
 
-        raw_fotos = record.get('foto_evidencia_url') or ''
-        foto_urls = []
-        if raw_fotos.startswith('['):
-            try:
-                foto_urls = json.loads(raw_fotos)
-            except Exception:
-                foto_urls = [raw_fotos] if raw_fotos else []
-        elif raw_fotos:
-            foto_urls = [u.strip() for u in raw_fotos.split(',') if u.strip()]
+        foto_urls = _parse_and_sign_foto_urls(record.get('foto_evidencia_url'))
 
         return render_template('expediente_public_viewer.html',
                                record=record,
@@ -1275,3 +1336,48 @@ def public_evidence_viewer(hash_token):
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+@expediente_bp.route('/expediente/media/<string:token>')
+def public_media_stream(token):
+    """Streams a GCS media file verified via HMAC signature token without requiring user login."""
+    try:
+        secret_key = None
+        try:
+            if current_app:
+                secret_key = current_app.config.get('SECRET_KEY')
+        except Exception:
+            pass
+
+        gcs_url = verify_media_token(token, secret_key=secret_key)
+        if not gcs_url:
+            return 'Enlace no válido o expirado.', 403
+
+        # Parse bucket and blob
+        clean_url = gcs_url.split('?')[0]
+        if clean_url.startswith('gs://'):
+            parts = clean_url[5:].split('/', 1)
+        elif 'storage.googleapis.com/' in clean_url:
+            parts = clean_url.split('storage.googleapis.com/', 1)[1].split('/', 1)
+        else:
+            return 'URL no válida.', 400
+
+        if len(parts) != 2:
+            return 'URL no válida.', 400
+
+        bucket_name, blob_name = parts
+        client = _get_storage_client()
+        if not client:
+            return 'Servicio de almacenamiento no disponible.', 503
+
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        if not blob.exists():
+            return 'Archivo no encontrado.', 404
+
+        content_type = blob.content_type or 'image/jpeg'
+        data = blob.download_as_bytes()
+        return send_file(BytesIO(data), mimetype=content_type, max_age=86400)
+    except Exception as e:
+        app_logger.error(f"public_media_stream error: {e}", exc_info=True)
+        return 'Error al cargar imagen.', 500

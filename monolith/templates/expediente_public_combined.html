@@ -407,7 +407,10 @@
             <span style="font-weight:600;color:{% if e.nivel_severidad|int >= 9 %}#059669{% elif e.nivel_severidad|int >= 7 %}#3b82f6{% else %}#dc2626{% endif %};">NPS: {{ e.nivel_severidad }}</span>
           {% endif %}
           {% if e.foto_list %}
-            <span style="color:#94a3b8;">📷 {{ e.foto_list | length }} foto{{ 's' if e.foto_list | length > 1 else '' }}</span>
+            <div style="display:inline-flex;align-items:center;gap:6px;margin-top:.35rem;">
+              <img src="{{ e.foto_list[0] }}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,0,0,.1);" alt="Foto" loading="lazy">
+              <span style="color:#64748b;font-size:.75rem;">📷 {{ e.foto_list | length }} foto{{ 's' if e.foto_list | length > 1 else '' }}</span>
+            </div>
           {% endif %}
         </div>
         {% if e.module == 'SUPERVISION' and e.latitude is not none and e.longitude is not none %}

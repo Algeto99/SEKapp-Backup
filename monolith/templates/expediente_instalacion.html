@@ -626,13 +626,16 @@
     const estado = estadoLine(e);
 
     let photoHtml = '';
-    if (e.foto_url) {
-      const urls = e.foto_url.startsWith('[')
-        ? JSON.parse(e.foto_url)
-        : e.foto_url.split(',').map(u => u.trim()).filter(Boolean);
-      if (urls.length) {
-        photoHtml = `<img src="${urls[0]}" class="tl-photo" alt="foto" onclick="window.open('${urls[0]}','_blank')" title="Ver foto">`;
-      }
+    const photoList = (Array.isArray(e.foto_list) && e.foto_list.length)
+      ? e.foto_list
+      : (e.foto_url ? (e.foto_url.startsWith('[') ? (() => { try { return JSON.parse(e.foto_url); } catch(x) { return [e.foto_url]; } })() : e.foto_url.split(/[\r\n,]+/).map(u => u.trim()).filter(Boolean)) : []);
+    if (photoList.length) {
+      const firstUrl = photoList[0];
+      const countBadge = photoList.length > 1 ? `<span style="font-size:.68rem;font-weight:700;color:#94a3b8;background:rgba(255,255,255,.08);padding:1px 4px;border-radius:4px;margin-left:3px;">+${photoList.length - 1}</span>` : '';
+      photoHtml = `<div style="display:inline-flex;align-items:center;cursor:pointer;" onclick="window.open('${escHtml(firstUrl)}','_blank')" title="Ver evidencia (${photoList.length} foto${photoList.length > 1 ? 's' : ''})">
+        <img src="${escHtml(firstUrl)}" class="tl-photo" alt="foto" loading="lazy">
+        ${countBadge}
+      </div>`;
     }
 
     return `
