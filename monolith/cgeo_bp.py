@@ -1847,11 +1847,11 @@ def _build_briefing_html(payload: dict) -> str:
     cliente    = payload.get('cliente') or 'Todos los clientes'
     generated  = datetime.now().strftime('%d/%m/%Y %H:%M')
 
-    nivel      = semaforo.get('nivel', 'verde')
+    nivel      = semaforo.get('nivel') or 'verde'
     condiciones = semaforo.get('condiciones') or []
 
     nivel_color = {'verde': '#16a34a', 'amarillo': '#d97706', 'rojo': '#dc2626'}.get(nivel, '#64748b')
-    nivel_label = {'verde': 'OPERACIÓN NORMAL', 'amarillo': 'ATENCIÓN REQUERIDA', 'rojo': 'ALERTA CRÍTICA'}.get(nivel, nivel.upper())
+    nivel_label = {'verde': 'OPERACIÓN NORMAL', 'amarillo': 'ATENCIÓN REQUERIDA', 'rojo': 'ALERTA CRÍTICA'}.get(nivel, nivel.upper() if isinstance(nivel, str) else 'OPERACIÓN NORMAL')
     nivel_emoji = {'verde': '🟢', 'amarillo': '🟡', 'rojo': '🔴'}.get(nivel, '⚪')
 
     logo_html = ''
@@ -1860,44 +1860,116 @@ def _build_briefing_html(payload: dict) -> str:
         logo_html = f'<img src="{logo_url}" style="height:36px;object-fit:contain" alt="SEKapp">'
 
     # KPI rows
-    inc_ab  = kpis.get('inc_abiertos', 0)
-    inc_cr  = kpis.get('inc_criticos', 0)
-    sup_c   = kpis.get('sup_completadas', 0)
-    sup_p   = kpis.get('sup_programadas', 0)
+    inc_ab  = int(kpis.get('inc_abiertos') or 0)
+    inc_cr  = int(kpis.get('inc_criticos') or 0)
+    inc_m24 = int(kpis.get('inc_mas_24h') or 0)
+    inc_color = '#dc2626' if inc_ab >= 3 else ('#d97706' if inc_ab > 0 else '#16a34a')
+    inc_sub = f"{inc_cr} crítico{'s' if inc_cr != 1 else ''}"
+    if inc_m24 > 0:
+        inc_sub += f" · {inc_m24} >24h"
+
+    sup_c   = int(kpis.get('sup_completadas') or 0)
+    sup_p   = int(kpis.get('sup_programadas') or 0)
     sup_pct = round(sup_c / sup_p * 100) if sup_p else 0
-    sup_verde_min    = thr.get('supervision_verde_min', 90)
-    sup_amarillo_min = thr.get('supervision_amarillo_min', 70)
-    eq_op   = kpis.get('eq_op', 0)
-    eq_tot  = kpis.get('eq_total', 0)
-    eq_pct  = kpis.get('eq_pct', 0)
-    cert    = kpis.get('cert_proximas', 0)
+    sup_verde_min    = float(thr.get('supervision_verde_min') if thr.get('supervision_verde_min') is not None else 90)
+    sup_amarillo_min = float(thr.get('supervision_amarillo_min') if thr.get('supervision_amarillo_min') is not None else 70)
+    if sup_p > 0:
+        sup_color = '#16a34a' if sup_pct >= sup_verde_min else ('#d97706' if sup_pct >= sup_amarillo_min else '#dc2626')
+        sup_val_str = f"{sup_c}/{sup_p}"
+        sup_sub_str = f"{sup_pct}% completado"
+    else:
+        sup_color = '#64748b'
+        sup_val_str = f"{sup_c}"
+        sup_sub_str = "0 programadas"
+
+    eq_op   = int(kpis.get('eq_op') or 0)
+    eq_tot  = int(kpis.get('eq_total') or 0)
+    eq_pct_val = kpis.get('eq_pct')
+    if eq_pct_val is not None:
+        try:
+            eq_pct_num = float(eq_pct_val)
+        except (ValueError, TypeError):
+            eq_pct_num = round(eq_op / eq_tot * 100, 1) if eq_tot else None
+    else:
+        eq_pct_num = round(eq_op / eq_tot * 100, 1) if eq_tot else None
+
+    if eq_tot > 0:
+        eq_val_str = f"{eq_op}/{eq_tot}"
+        if eq_pct_num is not None:
+            eq_color = '#16a34a' if eq_pct_num >= 85 else ('#d97706' if eq_pct_num >= 70 else '#dc2626')
+            eq_sub_str = f"{eq_pct_num}% operativo"
+        else:
+            eq_color = '#16a34a'
+            eq_sub_str = "operativos"
+    else:
+        eq_color = '#64748b'
+        eq_val_str = "—"
+        eq_sub_str = "Sin equipos registrados"
+
+    cert = int(kpis.get('cert_proximas') or 0)
+    cert_color = '#dc2626' if cert > 3 else ('#d97706' if cert > 0 else '#16a34a')
+    cert_sub_str = "próximos 30 días"
+
+    comp_vencidos   = int(kpis.get('comp_vencidos') or 0)
+    comp_por_vencer = int(kpis.get('comp_por_vencer') or 0)
+    comp_color = '#dc2626' if comp_vencidos > 0 else ('#d97706' if comp_por_vencer > 0 else '#16a34a')
+    if comp_vencidos > 0:
+        comp_sub_str = f"{comp_vencidos} vencido{'s' if comp_vencidos != 1 else ''} · {comp_por_vencer} por vencer"
+    elif comp_por_vencer > 0:
+        comp_sub_str = f"{comp_por_vencer} por vencer próximamente"
+    else:
+        comp_sub_str = "Sin compromisos vencidos"
+
+    vis_c   = int(kpis.get('visita_completadas') or 0)
+    vis_p   = int(kpis.get('visita_programadas') or 0)
+    vis_pct = round(vis_c / vis_p * 100) if vis_p else 0
+    vis_verde_min    = float(thr.get('visita_verde_min') if thr.get('visita_verde_min') is not None else 90)
+    vis_amarillo_min = float(thr.get('visita_amarillo_min') if thr.get('visita_amarillo_min') is not None else 70)
+    if vis_p > 0:
+        vis_color = '#16a34a' if vis_pct >= vis_verde_min else ('#d97706' if vis_pct >= vis_amarillo_min else '#dc2626')
+        vis_val_str = f"{vis_c}/{vis_p}"
+        vis_sub_str = f"{vis_pct}% completado"
+    else:
+        vis_color = '#64748b'
+        vis_val_str = f"{vis_c}"
+        vis_sub_str = "0 programadas"
 
     kpi_rows = f"""
     <tr>
       <td class="kpi-name">Incidentes abiertos</td>
-      <td class="kpi-val" style="color:{'#dc2626' if inc_ab > 0 else '#16a34a'}">{inc_ab}</td>
-      <td class="kpi-sub">{inc_cr} crítico{'s' if inc_cr != 1 else ''}</td>
+      <td class="kpi-val" style="color:{inc_color}">{inc_ab}</td>
+      <td class="kpi-sub">{inc_sub}</td>
     </tr>
     <tr>
       <td class="kpi-name">Supervisiones del día</td>
-      <td class="kpi-val" style="color:{'#16a34a' if sup_pct >= sup_verde_min else '#d97706' if sup_pct >= sup_amarillo_min else '#dc2626'}">{sup_c}/{sup_p}</td>
-      <td class="kpi-sub">{sup_pct}% completado</td>
+      <td class="kpi-val" style="color:{sup_color}">{sup_val_str}</td>
+      <td class="kpi-sub">{sup_sub_str}</td>
     </tr>
     <tr>
       <td class="kpi-name">Equipos operativos</td>
-      <td class="kpi-val" style="color:{'#16a34a' if eq_pct >= 85 else '#d97706'}">{eq_op}/{eq_tot}</td>
-      <td class="kpi-sub">{eq_pct}% operativo</td>
+      <td class="kpi-val" style="color:{eq_color}">{eq_val_str}</td>
+      <td class="kpi-sub">{eq_sub_str}</td>
     </tr>
     <tr>
       <td class="kpi-name">Certificaciones próximas a vencer</td>
-      <td class="kpi-val" style="color:{'#d97706' if cert > 0 else '#16a34a'}">{cert}</td>
-      <td class="kpi-sub">próximos 30 días</td>
+      <td class="kpi-val" style="color:{cert_color}">{cert}</td>
+      <td class="kpi-sub">{cert_sub_str}</td>
+    </tr>
+    <tr>
+      <td class="kpi-name">Compromisos de visitas</td>
+      <td class="kpi-val" style="color:{comp_color}">{comp_vencidos}</td>
+      <td class="kpi-sub">{comp_sub_str}</td>
+    </tr>
+    <tr>
+      <td class="kpi-name">Visitas a clientes</td>
+      <td class="kpi-val" style="color:{vis_color}">{vis_val_str}</td>
+      <td class="kpi-sub">{vis_sub_str}</td>
     </tr>
     """
 
     # Alert rows (listado completo, sin límite)
-    rojas    = [a for a in alertas if a.get('color_semaforo') == 'rojo']
-    amarillas = [a for a in alertas if a.get('color_semaforo') == 'amarillo']
+    rojas    = [a for a in alertas if isinstance(a, dict) and a.get('color_semaforo') == 'rojo']
+    amarillas = [a for a in alertas if isinstance(a, dict) and a.get('color_semaforo') == 'amarillo']
     visible  = rojas + amarillas
 
     alerta_rows = ''
@@ -1916,19 +1988,19 @@ def _build_briefing_html(payload: dict) -> str:
 
     # Tendencia section
     chart_section = ''
-    if chart_img and chart_img.startswith('data:image'):
+    if chart_img and isinstance(chart_img, str) and chart_img.startswith('data:image'):
         chart_section = f'''
         <div class="section-title">Tendencia — Últimos 7 días</div>
         <img src="{chart_img}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0" alt="Tendencia">
         '''
-    elif tendencia.get('labels'):
-        labels = tendencia['labels']
-        sups   = tendencia.get('supervisiones', [0]*len(labels))
-        progs  = tendencia.get('programadas', [0]*len(labels))
+    elif tendencia and isinstance(tendencia, dict) and tendencia.get('labels'):
+        labels = tendencia.get('labels') or []
+        sups   = tendencia.get('supervisiones') or [0]*len(labels)
+        progs  = tendencia.get('programadas') or [0]*len(labels)
         rows = ''.join(
             f'<tr><td style="padding:.3rem .5rem;font-size:.78rem;color:#64748b">{l}</td>'
-            f'<td style="text-align:center;padding:.3rem .5rem;font-size:.78rem">{sups[i] if i < len(sups) else 0}</td>'
-            f'<td style="text-align:center;padding:.3rem .5rem;font-size:.78rem">{progs[i] if i < len(progs) else 0}</td></tr>'
+            f'<td style="text-align:center;padding:.3rem .5rem;font-size:.78rem">{sups[i] if (sups and i < len(sups) and sups[i] is not None) else 0}</td>'
+            f'<td style="text-align:center;padding:.3rem .5rem;font-size:.78rem">{progs[i] if (progs and i < len(progs) and progs[i] is not None) else 0}</td></tr>'
             for i, l in enumerate(labels)
         )
         chart_section = f'''
@@ -1942,7 +2014,7 @@ def _build_briefing_html(payload: dict) -> str:
           {rows}
         </table>'''
 
-    cond_text = ' · '.join(c.get('texto', '') for c in condiciones) if condiciones else 'Sin condiciones de alerta'
+    cond_text = ' · '.join(c.get('texto', '') for c in condiciones if isinstance(c, dict) and c.get('texto')) if condiciones else 'Sin condiciones de alerta'
 
     return f"""<!DOCTYPE html>
 <html lang="es">
