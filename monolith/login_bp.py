@@ -59,7 +59,7 @@ def _safe_redirect(next_url, fallback):
         return fallback
 
     clean_path = path.rstrip('/')
-    if '/api/' in clean_path or clean_path.endswith('/logout') or clean_path in ('', '/'):
+    if '/api/' in clean_path or clean_path.endswith('/logout') or clean_path in ('', '/', '/landing'):
         return fallback
 
     # Avoid redirecting to POST-only submit routes: map to GET form equivalent
@@ -169,6 +169,19 @@ def delete_reset_token(token):
 @login_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("20 per minute; 5 per second")
 def login():
+    if request.method == 'GET':
+        from flask_jwt_extended import verify_jwt_in_request
+        try:
+            verify_jwt_in_request(optional=True)
+            claims = get_jwt()
+            if claims and claims.get('sub') and not claims.get('force_pw'):
+                is_admin = bool(claims.get('is_admin', False))
+                fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
+                redirect_target = _safe_redirect(request.args.get('next'), fallback=fallback)
+                return redirect(redirect_target)
+        except Exception:
+            pass
+
     if request.method == 'POST':
         email = request.form.get('username') or request.form.get('email')
         password = request.form.get('password')
@@ -472,7 +485,8 @@ def change_password():
                         'name': user.get('name', ''),
                     }
                 )
-                response = redirect(url_for('landing_bp.landing_page'))
+                fallback = '/cgeo/morning-briefing/' if user.get('is_admin') else url_for('landing_bp.landing_page')
+                response = redirect(fallback)
                 set_access_cookies(response, full_token)
                 return response
             return redirect(url_for('login_bp.login'))
