@@ -841,18 +841,30 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     where_conditions.append(f"t.{config['date_col']} <= %s")
                     query_params.append(filters['end_date'])
 
-                # Property/Location filters (Only for reporte_incidente for now)
-                if f_type == 'reporte_incidente':
-                     if filters.get('property_id'):
-                        where_conditions.append("p.id_propiedad = %s")
-                        query_params.append(filters['property_id'])
-                     elif filters.get('property'):
-                        where_conditions.append("LOWER(t.cliente_instalacion) LIKE LOWER(%s)")
-                        query_params.append(f"%{filters['property']}%")
-                     
-                     if filters.get('location'):
-                        where_conditions.append("LOWER(t.puesto_area_especifica) LIKE LOWER(%s)")
-                        query_params.append(f"%{filters['location']}%")
+                # Cliente / Empresa y Propiedad / Instalación, para TODOS los tipos.
+                # Antes esto estaba dentro de `if f_type == 'reporte_incidente'`, de
+                # modo que filtrar por propiedad no acotaba ningún otro formulario.
+                # Se reutiliza el mismo helper que los dashboards, así que un
+                # registro legacy sin FK se resuelve igual aquí que allá.
+                if filters.get('cliente') or filters.get('property_id') or filters.get('property'):
+                    from dashboard_bp import _add_scope_filters
+                    # log_de_patrullas guarda el sitio en `sitio`, no en
+                    # cliente_instalacion: sin esto la consulta apuntaría a una
+                    # columna inexistente y ese tipo de reporte reventaría.
+                    col_inst = None if config['table'] == 'log_de_patrullas' else 'cliente_instalacion'
+                    _add_scope_filters(
+                        where_conditions, query_params,
+                        cliente=filters.get('cliente'),
+                        propiedad=filters.get('property_id') or filters.get('property'),
+                        col_cliente_inst=col_inst,
+                        col_puesto=None,
+                        prefix='t.',
+                    )
+
+                # Lugar del incidente: solo reporte_incidente tiene esa columna.
+                if f_type == 'reporte_incidente' and filters.get('location'):
+                    where_conditions.append("LOWER(t.puesto_area_especifica) LIKE LOWER(%s)")
+                    query_params.append(f"%{filters['location']}%")
 
             where_clause = ""
             if where_conditions:
@@ -1359,7 +1371,8 @@ def get_properties():
         
         if company_id is not None and _table_has_column(cur, 'propiedades', 'customer_company_id'):
             query = """
-                SELECT DISTINCT p.id_propiedad, p.nombre
+                SELECT DISTINCT p.id_propiedad, p.nombre,
+                       p.customer_company_id, cc.name AS cliente
                 FROM propiedades p
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE p.nombre IS NOT NULL
@@ -1369,24 +1382,38 @@ def get_properties():
             cur.execute(query, (company_id,))
         else:
             query = """
-                SELECT DISTINCT id_propiedad, nombre 
-                FROM propiedades 
-                WHERE nombre IS NOT NULL 
-                ORDER BY nombre
+                SELECT DISTINCT p.id_propiedad, p.nombre,
+                       p.customer_company_id, cc.name AS cliente
+                FROM propiedades p
+                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+                WHERE p.nombre IS NOT NULL
+                ORDER BY p.nombre
             """
             cur.execute(query)
         
         app_logger.info("Fetching properties from database")
         rows = cur.fetchall()
         
+        clientes = {}
         for row in rows:
+            cid = row["customer_company_id"]
+            cnombre = (row["cliente"] or '').strip()
             properties.append({
                 "id": row["id_propiedad"],
-                "name": row["nombre"]
+                "name": row["nombre"],
+                # Con qué encadenar Cliente / Empresa → Propiedad / Instalación.
+                "cliente_id": cid,
+                "cliente": cnombre,
             })
-        
-        app_logger.info(f"Retrieved {len(properties)} properties")
-        return jsonify({"properties": properties}), 200
+            if cid is not None and cnombre:
+                clientes[cid] = cnombre
+
+        app_logger.info(f"Retrieved {len(properties)} properties, {len(clientes)} clientes")
+        return jsonify({
+            "properties": properties,
+            "clientes": [{"id": k, "name": v} for k, v in
+                         sorted(clientes.items(), key=lambda kv: kv[1].lower())],
+        }), 200
         
     except psycopg2.Error as e:
         app_logger.error(f"PostgreSQL Error in get_properties: {e}", exc_info=True)
@@ -1485,6 +1512,10 @@ def get_more_reports():
     # Report ID filter
     if request.args.get('report_id'):
         filters['report_id'] = request.args.get('report_id')
+
+    # Cliente / Empresa — acota antes que la propiedad y manda sobre ella.
+    if request.args.get('cliente') or request.args.get('customer_company_id'):
+        filters['cliente'] = request.args.get('cliente') or request.args.get('customer_company_id')
 
     # Property filters (ID takes precedence over name)
     if request.args.get('property_id'):

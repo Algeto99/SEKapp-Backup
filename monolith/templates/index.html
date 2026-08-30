@@ -791,11 +791,19 @@
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
             </div>
             <div class="flex-grow w-full">
-                <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Buscar por
-                    Propiedad:</label>
+                <label for="clienteSelect" class="block text-sm font-medium text-gray-700 mb-1">Cliente /
+                    Empresa:</label>
+                <select id="clienteSelect"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
+                    <option value="">Todos los clientes</option>
+                </select>
+            </div>
+            <div class="flex-grow w-full">
+                <label for="propertySelect" class="block text-sm font-medium text-gray-700 mb-1">Propiedad /
+                    Instalación:</label>
                 <select id="propertySelect"
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white">
-                    <option value="">Seleccionar propiedad...</option>
+                    <option value="">Todas las instalaciones</option>
                 </select>
             </div>
             <div class="flex-grow w-full">
@@ -1327,6 +1335,7 @@
             return {
                 form_type: document.getElementById('formTypeSelect').value,
                 report_id: document.getElementById('reportIdSearch').value,
+                cliente: document.getElementById('clienteSelect').value,
                 property_id: document.getElementById('propertySelect').value,
                 location_id: document.getElementById('locationSelect').value,
                 submitted_by: document.getElementById('submittedBySearch').value,
@@ -1440,6 +1449,42 @@
             }
         }
 
+        // Catálogo de propiedades con su cliente, para encadenar los dos filtros.
+        let _allProperties = [];
+
+        // Repuebla Propiedad / Instalación con lo que cuelga del cliente elegido.
+        // Conserva la selección si sigue siendo válida bajo el nuevo cliente.
+        function fillPropertyOptions() {
+            const clienteSelect  = document.getElementById('clienteSelect');
+            const propertySelect = document.getElementById('propertySelect');
+            if (!clienteSelect || !propertySelect) return;
+
+            const clienteId = clienteSelect.value;
+            const previo    = propertySelect.value;
+            const visibles  = clienteId
+                ? _allProperties.filter(p => String(p.cliente_id) === String(clienteId))
+                : _allProperties;
+
+            propertySelect.innerHTML = '<option value="">Todas las instalaciones</option>';
+            visibles.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                // Sin cliente elegido, el nombre solo puede ser ambiguo entre clientes.
+                option.textContent = clienteId || !p.cliente ? p.name : `${p.name} — ${p.cliente}`;
+                propertySelect.appendChild(option);
+            });
+
+            if (previo && visibles.some(p => String(p.id) === String(previo))) {
+                propertySelect.value = previo;
+            }
+        }
+
+        async function handleClienteChange() {
+            fillPropertyOptions();
+            // La propiedad pudo quedar fuera del cliente nuevo: el lugar depende de ella.
+            await handlePropertyChange();
+        }
+
         // Resolved once loadProperties() finishes, so saved-filter restore can await it
         let propertiesLoadedResolve;
         const propertiesLoaded = new Promise(res => { propertiesLoadedResolve = res; });
@@ -1461,20 +1506,23 @@
                 }
 
                 const data = await response.json();
-                const propertySelect = document.getElementById('propertySelect');
 
-                // Clear existing options except the first one
-                propertySelect.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+                // El catálogo completo se guarda para poder reconstruir la lista de
+                // propiedades cada vez que cambia el cliente.
+                _allProperties = data.properties || [];
 
-                // Add properties to dropdown
-                data.properties.forEach(property => {
+                const clienteSelect = document.getElementById('clienteSelect');
+                clienteSelect.innerHTML = '<option value="">Todos los clientes</option>';
+                (data.clientes || []).forEach(c => {
                     const option = document.createElement('option');
-                    option.value = property.id;
-                    option.textContent = property.name;
-                    propertySelect.appendChild(option);
+                    option.value = c.id;
+                    option.textContent = c.name;
+                    clienteSelect.appendChild(option);
                 });
 
-                console.log(`Loaded ${data.properties.length} properties`);
+                fillPropertyOptions();
+
+                console.log(`Loaded ${_allProperties.length} properties, ${(data.clientes || []).length} clientes`);
 
             } catch (error) {
                 console.error('Error loading properties:', error);
@@ -2013,8 +2061,13 @@
                 const reportId = document.getElementById('reportIdSearch')?.value;
                 if (reportId) params.append('report_id', reportId);
 
+                const cliente = document.getElementById('clienteSelect')?.value;
+                if (cliente) params.append('cliente', cliente);
+
+                // El valor del select es el id de la propiedad: se manda como tal
+                // para no depender de que el backend lo deduzca por ser numérico.
                 const property = document.getElementById('propertySelect')?.value;
-                if (property) params.append('property', property);
+                if (property) params.append('property_id', property);
 
                 const location = document.getElementById('locationSelect')?.value;
                 if (location) params.append('location', location);
@@ -2140,8 +2193,18 @@
 
             // Wait for properties dropdown to be populated, then set property + location
             await propertiesLoaded;
+            const cliSel  = document.getElementById('clienteSelect');
             const propSel = document.getElementById('propertySelect');
             const locSel  = document.getElementById('locationSelect');
+
+            // El cliente va primero: reconstruye la lista de propiedades sobre la
+            // que se resuelve property_id.
+            if (f.cliente && cliSel.querySelector(`option[value="${f.cliente}"]`)) {
+                cliSel.value = f.cliente;
+            } else {
+                cliSel.value = '';
+            }
+            fillPropertyOptions();
 
             if (f.property_id) {
                 // Inject option if not present (edge case: new property added after filter was saved)
@@ -2175,6 +2238,7 @@
         }
 
         function captureFiltersForSave() {
+            const cliSel  = document.getElementById('clienteSelect');
             const propSel = document.getElementById('propertySelect');
             const locSel  = document.getElementById('locationSelect');
             const selectedPropOpt = propSel.options[propSel.selectedIndex];
@@ -2182,6 +2246,8 @@
             return {
                 form_type:      document.getElementById('formTypeSelect').value,
                 report_id:      document.getElementById('reportIdSearch').value,
+                cliente:        cliSel.value,
+                cliente_label:  cliSel.value ? cliSel.options[cliSel.selectedIndex].textContent : '',
                 property_id:    propSel.value,
                 property_label: propSel.value ? (selectedPropOpt ? selectedPropOpt.textContent : '') : '',
                 location_id:    locSel.value,
@@ -2338,6 +2404,7 @@
 
             // Get form elements
             const reportIdSearch = document.getElementById('reportIdSearch');
+            const clienteSelect = document.getElementById('clienteSelect');
             const propertySelect = document.getElementById('propertySelect');
             const locationSelect = document.getElementById('locationSelect');
             const submittedBySearch = document.getElementById('submittedBySearch');
@@ -2348,11 +2415,14 @@
 
             // Add event listeners
             document.getElementById('formTypeSelect').addEventListener('change', applyFilters);
+            clienteSelect.addEventListener('change', handleClienteChange);
             propertySelect.addEventListener('change', handlePropertyChange);
             searchButton.addEventListener('click', applyFilters);
 
             clearSearchButton.addEventListener('click', () => {
                 reportIdSearch.value = '';
+                clienteSelect.value = '';
+                fillPropertyOptions();
                 propertySelect.value = '';
                 locationSelect.value = '';
                 locationSelect.disabled = true;
