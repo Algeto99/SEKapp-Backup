@@ -1,8 +1,6 @@
 -- Database Schema DDL for SecApp
 -- Automatically generated from database schema dictionary
 
-BEGIN;
-
 CREATE TABLE IF NOT EXISTS companies (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255),
@@ -808,5 +806,3 @@ CREATE TABLE IF NOT EXISTS formulario_edicion_historial (
     valor_nuevo TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_formulario_edicion_historial_tabla_registro ON formulario_edicion_historial (tabla, registro_id);
-
-COMMIT;
