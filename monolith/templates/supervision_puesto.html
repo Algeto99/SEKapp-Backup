@@ -252,14 +252,23 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
-                        <select name="tipo_servicio" class="form-select">
+                        <label class="block text-sm font-medium mb-1">Tipo de Instalación</label>
+                        <select name="tipo_servicio" id="tipoInstalacion" class="form-select">
                             <option value="">Seleccione...</option>
                             <option>Residencial</option>
+                            <option>Comercial y Oficinas</option>
                             <option>Industrial</option>
-                            <option>Comercial</option>
-                            <option>Escolta</option>
+                            <option>Logística y Portuaria</option>
+                            <option>Infraestructura Crítica</option>
+                            <option>Educativo e Institucional</option>
+                            <option>Salud</option>
+                            <option>Construcción</option>
+                            <option value="Otro">Otro</option>
                         </select>
+                        <div id="tipoInstalacionOtroWrap" class="hidden mt-2">
+                            <input type="text" id="tipoInstalacionOtroInput" class="form-input"
+                                placeholder="Especifique el tipo de instalación">
+                        </div>
                     </div>
                 </div>
 
@@ -580,6 +589,45 @@
                 });
             }
 
+            // Tipo de Instalación "Otro". El script compartido de más abajo hace
+            // return temprano sin supervisionsContainer, así que el modo edición
+            // necesita su propio cableado.
+            var tipoSel      = document.getElementById('tipoInstalacion');
+            var tipoOtroWrap = document.getElementById('tipoInstalacionOtroWrap');
+            var tipoOtroInp  = document.getElementById('tipoInstalacionOtroInput');
+            if (tipoSel && tipoOtroWrap && tipoOtroInp) {
+                tipoSel.addEventListener('change', function() {
+                    if (this.value === 'Otro') {
+                        tipoOtroWrap.classList.remove('hidden');
+                        tipoOtroInp.required = true;
+                        tipoOtroInp.focus();
+                    } else {
+                        tipoOtroWrap.classList.add('hidden');
+                        tipoOtroInp.required = false;
+                        tipoOtroInp.value = '';
+                    }
+                });
+                // El texto libre viaja en el propio select: la columna sigue
+                // siendo tipo_servicio y no hay campo nuevo que agregar.
+                form.addEventListener('submit', function(e) {
+                    if (tipoSel.value !== 'Otro') return;
+                    var val = tipoOtroInp.value.trim();
+                    if (!val) {
+                        e.preventDefault();
+                        tipoOtroInp.focus();
+                        tipoOtroInp.setCustomValidity('Especifique el tipo de instalación.');
+                        tipoOtroInp.reportValidity();
+                        return;
+                    }
+                    tipoOtroInp.setCustomValidity('');
+                    var opt = document.createElement('option');
+                    opt.value = val;
+                    opt.text  = val;
+                    tipoSel.appendChild(opt);
+                    tipoSel.value = val;
+                });
+            }
+
             var record = window.EDIT_RECORD;
             Object.keys(record).forEach(function(key) {
                 var value = record[key];
@@ -617,6 +665,24 @@
                         otroInput.disabled = false;
                         otroInput.value = otroValues.join(', ');
                     }
+                }
+            }
+
+            // Un tipo guardado con el catálogo viejo (Comercial, Escolta…) ya no
+            // existe como opción: el bucle de arriba dejó el select vacío. Se
+            // conserva bajo "Otro" en vez de perderse al guardar.
+            if (tipoSel && record.tipo_servicio) {
+                var tipoGuardado = String(record.tipo_servicio).trim();
+                var enCatalogo = Array.prototype.some.call(tipoSel.options, function(o) {
+                    return o.value === tipoGuardado;
+                });
+                if (enCatalogo) {
+                    tipoSel.value = tipoGuardado;
+                } else if (tipoOtroWrap && tipoOtroInp) {
+                    tipoSel.value = 'Otro';
+                    tipoOtroWrap.classList.remove('hidden');
+                    tipoOtroInp.value = tipoGuardado;
+                    tipoOtroInp.required = true;
                 }
             }
 
@@ -696,14 +762,23 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-1">Tipo de Servicio</label>
-                            <select name="supervisions[${index}][tipo_servicio]" class="form-select">
+                            <label class="block text-sm font-medium mb-1">Tipo de Instalación</label>
+                            <select name="supervisions[${index}][tipo_servicio]" class="form-select tipo-instalacion-select" data-index="${index}">
                                 <option value="">Seleccione...</option>
                                 <option>Residencial</option>
+                                <option>Comercial y Oficinas</option>
                                 <option>Industrial</option>
-                                <option>Comercial</option>
-                                <option>Escolta</option>
+                                <option>Logística y Portuaria</option>
+                                <option>Infraestructura Crítica</option>
+                                <option>Educativo e Institucional</option>
+                                <option>Salud</option>
+                                <option>Construcción</option>
+                                <option value="Otro">Otro</option>
                             </select>
+                            <div id="tipoInstalacionOtro_${index}" class="hidden mt-2">
+                                <input type="text" id="tipoInstalacionOtroInput_${index}" class="form-input"
+                                    placeholder="Especifique el tipo de instalación">
+                            </div>
                         </div>
                     </div>
 
@@ -1012,6 +1087,23 @@
                     });
                 }
 
+                // Tipo de Instalación "Otro" logic
+                const selTipoInst      = block.querySelector('.tipo-instalacion-select');
+                const tipoInstOtroDiv  = document.getElementById(`tipoInstalacionOtro_${index}`);
+                const tipoInstOtroInput = document.getElementById(`tipoInstalacionOtroInput_${index}`);
+                if (selTipoInst && tipoInstOtroDiv && tipoInstOtroInput) {
+                    selTipoInst.addEventListener('change', function () {
+                        if (this.value === 'Otro') {
+                            tipoInstOtroDiv.classList.remove('hidden');
+                            tipoInstOtroInput.required = true;
+                        } else {
+                            tipoInstOtroDiv.classList.add('hidden');
+                            tipoInstOtroInput.required = false;
+                            tipoInstOtroInput.value = '';
+                        }
+                    });
+                }
+
                 // Uniforme logic
                 const selUniforme = block.querySelector('.presentacion_uniforme-select');
                 const fieldsUniforme = document.getElementById(`uniformeFields_${index}`);
@@ -1108,6 +1200,33 @@
                         const opt = document.createElement('option');
                         opt.value = val;
                         opt.text = val;
+                        sel.appendChild(opt);
+                        sel.value = val;
+                    }
+                }
+
+                // Tipo de Instalación "Otro": el texto libre viaja en el propio
+                // select, igual que el tiempo en puesto. La columna sigue siendo
+                // tipo_servicio, así que no hay campo nuevo que el INSERT descarte.
+                const tipoInstSelects = container.querySelectorAll('.tipo-instalacion-select');
+                for (const sel of tipoInstSelects) {
+                    if (sel.value === 'Otro') {
+                        const idx = sel.dataset.index;
+                        const otroInput = document.getElementById(`tipoInstalacionOtroInput_${idx}`);
+                        const val = otroInput ? otroInput.value.trim() : '';
+                        if (!val) {
+                            e.preventDefault();
+                            if (otroInput) {
+                                otroInput.focus();
+                                otroInput.setCustomValidity('Especifique el tipo de instalación.');
+                                otroInput.reportValidity();
+                            }
+                            return;
+                        }
+                        otroInput.setCustomValidity('');
+                        const opt = document.createElement('option');
+                        opt.value = val;
+                        opt.text  = val;
                         sel.appendChild(opt);
                         sel.value = val;
                     }

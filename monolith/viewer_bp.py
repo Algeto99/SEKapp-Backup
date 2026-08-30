@@ -321,6 +321,7 @@ FORM_CONFIGS = {
             "Fecha/Hora": "fecha_hora",
             "Supervisor": "supervisor",
             "Puesto/Área": "puesto_area_especifica",
+            "Tipo de Instalación": "tipo_servicio",
             "Nombre Guardia": "nombre_guardia",
             "Observaciones": "observaciones_novedades",
             "Documento Guardia": "documento_guardia",
