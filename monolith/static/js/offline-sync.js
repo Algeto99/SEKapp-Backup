@@ -40,8 +40,8 @@
         log_de_patrullas: 'Log de Patrullas',
         registro_de_capacitaciones: 'Control de Capacitaciones',
         registro_y_acta_de_visita: 'Acta de Visita a Cliente',
-        planilla_vehicular: 'Planilla Vehicular',
-        planilla_motocicletas: 'Planilla de Motocicletas',
+        planilla_vehicular: 'Planilla de Chequeo Pre-Operacional Vehicular',
+        planilla_motocicletas: 'Planilla de Chequeo Pre-Operacional de Motocicletas',
         checklist_cumplimiento: 'Checklist de Cumplimiento',
         confiabilidad_equipos: 'Confiabilidad de Equipos',
     };

@@ -109,13 +109,13 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             {# Orden y agrupación replicados de la pantalla de selección (select_form.html),
                organizada por procesos operativos. Mantener ambos en sincronía. #}
             <div class="snw-subsection">Supervisión de campo</div>
-            <a href="/forms/supervision_puesto" class="snw-subitem {{ 'active' if request.path.startswith('/forms/supervision_puesto') else '' }}">Supervisión de Puesto</a>
+            <a href="/forms/supervision_puesto" class="snw-subitem {{ 'active' if request.path.startswith('/forms/supervision_puesto') else '' }}">Control de Supervisión</a>
             {% if 'log_de_patrullas' in (enabled_modules or []) %}
             <a href="/forms/log_de_patrullas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/log_de_patrullas') else '' }}">Log de Patrullas</a>
             {% endif %}
             <a href="/forms/confiabilidad_equipos" class="snw-subitem {{ 'active' if request.path.startswith('/forms/confiabilidad_equipos') else '' }}">Confiabilidad de Equipos</a>
-            <a href="/forms/planilla_vehicular" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_vehicular') else '' }}">Planilla Vehicular</a>
-            <a href="/forms/planilla_motocicletas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_motocicletas') else '' }}">Planilla Motocicletas</a>
+            <a href="/forms/planilla_vehicular" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_vehicular') else '' }}">Planilla de Chequeo Pre-Operacional Vehicular</a>
+            <a href="/forms/planilla_motocicletas" class="snw-subitem {{ 'active' if request.path.startswith('/forms/planilla_motocicletas') else '' }}">Planilla de Chequeo Pre-Operacional de Motocicletas</a>
 
             <div class="snw-subsection">Gestión de personal</div>
             <a href="/forms/registro_de_capacitaciones" class="snw-subitem {{ 'active' if request.path.startswith('/forms/registro_de_capacitaciones') else '' }}">Registro de Capacitaciones</a>

@@ -2572,7 +2572,7 @@ def submit_planilla_vehicular():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla vehicular: {e}", exc_info=True)
-        return render_template('error.html', message=f"Error al guardar la Planilla Vehicular: {e}", error=str(e)), 500
+        return render_template('error.html', message=f"Error al guardar la Planilla de Chequeo Pre-Operacional Vehicular: {e}", error=str(e)), 500
     finally:
         if conn:
             conn.close()
@@ -2821,7 +2821,7 @@ def submit_planilla_motocicletas():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla motocicletas: {e}", exc_info=True)
-        return render_template('error.html', message=f"Error al guardar la Planilla Motocicletas: {e}", error=str(e)), 500
+        return render_template('error.html', message=f"Error al guardar la Planilla de Chequeo Pre-Operacional de Motocicletas: {e}", error=str(e)), 500
     finally:
         if conn:
             conn.close()
@@ -2953,7 +2953,7 @@ def submit_planilla_motocicletas_editar(id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing planilla motocicletas {id}: {e}", exc_info=True)
-        return render_template('error.html', message=f"Error al editar la Planilla Motocicletas: {e}", error=str(e)), 500
+        return render_template('error.html', message=f"Error al editar la Planilla de Chequeo Pre-Operacional de Motocicletas: {e}", error=str(e)), 500
     finally:
         if conn:
             conn.close()

@@ -277,7 +277,7 @@ FORM_CONFIGS = {
         'id_col': 'id_supervision',
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
-        'title_prefix': 'Supervisión de Puesto',
+        'title_prefix': 'Control de Supervisión',
         # Resolve current records through their FKs and legacy records through the
         # installation name saved before id_propiedad/customer_company_id existed.
         # Client and installation remain separate aliases for both PDF and Excel.
@@ -461,7 +461,8 @@ FORM_CONFIGS = {
         'id_col': 'id_planilla_vehicular',
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
-        'title_prefix': 'Planilla Vehicular',
+        'title_prefix': 'Planilla de Chequeo Pre-Operacional Vehicular',
+        'sheet_title': 'Pre-Operacional Vehicular',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
         'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
@@ -513,7 +514,8 @@ FORM_CONFIGS = {
         'id_col': 'id',
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
-        'title_prefix': 'Planilla Motocicletas',
+        'title_prefix': 'Planilla de Chequeo Pre-Operacional de Motocicletas',
+        'sheet_title': 'Pre-Operacional Motocicletas',
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
         'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
@@ -1829,7 +1831,9 @@ def export_excel():
                 continue
 
             # Create sheet
-            sheet_title = config.get('title_prefix', f_type)[:30] # Excel sheet names max 31 chars
+            # sheet_title existe donde el nombre oficial no sobrevive al corte de
+            # 30 caracteres de Excel sin volverse ambiguo frente a otra hoja.
+            sheet_title = (config.get('sheet_title') or config.get('title_prefix', f_type))[:30]
             ws = wb.create_sheet(title=sheet_title)
 
             # Define headers dynamically based on data_mapping
@@ -2370,7 +2374,7 @@ def generate_reports_html(reports):
     # never appear. Kept apart from SKIP_KEYS, whose values are parsed as attachment URLs.
     HIDDEN_KEYS = {'Company Id', 'Customer Company Id', 'Id Propiedad',
                    'Location Accuracy', 'Latitude', 'Longitude',
-                   # Columna cruda de Supervisión de Puesto: el dato ya se muestra
+                   # Columna cruda de Control de Supervisión: el dato ya se muestra
                    # como "Propiedad / Instalación", resuelto desde id_propiedad.
                    'Cliente Instalacion'}
 

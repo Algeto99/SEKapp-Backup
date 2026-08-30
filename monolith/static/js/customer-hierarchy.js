@@ -1108,7 +1108,7 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
 
         enhanceAll();
 
-        // Supervisión de Puesto builds its blocks in JS and adds more on demand.
+        // Control de Supervisión builds its blocks in JS and adds more on demand.
         const blocks = document.getElementById('supervisionsContainer');
         if (blocks) new MutationObserver(enhanceAll).observe(blocks, { childList: true });
 
