@@ -737,6 +737,31 @@ def api_fleet():
             conn.close()
 
 
+# Registro fotográfico de la flota: cuatro vistas del estado exterior. El campo
+# del formulario es foto_<vista> y la columna foto_<vista>_url.
+_FOTOS_FLOTA = ('foto_frente', 'foto_atras', 'foto_lado_derecho', 'foto_lado_izquierdo')
+
+
+def _subir_fotos_flota(form_data, old_record=None):
+    """
+    Sube las fotos presentes en la petición y deja su URL en form_data.
+
+    En edición, una vista que no se vuelve a cargar conserva la que ya tenía:
+    el formulario no puede obligar a repetir las cuatro para corregir un dato.
+    """
+    for campo in _FOTOS_FLOTA:
+        col = f'{campo}_url'
+        archivo = request.files.get(campo)
+        if archivo and archivo.filename:
+            url = upload_file_to_gcs(archivo, GCS_BUCKET_NAME)
+            if url:
+                form_data[col] = url
+                continue
+        if old_record and old_record.get(col):
+            form_data[col] = old_record[col]
+    return form_data
+
+
 @forms_bp.route('/api/fleet/ultimo-kilometraje')
 @jwt_required()
 def api_fleet_ultimo_kilometraje():
@@ -2608,6 +2633,7 @@ def submit_planilla_vehicular():
             if (key not in form_data and key != 'csrf_token'
                     and key not in _SCOPE_OWNED_FIELDS):
                 form_data[key] = request.form.get(key)
+        _subir_fotos_flota(form_data)
         form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
@@ -2753,6 +2779,7 @@ def submit_planilla_vehicular_editar(id):
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
+        _subir_fotos_flota(form_data, old_record)
         valid_form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
 
         _record_edicion_historial(
@@ -2854,6 +2881,7 @@ def submit_planilla_motocicletas():
                 form_data[key] = request.form.get(key)
 
         app_logger.info(f"Submitting motorcycle form for {user_email}")
+        _subir_fotos_flota(form_data)
         valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         columns = ', '.join(valid_form_data.keys())
@@ -2981,6 +3009,7 @@ def submit_planilla_motocicletas_editar(id):
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
+        _subir_fotos_flota(form_data, old_record)
         valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         _record_edicion_historial(

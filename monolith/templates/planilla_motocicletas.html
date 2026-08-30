@@ -27,6 +27,32 @@
         }
 
 
+
+        /* ── Registro fotográfico ────────────────────────────────────────── */
+        .foto-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; }
+        @media (max-width:640px){ .foto-grid { grid-template-columns:1fr; } }
+        .foto-card {
+            position:relative; display:flex; flex-direction:column; align-items:center;
+            justify-content:center; gap:.35rem; min-height:9.5rem; padding:1rem;
+            border:2px dashed rgba(148,163,184,.45); border-radius:.75rem;
+            background:rgba(15,23,42,.35); text-align:center; cursor:pointer;
+            transition:border-color .18s, background .18s;
+        }
+        .foto-card:hover { border-color:#60a5fa; background:rgba(30,58,95,.35); }
+        .foto-card.foto-lista { border-style:solid; border-color:#22c55e; background:rgba(22,163,74,.12); }
+        .foto-card input[type="file"] {
+            position:absolute; inset:0; width:100%; height:100%;
+            opacity:0; cursor:pointer;
+        }
+        .foto-card-icon  { font-size:1.75rem; line-height:1; }
+        .foto-card-title { font-size:.9rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .foto-card-hint  { font-size:.72rem; color:#94a3b8; }
+        .foto-card-state { font-size:.72rem; font-weight:700; color:#94a3b8; }
+        .foto-card.foto-lista .foto-card-state { color:#4ade80; }
+        .foto-card-preview { max-height:6rem; border-radius:.4rem; margin-top:.25rem; }
+        body.light-mode .foto-card { background:#f8fafc; border-color:#cbd5e1; }
+        body.light-mode .foto-card.foto-lista { background:#f0fdf4; border-color:#22c55e; }
+        body.light-mode .foto-card-hint, body.light-mode .foto-card-state { color:#64748b; }
         .form-section {
             background-color: #2d3748;
             border-radius: 8px;
@@ -387,6 +413,56 @@
             </div>
 
             <div class="form-section">
+                <h2 class="text-2xl font-bold mb-2 border-b border-gray-600 pb-3">Registro Fotográfico de la Motocicleta</h2>
+                <p class="text-sm text-gray-400 mb-4">
+                    Las cuatro vistas son obligatorias: son la evidencia del estado exterior
+                    al inicio de la operación. Toque cada tarjeta para tomar o cargar la foto.
+                </p>
+                <div class="foto-grid">
+                    <label class="foto-card" data-foto="foto_frente">
+                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
+                             que es el "tomar o cargar" que pide el formulario. -->
+                        <input type="file" name="foto_frente" id="foto_frente" accept="image/*" required>
+                        <span class="foto-card-icon">📷</span>
+                        <span class="foto-card-title">FRENTE</span>
+                        <span class="foto-card-hint">Fotografía frontal completa</span>
+                        <img class="foto-card-preview" alt="" hidden>
+                        <span class="foto-card-state">Pendiente</span>
+                    </label>
+                    <label class="foto-card" data-foto="foto_atras">
+                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
+                             que es el "tomar o cargar" que pide el formulario. -->
+                        <input type="file" name="foto_atras" id="foto_atras" accept="image/*" required>
+                        <span class="foto-card-icon">📷</span>
+                        <span class="foto-card-title">ATRÁS</span>
+                        <span class="foto-card-hint">Fotografía posterior completa</span>
+                        <img class="foto-card-preview" alt="" hidden>
+                        <span class="foto-card-state">Pendiente</span>
+                    </label>
+                    <label class="foto-card" data-foto="foto_lado_derecho">
+                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
+                             que es el "tomar o cargar" que pide el formulario. -->
+                        <input type="file" name="foto_lado_derecho" id="foto_lado_derecho" accept="image/*" required>
+                        <span class="foto-card-icon">📷</span>
+                        <span class="foto-card-title">LADO DERECHO</span>
+                        <span class="foto-card-hint">Fotografía lateral derecha completa</span>
+                        <img class="foto-card-preview" alt="" hidden>
+                        <span class="foto-card-state">Pendiente</span>
+                    </label>
+                    <label class="foto-card" data-foto="foto_lado_izquierdo">
+                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
+                             que es el "tomar o cargar" que pide el formulario. -->
+                        <input type="file" name="foto_lado_izquierdo" id="foto_lado_izquierdo" accept="image/*" required>
+                        <span class="foto-card-icon">📷</span>
+                        <span class="foto-card-title">LADO IZQUIERDO</span>
+                        <span class="foto-card-hint">Fotografía lateral izquierda completa</span>
+                        <img class="foto-card-preview" alt="" hidden>
+                        <span class="foto-card-state">Pendiente</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">3. Resumen de Novedades y Firmas
                     (Parte Inferior)</h2>
                 <div class="grid grid-cols-1 gap-6">
@@ -614,6 +690,30 @@
             });
 
             // Initialize signature pads
+            // ── Registro fotográfico ─────────────────────────────────────────
+            document.querySelectorAll('.foto-card').forEach(card => {
+                const input   = card.querySelector('input[type="file"]');
+                const preview = card.querySelector('.foto-card-preview');
+                const estado  = card.querySelector('.foto-card-state');
+                if (!input) return;
+                input.addEventListener('change', () => {
+                    const f = input.files && input.files[0];
+                    if (!f) {
+                        card.classList.remove('foto-lista');
+                        estado.textContent = 'Pendiente';
+                        preview.hidden = true;
+                        preview.removeAttribute('src');
+                        return;
+                    }
+                    card.classList.add('foto-lista');
+                    estado.textContent = '✓ Registrada';
+                    // El object URL se revoca al reemplazar la foto, no al cargar.
+                    if (preview.src) URL.revokeObjectURL(preview.src);
+                    preview.src = URL.createObjectURL(f);
+                    preview.hidden = false;
+                });
+            });
+
             const padIds = ['firma_entrega_pad', 'firma_recibe_pad', 'oficial_firma_pad'];
             padIds.forEach(id => {
                 const canvas = document.getElementById(id);

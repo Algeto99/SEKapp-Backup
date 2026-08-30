@@ -454,6 +454,10 @@ CREATE TABLE IF NOT EXISTS planilla_vehicular (
     kilometraje_vehiculo INTEGER,
     kilometraje_anterior INTEGER,
     kilometraje_recorrido INTEGER,
+    foto_frente_url TEXT,
+    foto_atras_url TEXT,
+    foto_lado_derecho_url TEXT,
+    foto_lado_izquierdo_url TEXT,
     company_id INTEGER,
     customer_company_id INTEGER,
     id_propiedad INTEGER,
@@ -517,6 +521,10 @@ CREATE TABLE IF NOT EXISTS planilla_motocicletas (
     oficial_operaciones_nombre VARCHAR(255),
     oficial_operaciones_firma TEXT,
     kilometraje_motocicleta INTEGER,
+    foto_frente_url TEXT,
+    foto_atras_url TEXT,
+    foto_lado_derecho_url TEXT,
+    foto_lado_izquierdo_url TEXT,
     company_id INTEGER,
     customer_company_id INTEGER,
     id_propiedad INTEGER,
@@ -695,6 +703,17 @@ ALTER TABLE asignaciones_hallazgo ADD COLUMN IF NOT EXISTS cerrado_por TEXT;
 -- un registro previo se edita o se borra, el histórico de este no se altera.
 ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS kilometraje_anterior INTEGER;
 ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS kilometraje_recorrido INTEGER;
+
+-- Registro fotográfico del estado exterior: las cuatro vistas de la unidad al
+-- momento de la inspección.
+ALTER TABLE planilla_vehicular    ADD COLUMN IF NOT EXISTS foto_frente_url TEXT;
+ALTER TABLE planilla_vehicular    ADD COLUMN IF NOT EXISTS foto_atras_url TEXT;
+ALTER TABLE planilla_vehicular    ADD COLUMN IF NOT EXISTS foto_lado_derecho_url TEXT;
+ALTER TABLE planilla_vehicular    ADD COLUMN IF NOT EXISTS foto_lado_izquierdo_url TEXT;
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS foto_frente_url TEXT;
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS foto_atras_url TEXT;
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS foto_lado_derecho_url TEXT;
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS foto_lado_izquierdo_url TEXT;
 
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
