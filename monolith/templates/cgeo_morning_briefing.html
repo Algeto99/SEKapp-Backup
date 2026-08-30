@@ -168,6 +168,20 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .sg-detail-list{border:1px solid #f1f5f9;border-radius:.6rem;overflow:hidden}
 .sg-detail-empty{font-size:.78rem;color:#64748b;padding:.5rem 0}
 .sg-detail-loading{font-size:.78rem;color:#94a3b8;padding:.5rem 0}
+.sg-asignados{border:1px solid #fcd34d;background:rgba(251,191,36,.07);border-radius:.75rem;padding:.875rem;margin-bottom:1.25rem}
+.sg-asignados .sg-detail-heading{color:#b45309;margin-bottom:.55rem}
+.sg-asignados .sg-detail-list{border-color:#fde68a;background:#fff}
+.sg-asig-row{display:flex;align-items:stretch;gap:0;border-bottom:1px solid #f1f5f9}
+.sg-asig-row:last-child{border-bottom:none}
+.sg-asig-row > .alerta-item{flex:1;min-width:0}
+.btn-gestionar{flex-shrink:0;border:none;border-left:1px solid #f1f5f9;background:transparent;color:#15803d;font-family:inherit;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:0 .7rem;cursor:pointer;white-space:nowrap}
+.btn-gestionar:hover{background:rgba(22,163,74,.1)}
+.btn-gestionar:disabled{opacity:.5;cursor:default}
+body:not(.light-mode) .sg-asignados{border-color:#78350f;background:rgba(120,53,15,.25)}
+body:not(.light-mode) .sg-asignados .sg-detail-heading{color:#fcd34d}
+body:not(.light-mode) .sg-asignados .sg-detail-list{border-color:#78350f;background:#1e293b}
+body:not(.light-mode) .sg-asig-row{border-bottom-color:#334155}
+body:not(.light-mode) .btn-gestionar{border-left-color:#334155;color:#4ade80}
 body:not(.light-mode) .sg-detail-list{border-color:#334155}
 body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
 .sg-modal-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
@@ -773,22 +787,82 @@ function _sgGrupoHtml(titulo, items) {
     </div>`;
 }
 
+function _csrfToken() {
+    const row = document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrf_access_token='));
+    return row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '';
+}
+
+// Fila de un hallazgo asignado: el mismo ítem que las demás alertas —de ahí que
+// la visualización sea idéntica a la de los incidentes asignados— más el botón
+// que lo saca de pendientes.
+function _asignadoRowHtml(a) {
+    return `<div class="sg-asig-row" data-asignacion="${a.asignacion_id}">
+        ${_alertaItemHtml(a)}
+        <button class="btn-gestionar" onclick="gestionarAsignacion(${a.asignacion_id}, this)"
+                title="Marcar como gestionado y quitarlo de pendientes">✓ Gestionar</button>
+    </div>`;
+}
+
+async function gestionarAsignacion(asignacionId, btn) {
+    if (!confirm('¿Marcar este hallazgo como gestionado? Dejará de aparecer como pendiente, ' +
+                 'pero queda registrado en su trazabilidad.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    try {
+        const res = await fetch(`/cgeo/api/asignaciones/${asignacionId}/gestionar`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken() },
+            body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo gestionar.');
+
+        // Fuera de la lista local para que el semáforo se recalcule sin recargar.
+        _alertasData = _alertasData.filter(a => a.asignacion_id !== asignacionId);
+        const fila = document.querySelector(`.sg-asig-row[data-asignacion="${asignacionId}"]`);
+        if (fila) fila.remove();
+        renderSemaforo(_alertasData, _kpis);
+        renderAlertas(_alertasData);
+    } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '✓ Gestionar';
+        alert(err.message);
+    }
+}
+
 async function abrirDetalleSemaforo() {
     if (!_kpis) return;
     const { nivel } = computeSemaforo(_alertasData, _kpis);
     const textos = { rojo:'ALERTA CRÍTICA', amarillo:'ATENCIÓN REQUERIDA', verde:'BAJO CONTROL' };
     const ts = new Date().toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
 
+    // Las asignaciones van en su propia sección arriba y se excluyen de los
+    // grupos por tipo, o el mismo hallazgo aparecería dos veces en la ventana.
+    const asignados = _alertasData.filter(a => a.asignacion);
+    const restantes = _alertasData.filter(a => !a.asignacion);
+
     const porTipo = {};
     for (const g of _SG_GRUPOS) porTipo[g.key] = [];
-    for (const a of _alertasData) {
+    for (const a of restantes) {
         const key = a.form_type === 'registro_y_acta_de_visita' || a.ruta_navegacion === '/dashboard/visitas/'
             ? 'registro_y_acta_de_visita'
             : (_SG_GRUPOS.some(g => g.key === a.form_type) ? a.form_type : '__otros__');
         porTipo[key].push(a);
     }
 
-    const gruposHtml = _SG_GRUPOS.map(g => _sgGrupoHtml(g.titulo, porTipo[g.key])).join('');
+    const vencidos = asignados.filter(a => a.vencida).length;
+    const asignadosHtml = `<div class="sg-asignados">
+        <div class="sg-detail-heading">📌 HALLAZGOS ASIGNADOS${
+            asignados.length ? ` <span style="font-weight:600;text-transform:none;letter-spacing:0">— ${asignados.length} pendiente${asignados.length !== 1 ? 's' : ''}${vencidos ? `, ${vencidos} vencido${vencidos !== 1 ? 's' : ''}` : ''}</span>` : ''
+        }</div>
+        ${asignados.length
+            ? `<div class="sg-detail-list">${asignados.map(_asignadoRowHtml).join('')}</div>`
+            : `<div class="sg-detail-empty">Sin hallazgos asignados pendientes de gestión.</div>`}
+    </div>`;
+
+    const gruposHtml = asignadosHtml + _SG_GRUPOS.map(g => _sgGrupoHtml(g.titulo, porTipo[g.key])).join('');
 
     const modal = document.createElement('div');
     modal.className = 'sg-modal-overlay';
@@ -873,13 +947,10 @@ async function downloadBriefingPdf() {
         const semaforo = computeSemaforo(_alertasData, _kpis);
         const cliente  = new URLSearchParams(window.location.search).get('cliente') || 'Todos los clientes';
 
-        const csrfCookie = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
-        const csrfVal    = csrfCookie ? decodeURIComponent(csrfCookie.substring('csrf_access_token='.length)) : '';
-
         const res = await fetch('/cgeo/api/morning-briefing-pdf', {
             method: 'POST',
             credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfVal },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken() },
             body: JSON.stringify({
                 kpis:        _kpis,
                 alertas:     _alertasData,

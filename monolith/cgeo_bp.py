@@ -625,6 +625,163 @@ def cgeo_api_recursos_data():
 
 # ── API: Motor de Alertas Accionables ────────────────────────────────────────
 
+# ── Asignaciones pendientes ──────────────────────────────────────────────────
+# `asignaciones_hallazgo` es genérica desde su creación: guarda una fila para
+# cualquier form_type. Lo que faltaba era leerla. Las 8 reglas de alertas
+# consultan las tablas de origen, y por eso solo los incidentes asignados
+# aparecían en el Morning Briefing — no por una regla de asignaciones, sino
+# porque 'Asignado' no está entre los estados cerrados de la Regla 2.
+
+# form_type -> (tabla, columna de id). Sirve para acotar las asignaciones al
+# alcance de Cliente/Propiedad, que la tabla de asignaciones no guarda.
+_ASIG_ORIGEN = {
+    'reporte_incidente':              ('reportes_incidentes',             'id_reporte_incidente'),
+    'supervision_puesto':             ('supervision_puesto',              'id_supervision'),
+    'medicion_experiencia_cliente':   ('medicion_experiencia_cliente',    'id_encuesta'),
+    'informe_novedades_disciplinario':('informe_novedades_disciplinario', 'id_informe'),
+    'log_de_patrullas':               ('log_de_patrullas',                'id_patrulla'),
+    'registro_de_capacitaciones':     ('registro_de_capacitaciones',      'id_capacitacion'),
+    'registro_y_acta_de_visita':      ('registro_y_acta_de_visita',       'id_visita'),
+    'planilla_vehicular':             ('planilla_vehicular',              'id_planilla_vehicular'),
+    'planilla_motocicletas':          ('planilla_motocicletas',           'id'),
+    'checklist_cumplimiento':         ('checklist_cumplimiento',          'id'),
+    'confiabilidad_equipos':          ('confiabilidad_equipos',           'id'),
+}
+
+# Etiqueta legible por tipo de origen, para el texto de la alerta.
+_ASIG_ETIQUETA = {
+    'reporte_incidente':              'Incidente',
+    'supervision_puesto':             'Hallazgo de supervisión',
+    'medicion_experiencia_cliente':   'Encuesta de satisfacción',
+    'informe_novedades_disciplinario':'Novedad disciplinaria',
+    'log_de_patrullas':               'Patrulla',
+    'registro_de_capacitaciones':     'Capacitación',
+    'registro_y_acta_de_visita':      'Compromiso de visita',
+    'planilla_vehicular':             'Pre-operacional de vehículo',
+    'planilla_motocicletas':          'Pre-operacional de motocicleta',
+    'checklist_cumplimiento':         'Cumplimiento',
+    'confiabilidad_equipos':          'Confiabilidad de equipos',
+}
+
+_ASIG_ESTADOS_CERRADOS = ('gestionado', 'cerrado', 'closed', 'resuelto', 'resolved', 'anulado')
+
+# Rutas a las que lleva "Ver hallazgo" cuando no hay una más específica.
+_ASIG_RUTA = {
+    'reporte_incidente':              '/dashboard/incidentes/',
+    'supervision_puesto':             '/dashboard/supervision/',
+    'medicion_experiencia_cliente':   '/dashboard/satisfaccion/',
+    'informe_novedades_disciplinario':'/dashboard/disciplina/',
+    'registro_de_capacitaciones':     '/dashboard/capacitacion/',
+    'registro_y_acta_de_visita':      '/dashboard/visitas/',
+    'planilla_vehicular':             '/dashboard/vehiculos/',
+    'planilla_motocicletas':          '/dashboard/motocicletas/',
+    'checklist_cumplimiento':         '/dashboard/cumplimiento/',
+    'confiabilidad_equipos':          '/dashboard/equipos/',
+}
+
+
+def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
+    """
+    Asignaciones que siguen requiriendo gestión, de cualquier origen.
+
+    Pendiente = la asignación no fue cerrada Y el registro de origen tampoco.
+    Lo segundo solo aplica a las dos tablas que tienen columna `estado`
+    (incidentes y visitas): cerrar el incidente limpia también su asignación,
+    sin obligar a cerrar la asignación por separado. `supervision_puesto` no
+    tiene estado propio, así que ahí el único cierre posible es el de la fila
+    de asignación.
+
+    Devuelve [] si la tabla todavía no existe (base recién creada).
+    """
+    cur.execute("SELECT to_regclass('asignaciones_hallazgo') AS t")
+    if not (cur.fetchone() or {}).get('t'):
+        return []
+
+    conds  = ["LOWER(TRIM(COALESCE(a.estado,''))) NOT IN %s"]
+    params = [_ASIG_ESTADOS_CERRADOS]
+
+    # El registro de origen cerrado también cierra la asignación.
+    conds.append("""
+        NOT (a.form_type = 'reporte_incidente' AND EXISTS (
+            SELECT 1 FROM reportes_incidentes ri
+             WHERE ri.id_reporte_incidente = a.record_id
+               AND LOWER(TRIM(COALESCE(ri.estado,''))) IN ('cerrado','closed','resuelto','resolved')))
+    """)
+    conds.append("""
+        NOT (a.form_type = 'registro_y_acta_de_visita' AND EXISTS (
+            SELECT 1 FROM registro_y_acta_de_visita rv
+             WHERE rv.id_visita = a.record_id
+               AND LOWER(TRIM(COALESCE(rv.estado,''))) IN ('cerrado','closed','resuelto','resolved','cumplido')))
+    """)
+
+    # Alcance por Cliente/Propiedad. La tabla de asignaciones no guarda ninguna
+    # de las dos, así que se cruza contra los ids del origen. Sin filtro no se
+    # cruza nada: el Morning Briefing pide la lista consolidada.
+    if cliente or propiedad:
+        piezas, alcance_params = [], []
+        for ft, (tabla, id_col) in _ASIG_ORIGEN.items():
+            sc, sp = [], []
+            _add_scope(sc, sp, cliente=cliente, propiedad=propiedad)
+            piezas.append(f"SELECT %s AS form_type, {id_col} AS record_id FROM {tabla} {_where(sc)}")
+            alcance_params.append(ft)
+            alcance_params.extend(sp)
+        conds.append(
+            "EXISTS (SELECT 1 FROM (" + " UNION ALL ".join(piezas) + ") alc"
+            "  WHERE alc.form_type = a.form_type AND alc.record_id = a.record_id)"
+        )
+        params.extend(alcance_params)
+
+    cur.execute(f"""
+        SELECT
+            a.id, a.form_type, a.record_id, a.fecha_limite, a.nota, a.creado_en,
+            COALESCE(NULLIF(TRIM(a.estado), ''), 'Asignado') AS estado,
+            COALESCE(NULLIF(TRIM(u.name), ''), NULLIF(TRIM(a.asignado_email), '')) AS responsable,
+            (a.fecha_limite IS NOT NULL AND a.fecha_limite < CURRENT_DATE) AS vencida
+        FROM asignaciones_hallazgo a
+        LEFT JOIN users u ON u.id = a.asignado_a
+        {_where(conds)}
+        ORDER BY a.fecha_limite ASC NULLS LAST, a.creado_en ASC
+        LIMIT 50
+    """, tuple(params))
+
+    pendientes = []
+    for r in cur.fetchall():
+        ft        = r['form_type']
+        etiqueta  = _ASIG_ETIQUETA.get(ft, 'Registro')
+        resp      = r['responsable'] or 'sin responsable'
+        vencida   = bool(r['vencida'])
+        if vencida:
+            texto = f'{etiqueta} #{r["record_id"]} asignado a {resp} — vencido el {r["fecha_limite"]:%d/%m/%Y}'
+        elif r['fecha_limite']:
+            texto = f'{etiqueta} #{r["record_id"]} asignado a {resp} — vence el {r["fecha_limite"]:%d/%m/%Y}'
+        else:
+            texto = f'{etiqueta} #{r["record_id"]} asignado a {resp} — sin fecha límite'
+
+        ts = r['fecha_limite'] or r['creado_en']
+        pendientes.append({
+            "id": f"asig_{r['id']}",
+            "regla": "asignacion",
+            "asignacion": True,
+            "asignacion_id": r['id'],
+            "texto": texto,
+            "accion": "Ver hallazgo",
+            "ruta_navegacion": _ASIG_RUTA.get(ft, '/cgeo/morning-briefing/'),
+            "record_id": r['record_id'],
+            "form_type": ft,
+            "estado": r['estado'],
+            "responsable_asignado": r['responsable'],
+            "fecha_limite": r['fecha_limite'].isoformat() if r['fecha_limite'] else None,
+            "vencida": vencida,
+            "nota": r['nota'] or '',
+            # Vencida = roja: es un pendiente con plazo incumplido. El resto entra
+            # como amarilla para no disparar la alerta crítica por sí sola.
+            "color_semaforo": "rojo" if vencida else "amarillo",
+            "timestamp": ts.isoformat() if ts else None,
+            "horas": None,
+        })
+    return pendientes
+
+
 @cgeo_bp.route("/api/alertas")
 @jwt_required()
 @_admin_required
@@ -1063,6 +1220,15 @@ def cgeo_api_alertas():
                 "horas": None,
             })
 
+        # ── Asignaciones pendientes de cualquier origen ───────────────────────
+        # Van aparte de las 8 reglas: nacen de una acción explícita del
+        # Administrador, no de una condición evaluada sobre las tablas.
+        try:
+            alertas.extend(_asignaciones_pendientes(cur, cliente=cliente, propiedad=propiedad))
+        except Exception as asig_err:
+            # Una asignación ilegible no puede dejar sin alertas al briefing.
+            app_logger.warning(f"cgeo_api_alertas: asignaciones pendientes omitidas: {asig_err}")
+
         # ── Ordenar: ROJO primero, luego AMARILLO; dentro de cada color ───────
         # por timestamp ascendente (más antiguo = más urgente).
         prioridad = {"rojo": 0, "amarillo": 1}
@@ -1076,6 +1242,7 @@ def cgeo_api_alertas():
             "total": len(alertas),
             "rojas": sum(1 for a in alertas if a["color_semaforo"] == "rojo"),
             "amarillas": sum(1 for a in alertas if a["color_semaforo"] == "amarillo"),
+            "asignaciones": sum(1 for a in alertas if a.get("asignacion")),
             "timestamp": date.today().isoformat(),
         })
 
@@ -2380,6 +2547,16 @@ def _ensure_asignaciones_table(conn):
             ALTER TABLE asignaciones_hallazgo
                 ADD COLUMN IF NOT EXISTS asignado_email TEXT
         """)
+        # Cierre de la asignación: la fila se conserva para trazabilidad, solo deja
+        # de contar como pendiente en el Morning Briefing.
+        cur.execute("""
+            ALTER TABLE asignaciones_hallazgo
+                ADD COLUMN IF NOT EXISTS cerrado_en TIMESTAMP
+        """)
+        cur.execute("""
+            ALTER TABLE asignaciones_hallazgo
+                ADD COLUMN IF NOT EXISTS cerrado_por TEXT
+        """)
     conn.commit()
 
 
@@ -2509,6 +2686,57 @@ def asignar_hallazgo():
     except Exception as e:
         conn.rollback()
         app_logger.error(f"asignar_hallazgo error: {e}", exc_info=True)
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        conn.close()
+
+
+@cgeo_bp.route('/api/asignaciones/<int:asignacion_id>/gestionar', methods=['POST'])
+@jwt_required()
+@_admin_required
+def gestionar_asignacion(asignacion_id):
+    """
+    Marca una asignación como gestionada: deja de contar como pendiente en el
+    Morning Briefing, pero la fila se conserva con quién y cuándo la cerró.
+
+    Es el único cierre posible para los hallazgos de supervisión, cuya tabla no
+    tiene columna de estado propia. Para incidentes y visitas el registro de
+    origen también puede cerrarse por su cuenta; ambos caminos valen.
+    """
+    nota = ((request.get_json() or {}).get('nota') or '').strip()
+
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        _ensure_asignaciones_table(conn)
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                UPDATE asignaciones_hallazgo
+                   SET estado      = 'Gestionado',
+                       cerrado_en  = NOW(),
+                       cerrado_por = %s,
+                       nota        = CASE
+                                       WHEN %s = '' THEN nota
+                                       WHEN COALESCE(NULLIF(TRIM(nota), ''), '') = '' THEN %s
+                                       ELSE nota || E'\n— Al gestionar: ' || %s
+                                     END
+                 WHERE id = %s
+                   AND LOWER(TRIM(COALESCE(estado,''))) NOT IN %s
+                RETURNING id, form_type, record_id, estado
+                """,
+                (get_jwt_identity(), nota, nota, nota, asignacion_id, _ASIG_ESTADOS_CERRADOS)
+            )
+            row = cur.fetchone()
+        if not row:
+            # No existe, o ya estaba cerrada: en ambos casos no queda pendiente.
+            return jsonify({"error": "Asignación no encontrada o ya gestionada"}), 404
+        conn.commit()
+        return jsonify({"success": True, **dict(row)})
+    except Exception as e:
+        conn.rollback()
+        app_logger.error(f"gestionar_asignacion error: {e}", exc_info=True)
         return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()

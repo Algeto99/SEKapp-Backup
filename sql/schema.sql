@@ -613,6 +613,8 @@ CREATE TABLE IF NOT EXISTS asignaciones_hallazgo (
     company_id INTEGER,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     asignado_email TEXT,
+    cerrado_en TIMESTAMP,
+    cerrado_por TEXT,
     FOREIGN KEY (company_id) REFERENCES companies(id),
     FOREIGN KEY (asignado_a) REFERENCES users(id)
 );
@@ -645,6 +647,13 @@ ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255)
 -- llamarse "Tipo de Instalación" en la interfaz). El INSERT de supervisión filtra
 -- por reflexión de columnas, así que sin esta columna el valor se descarta en silencio.
 ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS modalidad_servicio VARCHAR(255);
+
+-- Cierre de una asignación: la fila se conserva para trazabilidad y solo deja de
+-- contar como pendiente en el Morning Briefing. Es el único cierre posible para
+-- los hallazgos de supervisión, cuya tabla no tiene columna de estado propia.
+-- cgeo_bp._ensure_asignaciones_table las agrega también en caliente.
+ALTER TABLE asignaciones_hallazgo ADD COLUMN IF NOT EXISTS cerrado_en TIMESTAMP;
+ALTER TABLE asignaciones_hallazgo ADD COLUMN IF NOT EXISTS cerrado_por TEXT;
 
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
