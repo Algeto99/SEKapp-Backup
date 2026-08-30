@@ -619,6 +619,18 @@ CREATE TABLE IF NOT EXISTS asignaciones_hallazgo (
     FOREIGN KEY (asignado_a) REFERENCES users(id)
 );
 
+-- Programación de supervisiones por Cliente / Empresa. Reemplaza a la meta única
+-- global (kpi_thresholds.supervision_meta) como fuente de "supervisiones
+-- programadas": cada cliente lleva su propia frecuencia y cantidad. Mientras la
+-- tabla esté vacía se sigue usando la meta global, para no cortar el KPI.
+CREATE TABLE IF NOT EXISTS supervision_programacion (
+    customer_company_id INTEGER PRIMARY KEY REFERENCES customer_companies(id),
+    periodicidad        TEXT    NOT NULL DEFAULT 'semanal',
+    meta                INTEGER NOT NULL DEFAULT 0,
+    actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    actualizado_por     TEXT
+);
+
 -- Backups de información generados desde Reportes. Es la única fuente del
 -- contador "días sin backup" que el Morning Briefing muestra como alerta.
 CREATE TABLE IF NOT EXISTS backups_realizados (

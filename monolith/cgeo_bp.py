@@ -1427,19 +1427,14 @@ def cgeo_api_semaforo_global():
 
         # Supervisiones: meta configurada por el Administrador vs completadas en el
         # período vigente (día/semana/mes según la periodicidad configurada)
-        from admin_bp import get_thresholds, _periodo_inicio_actual
+        from admin_bp import get_thresholds, _periodo_inicio_actual, calcular_supervisiones
         thresholds = get_thresholds()
-        sup_programadas = int(thresholds.get('supervision_meta') or 0)
-        periodicidad = thresholds.get('supervision_periodicidad') or 'diario'
-        periodo_inicio = _periodo_inicio_actual(periodicidad)
-
-        sup_conds_hoy, sup_params_hoy = _cp("id_propiedad")
-        sup_conds_hoy_full = sup_conds_hoy + ["fecha_hora::date >= %s"]
-        cur.execute(f"""
-            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
-            FROM supervision_puesto {_where(sup_conds_hoy_full)}
-        """, sup_params_hoy + [periodo_inicio])
-        sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
+        # La programación por cliente es la fuente; la meta global solo sobrevive
+        # como respaldo mientras ningún cliente tenga la suya.
+        _sup = calcular_supervisiones(cur, cliente=cliente, propiedad=propiedad)
+        sup_programadas = _sup['programadas']
+        sup_completadas = _sup['realizadas']
+        periodicidad = _sup['periodicidad'] or thresholds.get('supervision_periodicidad') or 'diario'
 
         # Equipos no operativos vs flota total
         eq_conds, eq_params = _cp()
@@ -1549,17 +1544,15 @@ def cgeo_api_morning_briefing_data():
         inc_criticos  = int(inc_row.get("criticos") or 0)
         inc_mas_24h   = int(inc_row.get("mas_24h") or 0)
 
-        # ── Supervisiones: meta configurada vs completadas en el período vigente ──
-        sup_programadas = int(thresholds.get('supervision_meta') or 0)
-        periodicidad = thresholds.get('supervision_periodicidad') or 'diario'
+        # ── Supervisiones: programación por cliente vs realizadas ────────────
+        from admin_bp import calcular_supervisiones
+        _sup = calcular_supervisiones(cur)
+        sup_programadas = _sup['programadas']
+        sup_completadas = _sup['realizadas']
+        sup_pendientes  = _sup['pendientes']
+        sup_pct         = _sup['pct']
+        periodicidad = _sup['periodicidad'] or thresholds.get('supervision_periodicidad') or 'diario'
         periodo_inicio = _periodo_inicio_actual(periodicidad)
-
-        cur.execute("""
-            SELECT COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
-            FROM supervision_puesto
-            WHERE fecha_hora::date >= %s
-        """, (periodo_inicio,))
-        sup_completadas = int((cur.fetchone() or {}).get("completadas") or 0)
 
         # ── Equipos no operativos ─────────────────────────────────────────────
         cur.execute(f"""
@@ -1674,7 +1667,9 @@ def cgeo_api_morning_briefing_data():
                 "fecha": d.isoformat(),
                 "label": str(d.day) + " " + d.strftime("%b"),
                 "completadas": comp_by_day.get(d, 0) if (not fecha_inicio or d >= fecha_inicio) else None,
-                "programadas": sup_programadas if (not fecha_inicio or d >= fecha_inicio) else None,
+                # No el total del período: con clientes semanales y mensuales
+                # mezclados, la línea diaria es la meta repartida por día.
+                "programadas": _sup['programadas_dia'] if (not fecha_inicio or d >= fecha_inicio) else None,
             }
             for d in days7
         ]
@@ -1686,6 +1681,10 @@ def cgeo_api_morning_briefing_data():
                 "inc_mas_24h":     inc_mas_24h,
                 "sup_completadas": sup_completadas,
                 "sup_programadas": sup_programadas,
+                "sup_pendientes":   sup_pendientes,
+                "sup_pct":          sup_pct,
+                "sup_origen":       _sup['origen'],
+                "sup_por_cliente":  _sup['por_cliente'],
                 "eq_total":        eq_total,
                 "eq_op":           eq_op,
                 "eq_no_op":        eq_no_op,

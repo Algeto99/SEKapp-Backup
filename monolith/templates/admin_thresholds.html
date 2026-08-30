@@ -91,11 +91,11 @@
         <form method="POST" action="/admin/thresholds">
             <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
 
-            <!-- Supervisiones completadas diarias -->
+            <!-- Supervisiones completadas -->
             <div class="card">
                 <div class="card-title">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Supervisiones Completadas Diarias
+                    Supervisiones Completadas
                 </div>
 
                 <div class="threshold-grid" style="margin-bottom:1rem;">
@@ -124,6 +124,56 @@
                         <span class="unit">supervisiones esperadas en el período</span>
                     </div>
                 </div>
+
+                <hr class="section-divider">
+
+                <div class="card-title" style="font-size:.95rem;margin-bottom:.35rem;">
+                    Programación por Cliente / Empresa
+                </div>
+                <p style="font-size:.78rem;color:#94a3b8;margin:0 0 .9rem;">
+                    Cada cliente se mide sobre su propia ventana. Con al menos un cliente
+                    programado, las supervisiones programadas pasan a ser la suma de lo
+                    configurado aquí y la meta general de arriba deja de aplicar.
+                    Meta 0 = sin programación propia.
+                </p>
+
+                {% if supervision_programacion %}
+                <div style="overflow-x:auto;margin-bottom:1rem;">
+                    <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
+                        <thead>
+                            <tr style="text-align:left;color:#94a3b8;">
+                                <th style="padding:.4rem .5rem;font-weight:600;">Cliente / Empresa</th>
+                                <th style="padding:.4rem .5rem;font-weight:600;width:9rem;">Frecuencia</th>
+                                <th style="padding:.4rem .5rem;font-weight:600;width:8rem;">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in supervision_programacion %}
+                            <tr style="border-top:1px solid rgba(255,255,255,.06);">
+                                <td style="padding:.4rem .5rem;">{{ c.name }}</td>
+                                <td style="padding:.4rem .5rem;">
+                                    <select name="sup_prog_periodicidad_{{ c.id }}" class="field-select"
+                                            style="background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem; color:#e2e8f0; padding:.35rem .5rem; font-size:.85rem; width:100%;">
+                                        <option value="diario"  {{ 'selected' if c.periodicidad == 'diario' }}>Diario</option>
+                                        <option value="semanal" {{ 'selected' if c.periodicidad == 'semanal' }}>Semanal</option>
+                                        <option value="mensual" {{ 'selected' if c.periodicidad == 'mensual' }}>Mensual</option>
+                                    </select>
+                                </td>
+                                <td style="padding:.4rem .5rem;">
+                                    <input type="number" name="sup_prog_meta_{{ c.id }}" min="0" step="1"
+                                           value="{{ c.meta | int }}" style="width:100%;">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p style="font-size:.8rem;color:#94a3b8;margin-bottom:1rem;">
+                    No hay clientes registrados todavía. Al crearlos aparecerán aquí para
+                    programar sus supervisiones.
+                </p>
+                {% endif %}
 
                 <hr class="section-divider">
 

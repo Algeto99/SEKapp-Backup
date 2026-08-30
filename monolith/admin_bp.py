@@ -487,6 +487,128 @@ def _periodo_inicio_actual(periodicidad):
     return today
 
 
+# ── Programación de supervisiones por Cliente / Empresa ──────────────────────
+
+def _ensure_supervision_programacion(conn):
+    """La migración viaja con el código, como en asignaciones_hallazgo."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS supervision_programacion (
+                customer_company_id INTEGER PRIMARY KEY,
+                periodicidad        TEXT    NOT NULL DEFAULT 'semanal',
+                meta                INTEGER NOT NULL DEFAULT 0,
+                actualizado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                actualizado_por     TEXT
+            )
+        """)
+    conn.commit()
+
+
+def get_supervision_programacion(cur):
+    """
+    Programación vigente por cliente, con todos los clientes activos aunque no
+    tengan fila propia (meta 0), para que el formulario los liste completos.
+    """
+    cur.execute("SELECT to_regclass('supervision_programacion') AS t")
+    row = cur.fetchone()
+    tiene_tabla = bool(row and (row[0] if not isinstance(row, dict) else row.get('t')))
+
+    if tiene_tabla:
+        cur.execute("""
+            SELECT cc.id, cc.name,
+                   COALESCE(sp.periodicidad, 'semanal') AS periodicidad,
+                   COALESCE(sp.meta, 0)                 AS meta
+            FROM customer_companies cc
+            LEFT JOIN supervision_programacion sp ON sp.customer_company_id = cc.id
+            ORDER BY cc.name
+        """)
+    else:
+        cur.execute("SELECT id, name, 'semanal' AS periodicidad, 0 AS meta "
+                    "FROM customer_companies ORDER BY name")
+    return [dict(r) for r in cur.fetchall()]
+
+
+def calcular_supervisiones(cur, cliente=None, propiedad=None):
+    """
+    Programadas / realizadas / % de cumplimiento de supervisiones.
+
+    La fuente es la programación por cliente: cada uno aporta su meta medida
+    sobre SU PROPIA ventana, porque un cliente semanal y uno mensual no se
+    pueden sumar sobre el mismo período. Mientras ningún cliente tenga
+    programación se usa la meta global, de modo que el KPI no cambia hasta que
+    el Administrador configure el primero.
+
+    `realizadas` cuenta registros de supervisión, no instalaciones distintas:
+    es lo que hace comparable "4 de 5 programadas".
+
+    Devuelve dict con programadas, realizadas, pendientes, pct y por_cliente.
+    """
+    from dashboard_bp import _add_scope_filters
+
+    # Días que cubre cada ventana, para repartir la meta en la gráfica diaria:
+    # una meta semanal no es un objetivo de cada día.
+    _DIAS_PERIODO = {'diario': 1, 'semanal': 7, 'mensual': 30}
+
+    def _contar(conds, params):
+        where = ("WHERE " + " AND ".join(conds)) if conds else ""
+        cur.execute(f"SELECT COUNT(*) AS n FROM supervision_puesto {where}", tuple(params))
+        r = cur.fetchone()
+        return int((r[0] if not isinstance(r, dict) else r.get('n')) or 0)
+
+    programacion = [p for p in get_supervision_programacion(cur) if (p['meta'] or 0) > 0]
+
+    # Filtro de pantalla: si se está viendo un cliente concreto, solo ese cuenta.
+    if cliente and str(cliente).isdigit():
+        programacion = [p for p in programacion if str(p['id']) == str(cliente)]
+
+    if not programacion:
+        # Camino heredado: meta única global. Se conserva intacto salvo el conteo,
+        # que pasa a ser de registros para alinearse con la programación por cliente.
+        t = get_thresholds()
+        meta = int(t.get('supervision_meta') or 0)
+        periodicidad = t.get('supervision_periodicidad') or 'diario'
+        conds, params = ["fecha_hora::date >= %s"], [_periodo_inicio_actual(periodicidad)]
+        _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad,
+                           col_puesto=None)
+        realizadas = _contar(conds, params)
+        pct = round(realizadas / meta * 100, 1) if meta else None
+        return {
+            'programadas': meta, 'realizadas': realizadas,
+            'pendientes': max(0, meta - realizadas), 'pct': pct,
+            'programadas_dia': round(meta / _DIAS_PERIODO.get(periodicidad, 1), 1),
+            'origen': 'global', 'periodicidad': periodicidad, 'por_cliente': [],
+        }
+
+    total_prog = total_real = 0
+    prog_dia = 0.0
+    por_cliente = []
+    for p in programacion:
+        inicio = _periodo_inicio_actual(p['periodicidad'])
+        conds, params = ["fecha_hora::date >= %s"], [inicio]
+        _add_scope_filters(conds, params, cliente=str(p['id']), propiedad=propiedad,
+                           col_puesto=None)
+        realizadas = _contar(conds, params)
+        meta = int(p['meta'] or 0)
+        total_prog += meta
+        total_real += realizadas
+        prog_dia   += meta / _DIAS_PERIODO.get(p['periodicidad'], 1)
+        por_cliente.append({
+            'cliente_id': p['id'], 'cliente': p['name'],
+            'periodicidad': p['periodicidad'], 'programadas': meta,
+            'realizadas': realizadas, 'pendientes': max(0, meta - realizadas),
+            'pct': round(realizadas / meta * 100, 1) if meta else None,
+            'desde': inicio.isoformat(),
+        })
+
+    return {
+        'programadas': total_prog, 'realizadas': total_real,
+        'pendientes': max(0, total_prog - total_real),
+        'pct': round(total_real / total_prog * 100, 1) if total_prog else None,
+        'programadas_dia': round(prog_dia, 1),
+        'origen': 'por_cliente', 'periodicidad': None, 'por_cliente': por_cliente,
+    }
+
+
 def get_thresholds():
     """Return current thresholds as a dict, falling back to defaults on error."""
     conn = None
@@ -543,11 +665,21 @@ def thresholds():
         t['supervision_periodicidad'] = 'diario'
         t['visita_periodicidad'] = 'mensual'
         t.update(rows)
+        try:
+            _ensure_supervision_programacion(conn)
+            cur2 = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            programacion = get_supervision_programacion(cur2)
+            cur2.close()
+        except Exception as pe:
+            app_logger.warning(f"No se pudo leer la programación de supervisiones: {pe}")
+            programacion = []
+
         from flask import request as _req
         jwt_csrf = _req.cookies.get('csrf_access_token', '')
         return render_template(
             'admin_thresholds.html',
             thresholds=t,
+            supervision_programacion=programacion,
             jwt_csrf_token=jwt_csrf,
             user_name=claims.get('name', get_jwt_identity()),
             is_admin=True,
@@ -619,6 +751,34 @@ def save_thresholds():
                 else:
                     flash('Periodicidad inválida.', 'error')
                     return redirect(url_for('admin_bp.thresholds'))
+
+        # Programación por Cliente / Empresa. Los campos llegan como
+        # sup_prog_meta_<id> y sup_prog_periodicidad_<id>; meta 0 significa
+        # "sin programación propia" y se guarda igual, para poder volver atrás.
+        _ensure_supervision_programacion(conn)
+        for campo, valor in request.form.items():
+            if not campo.startswith('sup_prog_meta_'):
+                continue
+            try:
+                cliente_id = int(campo[len('sup_prog_meta_'):])
+                meta = max(0, int(valor or 0))
+            except (ValueError, TypeError):
+                continue
+            periodicidad = (request.form.get(f'sup_prog_periodicidad_{cliente_id}', '')
+                            .strip().lower())
+            if periodicidad not in _PERIODICIDAD_VALUES:
+                periodicidad = 'semanal'
+            cur.execute(
+                """INSERT INTO supervision_programacion
+                       (customer_company_id, periodicidad, meta, actualizado_en, actualizado_por)
+                   VALUES (%s, %s, %s, NOW(), %s)
+                   ON CONFLICT (customer_company_id) DO UPDATE
+                   SET periodicidad = EXCLUDED.periodicidad,
+                       meta = EXCLUDED.meta,
+                       actualizado_en = NOW(),
+                       actualizado_por = EXCLUDED.actualizado_por""",
+                (cliente_id, periodicidad, meta, email)
+            )
 
         conn.commit()
         cur.close()
