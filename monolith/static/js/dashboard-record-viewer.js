@@ -511,6 +511,17 @@
                 word-break: break-word;
                 line-height: 1.4;
             }
+            /* Motivo de la alerta: primero y destacado dentro del QUÉ, porque es
+               la respuesta a por qué el registro se está abriendo. */
+            .drv-5q-motivo {
+                display: block;
+                font-weight: 600;
+                color: #fcd34d;
+                border-left: 3px solid #f59e0b;
+                padding-left: 0.5rem;
+                margin-bottom: 0.4rem;
+            }
+            body.light-mode .drv-5q-motivo { color: #92400e; border-left-color: #f59e0b; }
             details.drv-detail-section > summary {
                 cursor: pointer;
                 user-select: none;
@@ -769,7 +780,7 @@
             QUIEN:  ['Nombre del Supervisor', 'Responsable Asignado'],
         },
         supervision_puesto: {
-            QUE:    ['Puesto/Área'],
+            QUE:    ['Puesto o Área Específica', 'Tipo de Instalación', 'Modalidad de Servicio'],
             CUANDO: ['Fecha/Hora'],
             DONDE:  ['Cliente', 'Propiedad / Instalación'],
             COMO:   ['Observaciones', 'Foto Evidencia'],
@@ -818,27 +829,88 @@
             QUIEN:  ['Visitante', 'Atendió'],
         },
         planilla_vehicular: {
-            QUE:    ['Placa', 'Kilometraje'],
+            QUE:    ['Placa', 'Novedades Críticas'],
             CUANDO: ['Fecha/Hora'],
             DONDE:  [],
             COMO:   ['Novedades Críticas', 'Diagrama Daños', 'Acción Inmediata'],
             QUIEN:  ['Responsable'],
         },
         planilla_motocicletas: {
-            QUE:    ['Placa', 'Kilometraje'],
+            QUE:    ['Placa', 'Novedades Críticas'],
             CUANDO: ['Fecha/Hora'],
             DONDE:  [],
             COMO:   ['Novedades Críticas', 'Acción Inmediata'],
             QUIEN:  ['Responsable'],
         },
         confiabilidad_equipos: {
-            QUE:    ['Inventario'],
+            // El inventario completo es una tabla: explica el detalle, no el QUÉ.
+            // QUE_RESUMEN lo condensa en una frase y la tabla baja a Zona 2.
+            QUE:    [],
             CUANDO: ['Fecha', 'Hora'],
             DONDE:  ['Sitio', 'Cliente'],
             COMO:   [],
             QUIEN:  ['Técnico Mantenimiento', 'Supervisor Seguridad'],
         },
     };
+
+    // Componentes que el pre-operacional evalúa uno por uno. Un "no funciona"
+    // aquí es la razón concreta de la alerta, pero vive disperso en 20 campos:
+    // el QUÉ los recoge en una sola frase.
+    // Mismos dos valores que _FLEET_FAULT_VALUES en dashboard_bp.py, que es lo
+    // que los dashboards ya cuentan como falla. Ampliarlos aquí desalinearía el
+    // QUÉ de las cifras que el Administrador ve en el dashboard de flota.
+    const _FALLA_RE = /^(no funciona|malo)$/i;
+
+    function _camposEnFalla(raw) {
+        return Object.entries(raw)
+            .filter(([k, v]) =>
+                typeof v === 'string' && _FALLA_RE.test(v.trim())
+                && !/^(placa|kilometraje|responsable|fecha)/i.test(k))
+            .map(([k]) => k.toLowerCase());
+    }
+
+    // Frase de QUÉ construida con los datos reales del registro, para los tipos
+    // cuyos campos sueltos no explican por sí solos qué pasó.
+    const QUE_RESUMEN = {
+        planilla_vehicular: (raw) => _resumenFlota(raw, 'El vehículo'),
+        planilla_motocicletas: (raw) => _resumenFlota(raw, 'La motocicleta'),
+        confiabilidad_equipos: (raw) => {
+            const inv = raw['Inventario'];
+            if (!Array.isArray(inv) || !inv.length) return '';
+            let total = 0, op = 0;
+            const flojos = [];
+            for (const it of inv) {
+                const t = parseInt(it.total_equipos, 10);
+                const o = parseInt(it.equipos_operativos, 10);
+                if (!isNaN(t)) total += t;
+                if (!isNaN(o)) op += o;
+                if (!isNaN(t) && !isNaN(o) && o < t) {
+                    flojos.push(`${it.tipo || 'equipo'} (${o}/${t})`);
+                }
+            }
+            if (!total) return '';
+            const base = `${op} de ${total} equipos operativos`;
+            return flojos.length ? `${base}. Con faltantes: ${flojos.join(', ')}.` : `${base}.`;
+        },
+    };
+
+    function _resumenFlota(raw, sujeto) {
+        const placa = raw['Placa'] ? String(raw['Placa']).trim() : '';
+        const fallas = _camposEnFalla(raw);
+        const nov = raw['Novedades Críticas'];
+        const partes = [];
+        if (fallas.length) {
+            partes.push(`${sujeto} ${placa || ''}`.trim() +
+                ` presenta novedades en la inspección: ${fallas.join(', ')} en estado "No funciona".`);
+        }
+        if (nov && String(nov).trim() && String(nov).trim() !== '—') {
+            partes.push(`Novedad reportada: ${String(nov).trim()}`);
+        }
+        if (!partes.length && placa) {
+            partes.push(`${sujeto} ${placa} no reporta componentes en falla en esta inspección.`);
+        }
+        return partes.join(' ');
+    }
 
     const FIVE_Q_LABELS = {
         QUE:    { icon: '📋', title: 'QUÉ' },
@@ -899,10 +971,23 @@
         return renderPrimitive(key, value);
     }
 
-    function render5Questions(d, raw, qmap) {
+    function render5Questions(d, raw, qmap, formType, motivo) {
         const cards = Object.entries(FIVE_Q_LABELS).map(([key, meta]) => {
             const labels = qmap[key] || [];
             const parts = [];
+
+            // El QUÉ empieza por la condición que disparó la alerta: es la única
+            // respuesta a "por qué estoy viendo este registro", y el propio
+            // registro no la contiene (umbrales, días transcurridos, vencimientos).
+            if (key === 'QUE' && motivo) {
+                parts.push(`<span class="drv-5q-motivo">${escapeHtml(motivo)}</span>`);
+            }
+            // Luego, lo que el registro sí explica por sí mismo.
+            if (key === 'QUE') {
+                const resumen = QUE_RESUMEN[formType] ? QUE_RESUMEN[formType](raw) : '';
+                if (resumen) parts.push(escapeHtml(resumen));
+            }
+
             for (const lbl of labels) {
                 const val = raw[lbl];
                 if (val !== null && val !== undefined && val !== '') {
@@ -913,6 +998,11 @@
             if (!parts.length) {
                 if (key === 'CUANDO' && d.dateSubmitted) parts.push(escapeHtml(d.dateSubmitted));
                 if (key === 'QUIEN'  && d.submittedBy)  parts.push(escapeHtml(d.submittedBy));
+                // Nunca dejar el QUÉ vacío si el registro trae con qué llenarlo.
+                if (key === 'QUE') {
+                    const fallback = d.title || raw['Motivo'] || raw['Categoría'] || raw['Tipo Novedad'];
+                    if (fallback) parts.push(escapeHtml(String(fallback)));
+                }
             }
             const content = parts.length ? parts.join('<br>') : '<span style="opacity:.45">—</span>';
             return `
@@ -925,12 +1015,12 @@
         return `<div class="drv-5q-grid">${cards}</div>`;
     }
 
-    function renderRecordDetail(d, currentRecordId, formType) {
+    function renderRecordDetail(d, currentRecordId, formType, motivo) {
         const raw = d.data || d;
         const qmap = FIVE_Q_MAP[formType] || null;
 
         // ── ZONA 1: las 5 preguntas (destacada, sin scroll) ──
-        const zona1 = qmap ? render5Questions(d, raw, qmap) : '';
+        const zona1 = qmap ? render5Questions(d, raw, qmap, formType, motivo) : '';
 
         // ── ZONA 2: detalle técnico completo, COLAPSADO ──
         const usadas = qmap ? new Set(Object.values(qmap).flat()) : new Set();
@@ -987,9 +1077,12 @@
             _currentRecord  = null;
         }
 
-        async function openRecord(id) {
+        async function openRecord(id, ctx) {
             currentRecordId = id;
             _currentRecord  = null;
+            // Contexto opcional de quien abre: hoy, el motivo de la alerta del
+            // Morning Briefing. Sin él, el QUÉ se arma solo con el registro.
+            const motivo = (ctx && ctx.motivo) || '';
             titleEl.textContent = cfg.recordTitle || 'Detalle del Registro';
             modal.classList.add('active');
             contentEl.style.display = 'none';
@@ -1009,7 +1102,7 @@
                     return;
                 }
                 _currentRecord = data;
-                contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType);
+                contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType, motivo);
                 contentEl.style.display = 'block';
                 actionBar.style.display = 'flex';
             } catch (err) {

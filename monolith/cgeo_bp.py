@@ -680,6 +680,12 @@ _ASIG_RUTA = {
 }
 
 
+def _quote(valor):
+    """Escapa un valor para usarlo como parámetro de URL en ruta_navegacion."""
+    from urllib.parse import quote as _q
+    return _q(str(valor or ''), safe='')
+
+
 def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
     """
     Asignaciones que siguen requiriendo gestión, de cualquier origen.
@@ -764,6 +770,8 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
             "asignacion": True,
             "asignacion_id": r['id'],
             "texto": texto,
+            "motivo": (f'{"Asignación vencida" if vencida else "Asignación pendiente"}. {texto}.'
+                       + (f' Nota al asignar: {r["nota"]}' if r['nota'] else '')),
             "accion": "Ver hallazgo",
             "ruta_navegacion": _ASIG_RUTA.get(ft, '/cgeo/morning-briefing/'),
             "record_id": r['record_id'],
@@ -839,10 +847,14 @@ def cgeo_api_alertas():
             texto = (f'"{r["puesto"]}" sin supervisión hace {int(h)}h'
                      if h < 48 else
                      f'"{r["puesto"]}" sin supervisión hace {dias} días')
+            ultima_txt = r["ultima_sup"].strftime('%d/%m/%Y %H:%M') if r["ultima_sup"] else 'sin registro previo'
             alertas.append({
                 "id": f"r1_{r['puesto']}",
                 "regla": 1,
                 "texto": texto,
+                "motivo": (f'Supervisión pendiente. La instalación "{r["puesto"]}" lleva {dias} días '
+                           f'sin registrar una supervisión (umbral: 48 h). '
+                           f'Última supervisión: {ultima_txt}.'),
                 "accion": "Ver última supervisión",
                 "ruta_navegacion": f"/dashboard/supervision/?id={r['last_id']}",
                 "record_id": r["last_id"],
@@ -873,7 +885,11 @@ def cgeo_api_alertas():
         """, tuple(r2_params))
         for r in cur.fetchall():
             h = float(r["horas"] or 0)
+            _resp = r.get("responsable_asignado")
             alertas.append({
+                "motivo": (f'Incidente sin gestión. "{r["tipo"]}" lleva {int(h)} h abierto en estado '
+                           f'"{r["estado"]}" (umbral: 24 h)'
+                           + (f', asignado a {_resp}.' if _resp else ', sin responsable asignado.')),
                 "id": f"r2_{r['id']}",
                 "regla": 2,
                 "texto": f"Incidente #{r['id']} abierto hace {int(h)}h — {r['tipo']}",
@@ -896,7 +912,8 @@ def cgeo_api_alertas():
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
-                MAX(fecha_hora) AS ultima_sup
+                MAX(fecha_hora) AS ultima_sup,
+                MAX(id_supervision) AS last_id
             FROM supervision_puesto
             {_where(r3_conds_hist)}
             GROUP BY TRIM(cliente_instalacion)
@@ -910,12 +927,19 @@ def cgeo_api_alertas():
         """, tuple(r3_params + r3_params))
         for r in cur.fetchall():
             puesto = r['puesto'] or ''
+            ultima_txt = r["ultima_sup"].strftime('%d/%m/%Y %H:%M') if r["ultima_sup"] else '—'
             alertas.append({
                 "id": f"r3_{puesto}",
                 "regla": 3,
                 "texto": f"Puesto \"{puesto}\" sin supervisión registrada hoy",
-                "accion": "Ver supervisiones",
-                "ruta_navegacion": "/dashboard/supervision/",
+                "motivo": (f'Supervisión no realizada hoy. "{puesto}" tiene actividad en los últimos '
+                           f'7 días pero no registra ninguna supervisión con fecha de hoy. '
+                           f'La última fue el {ultima_txt}.'),
+                "accion": "Ver última supervisión",
+                # Antes apuntaba al dashboard: hay un registro concreto que abrir.
+                "ruta_navegacion": f"/dashboard/supervision/?id={r['last_id']}",
+                "record_id": r["last_id"],
+                "form_type": "supervision_puesto",
                 "color_semaforo": "rojo",
                 "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
                 "horas": None,
@@ -945,6 +969,9 @@ def cgeo_api_alertas():
             alertas.append({
                 "id": f"r4_{r['id']}",
                 "regla": 4,
+                "motivo": (f'Certificación próxima a vencer. "{r["cert"]}" en {r["cliente"]} pierde '
+                           f'vigencia el {r["vigencia_hasta"]:%d/%m/%Y}, dentro de {d} día{"s" if d != 1 else ""} '
+                           f'(umbral de aviso: 30 días).'),
                 "texto": f"Certificación \"{r['cert']}\" en {r['cliente']} vence en {d} días",
                 "accion": "Ver certificación",
                 "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
@@ -976,6 +1003,9 @@ def cgeo_api_alertas():
             alertas.append({
                 "id": f"r5_{r['instalacion']}",
                 "regla": 5,
+                "motivo": (f'Inspección de equipos vencida. "{r["instalacion"]}" lleva {d} días sin '
+                           f'reporte de confiabilidad (umbral: 45 días). '
+                           f'Último reporte: {r["ultimo_reg"]:%d/%m/%Y}.'),
                 "texto": f"Equipos en \"{r['instalacion']}\" sin reporte de confiabilidad hace {d} días",
                 "accion": "Ver último reporte",
                 "ruta_navegacion": f"/dashboard/equipos/?cliente={r['instalacion']}",
@@ -1011,6 +1041,9 @@ def cgeo_api_alertas():
             alertas.append({
                 "id": f"r6_{r['placa']}",
                 "regla": 6,
+                "motivo": (f'Pre-operacional vencido. El vehículo {r["placa"]} de {r["cliente"]} lleva '
+                           f'{int(h)} h sin chequeo pre-operacional (umbral: 24 h). '
+                           f'El último se registró el {r["ultimo_preop"]:%d/%m/%Y %H:%M}.'),
                 "texto": f"Vehículo {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
                 "accion": "Ver último pre-operacional",
                 "ruta_navegacion": f"/dashboard/vehiculos/?placa={r['placa']}&cliente={r['cliente']}",
@@ -1046,6 +1079,9 @@ def cgeo_api_alertas():
             alertas.append({
                 "id": f"r12_{r['placa']}",
                 "regla": 12,
+                "motivo": (f'Pre-operacional vencido. La motocicleta {r["placa"]} de {r["cliente"]} lleva '
+                           f'{int(h)} h sin chequeo pre-operacional (umbral: 24 h). '
+                           f'El último se registró el {r["ultimo_preop"]:%d/%m/%Y %H:%M}.'),
                 "texto": f"Motocicleta {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
                 "accion": "Ver último pre-operacional",
                 "ruta_navegacion": f"/dashboard/motocicletas/?placa={r['placa']}&cliente={r['cliente']}",
@@ -1079,6 +1115,8 @@ def cgeo_api_alertas():
             alertas.append({
                 "id": f"r7_{r['id']}",
                 "regla": 7,
+                "motivo": (f'Cumplimiento vencido. El checklist "{r["nombre"]}" de {r["instalacion"]} '
+                           f'venció el {r["vigencia_hasta"]:%d/%m/%Y}, hace {d} día{"s" if d != 1 else ""}.'),
                 "texto": f"Checklist \"{r['nombre']}\" en {r['instalacion']} vencido hace {d} días",
                 "accion": "Renovar checklist",
                 "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
@@ -1114,6 +1152,9 @@ def cgeo_api_alertas():
             alertas.append({
                 "id": f"r8_{r['cliente']}",
                 "regla": 8,
+                "motivo": (f'Satisfacción por debajo del mínimo. "{r["cliente"]}" promedia {score}/5 '
+                           f'en {r["encuestas"]} encuesta{"s" if r["encuestas"] != 1 else ""} de los últimos '
+                           f'30 días (umbral: 3.0/5).'),
                 "texto": f"Satisfacción baja en \"{r['cliente']}\": {score}/5 promedio ({r['encuestas']} encuestas)",
                 "accion": "Ver encuesta",
                 "record_id": r["last_encuesta_id"],
@@ -1155,6 +1196,9 @@ def cgeo_api_alertas():
                 alertas.append({
                     "id": f"r9_{c['id_visita']}_{c['bloque_idx']}",
                     "regla": 9,
+                    "motivo": (f'Compromiso de visita vencido. En "{c["cliente"]}" quedó pendiente: '
+                               f'{c["acuerdo"]}. Responsable: {c["responsable"]}. '
+                               f'Fecha de cumplimiento pactada: {c["fecha_cumplimiento"]}.'),
                     "texto": f"Compromiso vencido en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']})",
                     "accion": "Gestionar compromiso",
                     "ruta_navegacion": "/dashboard/visitas/",
@@ -1174,6 +1218,11 @@ def cgeo_api_alertas():
                     alertas.append({
                         "id": f"r10_{c['id_visita']}_{c['bloque_idx']}",
                         "regla": 10,
+                        "motivo": (f'Compromiso de visita por vencer. En "{c["cliente"]}" está pendiente: '
+                                   f'{c["acuerdo"]}. Responsable: {c["responsable"]}. Vence el '
+                                   f'{c["fecha_cumplimiento"]}, en {dias_restantes} día'
+                                   f'{"s" if dias_restantes != 1 else ""} (umbral de aviso: '
+                                   f'{dias_compromiso_vencer} días).'),
                         "texto": f"Compromiso próximo a vencer en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']}, en {dias_restantes} día{'s' if dias_restantes != 1 else ''})",
                         "accion": "Gestionar compromiso",
                         "ruta_navegacion": "/dashboard/visitas/",
@@ -1213,8 +1262,14 @@ def cgeo_api_alertas():
                 "id": f"r11_{cli}",
                 "regla": 11,
                 "texto": f"Cliente \"{cli}\" sin visita registrada en el período ({visita_periodicidad})",
+                "motivo": (f'Visita a cliente pendiente. "{cli}" tiene operación activa pero no registra '
+                           f'ninguna visita en el período vigente ({visita_periodicidad}, desde el '
+                           f'{visita_periodo_inicio:%d/%m/%Y}).'),
                 "accion": "Registrar visita",
-                "ruta_navegacion": "/dashboard/visitas/",
+                # No hay registro que abrir: la visita todavía no existe. La acción
+                # lleva al formulario que la crea, con el cliente ya seleccionado,
+                # en vez de dejar al Administrador en el dashboard.
+                "ruta_navegacion": f"/forms/registro_y_acta_de_visita?cliente={_quote(cli)}",
                 "color_semaforo": "amarillo",
                 "timestamp": today.isoformat(),
                 "horas": None,

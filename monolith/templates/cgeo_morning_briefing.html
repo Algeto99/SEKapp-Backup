@@ -906,25 +906,23 @@ function _getAlertViewer(formType) {
     return _alertViewers[formType];
 }
 
-function openAlertRecord(recordId, formType, event) {
-    event.preventDefault();
-    _getAlertViewer(formType).openRecord(recordId);
-}
-
 // Para alertas sin registro asociado (nada se ha registrado todavía): se informa
 // dentro del propio Morning Briefing en vez de salir hacia el módulo.
-function abrirAlertaSinRegistro(texto, accion, rutaNavegacion, event) {
-    event.preventDefault();
+function abrirAlertaSinRegistro(a) {
     const modal = document.createElement('div');
     modal.className = 'sg-modal-overlay';
     modal.innerHTML = `
         <div class="sg-modal">
-            <div class="sg-modal-title">Sin registro asociado</div>
-            <div class="sg-modal-sub">${texto}</div>
-            <div class="sg-detail-empty">Todavía no existe un registro específico para esta novedad — no hay nada que
-                se haya capturado aún. Puedes ir al módulo correspondiente para crear el registro faltante.</div>
-            <a href="${rutaNavegacion}" class="alerta-btn alerta-btn-amarillo"
-               style="display:block;text-align:center;margin-top:1.25rem;padding:.625rem;">${accion} →</a>
+            <div class="sg-modal-title">Aún no hay registro que abrir</div>
+            <div class="sg-modal-sub">${_esc(a.texto)}</div>
+            <div class="drv-5q-card" style="border-radius:.6rem;padding:.75rem;margin-bottom:.5rem">
+                <div class="drv-5q-label" style="font-size:.7rem;font-weight:800;letter-spacing:.06em;color:#94a3b8">📋 QUÉ</div>
+                <div style="font-size:.85rem;margin-top:.25rem">${_esc(a.motivo || a.texto)}</div>
+            </div>
+            <div class="sg-detail-empty">La condición se detectó por ausencia de registro: no hay nada capturado
+                todavía. La acción de abajo lleva directamente a donde se gestiona.</div>
+            <a href="${_esc(a.ruta_navegacion)}" class="alerta-btn alerta-btn-amarillo"
+               style="display:block;text-align:center;margin-top:1.25rem;padding:.625rem;">${_esc(a.accion)} →</a>
             <button onclick="this.closest('.sg-modal-overlay').remove()"
                 style="margin-top:.75rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
                 Cerrar
@@ -984,6 +982,28 @@ async function downloadBriefingPdf() {
     }
 }
 
+const _alertaRegistry = [];
+function _alertaRef(a) { _alertaRegistry.push(a); return _alertaRegistry.length - 1; }
+
+function _esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Punto de entrada único de todas las alertas: con registro abre su detalle
+// llevando el motivo; sin registro, la acción va a donde se pueda gestionar.
+function abrirAlerta(ref, event) {
+    const a = _alertaRegistry[ref];
+    if (!a) return;   // sin preventDefault: que al menos siga el href
+    event.preventDefault();
+    if (a.record_id && a.form_type) {
+        _getAlertViewer(a.form_type).openRecord(a.record_id, { motivo: a.motivo || a.texto });
+    } else {
+        abrirAlertaSinRegistro(a);
+    }
+}
+
 function _alertaItemHtml(a) {
     const esRojo  = a.color_semaforo === 'rojo';
     const dotCls  = esRojo ? 'alerta-dot-rojo'    : 'alerta-dot-amarillo';
@@ -991,30 +1011,18 @@ function _alertaItemHtml(a) {
     const icon    = esRojo ? '🔴' : '🟡';
     const ts      = _relTime(a.timestamp);
 
-    // Alerts with a specific record → open the record-detail modal, no page navigation
-    if (a.record_id && a.form_type) {
-        const estadoBadge = (a.estado && a.estado !== 'Abierto')
-            ? `<span class="alerta-estado-badge"><span class="badge-estado">${a.estado}</span>${a.responsable_asignado ? `<span class="badge-resp">· ${a.responsable_asignado}</span>` : ''}</span>`
-            : '';
-        return `<a href="${a.ruta_navegacion}" class="alerta-item"
-                   onclick="openAlertRecord(${a.record_id},'${a.form_type}',event)">
-            <div class="alerta-dot ${dotCls}"></div>
-            <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
-            <span class="alerta-texto">${a.texto}</span>
-            ${estadoBadge}
-            <span class="alerta-ts">${ts}</span>
-            <span class="alerta-btn ${btnCls}">${a.accion} →</span>
-        </a>`;
-    }
-    // Alerts without a specific record (nothing was ever registered — e.g. puesto/cliente
-    // sin actividad) → show the notice inline, never leave the Morning Briefing.
-    return `<a href="${a.ruta_navegacion}" class="alerta-item"
-               onclick="abrirAlertaSinRegistro(${JSON.stringify(a.texto)},${JSON.stringify(a.accion)},${JSON.stringify(a.ruta_navegacion)},event)">
+    const estadoBadge = (a.estado && a.estado !== 'Abierto')
+        ? `<span class="alerta-estado-badge"><span class="badge-estado">${_esc(a.estado)}</span>${a.responsable_asignado ? `<span class="badge-resp">· ${_esc(a.responsable_asignado)}</span>` : ''}</span>`
+        : '';
+    return `<a href="${_esc(a.ruta_navegacion)}" class="alerta-item"
+               title="${_esc(a.motivo || a.texto)}"
+               onclick="abrirAlerta(${_alertaRef(a)},event)">
         <div class="alerta-dot ${dotCls}"></div>
         <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
-        <span class="alerta-texto">${a.texto}</span>
+        <span class="alerta-texto">${_esc(a.texto)}</span>
+        ${estadoBadge}
         <span class="alerta-ts">${ts}</span>
-        <span class="alerta-btn ${btnCls}">${a.accion} →</span>
+        <span class="alerta-btn ${btnCls}">${_esc(a.accion)} →</span>
     </a>`;
 }
 
@@ -1024,6 +1032,7 @@ function toggleAlertasExpanded() {
 }
 
 function renderAlertas(alertas) {
+    _alertaRegistry.length = 0;
     const cont = document.getElementById('alertasContainer');
 
     if (!alertas.length) {
