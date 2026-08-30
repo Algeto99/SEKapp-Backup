@@ -737,6 +737,61 @@ def api_fleet():
             conn.close()
 
 
+@forms_bp.route('/api/fleet/ultimo-kilometraje')
+@jwt_required()
+def api_fleet_ultimo_kilometraje():
+    """
+    Último kilometraje registrado para una placa, para el control de recorrido
+    del pre-operacional. `excluir_id` deja fuera el propio registro cuando el
+    formulario se abre en modo edición, o se compararía consigo mismo.
+
+    Sin registro previo devuelve ultimo=None: el formulario muestra
+    "Sin registro anterior" y no calcula recorrido.
+    """
+    placa = _normalize_plate(request.args.get('placa') or '')
+    if not placa:
+        return jsonify({'placa': '', 'ultimo': None})
+
+    excluir_id = request.args.get('excluir_id', type=int)
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cond = "AND id_planilla_vehicular <> %s" if excluir_id else ""
+        params = [placa] + ([excluir_id] if excluir_id else [])
+        cur.execute(f"""
+            SELECT id_planilla_vehicular AS id,
+                   kilometraje_vehiculo  AS km,
+                   COALESCE(fecha_hora, creado_en) AS fecha
+            FROM planilla_vehicular
+            WHERE UPPER(TRIM(placa_vehiculo)) = %s
+              AND kilometraje_vehiculo IS NOT NULL
+              {cond}
+            ORDER BY COALESCE(fecha_hora, creado_en) DESC NULLS LAST,
+                     id_planilla_vehicular DESC
+            LIMIT 1
+        """, tuple(params))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'placa': placa, 'ultimo': None})
+        return jsonify({
+            'placa': placa,
+            'ultimo': int(row['km']),
+            'registro_id': row['id'],
+            'fecha': row['fecha'].isoformat() if row['fecha'] else None,
+        })
+    except Exception as e:
+        app_logger.error(f"api_fleet_ultimo_kilometraje error: {e}", exc_info=True)
+        # Un fallo aquí no puede impedir cargar la inspección.
+        return jsonify({'placa': placa, 'ultimo': None}), 200
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
 @forms_bp.route('/api/customer-hierarchy')
 @jwt_required()
 def customer_hierarchy():

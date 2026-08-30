@@ -452,6 +452,8 @@ CREATE TABLE IF NOT EXISTS planilla_vehicular (
     submitted_by_email VARCHAR(255),
     creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     kilometraje_vehiculo INTEGER,
+    kilometraje_anterior INTEGER,
+    kilometraje_recorrido INTEGER,
     company_id INTEGER,
     customer_company_id INTEGER,
     id_propiedad INTEGER,
@@ -687,6 +689,12 @@ ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS modalidad_servicio VARCH
 -- cgeo_bp._ensure_asignaciones_table las agrega también en caliente.
 ALTER TABLE asignaciones_hallazgo ADD COLUMN IF NOT EXISTS cerrado_en TIMESTAMP;
 ALTER TABLE asignaciones_hallazgo ADD COLUMN IF NOT EXISTS cerrado_por TEXT;
+
+-- Control de kilometraje del pre-operacional vehicular. Se guarda el kilometraje
+-- anterior que el sistema mostró al capturar, además del recorrido calculado: si
+-- un registro previo se edita o se borra, el histórico de este no se altera.
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS kilometraje_anterior INTEGER;
+ALTER TABLE planilla_vehicular ADD COLUMN IF NOT EXISTS kilometraje_recorrido INTEGER;
 
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;

@@ -467,7 +467,9 @@ FORM_CONFIGS = {
         'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Placa": "placa_vehiculo",
-            "Kilometraje": "kilometraje_vehiculo",
+            "Último Kilometraje Registrado": "kilometraje_anterior",
+            "Kilometraje Actual": "kilometraje_vehiculo",
+            "Kilometraje Recorrido": "kilometraje_recorrido",
             "Responsable": "nombre_responsable",
             "Fecha/Hora": "fecha_hora",
             "Novedades Críticas": "novedades_criticas",

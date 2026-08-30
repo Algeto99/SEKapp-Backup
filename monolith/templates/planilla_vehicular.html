@@ -348,9 +348,27 @@
                         <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input">
                     </div>
                     <div>
-                        <label for="kilometraje_vehiculo" class="form-label">Kilometraje del Vehículo</label>
+                        <label for="km_anterior_display" class="form-label">Último kilometraje registrado</label>
+                        <input type="text" id="km_anterior_display" class="form-input" readonly tabindex="-1"
+                            value="—" style="opacity:.75;cursor:default;">
+                        <!-- Viaja al registro para que el histórico no dependa de que
+                             el pre-operacional anterior siga existiendo sin cambios. -->
+                        <input type="hidden" name="kilometraje_anterior" id="kilometraje_anterior">
+                        <p class="text-xs text-gray-400 mt-1" id="km_anterior_hint">Seleccione una placa.</p>
+                    </div>
+                    <div>
+                        <label for="kilometraje_vehiculo" class="form-label">Kilometraje actual <span
+                                class="text-red-400">*</span></label>
                         <input type="number" name="kilometraje_vehiculo" id="kilometraje_vehiculo" class="form-input"
                             min="0" required>
+                        <p class="text-xs text-red-400 mt-1 hidden" id="km_error"></p>
+                    </div>
+                    <div>
+                        <label for="km_recorrido_display" class="form-label">Kilometraje recorrido</label>
+                        <input type="text" id="km_recorrido_display" class="form-input" readonly tabindex="-1"
+                            value="—" style="opacity:.75;cursor:default;">
+                        <input type="hidden" name="kilometraje_recorrido" id="kilometraje_recorrido">
+                        <p class="text-xs text-gray-400 mt-1">Kilometraje actual − último registrado.</p>
                     </div>
                 </div>
             </div>
@@ -807,6 +825,94 @@
                 const placaField = document.getElementById('placa_vehiculo');
                 if (placaField) placaField.value = _placaParam.trim().toUpperCase();
             }
+
+            // ── Control de kilometraje ───────────────────────────────────────
+            (function controlKilometraje() {
+                const placa      = document.getElementById('placa_vehiculo');
+                const actual     = document.getElementById('kilometraje_vehiculo');
+                const antDisplay = document.getElementById('km_anterior_display');
+                const antHidden  = document.getElementById('kilometraje_anterior');
+                const antHint    = document.getElementById('km_anterior_hint');
+                const recDisplay = document.getElementById('km_recorrido_display');
+                const recHidden  = document.getElementById('kilometraje_recorrido');
+                const error      = document.getElementById('km_error');
+                if (!placa || !actual) return;
+
+                let ultimoKm = null;   // null = sin registro anterior
+                const fmt = n => Number(n).toLocaleString('es');
+
+                function recalcular() {
+                    const v = actual.value.trim();
+                    const km = v === '' ? null : Number(v);
+
+                    // Sin registro anterior no hay recorrido que calcular.
+                    if (ultimoKm === null || km === null || Number.isNaN(km)) {
+                        recDisplay.value = '—';
+                        recHidden.value  = '';
+                        actual.setCustomValidity('');
+                        error.classList.add('hidden');
+                        return;
+                    }
+                    if (km < ultimoKm) {
+                        // Un odómetro no retrocede: el registro sería inconsistente.
+                        const msg = `El kilometraje actual no puede ser inferior al último registrado (${fmt(ultimoKm)} km).`;
+                        actual.setCustomValidity(msg);
+                        error.textContent = msg;
+                        error.classList.remove('hidden');
+                        recDisplay.value = '—';
+                        recHidden.value  = '';
+                        return;
+                    }
+                    actual.setCustomValidity('');
+                    error.classList.add('hidden');
+                    const recorrido = km - ultimoKm;
+                    recDisplay.value = `${fmt(recorrido)} km`;
+                    recHidden.value  = String(recorrido);
+                }
+
+                async function cargarUltimo() {
+                    const p = (placa.value || '').trim().toUpperCase();
+                    ultimoKm = null;
+                    antHidden.value = '';
+                    if (!p) {
+                        antDisplay.value = '—';
+                        antHint.textContent = 'Seleccione una placa.';
+                        recalcular();
+                        return;
+                    }
+                    antDisplay.value = 'Consultando…';
+                    antHint.textContent = '';
+                    try {
+                        const params = new URLSearchParams({ placa: p });
+                        // En edición, el propio registro no puede ser su antecedente.
+                        if (window.EDIT_MODE && window.EDIT_RECORD && window.EDIT_RECORD.id_planilla_vehicular) {
+                            params.set('excluir_id', window.EDIT_RECORD.id_planilla_vehicular);
+                        }
+                        const res = await fetch(`/forms/api/fleet/ultimo-kilometraje?${params}`,
+                                                { headers: { Accept: 'application/json' } });
+                        const d = await res.json();
+                        if (d.ultimo === null || d.ultimo === undefined) {
+                            antDisplay.value = 'Sin registro anterior';
+                            antHint.textContent = `Primer pre-operacional registrado para ${p}.`;
+                        } else {
+                            ultimoKm = Number(d.ultimo);
+                            antHidden.value = String(ultimoKm);
+                            antDisplay.value = `${fmt(ultimoKm)} km`;
+                            antHint.textContent = d.fecha
+                                ? `Registrado el ${new Date(d.fecha).toLocaleDateString('es')}.`
+                                : '';
+                        }
+                    } catch (_) {
+                        antDisplay.value = '—';
+                        antHint.textContent = 'No se pudo consultar el kilometraje anterior.';
+                    }
+                    recalcular();
+                }
+
+                placa.addEventListener('change', cargarUltimo);
+                actual.addEventListener('input', recalcular);
+                if (placa.value) cargarUltimo();
+            })();
 
             // Initialize signature pads
             const entregaCanvas = document.getElementById('firma-entrega-pad');
