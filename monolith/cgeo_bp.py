@@ -15,7 +15,7 @@ from functools import wraps
 from io import BytesIO
 
 import psycopg2
-from psycopg2 import extras, sql
+from psycopg2 import extras
 from flask import Blueprint, render_template, jsonify, request, redirect, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 

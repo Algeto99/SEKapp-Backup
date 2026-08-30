@@ -5,7 +5,6 @@ Central hub for operational matrices: incidents, visits, supervision, discipline
 
 import calendar
 import logging
-import os
 from datetime import date, timedelta
 
 import psycopg2

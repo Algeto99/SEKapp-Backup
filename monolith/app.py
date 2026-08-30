@@ -12,9 +12,6 @@ from flask_bcrypt import Bcrypt
 from extensions import limiter
 from google.cloud import secretmanager
 from google.api_core.exceptions import NotFound
-import google.auth.transport.requests
-import google.oauth2.id_token
-import requests
 
 # --- Blueprints ---
 from login_bp import login_bp, init_login_bp
@@ -302,7 +299,9 @@ _FORMS_EXEMPT_ENDPOINTS = [
     'forms_bp.get_csrf_token',
     'forms_bp.get_my_reports',
     'forms_bp.get_my_report_details',
-    'forms_bp.api_form_properties',
+    'forms_bp.api_properties',
+    'forms_bp.api_fleet',
+    'forms_bp.api_fleet_ultimo_km',
     'forms_bp.customer_hierarchy',
 ]
 for _endpoint in _FORMS_EXEMPT_ENDPOINTS:

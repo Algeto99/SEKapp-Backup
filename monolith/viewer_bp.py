@@ -9,7 +9,7 @@ import os
 import re
 import smtplib
 import ssl
-from datetime import timedelta, datetime, timezone, date, time
+from datetime import timedelta, datetime, date, time
 from decimal import Decimal
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -18,7 +18,7 @@ from io import BytesIO
 
 import psycopg2
 from psycopg2 import extras, errors as pg_errors
-from flask import Blueprint, current_app, render_template, request, jsonify, Response, flash, session, redirect, url_for, send_file
+from flask import Blueprint, current_app, render_template, request, jsonify, redirect, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 import google.auth
 from google.auth.transport import requests as google_auth_requests
@@ -38,6 +38,7 @@ except OSError:
     HTML = None
 
 viewer_bp = Blueprint('viewer', __name__)
+app_logger = logging.getLogger(__name__)
 
 # Cached so a record with ten photos does not make ten metadata-server round trips.
 _signing_credentials = None
@@ -167,9 +168,6 @@ def serve_media():
     except Exception as e:
         app_logger.warning(f"Media proxy error: {e}")
         return 'Invalid request', 400
-
-
-app_logger = logging.getLogger(__name__)
 
 
 _SCHEMA_CACHE = {}

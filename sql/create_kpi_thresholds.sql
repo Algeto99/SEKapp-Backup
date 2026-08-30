@@ -1,10 +1,12 @@
--- KPI thresholds configurable by admins
 CREATE TABLE IF NOT EXISTS kpi_thresholds (
     key         VARCHAR(100) PRIMARY KEY,
-    value       NUMERIC      NOT NULL,
+    value       NUMERIC,
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_by  TEXT
+    updated_by  TEXT,
+    text_value  TEXT
 );
+
+ALTER TABLE kpi_thresholds ADD COLUMN IF NOT EXISTS text_value TEXT;
 
 -- Defaults
 INSERT INTO kpi_thresholds (key, value) VALUES

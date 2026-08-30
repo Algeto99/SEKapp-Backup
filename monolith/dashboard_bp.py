@@ -1,14 +1,12 @@
 import calendar
 import logging
-import os
 import re
-import sys
 from datetime import timedelta, datetime, timezone
 from functools import wraps
 
 import psycopg2
 from psycopg2 import extras
-from flask import Blueprint, current_app, render_template, request, jsonify, Response, flash, session, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, session, redirect
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from google.cloud import storage as gcs_storage
 
@@ -1587,84 +1585,6 @@ def dashboard_incidentes():
                            is_admin=is_admin)
 
 
-# ── Module configurations ────────────────────────────────────────────────────
-# Each entry: (route_slug, function_name, display_name, description, accent_class, svg_icon)
-_MODULE_CONFIGS = {
-    'satisfaccion': {
-        'name': 'Satisfacción',
-        'desc': 'Para medir la percepción y satisfacción del cliente con el servicio de seguridad.',
-        'accent': 'accent-green',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
-    },
-    'supervision': {
-        'name': 'Supervisión',
-        'desc': 'Para que los supervisores evalúen el estado y desempeño de los puestos de seguridad.',
-        'accent': 'accent-blue',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>',
-    },
-    'cumplimiento': {
-        'name': 'Cumplimiento',
-        'desc': 'Auditoría de cumplimiento para SST y Seguridad Física.',
-        'accent': 'accent-purple',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>',
-    },
-    'capacitacion': {
-        'name': 'Capacitación',
-        'desc': 'Para registrar la asistencia y los detalles de las capacitaciones impartidas.',
-        'accent': 'accent-amber',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>',
-    },
-    'disciplina': {
-        'name': 'Disciplina',
-        'desc': 'Para reportar novedades y faltas disciplinarias de los empleados.',
-        'accent': 'accent-orange',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>',
-    },
-    'visitas': {
-        'name': 'Visitas',
-        'desc': 'Para documentar las visitas a clientes y los acuerdos alcanzados.',
-        'accent': 'accent-teal',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>',
-    },
-    'vehiculos': {
-        'name': 'Vehículos',
-        'desc': 'Inspección pre-operacional de vehículos y motocicletas de la flota.',
-        'accent': 'accent-indigo',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>',
-    },
-    'equipos': {
-        'name': 'Equipos',
-        'desc': 'Evaluación del estado y confiabilidad de los equipos del sistema de seguridad.',
-        'accent': 'accent-slate',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" /></svg>',
-    },
-    'gestion': {
-        'name': 'Gestión y Resultados',
-        'desc': 'Vista consolidada de todos los módulos — KPIs, tendencias y métricas de desempeño global.',
-        'accent': 'accent-blue-purple',
-        'icon': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>',
-    },
-}
-
-
-def _module_view(slug):
-    """Generic handler for all module dashboard pages."""
-    user_email = get_jwt_identity()
-    user_name, is_admin = _get_user_info(user_email)
-    cfg = _MODULE_CONFIGS[slug]
-    app_logger.info(f"Admin user {user_email} accessing {slug} dashboard")
-    return render_template(
-        "dashboard_module.html",
-        current_user=user_email,
-        user_name=user_name,
-        is_admin=is_admin,
-        module_name=cfg['name'],
-        module_desc=cfg['desc'],
-        module_accent=cfg['accent'],
-        module_icon=cfg['icon'],
-    )
-
-
 @dashboard_bp.route('/satisfaccion/')
 @jwt_required()
 @admin_required
@@ -1819,13 +1739,6 @@ def _gestion_date_prefix(year, month, day):
     return prefix
 
 
-def _gestion_add_like_date_filter(conds, params, text_expr, year, month, day):
-    prefix = _gestion_date_prefix(year, month, day)
-    if prefix:
-        conds.append(f"{text_expr} LIKE %s")
-        params.append(prefix + "%")
-
-
 def _parse_multi(value):
     """Parse comma-separated string → list of non-empty stripped strings."""
     if not value:
@@ -1879,18 +1792,6 @@ def _gestion_add_multi_date_filter(conds, params, text_expr, years, months, days
         placeholders = " OR ".join(f"{text_expr} LIKE %s" for _ in prefixes)
         conds.append(f"({placeholders})")
         params.extend(p + "%" for p in prefixes)
-
-
-def _gestion_add_extract_date_filter(conds, params, date_expr, year, month, day):
-    if year:
-        conds.append(f"EXTRACT(YEAR FROM {date_expr}) = %s")
-        params.append(year)
-    if month:
-        conds.append(f"EXTRACT(MONTH FROM {date_expr}) = %s")
-        params.append(month)
-    if day:
-        conds.append(f"EXTRACT(DAY FROM {date_expr}) = %s")
-        params.append(day)
 
 
 def _gestion_where(conds):
@@ -2691,20 +2592,6 @@ def _sat_label_global(score):
     if score >= 2.5: return 'Oportunidades de mejora'
     if score >= 1.5: return 'Insatisfecho'
     return 'Muy insatisfecho'
-
-def _sat_date_prefix(year, month, day):
-    """Build an ISO date prefix string for LIKE-based filtering.
-    Works regardless of whether fecha_hora is stored as TEXT or TIMESTAMP,
-    since casting either to TEXT produces an ISO-sortable string.
-    """
-    if not year:
-        return None
-    prefix = f"{year}"
-    if month:
-        prefix += f"-{month:02d}"
-        if day:
-            prefix += f"-{day:02d}"
-    return prefix
 
 
 def _sat_add_multi_date_filter(conds, params, text_expr, year, month, day):

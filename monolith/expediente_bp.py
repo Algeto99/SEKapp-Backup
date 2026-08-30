@@ -1,7 +1,6 @@
 import json
 import logging
 import math
-import os
 import re
 from datetime import datetime, timezone
 from functools import wraps
@@ -22,7 +21,7 @@ except ImportError:
 
 from db import get_db_connection
 from email_utils import send_email
-from gcs_utils import (generate_signed_url, get_public_media_url,
+from gcs_utils import (get_public_media_url,
                        verify_media_token, _get_storage_client)
 
 app_logger = logging.getLogger(__name__)

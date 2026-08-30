@@ -14,12 +14,10 @@ import psycopg2.extras
 from flask import Blueprint, current_app, render_template, request, redirect, flash, jsonify, url_for, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
 from flask_wtf.csrf import generate_csrf
-from google.api_core.exceptions import NotFound
-from google.cloud import storage, secretmanager
+from google.cloud import storage
 from werkzeug.utils import secure_filename
 
 from db import get_db_connection
-from email_utils import send_email
 from gcs_utils import resolve_upload_bucket
 
 app_logger = logging.getLogger(__name__)

@@ -63,7 +63,8 @@ BEGIN
             ('registro_y_acta_de_visita',       'id_visita',             'creado_en'),
             ('planilla_vehicular',              'id_planilla_vehicular', 'creado_en'),
             ('planilla_motocicletas',           'id',                    'creado_en'),
-            ('flota',                           'id',                    'creado_en')
+            ('flota',                           'id',                    'creado_en'),
+            ('puestos',                         'id_puesto',             'creado_en')
         ) AS t(tabla, id_col, date_col)
     LOOP
         -- La tabla puede no existir en un tenant que no tenga todos los módulos.
@@ -168,7 +169,8 @@ BEGIN
             ('planilla_motocicletas',           'creado_en'),
             ('checklist_cumplimiento',          'created_at'),
             ('confiabilidad_equipos',           'created_at'),
-            ('flota',                           'creado_en')
+            ('flota',                           'creado_en'),
+            ('puestos',                         'creado_en')
         ) AS t(tabla, ts_col)
     LOOP
         -- SELECT INTO deja FOUND en false si la columna no existe en este tenant.
@@ -235,7 +237,8 @@ BEGIN
             ('planilla_motocicletas',           'id',                    'creado_en'),
             ('checklist_cumplimiento',          'id',                    'created_at'),
             ('confiabilidad_equipos',           'id',                    'created_at'),
-            ('flota',                           'id',                    'creado_en')
+            ('flota',                           'id',                    'creado_en'),
+            ('puestos',                         'id_puesto',             'creado_en')
         ) AS t(tabla, id_col, ts_col)
     LOOP
         SELECT c.oid,

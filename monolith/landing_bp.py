@@ -1,5 +1,4 @@
-import logging
-from flask import Blueprint, render_template, request, jsonify, current_app
+from flask import Blueprint, render_template, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt
 
 landing_bp = Blueprint('landing_bp', __name__)

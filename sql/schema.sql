@@ -36,6 +36,19 @@ CREATE TABLE IF NOT EXISTS propiedades (
     FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id)
 );
 
+CREATE TABLE IF NOT EXISTS puestos (
+    id_puesto SERIAL PRIMARY KEY,
+    id_propiedad INTEGER,
+    nombre VARCHAR(255),
+    descripcion TEXT,
+    activo BOOLEAN DEFAULT TRUE,
+    creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
+    FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     password_hash VARCHAR(255),
@@ -405,6 +418,28 @@ CREATE TABLE IF NOT EXISTS registro_y_acta_de_visita (
     FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
 );
 
+CREATE TABLE IF NOT EXISTS flota (
+    id SERIAL PRIMARY KEY,
+    placa VARCHAR(255),
+    tipo VARCHAR(255),
+    marca VARCHAR(255),
+    modelo VARCHAR(255),
+    anio INTEGER,
+    estado VARCHAR(255) DEFAULT 'Activo',
+    sucursal VARCHAR(255),
+    ubicacion VARCHAR(255),
+    company_id INTEGER,
+    customer_company_id INTEGER,
+    id_propiedad INTEGER,
+    creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    editado BOOLEAN DEFAULT FALSE,
+    editado_en TIMESTAMPTZ,
+    editado_por VARCHAR(255),
+    FOREIGN KEY (company_id) REFERENCES companies(id),
+    FOREIGN KEY (customer_company_id) REFERENCES customer_companies(id),
+    FOREIGN KEY (id_propiedad) REFERENCES propiedades(id_propiedad)
+);
+
 CREATE TABLE IF NOT EXISTS planilla_vehicular (
     id_planilla_vehicular SERIAL PRIMARY KEY,
     cliente_instalacion VARCHAR(255),
@@ -510,6 +545,7 @@ CREATE TABLE IF NOT EXISTS planilla_motocicletas (
     estado_tubo_escape VARCHAR(255),
     estado_palanca_freno VARCHAR(255),
     estado_palanca_cambios VARCHAR(255),
+    diagrama_danos TEXT,
     novedades_criticas_detectadas TEXT,
     accion_inmediata_tomada TEXT,
     firma_entrega TEXT,
@@ -669,7 +705,16 @@ CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_authorized_emails_company_id ON authorized_emails(company_id);
 CREATE INDEX IF NOT EXISTS idx_customer_companies_company_id ON customer_companies(company_id);
 CREATE INDEX IF NOT EXISTS idx_propiedades_customer_company_id ON propiedades(customer_company_id);
+CREATE INDEX IF NOT EXISTS idx_puestos_id_propiedad ON puestos(id_propiedad);
+CREATE INDEX IF NOT EXISTS idx_flota_company_id ON flota(company_id);
+CREATE INDEX IF NOT EXISTS idx_flota_placa ON flota(placa);
 CREATE INDEX IF NOT EXISTS idx_reportes_incidentes_company_id ON reportes_incidentes(company_id);
+
+-- Configuración dinámica de KPIs (valores de texto como periodicidad)
+ALTER TABLE kpi_thresholds ADD COLUMN IF NOT EXISTS text_value TEXT;
+
+-- Diagrama de daños para motocicletas
+ALTER TABLE planilla_motocicletas ADD COLUMN IF NOT EXISTS diagrama_danos TEXT;
 
 -- Edición controlada de formularios (Incidentes y Visitas) — idempotent for existing deployments
 ALTER TABLE reportes_incidentes ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;

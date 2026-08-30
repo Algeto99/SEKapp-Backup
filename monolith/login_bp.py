@@ -1,19 +1,18 @@
-import os
 import re
 import secrets
 import hashlib
 from datetime import datetime, timezone
 from urllib.parse import urlparse
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, unset_jwt_cookies,
-    set_access_cookies, set_refresh_cookies, get_jwt_identity, get_jwt, jwt_required
+    set_access_cookies, set_refresh_cookies, get_jwt_identity, get_jwt
 )
 from psycopg2 import extras
 import psycopg2
 
 from db import get_db_connection
-from email_utils import send_email, send_password_reset_email, send_registration_notification
+from email_utils import send_password_reset_email, send_registration_notification
 from extensions import limiter
 
 # --- Initialize Blueprint ---
