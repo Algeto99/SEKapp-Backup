@@ -3,7 +3,7 @@ import secrets
 import hashlib
 from datetime import datetime, timezone
 from urllib.parse import urlparse
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, unset_jwt_cookies,
     set_access_cookies, set_refresh_cookies, get_jwt_identity, get_jwt
