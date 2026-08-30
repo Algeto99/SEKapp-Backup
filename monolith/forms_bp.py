@@ -767,12 +767,23 @@ def _subir_fotos_flota(form_data, old_record=None):
 def api_fleet_ultimo_kilometraje():
     """
     Último kilometraje registrado para una placa, para el control de recorrido
-    del pre-operacional. `excluir_id` deja fuera el propio registro cuando el
-    formulario se abre en modo edición, o se compararía consigo mismo.
+    del pre-operacional. `tipo` elige la planilla (vehiculo | moto).
+
+    `excluir_id` deja fuera el propio registro cuando el formulario se abre en
+    modo edición, o se compararía consigo mismo.
 
     Sin registro previo devuelve ultimo=None: el formulario muestra
     "Sin registro anterior" y no calcula recorrido.
     """
+    ORIGEN = {
+        'vehiculo': ('planilla_vehicular', 'id_planilla_vehicular',
+                     'placa_vehiculo', 'kilometraje_vehiculo'),
+        'moto':     ('planilla_motocicletas', 'id',
+                     'placa_motocicleta', 'kilometraje_motocicleta'),
+    }
+    tipo = _normalize_text(request.args.get('tipo') or 'vehiculo')
+    tabla, id_col, placa_col, km_col = ORIGEN.get(tipo, ORIGEN['vehiculo'])
+
     placa = _normalize_plate(request.args.get('placa') or '')
     if not placa:
         return jsonify({'placa': '', 'ultimo': None})
@@ -783,18 +794,18 @@ def api_fleet_ultimo_kilometraje():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cond = "AND id_planilla_vehicular <> %s" if excluir_id else ""
+        cond = f"AND {id_col} <> %s" if excluir_id else ""
         params = [placa] + ([excluir_id] if excluir_id else [])
         cur.execute(f"""
-            SELECT id_planilla_vehicular AS id,
-                   kilometraje_vehiculo  AS km,
+            SELECT {id_col} AS id,
+                   {km_col} AS km,
                    COALESCE(fecha_hora, creado_en) AS fecha
-            FROM planilla_vehicular
-            WHERE UPPER(TRIM(placa_vehiculo)) = %s
-              AND kilometraje_vehiculo IS NOT NULL
+            FROM {tabla}
+            WHERE UPPER(TRIM({placa_col})) = %s
+              AND {km_col} IS NOT NULL
               {cond}
             ORDER BY COALESCE(fecha_hora, creado_en) DESC NULLS LAST,
-                     id_planilla_vehicular DESC
+                     {id_col} DESC
             LIMIT 1
         """, tuple(params))
         row = cur.fetchone()

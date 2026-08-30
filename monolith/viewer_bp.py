@@ -115,6 +115,19 @@ def generate_signed_url(gcs_url):
         return gcs_url
 
 
+def _es_columna_de_imagen(col_name):
+    """
+    Columnas cuyo valor es una URL de GCS que hay que firmar para que se vea.
+
+    Los objetos del bucket son privados (upload_file_to_gcs no los publica), así
+    que una URL cruda no renderiza. Hasta ahora solo se firmaban las firmas, de
+    modo que foto_evidencia_url y las cuatro fotos del pre-operacional llegaban
+    sin firmar al detalle del registro.
+    """
+    lower = str(col_name or '').lower()
+    return any(t in lower for t in ('firma', 'foto', 'evidencia', 'imagen', 'photo'))
+
+
 def _make_media_token(gcs_base_url):
     """Return a URL-safe token encoding a GCS base URL with an HMAC signature."""
     secret = current_app.config.get('SECRET_KEY', '').encode()
@@ -526,7 +539,9 @@ FORM_CONFIGS = {
         'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             "Placa": "placa_motocicleta",
-            "Kilometraje": "kilometraje_motocicleta",
+            "Último Kilometraje Registrado": "kilometraje_anterior",
+            "Kilometraje Actual": "kilometraje_motocicleta",
+            "Kilometraje Recorrido": "kilometraje_recorrido",
             "Foto Frente": "foto_frente_url",
             "Foto Atrás": "foto_atras_url",
             "Foto Lado Derecho": "foto_lado_derecho_url",
@@ -931,7 +946,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                                 signed_urls.append(generate_signed_url(url))
                         val = '\n'.join(signed_urls)
                     # Sign signatures if they are GCS URLs
-                    elif ('firma' in col_name.lower() and val and not skip_signing
+                    elif (_es_columna_de_imagen(col_name) and val and not skip_signing
                           and isinstance(val, str) and 'storage.googleapis.com' in val):
                          val = generate_signed_url(val)
 
@@ -953,7 +968,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                 for col_name, val in row_dict.items():
                     if col_name not in processed_cols and col_name not in system_cols:
                         # Sign signatures if they are GCS URLs
-                        if ('firma' in col_name.lower() and val and not skip_signing
+                        if (_es_columna_de_imagen(col_name) and val and not skip_signing
                                 and isinstance(val, str) and 'storage.googleapis.com' in val):
                              val = generate_signed_url(val)
 
@@ -1101,7 +1116,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                             signed_urls.append(generate_signed_url(url.strip()))
                         val = '\n'.join(signed_urls)
                 # Sign signatures if they are GCS URLs
-                elif 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                elif _es_columna_de_imagen(col_name) and val and isinstance(val, str) and 'storage.googleapis.com' in val:
                      if not skip_signing:
                         val = generate_signed_url(val)
 
@@ -1123,7 +1138,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
             for col_name, val in row_dict.items():
                 if col_name not in processed_cols and col_name not in system_cols:
                     # Sign signatures if they are GCS URLs
-                    if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                    if _es_columna_de_imagen(col_name) and val and isinstance(val, str) and 'storage.googleapis.com' in val:
                          if not skip_signing:
                             val = generate_signed_url(val)
 

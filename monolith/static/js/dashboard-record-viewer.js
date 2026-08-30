@@ -832,14 +832,16 @@
             QUE:    ['Placa', 'Novedades Críticas'],
             CUANDO: ['Fecha/Hora'],
             DONDE:  [],
-            COMO:   ['Novedades Críticas', 'Diagrama Daños', 'Acción Inmediata'],
+            COMO:   ['Novedades Críticas', 'Diagrama Daños', 'Acción Inmediata',
+                     'Foto Frente', 'Foto Atrás', 'Foto Lado Derecho', 'Foto Lado Izquierdo'],
             QUIEN:  ['Responsable'],
         },
         planilla_motocicletas: {
             QUE:    ['Placa', 'Novedades Críticas'],
             CUANDO: ['Fecha/Hora'],
             DONDE:  [],
-            COMO:   ['Novedades Críticas', 'Acción Inmediata'],
+            COMO:   ['Novedades Críticas', 'Acción Inmediata',
+                     'Foto Frente', 'Foto Atrás', 'Foto Lado Derecho', 'Foto Lado Izquierdo'],
             QUIEN:  ['Responsable'],
         },
         confiabilidad_equipos: {

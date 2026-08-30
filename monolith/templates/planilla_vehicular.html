@@ -959,7 +959,7 @@
                     antDisplay.value = 'Consultando…';
                     antHint.textContent = '';
                     try {
-                        const params = new URLSearchParams({ placa: p });
+                        const params = new URLSearchParams({ placa: p, tipo: 'vehiculo' });
                         // En edición, el propio registro no puede ser su antecedente.
                         if (window.EDIT_MODE && window.EDIT_RECORD && window.EDIT_RECORD.id_planilla_vehicular) {
                             params.set('excluir_id', window.EDIT_RECORD.id_planilla_vehicular);
