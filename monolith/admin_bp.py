@@ -413,6 +413,7 @@ _THRESHOLD_KEYS = [
     'horas_incidente_escalar',
     'dias_certificacion_vencer',
     'dias_compromiso_vencer',
+    'dias_backup_frecuencia',
     'visita_verde_min',
     'visita_amarillo_min',
     'visita_amarillo_max',
@@ -439,6 +440,9 @@ _THRESHOLD_DEFAULTS = {
     'horas_incidente_escalar':     24,
     'dias_certificacion_vencer':   30,
     'dias_compromiso_vencer':       5,
+    # Cada cuántos días debe repetirse el Backup de Información antes de que el
+    # Morning Briefing lo marque como pendiente.
+    'dias_backup_frecuencia':       7,
     'visita_verde_min':            90,
     'visita_amarillo_min':         70,
     'visita_amarillo_max':         89,

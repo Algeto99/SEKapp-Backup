@@ -702,6 +702,54 @@
                         disabled>
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg> Compartir
                     </button>
+                    <button id="backup-button" class="base-button-style btn-secondary-professional"
+                        title="Respalda todo lo registrado en un período, sin depender de la selección">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1.5 3 4 3h8c2.5 0 4-1 4-3V7c0-2-1.5-3-4-3H8C5.5 4 4 5 4 7z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l3 3 3-3M12 15V8"/></svg> Backup de Información
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backup de Información -->
+        <div id="backup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4"
+             style="background:rgba(15,23,42,.55)">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-1">Backup de Información</h3>
+                <p class="text-sm text-gray-500 mb-4">
+                    Respalda <strong>todos</strong> los formularios con registros en el período,
+                    no solo los reportes visibles o filtrados en pantalla.
+                </p>
+                <div id="backup-estado" class="text-xs mb-4 px-3 py-2 rounded" style="background:#f1f5f9;color:#475569">
+                    Consultando último backup…
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label for="backupCliente" class="block text-sm font-medium text-gray-700 mb-1">Cliente / Empresa</label>
+                        <select id="backupCliente" class="block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm bg-white">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="backupPropiedad" class="block text-sm font-medium text-gray-700 mb-1">Propiedad / Instalación</label>
+                        <select id="backupPropiedad" class="block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm bg-white">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="w-1/2">
+                            <label for="backupDesde" class="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
+                            <input type="date" id="backupDesde" class="block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm">
+                        </div>
+                        <div class="w-1/2">
+                            <label for="backupHasta" class="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
+                            <input type="date" id="backupHasta" class="block w-full px-3 py-2 border border-gray-300 rounded-md sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+                <p id="backup-msg" class="text-xs mt-3 hidden"></p>
+                <div class="flex justify-end gap-2 mt-5">
+                    <button id="backup-cancel" class="base-button-style btn-secondary-professional">Cancelar</button>
+                    <button id="backup-generate" class="base-button-style btn-primary-professional">Generar Backup</button>
                 </div>
             </div>
         </div>
@@ -2011,6 +2059,133 @@
             }
         }
 
+        // --- Backup de Información ---
+        // Los selects del modal reutilizan el mismo catálogo que los filtros, así
+        // que heredan gratis el encadenado Cliente → Propiedad.
+        function fillBackupPropiedades() {
+            const cliSel  = document.getElementById('backupCliente');
+            const propSel = document.getElementById('backupPropiedad');
+            const clienteId = cliSel.value;
+            const visibles = clienteId
+                ? _allProperties.filter(p => String(p.cliente_id) === String(clienteId))
+                : _allProperties;
+            propSel.innerHTML = '<option value="">Todas</option>';
+            visibles.forEach(p => {
+                const o = document.createElement('option');
+                o.value = p.id;
+                o.textContent = clienteId || !p.cliente ? p.name : `${p.name} — ${p.cliente}`;
+                propSel.appendChild(o);
+            });
+        }
+
+        async function refreshBackupEstado() {
+            const box = document.getElementById('backup-estado');
+            try {
+                const res = await fetch('/viewer/api/backup/estado', { headers: { Accept: 'application/json' } });
+                const d = await res.json();
+                if (!res.ok || d.error) throw new Error(d.error || 'Error');
+                if (d.dias === null || !d.ultimo) {
+                    box.textContent = 'Todavía no se ha realizado ningún backup.';
+                    box.style.background = '#fef3c7'; box.style.color = '#92400e';
+                    return;
+                }
+                const alcance = d.ultimo.cliente_nombre || 'Todos los clientes';
+                box.textContent = `Último backup hace ${d.dias} día${d.dias !== 1 ? 's' : ''}`
+                    + ` — ${alcance}, ${d.ultimo.total_registros} registros`
+                    + ` (${new Date(d.ultimo.generado_en).toLocaleDateString('es')}).`;
+                box.style.background = '#ecfdf5'; box.style.color = '#065f46';
+            } catch (_) {
+                box.textContent = 'No se pudo consultar el último backup.';
+                box.style.background = '#f1f5f9'; box.style.color = '#475569';
+            }
+        }
+
+        async function openBackupModal() {
+            await propertiesLoaded;
+            const cliSel = document.getElementById('backupCliente');
+            const filtroCli = document.getElementById('clienteSelect');
+            cliSel.innerHTML = filtroCli.innerHTML.replace('Todos los clientes', 'Todos');
+            // Arranca con lo que el usuario ya tenía filtrado, si es que filtró.
+            cliSel.value = filtroCli.value || '';
+            fillBackupPropiedades();
+            document.getElementById('backupPropiedad').value =
+                document.getElementById('propertySelect').value || '';
+
+            const hoy = new Date();
+            const inicioAnio = new Date(hoy.getFullYear(), 0, 1);
+            const fmt = d => d.toISOString().slice(0, 10);
+            if (!document.getElementById('backupDesde').value)
+                document.getElementById('backupDesde').value = fmt(inicioAnio);
+            if (!document.getElementById('backupHasta').value)
+                document.getElementById('backupHasta').value = fmt(hoy);
+
+            document.getElementById('backup-msg').classList.add('hidden');
+            const modal = document.getElementById('backup-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            refreshBackupEstado();
+        }
+
+        function closeBackupModal() {
+            const modal = document.getElementById('backup-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        async function generarBackup() {
+            const msg  = document.getElementById('backup-msg');
+            const btn  = document.getElementById('backup-generate');
+            const body = {
+                cliente:     document.getElementById('backupCliente').value || null,
+                property_id: document.getElementById('backupPropiedad').value || null,
+                start_date:  document.getElementById('backupDesde').value,
+                end_date:    document.getElementById('backupHasta').value,
+            };
+            if (!body.start_date || !body.end_date) {
+                msg.textContent = 'Indique la fecha desde y la fecha hasta.';
+                msg.className = 'text-xs mt-3 text-red-600';
+                return;
+            }
+            btn.disabled = true;
+            msg.textContent = 'Generando backup… puede tardar según el período.';
+            msg.className = 'text-xs mt-3 text-gray-600';
+            try {
+                const res = await fetch('/viewer/api/backup', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCsrfTokenForBackup() },
+                    body: JSON.stringify(body),
+                });
+                if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    throw new Error(d.message || `Error ${res.status}`);
+                }
+                const blob = await res.blob();
+                const disp = res.headers.get('Content-Disposition') || '';
+                const nombre = (disp.match(/filename="?([^";]+)"?/) || [])[1] || 'backup.zip';
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = nombre;
+                document.body.appendChild(a); a.click(); a.remove();
+                URL.revokeObjectURL(url);
+
+                showFlashMessage('Backup generado correctamente.', 'success');
+                closeBackupModal();
+                refreshBackupEstado();
+            } catch (err) {
+                msg.textContent = err.message;
+                msg.className = 'text-xs mt-3 text-red-600';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function getCsrfTokenForBackup() {
+            const row = document.cookie.split(';').map(c => c.trim())
+                .find(c => c.startsWith('csrf_access_token='));
+            return row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '';
+        }
+
         // --- Email Modal Functions ---
         async function sendEmailWithReports(recipientEmail, reports) {
             try {
@@ -2449,6 +2624,19 @@
             document.getElementById('print-selected-button').addEventListener('click', printSelectedReports);
             document.getElementById('save-pdf-button').addEventListener('click', generatePDFForSelected);
             document.getElementById('export-excel-button').addEventListener('click', exportExcelForSelected);
+
+            document.getElementById('backup-button').addEventListener('click', openBackupModal);
+            document.getElementById('backup-cancel').addEventListener('click', closeBackupModal);
+            document.getElementById('backup-generate').addEventListener('click', generarBackup);
+            document.getElementById('backupCliente').addEventListener('change', fillBackupPropiedades);
+            document.getElementById('backup-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'backup-modal') closeBackupModal();
+            });
+            // La alerta del Morning Briefing entra por aquí: ?backup=1 abre el modal
+            // directamente, en vez de dejar al Administrador buscando el botón.
+            if (new URLSearchParams(window.location.search).get('backup') === '1') {
+                openBackupModal();
+            }
             document.getElementById('email-selected-button').addEventListener('click', emailSelectedReports);
             document.getElementById('share-button').addEventListener('click', shareSelectedReports);
 

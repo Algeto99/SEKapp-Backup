@@ -350,6 +350,16 @@
                                value="{{ thresholds.dias_compromiso_vencer | int }}">
                         <span class="unit">días antes de vencer → amarillo</span>
                     </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Backup de Información
+                        </span>
+                        <label>Frecuencia de backup (días)</label>
+                        <input type="number" name="dias_backup_frecuencia" min="1" max="365" step="1"
+                               value="{{ thresholds.dias_backup_frecuencia | int }}">
+                        <span class="unit">días sin backup → alerta en Morning Briefing</span>
+                    </div>
                 </div>
             </div>
 

@@ -760,7 +760,7 @@ def _render_inventario_html_table(value, is_email=False):
     
     return f'<table style="{table_style}"><thead><tr>{table_hdr_html}</tr></thead><tbody>{table_body_html}</tbody></table>'
 
-def fetch_reports(offset, limit, filters=None, form_type='all'):
+def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=False):
     conn = None
     cur = None
     all_reports = []
@@ -913,7 +913,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                     processed_cols.add(col_name) # Mark as processed
 
                     # Handle GCS URLs signing for specific labels
-                    if label == 'URLs de Imágenes o PDFs' and val:
+                    if label == 'URLs de Imágenes o PDFs' and val and not skip_signing:
                         signed_urls = []
                         for url in str(val).split('\n'):
                             url = url.strip()
@@ -921,7 +921,8 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                                 signed_urls.append(generate_signed_url(url))
                         val = '\n'.join(signed_urls)
                     # Sign signatures if they are GCS URLs
-                    elif 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                    elif ('firma' in col_name.lower() and val and not skip_signing
+                          and isinstance(val, str) and 'storage.googleapis.com' in val):
                          val = generate_signed_url(val)
 
                     # Ensure JSON serializable
@@ -942,7 +943,8 @@ def fetch_reports(offset, limit, filters=None, form_type='all'):
                 for col_name, val in row_dict.items():
                     if col_name not in processed_cols and col_name not in system_cols:
                         # Sign signatures if they are GCS URLs
-                        if 'firma' in col_name.lower() and val and isinstance(val, str) and 'storage.googleapis.com' in val:
+                        if ('firma' in col_name.lower() and val and not skip_signing
+                                and isinstance(val, str) and 'storage.googleapis.com' in val):
                              val = generate_signed_url(val)
 
                         # Convert snake_case to Title Case for display
@@ -2657,6 +2659,249 @@ td.val { color: #1f2937; }
 
     html_parts.append('</body></html>')
     return ''.join(html_parts)
+
+
+# ── Backup de Información ────────────────────────────────────────────────────
+
+def _ensure_backups_table(conn):
+    """Crea la tabla de backups si falta. Mismo patrón que asignaciones_hallazgo:
+    la migración viaja con el código para no depender de correr schema.sql."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS backups_realizados (
+                id               SERIAL PRIMARY KEY,
+                generado_en      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                generado_por     TEXT,
+                periodo_desde    DATE,
+                periodo_hasta    DATE,
+                cliente_id       INTEGER,
+                cliente_nombre   TEXT,
+                propiedad_id     INTEGER,
+                propiedad_nombre TEXT,
+                total_registros  INTEGER NOT NULL DEFAULT 0,
+                formato          TEXT,
+                archivo          TEXT,
+                company_id       INTEGER
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_backups_generado_en
+                ON backups_realizados(generado_en DESC)
+        """)
+    conn.commit()
+
+
+def _backup_nombre_alcance(cur, cliente_id, propiedad_id):
+    """Nombres legibles del alcance, para el archivo y para el registro."""
+    cliente_nombre = propiedad_nombre = None
+    if cliente_id:
+        cur.execute("SELECT name FROM customer_companies WHERE id = %s", (cliente_id,))
+        row = cur.fetchone()
+        if row:
+            cliente_nombre = row[0]
+    if propiedad_id:
+        cur.execute("SELECT nombre FROM propiedades WHERE id_propiedad = %s", (propiedad_id,))
+        row = cur.fetchone()
+        if row:
+            propiedad_nombre = row[0]
+    return cliente_nombre, propiedad_nombre
+
+
+@viewer_bp.route('/api/backup', methods=['POST'])
+@jwt_required()
+def generar_backup():
+    """
+    Respalda TODO lo registrado en el período y alcance pedidos — los 11
+    formularios, no lo que esté filtrado en pantalla.
+
+    Devuelve un ZIP con dos vistas de lo mismo: un Excel multi-hoja para
+    consultar y un JSON con los campos crudos, que es el que sirve para
+    recuperar. Las URLs de GCS van sin firmar: una firma caduca y dejaría el
+    backup con enlaces muertos.
+    """
+    import json as _json
+    import zipfile
+    from io import BytesIO as _BytesIO
+
+    payload      = request.get_json() or {}
+    desde        = (payload.get('start_date') or '').strip()
+    hasta        = (payload.get('end_date') or '').strip()
+    cliente_id   = payload.get('cliente') or None
+    propiedad_id = payload.get('property_id') or None
+
+    if not desde or not hasta:
+        return jsonify({"success": False, "message": "Indique la fecha desde y la fecha hasta."}), 400
+    try:
+        d_desde = datetime.strptime(desde, '%Y-%m-%d').date()
+        d_hasta = datetime.strptime(hasta, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"success": False, "message": "Formato de fecha inválido."}), 400
+    if d_desde > d_hasta:
+        return jsonify({"success": False, "message": "La fecha desde no puede ser posterior a la fecha hasta."}), 400
+
+    user_email = get_jwt_identity()
+    app_logger.info("Backup solicitado por %s: %s a %s (cliente=%s, propiedad=%s)",
+                    user_email, desde, hasta, cliente_id, propiedad_id)
+
+    filters = {'start_date': desde, 'end_date': hasta}
+    if cliente_id:
+        filters['cliente'] = str(cliente_id)
+    if propiedad_id:
+        filters['property_id'] = str(propiedad_id)
+
+    conn = None
+    try:
+        # Sin límite práctico: un backup parcial no es un backup.
+        registros, total = fetch_reports(0, 1000000, filters=filters,
+                                         form_type='all', skip_signing=True)
+
+        por_tipo = {}
+        for r in registros:
+            por_tipo.setdefault(r.get('formType', 'desconocido'), []).append(r)
+
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"success": False, "message": "Base de datos no disponible."}), 500
+        _ensure_backups_table(conn)
+        cur = conn.cursor()
+        cliente_nombre, propiedad_nombre = _backup_nombre_alcance(cur, cliente_id, propiedad_id)
+
+        alcance = cliente_nombre or 'Todos los clientes'
+        if propiedad_nombre:
+            alcance += f' - {propiedad_nombre}'
+        sello = datetime.now().strftime('%Y%m%d_%H%M%S')
+        base  = re.sub(r'[^\w\-]+', '_', f"backup_{alcance}_{desde}_{hasta}").strip('_')
+        nombre_zip = f"{base}_{sello}.zip"
+
+        manifiesto = {
+            'generado_en':   datetime.now().isoformat(),
+            'generado_por':  user_email,
+            'periodo':       {'desde': desde, 'hasta': hasta},
+            'alcance': {
+                'cliente_id': cliente_id, 'cliente': cliente_nombre or 'Todos',
+                'propiedad_id': propiedad_id, 'propiedad': propiedad_nombre or 'Todas',
+            },
+            'total_registros': len(registros),
+            'registros_por_formulario': {k: len(v) for k, v in sorted(por_tipo.items())},
+            'nota': ('Las URLs de evidencia apuntan a Google Cloud Storage sin firmar; '
+                     'requieren credenciales del proyecto para descargarse.'),
+        }
+
+        buffer = _BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('manifiesto.json',
+                       _json.dumps(manifiesto, ensure_ascii=False, indent=2, default=str))
+            # Un JSON por formulario: recuperable y fácil de inspeccionar por partes.
+            for f_type, filas in sorted(por_tipo.items()):
+                z.writestr(f'datos/{f_type}.json',
+                           _json.dumps(filas, ensure_ascii=False, indent=2, default=str))
+            excel = _backup_excel_bytes(por_tipo)
+            if excel:
+                z.writestr(f'{base}.xlsx', excel)
+        buffer.seek(0)
+
+        cur.execute(
+            """
+            INSERT INTO backups_realizados
+                (generado_por, periodo_desde, periodo_hasta, cliente_id, cliente_nombre,
+                 propiedad_id, propiedad_nombre, total_registros, formato, archivo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'zip', %s)
+            """,
+            (user_email, d_desde, d_hasta, cliente_id, cliente_nombre,
+             propiedad_id, propiedad_nombre, len(registros), nombre_zip)
+        )
+        conn.commit()
+        cur.close()
+
+        app_logger.info("Backup generado: %s (%d registros)", nombre_zip, len(registros))
+        return send_file(buffer, as_attachment=True, download_name=nombre_zip,
+                         mimetype='application/zip')
+
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"generar_backup error: {e}", exc_info=True)
+        return jsonify({"success": False, "message": "Error interno al generar el backup."}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+def _backup_excel_bytes(por_tipo):
+    """Hoja por formulario con las etiquetas de data_mapping. Vista legible del
+    mismo contenido que el JSON; si openpyxl falta, el ZIP igual lleva el JSON."""
+    try:
+        from openpyxl import Workbook
+    except ImportError:
+        app_logger.warning("openpyxl no disponible: el backup sale solo con JSON")
+        return None
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    for f_type, filas in sorted(por_tipo.items()):
+        config = FORM_CONFIGS.get(f_type)
+        titulo = (config.get('sheet_title') or config.get('title_prefix', f_type))[:30] if config else f_type[:30]
+        ws = wb.create_sheet(title=titulo)
+
+        etiquetas = []
+        for fila in filas:
+            for k in (fila.get('data') or {}):
+                if k not in etiquetas:
+                    etiquetas.append(k)
+        ws.append(['ID', 'Formulario', 'Enviado Por', 'Fecha Envío'] + etiquetas)
+        for fila in filas:
+            datos = fila.get('data') or {}
+            ws.append([fila.get('id'), fila.get('title'), fila.get('submittedBy'),
+                       fila.get('dateSubmitted')] +
+                      [_excel_safe(datos.get(e)) for e in etiquetas])
+
+    out = BytesIO()
+    wb.save(out)
+    return out.getvalue()
+
+
+def _excel_safe(v):
+    """openpyxl solo acepta escalares; listas y dicts van serializados."""
+    if v is None or isinstance(v, (str, int, float, bool)):
+        return '' if v is None else v
+    return str(v)
+
+
+@viewer_bp.route('/api/backup/estado', methods=['GET'])
+@jwt_required()
+def backup_estado():
+    """Días transcurridos desde el último backup y umbral vigente."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"error": "DB no disponible"}), 500
+        _ensure_backups_table(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT generado_en, generado_por, periodo_desde, periodo_hasta,
+                   cliente_nombre, propiedad_nombre, total_registros
+            FROM backups_realizados
+            ORDER BY generado_en DESC
+            LIMIT 1
+        """)
+        row = cur.fetchone()
+        cur.close()
+        if not row:
+            return jsonify({"ultimo": None, "dias": None})
+        ultimo = dict(row)
+        dias = (datetime.now(ultimo['generado_en'].tzinfo) - ultimo['generado_en']).days
+        return jsonify({
+            "ultimo": {k: (v.isoformat() if hasattr(v, 'isoformat') else v)
+                       for k, v in ultimo.items()},
+            "dias": dias,
+        })
+    except Exception as e:
+        app_logger.error(f"backup_estado error: {e}", exc_info=True)
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @viewer_bp.route('/api/saved-filters', methods=['GET'])

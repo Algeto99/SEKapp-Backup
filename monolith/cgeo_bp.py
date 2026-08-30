@@ -1275,6 +1275,79 @@ def cgeo_api_alertas():
                 "horas": None,
             })
 
+        # ── REGLA 13: estado del Backup de Información ───────────────────────
+        # Permanente: siempre informa, aunque esté al día. A diferencia del resto,
+        # no nace de un registro operativo sino de la ausencia de un respaldo.
+        try:
+            dias_backup = int(alertas_thresholds.get('dias_backup_frecuencia') or 7)
+            cur.execute("SELECT to_regclass('backups_realizados') AS t")
+            if (cur.fetchone() or {}).get('t'):
+                cur.execute("""
+                    SELECT generado_en, cliente_nombre, total_registros,
+                           EXTRACT(DAY FROM (NOW() - generado_en))::int AS dias
+                    FROM backups_realizados
+                    ORDER BY generado_en DESC
+                    LIMIT 1
+                """)
+                ub = cur.fetchone()
+            else:
+                ub = None
+
+            # Mismo criterio que app.py para el nombre de la empresa: la del
+            # usuario, o la única que exista si no la tiene asignada.
+            cur.execute("""
+                SELECT name FROM companies
+                 WHERE id = COALESCE(
+                     (SELECT company_id FROM users WHERE email = %s),
+                     (SELECT MIN(id) FROM companies))
+            """, (get_jwt_identity(),))
+            _emp = cur.fetchone()
+            empresa = (_emp['name'] if _emp and _emp.get('name') else 'La empresa')
+            if not ub:
+                alertas.append({
+                    "id": "r13_backup",
+                    "regla": 13,
+                    "backup": True,
+                    "texto": "Nunca se ha realizado un Backup de Información",
+                    "motivo": (f'Backup pendiente. {empresa} no registra ningún Backup de Información '
+                               f'en SEKapp. La política vigente es respaldar cada {dias_backup} días.'),
+                    "accion": "Realizar Backup",
+                    "ruta_navegacion": "/viewer/?backup=1",
+                    "color_semaforo": "rojo",
+                    "timestamp": None,
+                    "horas": None,
+                })
+            else:
+                d = int(ub['dias'] or 0)
+                fecha_ub = ub['generado_en'].strftime('%d/%m/%Y')
+                if d >= dias_backup:
+                    estado, color = 'Backup pendiente', 'rojo'
+                    frase = (f'{empresa} lleva {d} día{"s" if d != 1 else ""} sin realizar Backup de '
+                             f'su información registrada en SEKapp (política: cada {dias_backup} días). '
+                             f'Dirígete a Reportes y realiza el Backup.')
+                elif d >= dias_backup - 1:
+                    estado, color = 'Backup próximo a vencer', 'amarillo'
+                    frase = (f'El último Backup fue realizado hace {d} día{"s" if d != 1 else ""} '
+                             f'({fecha_ub}). Realice un nuevo Backup próximamente.')
+                else:
+                    estado, color = 'Backup al día', 'verde'
+                    frase = f'Último Backup realizado hace {d} día{"s" if d != 1 else ""} ({fecha_ub}).'
+
+                alertas.append({
+                    "id": "r13_backup",
+                    "regla": 13,
+                    "backup": True,
+                    "texto": f'{estado}: último backup hace {d} día{"s" if d != 1 else ""}',
+                    "motivo": f'{estado}. {frase}',
+                    "accion": "Realizar Backup",
+                    "ruta_navegacion": "/viewer/?backup=1",
+                    "color_semaforo": color,
+                    "timestamp": ub['generado_en'].isoformat(),
+                    "horas": d * 24,
+                })
+        except Exception as bk_err:
+            app_logger.warning(f"cgeo_api_alertas: estado de backup omitido: {bk_err}")
+
         # ── Asignaciones pendientes de cualquier origen ───────────────────────
         # Van aparte de las 8 reglas: nacen de una acción explícita del
         # Administrador, no de una condición evaluada sobre las tablas.

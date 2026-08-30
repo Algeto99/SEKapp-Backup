@@ -18,5 +18,6 @@ INSERT INTO kpi_thresholds (key, value) VALUES
     ('equipos_rojo_min',            15),
     ('dias_sin_supervision_alerta',  2),
     ('horas_incidente_escalar',     24),
-    ('dias_certificacion_vencer',   30)
+    ('dias_certificacion_vencer',   30),
+    ('dias_backup_frecuencia',        7)
 ON CONFLICT (key) DO NOTHING;

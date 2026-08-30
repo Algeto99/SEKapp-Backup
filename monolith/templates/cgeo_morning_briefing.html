@@ -128,6 +128,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alerta-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .alerta-dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
 .alerta-dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+.alerta-dot-verde{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
 .alerta-icon{font-size:.9375rem;flex-shrink:0}
 .alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap;flex-shrink:0}
@@ -139,6 +140,8 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alerta-btn-rojo:hover{background:#fee2e2}
 .alerta-btn-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
 .alerta-btn-amarillo:hover{background:#fef3c7}
+.alerta-btn-verde{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.alerta-btn-verde:hover{background:#dcfce7}
 
 .alertas-empty{padding:1.5rem;text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;margin-bottom:1.25rem}
 .alertas-empty-icon{font-size:2rem;margin-bottom:.5rem}
@@ -774,6 +777,7 @@ const _SG_GRUPOS = [
     { key: 'planilla_vehicular',           titulo: 'Vehículos sin pre-operacional' },
     { key: 'planilla_motocicletas',        titulo: 'Motocicletas sin pre-operacional' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
+    { key: '__backup__',                   titulo: '💾 Backup de información' },
     { key: '__otros__',                    titulo: 'Otras alertas operativas' },
 ];
 
@@ -846,7 +850,8 @@ async function abrirDetalleSemaforo() {
     const porTipo = {};
     for (const g of _SG_GRUPOS) porTipo[g.key] = [];
     for (const a of restantes) {
-        const key = a.form_type === 'registro_y_acta_de_visita' || a.ruta_navegacion === '/dashboard/visitas/'
+        const key = a.backup ? '__backup__'
+            : (a.form_type === 'registro_y_acta_de_visita' || a.ruta_navegacion === '/dashboard/visitas/')
             ? 'registro_y_acta_de_visita'
             : (_SG_GRUPOS.some(g => g.key === a.form_type) ? a.form_type : '__otros__');
         porTipo[key].push(a);
@@ -997,6 +1002,12 @@ function abrirAlerta(ref, event) {
     const a = _alertaRegistry[ref];
     if (!a) return;   // sin preventDefault: que al menos siga el href
     event.preventDefault();
+    if (a.backup) {
+        // "Realizar Backup →" debe abrir Reportes con el modal ya desplegado,
+        // no una ventana intermedia ni el dashboard.
+        window.location.href = a.ruta_navegacion;
+        return;
+    }
     if (a.record_id && a.form_type) {
         _getAlertViewer(a.form_type).openRecord(a.record_id, { motivo: a.motivo || a.texto });
     } else {
@@ -1005,10 +1016,11 @@ function abrirAlerta(ref, event) {
 }
 
 function _alertaItemHtml(a) {
-    const esRojo  = a.color_semaforo === 'rojo';
-    const dotCls  = esRojo ? 'alerta-dot-rojo'    : 'alerta-dot-amarillo';
-    const btnCls  = esRojo ? 'alerta-btn-rojo'    : 'alerta-btn-amarillo';
-    const icon    = esRojo ? '🔴' : '🟡';
+    const color   = a.color_semaforo === 'rojo' ? 'rojo'
+                  : a.color_semaforo === 'verde' ? 'verde' : 'amarillo';
+    const dotCls  = `alerta-dot-${color}`;
+    const btnCls  = `alerta-btn-${color}`;
+    const icon    = color === 'rojo' ? '🔴' : color === 'verde' ? '🟢' : '🟠';
     const ts      = _relTime(a.timestamp);
 
     const estadoBadge = (a.estado && a.estado !== 'Abierto')

@@ -619,6 +619,27 @@ CREATE TABLE IF NOT EXISTS asignaciones_hallazgo (
     FOREIGN KEY (asignado_a) REFERENCES users(id)
 );
 
+-- Backups de información generados desde Reportes. Es la única fuente del
+-- contador "días sin backup" que el Morning Briefing muestra como alerta.
+CREATE TABLE IF NOT EXISTS backups_realizados (
+    id             SERIAL PRIMARY KEY,
+    generado_en    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    generado_por   TEXT,
+    periodo_desde  DATE,
+    periodo_hasta  DATE,
+    cliente_id     INTEGER,
+    cliente_nombre TEXT,
+    propiedad_id   INTEGER,
+    propiedad_nombre TEXT,
+    total_registros INTEGER NOT NULL DEFAULT 0,
+    formato        TEXT,
+    archivo        TEXT,
+    company_id     INTEGER,
+    FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_backups_generado_en ON backups_realizados(generado_en DESC);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id);
 CREATE INDEX IF NOT EXISTS idx_authorized_emails_company_id ON authorized_emails(company_id);
