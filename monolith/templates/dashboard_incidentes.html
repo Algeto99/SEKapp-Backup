@@ -604,7 +604,8 @@
                 <table class="matrix-table" id="adminMatrixTable">
                     <thead>
                         <tr>
-                            <th>Cliente / Instalación</th>
+                            <th>Cliente / Empresa</th>
+                            <th>Propiedad / Instalación</th>
                             <th>Fecha y Hora</th>
                             <th>Categoría</th>
                             <th>Tipo de Incidente</th>
@@ -615,7 +616,7 @@
                         </tr>
                     </thead>
                     <tbody id="adminMatrixBody">
-                        <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                        <tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1488,24 +1489,25 @@
     async function loadAdminMatrix(qs = '') {
         const tBody = document.getElementById('adminMatrixBody');
         if (!tBody) return;
-        tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>';
+        tBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>';
         try {
             const res  = await fetch(`/dashboard/api/incidentes/detalles${qs ? '?' + qs : ''}`);
             const data = await res.json();
             if (!res.ok || data.error) {
-                tBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#f87171;padding:2rem;">Error cargando datos.</td></tr>`;
+                tBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#f87171;padding:2rem;">Error cargando datos.</td></tr>`;
                 return;
             }
             // Sort: reportado/abierto first, en proceso middle, cerrado/resuelto last
             const rows = (data.detalles || []).slice().sort((a, b) => incStatusPriority(a.estado) - incStatusPriority(b.estado));
             _adminMatrixRows = rows;
             if (!rows.length) {
-                tBody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">No hay registros para los criterios seleccionados.</td></tr>';
+                tBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:2rem;">No hay registros para los criterios seleccionados.</td></tr>';
                 return;
             }
             tBody.innerHTML = rows.map((r, i) => `
                 <tr class="clickable-row" data-row-idx="${i}" title="Clic para gestionar estado">
-                    <td style="white-space:nowrap;font-weight:600;color:#67e8f9;">${r.cliente}</td>
+                    <td style="white-space:nowrap;font-weight:600;color:#67e8f9;">${r.cliente_empresa}</td>
+                    <td style="white-space:nowrap;color:#cbd5e1;">${r.propiedad}</td>
                     <td style="white-space:nowrap;color:#cbd5e1;">${r.fecha_hora}</td>
                     <td>${r.categoria}</td>
                     <td>${r.tipo}</td>
@@ -1518,7 +1520,7 @@
                 tr.addEventListener('click', () => openIncidenteModal(rows[idx]));
             });
         } catch (err) {
-            tBody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#f87171;padding:2rem;">Error: ${err.message}</td></tr>`;
+            tBody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#f87171;padding:2rem;">Error: ${err.message}</td></tr>`;
         }
     }
 

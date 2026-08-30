@@ -257,7 +257,8 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
-                            <th>Cliente / Instalación</th>
+                            <th>Cliente / Empresa</th>
+                            <th>Propiedad / Instalación</th>
                             <th>Sitio</th>
                             <th>Técnico</th>
                             <th style="text-align:right;">% Confiabilidad</th>
@@ -266,7 +267,7 @@
                         </tr>
                     </thead>
                     <tbody id="registrosBody">
-                        <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                        <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -739,12 +740,13 @@
     function renderRegistros(registros) {
         const tbody = document.getElementById('registrosBody');
         if (!registros.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para los filtros seleccionados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Sin registros para los filtros seleccionados.</td></tr>';
             return;
         }
         tbody.innerHTML = registros.map(r => `<tr>
             <td class="detail-date">${r.fecha}</td>
-            <td>${r.cliente}</td>
+            <td>${r.cliente_empresa}</td>
+            <td>${r.propiedad}</td>
             <td>${r.sitio}</td>
             <td>${r.tecnico}</td>
             <td style="text-align:right;"><span class="${eqPctClass(r.pct_general)}">${r.pct_general !== null ? r.pct_general.toFixed(1) + '%' : '—'}</span></td>

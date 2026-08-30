@@ -137,6 +137,48 @@ def _add_scope_filters(conds, params, cliente=None, propiedad=None, puesto=None,
             params.append(pu_str)
 
 
+def _scope_name_exprs(table):
+    """
+    Devuelve (expr_cliente, expr_propiedad): el SQL que separa "Cliente / Empresa"
+    de "Propiedad / Instalación" en las matrices de los dashboards, que hasta
+    ahora mostraban una sola columna con el texto crudo de cliente_instalacion.
+
+    Resuelve por FK cuando el registro las tiene y cae al nombre guardado en
+    cliente_instalacion para los registros legacy anteriores a id_propiedad /
+    customer_company_id — que según el caso guardaron el nombre de la propiedad
+    o el del cliente. Mismo criterio que los joins de viewer_bp.
+
+    `table` es el nombre (o alias) con el que la consulta llama a la tabla base.
+    Ambas expresiones pueden dar NULL: quien las use decide el placeholder.
+    """
+    t = table
+    cliente = f"""COALESCE(
+        NULLIF(TRIM((SELECT cc.name FROM customer_companies cc
+                      WHERE cc.id = {t}.customer_company_id)), ''),
+        NULLIF(TRIM((SELECT cc.name FROM customer_companies cc
+                       JOIN propiedades p ON p.customer_company_id = cc.id
+                      WHERE p.id_propiedad = {t}.id_propiedad)), ''),
+        NULLIF(TRIM((SELECT cc.name FROM customer_companies cc
+                       JOIN propiedades p ON p.customer_company_id = cc.id
+                      WHERE {t}.id_propiedad IS NULL
+                        AND LOWER(TRIM(p.nombre)) = LOWER(TRIM({t}.cliente_instalacion))
+                      ORDER BY p.id_propiedad LIMIT 1)), ''),
+        NULLIF(TRIM((SELECT cc.name FROM customer_companies cc
+                      WHERE LOWER(TRIM(cc.name)) = LOWER(TRIM({t}.cliente_instalacion))
+                      ORDER BY cc.id LIMIT 1)), '')
+    )"""
+    propiedad = f"""COALESCE(
+        NULLIF(TRIM((SELECT p.nombre FROM propiedades p
+                      WHERE p.id_propiedad = {t}.id_propiedad)), ''),
+        CASE WHEN EXISTS (SELECT 1 FROM customer_companies cc
+                           WHERE LOWER(TRIM(cc.name)) = LOWER(TRIM({t}.cliente_instalacion)))
+             THEN NULL
+             ELSE NULLIF(TRIM({t}.cliente_instalacion), '')
+        END
+    )"""
+    return cliente, propiedad
+
+
 INCIDENT_DATE_EXPR = "CAST(COALESCE(ri.fecha_hora AT TIME ZONE 'UTC', ri.creado_en) AS date)"
 INCIDENT_TIME_EXPR = "CAST(ri.fecha_hora AT TIME ZONE 'UTC' AS time)"
 INCIDENT_TYPE_EXPR = "COALESCE(NULLIF(TRIM(ri.tipo_incidente), ''), 'Sin Tipo')"
@@ -3395,6 +3437,7 @@ def api_incidentes_detalles():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        inc_cliente_expr, inc_propiedad_expr = _scope_name_exprs('reportes_incidentes')
 
         # Fetch with optional tracking columns (may not exist yet)
         try:
@@ -3403,6 +3446,8 @@ def api_incidentes_detalles():
                     id_reporte_incidente,
                     fecha_hora,
                     cliente_instalacion,
+                    {inc_cliente_expr}   AS cliente_empresa,
+                    {inc_propiedad_expr} AS propiedad_nombre,
                     categoria,
                     tipo_incidente,
                     nivel_severidad,
@@ -3426,6 +3471,8 @@ def api_incidentes_detalles():
                     id_reporte_incidente,
                     fecha_hora,
                     cliente_instalacion,
+                    {inc_cliente_expr}   AS cliente_empresa,
+                    {inc_propiedad_expr} AS propiedad_nombre,
                     categoria,
                     tipo_incidente,
                     nivel_severidad,
@@ -3450,6 +3497,8 @@ def api_incidentes_detalles():
                 'id':              r['id_reporte_incidente'] or 0,
                 'fecha_hora':      fh_str,
                 'cliente':         r['cliente_instalacion'] or '—',
+                'cliente_empresa': r_dict.get('cliente_empresa')   or '—',
+                'propiedad':       r_dict.get('propiedad_nombre')  or '—',
                 'categoria':       r['categoria']            or '—',
                 'tipo':            r['tipo_incidente']       or '—',
                 'severidad':       r['nivel_severidad']      or '—',
@@ -5893,6 +5942,7 @@ def api_motocicletas_detalles():
         company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _moto_date_expr()
         base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        moto_cliente_expr, moto_propiedad_expr = _scope_name_exprs('planilla_motocicletas')
         nov_conds = base_conds + [
             "novedades_criticas_detectadas IS NOT NULL",
             "TRIM(novedades_criticas_detectadas) <> ''"
@@ -5901,6 +5951,8 @@ def api_motocicletas_detalles():
             SELECT
                 id,
                 COALESCE(NULLIF(TRIM(cliente_instalacion),''), '—') AS cliente,
+                COALESCE({moto_cliente_expr},   '—')                AS cliente_empresa,
+                COALESCE({moto_propiedad_expr}, '—')                AS propiedad_nombre,
                 COALESCE(NULLIF(TRIM(placa_motocicleta),''), '—')   AS placa,
                 COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
                 {de} AS fecha_evento,
@@ -5916,6 +5968,8 @@ def api_motocicletas_detalles():
             {
                 'id':                 r['id'],
                 'cliente':            r['cliente'],
+                'cliente_empresa':    r['cliente_empresa'],
+                'propiedad':          r['propiedad_nombre'],
                 'placa':              r['placa'],
                 'responsable':        r['responsable'],
                 'fecha':              r['fecha_evento'].strftime('%d/%m/%Y %H:%M') if r['fecha_evento'] else '—',
@@ -6227,6 +6281,7 @@ def api_vehiculos_detalles():
         company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _veh_date_expr()
         base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        veh_cliente_expr, veh_propiedad_expr = _scope_name_exprs('planilla_vehicular')
         nov_conds = base_conds + [
             "novedades_criticas IS NOT NULL",
             "TRIM(novedades_criticas) <> ''"
@@ -6235,6 +6290,8 @@ def api_vehiculos_detalles():
             SELECT
                 id_planilla_vehicular,
                 COALESCE(NULLIF(TRIM(cliente_instalacion),''), '—') AS cliente,
+                COALESCE({veh_cliente_expr},   '—')                 AS cliente_empresa,
+                COALESCE({veh_propiedad_expr}, '—')                 AS propiedad_nombre,
                 COALESCE(NULLIF(TRIM(placa_vehiculo),''), '—')      AS placa,
                 COALESCE(NULLIF(TRIM(nombre_responsable),''), '—')  AS responsable,
                 {de} AS fecha_evento,
@@ -6250,6 +6307,8 @@ def api_vehiculos_detalles():
             {
                 'id':                 r['id_planilla_vehicular'],
                 'cliente':            r['cliente'],
+                'cliente_empresa':    r['cliente_empresa'],
+                'propiedad':          r['propiedad_nombre'],
                 'placa':              r['placa'],
                 'responsable':        r['responsable'],
                 'fecha':              r['fecha_evento'].strftime('%d/%m/%Y %H:%M') if r['fecha_evento'] else '—',
@@ -6595,10 +6654,13 @@ def api_equipos_detalles():
 
         # ── Individual inspection records ──────────────────────────────────
         where_rec = _eq_where(base_conds)
+        eq_cliente_expr, eq_propiedad_expr = _scope_name_exprs('c')
         cur.execute(f"""
             SELECT
                 c.id,
                 COALESCE(NULLIF(TRIM(c.cliente_instalacion),''),'—') AS cliente,
+                COALESCE({eq_cliente_expr},   '—')                   AS cliente_empresa,
+                COALESCE({eq_propiedad_expr}, '—')                   AS propiedad_nombre,
                 COALESCE(NULLIF(TRIM(c.sitio),''),'—')               AS sitio,
                 c.fecha,
                 COALESCE(NULLIF(TRIM(c.tecnico_mantenimiento),''),'—') AS tecnico,
@@ -6615,6 +6677,8 @@ def api_equipos_detalles():
             {
                 'id':          r['id'],
                 'cliente':     r['cliente'],
+                'cliente_empresa': r['cliente_empresa'],
+                'propiedad':       r['propiedad_nombre'],
                 'sitio':       r['sitio'],
                 'fecha':       r['fecha'].strftime('%d/%m/%Y') if r['fecha'] else '—',
                 'tecnico':     r['tecnico'],

@@ -186,7 +186,8 @@
                 <table class="matrix-table">
                     <thead>
                         <tr>
-                            <th>Cliente / Instalación</th>
+                            <th>Cliente / Empresa</th>
+                            <th>Propiedad / Instalación</th>
                             <th>Placa</th>
                             <th>Responsable</th>
                             <th>Fecha</th>
@@ -196,7 +197,7 @@
                         </tr>
                     </thead>
                     <tbody id="matrixBody">
-                        <tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
+                        <tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Cargando datos…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -675,11 +676,12 @@
     function renderMatrix(detalles) {
         const tbody = document.getElementById('matrixBody');
         if (!detalles.length) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:2rem;">Sin novedades críticas para los filtros seleccionados.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#6b7280;padding:2rem;">Sin novedades críticas para los filtros seleccionados.</td></tr>';
             return;
         }
         tbody.innerHTML = detalles.map(r => `<tr>
-            <td>${r.cliente}</td>
+            <td>${r.cliente_empresa}</td>
+            <td>${r.propiedad}</td>
             <td style="white-space:nowrap;font-weight:700;color:#a5b4fc;cursor:pointer;text-decoration:underline;" onclick="showPlacaInspecciones('${r.placa}')" title="Ver historial de esta placa">${r.placa}</td>
             <td>${r.responsable}</td>
             <td class="detail-date">${r.fecha}</td>
