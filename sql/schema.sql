@@ -208,6 +208,7 @@ CREATE TABLE IF NOT EXISTS supervision_puesto (
     submitter_timezone TEXT,
     horario_servicio VARCHAR(255),
     tipo_servicio VARCHAR(255),
+    modalidad_servicio VARCHAR(255),
     problemas_uniforme TEXT,
     editado BOOLEAN DEFAULT FALSE,
     editado_en TIMESTAMPTZ,
@@ -639,6 +640,11 @@ ALTER TABLE medicion_experiencia_cliente ADD COLUMN IF NOT EXISTS editado_por VA
 ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
 ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+-- Modalidad de Servicio: campo propio, independiente de tipo_servicio (que pasó a
+-- llamarse "Tipo de Instalación" en la interfaz). El INSERT de supervisión filtra
+-- por reflexión de columnas, así que sin esta columna el valor se descarta en silencio.
+ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS modalidad_servicio VARCHAR(255);
 
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE informe_novedades_disciplinario ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;

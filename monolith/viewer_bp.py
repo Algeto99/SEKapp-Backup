@@ -322,6 +322,7 @@ FORM_CONFIGS = {
             "Supervisor": "supervisor",
             "Puesto/Área": "puesto_area_especifica",
             "Tipo de Instalación": "tipo_servicio",
+            "Modalidad de Servicio": "modalidad_servicio",
             "Nombre Guardia": "nombre_guardia",
             "Observaciones": "observaciones_novedades",
             "Documento Guardia": "documento_guardia",

@@ -253,7 +253,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Tipo de Instalación</label>
-                        <select name="tipo_servicio" id="tipoInstalacion" class="form-select">
+                        <select name="tipo_servicio" id="tipoInstalacion" class="form-select tipo-instalacion-select">
                             <option value="">Seleccione...</option>
                             <option>Residencial</option>
                             <option>Comercial y Oficinas</option>
@@ -265,10 +265,16 @@
                             <option>Construcción</option>
                             <option value="Otro">Otro</option>
                         </select>
-                        <div id="tipoInstalacionOtroWrap" class="hidden mt-2">
-                            <input type="text" id="tipoInstalacionOtroInput" class="form-input"
-                                placeholder="Especifique el tipo de instalación">
-                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Modalidad de Servicio *</label>
+                        <select name="modalidad_servicio" id="modalidadServicio" class="form-select modalidad-servicio-select" required>
+                            <option value="">Seleccione...</option>
+                            <option value="Puesto Fijo" data-sublabel="Oficial de Seguridad asignado a un punto determinado durante todo su turno.">Puesto Fijo</option>
+                            <option value="Rondín" data-sublabel="Oficial de Seguridad que recorre un circuito de puntos dentro de la misma instalación.">Rondín</option>
+                            <option value="Escolta" data-sublabel="Protección de personas o mercancía en movimiento, sin sitio fijo asignado.">Escolta</option>
+                            <option value="Monitoreo" data-sublabel="Operación desde central de control, sin presencia física en la instalación.">Monitoreo</option>
+                        </select>
                     </div>
                 </div>
 
@@ -589,45 +595,6 @@
                 });
             }
 
-            // Tipo de Instalación "Otro". El script compartido de más abajo hace
-            // return temprano sin supervisionsContainer, así que el modo edición
-            // necesita su propio cableado.
-            var tipoSel      = document.getElementById('tipoInstalacion');
-            var tipoOtroWrap = document.getElementById('tipoInstalacionOtroWrap');
-            var tipoOtroInp  = document.getElementById('tipoInstalacionOtroInput');
-            if (tipoSel && tipoOtroWrap && tipoOtroInp) {
-                tipoSel.addEventListener('change', function() {
-                    if (this.value === 'Otro') {
-                        tipoOtroWrap.classList.remove('hidden');
-                        tipoOtroInp.required = true;
-                        tipoOtroInp.focus();
-                    } else {
-                        tipoOtroWrap.classList.add('hidden');
-                        tipoOtroInp.required = false;
-                        tipoOtroInp.value = '';
-                    }
-                });
-                // El texto libre viaja en el propio select: la columna sigue
-                // siendo tipo_servicio y no hay campo nuevo que agregar.
-                form.addEventListener('submit', function(e) {
-                    if (tipoSel.value !== 'Otro') return;
-                    var val = tipoOtroInp.value.trim();
-                    if (!val) {
-                        e.preventDefault();
-                        tipoOtroInp.focus();
-                        tipoOtroInp.setCustomValidity('Especifique el tipo de instalación.');
-                        tipoOtroInp.reportValidity();
-                        return;
-                    }
-                    tipoOtroInp.setCustomValidity('');
-                    var opt = document.createElement('option');
-                    opt.value = val;
-                    opt.text  = val;
-                    tipoSel.appendChild(opt);
-                    tipoSel.value = val;
-                });
-            }
-
             var record = window.EDIT_RECORD;
             Object.keys(record).forEach(function(key) {
                 var value = record[key];
@@ -668,23 +635,11 @@
                 }
             }
 
-            // Un tipo guardado con el catálogo viejo (Comercial, Escolta…) ya no
-            // existe como opción: el bucle de arriba dejó el select vacío. Se
-            // conserva bajo "Otro" en vez de perderse al guardar.
-            if (tipoSel && record.tipo_servicio) {
-                var tipoGuardado = String(record.tipo_servicio).trim();
-                var enCatalogo = Array.prototype.some.call(tipoSel.options, function(o) {
-                    return o.value === tipoGuardado;
-                });
-                if (enCatalogo) {
-                    tipoSel.value = tipoGuardado;
-                } else if (tipoOtroWrap && tipoOtroInp) {
-                    tipoSel.value = 'Otro';
-                    tipoOtroWrap.classList.remove('hidden');
-                    tipoOtroInp.value = tipoGuardado;
-                    tipoOtroInp.required = true;
-                }
-            }
+            // Los dos selects del catálogo pasan a ser el picker compartido (con
+            // descripción por opción y el enlace de "no está en la lista"). Se hace
+            // aquí, después del bucle de precarga, para que el combo lea el valor ya
+            // aplicado; el tipo guardado con el catálogo viejo se recupera aparte.
+            window.secappSupervisionSelects.initScope(form, record.tipo_servicio);
 
             if (record.id_propiedad) {
                 setTimeout(function() {
@@ -763,7 +718,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tipo de Instalación</label>
-                            <select name="supervisions[${index}][tipo_servicio]" class="form-select tipo-instalacion-select" data-index="${index}">
+                            <select name="supervisions[${index}][tipo_servicio]" class="form-select tipo-instalacion-select">
                                 <option value="">Seleccione...</option>
                                 <option>Residencial</option>
                                 <option>Comercial y Oficinas</option>
@@ -775,10 +730,16 @@
                                 <option>Construcción</option>
                                 <option value="Otro">Otro</option>
                             </select>
-                            <div id="tipoInstalacionOtro_${index}" class="hidden mt-2">
-                                <input type="text" id="tipoInstalacionOtroInput_${index}" class="form-input"
-                                    placeholder="Especifique el tipo de instalación">
-                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Modalidad de Servicio *</label>
+                            <select name="supervisions[${index}][modalidad_servicio]" class="form-select modalidad-servicio-select" required>
+                                <option value="">Seleccione...</option>
+                                <option value="Puesto Fijo" data-sublabel="Oficial de Seguridad asignado a un punto determinado durante todo su turno.">Puesto Fijo</option>
+                                <option value="Rondín" data-sublabel="Oficial de Seguridad que recorre un circuito de puntos dentro de la misma instalación.">Rondín</option>
+                                <option value="Escolta" data-sublabel="Protección de personas o mercancía en movimiento, sin sitio fijo asignado.">Escolta</option>
+                                <option value="Monitoreo" data-sublabel="Operación desde central de control, sin presencia física en la instalación.">Monitoreo</option>
+                            </select>
                         </div>
                     </div>
 
@@ -1060,6 +1021,8 @@
                 const block = createSupervisionBlock(index);
                 container.appendChild(block);
 
+                window.secappSupervisionSelects.initScope(block);
+
                 initSignaturePad(index);
 
                 // Arma logic
@@ -1083,23 +1046,6 @@
                             tiempoOtroDiv.classList.add('hidden');
                             tiempoOtroInput.required = false;
                             tiempoOtroInput.value = '';
-                        }
-                    });
-                }
-
-                // Tipo de Instalación "Otro" logic
-                const selTipoInst      = block.querySelector('.tipo-instalacion-select');
-                const tipoInstOtroDiv  = document.getElementById(`tipoInstalacionOtro_${index}`);
-                const tipoInstOtroInput = document.getElementById(`tipoInstalacionOtroInput_${index}`);
-                if (selTipoInst && tipoInstOtroDiv && tipoInstOtroInput) {
-                    selTipoInst.addEventListener('change', function () {
-                        if (this.value === 'Otro') {
-                            tipoInstOtroDiv.classList.remove('hidden');
-                            tipoInstOtroInput.required = true;
-                        } else {
-                            tipoInstOtroDiv.classList.add('hidden');
-                            tipoInstOtroInput.required = false;
-                            tipoInstOtroInput.value = '';
                         }
                     });
                 }
@@ -1204,33 +1150,6 @@
                         sel.value = val;
                     }
                 }
-
-                // Tipo de Instalación "Otro": el texto libre viaja en el propio
-                // select, igual que el tiempo en puesto. La columna sigue siendo
-                // tipo_servicio, así que no hay campo nuevo que el INSERT descarte.
-                const tipoInstSelects = container.querySelectorAll('.tipo-instalacion-select');
-                for (const sel of tipoInstSelects) {
-                    if (sel.value === 'Otro') {
-                        const idx = sel.dataset.index;
-                        const otroInput = document.getElementById(`tipoInstalacionOtroInput_${idx}`);
-                        const val = otroInput ? otroInput.value.trim() : '';
-                        if (!val) {
-                            e.preventDefault();
-                            if (otroInput) {
-                                otroInput.focus();
-                                otroInput.setCustomValidity('Especifique el tipo de instalación.');
-                                otroInput.reportValidity();
-                            }
-                            return;
-                        }
-                        otroInput.setCustomValidity('');
-                        const opt = document.createElement('option');
-                        opt.value = val;
-                        opt.text  = val;
-                        sel.appendChild(opt);
-                        sel.value = val;
-                    }
-                }
             });
 
             // Add one supervision block by default
@@ -1279,6 +1198,112 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    <script>
+        /* Tipo de Instalación y Modalidad de Servicio sobre el mismo picker que ya
+         * usan Cliente, Propiedad y Puesto (SearchableSelect + attachManualEntry de
+         * customer-hierarchy.js). De ahí salen gratis: la descripción por opción
+         * (data-sublabel), el orden del DOM sin alfabetizar, el panel de búsqueda en
+         * móvil y el enlace "no está en la lista".
+         *
+         * customer-hierarchy.js se carga justo arriba, así que las clases ya existen
+         * cuando corren los handlers de DOMContentLoaded que llaman a initScope(). */
+        window.secappSupervisionSelects = (function () {
+
+            function enhanceModalidad(select) {
+                if (!select || select.dataset.secappCombo) return null;
+                select.dataset.secappCombo = '1';
+                return new window.SecappSearchableSelect(select, {
+                    placeholder: 'Seleccione la modalidad...',
+                    emptyText: 'Sin modalidades',
+                    invalidMessage: 'Seleccione la modalidad de servicio.',
+                });
+            }
+
+            function enhanceTipo(select) {
+                if (!select || select.dataset.secappCombo) return null;
+                select.dataset.secappCombo = '1';
+
+                const combo = new window.SecappSearchableSelect(select, {
+                    placeholder: 'Seleccione el tipo de instalación...',
+                    emptyText: 'Sin tipos de instalación',
+                    invalidMessage: 'Seleccione el tipo de instalación.',
+                });
+                const manual = window.SecappManualEntry(select, combo, {
+                    openLabel: '➕ El tipo de instalación no está en la lista',
+                    closeLabel: '← Volver a la lista de tipos',
+                    placeholder: 'Especifique el tipo de instalación',
+                    invalidMessage: 'Especifique el tipo de instalación.',
+                });
+
+                const host = select.closest('.ss-wrap').parentElement;
+                const box  = host.querySelector('.ss-manual input');
+
+                // "Otro" y el enlace llevan al mismo sitio: la caja de texto libre.
+                // Elegirlo en la lista no debe guardar la palabra "Otro", que no es
+                // un tipo de instalación sino la puerta hacia el que sí lo es.
+                select.addEventListener('change', function () {
+                    if (select.value !== 'Otro') return;
+                    manual.setManual(true, true);
+                    combo.setCustomValue('');
+                    if (box) box.value = '';
+                    checkManual();
+                });
+
+                // attachManualEntry ata el `required` de la caja al del select, y
+                // Tipo de Instalación no es obligatorio. Sin esto la caja abierta
+                // aceptaría vacío, que es justo lo que la regla de "Otro" prohíbe.
+                function checkManual() {
+                    if (!box) return true;
+                    const falta = manual.isManual() && !box.value.trim();
+                    box.setCustomValidity(falta ? 'Especifique el tipo de instalación.' : '');
+                    return !falta;
+                }
+                if (box) box.addEventListener('input', checkManual);
+
+                const form = select.closest('form');
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        if (checkManual()) return;
+                        e.preventDefault();
+                        box.focus();
+                        box.reportValidity();
+                    });
+                }
+
+                return { combo, manual, box };
+            }
+
+            return {
+                /* root: el formulario (edición) o el bloque recién creado (creación).
+                 * tipoGuardado: solo en edición. Un valor del catálogo viejo
+                 * (Comercial, Escolta…) ya no existe como opción, así que se conserva
+                 * como texto libre en vez de perderse al guardar. */
+                initScope(root, tipoGuardado) {
+                    if (!root || !window.SecappSearchableSelect) return;
+
+                    enhanceModalidad(root.querySelector('.modalidad-servicio-select'));
+
+                    const tipo = enhanceTipo(root.querySelector('.tipo-instalacion-select'));
+                    if (!tipo || !tipoGuardado) return;
+
+                    const valor = String(tipoGuardado).trim();
+                    if (!valor) return;
+                    const enCatalogo = Array.prototype.some.call(
+                        tipo.combo.select.options,
+                        (o) => o.value === valor && o.dataset.custom !== '1'
+                    );
+                    if (enCatalogo) {
+                        tipo.combo.select.value = valor;
+                        tipo.combo.syncFromSelect();
+                    } else {
+                        tipo.combo.setCustomValue(valor);
+                        tipo.manual.setManual(true);
+                        tipo.manual.syncBox();
+                    }
+                },
+            };
+        })();
+    </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <script>
     (function() {

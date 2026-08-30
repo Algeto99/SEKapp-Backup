@@ -1409,6 +1409,7 @@ def submit_supervision_puesto_editar(id):
             'hora_entrada': request.form.get('hora_entrada'),
             'hora_salida': request.form.get('hora_salida'),
             'tipo_servicio': request.form.get('tipo_servicio'),
+            'modalidad_servicio': request.form.get('modalidad_servicio'),
             'nombre_guardia': request.form.get('nombre_guardia'),
             'numero_empleado': request.form.get('numero_empleado'),
             'documento_guardia': request.form.get('documento_guardia'),
