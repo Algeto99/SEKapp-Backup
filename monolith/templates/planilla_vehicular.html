@@ -27,31 +27,566 @@
 
 
 
-        /* ── Registro fotográfico ────────────────────────────────────────── */
-        .foto-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1rem; }
-        @media (max-width:640px){ .foto-grid { grid-template-columns:1fr; } }
+        /* ── Registro fotográfico & Cámara ──────────────────────────────── */
+        .foto-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+        }
+        @media (max-width: 768px) {
+            .foto-grid { grid-template-columns: 1fr; }
+        }
         .foto-card {
-            position:relative; display:flex; flex-direction:column; align-items:center;
-            justify-content:center; gap:.35rem; min-height:9.5rem; padding:1rem;
-            border:2px dashed rgba(148,163,184,.45); border-radius:.75rem;
-            background:rgba(15,23,42,.35); text-align:center; cursor:pointer;
-            transition:border-color .18s, background .18s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            min-height: 12rem;
+            padding: 1.25rem;
+            border: 2px dashed rgba(148, 163, 184, 0.4);
+            border-radius: 0.875rem;
+            background: rgba(15, 23, 42, 0.45);
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
         }
-        .foto-card:hover { border-color:#60a5fa; background:rgba(30,58,95,.35); }
-        .foto-card.foto-lista { border-style:solid; border-color:#22c55e; background:rgba(22,163,74,.12); }
-        .foto-card input[type="file"] {
-            position:absolute; inset:0; width:100%; height:100%;
-            opacity:0; cursor:pointer;
+        .foto-card:hover {
+            border-color: #60a5fa;
+            background: rgba(30, 58, 95, 0.35);
         }
-        .foto-card-icon  { font-size:1.75rem; line-height:1; }
-        .foto-card-title { font-size:.9rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
-        .foto-card-hint  { font-size:.72rem; color:#94a3b8; }
-        .foto-card-state { font-size:.72rem; font-weight:700; color:#94a3b8; }
-        .foto-card.foto-lista .foto-card-state { color:#4ade80; }
-        .foto-card-preview { max-height:6rem; border-radius:.4rem; margin-top:.25rem; }
-        body.light-mode .foto-card { background:#f8fafc; border-color:#cbd5e1; }
-        body.light-mode .foto-card.foto-lista { background:#f0fdf4; border-color:#22c55e; }
-        body.light-mode .foto-card-hint, body.light-mode .foto-card-state { color:#64748b; }
+        .foto-card.foto-lista {
+            border-style: solid;
+            border-color: #22c55e;
+            background: rgba(22, 163, 74, 0.1);
+        }
+        .foto-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        .foto-card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+        .foto-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .foto-card-hint {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+        .foto-card-state {
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            background: rgba(148, 163, 184, 0.18);
+            color: #cbd5e1;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .foto-card.foto-lista .foto-card-state {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+
+        /* Empty state with Action Buttons */
+        .foto-card-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.85rem;
+            padding: 1rem 0.5rem;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 0.5rem;
+            flex: 1;
+        }
+        .foto-card-icon {
+            font-size: 2rem;
+            line-height: 1;
+            opacity: 0.85;
+        }
+        .foto-card-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            width: 100%;
+        }
+        .foto-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.55rem 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+            text-decoration: none;
+            user-select: none;
+        }
+        .foto-btn-camera {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+            flex: 1;
+            min-width: 120px;
+        }
+        .foto-btn-camera:hover {
+            background: #1d4ed8;
+            border-color: #60a5fa;
+            transform: translateY(-1px);
+        }
+        .foto-btn-file {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.15);
+            flex: 1;
+            min-width: 120px;
+        }
+        .foto-btn-file:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* Filled state with Preview & Action Bar */
+        .foto-card-filled {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            flex: 1;
+        }
+        .foto-preview-wrap {
+            position: relative;
+            width: 100%;
+            height: 140px;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            background: #000;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .foto-card-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.25s ease;
+        }
+        .foto-preview-wrap:hover .foto-card-preview {
+            transform: scale(1.03);
+        }
+        .foto-preview-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            color: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .foto-preview-wrap:hover .foto-preview-overlay {
+            opacity: 1;
+        }
+        .foto-filled-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+        .foto-btn-sm {
+            padding: 0.35rem 0.65rem;
+            font-size: 0.75rem;
+            border-radius: 0.375rem;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .foto-btn-sm:hover {
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+        }
+        .foto-btn-danger {
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.12);
+        }
+        .foto-btn-danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+            color: #fee2e2;
+        }
+
+        /* Light Mode Overrides */
+        body.light-mode .foto-card {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        }
+        body.light-mode .foto-card:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+        body.light-mode .foto-card.foto-lista {
+            background: #f0fdf4;
+            border-color: #22c55e;
+        }
+        body.light-mode .foto-card-title {
+            color: #0f172a;
+        }
+        body.light-mode .foto-card-hint {
+            color: #64748b;
+        }
+        body.light-mode .foto-card-state {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #cbd5e1;
+        }
+        body.light-mode .foto-card.foto-lista .foto-card-state {
+            background: #dcfce7;
+            color: #15803d;
+            border-color: #86efac;
+        }
+        body.light-mode .foto-card-empty {
+            background: #f8fafc;
+        }
+        body.light-mode .foto-btn-file {
+            background: #f1f5f9;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        body.light-mode .foto-btn-file:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        body.light-mode .foto-btn-sm {
+            background: #f1f5f9;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        body.light-mode .foto-btn-sm:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+        body.light-mode .foto-btn-danger {
+            background: #fee2e2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+        body.light-mode .foto-btn-danger:hover {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        /* ── Camera Modal & Lightbox Styles ────────────────────────────── */
+        .secapp-camera-modal-overlay,
+        .secapp-lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .secapp-camera-modal-dialog {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 1rem;
+            width: min(680px, 96vw);
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .secapp-camera-header,
+        .secapp-lightbox-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 1.25rem;
+            background: rgba(30, 41, 59, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .secapp-camera-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .secapp-camera-badge {
+            background: #2563eb;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+        .secapp-camera-title,
+        .secapp-lightbox-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin: 0;
+        }
+        .secapp-camera-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .secapp-cam-tool-btn,
+        .secapp-cam-close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
+            border-radius: 0.5rem;
+            width: 2.2rem;
+            height: 2.2rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.15s;
+        }
+        .secapp-cam-tool-btn:hover,
+        .secapp-cam-close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        .secapp-cam-tool-btn.active {
+            background: #eab308;
+            color: #000;
+            border-color: #fde047;
+        }
+        .secapp-camera-body {
+            position: relative;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 280px;
+            max-height: 60vh;
+            overflow: hidden;
+        }
+        .secapp-cam-live-view,
+        .secapp-cam-review-view {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #secappCamVideo,
+        #secappCamCanvas {
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            object-fit: contain;
+            display: block;
+        }
+        .secapp-cam-overlay-guide {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .secapp-cam-guide-box {
+            position: relative;
+            width: 88%;
+            height: 80%;
+            border: 1px dashed rgba(255, 255, 255, 0.35);
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 0.85rem;
+        }
+        .guide-corner {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-color: #60a5fa;
+            border-style: solid;
+        }
+        .guide-corner.tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; border-top-left-radius: 6px; }
+        .guide-corner.tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; border-top-right-radius: 6px; }
+        .guide-corner.bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; border-bottom-left-radius: 6px; }
+        .guide-corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-bottom-right-radius: 6px; }
+        .secapp-cam-guide-text {
+            background: rgba(0, 0, 0, 0.65);
+            color: #f1f5f9;
+            font-size: 0.78rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 9999px;
+            backdrop-filter: blur(4px);
+        }
+        .secapp-cam-loading-spinner {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+        .secapp-spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: secappSpin 0.8s linear infinite;
+        }
+        @keyframes secappSpin { to { transform: rotate(360deg); } }
+
+        .secapp-cam-review-banner {
+            position: absolute;
+            top: 1rem;
+            background: rgba(15, 23, 42, 0.85);
+            color: #f8fafc;
+            padding: 0.4rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(4px);
+        }
+        .secapp-cam-error-view {
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.85rem;
+            color: #e2e8f0;
+        }
+        .secapp-cam-error-icon { font-size: 2.5rem; }
+        .secapp-cam-error-title { font-size: 1.1rem; font-weight: 700; color: #f87171; margin: 0; }
+        .secapp-cam-error-desc { font-size: 0.85rem; color: #94a3b8; max-width: 440px; margin: 0; }
+        .secapp-cam-error-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; width: 100%; max-width: 320px; }
+
+        .secapp-camera-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 1rem 1.5rem;
+            background: #0f172a;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 1rem;
+        }
+        .secapp-shutter-btn {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 3px solid #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s, background 0.15s;
+            padding: 0;
+        }
+        .secapp-shutter-btn:hover {
+            transform: scale(1.06);
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .secapp-shutter-btn:active {
+            transform: scale(0.94);
+        }
+        .secapp-shutter-inner {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #ffffff;
+            display: block;
+        }
+        .secapp-footer-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+            padding: 0.55rem 0.9rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .secapp-footer-btn:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #fff;
+        }
+        .secapp-btn {
+            padding: 0.65rem 1.25rem;
+            font-size: 0.88rem;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .secapp-btn-primary { background: #2563eb; color: #fff; border-color: #3b82f6; }
+        .secapp-btn-primary:hover { background: #1d4ed8; }
+        .secapp-btn-secondary { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border-color: rgba(255, 255, 255, 0.2); }
+        .secapp-btn-secondary:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+        .secapp-btn-success { background: #16a34a; color: #fff; border-color: #22c55e; }
+        .secapp-btn-success:hover { background: #15803d; }
+
+        .secapp-lightbox-dialog {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.75rem;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .secapp-lightbox-content {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: auto;
+        }
+        #secappLightboxImg {
+            max-width: 100%;
+            max-height: 75vh;
+            object-fit: contain;
+            border-radius: 0.35rem;
+        }
         .form-section {
             background-color: #2d3748;
             border-radius: 8px;
@@ -664,50 +1199,175 @@
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-2 border-b border-gray-600 pb-3">Registro Fotográfico del Vehículo</h2>
                 <p class="text-sm text-gray-400 mb-4">
-                    Las cuatro vistas son obligatorias: son la evidencia del estado exterior
-                    al inicio de la operación. Toque cada tarjeta para tomar o cargar la foto.
+                    Las cuatro vistas son obligatorias: son la evidencia del estado exterior al inicio de la operación.
+                    Puede tomar la foto directamente con la cámara del dispositivo o cargar una imagen existente.
                 </p>
                 <div class="foto-grid">
-                    <label class="foto-card" data-foto="foto_frente">
-                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
-                             que es el "tomar o cargar" que pide el formulario. -->
-                        <input type="file" name="foto_frente" id="foto_frente" accept="image/*" required>
-                        <span class="foto-card-icon">📷</span>
-                        <span class="foto-card-title">FRENTE</span>
-                        <span class="foto-card-hint">Fotografía frontal completa</span>
-                        <img class="foto-card-preview" alt="" hidden>
-                        <span class="foto-card-state">Pendiente</span>
-                    </label>
-                    <label class="foto-card" data-foto="foto_atras">
-                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
-                             que es el "tomar o cargar" que pide el formulario. -->
-                        <input type="file" name="foto_atras" id="foto_atras" accept="image/*" required>
-                        <span class="foto-card-icon">📷</span>
-                        <span class="foto-card-title">ATRÁS</span>
-                        <span class="foto-card-hint">Fotografía posterior completa</span>
-                        <img class="foto-card-preview" alt="" hidden>
-                        <span class="foto-card-state">Pendiente</span>
-                    </label>
-                    <label class="foto-card" data-foto="foto_lado_derecho">
-                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
-                             que es el "tomar o cargar" que pide el formulario. -->
-                        <input type="file" name="foto_lado_derecho" id="foto_lado_derecho" accept="image/*" required>
-                        <span class="foto-card-icon">📷</span>
-                        <span class="foto-card-title">LADO DERECHO</span>
-                        <span class="foto-card-hint">Fotografía lateral derecha completa</span>
-                        <img class="foto-card-preview" alt="" hidden>
-                        <span class="foto-card-state">Pendiente</span>
-                    </label>
-                    <label class="foto-card" data-foto="foto_lado_izquierdo">
-                        <!-- Sin `capture`: en móvil el navegador ofrece cámara y galería,
-                             que es el "tomar o cargar" que pide el formulario. -->
-                        <input type="file" name="foto_lado_izquierdo" id="foto_lado_izquierdo" accept="image/*" required>
-                        <span class="foto-card-icon">📷</span>
-                        <span class="foto-card-title">LADO IZQUIERDO</span>
-                        <span class="foto-card-hint">Fotografía lateral izquierda completa</span>
-                        <img class="foto-card-preview" alt="" hidden>
-                        <span class="foto-card-state">Pendiente</span>
-                    </label>
+                    <!-- FRENTE -->
+                    <div class="foto-card" data-foto="foto_frente" data-label="FRENTE" data-hint="Fotografía frontal completa del vehículo">
+                        <input type="file" name="foto_frente" id="foto_frente" accept="image/*" class="foto-file-input" style="display:none;" required>
+                        <input type="file" accept="image/*" capture="environment" class="foto-native-camera-input" style="display:none;">
+                        
+                        <div class="foto-card-header">
+                            <div class="foto-card-meta">
+                                <span class="foto-card-title">🚗 FRENTE</span>
+                                <span class="foto-card-hint">Fotografía frontal completa</span>
+                            </div>
+                            <span class="foto-card-state">Pendiente</span>
+                        </div>
+
+                        <!-- Estado vacío -->
+                        <div class="foto-card-empty">
+                            <span class="foto-card-icon">📷</span>
+                            <div class="foto-card-actions">
+                                <button type="button" class="foto-btn foto-btn-camera" data-action="take-photo">
+                                    📸 Tomar Foto
+                                </button>
+                                <button type="button" class="foto-btn foto-btn-file" data-action="upload-file">
+                                    📁 Subir Archivo
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Estado registrado / vista previa -->
+                        <div class="foto-card-filled" style="display:none;">
+                            <div class="foto-preview-wrap">
+                                <img class="foto-card-preview" alt="Vista frontal" hidden>
+                                <div class="foto-preview-overlay">
+                                    <span>👁️ Ver ampliada</span>
+                                </div>
+                            </div>
+                            <div class="foto-filled-actions">
+                                <button type="button" class="foto-btn-sm" data-action="view-photo">👁️ Ver</button>
+                                <button type="button" class="foto-btn-sm" data-action="retake-photo">📸 Retomar</button>
+                                <button type="button" class="foto-btn-sm" data-action="change-file">📁 Cambiar</button>
+                                <button type="button" class="foto-btn-sm foto-btn-danger" data-action="remove-photo">🗑️ Quitar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ATRÁS -->
+                    <div class="foto-card" data-foto="foto_atras" data-label="ATRÁS" data-hint="Fotografía posterior completa del vehículo">
+                        <input type="file" name="foto_atras" id="foto_atras" accept="image/*" class="foto-file-input" style="display:none;" required>
+                        <input type="file" accept="image/*" capture="environment" class="foto-native-camera-input" style="display:none;">
+                        
+                        <div class="foto-card-header">
+                            <div class="foto-card-meta">
+                                <span class="foto-card-title">🚗 ATRÁS</span>
+                                <span class="foto-card-hint">Fotografía posterior completa</span>
+                            </div>
+                            <span class="foto-card-state">Pendiente</span>
+                        </div>
+
+                        <div class="foto-card-empty">
+                            <span class="foto-card-icon">📷</span>
+                            <div class="foto-card-actions">
+                                <button type="button" class="foto-btn foto-btn-camera" data-action="take-photo">
+                                    📸 Tomar Foto
+                                </button>
+                                <button type="button" class="foto-btn foto-btn-file" data-action="upload-file">
+                                    📁 Subir Archivo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="foto-card-filled" style="display:none;">
+                            <div class="foto-preview-wrap">
+                                <img class="foto-card-preview" alt="Vista posterior" hidden>
+                                <div class="foto-preview-overlay">
+                                    <span>👁️ Ver ampliada</span>
+                                </div>
+                            </div>
+                            <div class="foto-filled-actions">
+                                <button type="button" class="foto-btn-sm" data-action="view-photo">👁️ Ver</button>
+                                <button type="button" class="foto-btn-sm" data-action="retake-photo">📸 Retomar</button>
+                                <button type="button" class="foto-btn-sm" data-action="change-file">📁 Cambiar</button>
+                                <button type="button" class="foto-btn-sm foto-btn-danger" data-action="remove-photo">🗑️ Quitar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LADO DERECHO -->
+                    <div class="foto-card" data-foto="foto_lado_derecho" data-label="LADO DERECHO" data-hint="Fotografía lateral derecha completa">
+                        <input type="file" name="foto_lado_derecho" id="foto_lado_derecho" accept="image/*" class="foto-file-input" style="display:none;" required>
+                        <input type="file" accept="image/*" capture="environment" class="foto-native-camera-input" style="display:none;">
+                        
+                        <div class="foto-card-header">
+                            <div class="foto-card-meta">
+                                <span class="foto-card-title">🚗 LADO DERECHO</span>
+                                <span class="foto-card-hint">Fotografía lateral derecha</span>
+                            </div>
+                            <span class="foto-card-state">Pendiente</span>
+                        </div>
+
+                        <div class="foto-card-empty">
+                            <span class="foto-card-icon">📷</span>
+                            <div class="foto-card-actions">
+                                <button type="button" class="foto-btn foto-btn-camera" data-action="take-photo">
+                                    📸 Tomar Foto
+                                </button>
+                                <button type="button" class="foto-btn foto-btn-file" data-action="upload-file">
+                                    📁 Subir Archivo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="foto-card-filled" style="display:none;">
+                            <div class="foto-preview-wrap">
+                                <img class="foto-card-preview" alt="Vista lateral derecha" hidden>
+                                <div class="foto-preview-overlay">
+                                    <span>👁️ Ver ampliada</span>
+                                </div>
+                            </div>
+                            <div class="foto-filled-actions">
+                                <button type="button" class="foto-btn-sm" data-action="view-photo">👁️ Ver</button>
+                                <button type="button" class="foto-btn-sm" data-action="retake-photo">📸 Retomar</button>
+                                <button type="button" class="foto-btn-sm" data-action="change-file">📁 Cambiar</button>
+                                <button type="button" class="foto-btn-sm foto-btn-danger" data-action="remove-photo">🗑️ Quitar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LADO IZQUIERDO -->
+                    <div class="foto-card" data-foto="foto_lado_izquierdo" data-label="LADO IZQUIERDO" data-hint="Fotografía lateral izquierda completa">
+                        <input type="file" name="foto_lado_izquierdo" id="foto_lado_izquierdo" accept="image/*" class="foto-file-input" style="display:none;" required>
+                        <input type="file" accept="image/*" capture="environment" class="foto-native-camera-input" style="display:none;">
+                        
+                        <div class="foto-card-header">
+                            <div class="foto-card-meta">
+                                <span class="foto-card-title">🚗 LADO IZQUIERDO</span>
+                                <span class="foto-card-hint">Fotografía lateral izquierda</span>
+                            </div>
+                            <span class="foto-card-state">Pendiente</span>
+                        </div>
+
+                        <div class="foto-card-empty">
+                            <span class="foto-card-icon">📷</span>
+                            <div class="foto-card-actions">
+                                <button type="button" class="foto-btn foto-btn-camera" data-action="take-photo">
+                                    📸 Tomar Foto
+                                </button>
+                                <button type="button" class="foto-btn foto-btn-file" data-action="upload-file">
+                                    📁 Subir Archivo
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="foto-card-filled" style="display:none;">
+                            <div class="foto-preview-wrap">
+                                <img class="foto-card-preview" alt="Vista lateral izquierda" hidden>
+                                <div class="foto-preview-overlay">
+                                    <span>👁️ Ver ampliada</span>
+                                </div>
+                            </div>
+                            <div class="foto-filled-actions">
+                                <button type="button" class="foto-btn-sm" data-action="view-photo">👁️ Ver</button>
+                                <button type="button" class="foto-btn-sm" data-action="retake-photo">📸 Retomar</button>
+                                <button type="button" class="foto-btn-sm" data-action="change-file">📁 Cambiar</button>
+                                <button type="button" class="foto-btn-sm foto-btn-danger" data-action="remove-photo">🗑️ Quitar</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -991,30 +1651,6 @@
             })();
 
             // Initialize signature pads
-            // ── Registro fotográfico ─────────────────────────────────────────
-            document.querySelectorAll('.foto-card').forEach(card => {
-                const input   = card.querySelector('input[type="file"]');
-                const preview = card.querySelector('.foto-card-preview');
-                const estado  = card.querySelector('.foto-card-state');
-                if (!input) return;
-                input.addEventListener('change', () => {
-                    const f = input.files && input.files[0];
-                    if (!f) {
-                        card.classList.remove('foto-lista');
-                        estado.textContent = 'Pendiente';
-                        preview.hidden = true;
-                        preview.removeAttribute('src');
-                        return;
-                    }
-                    card.classList.add('foto-lista');
-                    estado.textContent = '✓ Registrada';
-                    // El object URL se revoca al reemplazar la foto, no al cargar.
-                    if (preview.src) URL.revokeObjectURL(preview.src);
-                    preview.src = URL.createObjectURL(f);
-                    preview.hidden = false;
-                });
-            });
-
             const entregaCanvas = document.getElementById('firma-entrega-pad');
             const recibeCanvas = document.getElementById('firma-recibe-pad');
             const oficialCanvas = document.getElementById('firma-oficial-pad');
@@ -1226,6 +1862,7 @@
             carImage.src = carImageURL;
         }
     </script>
+    <script src="{{ url_for('static', filename='js/photo-capture.js') }}"></script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
     <!-- Must load after customer-hierarchy.js: it reuses that file's combobox. -->
     <script src="{{ url_for('static', filename='js/fleet-select.js') }}"></script>
