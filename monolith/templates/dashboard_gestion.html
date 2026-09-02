@@ -860,14 +860,10 @@
         const gestionDetailClose = document.getElementById('gestionDetailClose');
         const gestionDetailDismiss = document.getElementById('gestionDetailDismiss');
 
-        // Los 4 ejes del Estatus de Cliente. Cada uno se arma con tarjetas que la
-        // pantalla ya calcula; ningún eje consulta datos por su cuenta.
-        const ESTATUS_EJES = [
-            { key: 'satisfaccion', nombre: 'Satisfacción declarada', fuentes: 'Encuestas de satisfacción',    modulos: ['satisfaccion'] },
-            { key: 'atencion',     nombre: 'Atención al cliente',    fuentes: 'Visitas y compromisos',        modulos: ['visitas', 'compromisos'] },
-            { key: 'servicio',     nombre: 'Servicio en sitio',      fuentes: 'Supervisiones y cumplimiento', modulos: ['supervision', 'cumplimiento'] },
-            { key: 'eventos',      nombre: 'Eventos y respuesta',    fuentes: 'Incidentes',                   modulos: ['incidentes'] }
-        ];
+        // Los 4 ejes los calcula /dashboard/api/gestion/estatus: sus fórmulas
+        // dependen de Umbrales KPI y de la programación de supervisiones por
+        // cliente, que no tiene sentido publicar al navegador.
+        const ESTATUS_ENDPOINT = '/dashboard/api/gestion/estatus';
 
         const estatusHero = document.getElementById('estatusHero');
         const estatusHeroClient = document.getElementById('estatusHeroClient');
@@ -886,7 +882,6 @@
         // KPI. Los valores de aquí solo aplican si esa llamada falla.
         let umbrales = { verde_min: 90, amarillo_min: 70 };
         let fechaInicioOperacion = '';
-        let pesos = { satisfaccion: 30, atencion: 25, servicio: 25, eventos: 20 };
 
         
 
@@ -1219,7 +1214,6 @@
                 allGestionClientes = data.clientes || [];
                 allGestionProperties = data.properties || [];
                 if (data.umbrales) umbrales = data.umbrales;
-                if (data.pesos) pesos = data.pesos;
                 fechaInicioOperacion = data.fecha_inicio_operacion || '';
                 fillSelect(filterCliente, allGestionClientes, 'Todos');
                 fillSelect(filterResponsable, data.responsables || [], 'Todos');
@@ -1273,14 +1267,14 @@
 
             // Compromisos no consulta nada nuevo: son los acuerdos de las actas de
             // visita, que /api/visitas/data ya devuelve clasificados por estado.
+            // Misma definición que el eje Atención al cliente: cumplidos sobre los
+            // que ya se pueden juzgar, dejando fuera los pendientes con plazo vigente.
             const compEstados = vis?.estado_compromisos || null;
-            const compTotal = compEstados
-                ? (compEstados.cumplido || 0) + (compEstados.pendiente || 0) + (compEstados.vencido || 0)
-                : 0;
-            const compVencidos = compEstados ? (compEstados.vencido || 0) : 0;
             const compCumplidos = compEstados ? (compEstados.cumplido || 0) : 0;
-            const compScore = compTotal
-                ? clamp(+(((compTotal - compVencidos) / compTotal) * 100).toFixed(1))
+            const compVencidos = compEstados ? (compEstados.vencido || 0) : 0;
+            const compEvaluables = compCumplidos + compVencidos;
+            const compScore = compEvaluables
+                ? clamp(+((compCumplidos / compEvaluables) * 100).toFixed(1))
                 : null;
 
             const eq = results.equipos;
@@ -1371,9 +1365,9 @@
                     score: compScore,
                     status: statusFromScore(compScore),
                     primaryValue: compScore != null ? `${compScore}%` : '—',
-                    primaryLabel: '% sin vencer',
-                    secondaryValue: compTotal ? `${compCumplidos}/${compTotal}` : '—',
-                    secondaryLabel: 'Cumplidos'
+                    primaryLabel: '% cumplidos a tiempo',
+                    secondaryValue: compEvaluables ? `${compCumplidos}/${compEvaluables}` : '—',
+                    secondaryLabel: 'Cumplidos / evaluables'
                 },
                 {
                     key: 'vehiculos',
@@ -1451,40 +1445,20 @@
             return { tone: 'yellow', label: 'Requiere Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
         }
 
-        function calcularEjes(cards) {
-            const porKey = new Map(cards.map(c => [c.key, c]));
-            return ESTATUS_EJES.map(eje => {
-                const scores = eje.modulos
-                    .map(k => porKey.get(k))
-                    .filter(c => c && c.score !== null && c.score !== undefined && !Number.isNaN(c.score))
-                    .map(c => c.score);
-                return {
-                    key: eje.key,
-                    nombre: eje.nombre,
-                    fuentes: eje.fuentes,
-                    // Un eje con dos fuentes las promedia; si solo una tiene datos,
-                    // vale esa. safeAvg ya ignora los nulos.
-                    score: safeAvg(scores),
-                    pesoNominal: Number(pesos[eje.key]) || 0
-                };
-            });
-        }
+        function renderEstatusCliente(estatus) {
+            if (!estatus || !Array.isArray(estatus.ejes)) {
+                estatusHero.style.setProperty('--estatus-color', colors.slate);
+                estatusHeroValue.textContent = '—';
+                estatusHeroBadge.className = 'status-badge status-slate';
+                estatusHeroBadge.textContent = 'Sin Información';
+                estatusHeroBar.style.width = '0%';
+                estatusHeroMeta.textContent = 'No se pudo calcular la valoración del cliente.';
+                estatusEjes.innerHTML = '';
+                return;
+            }
 
-        function renderEstatusCliente(cards) {
-            const ejes = calcularEjes(cards);
-            const conDatos = ejes.filter(e => e.score !== null);
-            // El peso de un eje sin datos no se pierde ni cuenta como cero: se
-            // reparte proporcionalmente entre los ejes que sí tienen información.
-            const pesoTotal = conDatos.reduce((acc, e) => acc + e.pesoNominal, 0);
-            ejes.forEach(e => {
-                e.pesoEfectivo = (e.score !== null && pesoTotal > 0)
-                    ? +(e.pesoNominal / pesoTotal * 100).toFixed(1)
-                    : 0;
-            });
-
-            const score = (conDatos.length && pesoTotal > 0)
-                ? +(conDatos.reduce((acc, e) => acc + e.score * e.pesoNominal, 0) / pesoTotal).toFixed(1)
-                : null;
+            const ejes = estatus.ejes;
+            const score = estatus.score;
             const status = statusFromScore(score);
 
             const clienteOpt = filterCliente.options[filterCliente.selectedIndex];
@@ -1503,6 +1477,7 @@
             estatusHeroBadge.textContent = status.label;
             estatusHeroBar.style.width = `${score || 0}%`;
 
+            const conDatos = ejes.filter(e => e.score !== null);
             const sinDatos = ejes.filter(e => e.score === null);
             if (score == null) {
                 estatusHeroMeta.textContent = 'No hay datos suficientes en ningún eje para calificar a este cliente.';
@@ -1518,14 +1493,19 @@
             estatusEjes.innerHTML = ejes.map(eje => {
                 const st = statusFromScore(eje.score);
                 const peso = eje.score !== null
-                    ? `Peso aplicado ${eje.pesoEfectivo}%`
-                    : `Sin datos · peso ${eje.pesoNominal}% redistribuido`;
+                    ? `Peso aplicado ${eje.peso_efectivo}%`
+                    : `Sin datos · peso ${eje.peso}% redistribuido`;
+                const componentes = (eje.componentes || [])
+                    .filter(c => c.valor !== null)
+                    .map(c => `${c.label} ${c.valor}% (${c.peso}%)`)
+                    .join(' · ');
                 return `
                     <div class="estatus-eje" style="--eje-color:${st.color};">
                         <div class="estatus-eje-nombre">${eje.nombre}</div>
                         <div class="estatus-eje-score">${eje.score != null ? `${eje.score}%` : '—'}</div>
                         <div class="estatus-eje-peso">${peso}</div>
-                        <div class="estatus-eje-fuentes">${eje.fuentes}</div>
+                        ${componentes ? `<div class="estatus-eje-fuentes">${componentes}</div>` : ''}
+                        <div class="estatus-eje-fuentes">${eje.detalle || eje.fuentes}</div>
                     </div>`;
             }).join('');
         }
@@ -1968,6 +1948,7 @@
             ['trendLoading', 'rankingLoading', 'distributionLoading'].forEach(id => setLoading(id, true));
 
             const qs = queryString();
+            const estatusPromise = fetchJsonSafe(`${ESTATUS_ENDPOINT}${qs ? `?${qs}` : ''}`);
             const settled = await Promise.allSettled(
                 Object.entries(ENDPOINTS).map(async ([key, cfg]) => [key, await fetchJsonSafe(`${cfg.data}${qs ? `?${qs}` : ''}`)])
             );
@@ -1997,7 +1978,7 @@
                 dataError.textContent = `Se cargó información parcial. Módulos sin respuesta: ${failures.join(', ')}.`;
             }
 
-            renderEstatusCliente(cards);
+            renderEstatusCliente(await estatusPromise);
             renderKpis(cards, results);
             renderAnalysis(cards, results, failures);
             renderModules(cards);

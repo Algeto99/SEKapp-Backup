@@ -2598,6 +2598,263 @@ def api_gestion_data():
         if conn: conn.close()
 
 
+
+# ── Estatus de Cliente: los 4 ejes ───────────────────────────────────────────
+#
+# Las fórmulas están aquí y no en el navegador porque dependen de Umbrales KPI
+# (metas, periodicidad, umbral de escalamiento) y de la programación de
+# supervisiones por cliente, que no tiene sentido publicar al front.
+
+_ESTATUS_EJES_META = [
+    ('satisfaccion', 'Satisfacción declarada', 'Encuestas de satisfacción'),
+    ('atencion',     'Atención al cliente',    'Visitas y compromisos'),
+    ('servicio',     'Servicio en sitio',      'Supervisiones y cumplimiento'),
+    ('eventos',      'Eventos y respuesta',    'Incidentes'),
+]
+
+# 'Crítico' no está en la tabla del requerimiento pero sí en el formulario de
+# incidentes; se descuenta como Alta para no dejarlo sin efecto.
+_ESTATUS_SEV_ALTA = "('alto', 'critico', 'crítico')"
+
+
+def _estatus_pct(parte, total):
+    """Porcentaje 0-100 con una decimal, o None si no hay denominador."""
+    if not total:
+        return None
+    return round(min(100.0, max(0.0, parte / total * 100)), 1)
+
+
+def _estatus_promedio(componentes):
+    """Promedio de los componentes con dato. Cada uno es (valor, peso)."""
+    validos = [(v, p) for v, p in componentes if v is not None and p > 0]
+    if not validos:
+        return None
+    peso = sum(p for _, p in validos)
+    return round(sum(v * p for v, p in validos) / peso, 1)
+
+
+@dashboard_bp.route('/api/gestion/estatus')
+@jwt_required()
+@admin_required
+def api_gestion_estatus():
+    """Calificación 0-100 del cliente, compuesta por los 4 ejes del requerimiento."""
+    from admin_bp import (get_thresholds, get_estatus_pesos, calcular_supervisiones,
+                          _periodo_inicio_actual)
+
+    cliente   = request.args.get('cliente') or None
+    propiedad = (request.args.get('propiedad') or request.args.get('property_id')
+                 or request.args.get('id_propiedad') or None)
+    year  = request.args.get('year')  or None
+    month = request.args.get('month') or None
+    day   = int(request.args.get('day')) if request.args.get('day') else None
+    desde = _gestion_desde_arg()
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+
+        thresholds = get_thresholds()
+        pesos = get_estatus_pesos(thresholds)
+        ejes = {}
+
+        # ── 3.1 Satisfacción declarada ───────────────────────────────────────
+        # Se promedian las 8 columnas de criterio (enteros 1-5) en vez de
+        # `calificacion_global_nps`: ese campo guarda el promedio ya redondeado a
+        # entero, así que un 4,2 se vuelve 4, y además el código de la app lo
+        # interpreta con tres escalas distintas. Los criterios no son ambiguos.
+        sat_where, sat_params = _sat_where(cliente, year, month, day,
+                                           company_id=company_id, propiedad=propiedad, desde=desde)
+        suma_crit   = " + ".join(f"COALESCE({c}, 0)" for c, _ in _SAT_CRITERIA)
+        conteo_crit = " + ".join(f"(CASE WHEN {c} IS NOT NULL THEN 1 ELSE 0 END)" for c, _ in _SAT_CRITERIA)
+        cur.execute(f"""
+            SELECT COUNT(*) FILTER (WHERE ({conteo_crit}) > 0) AS n,
+                   AVG(({suma_crit})::numeric / NULLIF({conteo_crit}, 0))  AS avg5
+            FROM medicion_experiencia_cliente
+            {sat_where}
+        """, sat_params)
+        row = cur.fetchone() or {}
+        sat_n = int(row.get('n') or 0)
+        sat_avg5 = float(row.get('avg5')) if row.get('avg5') is not None else None
+        ejes['satisfaccion'] = {
+            'score': round(sat_avg5 / 5 * 100, 1) if sat_avg5 is not None else None,
+            'detalle': (f"Promedio {round(sat_avg5, 2)} de 5 en {sat_n} encuesta(s)"
+                        if sat_avg5 is not None else 'Sin encuestas en el período'),
+            'componentes': [],
+        }
+
+        # ── 3.2 Atención al cliente ──────────────────────────────────────────
+        # Visitas: la meta de Umbrales KPI se lee como objetivo por cliente sobre
+        # el período vigente (igual que en Morning Briefing), no sobre el rango
+        # del filtro de fechas: una meta mensual no se puede comparar contra un
+        # histórico completo.
+        visita_meta = int(thresholds.get('visita_meta') or 0)
+        visita_periodicidad = thresholds.get('visita_periodicidad') or 'mensual'
+        visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
+        if cliente:
+            visitas_programadas = visita_meta
+        else:
+            cur.execute("SELECT COUNT(*) AS n FROM customer_companies WHERE is_active = TRUE")
+            n_clientes = int((cur.fetchone() or {}).get('n') or 0)
+            if not n_clientes:
+                cur.execute("SELECT COUNT(*) AS n FROM customer_companies")
+                n_clientes = int((cur.fetchone() or {}).get('n') or 0)
+            visitas_programadas = visita_meta * max(1, n_clientes)
+
+        v_conds, v_params = _visita_conds(cliente, None, None, None,
+                                          company_id=company_id, propiedad=propiedad)
+        v_date = _visita_date_expr()
+        v_conds = v_conds + [f"({v_date})::date >= %s"]
+        v_params = list(v_params) + [visita_periodo_inicio]
+        cur.execute(f"""
+            SELECT COUNT(DISTINCT id_visita) AS n
+            FROM registro_y_acta_de_visita
+            {_visita_where(v_conds)}
+        """, v_params)
+        visitas_realizadas = int((cur.fetchone() or {}).get('n') or 0)
+        pct_visitas = _estatus_pct(visitas_realizadas, visitas_programadas)
+
+        # Compromisos: los pendientes con plazo vigente se excluyen del
+        # denominador — todavía no hay nada que juzgar.
+        c_conds, c_params = _visita_conds(cliente, year, month, day,
+                                          company_id=company_id, propiedad=propiedad, desde=desde)
+        cur.execute(f"""
+            SELECT id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
+                   temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+                   nombre_visitante, compromisos_estados, editado, editado_por, editado_en
+            FROM registro_y_acta_de_visita
+            {_visita_where(c_conds)}
+            ORDER BY {v_date} DESC NULLS LAST, id_visita DESC
+        """, c_params)
+        compromisos = _visita_parse_compromisos(cur.fetchall())
+        comp_cumplidos  = sum(1 for c in compromisos if c['estado'] == 'cumplido')
+        comp_vencidos   = sum(1 for c in compromisos if c['estado'] == 'vencido')
+        comp_pendientes = sum(1 for c in compromisos if c['estado'] == 'pendiente')
+        comp_evaluables = comp_cumplidos + comp_vencidos
+        pct_compromisos = _estatus_pct(comp_cumplidos, comp_evaluables)
+
+        detalle_visitas = (f"{visitas_realizadas} de {visitas_programadas} visitas "
+                           f"({visita_periodicidad}, desde {visita_periodo_inicio.isoformat()})"
+                           if visitas_programadas else "Sin meta de visitas configurada")
+        detalle_comp = (f"{comp_cumplidos} de {comp_evaluables} compromisos cumplidos a tiempo"
+                        + (f" · {comp_pendientes} aún en plazo" if comp_pendientes else "")
+                        if comp_evaluables else "Sin compromisos evaluables")
+        ejes['atencion'] = {
+            'score': _estatus_promedio([(pct_visitas, 50), (pct_compromisos, 50)]),
+            'detalle': f"{detalle_visitas} · {detalle_comp}",
+            'componentes': [
+                {'label': 'Cumplimiento de visitas',    'valor': pct_visitas,     'peso': 50},
+                {'label': 'Compromisos a tiempo',       'valor': pct_compromisos, 'peso': 50},
+            ],
+        }
+
+        # ── 3.3 Servicio en sitio ────────────────────────────────────────────
+        # La programación por cliente ya vive en Umbrales KPI: calcular_supervisiones
+        # resuelve programadas vs realizadas sobre la ventana de cada cliente.
+        _sup = calcular_supervisiones(cur, cliente=cliente, propiedad=propiedad)
+        pct_supervisiones = None if _sup['pct'] is None else round(min(100.0, _sup['pct']), 1)
+
+        cum_conds, cum_params = _cumpl_conds(cliente, year, month, day,
+                                             company_id=company_id, propiedad=propiedad, desde=desde)
+        cur.execute(f"""
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END) AS cumple
+            FROM checklist_cumplimiento
+            {_cumpl_where(cum_conds)}
+        """, cum_params)
+        row = cur.fetchone() or {}
+        cum_total  = int(row.get('total') or 0)
+        cum_cumple = int(row.get('cumple') or 0)
+        pct_checklist = _estatus_pct(cum_cumple, cum_total)
+
+        detalle_sup = (f"{_sup['realizadas']} de {_sup['programadas']} supervisiones"
+                       if _sup['programadas'] else "Sin programación de supervisiones")
+        detalle_chk = (f"checklist {pct_checklist}% ({cum_cumple} de {cum_total} cumplen)"
+                       if cum_total else "sin checklist en el período")
+        ejes['servicio'] = {
+            'score': _estatus_promedio([(pct_supervisiones, 60), (pct_checklist, 40)]),
+            'detalle': f"{detalle_sup} · {detalle_chk}",
+            'componentes': [
+                {'label': 'Supervisiones cumplidas', 'valor': pct_supervisiones, 'peso': 60},
+                {'label': 'Checklist normativo',     'valor': pct_checklist,     'peso': 40},
+            ],
+        }
+
+        # ── 3.4 Eventos y respuesta ──────────────────────────────────────────
+        inc_where, inc_params = _inc_where(cliente, year, month, day,
+                                           company_id=company_id, propiedad=propiedad, desde=desde)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) IN {_ESTATUS_SEV_ALTA}
+                         THEN 1 ELSE 0 END) AS alta,
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) = 'medio'
+                         THEN 1 ELSE 0 END) AS media,
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) = 'bajo'
+                         THEN 1 ELSE 0 END) AS baja,
+                AVG(CASE WHEN tiempo_resolucion_min > 0 THEN tiempo_resolucion_min END) AS avg_min
+            FROM reportes_incidentes
+            {inc_where}
+        """, inc_params)
+        row = cur.fetchone() or {}
+        inc_total = int(row.get('total') or 0)
+        inc_alta  = int(row.get('alta') or 0)
+        inc_media = int(row.get('media') or 0)
+        inc_baja  = int(row.get('baja') or 0)
+        inc_avg_min = float(row.get('avg_min')) if row.get('avg_min') is not None else None
+
+        umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
+        excede_tiempo = inc_avg_min is not None and inc_avg_min > umbral_horas * 60
+
+        descuento = 15 * inc_alta + 7 * inc_media + 3 * inc_baja + (10 if excede_tiempo else 0)
+        detalle_inc = (f"{inc_alta} alta(s), {inc_media} media(s), {inc_baja} baja(s)"
+                       f" · −{descuento} puntos" if inc_total else "Sin incidentes en el período")
+        if excede_tiempo:
+            detalle_inc += (f" · atención promedio {round(inc_avg_min / 60, 1)} h"
+                            f" sobre el umbral de {umbral_horas:g} h")
+        ejes['eventos'] = {
+            'score': max(0.0, 100.0 - descuento),
+            'detalle': detalle_inc,
+            'componentes': [],
+        }
+
+        # ── Consolidado ponderado ────────────────────────────────────────────
+        salida = []
+        for key, nombre, fuentes in _ESTATUS_EJES_META:
+            e = ejes[key]
+            salida.append({
+                'key': key, 'nombre': nombre, 'fuentes': fuentes,
+                'score': e['score'], 'detalle': e['detalle'],
+                'componentes': e['componentes'],
+                'peso': pesos.get(key, 0),
+            })
+        con_datos = [e for e in salida if e['score'] is not None]
+        peso_total = sum(e['peso'] for e in con_datos)
+        for e in salida:
+            e['peso_efectivo'] = (round(e['peso'] / peso_total * 100, 1)
+                                  if (e['score'] is not None and peso_total > 0) else 0)
+        score = (round(sum(e['score'] * e['peso'] for e in con_datos) / peso_total, 1)
+                 if (con_datos and peso_total > 0) else None)
+
+        return jsonify({
+            'score': score,
+            'ejes': salida,
+            'umbrales': {
+                'verde_min':    float(thresholds.get('supervision_verde_min', 90)),
+                'amarillo_min': float(thresholds.get('supervision_amarillo_min', 70)),
+            },
+        })
+    except Exception as e:
+        app_logger.error(f"api_gestion_estatus error: {e}", exc_info=True)
+        return jsonify({'error': 'Error interno'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
 # ── Satisfacción Dashboard ────────────────────────────────────────────────────
 
 _SAT_CRITERIA = [
