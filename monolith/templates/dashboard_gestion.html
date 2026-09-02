@@ -158,6 +158,28 @@
             height: 100%; width: 0; border-radius: 999px;
             background: var(--estatus-color, #94a3b8); transition: width .3s ease;
         }
+        .estatus-ejes {
+            grid-column: 1 / -1;
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem; margin-top: 1.1rem;
+        }
+        .estatus-eje {
+            background: rgba(148,163,184,0.08);
+            border: 1px solid rgba(148,163,184,0.16);
+            border-left: 3px solid var(--eje-color, #94a3b8);
+            border-radius: 10px; padding: 0.7rem 0.8rem;
+        }
+        .estatus-eje-nombre { font-size: 0.74rem; color: #94a3b8; line-height: 1.35; margin-bottom: 0.4rem; }
+        .estatus-eje-score {
+            font-family: 'Merriweather', serif; font-size: 1.4rem; font-weight: 700;
+            line-height: 1; color: var(--eje-color, #94a3b8);
+        }
+        .estatus-eje-peso { font-size: 0.71rem; color: #94a3b8; margin-top: 0.35rem; }
+        .estatus-eje-fuentes { font-size: 0.69rem; color: #64748b; margin-top: 0.2rem; }
+        .estatus-hero-nota {
+            grid-column: 1 / -1; font-size: 0.72rem; color: #64748b;
+            line-height: 1.5; margin-top: 0.85rem;
+        }
 
         .kpi-value {
             font-family: 'Merriweather', serif; font-size: 2.4rem; font-weight: 700;
@@ -453,6 +475,7 @@
         }
 
         @media (max-width: 1100px) {
+            .estatus-ejes { grid-template-columns: repeat(2, 1fr); }
             .kpi-grid { grid-template-columns: repeat(2, 1fr); }
             .bottom-charts-grid { grid-template-columns: 1fr; }
             .filters-grid { grid-template-columns: repeat(3, 1fr); }
@@ -465,6 +488,7 @@
             .kpi-grid, .filters-grid, .modules-grid { grid-template-columns: 1fr; }
             .estatus-hero { grid-template-columns: 1fr; }
             .estatus-hero-score { text-align: left; }
+            .estatus-ejes { grid-template-columns: 1fr; }
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -558,6 +582,12 @@
                 <div class="status-badge status-slate" id="estatusHeroBadge">Sin Información</div>
             </div>
             <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
+            <div class="estatus-ejes" id="estatusEjes"></div>
+            <div class="estatus-hero-nota">
+                Capacitación, Disciplina, Vehículos, Motocicletas y Equipos se muestran más abajo
+                como tarjetas, ranking y alertas, pero no ponderan en esta calificación.
+                El peso de cada eje se configura en <a href="/admin/thresholds" style="color:#60a5fa;">Umbrales KPI</a>.
+            </div>
         </div>
 
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -830,12 +860,22 @@
         const gestionDetailClose = document.getElementById('gestionDetailClose');
         const gestionDetailDismiss = document.getElementById('gestionDetailDismiss');
 
+        // Los 4 ejes del Estatus de Cliente. Cada uno se arma con tarjetas que la
+        // pantalla ya calcula; ningún eje consulta datos por su cuenta.
+        const ESTATUS_EJES = [
+            { key: 'satisfaccion', nombre: 'Satisfacción declarada', fuentes: 'Encuestas de satisfacción',    modulos: ['satisfaccion'] },
+            { key: 'atencion',     nombre: 'Atención al cliente',    fuentes: 'Visitas y compromisos',        modulos: ['visitas', 'compromisos'] },
+            { key: 'servicio',     nombre: 'Servicio en sitio',      fuentes: 'Supervisiones y cumplimiento', modulos: ['supervision', 'cumplimiento'] },
+            { key: 'eventos',      nombre: 'Eventos y respuesta',    fuentes: 'Incidentes',                   modulos: ['incidentes'] }
+        ];
+
         const estatusHero = document.getElementById('estatusHero');
         const estatusHeroClient = document.getElementById('estatusHeroClient');
         const estatusHeroMeta = document.getElementById('estatusHeroMeta');
         const estatusHeroValue = document.getElementById('estatusHeroValue');
         const estatusHeroBadge = document.getElementById('estatusHeroBadge');
         const estatusHeroBar = document.getElementById('estatusHeroBar');
+        const estatusEjes = document.getElementById('estatusEjes');
 
         let trendChart = null;
         let rankingChart = null;
@@ -846,6 +886,7 @@
         // KPI. Los valores de aquí solo aplican si esa llamada falla.
         let umbrales = { verde_min: 90, amarillo_min: 70 };
         let fechaInicioOperacion = '';
+        let pesos = { satisfaccion: 30, atencion: 25, servicio: 25, eventos: 20 };
 
         
 
@@ -1178,6 +1219,7 @@
                 allGestionClientes = data.clientes || [];
                 allGestionProperties = data.properties || [];
                 if (data.umbrales) umbrales = data.umbrales;
+                if (data.pesos) pesos = data.pesos;
                 fechaInicioOperacion = data.fecha_inicio_operacion || '';
                 fillSelect(filterCliente, allGestionClientes, 'Todos');
                 fillSelect(filterResponsable, data.responsables || [], 'Todos');
@@ -1409,9 +1451,40 @@
             return { tone: 'yellow', label: 'Requiere Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
         }
 
+        function calcularEjes(cards) {
+            const porKey = new Map(cards.map(c => [c.key, c]));
+            return ESTATUS_EJES.map(eje => {
+                const scores = eje.modulos
+                    .map(k => porKey.get(k))
+                    .filter(c => c && c.score !== null && c.score !== undefined && !Number.isNaN(c.score))
+                    .map(c => c.score);
+                return {
+                    key: eje.key,
+                    nombre: eje.nombre,
+                    fuentes: eje.fuentes,
+                    // Un eje con dos fuentes las promedia; si solo una tiene datos,
+                    // vale esa. safeAvg ya ignora los nulos.
+                    score: safeAvg(scores),
+                    pesoNominal: Number(pesos[eje.key]) || 0
+                };
+            });
+        }
+
         function renderEstatusCliente(cards) {
-            const conDatos = cards.filter(c => c.score !== null && c.score !== undefined && !Number.isNaN(c.score));
-            const score = safeAvg(conDatos.map(c => c.score));
+            const ejes = calcularEjes(cards);
+            const conDatos = ejes.filter(e => e.score !== null);
+            // El peso de un eje sin datos no se pierde ni cuenta como cero: se
+            // reparte proporcionalmente entre los ejes que sí tienen información.
+            const pesoTotal = conDatos.reduce((acc, e) => acc + e.pesoNominal, 0);
+            ejes.forEach(e => {
+                e.pesoEfectivo = (e.score !== null && pesoTotal > 0)
+                    ? +(e.pesoNominal / pesoTotal * 100).toFixed(1)
+                    : 0;
+            });
+
+            const score = (conDatos.length && pesoTotal > 0)
+                ? +(conDatos.reduce((acc, e) => acc + e.score * e.pesoNominal, 0) / pesoTotal).toFixed(1)
+                : null;
             const status = statusFromScore(score);
 
             const clienteOpt = filterCliente.options[filterCliente.selectedIndex];
@@ -1423,20 +1496,38 @@
                 ? ` · ${propOpt.textContent}`
                 : '';
 
-            const enAlerta = conDatos.filter(c => c.status.tone === 'red' || c.status.tone === 'orange').length;
-            const sinDatos = cards.length - conDatos.length;
-
             estatusHero.style.setProperty('--estatus-color', status.color);
             estatusHeroClient.textContent = `${clienteLabel}${propLabel}`;
             estatusHeroValue.textContent = score != null ? `${score}%` : '—';
             estatusHeroBadge.className = `status-badge status-${status.tone}`;
             estatusHeroBadge.textContent = status.label;
             estatusHeroBar.style.width = `${score || 0}%`;
-            estatusHeroMeta.textContent = score != null
-                ? `Promedio de ${conDatos.length} de ${cards.length} módulos con datos`
-                  + ` · ${enAlerta} en alerta o crítico`
-                  + (sinDatos ? ` · ${sinDatos} sin información` : '')
-                : 'No hay módulos con datos suficientes para valorar este cliente.';
+
+            const sinDatos = ejes.filter(e => e.score === null);
+            if (score == null) {
+                estatusHeroMeta.textContent = 'No hay datos suficientes en ningún eje para calificar a este cliente.';
+            } else if (sinDatos.length) {
+                estatusHeroMeta.textContent =
+                    `Ponderado sobre ${conDatos.length} de ${ejes.length} ejes`
+                    + ` · sin datos: ${sinDatos.map(e => e.nombre).join(', ')}`
+                    + ' · su peso se repartió entre los demás';
+            } else {
+                estatusHeroMeta.textContent = 'Ponderado sobre los 4 ejes, con los pesos definidos en Umbrales KPI.';
+            }
+
+            estatusEjes.innerHTML = ejes.map(eje => {
+                const st = statusFromScore(eje.score);
+                const peso = eje.score !== null
+                    ? `Peso aplicado ${eje.pesoEfectivo}%`
+                    : `Sin datos · peso ${eje.pesoNominal}% redistribuido`;
+                return `
+                    <div class="estatus-eje" style="--eje-color:${st.color};">
+                        <div class="estatus-eje-nombre">${eje.nombre}</div>
+                        <div class="estatus-eje-score">${eje.score != null ? `${eje.score}%` : '—'}</div>
+                        <div class="estatus-eje-peso">${peso}</div>
+                        <div class="estatus-eje-fuentes">${eje.fuentes}</div>
+                    </div>`;
+            }).join('');
         }
 
         function renderKpis(cards, results) {

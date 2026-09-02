@@ -413,6 +413,67 @@
                 </div>
             </div>
 
+            <!-- Pesos del Estatus de Cliente -->
+            <div class="card">
+                <div class="card-title">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                    Estatus de Cliente — Peso de cada Eje
+                </div>
+                <p style="font-size:.78rem;color:#94a3b8;margin-bottom:1rem;">
+                    Define cuánto aporta cada eje a la calificación consolidada del cliente en
+                    <strong>Estatus de Cliente</strong>. Los cuatro deben sumar exactamente 100%.
+                    Si un eje no tiene datos para el cliente y período consultados, su peso se
+                    reparte proporcionalmente entre los ejes restantes.
+                </p>
+                <div class="threshold-grid">
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Satisfacción declarada
+                        </span>
+                        <label>Peso (%)</label>
+                        <input type="number" name="estatus_peso_satisfaccion" min="0" max="100" step="1"
+                               class="estatus-peso"
+                               value="{{ thresholds.estatus_peso_satisfaccion | int }}">
+                        <span class="unit">Encuestas de satisfacción</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Atención al cliente
+                        </span>
+                        <label>Peso (%)</label>
+                        <input type="number" name="estatus_peso_atencion" min="0" max="100" step="1"
+                               class="estatus-peso"
+                               value="{{ thresholds.estatus_peso_atencion | int }}">
+                        <span class="unit">Visitas y compromisos</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Servicio en sitio
+                        </span>
+                        <label>Peso (%)</label>
+                        <input type="number" name="estatus_peso_servicio" min="0" max="100" step="1"
+                               class="estatus-peso"
+                               value="{{ thresholds.estatus_peso_servicio | int }}">
+                        <span class="unit">Supervisiones y cumplimiento</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Eventos y respuesta
+                        </span>
+                        <label>Peso (%)</label>
+                        <input type="number" name="estatus_peso_eventos" min="0" max="100" step="1"
+                               class="estatus-peso"
+                               value="{{ thresholds.estatus_peso_eventos | int }}">
+                        <span class="unit">Incidentes</span>
+                    </div>
+                </div>
+                <div id="estatusPesoTotal" class="info-note" style="margin:1rem 0 0;"></div>
+            </div>
+
             <!-- Período de operación -->
             <div class="card">
                 <div class="card-title">
@@ -447,5 +508,33 @@
         </form>
     </div>
 </div>
+<script>
+/* Suma viva de los pesos del Estatus de Cliente: el servidor rechaza cualquier
+   total distinto de 100, así que conviene avisarlo antes de enviar. */
+(function () {
+    var inputs = Array.prototype.slice.call(document.querySelectorAll('.estatus-peso'));
+    var aviso = document.getElementById('estatusPesoTotal');
+    if (!inputs.length || !aviso) return;
+
+    function actualizar() {
+        var total = inputs.reduce(function (acc, el) {
+            var v = parseFloat(el.value);
+            return acc + (isNaN(v) ? 0 : v);
+        }, 0);
+        var ok = Math.abs(total - 100) < 0.01;
+        aviso.textContent = ok
+            ? 'Los pesos suman 100%.'
+            : 'Los pesos suman ' + (Math.round(total * 100) / 100) + '%. Deben sumar 100% para poder guardar.';
+        aviso.style.color = ok ? '#34d399' : '#f87171';
+        aviso.style.borderColor = ok ? 'rgba(52,211,153,.25)' : 'rgba(248,113,113,.35)';
+    }
+
+    inputs.forEach(function (el) {
+        el.addEventListener('input', actualizar);
+        el.addEventListener('change', actualizar);
+    });
+    actualizar();
+})();
+</script>
 </body>
 </html>

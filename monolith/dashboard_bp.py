@@ -1842,20 +1842,22 @@ def api_gestion_filtros():
     # Umbrales y fecha de inicio configurados por el Administrador. Van en esta
     # respuesta —que la pantalla ya pide al cargar— para que el semáforo del
     # Estatus de Cliente sea el mismo que usa el resto de la app.
-    from admin_bp import get_thresholds
+    from admin_bp import get_thresholds, get_estatus_pesos
     t = get_thresholds()
     umbrales = {
         'verde_min':    float(t.get('supervision_verde_min', 90)),
         'amarillo_min': float(t.get('supervision_amarillo_min', 70)),
     }
     fecha_inicio = t.get('fecha_inicio_operacion')
+    # Peso de cada eje del Estatus de Cliente, ya normalizado a 100.
+    pesos = get_estatus_pesos(t)
 
     conn = cur = None
     try:
         conn = get_db_connection()
         if not conn:
             return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'],
-                            'umbrales': umbrales, 'fecha_inicio_operacion': fecha_inicio})
+                            'umbrales': umbrales, 'fecha_inicio_operacion': fecha_inicio, 'pesos': pesos})
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         user_email = get_jwt_identity()
@@ -1944,11 +1946,12 @@ def api_gestion_filtros():
             'responsables': responsables,
             'umbrales': umbrales,
             'fecha_inicio_operacion': fecha_inicio,
+            'pesos': pesos,
         })
     except Exception as e:
         app_logger.error(f"api_gestion_filtros error: {e}", exc_info=True)
         return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'], 'responsables': [],
-                        'umbrales': umbrales, 'fecha_inicio_operacion': fecha_inicio})
+                        'umbrales': umbrales, 'fecha_inicio_operacion': fecha_inicio, 'pesos': pesos})
     finally:
         if cur: cur.close()
         if conn: conn.close()

@@ -419,6 +419,20 @@ _THRESHOLD_KEYS = [
     'visita_amarillo_max',
     'visita_rojo_max',
     'visita_meta',
+    # Pesos de los 4 ejes del Estatus de Cliente. Viven aquí, y no en una tabla
+    # propia, para reusar el guardado y la lectura que ya tiene kpi_thresholds.
+    'estatus_peso_satisfaccion',
+    'estatus_peso_atencion',
+    'estatus_peso_servicio',
+    'estatus_peso_eventos',
+]
+
+# (clave de umbral, eje) — el orden es el que se muestra en pantalla.
+_ESTATUS_EJES = [
+    ('estatus_peso_satisfaccion', 'satisfaccion'),
+    ('estatus_peso_atencion',     'atencion'),
+    ('estatus_peso_servicio',     'servicio'),
+    ('estatus_peso_eventos',      'eventos'),
 ]
 
 # Claves cuyo valor es texto (no numérico)
@@ -448,6 +462,10 @@ _THRESHOLD_DEFAULTS = {
     'visita_amarillo_max':         89,
     'visita_rojo_max':             70,
     'visita_meta':                 20,
+    'estatus_peso_satisfaccion':   30,
+    'estatus_peso_atencion':       25,
+    'estatus_peso_servicio':       25,
+    'estatus_peso_eventos':        20,
 }
 
 
@@ -609,6 +627,30 @@ def calcular_supervisiones(cur, cliente=None, propiedad=None):
     }
 
 
+def get_estatus_pesos(thresholds=None):
+    """Pesos de los 4 ejes del Estatus de Cliente, normalizados para sumar 100.
+
+    El formulario ya rechaza cualquier combinación que no sume 100, así que la
+    normalización es solo una red: cubre filas viejas de `kpi_thresholds` y
+    ediciones hechas por fuera de la pantalla. Si todo viene en cero se vuelve
+    a los pesos por defecto, porque un total de 0 dejaría el score sin definir.
+    """
+    t = thresholds if thresholds is not None else get_thresholds()
+    crudos = {}
+    for key, eje in _ESTATUS_EJES:
+        raw = t.get(key)
+        if raw is None:
+            raw = _THRESHOLD_DEFAULTS[key]
+        try:
+            crudos[eje] = max(0.0, float(raw))
+        except (TypeError, ValueError):
+            crudos[eje] = float(_THRESHOLD_DEFAULTS[key])
+    total = sum(crudos.values())
+    if total <= 0:
+        return {eje: float(_THRESHOLD_DEFAULTS[key]) for key, eje in _ESTATUS_EJES}
+    return {eje: round(v / total * 100, 2) for eje, v in crudos.items()}
+
+
 def get_thresholds():
     """Return current thresholds as a dict, falling back to defaults on error."""
     conn = None
@@ -704,6 +746,21 @@ def save_thresholds():
         conn = get_db_connection()
         _ensure_thresholds_table(conn)
         cur = conn.cursor()
+
+        # Se valida antes de escribir nada: un total distinto de 100 deja la
+        # calificación consolidada sin escala y no habría forma de interpretarla.
+        pesos_form = {k: request.form.get(k, '').strip() for k, _ in _ESTATUS_EJES}
+        if any(v != '' for v in pesos_form.values()):
+            try:
+                total_pesos = sum(float(v or 0) for v in pesos_form.values())
+            except ValueError:
+                flash('Los pesos del Estatus de Cliente deben ser numéricos.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+            if abs(total_pesos - 100) > 0.01:
+                flash(f'Los pesos del Estatus de Cliente deben sumar 100%. '
+                      f'Actualmente suman {total_pesos:g}%.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+
         for key in _THRESHOLD_KEYS:
             raw = request.form.get(key, '').strip()
             if raw == '':
