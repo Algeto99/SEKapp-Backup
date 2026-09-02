@@ -131,19 +131,43 @@
         .kpi-alert-meta { font-size: 0.78rem; color: #64748b; line-height: 1.5; margin-top: 0.5rem; }
 
         /* ── Estatus de Cliente: valoración consolidada ─────────────────── */
-        .estatus-hero {
-            display: grid; grid-template-columns: 1fr auto;
-            gap: 0.5rem 1.5rem; align-items: center;
+        #estatusHero {
             margin-bottom: 1.25rem;
             border-left: 6px solid var(--estatus-color, #94a3b8);
         }
+        .estatus-contenido {
+            display: grid; grid-template-columns: 1fr auto;
+            gap: 0.5rem 1.5rem; align-items: center;
+        }
+        .estatus-vacio p { font-size: 0.85rem; color: #94a3b8; line-height: 1.6; margin: 0.5rem 0 0; }
         .estatus-hero-label {
             font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: 1px;
             color: #6b7280; margin-bottom: 0.35rem;
         }
-        .estatus-hero-client { font-family: 'Merriweather', serif; font-size: 1.35rem; line-height: 1.2; }
-        .estatus-hero-meta { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 0.4rem; }
+        .estatus-datos { margin: 0.65rem 0 0; display: grid; gap: 0.35rem; }
+        .estatus-datos > div { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+        .estatus-datos dt {
+            font-size: 0.74rem; color: #94a3b8; min-width: 108px;
+        }
+        .estatus-datos dd {
+            margin: 0; font-size: 0.95rem; font-weight: 600; line-height: 1.35;
+        }
+        .estatus-datos dd#estatusDatoCliente {
+            font-family: 'Merriweather', serif; font-size: 1.2rem; font-weight: 700;
+        }
+        .estatus-datos dd#estatusDatoCalificacion,
+        .estatus-datos dd#estatusDatoEstado { color: var(--estatus-color, #94a3b8); }
+        .estatus-hero-meta {
+            grid-column: 1 / -1;
+            font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 0.85rem;
+        }
+        .estatus-desglose-titulo {
+            grid-column: 1 / -1;
+            font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: #6b7280; margin-top: 1.2rem;
+        }
         .estatus-hero-score { text-align: right; }
         .estatus-hero-value {
             font-family: 'Merriweather', serif; font-size: 3rem; font-weight: 700;
@@ -161,7 +185,7 @@
         .estatus-ejes {
             grid-column: 1 / -1;
             display: grid; grid-template-columns: repeat(4, 1fr);
-            gap: 0.75rem; margin-top: 1.1rem;
+            gap: 0.75rem; margin-top: 0.65rem;
         }
         .estatus-eje {
             background: rgba(148,163,184,0.08);
@@ -169,10 +193,14 @@
             border-left: 3px solid var(--eje-color, #94a3b8);
             border-radius: 10px; padding: 0.7rem 0.8rem;
         }
-        .estatus-eje-nombre { font-size: 0.74rem; color: #94a3b8; line-height: 1.35; margin-bottom: 0.4rem; }
+        .estatus-eje-top {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 0.5rem; margin-bottom: 0.35rem;
+        }
+        .estatus-eje-nombre { font-size: 0.78rem; color: #cbd5e1; line-height: 1.35; }
         .estatus-eje-score {
-            font-family: 'Merriweather', serif; font-size: 1.4rem; font-weight: 700;
-            line-height: 1; color: var(--eje-color, #94a3b8);
+            font-family: 'Merriweather', serif; font-size: 1.5rem; font-weight: 700;
+            line-height: 1; color: var(--eje-color, #94a3b8); flex-shrink: 0;
         }
         .estatus-eje-peso { font-size: 0.71rem; color: #94a3b8; margin-top: 0.35rem; }
         .estatus-eje-fuentes { font-size: 0.69rem; color: #64748b; margin-top: 0.2rem; }
@@ -445,6 +473,7 @@
         body.light-mode .filter-btn {
             background-color: #f8fafc; color: #1e293b; border-color: rgba(0,0,0,0.12);
         }
+        body.light-mode .estatus-eje-nombre { color: #334155; }
         body.light-mode .kpi-label,
         body.light-mode .module-label,
         body.light-mode .module-secondary,
@@ -486,7 +515,7 @@
             body { }
 
             .kpi-grid, .filters-grid, .modules-grid { grid-template-columns: 1fr; }
-            .estatus-hero { grid-template-columns: 1fr; }
+            .estatus-contenido { grid-template-columns: 1fr; }
             .estatus-hero-score { text-align: left; }
             .estatus-ejes { grid-template-columns: 1fr; }
         }
@@ -569,24 +598,41 @@
             </div>
         </div>
 
-        <!-- Valoración general del cliente: promedio de los módulos con datos,
-             con el semáforo que el Administrador configura en Umbrales KPI. -->
-        <div class="card estatus-hero" id="estatusHero">
-            <div>
+        <!-- Estatus de Cliente: responde de un vistazo "¿cómo está el cliente
+             hoy?" — calificación, estado, cobertura del cálculo y desglose. -->
+        <div class="card" id="estatusHero">
+            <!-- Sin cliente seleccionado la calificación no significa nada:
+                 mezclaría satisfacción y metas de clientes distintos. -->
+            <div class="estatus-vacio" id="estatusVacio">
                 <div class="estatus-hero-label">Estatus de Cliente</div>
-                <div class="estatus-hero-client" id="estatusHeroClient">Todos los clientes</div>
+                <p>Seleccione un <strong>Cliente / Empresa</strong> en los filtros para ver su calificación consolidada.</p>
+            </div>
+
+            <!-- Oculto de arranque: sin cliente seleccionado (el estado por
+                 defecto) manda el bloque vacío; el render decide cuál se ve. -->
+            <div class="estatus-contenido" id="estatusContenido" style="display:none;">
+                <div>
+                    <div class="estatus-hero-label">Estatus de Cliente</div>
+                    <dl class="estatus-datos">
+                        <div><dt>Cliente</dt><dd id="estatusDatoCliente">—</dd></div>
+                        <div><dt>Calificación</dt><dd id="estatusDatoCalificacion">—</dd></div>
+                        <div><dt>Estado</dt><dd id="estatusDatoEstado">—</dd></div>
+                        <div><dt>Calculado sobre</dt><dd id="estatusDatoCobertura">—</dd></div>
+                    </dl>
+                </div>
+                <div class="estatus-hero-score">
+                    <div class="estatus-hero-value" id="estatusHeroValue">—</div>
+                    <div class="status-badge status-slate" id="estatusHeroBadge">Sin Información</div>
+                </div>
+                <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
+                <div class="estatus-desglose-titulo">Desglose</div>
+                <div class="estatus-ejes" id="estatusEjes"></div>
                 <div class="estatus-hero-meta" id="estatusHeroMeta">Cargando valoración...</div>
-            </div>
-            <div class="estatus-hero-score">
-                <div class="estatus-hero-value" id="estatusHeroValue">—</div>
-                <div class="status-badge status-slate" id="estatusHeroBadge">Sin Información</div>
-            </div>
-            <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
-            <div class="estatus-ejes" id="estatusEjes"></div>
-            <div class="estatus-hero-nota">
-                Capacitación, Disciplina, Vehículos, Motocicletas y Equipos se muestran más abajo
-                como tarjetas, ranking y alertas, pero no ponderan en esta calificación.
-                El peso de cada eje se configura en <a href="/admin/thresholds" style="color:#60a5fa;">Umbrales KPI</a>.
+                <div class="estatus-hero-nota">
+                    Capacitación, Disciplina, Vehículos, Motocicletas y Equipos se muestran más abajo
+                    como tarjetas, ranking y alertas, pero no ponderan en esta calificación.
+                    El peso de cada eje se configura en <a href="/admin/thresholds" style="color:#60a5fa;">Umbrales KPI</a>.
+                </div>
             </div>
         </div>
 
@@ -866,7 +912,12 @@
         const ESTATUS_ENDPOINT = '/dashboard/api/gestion/estatus';
 
         const estatusHero = document.getElementById('estatusHero');
-        const estatusHeroClient = document.getElementById('estatusHeroClient');
+        const estatusVacio = document.getElementById('estatusVacio');
+        const estatusContenido = document.getElementById('estatusContenido');
+        const estatusDatoCliente = document.getElementById('estatusDatoCliente');
+        const estatusDatoCalificacion = document.getElementById('estatusDatoCalificacion');
+        const estatusDatoEstado = document.getElementById('estatusDatoEstado');
+        const estatusDatoCobertura = document.getElementById('estatusDatoCobertura');
         const estatusHeroMeta = document.getElementById('estatusHeroMeta');
         const estatusHeroValue = document.getElementById('estatusHeroValue');
         const estatusHeroBadge = document.getElementById('estatusHeroBadge');
@@ -906,7 +957,7 @@
             const verde = umbrales.verde_min;
             const amarillo = umbrales.amarillo_min;
             const naranja = Math.max(0, amarillo - (verde - amarillo));
-            if (score >= verde) return { label: 'Operativo', tone: 'green', color: colors.green };
+            if (score >= verde) return { label: 'Óptimo', tone: 'green', color: colors.green };
             if (score >= amarillo) return { label: 'Requiere Seguimiento', tone: 'yellow', color: colors.yellow };
             if (score >= naranja) return { label: 'Atención Requerida', tone: 'orange', color: colors.orange };
             return { label: 'Crítico', tone: 'red', color: colors.red };
@@ -1445,59 +1496,71 @@
             return { tone: 'yellow', label: 'Requiere Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
         }
 
+        function nombreClienteSeleccionado() {
+            const opt = filterCliente.options[filterCliente.selectedIndex];
+            const cliente = filterCliente.value && opt ? opt.textContent : '';
+            const propOpt = filterPropiedad ? filterPropiedad.options[filterPropiedad.selectedIndex] : null;
+            const prop = filterPropiedad && filterPropiedad.value && propOpt ? propOpt.textContent : '';
+            return prop ? `${cliente} · ${prop}` : cliente;
+        }
+
+        function mostrarEstatusVacio(mensaje) {
+            estatusVacio.style.display = '';
+            estatusContenido.style.display = 'none';
+            estatusHero.style.setProperty('--estatus-color', colors.slate);
+            if (mensaje) estatusVacio.querySelector('p').textContent = mensaje;
+        }
+
         function renderEstatusCliente(estatus) {
-            if (!estatus || !Array.isArray(estatus.ejes)) {
-                estatusHero.style.setProperty('--estatus-color', colors.slate);
-                estatusHeroValue.textContent = '—';
-                estatusHeroBadge.className = 'status-badge status-slate';
-                estatusHeroBadge.textContent = 'Sin Información';
-                estatusHeroBar.style.width = '0%';
-                estatusHeroMeta.textContent = 'No se pudo calcular la valoración del cliente.';
-                estatusEjes.innerHTML = '';
+            // El indicador es por cliente: sin uno seleccionado promediaría
+            // satisfacción y metas de clientes distintos, que no significa nada.
+            if (!filterCliente.value) {
+                mostrarEstatusVacio('Seleccione un Cliente / Empresa en los filtros para ver su calificación consolidada.');
                 return;
             }
+            if (!estatus || !Array.isArray(estatus.ejes)) {
+                mostrarEstatusVacio('No se pudo calcular la valoración de este cliente. Revisa la conexión o vuelve a aplicar los filtros.');
+                return;
+            }
+
+            estatusVacio.style.display = 'none';
+            estatusContenido.style.display = '';
 
             const ejes = estatus.ejes;
             const score = estatus.score;
             const status = statusFromScore(score);
-
-            const clienteOpt = filterCliente.options[filterCliente.selectedIndex];
-            const clienteLabel = filterCliente.value && clienteOpt
-                ? clienteOpt.textContent
-                : 'Todos los clientes';
-            const propOpt = filterPropiedad ? filterPropiedad.options[filterPropiedad.selectedIndex] : null;
-            const propLabel = filterPropiedad && filterPropiedad.value && propOpt
-                ? ` · ${propOpt.textContent}`
-                : '';
-
-            estatusHero.style.setProperty('--estatus-color', status.color);
-            estatusHeroClient.textContent = `${clienteLabel}${propLabel}`;
-            estatusHeroValue.textContent = score != null ? `${score}%` : '—';
-            estatusHeroBadge.className = `status-badge status-${status.tone}`;
-            estatusHeroBadge.textContent = status.label;
-            estatusHeroBar.style.width = `${score || 0}%`;
-
             const conDatos = ejes.filter(e => e.score !== null);
             const sinDatos = ejes.filter(e => e.score === null);
             const total = estatus.total_ejes || ejes.length;
+            const nota = score != null ? Math.round(score) : null;
+
+            estatusHero.style.setProperty('--estatus-color', status.color);
+            estatusDatoCliente.textContent = nombreClienteSeleccionado() || '—';
+            estatusDatoCalificacion.textContent = nota != null ? `${nota} / 100` : '—';
+            estatusDatoEstado.textContent = status.label;
+            estatusDatoCobertura.textContent = `${conDatos.length} de ${total} ejes`;
+
+            estatusHeroValue.textContent = nota != null ? String(nota) : '—';
+            estatusHeroBadge.className = `status-badge status-${status.tone}`;
+            estatusHeroBadge.textContent = status.label;
+            estatusHeroBar.style.width = `${nota || 0}%`;
+
             if (!estatus.suficiente) {
-                // Menos de dos ejes con información: no se emite calificación.
                 estatusHeroMeta.textContent =
                     'Información insuficiente para calificar a este cliente.'
                     + ` Solo ${conDatos.length} de ${total} ejes`
                     + `${conDatos.length === 1 ? ' tiene' : ' tienen'} registros en el período.`;
             } else if (sinDatos.length) {
                 estatusHeroMeta.textContent =
-                    `Calculado sobre ${conDatos.length} de ${total} ejes`
-                    + ` · sin información: ${sinDatos.map(e => e.nombre).join(', ')}`
-                    + ' · su peso se repartió entre los demás';
+                    `Sin información en ${sinDatos.map(e => e.nombre).join(', ')}`
+                    + ' · su peso se repartió entre los ejes restantes.';
             } else {
-                estatusHeroMeta.textContent =
-                    `Calculado sobre los ${total} ejes, con los pesos definidos en Umbrales KPI.`;
+                estatusHeroMeta.textContent = 'Pesos definidos en Umbrales KPI.';
             }
 
             estatusEjes.innerHTML = ejes.map(eje => {
                 const st = statusFromScore(eje.score);
+                const valor = eje.score != null ? Math.round(eje.score) : '—';
                 const peso = !estatus.suficiente
                     ? 'Sin ponderar'
                     : (eje.score !== null
@@ -1509,8 +1572,10 @@
                     .join(' · ');
                 return `
                     <div class="estatus-eje" style="--eje-color:${st.color};">
-                        <div class="estatus-eje-nombre">${eje.nombre}</div>
-                        <div class="estatus-eje-score">${eje.score != null ? `${eje.score}%` : '—'}</div>
+                        <div class="estatus-eje-top">
+                            <span class="estatus-eje-nombre">${eje.nombre}</span>
+                            <span class="estatus-eje-score">${valor}</span>
+                        </div>
                         <div class="estatus-eje-peso">${peso}</div>
                         ${componentes ? `<div class="estatus-eje-fuentes">${componentes}</div>` : ''}
                         <div class="estatus-eje-fuentes">${eje.detalle || eje.fuentes}</div>
@@ -1956,7 +2021,9 @@
             ['trendLoading', 'rankingLoading', 'distributionLoading'].forEach(id => setLoading(id, true));
 
             const qs = queryString();
-            const estatusPromise = fetchJsonSafe(`${ESTATUS_ENDPOINT}${qs ? `?${qs}` : ''}`);
+            const estatusPromise = filterCliente.value
+                ? fetchJsonSafe(`${ESTATUS_ENDPOINT}${qs ? `?${qs}` : ''}`)
+                : Promise.resolve(null);
             const settled = await Promise.allSettled(
                 Object.entries(ENDPOINTS).map(async ([key, cfg]) => [key, await fetchJsonSafe(`${cfg.data}${qs ? `?${qs}` : ''}`)])
             );
