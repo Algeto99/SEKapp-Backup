@@ -2841,11 +2841,17 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
     }
 
     # 3.2 Atención al cliente
-    pct_vis = _estatus_pct(datos['vis_hechas'], datos['vis_meta'])
+    # Sin visitas registradas no hay nada que medir: la meta vive en Umbrales
+    # KPI y es la misma para todos, así que por sí sola no prueba que a este
+    # cliente se le haya evaluado el eje. Cero visitas sobre una meta global es
+    # ausencia de información, no un cumplimiento del 0%.
+    pct_vis = (_estatus_pct(datos['vis_hechas'], datos['vis_meta'])
+               if datos['vis_hechas'] else None)
     evaluables = datos['comp_cumplidos'] + datos['comp_vencidos']
     pct_comp = _estatus_pct(datos['comp_cumplidos'], evaluables)
-    det_vis = (f"{datos['vis_hechas']} de {_estatus_num(datos['vis_meta'])} visitas"
-               if datos['vis_meta'] else 'sin meta de visitas')
+    det_vis = ('sin meta de visitas' if not datos['vis_meta']
+               else 'sin visitas registradas en la ventana' if pct_vis is None
+               else f"{datos['vis_hechas']} de {_estatus_num(datos['vis_meta'])} visitas")
     det_comp = ((f"{datos['comp_cumplidos']} de {evaluables} compromisos a tiempo"
                  + (f", {datos['comp_pendientes']} aún en plazo" if datos['comp_pendientes'] else ''))
                 if evaluables else 'sin compromisos evaluables')
@@ -2863,10 +2869,14 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
     }
 
     # 3.3 Servicio en sitio
-    pct_sup = _estatus_pct(datos['sup_hechas'], datos['sup_meta'])
+    # Mismo criterio que las visitas: sin supervisiones registradas el eje no
+    # se midió, aunque la programación defina una meta.
+    pct_sup = (_estatus_pct(datos['sup_hechas'], datos['sup_meta'])
+               if datos['sup_hechas'] else None)
     pct_chk = _estatus_pct(datos['chk_cumple'], datos['chk_total'])
-    det_sup = (f"{datos['sup_hechas']} de {_estatus_num(datos['sup_meta'])} supervisiones"
-               if datos['sup_meta'] else 'sin programación de supervisiones')
+    det_sup = ('sin programación de supervisiones' if not datos['sup_meta']
+               else 'sin supervisiones registradas en la ventana' if pct_sup is None
+               else f"{datos['sup_hechas']} de {_estatus_num(datos['sup_meta'])} supervisiones")
     det_chk = (f"checklist {_estatus_num(pct_chk)}% ({datos['chk_cumple']} de {datos['chk_total']} cumplen)"
                if datos['chk_total'] else 'sin checklist en el período')
     ejes['servicio'] = {
