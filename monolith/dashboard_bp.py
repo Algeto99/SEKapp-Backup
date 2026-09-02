@@ -2953,7 +2953,8 @@ def _estatus_consolidar_ejes(ejes):
 
 
 def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, company_id,
-                      thresholds, pesos, instalaciones, peso_cliente, offset=0):
+                      thresholds, pesos, instalaciones, peso_cliente, offset=0,
+                      responsable=None, nombre_usuario=None):
     """Calificación del cliente: 4 ejes por instalación, ponderados por puestos.
 
     `offset` 0 es el período filtrado; 1 corre las ventanas de visitas y
@@ -2966,6 +2967,7 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
 
     # ── Insumos de cada eje, en una consulta por eje agrupada por instalación ──
     sat_where, sat_params = _sat_where(cliente, year, month, day,
+                                       responsable=responsable, nombre_usuario=nombre_usuario,
                                        company_id=company_id, propiedad=propiedad, desde=desde)
     suma_crit   = " + ".join(f"COALESCE({c}, 0)" for c, _ in _SAT_CRITERIA)
     conteo_crit = " + ".join(f"(CASE WHEN {c} IS NOT NULL THEN 1 ELSE 0 END)" for c, _ in _SAT_CRITERIA)
@@ -2987,7 +2989,8 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     vis_desde, vis_meta_vale = _estatus_recortar(vis_desde, vis_hasta, desde)
     v_date = _visita_date_expr()
     v_conds, v_params = _visita_conds(cliente, None, None, None,
-                                      company_id=company_id, propiedad=propiedad)
+                                      company_id=company_id, propiedad=propiedad,
+                                      responsable=responsable, nombre_usuario=nombre_usuario)
     v_conds = v_conds + [f"({v_date})::date >= %s"]
     v_params = list(v_params) + [vis_desde]
     if vis_hasta:
@@ -3011,6 +3014,12 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     sup_desde, sup_meta_vale = _estatus_recortar(sup_desde, sup_hasta, desde)
     s_conds, s_params = [], []
     _add_scope_filters(s_conds, s_params, cliente=cliente, propiedad=propiedad, col_puesto=None)
+    if responsable:
+        s_conds.append("TRIM(rol_aplicador) = %s")
+        s_params.append(responsable)
+    if nombre_usuario:
+        s_conds.append("TRIM(supervisor) = %s")
+        s_params.append(nombre_usuario)
     s_conds.append("fecha_hora::date >= %s")
     s_params.append(sup_desde)
     if sup_hasta:
@@ -3024,7 +3033,9 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     """, s_params)
 
     cum_conds, cum_params = _cumpl_conds(cliente, year, month, day,
-                                         company_id=company_id, propiedad=propiedad, desde=desde)
+                                         responsable=responsable, company_id=company_id,
+                                         propiedad=propiedad, desde=desde,
+                                         nombre_usuario=nombre_usuario)
     chk = _estatus_agrupado(cur, f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                COUNT(*) AS total,
@@ -3035,7 +3046,9 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     """, cum_params)
 
     inc_where, inc_params = _inc_where(cliente, year, month, day,
-                                       company_id=company_id, propiedad=propiedad, desde=desde)
+                                       responsable=responsable, company_id=company_id,
+                                       propiedad=propiedad, desde=desde,
+                                       nombre_usuario=nombre_usuario)
     inc = _estatus_agrupado(cur, f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                COUNT(*) AS total,
@@ -3054,7 +3067,8 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     # Compromisos: las filas se agrupan en Python porque el estado de cada
     # acuerdo lo resuelve _visita_parse_compromisos, no el SQL.
     c_conds, c_params = _visita_conds(cliente, year, month, day,
-                                      company_id=company_id, propiedad=propiedad, desde=desde)
+                                      company_id=company_id, propiedad=propiedad, desde=desde,
+                                      responsable=responsable, nombre_usuario=nombre_usuario)
     cur.execute(f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
@@ -3205,7 +3219,8 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
 
 
 
-def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pesos):
+def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, company_id=None,
+                     thresholds=None, pesos=None, responsable=None, nombre_usuario=None):
     """
     Calificación de todos los clientes, para el listado comparativo.
 
@@ -3215,6 +3230,13 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
     posibles a la vez porque cada cliente puede tener su propia periodicidad.
     """
     from admin_bp import get_supervision_programacion
+
+    if thresholds is None:
+        from admin_bp import get_thresholds
+        thresholds = get_thresholds()
+    if pesos is None:
+        from admin_bp import get_estatus_pesos
+        pesos = get_estatus_pesos(thresholds)
 
     umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
 
@@ -3259,7 +3281,9 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
         return meta_global, periodicidad_global
 
     # ── Los mismos insumos, sin filtro de cliente ───────────────────────────
-    sat_where, sat_params = _sat_where(None, year, month, day, company_id=company_id, desde=desde)
+    sat_where, sat_params = _sat_where(None, year, month, day,
+                                       responsable=responsable, nombre_usuario=nombre_usuario,
+                                       company_id=company_id, desde=desde)
     suma_crit   = " + ".join(f"COALESCE({c}, 0)" for c, _ in _SAT_CRITERIA)
     conteo_crit = " + ".join(f"(CASE WHEN {c} IS NOT NULL THEN 1 ELSE 0 END)" for c, _ in _SAT_CRITERIA)
     sat = _estatus_agrupado(cur, f"""
@@ -3276,7 +3300,8 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
     vis_desde, _ = _estatus_ventana(visita_periodicidad, 0)
     vis_desde, vis_meta_vale = _estatus_recortar(vis_desde, None, desde)
     v_date = _visita_date_expr()
-    v_conds, v_params = _visita_conds(None, None, None, None, company_id=company_id)
+    v_conds, v_params = _visita_conds(None, None, None, None, company_id=company_id,
+                                      responsable=responsable, nombre_usuario=nombre_usuario)
     v_conds = v_conds + [f"({v_date})::date >= %s"]
     v_params = list(v_params) + [vis_desde]
     vis = _estatus_agrupado(cur, f"""
@@ -3294,6 +3319,12 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
     piso = min(ventanas.values())
     s_conds, s_params = [], []
     _add_scope_filters(s_conds, s_params, cliente=None, propiedad=None, col_puesto=None)
+    if responsable:
+        s_conds.append("TRIM(rol_aplicador) = %s")
+        s_params.append(responsable)
+    if nombre_usuario:
+        s_conds.append("TRIM(supervisor) = %s")
+        s_params.append(nombre_usuario)
     s_conds.append("fecha_hora::date >= %s")
     s_params.append(piso)
     sup = _estatus_agrupado(cur, f"""
@@ -3306,7 +3337,9 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
         GROUP BY 1
     """, [ventanas['diario'], ventanas['semanal'], ventanas['mensual']] + s_params)
 
-    cum_conds, cum_params = _cumpl_conds(None, year, month, day, company_id=company_id, desde=desde)
+    cum_conds, cum_params = _cumpl_conds(None, year, month, day,
+                                         responsable=responsable, company_id=company_id,
+                                         desde=desde, nombre_usuario=nombre_usuario)
     chk = _estatus_agrupado(cur, f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                COUNT(*) AS total,
@@ -3316,7 +3349,9 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
         GROUP BY 1
     """, cum_params)
 
-    inc_where, inc_params = _inc_where(None, year, month, day, company_id=company_id, desde=desde)
+    inc_where, inc_params = _inc_where(None, year, month, day,
+                                       responsable=responsable, company_id=company_id,
+                                       desde=desde, nombre_usuario=nombre_usuario)
     inc = _estatus_agrupado(cur, f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                COUNT(*) AS total,
@@ -3332,7 +3367,8 @@ def _estatus_ranking(cur, *, year, month, day, desde, company_id, thresholds, pe
         GROUP BY 1
     """, inc_params)
 
-    c_conds, c_params = _visita_conds(None, year, month, day, company_id=company_id, desde=desde)
+    c_conds, c_params = _visita_conds(None, year, month, day, company_id=company_id,
+                                      desde=desde, responsable=responsable, nombre_usuario=nombre_usuario)
     cur.execute(f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
@@ -3423,13 +3459,15 @@ def api_gestion_estatus():
     """Estatus del cliente y, si el período lo permite, su variación."""
     from admin_bp import get_thresholds, get_estatus_pesos, get_estatus_bandas
 
-    cliente   = request.args.get('cliente') or None
-    propiedad = (request.args.get('propiedad') or request.args.get('property_id')
-                 or request.args.get('id_propiedad') or None)
-    year  = request.args.get('year')  or None
-    month = request.args.get('month') or None
-    day   = int(request.args.get('day')) if request.args.get('day') else None
-    desde = _gestion_desde_arg()
+    cliente        = request.args.get('cliente') or None
+    propiedad      = (request.args.get('propiedad') or request.args.get('property_id')
+                      or request.args.get('id_propiedad') or None)
+    year           = request.args.get('year')  or None
+    month          = request.args.get('month') or None
+    day            = int(request.args.get('day')) if request.args.get('day') else None
+    responsable    = request.args.get('responsable') or None
+    nombre_usuario = request.args.get('nombre_usuario') or None
+    desde          = _gestion_desde_arg()
 
     conn = cur = None
     try:
@@ -3453,7 +3491,8 @@ def api_gestion_estatus():
         if not cliente:
             calificados, sin_calificar = _estatus_ranking(
                 cur, year=year, month=month, day=day, desde=desde,
-                company_id=company_id, thresholds=thresholds, pesos=pesos)
+                company_id=company_id, thresholds=thresholds, pesos=pesos,
+                responsable=responsable, nombre_usuario=nombre_usuario)
             return jsonify({
                 'modo': 'ranking',
                 'ranking': calificados,
@@ -3466,7 +3505,8 @@ def api_gestion_estatus():
 
         comun = dict(cur=cur, cliente=cliente, propiedad=propiedad, desde=desde,
                      company_id=company_id, thresholds=thresholds, pesos=pesos,
-                     instalaciones=instalaciones, peso_cliente=peso_cliente)
+                     instalaciones=instalaciones, peso_cliente=peso_cliente,
+                     responsable=responsable, nombre_usuario=nombre_usuario)
         actual = _estatus_calcular(year=year, month=month, day=day, offset=0, **comun)
 
         # Sin un período único seleccionado no hay "anterior" que comparar, y el
@@ -3494,7 +3534,8 @@ def api_gestion_estatus():
         # la nota tenga una referencia y no se lea en el vacío.
         calificados, _sin = _estatus_ranking(
             cur, year=year, month=month, day=day, desde=desde,
-            company_id=company_id, thresholds=thresholds, pesos=pesos)
+            company_id=company_id, thresholds=thresholds, pesos=pesos,
+            responsable=responsable, nombre_usuario=nombre_usuario)
         fila = next((f for f in calificados
                      if str(f['id']) == str(cliente) or f['nombre'] == str(cliente)), None)
 
@@ -3994,7 +4035,7 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None, puesto=None, desde=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None, puesto=None, desde=None, nombre_usuario=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
@@ -4009,8 +4050,11 @@ def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=
         conds.append("turno = %s")
         params.append(turno)
     if responsable:
-        conds.append("TRIM(nombre_responsable) = %s")
-        params.append(responsable)
+        conds.append("(TRIM(rol_aplicador) = %s OR TRIM(nombre_responsable) = %s)")
+        params.extend([responsable, responsable])
+    if nombre_usuario:
+        conds.append("(TRIM(nombre_responsable) = %s OR TRIM(responsable_asignado) = %s)")
+        params.extend([nombre_usuario, nombre_usuario])
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -5286,13 +5330,15 @@ _CUMPL_CRITERIA = [
     ('fechas_vigentes',               'Vigente'),
 ]
 
-def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None):
+def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None, nombre_usuario=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     _gestion_add_desde(conds, params, "fecha_hora", desde)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
+    if nombre_usuario:
+        conds.append("(TRIM(nombre_responsable) = %s OR TRIM(supervisor) = %s)"); params.extend([nombre_usuario, nombre_usuario])
     if company_id is not None:
         conds.append('company_id = %s'); params.append(company_id)
     return conds, params
@@ -5965,12 +6011,18 @@ def api_capacitacion_detalles():
 def _visita_date_expr():
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
-def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None):
+def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None, responsable=None, nombre_usuario=None):
     conds, params = [], []
     date_expr = _visita_date_expr()
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     _gestion_add_desde(conds, params, date_expr, desde)
+    if responsable:
+        conds.append("TRIM(rol_aplicador) = %s")
+        params.append(responsable)
+    if nombre_usuario:
+        conds.append("(TRIM(visita_realizada_por) = %s OR TRIM(nombre_visitante) = %s OR TRIM(nombre_responsable) = %s)")
+        params.extend([nombre_usuario, nombre_usuario, nombre_usuario])
     if company_id is not None:
         # Historical visits predate the company_id column.  Keep those records
         # visible only when their submitter belongs to the current tenant; a bare
