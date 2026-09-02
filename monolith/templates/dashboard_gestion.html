@@ -210,6 +210,35 @@
         }
         .estatus-eje-peso { font-size: 0.71rem; color: #94a3b8; margin-top: 0.35rem; }
         .estatus-eje-fuentes { font-size: 0.69rem; color: #64748b; margin-top: 0.2rem; }
+        .estatus-baja-titulo {
+            grid-column: 1 / -1;
+            font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: #6b7280; margin-top: 1.2rem;
+        }
+        .estatus-baja { grid-column: 1 / -1; display: grid; gap: 0.4rem; margin-top: 0.5rem; }
+        .estatus-baja-item {
+            display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 1rem;
+            align-items: baseline; text-decoration: none; color: inherit;
+            background: rgba(148,163,184,0.08);
+            border: 1px solid rgba(148,163,184,0.16);
+            border-left: 3px solid #f87171;
+            border-radius: 10px; padding: 0.6rem 0.8rem;
+            transition: background .15s;
+        }
+        .estatus-baja-item:hover { background: rgba(148,163,184,0.16); }
+        .estatus-baja-etiqueta { font-weight: 700; }
+        .estatus-baja-inst {
+            font-size: 0.72rem; color: #94a3b8; border: 1px solid rgba(148,163,184,0.3);
+            border-radius: 999px; padding: 0.05rem 0.5rem; margin-left: 0.4rem; white-space: nowrap;
+        }
+        .estatus-baja-ctx { grid-column: 1; font-size: 0.72rem; color: #64748b; line-height: 1.4; }
+        .estatus-baja-impacto {
+            grid-row: 1; grid-column: 2; font-weight: 700; color: #f87171;
+            font-size: 0.82rem; white-space: nowrap;
+        }
+        body.light-mode .estatus-baja-item { background: #f8fafc; }
+
         .estatus-inst-titulo {
             grid-column: 1 / -1;
             font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
@@ -659,6 +688,10 @@
                 <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
                 <div class="estatus-desglose-titulo">Desglose</div>
                 <div class="estatus-ejes" id="estatusEjes"></div>
+                <div class="estatus-baja-titulo" id="estatusBajaTitulo" style="display:none;">
+                    ¿Qué lo está bajando?
+                </div>
+                <div class="estatus-baja" id="estatusBaja" style="display:none;"></div>
                 <div class="estatus-inst-titulo" id="estatusInstTitulo" style="display:none;">
                     Instalaciones — la nota del cliente pondera cada una por sus puestos
                 </div>
@@ -973,6 +1006,8 @@
         const estatusInst = document.getElementById('estatusInst');
         const estatusInstWrap = document.getElementById('estatusInstWrap');
         const estatusInstTitulo = document.getElementById('estatusInstTitulo');
+        const estatusBaja = document.getElementById('estatusBaja');
+        const estatusBajaTitulo = document.getElementById('estatusBajaTitulo');
 
         let trendChart = null;
         let rankingChart = null;
@@ -1557,9 +1592,33 @@
             estatusContenido.style.display = 'none';
             estatusInstTitulo.style.display = 'none';
             estatusInstWrap.style.display = 'none';
+            estatusBajaTitulo.style.display = 'none';
+            estatusBaja.style.display = 'none';
             estatusHero.style.setProperty('--estatus-color', colors.slate);
             estatusVariacion.textContent = '';
             if (mensaje) estatusVacio.querySelector('p').textContent = mensaje;
+        }
+
+        function renderHallazgos(estatus) {
+            const hallazgos = estatus.hallazgos || [];
+            if (!hallazgos.length) {
+                estatusBajaTitulo.style.display = 'none';
+                estatusBaja.style.display = 'none';
+                return;
+            }
+            estatusBajaTitulo.style.display = '';
+            estatusBaja.style.display = '';
+            const qs = queryString();
+            estatusBaja.innerHTML = hallazgos.map(h => `
+                <a class="estatus-baja-item" href="${h.route}${qs ? `?${qs}` : ''}">
+                    <div>
+                        <span class="estatus-baja-etiqueta">${h.etiqueta}:</span>
+                        <span>${h.texto}</span>
+                        ${h.instalacion ? `<span class="estatus-baja-inst">${h.instalacion}</span>` : ''}
+                    </div>
+                    <div class="estatus-baja-impacto">−${h.impacto.toFixed(1)} pts</div>
+                    ${h.contexto ? `<div class="estatus-baja-ctx">${h.contexto}</div>` : ''}
+                </a>`).join('');
         }
 
         function renderVariacion(estatus) {
@@ -1667,6 +1726,7 @@
             }
 
             renderVariacion(estatus);
+            renderHallazgos(estatus);
             renderInstalaciones(estatus);
 
             estatusEjes.innerHTML = ejes.map(eje => {

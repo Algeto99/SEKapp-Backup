@@ -2805,17 +2805,39 @@ def _estatus_agrupado(cur, sql, params):
     return salida
 
 
+def _estatus_perdidas(componentes):
+    """Puntos que cada componente le resta a su eje, sobre una escala de 100.
+
+    Solo entran los que tienen dato y están por debajo del 100%: un componente
+    sin información no está bajando nada, simplemente no se midió.
+    """
+    salida = []
+    for etiqueta, valor, peso, texto, route in componentes:
+        if valor is None or valor >= 100:
+            continue
+        salida.append({'etiqueta': etiqueta, 'texto': f"{_estatus_num(valor)}%",
+                       'puntos': round((100 - valor) * peso / 100, 1),
+                       'contexto': texto, 'route': route})
+    return salida
+
+
 def _estatus_ejes_de(datos, pesos, umbral_horas):
     """Los 4 ejes de una instalación, a partir de sus insumos ya recolectados."""
     ejes = {}
 
     # 3.1 Satisfacción declarada
     avg5 = datos['sat_avg5']
+    sat_score = round(avg5 / 5 * 100, 1) if avg5 is not None else None
     ejes['satisfaccion'] = {
-        'score': round(avg5 / 5 * 100, 1) if avg5 is not None else None,
+        'score': sat_score,
         'detalle': (f"Promedio {round(avg5, 2)} de 5 en {datos['sat_n']} encuesta(s)"
                     if avg5 is not None else 'Sin encuestas en el período'),
         'componentes': [],
+        # `perdidas` son los puntos que cada causa le resta al eje sobre 100.
+        # Sirven para ordenar los puntos de atención por impacto real.
+        'perdidas': ([{'etiqueta': 'Satisfacción', 'texto': f"{_estatus_num(sat_score)}%",
+                       'puntos': round(100 - sat_score, 1), 'route': '/dashboard/satisfaccion/'}]
+                     if sat_score is not None and sat_score < 100 else []),
     }
 
     # 3.2 Atención al cliente
@@ -2834,6 +2856,10 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
             {'label': 'Visitas',     'valor': pct_vis,  'peso': 50},
             {'label': 'Compromisos', 'valor': pct_comp, 'peso': 50},
         ],
+        'perdidas': _estatus_perdidas([
+            ('Visitas',     pct_vis,  50, det_vis,  '/dashboard/visitas/'),
+            ('Compromisos', pct_comp, 50, det_comp, '/dashboard/visitas/'),
+        ]),
     }
 
     # 3.3 Servicio en sitio
@@ -2841,7 +2867,7 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
     pct_chk = _estatus_pct(datos['chk_cumple'], datos['chk_total'])
     det_sup = (f"{datos['sup_hechas']} de {_estatus_num(datos['sup_meta'])} supervisiones"
                if datos['sup_meta'] else 'sin programación de supervisiones')
-    det_chk = (f"checklist {pct_chk}% ({datos['chk_cumple']} de {datos['chk_total']} cumplen)"
+    det_chk = (f"checklist {_estatus_num(pct_chk)}% ({datos['chk_cumple']} de {datos['chk_total']} cumplen)"
                if datos['chk_total'] else 'sin checklist en el período')
     ejes['servicio'] = {
         'score': _estatus_promedio([(pct_sup, 60), (pct_chk, 40)]),
@@ -2850,6 +2876,10 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
             {'label': 'Supervisiones', 'valor': pct_sup, 'peso': 60},
             {'label': 'Checklist',     'valor': pct_chk, 'peso': 40},
         ],
+        'perdidas': _estatus_perdidas([
+            ('Supervisiones', pct_sup, 60, det_sup, '/dashboard/supervision/'),
+            ('Cumplimiento',  pct_chk, 40, det_chk, '/dashboard/cumplimiento/'),
+        ]),
     }
 
     # 3.4 Eventos y respuesta
@@ -2870,7 +2900,27 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
         # incidentes no equivale a una calificación perfecta.
         score_ev = None
         det_inc = 'Sin incidentes registrados en el período'
-    ejes['eventos'] = {'score': score_ev, 'detalle': det_inc, 'componentes': []}
+    perdidas_inc = []
+    if datos['inc_total']:
+        # El descuento ya está desglosado por severidad: cada tramo se reporta
+        # por separado para que se lea "2 incidentes de severidad alta".
+        for n, puntos, etiqueta in ((datos['inc_alta'], 15, 'alta'),
+                                    (datos['inc_media'], 7, 'media'),
+                                    (datos['inc_baja'], 3, 'baja')):
+            if n:
+                perdidas_inc.append({
+                    'etiqueta': 'Incidentes',
+                    'texto': (f"{n} incidente{'s' if n != 1 else ''}"
+                              f" de severidad {etiqueta}"),
+                    'puntos': float(n * puntos), 'route': '/dashboard/incidentes/'})
+        if excede:
+            perdidas_inc.append({
+                'etiqueta': 'Tiempo de atención',
+                'texto': (f"promedio {round(datos['inc_avg_min'] / 60, 1)} h,"
+                          f" sobre el umbral de {umbral_horas:g} h"),
+                'puntos': 10.0, 'route': '/dashboard/incidentes/'})
+    ejes['eventos'] = {'score': score_ev, 'detalle': det_inc,
+                       'componentes': [], 'perdidas': perdidas_inc}
 
     salida = []
     for key, nombre, fuentes in _ESTATUS_EJES_META:
@@ -2879,6 +2929,7 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
             'key': key, 'nombre': nombre, 'fuentes': fuentes,
             'score': e['score'], 'detalle': e['detalle'],
             'componentes': e['componentes'], 'peso': pesos.get(key, 0),
+            'perdidas': e.get('perdidas', []),
         })
     return salida
 
@@ -3037,6 +3088,7 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     acumulado = {k: [] for k, _, _ in _ESTATUS_EJES_META}
     aporte_total = 0.0
     peso_calificado = 0
+    crudos = []   # pérdidas por instalación, antes de traducirlas a impacto
 
     for inst in unidades:
         k = inst['id']
@@ -3077,6 +3129,19 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
         if nota is not None and inst['peso'] > 0:
             aporte_total += nota * inst['peso']
             peso_calificado += inst['peso']
+            # Solo las instalaciones que ponderan pueden estar bajando la nota.
+            for e in ejes_inst:
+                if e['score'] is None or not e['peso_efectivo']:
+                    continue
+                for p in e.get('perdidas', []):
+                    crudos.append({
+                        'etiqueta': p['etiqueta'], 'texto': p['texto'],
+                        'contexto': p.get('contexto'), 'route': p['route'],
+                        'eje': e['nombre'],
+                        'instalacion': (inst['nombre'] if len(unidades) > 1 else None),
+                        '_puntos': p['puntos'], '_peso_eje': e['peso_efectivo'],
+                        '_peso_inst': inst['peso'],
+                    })
 
         detalle_instalaciones.append({
             'id': None if k == _ESTATUS_SIN_INST else k,
@@ -3113,8 +3178,23 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
 
     score = round(aporte_total / peso_calificado, 1) if suficiente else None
 
+    # ── ¿Qué está bajando la calificación? ───────────────────────────────────
+    # El impacto se expresa en puntos de la nota final: pérdida dentro del eje,
+    # por el peso del eje, por lo que pesa la instalación en el cliente. Así el
+    # orden refleja qué conviene atacar primero, no solo qué está más bajo.
+    hallazgos = []
+    if suficiente and peso_calificado:
+        for h in crudos:
+            h['impacto'] = round(h.pop('_puntos') * h.pop('_peso_eje') / 100
+                                 * h.pop('_peso_inst') / peso_calificado, 2)
+            hallazgos.append(h)
+        hallazgos.sort(key=lambda x: x['impacto'], reverse=True)
+        # Por debajo de 0,1 puntos el hallazgo no explica nada accionable.
+        hallazgos = [h for h in hallazgos if h['impacto'] >= 0.1][:6]
+
     return {
         'score': score,
+        'hallazgos': hallazgos,
         'suficiente': suficiente,
         'ejes_con_datos': ejes_con_datos,
         'total_ejes': len(salida_ejes),
