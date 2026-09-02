@@ -763,10 +763,11 @@ def get_operation_timezone(conn=None, tz_hint=None, reports=None):
         return zoneinfo.ZoneInfo('UTC')
 
 
-def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las "):
+def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", use_12h=True):
     """
     Convierte cualquier valor de fecha/hora (datetime, date, str ISO/SQL)
     a la zona horaria de la operación y retorna un string formateado consistente.
+    Ejemplo: 21/08/2026 04:30 a. m.
     """
     if val is None or val == '' or val == 'N/A' or val == '—':
         return ''
@@ -778,38 +779,69 @@ def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las "):
         except Exception:
             tz = get_operation_timezone()
 
+    def _format_dt(dt_local):
+        if not include_time:
+            return dt_local.strftime("%d/%m/%Y")
+        if use_12h:
+            ampm = "a. m." if dt_local.hour < 12 else "p. m."
+            fmt_str = f"%d/%m/%Y{time_sep}%I:%M"
+            return f"{dt_local.strftime(fmt_str)} {ampm}"
+        fmt_str = f"%d/%m/%Y{time_sep}%H:%M"
+        return dt_local.strftime(fmt_str)
+
     # Si es datetime
     if isinstance(val, datetime):
         if val.tzinfo:
             dt_local = val.astimezone(tz)
         else:
             dt_local = val.replace(tzinfo=timezone.utc).astimezone(tz)
-        if include_time:
-            return dt_local.strftime(f"%d/%m/%Y{time_sep}%H:%M") if time_sep else dt_local.strftime("%d/%m/%Y %H:%M")
-        return dt_local.strftime("%d/%m/%Y")
+        return _format_dt(dt_local)
 
-    # Si es date
-    if isinstance(val, date):
+    # Si es date puro (sin hora)
+    if isinstance(val, date) and not isinstance(val, datetime):
         return val.strftime("%d/%m/%Y")
 
     val_str = str(val).strip()
     if not val_str or val_str in ('N/A', '—', 'None'):
         return val_str
 
-    # Intentar parsear cadenas de texto
+    # Si es una fecha pura en texto (YYYY-MM-DD)
+    if len(val_str) == 10 and val_str.count('-') == 2:
+        try:
+            d = date.fromisoformat(val_str)
+            return d.strftime("%d/%m/%Y")
+        except Exception:
+            pass
+
+    # 1. Intentar con datetime.fromisoformat (soporta +00:00, Z, etc.)
+    try:
+        clean_iso = val_str.replace('Z', '+00:00').replace('z', '+00:00')
+        dt = datetime.fromisoformat(clean_iso)
+        if dt.tzinfo:
+            dt_local = dt.astimezone(tz)
+        else:
+            dt_local = dt.replace(tzinfo=timezone.utc).astimezone(tz)
+        return _format_dt(dt_local)
+    except Exception:
+        pass
+
+    # 2. Intentar parsear cadenas de texto con formatos conocidos
     for fmt in (
-        '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%d %H:%M:%S%z', '%Y-%m-%d %H:%M:%S.%f%z',
-        '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M'
+        '%Y-%m-%d %H:%M:%S%z', '%Y-%m-%d %H:%M:%S.%f%z',
+        '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S.%f%z',
+        '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f',
+        '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f',
+        '%Y-%m-%d %H:%M', '%Y-%m-%d'
     ):
         try:
             dt = datetime.strptime(val_str, fmt)
+            if fmt == '%Y-%m-%d':
+                return dt.strftime("%d/%m/%Y")
             if dt.tzinfo:
                 dt_local = dt.astimezone(tz)
             else:
                 dt_local = dt.replace(tzinfo=timezone.utc).astimezone(tz)
-            if include_time:
-                return dt_local.strftime(f"%d/%m/%Y{time_sep}%H:%M") if time_sep else dt_local.strftime("%d/%m/%Y %H:%M")
-            return dt_local.strftime("%d/%m/%Y")
+            return _format_dt(dt_local)
         except ValueError:
             pass
 

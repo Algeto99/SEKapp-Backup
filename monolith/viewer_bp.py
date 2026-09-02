@@ -227,32 +227,75 @@ FORM_CONFIGS = {
         'title_prefix': 'Reporte de Incidente',
         'joins': """
             LEFT JOIN users u ON t.user_email = u.email
-            LEFT JOIN propiedades p ON t.cliente_instalacion = p.nombre
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+            LEFT JOIN LATERAL (
+                SELECT json_agg(json_build_object('tipo', rip.persona_tipo, 'nombre', rip.persona_nombre) ORDER BY rip.id) AS personas_data
+                FROM reportes_incidentes_personas rip
+                WHERE rip.id_reporte_incidente = t.id_reporte_incidente
+            ) r_personas ON TRUE
         """,
         'columns': """
             t.creado_en,
             t.*,
-            COALESCE(p.nombre, t.cliente_instalacion) AS propiedad_nombre,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            r_personas.personas_data AS personas_involucradas,
             u.name AS user_name
         """,
         'data_mapping': {
-            "Título de Incidencia": "tipo_incidente",
-            "Tipo de Cliente": "cliente_instalacion",
-            "Lugar del Incidente": "puesto_area_especifica",
-            "Propiedad": "propiedad_nombre",
-            "Fecha del Incidente": "fecha_hora",
-            "Descripción del Incidente": "descripcion_incidente",
-            "Nombre del Supervisor": "nombre_responsable",
-            "URLs de Imágenes o PDFs": "foto_evidencia_url",
-            "Nivel Severidad": "nivel_severidad",
-            "Impacto": "impacto",
-            "Tiempo Resolución (min)": "tiempo_resolucion_min",
-            "Responsable Asignado": "responsable_asignado",
-            "Estado": "estado",
-            "Descripción Impacto": "descripcion_impacto",
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Puesto o Área Específica": "puesto_area_especifica",
+            "Fecha y Hora": "fecha_hora",
+            "Rol del Aplicador": "rol_aplicador",
+            "Turno": "turno",
+            "Hora de Ingreso": "hora_entrada",
+            "Hora de Salida": "hora_salida",
+            "Nombre del Responsable": "nombre_responsable",
+            "Número de Empleado": "numero_empleado",
             "Categoría": "categoria",
-            "ID Propiedad": "id_propiedad",
-            "Firma Responsable": "firma_responsable"
+            "Razón de Ausentismo": "razon_ausentismo",
+            "¿Se cubre el puesto?": "cubre_puesto",
+            "Nombre persona que cubre": "nombre_persona_cubre",
+            "Número de empleado (cubre)": "numero_empleado_cubre",
+            "Tipo de Incidente": "tipo_incidente",
+            "Descripción": "descripcion_incidente",
+            "Nivel de Severidad": "nivel_severidad",
+            "Impacto": "impacto",
+            "Descripción del Impacto": "descripcion_impacto",
+            "Personas Involucradas": "personas_involucradas",
+            "¿Reportado a autoridades?": "reportado_autoridades",
+            "Número de reporte / radicado": "numero_reporte_autoridades",
+            "Plan de Acción": "plan_accion",
+            "Responsable Plan de Acción": "nombre_responsable_plan",
+            "Fecha de Cumplimiento": "fecha_cumplimiento_plan",
+            "Estado / Seguimiento": "estado_seguimiento_plan",
+            "Firma": "firma_responsable",
+            "Foto Evidencia": "foto_evidencia_url",
+            "URLs de Imágenes o PDFs": "foto_evidencia_url"
         }
     },
     'medicion_experiencia_cliente': {
@@ -261,26 +304,61 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Medición Experiencia Cliente',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
-            "Cliente/Instalación": "cliente_instalacion",
-            "Fecha/Hora": "fecha_hora",
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Fecha y Hora": "fecha_hora",
+            "Rol del Aplicador": "rol_aplicador",
+            "Nombre del Responsable": "nombre_responsable",
+            "Categoría Evaluada": "categoria_evaluada",
+            "Encuestado": "encuestado",
             "Atención al Cliente": "atencion_cliente",
             "Comunicación": "comunicacion",
             "Confiabilidad": "confiabilidad",
-            "NPS": "calificacion_global_nps",
-            "Observaciones": "observaciones_cliente",
-            "Recomendaría Servicio": "recomendaria_servicio",
-            "Categoría Evaluada": "categoria_evaluada",
-            "Encuestado": "encuestado",
-            "Firma Encuestado": "firma_encuestado",
-            "Firma Responsable": "firma_responsable",
-            "Capacidad Reacción": "capacidad_reaccion",
+            "Capacidad de Reacción": "capacidad_reaccion",
             "Cumplimiento": "cumplimiento",
-            "Competencia Personal": "competencia_personal",
-            "Actitud Servicio": "actitud_servicio",
-            "Atención Quejas": "atencion_quejas"
+            "Competencia del Personal": "competencia_personal",
+            "Actitud de Servicio": "actitud_servicio",
+            "Atención de Quejas": "atencion_quejas",
+            "Calificación Global / NPS": "calificacion_global_nps",
+            "¿Recomendaría el Servicio?": "recomendaria_servicio",
+            "Observaciones del Cliente": "observaciones_cliente",
+            "Firma Encuestado": "firma_encuestado",
+            "Firma Responsable": "firma_responsable"
         }
     },
     'supervision_puesto': {
@@ -289,9 +367,6 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Control de Supervisión',
-        # Resolve current records through their FKs and legacy records through the
-        # installation name saved before id_propiedad/customer_company_id existed.
-        # Client and installation remain separate aliases for both PDF and Excel.
         'joins': """
             LEFT JOIN users u ON t.submitted_by_email = u.email
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
@@ -327,34 +402,35 @@ FORM_CONFIGS = {
             u.name AS user_name
         """,
         'data_mapping': {
-            "Cliente": "cliente_nombre",
+            "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
-            "Fecha/Hora": "fecha_hora",
+            "Puesto o Área Específica": "puesto_area_especifica",
+            "Fecha y Hora": "fecha_hora",
             "Supervisor": "supervisor",
-            "Puesto/Área": "puesto_area_especifica",
             "Tipo de Instalación": "tipo_servicio",
             "Modalidad de Servicio": "modalidad_servicio",
             "Nombre Guardia": "nombre_guardia",
-            "Observaciones": "observaciones_novedades",
             "Documento Guardia": "documento_guardia",
+            "Número de Empleado": "numero_empleado",
+            "Rol del Aplicador": "rol_aplicador",
             "Serie Arma": "serie_arma",
             "Cantidad Munición": "cantidad_municion",
+            "Porta Arma": "porta_arma",
             "Realiza Inducción": "realiza_induccion",
             "Asistencia/Puntualidad": "asistencia_puntualidad",
             "Presentación Uniforme": "presentacion_uniforme",
+            "Problemas Uniforme": "problemas_uniforme",
             "Estado Limpieza": "estado_limpieza_puesto",
             "Equipamiento Completo": "equipamiento_completo",
             "Estado Bitácora": "estado_bitacora",
+            "Conoce Órdenes y Consignas": "conoce_ordenes_consignas",
+            "Horario y Detalles Claros": "horario_detalles_claros",
+            "Observaciones / Novedades": "observaciones_novedades",
             "Firma Guardia": "firma_guardia",
-            "Foto Evidencia": "foto_evidencia_url",
-            "Conoce Ordenes": "conoce_ordenes_consignas",
-            "Horario Detalles": "horario_detalles_claros",
             "Nombre Guardia Firma": "nombre_guardia_firma",
-            "Puesto o Área Específica": "detalles_puestos",
-            "Porta Arma": "porta_arma",
-            "Número Empleado": "numero_empleado",
-            "Rol Aplicador": "rol_aplicador",
-            "Firma Supervisor": "firma_supervisor"
+            "Firma Supervisor": "firma_supervisor",
+            "Foto Evidencia": "foto_evidencia_url",
+            "URLs de Imágenes o PDFs": "foto_evidencia_url"
         }
     },
     'informe_novedades_disciplinario': {
@@ -368,23 +444,24 @@ FORM_CONFIGS = {
         'data_mapping': {
             "Empleado": "empleado_nombre",
             "Cargo": "empleado_cargo",
-            "Tipo Novedad": "tipo_novedad",
+            "Tipo de Novedad": "tipo_novedad",
             "Descripción": "descripcion_novedad",
-            "Sitio": "sitio_ocurrencia",
-            "Fecha/Hora": "fecha_hora",
+            "Sitio de Ocurrencia": "sitio_ocurrencia",
+            "Fecha y Hora": "fecha_hora",
             "Responsable": "nombre_responsable",
-            "Realizado Por Cargo": "realizado_por_cargo",
+            "Cargo Responsable": "realizado_por_cargo",
             "Dirigido A": "dirigido_a",
-            "Empleado Número": "empleado_numero",
-            "Empleado Documento": "empleado_documento",
-            "Otras Personas": "otras_personas_involucradas",
-            "Anexos": "anexos",
-            "Firma Responsable": "firma_responsable",
-            "Firma Recibido": "firma_recibido_revisado",
-            "Rol Aplicador": "rol_aplicador",
+            "Número de Empleado": "empleado_numero",
+            "Documento Empleado": "empleado_documento",
+            "Otras Personas Involucradas": "otras_personas_involucradas",
+            "Rol del Aplicador": "rol_aplicador",
             "Turno": "turno",
             "Recibido Por Nombre": "recibido_revisado_por_nombre",
-            "Recibido Por Cargo": "recibido_revisado_por_cargo"
+            "Recibido Por Cargo": "recibido_revisado_por_cargo",
+            "Firma Responsable": "firma_responsable",
+            "Firma Recibido": "firma_recibido_revisado",
+            "Anexos": "anexos",
+            "Foto Evidencia": "anexos"
         }
     },
     'log_de_patrullas': {
@@ -423,12 +500,13 @@ FORM_CONFIGS = {
             "Capacitación": "nombre_capacitacion",
             "Objetivo": "objetivo_capacitacion",
             "Responsable": "nombre_responsable",
-            "Fecha/Hora": "fecha_hora",
+            "Fecha y Hora": "fecha_hora",
             "Nivel Comprensión": "nivel_comprension",
             "Observaciones": "observaciones_retroalimentacion",
             "Lista Asistencia": "lista_asistencia",
             "Práctica Realizada": "practica_simulacro_realizado",
             "Recomendaciones": "recomendaciones",
+            "Foto Evidencia": "foto_evidencia_url",
             "URLs de Imágenes o PDFs": "foto_evidencia_url"
         }
     },
@@ -438,33 +516,65 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Acta de Visita',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
-            "Cliente": "cliente_instalacion",
-            "Motivo": "motivo_visita",
-            "Visitante": "nombre_visitante",
-            "Fecha/Hora": "fecha_hora",
-            "Temas Tratados": "temas_tratados",
-            "Acuerdos": "acuerdos_compromisos",
-            # Kept as stable, explicit labels so the PDF renderer can fold their
-            # structured storage values into the formal commitments table.
-            "Nombre Responsable": "nombre_responsable",
-            "Compromisos Estados": "compromisos_estados",
-            "Fecha Cumplimiento": "fecha_cumplimiento",
-            "Rol Aplicador": "rol_aplicador",
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Puesto o Área Específica": "puesto_area_especifica",
+            "Fecha y Hora": "fecha_hora",
+            "Rol del Aplicador": "rol_aplicador",
             "Turno": "turno",
+            "Motivo de la Visita": "motivo_visita",
+            "Objetivo de la Reunión": "objetivo_reunion",
+            "Actividades Realizadas": "actividades_realizadas",
+            "Visitante": "nombre_visitante",
+            "Cargo Visitante": "cargo_visitante",
             "Visita Realizada Por": "visita_realizada_por",
-            "Firma Visitante": "firma_visitante",
-            "Objetivo": "objetivo_reunion",
-            "Actividades": "actividades_realizadas",
-            "Satisfacción": "satisfaccion_cliente",
-            "Comentarios": "comentarios_satisfaccion",
             "Atendió": "persona_atendio",
             "Cargo Atendió": "cargo_atendio",
-            "Teléfono": "telefono_contacto",
+            "Teléfono de Contacto": "telefono_contacto",
+            "Satisfacción del Cliente": "satisfaccion_cliente",
+            "Comentarios de Satisfacción": "comentarios_satisfaccion",
             "Detalles Participantes": "detalles_participantes",
-            "Cargo Visitante": "cargo_visitante"
+            "Temas Tratados": "temas_tratados",
+            "Acuerdos y Compromisos": "acuerdos_compromisos",
+            "Nombre Responsable": "nombre_responsable",
+            "Fecha Cumplimiento": "fecha_cumplimiento",
+            "Compromisos Estados": "compromisos_estados",
+            "Firma Visitante": "firma_visitante"
         }
     },
     'planilla_vehicular': {
@@ -486,9 +596,9 @@ FORM_CONFIGS = {
             "Foto Lado Derecho": "foto_lado_derecho_url",
             "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
             "Responsable": "nombre_responsable",
-            "Fecha/Hora": "fecha_hora",
+            "Fecha y Hora": "fecha_hora",
             "Novedades Críticas": "novedades_criticas",
-            "Rol Aplicador": "rol_aplicador",
+            "Rol del Aplicador": "rol_aplicador",
             "Turno": "turno",
             "Firma Responsable": "firma_responsable",
             "Km Entrega": "kilometraje_entrega",
@@ -545,9 +655,9 @@ FORM_CONFIGS = {
             "Foto Lado Derecho": "foto_lado_derecho_url",
             "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
             "Responsable": "nombre_responsable",
-            "Fecha/Hora": "fecha_hora",
+            "Fecha y Hora": "fecha_hora",
             "Novedades Críticas": "novedades_criticas_detectadas",
-            "Rol Aplicador": "rol_aplicador",
+            "Rol del Aplicador": "rol_aplicador",
             "Turno": "turno",
             "Km Entrega": "kilometraje_entrega",
             "Km Salida": "kilometraje_salida",
@@ -591,34 +701,69 @@ FORM_CONFIGS = {
         'date_col': 'created_at',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Checklist Cumplimiento',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.created_at, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.created_at,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
-            "Cliente": "cliente_instalacion",
-            "Auditor": "nombre_auditor",
-            "Agente": "agente_nombre_completo",
-            "Fecha/Hora": "fecha_hora",
-            "Nivel Cumplimiento": "nivel_cumplimiento",
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Puesto o Área Específica": "puesto_area_especifica",
+            "Fecha y Hora": "fecha_hora",
             "Turno": "turno",
-            "Firma Auditor": "firma_auditor",
-            "Rol Aplicador": "rol_aplicador",
-            "Agente Tipo Doc": "agente_tipo_documento",
-            "Agente Nro Doc": "agente_numero_documento",
-            "Agente Cargo": "agente_cargo_rol",
-            "Agente Nro Empleado": "agente_numero_empleado",
-            "Agente Puesto": "agente_puesto",
-            "Curso Certificación": "curso_certificacion",
-            "Academia": "academia_certifica",
-            "Nro Resolución": "nro_resolucion",
-            "Fecha Resolución": "fecha_resolucion",
+            "Rol del Aplicador": "rol_aplicador",
+            "Auditor": "nombre_auditor",
+            "Agente Supervisado": "agente_nombre_completo",
+            "Tipo de Documento": "agente_tipo_documento",
+            "Número de Documento": "agente_numero_documento",
+            "Cargo / Rol del Agente": "agente_cargo_rol",
+            "Número de Empleado": "agente_numero_empleado",
+            "Puesto del Agente": "agente_puesto",
+            "Curso / Certificación": "curso_certificacion",
+            "Academia que Certifica": "academia_certifica",
+            "Nro. Resolución": "nro_resolucion",
+            "Fecha de Resolución": "fecha_resolucion",
             "Vigencia Desde": "vigencia_desde",
             "Vigencia Hasta": "vigencia_hasta",
-            "Evidencia URL": "evidencia_url",
-            "Copia Certificados": "copia_certificados_fisica",
-            "Certificados Sistema": "certificados_cargados_sistema",
-            "Doc Coincide HV": "documentacion_coincide_hv",
+            "Nivel de Cumplimiento": "nivel_cumplimiento",
+            "Copia Física de Certificados": "copia_certificados_fisica",
+            "Certificados en Sistema": "certificados_cargados_sistema",
+            "Documentación Coincide con HV": "documentacion_coincide_hv",
             "Fechas Vigentes": "fechas_vigentes",
-            "Firma Guardia": "firma_guarda_supervisado"
+            "Firma Auditor": "firma_auditor",
+            "Firma Guardia Supervisado": "firma_guarda_supervisado",
+            "Foto Evidencia": "evidencia_url",
+            "URLs de Imágenes o PDFs": "evidencia_url"
         }
     },
     'confiabilidad_equipos': {
@@ -627,17 +772,50 @@ FORM_CONFIGS = {
         'date_col': 'fecha',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Confiabilidad Equipos',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.fecha, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.fecha,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
-            "Cliente": "cliente_instalacion",
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Sitio / Ubicación": "sitio",
             "Fecha": "fecha",
             "Hora": "hora",
-            "Sitio": "sitio",
             "Inventario": "inventario",
-            "Técnico Mantenimiento": "tecnico_mantenimiento",
+            "Técnico de Mantenimiento": "tecnico_mantenimiento",
+            "Supervisor de Seguridad": "supervisor_seguridad",
             "Firma Técnico": "firma_tecnico",
-            "Supervisor Seguridad": "supervisor_seguridad",
             "Firma Supervisor": "firma_supervisor"
         }
     }
@@ -696,22 +874,29 @@ def _format_structured_value_as_text(val):
         for i, item in enumerate(val, 1):
             if isinstance(item, dict):
                 parts = []
-                for k in ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']:
-                    if k in item:
-                        label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
-                        parts.append(f"{label}: {item[k]}")
-                # Add any other keys not in our preferred ordering
-                for k, v in item.items():
-                    if k not in _INV_LABELS:
-                        if 'firma' in k.lower() and isinstance(v, str) and v.startswith('data:image'):
-                            v = '[Firma adjunta]'
-                        parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
+                if 'tipo' in item and 'nombre' in item:
+                    tipo_str = item.get('tipo') or 'Persona'
+                    nombre_str = item.get('nombre') or ''
+                    parts.append(f"{tipo_str}: {nombre_str}")
+                else:
+                    for k in ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']:
+                        if k in item:
+                            label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
+                            parts.append(f"{label}: {item[k]}")
+                    # Add any other keys not in our preferred ordering
+                    for k, v in item.items():
+                        if k not in _INV_LABELS:
+                            if 'firma' in k.lower() and isinstance(v, str) and v.startswith('data:image'):
+                                v = '[Firma adjunta]'
+                            parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
                 items.append(f"[{i}] " + ", ".join(parts))
             else:
                 items.append(str(item))
         return "\n".join(items)
     elif isinstance(val, dict):
         parts = []
+        if 'tipo' in val and 'nombre' in val:
+            return f"{val.get('tipo')}: {val.get('nombre')}"
         for k in ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']:
             if k in val:
                 label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
@@ -2453,6 +2638,46 @@ def _render_compromisos_visita_html(data):
             '<tbody>' + ''.join(filas) + '</tbody></table>')
 
 
+def _render_personas_involucradas_html(value):
+    """Render personas_involucradas as a Tipo/Nombre table for PDF."""
+    personas = _ensure_json_serializable(value)
+    if isinstance(personas, dict):
+        personas = [personas]
+    if not isinstance(personas, list) or not personas:
+        return None
+
+    rows = []
+    for item in personas:
+        if isinstance(item, dict):
+            tipo = _visita_clean_text(item.get('tipo') or item.get('persona_tipo'))
+            nombre = _visita_clean_text(item.get('nombre') or item.get('persona_nombre'))
+            if not (tipo or nombre):
+                continue
+            td = 'padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;'
+            rows.append(
+                '<tr>'
+                '<td style="' + td + 'font-weight:600;width:35%;">' + str(escape(tipo or '—')) + '</td>'
+                '<td style="' + td + '">' + str(escape(nombre or '—')) + '</td>'
+                '</tr>'
+            )
+        elif isinstance(item, str) and item.strip():
+            td = 'padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;'
+            rows.append('<tr><td colspan="2" style="' + td + '">' + str(escape(item.strip())) + '</td></tr>')
+
+    if not rows:
+        return None
+
+    th = 'padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;'
+    header = (
+        '<tr style="background:#f1f5f9;">'
+        '<th style="' + th + 'width:35%;">Tipo</th>'
+        '<th style="' + th + '">Nombre completo</th>'
+        '</tr>'
+    )
+    return ('<table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:3px;">'
+            '<thead>' + header + '</thead><tbody>' + ''.join(rows) + '</tbody></table>')
+
+
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
     from admin_bp import get_operation_timezone, format_local_datetime
@@ -2461,11 +2686,11 @@ def generate_reports_html(reports):
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos'}
     # Internal identifiers and raw coordinates: the PDF is handed to the client, so they
     # never appear. Kept apart from SKIP_KEYS, whose values are parsed as attachment URLs.
-    HIDDEN_KEYS = {'Company Id', 'Customer Company Id', 'Id Propiedad',
-                   'Location Accuracy', 'Latitude', 'Longitude',
-                   # Columna cruda de Control de Supervisión: el dato ya se muestra
-                   # como "Propiedad / Instalación", resuelto desde id_propiedad.
-                   'Cliente Instalacion'}
+    HIDDEN_KEYS = {
+        'Company Id', 'Customer Company Id', 'Id Propiedad',
+        'Location Accuracy', 'Latitude', 'Longitude',
+        'Cliente Instalacion', 'Submitter Timezone'
+    }
 
     def _is_signature(key, val_str):
         return 'firma' in key.lower() or val_str.startswith('data:image')
@@ -2631,7 +2856,18 @@ td.val { color: #1f2937; }
                         f'{inv_table_html}'
                         f'</td></tr>'
                     )
-                    continue
+                continue
+
+            if key == 'Personas Involucradas':
+                personas_html = _render_personas_involucradas_html(value)
+                if personas_html:
+                    html_parts.append(
+                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
+                        f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Personas Involucradas:</strong>'
+                        f'{personas_html}'
+                        f'</td></tr>'
+                    )
+                continue
 
             if key == 'Lista Asistencia':
                 lista_html = _render_lista_asistencia_html(value)
@@ -2642,7 +2878,7 @@ td.val { color: #1f2937; }
                         f'{lista_html}'
                         f'</td></tr>'
                     )
-                    continue
+                continue
 
             if key == 'Detalles Participantes':
                 participantes_html = _render_participantes_visita_html(value)
@@ -2667,10 +2903,12 @@ td.val { color: #1f2937; }
                             f'{compromisos_html}'
                             f'</td></tr>'
                         )
+                continue
+
             if isinstance(value, (datetime, date)):
-                val_str = format_local_datetime(value, tz=tz, time_sep=" a las ")
-            elif isinstance(value, str) and any(k in key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
-                val_str = format_local_datetime(value, tz=tz, time_sep=" a las ")
+                val_str = format_local_datetime(value, tz=tz, time_sep=" ")
+            elif isinstance(value, str) and any(k in key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento', 'vigencia')):
+                val_str = format_local_datetime(value, tz=tz, time_sep=" ")
             else:
                 val_str = str(value).strip()
 
