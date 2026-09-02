@@ -210,6 +210,11 @@
         }
         .estatus-eje-peso { font-size: 0.71rem; color: #94a3b8; margin-top: 0.35rem; }
         .estatus-eje-fuentes { font-size: 0.69rem; color: #64748b; margin-top: 0.2rem; }
+        .estatus-ranking-meta { font-size: 0.8rem; color: #94a3b8; margin: 0.35rem 0 0.75rem; }
+        .estatus-inst tr[data-cliente] { cursor: pointer; }
+        .estatus-inst tr[data-cliente]:hover td { background: rgba(148,163,184,0.1); }
+        .estatus-inst .rk-puesto { font-variant-numeric: tabular-nums; color: #94a3b8; }
+
         .estatus-baja-titulo {
             grid-column: 1 / -1;
             font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
@@ -663,9 +668,25 @@
         <div class="card" id="estatusHero">
             <!-- Sin cliente seleccionado la calificación no significa nada:
                  mezclaría satisfacción y metas de clientes distintos. -->
-            <div class="estatus-vacio" id="estatusVacio">
+            <div class="estatus-vacio" id="estatusVacio" style="display:none;">
                 <div class="estatus-hero-label">Estatus de Cliente</div>
                 <p>Seleccione un <strong>Cliente / Empresa</strong> en los filtros para ver su calificación consolidada.</p>
+            </div>
+
+            <!-- Sin cliente seleccionado: todos, de peor a mejor. La posición
+                 relativa dice más que la nota suelta. -->
+            <div id="estatusRankingBox" style="display:none;">
+                <div class="estatus-hero-label">Estatus de Clientes</div>
+                <div class="estatus-ranking-meta" id="estatusRankingMeta"></div>
+                <div class="estatus-inst-wrap">
+                    <table class="estatus-inst"><tbody id="estatusRanking"></tbody></table>
+                </div>
+                <div class="estatus-baja-titulo" id="estatusSinCalTitulo" style="display:none;margin-top:1rem;">
+                    Sin calificar
+                </div>
+                <div class="estatus-inst-wrap" id="estatusSinCalWrap" style="display:none;">
+                    <table class="estatus-inst"><tbody id="estatusSinCal"></tbody></table>
+                </div>
             </div>
 
             <!-- Oculto de arranque: sin cliente seleccionado (el estado por
@@ -678,6 +699,7 @@
                         <div><dt>Calificación</dt><dd id="estatusDatoCalificacion">—</dd></div>
                         <div><dt>Estado</dt><dd id="estatusDatoEstado">—</dd></div>
                         <div><dt>Calculado sobre</dt><dd id="estatusDatoCobertura">—</dd></div>
+                        <div><dt>Posición</dt><dd id="estatusDatoPosicion">—</dd></div>
                     </dl>
                 </div>
                 <div class="estatus-hero-score">
@@ -997,6 +1019,13 @@
         const estatusDatoCalificacion = document.getElementById('estatusDatoCalificacion');
         const estatusDatoEstado = document.getElementById('estatusDatoEstado');
         const estatusDatoCobertura = document.getElementById('estatusDatoCobertura');
+        const estatusDatoPosicion = document.getElementById('estatusDatoPosicion');
+        const estatusRankingBox = document.getElementById('estatusRankingBox');
+        const estatusRanking = document.getElementById('estatusRanking');
+        const estatusRankingMeta = document.getElementById('estatusRankingMeta');
+        const estatusSinCal = document.getElementById('estatusSinCal');
+        const estatusSinCalTitulo = document.getElementById('estatusSinCalTitulo');
+        const estatusSinCalWrap = document.getElementById('estatusSinCalWrap');
         const estatusHeroMeta = document.getElementById('estatusHeroMeta');
         const estatusHeroValue = document.getElementById('estatusHeroValue');
         const estatusHeroBadge = document.getElementById('estatusHeroBadge');
@@ -1587,8 +1616,69 @@
             return prop ? `${cliente} · ${prop}` : cliente;
         }
 
+        function ocultarSeccionesCliente() {
+            estatusInstTitulo.style.display = 'none';
+            estatusInstWrap.style.display = 'none';
+            estatusBajaTitulo.style.display = 'none';
+            estatusBaja.style.display = 'none';
+        }
+
+        function renderRanking(estatus) {
+            estatusVacio.style.display = 'none';
+            estatusContenido.style.display = 'none';
+            estatusRankingBox.style.display = '';
+            estatusHero.style.setProperty('--estatus-color', colors.slate);
+
+            const filas = estatus.ranking || [];
+            const sinCal = estatus.sin_calificar || [];
+            estatusRankingMeta.textContent = filas.length
+                ? `${filas.length} cliente(s) calificado(s), de peor a mejor`
+                  + (sinCal.length ? ` · ${sinCal.length} sin información suficiente` : '')
+                : 'Ningún cliente tiene información suficiente para calificar en el período.';
+
+            estatusRanking.innerHTML = filas.length ? `
+                <tr><th>Cliente</th><th>Instalaciones</th><th>Puestos</th><th>Nota</th><th>Puesto</th></tr>
+                ${filas.map(c => {
+                    const st = statusFromScore(c.nota);
+                    return `
+                        <tr data-cliente="${c.id}" title="Ver el estatus de ${c.nombre}">
+                            <td>${c.nombre}</td>
+                            <td>${c.instalaciones}</td>
+                            <td>${c.puestos}</td>
+                            <td class="inst-nota" style="color:${st.color};">${Math.round(c.nota)}</td>
+                            <td class="rk-puesto">${c.posicion} de ${c.total}</td>
+                        </tr>`;
+                }).join('')}` : '';
+
+            if (sinCal.length) {
+                estatusSinCalTitulo.style.display = '';
+                estatusSinCalWrap.style.display = '';
+                estatusSinCal.innerHTML = `
+                    <tr><th>Cliente</th><th>Instalaciones</th><th>Ejes con datos</th></tr>
+                    ${sinCal.map(c => `
+                        <tr data-cliente="${c.id}" title="Ver el estatus de ${c.nombre}">
+                            <td>${c.nombre}</td>
+                            <td>${c.instalaciones}</td>
+                            <td class="inst-sin">${c.ejes_con_datos} de 4</td>
+                        </tr>`).join('')}`;
+            } else {
+                estatusSinCalTitulo.style.display = 'none';
+                estatusSinCalWrap.style.display = 'none';
+            }
+
+            // Un clic en la fila baja al detalle de ese cliente.
+            estatusRankingBox.querySelectorAll('tr[data-cliente]').forEach(tr => {
+                tr.addEventListener('click', () => {
+                    filterCliente.value = tr.getAttribute('data-cliente');
+                    refreshGestionProperties();
+                    loadDashboard();
+                });
+            });
+        }
+
         function mostrarEstatusVacio(mensaje) {
             estatusVacio.style.display = '';
+            estatusRankingBox.style.display = 'none';
             estatusContenido.style.display = 'none';
             estatusInstTitulo.style.display = 'none';
             estatusInstWrap.style.display = 'none';
@@ -1679,10 +1769,9 @@
         }
 
         function renderEstatusCliente(estatus) {
-            // El indicador es por cliente: sin uno seleccionado promediaría
-            // satisfacción y metas de clientes distintos, que no significa nada.
-            if (!filterCliente.value) {
-                mostrarEstatusVacio('Seleccione un Cliente / Empresa en los filtros para ver su calificación consolidada.');
+            if (estatus && estatus.modo === 'ranking') {
+                ocultarSeccionesCliente();
+                renderRanking(estatus);
                 return;
             }
             if (!estatus || !Array.isArray(estatus.ejes)) {
@@ -1691,6 +1780,7 @@
             }
 
             estatusVacio.style.display = 'none';
+            estatusRankingBox.style.display = 'none';
             estatusContenido.style.display = '';
 
             const ejes = estatus.ejes;
@@ -1706,6 +1796,9 @@
             estatusDatoCalificacion.textContent = nota != null ? `${nota} / 100` : '—';
             estatusDatoEstado.textContent = status.label;
             estatusDatoCobertura.textContent = `${conDatos.length} de ${total} ejes`;
+            estatusDatoPosicion.textContent = (estatus.posicion && estatus.total_calificados)
+                ? `${estatus.posicion} de ${estatus.total_calificados} clientes`
+                : '—';
 
             estatusHeroValue.textContent = nota != null ? String(nota) : '—';
             estatusHeroBadge.className = `status-badge status-${status.tone}`;
@@ -2192,9 +2285,7 @@
             ['trendLoading', 'rankingLoading', 'distributionLoading'].forEach(id => setLoading(id, true));
 
             const qs = queryString();
-            const estatusPromise = filterCliente.value
-                ? fetchJsonSafe(`${ESTATUS_ENDPOINT}${qs ? `?${qs}` : ''}`)
-                : Promise.resolve(null);
+            const estatusPromise = fetchJsonSafe(`${ESTATUS_ENDPOINT}${qs ? `?${qs}` : ''}`);
             const settled = await Promise.allSettled(
                 Object.entries(ENDPOINTS).map(async ([key, cfg]) => [key, await fetchJsonSafe(`${cfg.data}${qs ? `?${qs}` : ''}`)])
             );
