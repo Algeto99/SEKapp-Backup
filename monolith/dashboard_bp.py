@@ -1,7 +1,7 @@
 import calendar
 import logging
 import re
-from datetime import timedelta, datetime, timezone
+from datetime import date, timedelta, datetime, timezone
 from functools import wraps
 
 import psycopg2
@@ -2605,6 +2605,7 @@ def api_gestion_data():
 
 
 
+
 # ── Estatus de Cliente: los 4 ejes ───────────────────────────────────────────
 #
 # El cálculo es por instalación y después se consolida ponderando por puestos:
@@ -2649,6 +2650,84 @@ def _estatus_promedio(componentes):
 def _estatus_num(valor):
     """Formatea una meta repartida sin arrastrar decimales inútiles."""
     return f"{round(valor, 1):g}"
+
+
+def _estatus_periodo_anterior(year, month, day):
+    """Período inmediatamente anterior al filtrado, o None si no está definido.
+
+    Misma convención que el resto de los dashboards (`_sat_prev_where`): sin año
+    seleccionado no hay comparación posible, y un multi-select de varios años o
+    meses tampoco define un único período anterior.
+    """
+    def _unico(v):
+        if v is None:
+            return None
+        vals = [x.strip() for x in str(v).split(',') if x.strip()]
+        if len(vals) != 1:
+            return False
+        try:
+            return int(vals[0])
+        except (TypeError, ValueError):
+            return False
+
+    y, m = _unico(year), _unico(month)
+    if not y or m is False:
+        return None
+    if m and day:
+        prev = datetime(y, m, int(day)) - timedelta(days=1)
+        return prev.year, prev.month, prev.day
+    if m:
+        return (y if m > 1 else y - 1), (m - 1 or 12), None
+    return y - 1, None, None
+
+
+_MESES_ES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+             'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+
+def _estatus_periodo_label(year, month, day):
+    if year and month and day:
+        return f"{day} de {_MESES_ES[month - 1]} de {year}"
+    if year and month:
+        return f"{_MESES_ES[month - 1]} de {year}"
+    return str(year)
+
+
+def _estatus_ventana(periodicidad, offset):
+    """(inicio, fin exclusivo) de la ventana vigente (offset 0) o la anterior (1).
+
+    Visitas y supervisiones se miden contra el período configurado en Umbrales
+    KPI, no contra el filtro de fechas; para comparar hay que correr esa misma
+    ventana un período hacia atrás.
+    """
+    from admin_bp import _periodo_inicio_actual
+    inicio = _periodo_inicio_actual(periodicidad)
+    if not offset:
+        return inicio, None
+    if periodicidad == 'mensual':
+        mes_prev = inicio.month - 1 or 12
+        anio_prev = inicio.year if inicio.month > 1 else inicio.year - 1
+        return date(anio_prev, mes_prev, 1), inicio
+    return inicio - timedelta(days=7 if periodicidad == 'semanal' else 1), inicio
+
+
+def _estatus_recortar(inicio, fin, desde):
+    """Recorta una ventana a la fecha de inicio de operación.
+
+    Devuelve (inicio efectivo, si la ventana sigue siendo medible). Una ventana
+    íntegramente anterior al arranque del cliente no se mide: mostrar ahí 0% de
+    cumplimiento inventaría un desempeño que nadie pudo tener, y con eso una
+    variación falsa contra el período actual.
+    """
+    if not desde:
+        return inicio, True
+    try:
+        piso = date.fromisoformat(desde)
+    except (TypeError, ValueError):
+        return inicio, True
+    if fin is not None and piso >= fin:
+        return inicio, False
+    return (piso if piso > inicio else inicio), True
 
 
 def _estatus_prop_expr(alias=''):
@@ -2822,14 +2901,235 @@ def _estatus_consolidar_ejes(ejes):
     return nota, suficiente, len(con_datos)
 
 
+def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, company_id,
+                      thresholds, pesos, instalaciones, peso_cliente, offset=0):
+    """Calificación del cliente: 4 ejes por instalación, ponderados por puestos.
+
+    `offset` 0 es el período filtrado; 1 corre las ventanas de visitas y
+    supervisiones un período hacia atrás para la comparación.
+    """
+    from admin_bp import calcular_supervisiones
+
+    umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
+
+
+    # ── Insumos de cada eje, en una consulta por eje agrupada por instalación ──
+    sat_where, sat_params = _sat_where(cliente, year, month, day,
+                                       company_id=company_id, propiedad=propiedad, desde=desde)
+    suma_crit   = " + ".join(f"COALESCE({c}, 0)" for c, _ in _SAT_CRITERIA)
+    conteo_crit = " + ".join(f"(CASE WHEN {c} IS NOT NULL THEN 1 ELSE 0 END)" for c, _ in _SAT_CRITERIA)
+    sat = _estatus_agrupado(cur, f"""
+        SELECT {_estatus_prop_expr()} AS prop_id,
+               COUNT(*) FILTER (WHERE ({conteo_crit}) > 0) AS n,
+               AVG(({suma_crit})::numeric / NULLIF({conteo_crit}, 0)) AS avg5
+        FROM medicion_experiencia_cliente
+        {sat_where}
+        GROUP BY 1
+    """, sat_params)
+
+    # Visitas y supervisiones se miden contra el período vigente de Umbrales
+    # KPI (mes o semana en curso), no contra el rango del filtro: una meta
+    # mensual no se puede comparar contra un histórico completo.
+    visita_meta_cliente = int(thresholds.get('visita_meta') or 0)
+    visita_periodicidad = thresholds.get('visita_periodicidad') or 'mensual'
+    vis_desde, vis_hasta = _estatus_ventana(visita_periodicidad, offset)
+    vis_desde, vis_meta_vale = _estatus_recortar(vis_desde, vis_hasta, desde)
+    v_date = _visita_date_expr()
+    v_conds, v_params = _visita_conds(cliente, None, None, None,
+                                      company_id=company_id, propiedad=propiedad)
+    v_conds = v_conds + [f"({v_date})::date >= %s"]
+    v_params = list(v_params) + [vis_desde]
+    if vis_hasta:
+        v_conds.append(f"({v_date})::date < %s")
+        v_params.append(vis_hasta)
+    vis = _estatus_agrupado(cur, f"""
+        SELECT {_estatus_prop_expr()} AS prop_id, COUNT(DISTINCT id_visita) AS n
+        FROM registro_y_acta_de_visita
+        {_visita_where(v_conds)}
+        GROUP BY 1
+    """, v_params)
+
+    _sup = calcular_supervisiones(cur, cliente=cliente)
+    sup_meta_cliente = _sup['programadas']
+    if _sup['origen'] == 'por_cliente' and _sup['por_cliente']:
+        sup_periodicidad = _sup['por_cliente'][0]['periodicidad']
+    else:
+        sup_periodicidad = (_sup['periodicidad']
+                            or thresholds.get('supervision_periodicidad') or 'diario')
+    sup_desde, sup_hasta = _estatus_ventana(sup_periodicidad, offset)
+    sup_desde, sup_meta_vale = _estatus_recortar(sup_desde, sup_hasta, desde)
+    s_conds, s_params = [], []
+    _add_scope_filters(s_conds, s_params, cliente=cliente, propiedad=propiedad, col_puesto=None)
+    s_conds.append("fecha_hora::date >= %s")
+    s_params.append(sup_desde)
+    if sup_hasta:
+        s_conds.append("fecha_hora::date < %s")
+        s_params.append(sup_hasta)
+    sup = _estatus_agrupado(cur, f"""
+        SELECT {_estatus_prop_expr()} AS prop_id, COUNT(*) AS n
+        FROM supervision_puesto
+        {_gestion_where(s_conds)}
+        GROUP BY 1
+    """, s_params)
+
+    cum_conds, cum_params = _cumpl_conds(cliente, year, month, day,
+                                         company_id=company_id, propiedad=propiedad, desde=desde)
+    chk = _estatus_agrupado(cur, f"""
+        SELECT {_estatus_prop_expr()} AS prop_id,
+               COUNT(*) AS total,
+               SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END) AS cumple
+        FROM checklist_cumplimiento
+        {_cumpl_where(cum_conds)}
+        GROUP BY 1
+    """, cum_params)
+
+    inc_where, inc_params = _inc_where(cliente, year, month, day,
+                                       company_id=company_id, propiedad=propiedad, desde=desde)
+    inc = _estatus_agrupado(cur, f"""
+        SELECT {_estatus_prop_expr()} AS prop_id,
+               COUNT(*) AS total,
+               SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) IN {_ESTATUS_SEV_ALTA}
+                        THEN 1 ELSE 0 END) AS alta,
+               SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) = 'medio'
+                        THEN 1 ELSE 0 END) AS media,
+               SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) = 'bajo'
+                        THEN 1 ELSE 0 END) AS baja,
+               AVG(CASE WHEN tiempo_resolucion_min > 0 THEN tiempo_resolucion_min END) AS avg_min
+        FROM reportes_incidentes
+        {inc_where}
+        GROUP BY 1
+    """, inc_params)
+
+    # Compromisos: las filas se agrupan en Python porque el estado de cada
+    # acuerdo lo resuelve _visita_parse_compromisos, no el SQL.
+    c_conds, c_params = _visita_conds(cliente, year, month, day,
+                                      company_id=company_id, propiedad=propiedad, desde=desde)
+    cur.execute(f"""
+        SELECT {_estatus_prop_expr()} AS prop_id,
+               id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
+               temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+               nombre_visitante, compromisos_estados, editado, editado_por, editado_en
+        FROM registro_y_acta_de_visita
+        {_visita_where(c_conds)}
+        ORDER BY {v_date} DESC NULLS LAST, id_visita DESC
+    """, c_params)
+    filas_por_inst = {}
+    for r in cur.fetchall():
+        clave = r.get('prop_id')
+        filas_por_inst.setdefault(clave if clave is not None else _ESTATUS_SIN_INST, []).append(r)
+    comp = {}
+    for clave, filas in filas_por_inst.items():
+        acuerdos = _visita_parse_compromisos(filas)
+        comp[clave] = {
+            'cumplidos':  sum(1 for c in acuerdos if c['estado'] == 'cumplido'),
+            'vencidos':   sum(1 for c in acuerdos if c['estado'] == 'vencido'),
+            'pendientes': sum(1 for c in acuerdos if c['estado'] == 'pendiente'),
+        }
+
+    # ── Una nota por instalación ─────────────────────────────────────────
+    unidades = list(instalaciones)
+    con_datos_legacy = any(_ESTATUS_SIN_INST in d for d in (sat, vis, sup, chk, inc, comp))
+    if con_datos_legacy and not (propiedad and str(propiedad).strip().isdigit()):
+        unidades.append({'id': _ESTATUS_SIN_INST, 'nombre': 'Sin instalación asignada',
+                         'puestos': 0, 'peso': 0})
+
+    detalle_instalaciones = []
+    acumulado = {k: [] for k, _, _ in _ESTATUS_EJES_META}
+    aporte_total = 0.0
+    peso_calificado = 0
+
+    for inst in unidades:
+        k = inst['id']
+        reparto = (inst['peso'] / peso_cliente) if peso_cliente else 0
+        f_sat = sat.get(k) or {}
+        f_vis = vis.get(k) or {}
+        f_sup = sup.get(k) or {}
+        f_chk = chk.get(k) or {}
+        f_inc = inc.get(k) or {}
+        f_cmp = comp.get(k) or {}
+        avg5 = f_sat.get('avg5')
+        datos = {
+            'sat_n':    int(f_sat.get('n') or 0),
+            'sat_avg5': float(avg5) if avg5 is not None else None,
+            'vis_hechas': int(f_vis.get('n') or 0),
+            'vis_meta':   (visita_meta_cliente * reparto) if vis_meta_vale else 0,
+            'comp_cumplidos':  f_cmp.get('cumplidos', 0),
+            'comp_vencidos':   f_cmp.get('vencidos', 0),
+            'comp_pendientes': f_cmp.get('pendientes', 0),
+            'sup_hechas': int(f_sup.get('n') or 0),
+            'sup_meta':   (sup_meta_cliente * reparto) if sup_meta_vale else 0,
+            'chk_total':  int(f_chk.get('total') or 0),
+            'chk_cumple': int(f_chk.get('cumple') or 0),
+            'inc_total': int(f_inc.get('total') or 0),
+            'inc_alta':  int(f_inc.get('alta') or 0),
+            'inc_media': int(f_inc.get('media') or 0),
+            'inc_baja':  int(f_inc.get('baja') or 0),
+            'inc_avg_min': (float(f_inc.get('avg_min'))
+                            if f_inc.get('avg_min') is not None else None),
+        }
+        ejes_inst = _estatus_ejes_de(datos, pesos, umbral_horas)
+        nota, suficiente_inst, n_con_datos = _estatus_consolidar_ejes(ejes_inst)
+
+        for e in ejes_inst:
+            if e['score'] is not None and inst['peso'] > 0:
+                acumulado[e['key']].append((e['score'], inst['peso']))
+
+        if nota is not None and inst['peso'] > 0:
+            aporte_total += nota * inst['peso']
+            peso_calificado += inst['peso']
+
+        detalle_instalaciones.append({
+            'id': None if k == _ESTATUS_SIN_INST else k,
+            'nombre': inst['nombre'],
+            'puestos': inst['puestos'],
+            'peso': inst['peso'],
+            'nota': round(nota, 1) if nota is not None else None,
+            'suficiente': suficiente_inst,
+            'ejes_con_datos': n_con_datos,
+            'ejes': {e['key']: (round(e['score'], 1) if e['score'] is not None else None)
+                     for e in ejes_inst},
+        })
+
+    # ── Desglose del cliente: cada eje ponderado por puestos ─────────────
+    salida_ejes = []
+    for key, nombre, fuentes in _ESTATUS_EJES_META:
+        pares = acumulado[key]
+        score = (round(sum(v * p for v, p in pares) / sum(p for _, p in pares), 1)
+                 if pares else None)
+        con = [i for i in detalle_instalaciones if i['ejes'].get(key) is not None]
+        salida_ejes.append({
+            'key': key, 'nombre': nombre, 'fuentes': fuentes,
+            'score': score, 'peso': pesos.get(key, 0),
+            'componentes': [],
+            'detalle': (f"Promedio ponderado de {len(con)} instalación(es)"
+                        if score is not None else 'Sin información en el período'),
+        })
+    ejes_con_datos = sum(1 for e in salida_ejes if e['score'] is not None)
+    suficiente = ejes_con_datos >= 2 and peso_calificado > 0
+    peso_ejes = sum(e['peso'] for e in salida_ejes if e['score'] is not None) if suficiente else 0
+    for e in salida_ejes:
+        e['peso_efectivo'] = (round(e['peso'] / peso_ejes * 100, 1)
+                              if (e['score'] is not None and peso_ejes > 0) else 0)
+
+    score = round(aporte_total / peso_calificado, 1) if suficiente else None
+
+    return {
+        'score': score,
+        'suficiente': suficiente,
+        'ejes_con_datos': ejes_con_datos,
+        'total_ejes': len(salida_ejes),
+        'ejes': salida_ejes,
+        'instalaciones': detalle_instalaciones,
+        'puestos_totales': peso_calificado,
+    }
+
+
 @dashboard_bp.route('/api/gestion/estatus')
 @jwt_required()
 @admin_required
 def api_gestion_estatus():
-    """Calificación 0-100 del cliente: 4 ejes por instalación, ponderados por puestos."""
-    from admin_bp import (get_thresholds, get_estatus_pesos, get_estatus_bandas,
-                          calcular_supervisiones, _periodo_inicio_actual)
-    from datetime import date as _date
+    """Estatus del cliente y, si el período lo permite, su variación."""
+    from admin_bp import get_thresholds, get_estatus_pesos, get_estatus_bandas
 
     cliente   = request.args.get('cliente') or None
     propiedad = (request.args.get('propiedad') or request.args.get('property_id')
@@ -2850,211 +3150,44 @@ def api_gestion_estatus():
         thresholds = get_thresholds()
         pesos  = get_estatus_pesos(thresholds)
         bandas = get_estatus_bandas(thresholds)
-        umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
-
+        # Este endpoint sirve solo al Estatus de Cliente, así que la fecha de
+        # inicio se lee del servidor si el front no la manda: el recorte que
+        # evita comparar contra períodos previos al arranque del cliente no
+        # puede depender de que el llamador la incluya.
+        if not desde:
+            desde = thresholds.get('fecha_inicio_operacion') or None
         instalaciones, peso_cliente = _estatus_instalaciones(cur, cliente, propiedad)
 
-        # ── Insumos de cada eje, en una consulta por eje agrupada por instalación ──
-        sat_where, sat_params = _sat_where(cliente, year, month, day,
-                                           company_id=company_id, propiedad=propiedad, desde=desde)
-        suma_crit   = " + ".join(f"COALESCE({c}, 0)" for c, _ in _SAT_CRITERIA)
-        conteo_crit = " + ".join(f"(CASE WHEN {c} IS NOT NULL THEN 1 ELSE 0 END)" for c, _ in _SAT_CRITERIA)
-        sat = _estatus_agrupado(cur, f"""
-            SELECT {_estatus_prop_expr()} AS prop_id,
-                   COUNT(*) FILTER (WHERE ({conteo_crit}) > 0) AS n,
-                   AVG(({suma_crit})::numeric / NULLIF({conteo_crit}, 0)) AS avg5
-            FROM medicion_experiencia_cliente
-            {sat_where}
-            GROUP BY 1
-        """, sat_params)
+        comun = dict(cur=cur, cliente=cliente, propiedad=propiedad, desde=desde,
+                     company_id=company_id, thresholds=thresholds, pesos=pesos,
+                     instalaciones=instalaciones, peso_cliente=peso_cliente)
+        actual = _estatus_calcular(year=year, month=month, day=day, offset=0, **comun)
 
-        # Visitas y supervisiones se miden contra el período vigente de Umbrales
-        # KPI (mes o semana en curso), no contra el rango del filtro: una meta
-        # mensual no se puede comparar contra un histórico completo.
-        visita_meta_cliente = int(thresholds.get('visita_meta') or 0)
-        visita_periodicidad = thresholds.get('visita_periodicidad') or 'mensual'
-        vis_desde = _periodo_inicio_actual(visita_periodicidad)
-        v_date = _visita_date_expr()
-        v_conds, v_params = _visita_conds(cliente, None, None, None,
-                                          company_id=company_id, propiedad=propiedad)
-        v_conds = v_conds + [f"({v_date})::date >= %s"]
-        v_params = list(v_params) + [vis_desde]
-        vis = _estatus_agrupado(cur, f"""
-            SELECT {_estatus_prop_expr()} AS prop_id, COUNT(DISTINCT id_visita) AS n
-            FROM registro_y_acta_de_visita
-            {_visita_where(v_conds)}
-            GROUP BY 1
-        """, v_params)
+        # Sin un período único seleccionado no hay "anterior" que comparar, y el
+        # requerimiento es explícito: no se inventa una variación.
+        previo = _estatus_periodo_anterior(year, month, day)
+        comparacion = {'disponible': False, 'score_anterior': None, 'variacion': None,
+                       'periodo_anterior': None,
+                       'motivo': 'Seleccione un año, o un año y un mes, para comparar contra el período anterior.'}
+        if previo:
+            py, pm, pd = previo
+            anterior = _estatus_calcular(year=py, month=pm, day=pd, offset=1, **comun)
+            comparacion['periodo_anterior'] = _estatus_periodo_label(py, pm, pd)
+            if actual['score'] is not None and anterior['score'] is not None:
+                comparacion.update({
+                    'disponible': True,
+                    'score_anterior': anterior['score'],
+                    'variacion': round(actual['score'] - anterior['score'], 1),
+                    'motivo': None,
+                })
+            else:
+                comparacion['motivo'] = (
+                    f"Sin información suficiente en {comparacion['periodo_anterior']} para comparar.")
 
-        _sup = calcular_supervisiones(cur, cliente=cliente)
-        sup_meta_cliente = _sup['programadas']
-        if _sup['origen'] == 'por_cliente' and _sup['por_cliente']:
-            sup_desde = _date.fromisoformat(_sup['por_cliente'][0]['desde'])
-        else:
-            sup_desde = _periodo_inicio_actual(
-                _sup['periodicidad'] or thresholds.get('supervision_periodicidad') or 'diario')
-        s_conds, s_params = [], []
-        _add_scope_filters(s_conds, s_params, cliente=cliente, propiedad=propiedad, col_puesto=None)
-        s_conds.append("fecha_hora::date >= %s")
-        s_params.append(sup_desde)
-        sup = _estatus_agrupado(cur, f"""
-            SELECT {_estatus_prop_expr()} AS prop_id, COUNT(*) AS n
-            FROM supervision_puesto
-            {_gestion_where(s_conds)}
-            GROUP BY 1
-        """, s_params)
-
-        cum_conds, cum_params = _cumpl_conds(cliente, year, month, day,
-                                             company_id=company_id, propiedad=propiedad, desde=desde)
-        chk = _estatus_agrupado(cur, f"""
-            SELECT {_estatus_prop_expr()} AS prop_id,
-                   COUNT(*) AS total,
-                   SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END) AS cumple
-            FROM checklist_cumplimiento
-            {_cumpl_where(cum_conds)}
-            GROUP BY 1
-        """, cum_params)
-
-        inc_where, inc_params = _inc_where(cliente, year, month, day,
-                                           company_id=company_id, propiedad=propiedad, desde=desde)
-        inc = _estatus_agrupado(cur, f"""
-            SELECT {_estatus_prop_expr()} AS prop_id,
-                   COUNT(*) AS total,
-                   SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) IN {_ESTATUS_SEV_ALTA}
-                            THEN 1 ELSE 0 END) AS alta,
-                   SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) = 'medio'
-                            THEN 1 ELSE 0 END) AS media,
-                   SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad, ''))) = 'bajo'
-                            THEN 1 ELSE 0 END) AS baja,
-                   AVG(CASE WHEN tiempo_resolucion_min > 0 THEN tiempo_resolucion_min END) AS avg_min
-            FROM reportes_incidentes
-            {inc_where}
-            GROUP BY 1
-        """, inc_params)
-
-        # Compromisos: las filas se agrupan en Python porque el estado de cada
-        # acuerdo lo resuelve _visita_parse_compromisos, no el SQL.
-        c_conds, c_params = _visita_conds(cliente, year, month, day,
-                                          company_id=company_id, propiedad=propiedad, desde=desde)
-        cur.execute(f"""
-            SELECT {_estatus_prop_expr()} AS prop_id,
-                   id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
-                   temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
-                   nombre_visitante, compromisos_estados, editado, editado_por, editado_en
-            FROM registro_y_acta_de_visita
-            {_visita_where(c_conds)}
-            ORDER BY {v_date} DESC NULLS LAST, id_visita DESC
-        """, c_params)
-        filas_por_inst = {}
-        for r in cur.fetchall():
-            clave = r.get('prop_id')
-            filas_por_inst.setdefault(clave if clave is not None else _ESTATUS_SIN_INST, []).append(r)
-        comp = {}
-        for clave, filas in filas_por_inst.items():
-            acuerdos = _visita_parse_compromisos(filas)
-            comp[clave] = {
-                'cumplidos':  sum(1 for c in acuerdos if c['estado'] == 'cumplido'),
-                'vencidos':   sum(1 for c in acuerdos if c['estado'] == 'vencido'),
-                'pendientes': sum(1 for c in acuerdos if c['estado'] == 'pendiente'),
-            }
-
-        # ── Una nota por instalación ─────────────────────────────────────────
-        unidades = list(instalaciones)
-        con_datos_legacy = any(_ESTATUS_SIN_INST in d for d in (sat, vis, sup, chk, inc, comp))
-        if con_datos_legacy and not (propiedad and str(propiedad).strip().isdigit()):
-            unidades.append({'id': _ESTATUS_SIN_INST, 'nombre': 'Sin instalación asignada',
-                             'puestos': 0, 'peso': 0})
-
-        detalle_instalaciones = []
-        acumulado = {k: [] for k, _, _ in _ESTATUS_EJES_META}
-        aporte_total = 0.0
-        peso_calificado = 0
-
-        for inst in unidades:
-            k = inst['id']
-            reparto = (inst['peso'] / peso_cliente) if peso_cliente else 0
-            f_sat = sat.get(k) or {}
-            f_vis = vis.get(k) or {}
-            f_sup = sup.get(k) or {}
-            f_chk = chk.get(k) or {}
-            f_inc = inc.get(k) or {}
-            f_cmp = comp.get(k) or {}
-            avg5 = f_sat.get('avg5')
-            datos = {
-                'sat_n':    int(f_sat.get('n') or 0),
-                'sat_avg5': float(avg5) if avg5 is not None else None,
-                'vis_hechas': int(f_vis.get('n') or 0),
-                'vis_meta':   visita_meta_cliente * reparto,
-                'comp_cumplidos':  f_cmp.get('cumplidos', 0),
-                'comp_vencidos':   f_cmp.get('vencidos', 0),
-                'comp_pendientes': f_cmp.get('pendientes', 0),
-                'sup_hechas': int(f_sup.get('n') or 0),
-                'sup_meta':   sup_meta_cliente * reparto,
-                'chk_total':  int(f_chk.get('total') or 0),
-                'chk_cumple': int(f_chk.get('cumple') or 0),
-                'inc_total': int(f_inc.get('total') or 0),
-                'inc_alta':  int(f_inc.get('alta') or 0),
-                'inc_media': int(f_inc.get('media') or 0),
-                'inc_baja':  int(f_inc.get('baja') or 0),
-                'inc_avg_min': (float(f_inc.get('avg_min'))
-                                if f_inc.get('avg_min') is not None else None),
-            }
-            ejes_inst = _estatus_ejes_de(datos, pesos, umbral_horas)
-            nota, suficiente_inst, n_con_datos = _estatus_consolidar_ejes(ejes_inst)
-
-            for e in ejes_inst:
-                if e['score'] is not None and inst['peso'] > 0:
-                    acumulado[e['key']].append((e['score'], inst['peso']))
-
-            if nota is not None and inst['peso'] > 0:
-                aporte_total += nota * inst['peso']
-                peso_calificado += inst['peso']
-
-            detalle_instalaciones.append({
-                'id': None if k == _ESTATUS_SIN_INST else k,
-                'nombre': inst['nombre'],
-                'puestos': inst['puestos'],
-                'peso': inst['peso'],
-                'nota': round(nota, 1) if nota is not None else None,
-                'suficiente': suficiente_inst,
-                'ejes_con_datos': n_con_datos,
-                'ejes': {e['key']: (round(e['score'], 1) if e['score'] is not None else None)
-                         for e in ejes_inst},
-            })
-
-        # ── Desglose del cliente: cada eje ponderado por puestos ─────────────
-        salida_ejes = []
-        for key, nombre, fuentes in _ESTATUS_EJES_META:
-            pares = acumulado[key]
-            score = (round(sum(v * p for v, p in pares) / sum(p for _, p in pares), 1)
-                     if pares else None)
-            con = [i for i in detalle_instalaciones if i['ejes'].get(key) is not None]
-            salida_ejes.append({
-                'key': key, 'nombre': nombre, 'fuentes': fuentes,
-                'score': score, 'peso': pesos.get(key, 0),
-                'componentes': [],
-                'detalle': (f"Promedio ponderado de {len(con)} instalación(es)"
-                            if score is not None else 'Sin información en el período'),
-            })
-        ejes_con_datos = sum(1 for e in salida_ejes if e['score'] is not None)
-        suficiente = ejes_con_datos >= 2 and peso_calificado > 0
-        peso_ejes = sum(e['peso'] for e in salida_ejes if e['score'] is not None) if suficiente else 0
-        for e in salida_ejes:
-            e['peso_efectivo'] = (round(e['peso'] / peso_ejes * 100, 1)
-                                  if (e['score'] is not None and peso_ejes > 0) else 0)
-
-        score = round(aporte_total / peso_calificado, 1) if suficiente else None
-
-        return jsonify({
-            'score': score,
-            'suficiente': suficiente,
-            'ejes_con_datos': ejes_con_datos,
-            'total_ejes': len(salida_ejes),
-            'ejes': salida_ejes,
-            'instalaciones': detalle_instalaciones,
-            'puestos_totales': peso_calificado,
-            'bandas': bandas,
-        })
+        respuesta = dict(actual)
+        respuesta['bandas'] = bandas
+        respuesta['comparacion'] = comparacion
+        return jsonify(respuesta)
     except Exception as e:
         app_logger.error(f"api_gestion_estatus error: {e}", exc_info=True)
         return jsonify({'error': 'Error interno'}), 500

@@ -169,6 +169,12 @@
             color: #6b7280; margin-top: 1.2rem;
         }
         .estatus-hero-score { text-align: right; }
+        .estatus-variacion {
+            font-size: 0.82rem; font-weight: 700; margin-top: 0.4rem;
+            display: flex; align-items: center; justify-content: flex-end; gap: 0.3rem;
+        }
+        .estatus-variacion.sin-dato { font-weight: 400; color: #64748b; font-size: 0.74rem; }
+        .estatus-variacion .flecha { font-size: 0.9rem; line-height: 1; }
         .estatus-hero-value {
             font-family: 'Merriweather', serif; font-size: 3rem; font-weight: 700;
             line-height: 1; color: var(--estatus-color, #94a3b8);
@@ -648,6 +654,7 @@
                 <div class="estatus-hero-score">
                     <div class="estatus-hero-value" id="estatusHeroValue">—</div>
                     <div class="status-badge status-slate" id="estatusHeroBadge">Sin Información</div>
+                    <div class="estatus-variacion" id="estatusVariacion"></div>
                 </div>
                 <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
                 <div class="estatus-desglose-titulo">Desglose</div>
@@ -961,6 +968,7 @@
         const estatusHeroValue = document.getElementById('estatusHeroValue');
         const estatusHeroBadge = document.getElementById('estatusHeroBadge');
         const estatusHeroBar = document.getElementById('estatusHeroBar');
+        const estatusVariacion = document.getElementById('estatusVariacion');
         const estatusEjes = document.getElementById('estatusEjes');
         const estatusInst = document.getElementById('estatusInst');
         const estatusInstWrap = document.getElementById('estatusInstWrap');
@@ -1550,7 +1558,33 @@
             estatusInstTitulo.style.display = 'none';
             estatusInstWrap.style.display = 'none';
             estatusHero.style.setProperty('--estatus-color', colors.slate);
+            estatusVariacion.textContent = '';
             if (mensaje) estatusVacio.querySelector('p').textContent = mensaje;
+        }
+
+        function renderVariacion(estatus) {
+            const c = estatus.comparacion || {};
+            // Sin período anterior comparable no se inventa una variación: se
+            // explica por qué no la hay.
+            if (!c.disponible || c.variacion === null || c.variacion === undefined) {
+                estatusVariacion.className = 'estatus-variacion sin-dato';
+                estatusVariacion.style.color = '';
+                estatusVariacion.textContent = c.motivo || '';
+                return;
+            }
+            const puntos = Math.round(c.variacion);
+            const contra = c.periodo_anterior ? `vs. ${c.periodo_anterior}` : 'vs. período anterior';
+            let flecha, color, texto;
+            if (puntos > 0) {
+                flecha = '▲'; color = colors.green; texto = `+${puntos} puntos ${contra}`;
+            } else if (puntos < 0) {
+                flecha = '▼'; color = colors.red;   texto = `${puntos} puntos ${contra}`;
+            } else {
+                flecha = '='; color = colors.slate; texto = `sin cambio ${contra}`;
+            }
+            estatusVariacion.className = 'estatus-variacion';
+            estatusVariacion.style.color = color;
+            estatusVariacion.innerHTML = `<span class="flecha">${flecha}</span><span>${texto}</span>`;
         }
 
         function renderInstalaciones(estatus) {
@@ -1632,6 +1666,7 @@
                 estatusHeroMeta.textContent = 'Pesos definidos en Umbrales KPI.';
             }
 
+            renderVariacion(estatus);
             renderInstalaciones(estatus);
 
             estatusEjes.innerHTML = ejes.map(eje => {
