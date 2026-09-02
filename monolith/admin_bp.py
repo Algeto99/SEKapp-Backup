@@ -425,7 +425,21 @@ _THRESHOLD_KEYS = [
     'estatus_peso_atencion',
     'estatus_peso_servicio',
     'estatus_peso_eventos',
+    # Bandas del semáforo del Estatus de Cliente. Son propias porque la escala
+    # `supervision_*` mide cumplimiento de supervisiones, no una nota compuesta,
+    # y moverla afectaría al Morning Briefing.
+    'estatus_banda_optimo',
+    'estatus_banda_observacion',
+    'estatus_banda_seguimiento',
 ]
+
+# Bandas en orden descendente: (clave, etiqueta, tono).
+_ESTATUS_BANDAS = [
+    ('estatus_banda_optimo',      'Óptimo',               'green'),
+    ('estatus_banda_observacion', 'En observación',       'yellow'),
+    ('estatus_banda_seguimiento', 'Requiere seguimiento', 'orange'),
+]
+_ESTATUS_BANDA_INFERIOR = ('Crítico', 'red')
 
 # (clave de umbral, eje) — el orden es el que se muestra en pantalla.
 _ESTATUS_EJES = [
@@ -466,6 +480,9 @@ _THRESHOLD_DEFAULTS = {
     'estatus_peso_atencion':       25,
     'estatus_peso_servicio':       25,
     'estatus_peso_eventos':        20,
+    'estatus_banda_optimo':        90,
+    'estatus_banda_observacion':   75,
+    'estatus_banda_seguimiento':   60,
 }
 
 
@@ -651,6 +668,27 @@ def get_estatus_pesos(thresholds=None):
     return {eje: round(v / total * 100, 2) for eje, v in crudos.items()}
 
 
+def get_estatus_bandas(thresholds=None):
+    """Bandas del Estatus de Cliente, de mayor a menor.
+
+    Devuelve [{'min', 'label', 'tone'}...] más la banda inferior implícita, que
+    arranca en 0. Si los mínimos vienen desordenados se ordenan, para que el
+    semáforo nunca quede sin una banda alcanzable.
+    """
+    t = thresholds if thresholds is not None else get_thresholds()
+    valores = []
+    for key, label, tone in _ESTATUS_BANDAS:
+        try:
+            v = float(t.get(key, _THRESHOLD_DEFAULTS[key]))
+        except (TypeError, ValueError):
+            v = float(_THRESHOLD_DEFAULTS[key])
+        valores.append([max(0.0, min(100.0, v)), label, tone])
+    valores.sort(key=lambda x: x[0], reverse=True)
+    bandas = [{'min': v, 'label': label, 'tone': tone} for v, label, tone in valores]
+    bandas.append({'min': 0.0, 'label': _ESTATUS_BANDA_INFERIOR[0], 'tone': _ESTATUS_BANDA_INFERIOR[1]})
+    return bandas
+
+
 def get_thresholds():
     """Return current thresholds as a dict, falling back to defaults on error."""
     conn = None
@@ -759,6 +797,21 @@ def save_thresholds():
             if abs(total_pesos - 100) > 0.01:
                 flash(f'Los pesos del Estatus de Cliente deben sumar 100%. '
                       f'Actualmente suman {total_pesos:g}%.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+
+        # Las bandas tienen que ser estrictamente descendientes; si no, alguna
+        # queda inalcanzable y el estado que muestra la pantalla deja de tener
+        # relación con la calificación.
+        bandas_form = [request.form.get(k, '').strip() for k, _, _ in _ESTATUS_BANDAS]
+        if any(v != '' for v in bandas_form):
+            try:
+                vals = [float(v or 0) for v in bandas_form]
+            except ValueError:
+                flash('Las bandas del Estatus de Cliente deben ser numéricas.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
+            if not (vals[0] > vals[1] > vals[2]):
+                flash('Las bandas del Estatus de Cliente deben ir de mayor a menor: '
+                      'Óptimo > En observación > Requiere seguimiento.', 'error')
                 return redirect(url_for('admin_bp.thresholds'))
 
         for key in _THRESHOLD_KEYS:

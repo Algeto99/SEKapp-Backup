@@ -472,6 +472,62 @@
                     </div>
                 </div>
                 <div id="estatusPesoTotal" class="info-note" style="margin:1rem 0 0;"></div>
+
+                <hr class="section-divider">
+
+                <div class="card-title" style="font-size:.95rem;margin-bottom:.35rem;">
+                    Bandas del semáforo
+                </div>
+                <p style="font-size:.78rem;color:#94a3b8;margin-bottom:1rem;">
+                    Cada banda es el mínimo de la calificación para ese estado. Por debajo de
+                    la última, el cliente queda en <strong>Crítico</strong>. Deben ir de mayor a menor.
+                </p>
+                <div class="threshold-grid">
+                    <div class="field">
+                        <span class="color-badge badge-green">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Óptimo
+                        </span>
+                        <label>Desde</label>
+                        <input type="number" name="estatus_banda_optimo" min="0" max="100" step="1"
+                               class="estatus-banda"
+                               value="{{ thresholds.estatus_banda_optimo | int }}">
+                        <span class="unit">≥ este valor → Óptimo</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            En observación
+                        </span>
+                        <label>Desde</label>
+                        <input type="number" name="estatus_banda_observacion" min="0" max="100" step="1"
+                               class="estatus-banda"
+                               value="{{ thresholds.estatus_banda_observacion | int }}">
+                        <span class="unit">hasta el mínimo de Óptimo</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Requiere seguimiento
+                        </span>
+                        <label>Desde</label>
+                        <input type="number" name="estatus_banda_seguimiento" min="0" max="100" step="1"
+                               class="estatus-banda"
+                               value="{{ thresholds.estatus_banda_seguimiento | int }}">
+                        <span class="unit">hasta el mínimo de En observación</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-red">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Crítico
+                        </span>
+                        <label>Por debajo de</label>
+                        <input type="number" value="{{ thresholds.estatus_banda_seguimiento | int }}"
+                               tabindex="-1" readonly>
+                        <span class="unit">se deduce de la banda anterior</span>
+                    </div>
+                </div>
+                <div id="estatusBandaAviso" class="info-note" style="margin:1rem 0 0;"></div>
             </div>
 
             <!-- Período de operación -->
@@ -530,6 +586,33 @@
     }
 
     inputs.forEach(function (el) {
+        el.addEventListener('input', actualizar);
+        el.addEventListener('change', actualizar);
+    });
+    actualizar();
+})();
+
+/* Las bandas del semáforo deben ir de mayor a menor; el servidor lo rechaza. */
+(function () {
+    var bandas = Array.prototype.slice.call(document.querySelectorAll('.estatus-banda'));
+    var aviso = document.getElementById('estatusBandaAviso');
+    if (bandas.length !== 3 || !aviso) return;
+
+    function actualizar() {
+        var v = bandas.map(function (el) {
+            var n = parseFloat(el.value);
+            return isNaN(n) ? 0 : n;
+        });
+        var ok = v[0] > v[1] && v[1] > v[2];
+        aviso.textContent = ok
+            ? 'Óptimo ' + v[0] + '–100 · En observación ' + v[1] + '–' + (v[0] - 1)
+              + ' · Requiere seguimiento ' + v[2] + '–' + (v[1] - 1) + ' · Crítico por debajo de ' + v[2] + '.'
+            : 'Las bandas deben ir de mayor a menor: Óptimo > En observación > Requiere seguimiento.';
+        aviso.style.color = ok ? '#34d399' : '#f87171';
+        aviso.style.borderColor = ok ? 'rgba(52,211,153,.25)' : 'rgba(248,113,113,.35)';
+    }
+
+    bandas.forEach(function (el) {
         el.addEventListener('input', actualizar);
         el.addEventListener('change', actualizar);
     });

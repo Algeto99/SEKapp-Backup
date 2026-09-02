@@ -204,6 +204,31 @@
         }
         .estatus-eje-peso { font-size: 0.71rem; color: #94a3b8; margin-top: 0.35rem; }
         .estatus-eje-fuentes { font-size: 0.69rem; color: #64748b; margin-top: 0.2rem; }
+        .estatus-inst-titulo {
+            grid-column: 1 / -1;
+            font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: #6b7280; margin-top: 1.2rem;
+        }
+        /* La tabla scrollea sola: nunca debe empujar el ancho de la página. */
+        .estatus-inst-wrap { grid-column: 1 / -1; overflow-x: auto; margin-top: 0.5rem; }
+        .estatus-inst { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 640px; }
+        .estatus-inst th {
+            text-align: right; font-weight: 600; color: #94a3b8; font-size: 0.72rem;
+            text-transform: uppercase; letter-spacing: 0.04em;
+            padding: 0.45rem 0.6rem; border-bottom: 1px solid rgba(148,163,184,0.2);
+            white-space: nowrap;
+        }
+        .estatus-inst th:first-child, .estatus-inst td:first-child { text-align: left; }
+        .estatus-inst td {
+            text-align: right; padding: 0.5rem 0.6rem;
+            border-bottom: 1px solid rgba(148,163,184,0.1); white-space: nowrap;
+        }
+        .estatus-inst tbody tr:last-child td { border-bottom: none; }
+        .estatus-inst .inst-nota { font-weight: 700; }
+        .estatus-inst .inst-sin { color: #64748b; font-style: italic; }
+        body.light-mode .estatus-inst th { color: #64748b; }
+
         .estatus-hero-nota {
             grid-column: 1 / -1; font-size: 0.72rem; color: #64748b;
             line-height: 1.5; margin-top: 0.85rem;
@@ -627,6 +652,12 @@
                 <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
                 <div class="estatus-desglose-titulo">Desglose</div>
                 <div class="estatus-ejes" id="estatusEjes"></div>
+                <div class="estatus-inst-titulo" id="estatusInstTitulo" style="display:none;">
+                    Instalaciones — la nota del cliente pondera cada una por sus puestos
+                </div>
+                <div class="estatus-inst-wrap" id="estatusInstWrap" style="display:none;">
+                    <table class="estatus-inst"><tbody id="estatusInst"></tbody></table>
+                </div>
                 <div class="estatus-hero-meta" id="estatusHeroMeta">Cargando valoración...</div>
                 <div class="estatus-hero-nota">
                     Capacitación, Disciplina, Vehículos, Motocicletas y Equipos se muestran más abajo
@@ -911,6 +942,14 @@
         // cliente, que no tiene sentido publicar al navegador.
         const ESTATUS_ENDPOINT = '/dashboard/api/gestion/estatus';
 
+        // Columnas de la tabla por instalación, en el orden de los ejes.
+        const ESTATUS_COLUMNAS = [
+            { key: 'satisfaccion', corto: 'Satisf.' },
+            { key: 'atencion',     corto: 'Atención' },
+            { key: 'servicio',     corto: 'Servicio' },
+            { key: 'eventos',      corto: 'Eventos' }
+        ];
+
         const estatusHero = document.getElementById('estatusHero');
         const estatusVacio = document.getElementById('estatusVacio');
         const estatusContenido = document.getElementById('estatusContenido');
@@ -923,15 +962,23 @@
         const estatusHeroBadge = document.getElementById('estatusHeroBadge');
         const estatusHeroBar = document.getElementById('estatusHeroBar');
         const estatusEjes = document.getElementById('estatusEjes');
+        const estatusInst = document.getElementById('estatusInst');
+        const estatusInstWrap = document.getElementById('estatusInstWrap');
+        const estatusInstTitulo = document.getElementById('estatusInstTitulo');
 
         let trendChart = null;
         let rankingChart = null;
         let distributionChart = null;
         let latestCards = [];
 
-        // Los pisa /dashboard/api/gestion/filtros con lo configurado en Umbrales
-        // KPI. Los valores de aquí solo aplican si esa llamada falla.
-        let umbrales = { verde_min: 90, amarillo_min: 70 };
+        // Las pisa /dashboard/api/gestion/filtros con lo configurado en Umbrales
+        // KPI. Estos valores solo aplican si esa llamada falla.
+        let bandas = [
+            { min: 90, label: 'Óptimo',               tone: 'green'  },
+            { min: 75, label: 'En observación',       tone: 'yellow' },
+            { min: 60, label: 'Requiere seguimiento', tone: 'orange' },
+            { min: 0,  label: 'Crítico',              tone: 'red'    }
+        ];
         let fechaInicioOperacion = '';
 
         
@@ -950,17 +997,10 @@
             if (score === null || score === undefined || Number.isNaN(score)) {
                 return { label: 'Sin Información', tone: 'slate', color: colors.slate };
             }
-            // Verde y amarillo salen de Umbrales KPI, igual que en Morning Briefing.
-            // La franja naranja es propia de esta pantalla: parte el rojo en dos
-            // usando el mismo ancho que la franja amarilla, para no inventar un
-            // umbral que el Administrador no configuró.
-            const verde = umbrales.verde_min;
-            const amarillo = umbrales.amarillo_min;
-            const naranja = Math.max(0, amarillo - (verde - amarillo));
-            if (score >= verde) return { label: 'Óptimo', tone: 'green', color: colors.green };
-            if (score >= amarillo) return { label: 'Requiere Seguimiento', tone: 'yellow', color: colors.yellow };
-            if (score >= naranja) return { label: 'Atención Requerida', tone: 'orange', color: colors.orange };
-            return { label: 'Crítico', tone: 'red', color: colors.red };
+            // Las bandas las define el Administrador en Umbrales KPI y llegan
+            // ordenadas de mayor a menor, con la última en 0.
+            const banda = bandas.find(b => score >= b.min) || bandas[bandas.length - 1];
+            return { label: banda.label, tone: banda.tone, color: colors[banda.tone] || colors.slate };
         }
 
         function clamp(num, min = 0, max = 100) {
@@ -1264,7 +1304,7 @@
                 const data = await res.json();
                 allGestionClientes = data.clientes || [];
                 allGestionProperties = data.properties || [];
-                if (data.umbrales) umbrales = data.umbrales;
+                if (Array.isArray(data.bandas) && data.bandas.length) bandas = data.bandas;
                 fechaInicioOperacion = data.fecha_inicio_operacion || '';
                 fillSelect(filterCliente, allGestionClientes, 'Todos');
                 fillSelect(filterResponsable, data.responsables || [], 'Todos');
@@ -1507,8 +1547,42 @@
         function mostrarEstatusVacio(mensaje) {
             estatusVacio.style.display = '';
             estatusContenido.style.display = 'none';
+            estatusInstTitulo.style.display = 'none';
+            estatusInstWrap.style.display = 'none';
             estatusHero.style.setProperty('--estatus-color', colors.slate);
             if (mensaje) estatusVacio.querySelector('p').textContent = mensaje;
+        }
+
+        function renderInstalaciones(estatus) {
+            const filas = estatus.instalaciones || [];
+            // Con una sola instalación la tabla repetiría el desglose del cliente.
+            if (filas.length < 2) {
+                estatusInstTitulo.style.display = 'none';
+                estatusInstWrap.style.display = 'none';
+                return;
+            }
+            estatusInstTitulo.style.display = '';
+            estatusInstWrap.style.display = '';
+
+            const num = v => (v === null || v === undefined) ? '—' : Math.round(v);
+            const cab = `
+                <tr>
+                    <th>Instalación</th><th>Puestos</th>
+                    ${ESTATUS_COLUMNAS.map(c => `<th>${c.corto}</th>`).join('')}
+                    <th>Cobertura</th><th>Nota</th>
+                </tr>`;
+            const cuerpo = filas.map(f => {
+                const st = statusFromScore(f.nota);
+                return `
+                    <tr>
+                        <td>${f.nombre}${f.peso === 0 ? ' <span class="inst-sin">(no pondera)</span>' : ''}</td>
+                        <td>${f.puestos}</td>
+                        ${ESTATUS_COLUMNAS.map(c => `<td>${num(f.ejes[c.key])}</td>`).join('')}
+                        <td>${f.ejes_con_datos} de ${ESTATUS_COLUMNAS.length}</td>
+                        <td class="inst-nota" style="color:${st.color};">${num(f.nota)}</td>
+                    </tr>`;
+            }).join('');
+            estatusInst.innerHTML = cab + cuerpo;
         }
 
         function renderEstatusCliente(estatus) {
@@ -1557,6 +1631,8 @@
             } else {
                 estatusHeroMeta.textContent = 'Pesos definidos en Umbrales KPI.';
             }
+
+            renderInstalaciones(estatus);
 
             estatusEjes.innerHTML = ejes.map(eje => {
                 const st = statusFromScore(eje.score);
