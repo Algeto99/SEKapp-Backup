@@ -1327,10 +1327,18 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                             if url:
                                 signed_urls.append(generate_signed_url(url))
                         val = '\n'.join(signed_urls)
-                    # Sign signatures if they are GCS URLs
+                    # Sign image and signature columns if they are GCS URLs
                     elif (_es_columna_de_imagen(col_name) and val and not skip_signing
                           and isinstance(val, str) and 'storage.googleapis.com' in val):
-                         val = generate_signed_url(val)
+                        urls = str(val).split('\n')
+                        signed_urls = []
+                        for url in urls:
+                            url_t = url.strip()
+                            if 'storage.googleapis.com' in url_t:
+                                signed_urls.append(generate_signed_url(url_t))
+                            else:
+                                signed_urls.append(url_t)
+                        val = '\n'.join(signed_urls)
 
                     # Ensure JSON serializable
                     if isinstance(val, (datetime, date, time)):
@@ -1497,10 +1505,18 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                         for url in urls:
                             signed_urls.append(generate_signed_url(url.strip()))
                         val = '\n'.join(signed_urls)
-                # Sign signatures if they are GCS URLs
+                # Sign image and signature columns if they are GCS URLs
                 elif _es_columna_de_imagen(col_name) and val and isinstance(val, str) and 'storage.googleapis.com' in val:
-                     if not skip_signing:
-                        val = generate_signed_url(val)
+                    if not skip_signing:
+                        urls = str(val).split('\n')
+                        signed_urls = []
+                        for url in urls:
+                            url_t = url.strip()
+                            if 'storage.googleapis.com' in url_t:
+                                signed_urls.append(generate_signed_url(url_t))
+                            else:
+                                signed_urls.append(url_t)
+                        val = '\n'.join(signed_urls)
 
                 if isinstance(val, (datetime, date, time)):
                     val = str(val)
@@ -2065,6 +2081,7 @@ def email_selected_reports_api():
 
     for report in reports_to_email:
         data = report.get('data', {})
+        foto_items = []  # list of (label, url)
         signatures = []  # list of (label, data_url)
         attachment_urls = []
 
@@ -2104,10 +2121,20 @@ def email_selected_reports_api():
         for key, value in data.items():
             if _is_blank_export_value(value):
                 continue
-            if key in SKIP_KEYS:
-                for url in str(value).split('\n'):
+            val_str_raw = str(value).strip() if value is not None else ""
+            k_lower = key.lower()
+            is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes'))
+            is_url_val = (val_str_raw.startswith('http://') or val_str_raw.startswith('https://') or
+                          val_str_raw.startswith('/api/media'))
+
+            if key in SKIP_KEYS or (is_foto_key and is_url_val):
+                for url in val_str_raw.split('\n'):
                     url = url.strip()
-                    if url:
+                    if not url or _is_blank_export_value(url):
+                        continue
+                    if is_foto_key and key not in SKIP_KEYS:
+                        foto_items.append((key, url))
+                    else:
                         attachment_urls.append(url)
                 continue
             if key.lower() == 'inventario':
@@ -2161,6 +2188,23 @@ def email_selected_reports_api():
       </tr>
 """)
             row_idx += 1
+
+        # Photos row(s)
+        if foto_items:
+            fotos_html = ''.join(
+                f'<div style="display:inline-block;margin-right:12px;margin-bottom:8px;vertical-align:top;text-align:center;border:1px solid #e2e8f0;border-radius:4px;padding:6px;background:#f8fafc;">'
+                f'<p style="margin:0 0 4px 0;font-size:10px;font-weight:bold;color:#1e3a8a;">{escape(lbl)}</p>'
+                f'<a href="{_media_proxy_url(u)}" target="_blank"><img src="{u}" alt="{escape(lbl)}" style="max-width:160px;max-height:120px;border-radius:3px;display:block;margin:0 auto;"></a>'
+                f'</div>'
+                for lbl, u in foto_items
+            )
+            p.append(f"""      <tr>
+        <td colspan="2" style="padding:12px 14px;border-top:1px solid #e5e7eb;">
+          <p style="margin:0 0 8px 0;font-size:11px;font-weight:bold;color:#1e3a8a;">Registro Fotográfico / Evidencias</p>
+          {fotos_html}
+        </td>
+      </tr>
+""")
 
         # Signature row(s)
         if signatures:
@@ -2960,6 +3004,11 @@ td.val { color: #1f2937; }
 .sig-img { max-width: 180px; max-height: 80px; border: 1px solid #d1d5db; border-radius: 3px; padding: 3px; object-fit: contain; }
 .att-grid img { max-width: 120px; max-height: 90px; border: 1px solid #d1d5db; border-radius: 3px; object-fit: contain; }
 .pdf-link { color: #2563eb; text-decoration: none; font-size: 8pt; }
+.foto-section { margin-top: 10px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
+.foto-grid { width: 100%; }
+.foto-item-cell { display: inline-block; margin-right: 10px; margin-bottom: 8px; vertical-align: top; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 6px; background: #f8fafc; }
+.foto-label { font-size: 7.5pt; font-weight: bold; color: #1e3a8a; margin-bottom: 4px; max-width: 170px; word-break: break-word; }
+.foto-img { max-width: 170px; max-height: 125px; border-radius: 3px; object-fit: contain; display: block; margin: 0 auto; }
 .map-thumb-cell { display: table-cell; vertical-align: middle; text-align: right; width: 170px; padding-left: 8px; }
 .map-thumb-cell a { display: inline-block; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.35); }
 .map-thumb-cell img { width: 150px; height: 90px; display: block; }
@@ -3016,6 +3065,7 @@ td.val { color: #1f2937; }
             f'<table class="fields">'
         )
 
+        foto_items = []  # list of (label, url)
         signatures = []  # list of (label, data_url)
         image_urls, pdf_urls, other_urls = [], [], []
         is_acta = report.get('formType') == 'registro_y_acta_de_visita'
@@ -3031,15 +3081,25 @@ td.val { color: #1f2937; }
             if _is_blank_export_value(value):
                 continue
 
-            if key in SKIP_KEYS:
+            val_str_raw = str(value).strip() if value is not None else ""
+            k_lower = key.lower()
+
+            is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes'))
+            is_url_val = (val_str_raw.startswith('http://') or val_str_raw.startswith('https://') or
+                          val_str_raw.startswith('/api/media'))
+
+            if key in SKIP_KEYS or (is_foto_key and is_url_val):
                 # Parse attachment URLs
-                for url in str(value).split('\n'):
+                for url in val_str_raw.split('\n'):
                     url = url.strip()
-                    if not url:
+                    if not url or _is_blank_export_value(url):
                         continue
                     lower = url.lower().split('?')[0]
-                    if lower.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp')):
-                        image_urls.append(url)
+                    if lower.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg')) or 'storage.googleapis.com' in lower or url.startswith('data:image'):
+                        if is_foto_key and key not in SKIP_KEYS:
+                            foto_items.append((key, url))
+                        else:
+                            image_urls.append(url)
                     elif lower.endswith('.pdf'):
                         pdf_urls.append(url)
                     else:
@@ -3132,6 +3192,23 @@ td.val { color: #1f2937; }
             html_parts.append(f'<tr><td class="lbl">{escape(key)}</td><td class="val">{clean_value}</td></tr>')
 
         html_parts.append('</table>')
+
+        # Photos / Evidence section
+        if foto_items:
+            html_parts.append(
+                '<div class="foto-section">'
+                '<p class="section-label" style="font-size:8pt;font-weight:bold;color:#1e3a8a;margin-bottom:6px;">Registro Fotográfico / Evidencias</p>'
+                '<div class="foto-grid">'
+            )
+            for lbl, url in foto_items:
+                clean_lbl = escape(lbl)
+                html_parts.append(
+                    f'<div class="foto-item-cell">'
+                    f'<p class="foto-label">{clean_lbl}</p>'
+                    f'<a href="{_media_proxy_url(url)}"><img class="foto-img" src="{url}" alt="{clean_lbl}"></a>'
+                    f'</div>'
+                )
+            html_parts.append('</div></div>')
 
         # Signature + attachments side by side
         has_sig = bool(signatures)

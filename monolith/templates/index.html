@@ -1318,11 +1318,46 @@
                              </div>`;
                         } else {
                             // Primitive/single value fallback
-                            const valStr = rawValue !== null && rawValue !== undefined ? String(rawValue) : '';
-                            if (lowerKey.includes('firma') && (valStr.startsWith('http') || valStr.startsWith('data:image'))) {
+                            const valStr = rawValue !== null && rawValue !== undefined ? String(rawValue).trim() : '';
+                            const isFirma = lowerKey.includes('firma') || valStr.startsWith('data:image');
+                            const isImageLike = !isFirma && (
+                                lowerKey.includes('foto') ||
+                                lowerKey.includes('evidencia') ||
+                                lowerKey.includes('imagen') ||
+                                lowerKey.includes('diagrama') ||
+                                valStr.startsWith('http://') ||
+                                valStr.startsWith('https://') ||
+                                valStr.startsWith('/api/media') ||
+                                /\.(jpe?g|png|gif|webp|svg)(\?|$)/i.test(valStr)
+                            ) && (
+                                valStr.startsWith('http://') ||
+                                valStr.startsWith('https://') ||
+                                valStr.startsWith('data:image') ||
+                                valStr.startsWith('/api/media')
+                            );
+
+                            if (isFirma && (valStr.startsWith('http') || valStr.startsWith('data:image') || valStr.startsWith('/api/media'))) {
                                 displayContent = `<div class="mt-1">
-                                    <img src="${valStr}" alt="Firma" class="h-24 w-auto object-contain border border-gray-300 dark:border-gray-600 rounded bg-white p-1">
+                                    <img src="${valStr}" alt="${key}" class="h-24 w-auto object-contain border border-gray-300 dark:border-gray-600 rounded bg-white p-1">
                                 </div>`;
+                            } else if (isImageLike) {
+                                const urls = valStr.split('\n').map(u => u.trim()).filter(Boolean);
+                                if (urls.length > 1) {
+                                    displayContent = `<div class="mt-2 flex flex-wrap gap-2">` +
+                                        urls.map(u => `
+                                            <a href="${u}" target="_blank" class="inline-block group" title="Ver imagen completa">
+                                                <img src="${u}" alt="${key}" class="h-28 w-28 object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm group-hover:shadow-md transition-shadow">
+                                            </a>
+                                        `).join('') + `</div>`;
+                                } else {
+                                    const singleUrl = urls[0] || valStr;
+                                    displayContent = `<div class="mt-2">
+                                        <a href="${singleUrl}" target="_blank" class="inline-block group" title="Ver imagen completa">
+                                            <img src="${singleUrl}" alt="${key}" class="h-36 w-auto max-w-full object-cover rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm group-hover:shadow-md transition-shadow">
+                                            <span class="block text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">🔍 Ver imagen completa</span>
+                                        </a>
+                                    </div>`;
+                                }
                             } else {
                                 displayContent = `<span class="block text-gray-800 dark:text-gray-100">${valStr.replace(/\n/g, '<br>')}</span>`;
                             }
@@ -1339,26 +1374,35 @@
 
                 // Handle Attachments — collect from all image/file URL fields
                 {
-                    const attachmentFields = ['URLs de Imágenes o PDFs', 'Foto Evidencia', 'Anexos'];
+                    const attachmentFields = [
+                        'URLs de Imágenes o PDFs', 'Foto Evidencia', 'Anexos',
+                        'Foto Frente', 'Foto Atrás', 'Foto Lado Derecho', 'Foto Lado Izquierdo',
+                        'Fotos/Documentos', 'Anexos / Evidencias', 'Evidencia URL'
+                    ];
                     let allAttachmentUrls = [];
                     attachmentFields.forEach(field => {
                         const rawUrls = reportDetails.data[field] ? String(reportDetails.data[field]) : '';
                         if (rawUrls && rawUrls.trim() !== 'N/A' && rawUrls.trim() !== 'None' && rawUrls.trim() !== '') {
-                            rawUrls.split('\n').forEach(u => { if (u.trim()) allAttachmentUrls.push(u.trim()); });
+                            rawUrls.split('\n').forEach(u => {
+                                const trimmed = u.trim();
+                                if (trimmed && (trimmed.startsWith('http') || trimmed.startsWith('/api/media')) && !allAttachmentUrls.includes(trimmed)) {
+                                    allAttachmentUrls.push(trimmed);
+                                }
+                            });
                         }
                     });
 
                     if (allAttachmentUrls.length > 0) {
                         detailsHtml += `<div class="mt-6 border-t border-gray-200 dark:border-gray-700 pt-4">
-                            <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-3">Archivos Adjuntos</h3>
+                            <h3 class="text-lg font-medium text-gray-800 dark:text-white mb-3">Evidencias Fotográficas y Archivos Adjuntos</h3>
                             <div class="flex flex-wrap gap-4">`;
 
                         allAttachmentUrls.forEach(url => {
-                            const lowerUrl = url.toLowerCase();
+                            const lowerUrl = url.toLowerCase().split('?')[0];
                             let filename = url.split('?')[0].substring(url.lastIndexOf('/') + 1);
-                            if (!filename) filename = "Archivo Adjunto";
+                            if (!filename) filename = "Fotografía / Evidencia";
 
-                            if (lowerUrl.includes('.jpeg') || lowerUrl.includes('.jpg') || lowerUrl.includes('.png') || lowerUrl.includes('.gif') || lowerUrl.includes('.webp')) {
+                            if (lowerUrl.includes('.jpeg') || lowerUrl.includes('.jpg') || lowerUrl.includes('.png') || lowerUrl.includes('.gif') || lowerUrl.includes('.webp') || url.includes('storage.googleapis.com') || url.includes('/api/media')) {
                                 detailsHtml += `
                                     <div class="relative group">
                                         <a href="${url}" target="_blank" class="block">

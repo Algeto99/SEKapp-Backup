@@ -770,6 +770,10 @@
             return '<span class="drv-inline-text">—</span>';
         }
         if (isImageLikeKey(key) && isImageSource(strVal)) {
+            const urls = strVal.split('\n').map(u => u.trim()).filter(Boolean);
+            if (urls.length > 1) {
+                return `<div style="display:flex;flex-wrap:wrap;gap:8px;">${urls.map(u => renderImage(u, key)).join('')}</div>`;
+            }
             return renderImage(strVal, key);
         }
         return `<span class="drv-inline-text">${escapeHtml(strVal)}</span>`;
