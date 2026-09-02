@@ -259,11 +259,12 @@
                 display: none;
                 position: absolute;
                 inset: 0;
-                background: rgba(15,23,42,0.78);
+                background: rgba(15,23,42,0.85);
                 align-items: center;
                 justify-content: center;
                 padding: 1rem;
                 border-radius: 16px;
+                z-index: 50;
             }
             .drv-asignar-overlay.active { display: flex; }
             .drv-asignar-label {
@@ -288,18 +289,21 @@
                 display: none;
                 position: absolute;
                 inset: 0;
-                background: rgba(15,23,42,0.78);
+                background: rgba(15,23,42,0.85);
                 align-items: center;
                 justify-content: center;
                 padding: 1rem;
+                z-index: 50;
             }
             .drv-email-overlay.active { display: flex; }
             .drv-email-box {
                 width: min(420px, 100%);
                 background: #111827;
-                border: 1px solid rgba(255,255,255,0.08);
+                border: 1px solid rgba(255,255,255,0.12);
                 border-radius: 14px;
                 padding: 1.25rem;
+                color-scheme: dark;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.5);
             }
             .drv-email-box h4 {
                 margin: 0 0 0.75rem 0;
@@ -313,13 +317,38 @@
             }
             .drv-email-input {
                 width: 100%;
-                background: rgba(255,255,255,0.05);
-                border: 1px solid rgba(255,255,255,0.12);
+                background: #1f2937;
+                border: 1px solid #374151;
                 border-radius: 10px;
-                color: #fff;
+                color: #f3f4f6;
                 padding: 0.72rem 0.85rem;
                 margin-bottom: 0.85rem;
                 font-size: 0.9rem;
+                color-scheme: dark;
+                box-sizing: border-box;
+            }
+            .drv-email-input:focus {
+                outline: none;
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 2px rgba(59,130,246,0.3);
+            }
+            select.drv-email-input,
+            select.drv-asignar-select {
+                background-color: #1f2937;
+                color: #f3f4f6;
+                color-scheme: dark;
+                cursor: pointer;
+            }
+            select.drv-email-input option,
+            select.drv-asignar-select option {
+                background-color: #1f2937;
+                color: #f3f4f6;
+                padding: 0.5rem;
+            }
+            select.drv-email-input optgroup,
+            select.drv-asignar-select optgroup {
+                background-color: #111827;
+                color: #9ca3af;
             }
             .drv-email-actions {
                 display: flex;
@@ -565,18 +594,37 @@
                 border-color: rgba(100,116,139,0.22);
                 color: #334155;
             }
-            body.light-mode .drv-email-overlay {
+            body.light-mode .drv-email-overlay,
+            body.light-mode .drv-asignar-overlay {
                 background: rgba(248,250,252,0.84);
             }
             body.light-mode .drv-email-box {
                 background: #ffffff;
                 border-color: rgba(15,23,42,0.1);
                 box-shadow: 0 18px 50px rgba(15,23,42,0.16);
+                color-scheme: light;
             }
             body.light-mode .drv-email-input {
                 background: #ffffff;
                 border-color: #cbd5e1;
                 color: #0f172a;
+                color-scheme: light;
+            }
+            body.light-mode select.drv-email-input,
+            body.light-mode select.drv-asignar-select {
+                background-color: #ffffff;
+                color: #0f172a;
+                color-scheme: light;
+            }
+            body.light-mode select.drv-email-input option,
+            body.light-mode select.drv-asignar-select option {
+                background-color: #ffffff;
+                color: #0f172a;
+            }
+            body.light-mode select.drv-email-input optgroup,
+            body.light-mode select.drv-asignar-select optgroup {
+                background-color: #f8fafc;
+                color: #64748b;
             }
             body.light-mode .drv-email-input::placeholder {
                 color: #94a3b8;
