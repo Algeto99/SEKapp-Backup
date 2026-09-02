@@ -1628,12 +1628,26 @@ def email_selected_reports_api():
         app_logger.warning(f"No reports found for the provided items during email request.")
         return jsonify({"success": False, "message": "No reports found for the provided IDs."}), 404
 
-    subject = f"Reporte de Incidencia — Kanan Sentinel SekApp"
+    from admin_bp import get_operation_timezone, format_local_datetime
+    tz = get_operation_timezone(reports=reports_to_email)
+
+    form_types = {r.get('formType') for r in reports_to_email if r.get('formType')}
+    if len(form_types) == 1:
+        f_type = list(form_types)[0]
+        cfg = FORM_CONFIGS.get(f_type, {})
+        email_subtitle = cfg.get('title_prefix') or f"Reporte de {f_type.replace('_', ' ').title()}"
+        subject = f"{email_subtitle} — Kanan Sentinel SekApp"
+    elif len(form_types) > 1:
+        email_subtitle = "Reporte Consolidado de Operaciones"
+        subject = f"Reporte Consolidado — Kanan Sentinel SekApp"
+    else:
+        email_subtitle = "Reporte Operativo"
+        subject = f"Reporte Operativo — Kanan Sentinel SekApp"
 
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos', 'Latitude', 'Longitude'}
     logo_src = _get_logo_data_url() or ""
     logo_tag = f'<img src="{logo_src}" alt="Kanan" height="40" style="width:auto;border-radius:6px;background:transparent;padding:3px;vertical-align:middle;">' if logo_src else ''
-    gen_date = datetime.now().strftime("%d/%m/%Y %H:%M")
+    gen_date = format_local_datetime(datetime.now(), tz=tz, time_sep=" a las ")
 
     p = []
     p.append(f"""<!DOCTYPE html>
@@ -1649,7 +1663,7 @@ def email_selected_reports_api():
       <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
           <td style="vertical-align:middle;">{logo_tag}&nbsp;&nbsp;<span style="color:#ffffff;font-size:15px;font-weight:bold;vertical-align:middle;">Kanan Sentinel SekApp</span><br>
-              <span style="color:#bfdbfe;font-size:11px;margin-left:48px;">Reporte de Incidencias</span></td>
+              <span style="color:#bfdbfe;font-size:11px;margin-left:48px;">{email_subtitle}</span></td>
           <td align="right" style="color:#bfdbfe;font-size:11px;vertical-align:middle;">Generado el<br>{gen_date}</td>
         </tr>
       </table>
@@ -1660,7 +1674,7 @@ def email_selected_reports_api():
   <tr>
     <td style="padding:20px 24px 8px 24px;color:#374151;font-size:13px;">
       <p style="margin:0 0 8px 0;">Estimado/a,</p>
-      <p style="margin:0;color:#6b7280;">A continuación se presentan los detalles del reporte de incidencia seleccionado.</p>
+      <p style="margin:0;color:#6b7280;">A continuación se presentan los detalles del reporte seleccionado.</p>
     </td>
   </tr>
 """)
@@ -1681,6 +1695,7 @@ def email_selected_reports_api():
         except (ValueError, TypeError):
             pass
 
+        report_date_str = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" a las ")
         p.append(f"""
   <!-- Report card -->
   <tr><td style="padding:16px 24px 0 24px;">
@@ -1692,7 +1707,7 @@ def email_selected_reports_api():
             <tr>
               <td style="padding:10px 14px;vertical-align:middle;">
                 <span style="color:#ffffff;font-size:13px;font-weight:bold;">{report['title']}</span><br>
-                <span style="color:#bfdbfe;font-size:10px;">Enviado por: {report['submittedBy']} &nbsp;&middot;&nbsp; {report['dateSubmitted']}</span>
+                <span style="color:#bfdbfe;font-size:10px;">Enviado por: {report['submittedBy']} &nbsp;&middot;&nbsp; {report_date_str}</span>
               </td>
               {email_map_td}
             </tr>
@@ -1915,11 +1930,15 @@ def export_excel():
                 cell.border = border
 
             # Write data
+            from admin_bp import get_operation_timezone, format_local_datetime
+            tz = get_operation_timezone(reports=reports_to_export)
+
             for row, report in enumerate(type_reports, 2):
                 # Standard data
                 ws.cell(row=row, column=1, value=report['id']).border = border
                 ws.cell(row=row, column=2, value=report['submittedBy']).border = border
-                ws.cell(row=row, column=3, value=report['dateSubmitted']).border = border
+                date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+                ws.cell(row=row, column=3, value=date_sub_local).border = border
 
                 # Dynamic data
                 max_row_height = 25 # Default height
@@ -1932,8 +1951,12 @@ def export_excel():
                         val = ''
                     
                     col_index = 4 + i
-                    if isinstance(val, (list, dict)):
+                    if isinstance(val, (datetime, date)):
+                        cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                    elif isinstance(val, (list, dict)):
                         cell_value = _format_structured_value_as_text(val)
+                    elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
+                        cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
                     else:
                         cell_value = str(val) if val is not None else ''
                     cell = ws.cell(row=row, column=col_index, value=cell_value)
@@ -2105,14 +2128,21 @@ def generate_pdf():
         pdf_buffer.seek(0)
 
         # Create filename
+        from admin_bp import get_operation_timezone
+        tz = get_operation_timezone(reports=reports_to_pdf)
         custom_filename = data.get('filename')
         if custom_filename:
             # Sanitize filename
             custom_filename = re.sub(r'[^\w\-_]', '', custom_filename)
             filename = f"{custom_filename}.pdf"
         else:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"reportes_incidencias_{timestamp}.pdf"
+            timestamp = datetime.now(tz).strftime("%Y%m%d_%H%M%S")
+            form_types = {r.get('formType') for r in reports_to_pdf if r.get('formType')}
+            if len(form_types) == 1:
+                prefix = list(form_types)[0]
+            else:
+                prefix = "reportes_operativos"
+            filename = f"{prefix}_{timestamp}.pdf"
 
         app_logger.info(f"PDF generated successfully for {len(reports_to_pdf)} reports using WeasyPrint")
 
@@ -2425,6 +2455,9 @@ def _render_compromisos_visita_html(data):
 
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
+    from admin_bp import get_operation_timezone, format_local_datetime
+    tz = get_operation_timezone(reports=reports)
+
     SKIP_KEYS = {'URLs de Imágenes o PDFs', 'foto_evidencia_url', 'Foto Evidencia', 'Anexos'}
     # Internal identifiers and raw coordinates: the PDF is handed to the client, so they
     # never appear. Kept apart from SKIP_KEYS, whose values are parsed as attachment URLs.
@@ -2439,6 +2472,18 @@ def generate_reports_html(reports):
     logo_src = _get_logo_data_url() or ""
 
     logo_img = f'<img src="{logo_src}" alt="">' if logo_src else '<span style="font-size:20pt;color:#1d4ed8;">&#9632;</span>'
+
+    form_types = {r.get('formType') for r in reports if r.get('formType')}
+    if len(form_types) == 1:
+        f_type = list(form_types)[0]
+        cfg = FORM_CONFIGS.get(f_type, {})
+        header_subtitle = cfg.get('title_prefix') or cfg.get('sheet_title') or f"Reporte de {f_type.replace('_', ' ').title()}"
+    elif len(form_types) > 1:
+        header_subtitle = "Reporte Consolidado de Operaciones"
+    else:
+        header_subtitle = "Reporte Operativo SEKapp"
+
+    gen_date_str = format_local_datetime(datetime.now(), tz=tz, time_sep=" a las ")
 
     html_parts = ["""<!DOCTYPE html>
 <html lang="es">
@@ -2510,10 +2555,10 @@ td.val { color: #1f2937; }
         <span class="header-logo">""" + logo_img + """</span>
         <span class="header-title">
             <h1>Kanan Sentinel SekApp</h1>
-            <p>Reporte de Incidencias</p>
+            <p>""" + escape(header_subtitle) + """</p>
         </span>
     </div>
-    <div class="header-right">Generado el<br>""" + datetime.now().strftime("%d/%m/%Y a las %H:%M") + """</div>
+    <div class="header-right">Generado el<br>""" + gen_date_str + """</div>
 </div>
 """]
 
@@ -2532,12 +2577,14 @@ td.val { color: #1f2937; }
         except (ValueError, TypeError):
             pass
 
+        report_date_str = format_local_datetime(report.get("dateSubmitted"), tz=tz, time_sep=" a las ")
+
         html_parts.append(
             f'<div class="report-block" style="{pb}">'
             f'<div class="report-title-bar" style="display:table;width:100%;">'
             f'<div style="display:table-cell;vertical-align:middle;">'
             f'<h2>{report["title"]}</h2>'
-            f'<p class="meta">Enviado por: {report["submittedBy"]} &nbsp;&middot;&nbsp; {report["dateSubmitted"]}</p>'
+            f'<p class="meta">Enviado por: {report["submittedBy"]} &nbsp;&middot;&nbsp; {report_date_str}</p>'
             f'</div>'
             f'{map_cell}'
             f'</div>'
@@ -2620,9 +2667,12 @@ td.val { color: #1f2937; }
                             f'{compromisos_html}'
                             f'</td></tr>'
                         )
-                continue
-
-            val_str = str(value).strip()
+            if isinstance(value, (datetime, date)):
+                val_str = format_local_datetime(value, tz=tz, time_sep=" a las ")
+            elif isinstance(value, str) and any(k in key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
+                val_str = format_local_datetime(value, tz=tz, time_sep=" a las ")
+            else:
+                val_str = str(value).strip()
 
             if _is_signature(key, val_str):
                 # val may be a JSON array of data URLs (multiple guards)

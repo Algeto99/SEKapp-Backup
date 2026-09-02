@@ -23,6 +23,7 @@ from db import get_db_connection
 from email_utils import send_email
 from gcs_utils import (get_public_media_url,
                        verify_media_token, _get_storage_client)
+from admin_bp import format_local_datetime, get_operation_timezone
 
 app_logger = logging.getLogger(__name__)
 
@@ -1247,7 +1248,7 @@ def public_expediente_viewer(token):
                                prop_lat=prop_lat,
                                prop_lng=prop_lng,
                                equipos_data=equipos_data,
-                               generated_at=datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC'))
+                               generated_at=format_local_datetime(datetime.now(), time_sep=" a las "))
     except Exception as e:
         app_logger.error(f"public_expediente_viewer error: {e}", exc_info=True)
         return render_template('error.html', message='Error interno del servidor.'), 500

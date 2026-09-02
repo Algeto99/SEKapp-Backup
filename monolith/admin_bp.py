@@ -1,6 +1,8 @@
 import logging
 import os
 import traceback
+import zoneinfo
+from datetime import datetime, date, time, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import psycopg2
@@ -450,7 +452,7 @@ _ESTATUS_EJES = [
 ]
 
 # Claves cuyo valor es texto (no numérico)
-_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad', 'visita_periodicidad']
+_THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad', 'visita_periodicidad', 'zona_horaria']
 
 _PERIODICIDAD_VALUES = ('diario', 'semanal', 'mensual')
 
@@ -483,6 +485,7 @@ _THRESHOLD_DEFAULTS = {
     'estatus_banda_optimo':        90,
     'estatus_banda_observacion':   75,
     'estatus_banda_seguimiento':   60,
+    'zona_horaria':                'America/Bogota',
 }
 
 
@@ -689,6 +692,137 @@ def get_estatus_bandas(thresholds=None):
     return bandas
 
 
+def get_operation_timezone(conn=None, tz_hint=None, reports=None):
+    """
+    Resuelve la zona horaria oficial de la operación de forma robusta y consistente:
+    1. Si se pasa tz_hint explícito y es válido.
+    2. Si los reportes traen un submitterTimezone válido distinto de 'UTC'.
+    3. Si la petición HTTP actual trae encabezado 'X-Timezone', query param 'timezone'/'tz' o JSON 'timezone'.
+    4. Si kpi_thresholds tiene configurado 'zona_horaria' o 'timezone'.
+    5. Variable de entorno APP_TIMEZONE / TZ.
+    6. Default a 'America/Bogota' (UTC-5, zona estándar de operación).
+    """
+    if tz_hint:
+        try:
+            return zoneinfo.ZoneInfo(str(tz_hint).strip())
+        except Exception:
+            pass
+
+    # Request context
+    try:
+        from flask import request as _flask_req, has_request_context
+        if has_request_context():
+            req_tz = _flask_req.headers.get('X-Timezone') or _flask_req.args.get('timezone') or _flask_req.args.get('tz')
+            if not req_tz and _flask_req.is_json:
+                req_json = _flask_req.get_json(silent=True, force=False)
+                if isinstance(req_json, dict):
+                    req_tz = req_json.get('timezone')
+            if req_tz:
+                try:
+                    return zoneinfo.ZoneInfo(str(req_tz).strip())
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # Reports list
+    if reports and isinstance(reports, list) and len(reports) > 0:
+        for r in reports:
+            if isinstance(r, dict):
+                stz = r.get('submitterTimezone') or r.get('data', {}).get('Submitter Timezone')
+                if stz and str(stz).strip().upper() not in ('UTC', 'NONE', ''):
+                    try:
+                        return zoneinfo.ZoneInfo(str(stz).strip())
+                    except Exception:
+                        pass
+
+    # Thresholds DB configuration
+    try:
+        t = get_thresholds()
+        cfg_tz = t.get('zona_horaria') or t.get('timezone')
+        if cfg_tz:
+            try:
+                return zoneinfo.ZoneInfo(str(cfg_tz).strip())
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Environment variable
+    env_tz = os.environ.get('APP_TIMEZONE') or os.environ.get('TZ')
+    if env_tz:
+        try:
+            return zoneinfo.ZoneInfo(env_tz)
+        except Exception:
+            pass
+
+    # Default fallback to UTC-5 (America/Bogota)
+    try:
+        return zoneinfo.ZoneInfo('America/Bogota')
+    except Exception:
+        return zoneinfo.ZoneInfo('UTC')
+
+
+def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las "):
+    """
+    Convierte cualquier valor de fecha/hora (datetime, date, str ISO/SQL)
+    a la zona horaria de la operación y retorna un string formateado consistente.
+    """
+    if val is None or val == '' or val == 'N/A' or val == '—':
+        return ''
+    if tz is None:
+        tz = get_operation_timezone()
+    elif isinstance(tz, str):
+        try:
+            tz = zoneinfo.ZoneInfo(tz)
+        except Exception:
+            tz = get_operation_timezone()
+
+    # Si es datetime
+    if isinstance(val, datetime):
+        if val.tzinfo:
+            dt_local = val.astimezone(tz)
+        else:
+            dt_local = val.replace(tzinfo=timezone.utc).astimezone(tz)
+        if include_time:
+            return dt_local.strftime(f"%d/%m/%Y{time_sep}%H:%M") if time_sep else dt_local.strftime("%d/%m/%Y %H:%M")
+        return dt_local.strftime("%d/%m/%Y")
+
+    # Si es date
+    if isinstance(val, date):
+        return val.strftime("%d/%m/%Y")
+
+    val_str = str(val).strip()
+    if not val_str or val_str in ('N/A', '—', 'None'):
+        return val_str
+
+    # Intentar parsear cadenas de texto
+    for fmt in (
+        '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S.%f%z', '%Y-%m-%d %H:%M:%S%z', '%Y-%m-%d %H:%M:%S.%f%z',
+        '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M'
+    ):
+        try:
+            dt = datetime.strptime(val_str, fmt)
+            if dt.tzinfo:
+                dt_local = dt.astimezone(tz)
+            else:
+                dt_local = dt.replace(tzinfo=timezone.utc).astimezone(tz)
+            if include_time:
+                return dt_local.strftime(f"%d/%m/%Y{time_sep}%H:%M") if time_sep else dt_local.strftime("%d/%m/%Y %H:%M")
+            return dt_local.strftime("%d/%m/%Y")
+        except ValueError:
+            pass
+
+    # Si es solo fecha YYYY-MM-DD
+    try:
+        dt = datetime.strptime(val_str[:10], '%Y-%m-%d')
+        return dt.strftime("%d/%m/%Y")
+    except ValueError:
+        pass
+
+    return val_str
+
+
 def get_thresholds():
     """Return current thresholds as a dict, falling back to defaults on error."""
     conn = None
@@ -709,6 +843,7 @@ def get_thresholds():
         result['fecha_inicio_operacion'] = None
         result['supervision_periodicidad'] = 'diario'
         result['visita_periodicidad'] = 'mensual'
+        result['zona_horaria'] = 'America/Bogota'
         result.update(rows)
         return result
     except Exception as e:
@@ -744,6 +879,7 @@ def thresholds():
         t['fecha_inicio_operacion'] = None
         t['supervision_periodicidad'] = 'diario'
         t['visita_periodicidad'] = 'mensual'
+        t['zona_horaria'] = 'America/Bogota'
         t.update(rows)
         try:
             _ensure_supervision_programacion(conn)
@@ -861,6 +997,22 @@ def save_thresholds():
                 else:
                     flash('Periodicidad inválida.', 'error')
                     return redirect(url_for('admin_bp.thresholds'))
+
+        # Guardar clave de texto: zona_horaria
+        tz_raw = request.form.get('zona_horaria', '').strip()
+        if tz_raw:
+            try:
+                zoneinfo.ZoneInfo(tz_raw)
+                cur.execute(
+                    """INSERT INTO kpi_thresholds (key, value, text_value, updated_at, updated_by)
+                       VALUES (%s, 0, %s, NOW(), %s)
+                       ON CONFLICT (key) DO UPDATE
+                       SET text_value = EXCLUDED.text_value, updated_at = NOW(), updated_by = EXCLUDED.updated_by""",
+                    ('zona_horaria', tz_raw, email)
+                )
+            except Exception:
+                flash('Zona horaria inválida.', 'error')
+                return redirect(url_for('admin_bp.thresholds'))
 
         # Programación por Cliente / Empresa. Los campos llegan como
         # sup_prog_meta_<id> y sup_prog_periodicidad_<id>; meta 0 significa

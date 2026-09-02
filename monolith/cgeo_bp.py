@@ -2211,7 +2211,9 @@ def _build_briefing_html(payload: dict) -> str:
     tendencia  = payload.get('tendencia') or {}
     chart_img  = payload.get('chart_image')   # base64 data URL from canvas
     cliente    = payload.get('cliente') or 'Todos los clientes'
-    generated  = datetime.now().strftime('%d/%m/%Y %H:%M')
+    from admin_bp import get_operation_timezone, format_local_datetime
+    tz         = get_operation_timezone()
+    generated  = format_local_datetime(datetime.now(), tz=tz, time_sep=" ")
 
     nivel      = semaforo.get('nivel') or 'verde'
     condiciones = semaforo.get('condiciones') or []

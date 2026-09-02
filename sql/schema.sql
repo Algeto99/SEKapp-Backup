@@ -109,7 +109,12 @@ INSERT INTO kpi_thresholds (key, value) VALUES
     ('estatus_peso_eventos',        20),
     ('estatus_banda_optimo',        90),
     ('estatus_banda_observacion',   75),
-    ('estatus_banda_seguimiento',   60)
+    ('estatus_banda_seguimiento',   60),
+    ('zona_horaria',                0)
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO kpi_thresholds (key, value, text_value) VALUES
+    ('zona_horaria', 0, 'America/Bogota')
 ON CONFLICT (key) DO NOTHING;
 
 
