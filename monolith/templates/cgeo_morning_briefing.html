@@ -229,9 +229,39 @@ body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
 body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
 body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
 body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155}
-body:not(.light-mode) .skeleton{background:linear-gradient(90deg,#1e293b 25%,#334155 50%,#1e293b 75%);background-size:400px 100%}
+/* ── Clientes en riesgo ──────────────────────────────────────────────────── */
+.clientes-riesgo-wrap{margin-bottom:1.25rem}
+.cr-card{background:#fff;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:.875rem;padding:.875rem 1.25rem;box-shadow:0 2px 8px rgba(239,68,68,0.06);transition:all .15s ease}
+.cr-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.5rem;flex-wrap:wrap}
+.cr-title-box{display:flex;align-items:center;gap:.5rem;font-size:.9375rem;font-weight:700;color:#991b1b}
+.cr-icon{font-size:1.1rem;line-height:1}
+.cr-all-link{font-size:.78rem;font-weight:600;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;transition:color .15s}
+.cr-all-link:hover{color:#1d4ed8;text-decoration:underline}
+.cr-items{display:flex;flex-direction:column;gap:.35rem}
+.cr-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.4rem .625rem;border-radius:.5rem;font-size:.8125rem;color:#334155;text-decoration:none;background:#fef2f2;transition:background .15s,transform .1s}
+.cr-item:hover{background:#fee2e2;transform:translateX(2px)}
+.cr-item-left{display:flex;align-items:center;gap:.4rem;min-width:0;overflow:hidden}
+.cr-bullet{color:#ef4444;font-weight:700;font-size:.9rem;line-height:1}
+.cr-item-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr-item-score-wrap{display:inline-flex;align-items:center;gap:.375rem;flex-shrink:0}
+.cr-item-score{font-weight:700;font-variant-numeric:tabular-nums;font-size:.875rem}
+.cr-score-rojo{color:#dc2626}
+.cr-score-amarillo{color:#d97706}
+.cr-item-badge{font-size:.68rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
+.cr-badge-rojo{background:rgba(239,68,68,0.12);color:#b91c1c;border:1px solid rgba(239,68,68,0.25)}
+.cr-badge-amarillo{background:rgba(245,158,11,0.12);color:#b45309;border:1px solid rgba(245,158,11,0.25)}
+
+body:not(.light-mode) .cr-card{background:#1e293b;border-color:#7f1d1d;border-left-color:#ef4444;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+body:not(.light-mode) .cr-title-box{color:#fca5a5}
+body:not(.light-mode) .cr-all-link{color:#60a5fa}
+body:not(.light-mode) .cr-all-link:hover{color:#93c5fd}
+body:not(.light-mode) .cr-item{background:rgba(239,68,68,0.08);color:#e2e8f0}
+body:not(.light-mode) .cr-item:hover{background:rgba(239,68,68,0.16)}
+body:not(.light-mode) .cr-score-rojo{color:#f87171}
+body:not(.light-mode) .cr-score-amarillo{color:#fbbf24}
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+
 @media(max-width:900px){.main{margin-left:200px}.sidebar{width:200px}}
 @media(max-width:700px){
   .sidebar{transform:translateX(-100%);width:240px}
@@ -376,6 +406,20 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             <svg class="sg-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:22px;height:22px">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
+        </div>
+
+        <!-- ══ ELEMENTO: CLIENTES EN RIESGO ══ -->
+        <div class="clientes-riesgo-wrap hidden" id="clientesRiesgoWrap">
+            <div class="cr-card">
+                <div class="cr-header">
+                    <div class="cr-title-box">
+                        <span class="cr-icon">⚠️</span>
+                        <span class="cr-title">Clientes en riesgo: <strong id="crTotalCount">0</strong></span>
+                    </div>
+                    <a href="/dashboard/gestion/" class="cr-all-link">Consultar listado en Gestión →</a>
+                </div>
+                <div class="cr-items" id="crItems"></div>
+            </div>
         </div>
 
         <!-- ══ SECCIÓN 3: KPIs 2×2 ══ -->
@@ -675,6 +719,45 @@ function renderKpis(k, thr) {
         `${k.sup_programadas ?? 0} supervisiones programadas hoy`;
 }
 
+// ── Render Clientes en riesgo ─────────────────────────────────────────────────
+
+function renderClientesEnRiesgo(data) {
+    const wrap = document.getElementById('clientesRiesgoWrap');
+    if (!wrap) return;
+    const total = data?.total || 0;
+    const clientes = data?.clientes || [];
+
+    if (!total || !clientes.length) {
+        wrap.classList.add('hidden');
+        return;
+    }
+
+    document.getElementById('crTotalCount').textContent = total;
+    const itemsCont = document.getElementById('crItems');
+    itemsCont.innerHTML = clientes.map(c => {
+        const scoreCls = c.color === 'rojo' ? 'cr-score-rojo' : 'cr-score-amarillo';
+        const badgeCls = c.color === 'rojo' ? 'cr-badge-rojo' : 'cr-badge-amarillo';
+        const notaStr = typeof c.nota === 'number' ? Math.round(c.nota) : (c.nota || '—');
+        return `
+            <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
+               class="cr-item" title="Ver Estatus de ${c.nombre}">
+                <div class="cr-item-left">
+                    <span class="cr-bullet">•</span>
+                    <span class="cr-item-name">${_esc(c.nombre)}</span>
+                    <span style="color:#94a3b8;font-weight:400">—</span>
+                    <span class="cr-item-score ${scoreCls}">${notaStr}</span>
+                </div>
+                <div class="cr-item-score-wrap">
+                    <span class="cr-item-badge ${badgeCls}">${_esc(c.banda)}</span>
+                    <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
+                </div>
+            </a>
+        `;
+    }).join('');
+
+    wrap.classList.remove('hidden');
+}
+
 // ── Semáforo global ───────────────────────────────────────────────────────────
 
 function computeSemaforo(alertasData, kpis, thr) {
@@ -770,6 +853,7 @@ function renderSemaforo(alertasData, kpis) {
 // Agrupa las alertas accionables por tipo de registro para el detalle del semáforo
 const _SG_GRUPOS = [
     { key: 'reporte_incidente',            titulo: 'Incidentes abiertos' },
+    { key: 'estatus_cliente',              titulo: 'Clientes en riesgo (Estatus de Cliente)' },
     { key: 'supervision_puesto',           titulo: 'Supervisiones pendientes o no realizadas' },
     { key: 'checklist_cumplimiento',        titulo: 'Certificaciones vencidas o próximas a vencer' },
     { key: 'registro_y_acta_de_visita',    titulo: 'Compromisos de visitas a clientes' },
@@ -1002,9 +1086,7 @@ function abrirAlerta(ref, event) {
     const a = _alertaRegistry[ref];
     if (!a) return;   // sin preventDefault: que al menos siga el href
     event.preventDefault();
-    if (a.backup) {
-        // "Realizar Backup →" debe abrir Reportes con el modal ya desplegado,
-        // no una ventana intermedia ni el dashboard.
+    if (a.backup || a.form_type === 'estatus_cliente') {
         window.location.href = a.ruta_navegacion;
         return;
     }
@@ -1164,6 +1246,7 @@ async function loadAll(silent = false) {
         _thresholds  = briefing.thresholds || {};
 
         renderKpis(_kpis, briefing.thresholds);
+        renderClientesEnRiesgo(briefing.clientes_en_riesgo);
         renderSemaforo(_alertasData, _kpis);
         renderAlertas(_alertasData);
         renderTendencia(_tendencia);

@@ -1348,7 +1348,47 @@ def cgeo_api_alertas():
         except Exception as bk_err:
             app_logger.warning(f"cgeo_api_alertas: estado de backup omitido: {bk_err}")
 
+        # ── REGLA 14: Clientes en riesgo (Estatus de Cliente) ────────────────
+        try:
+            from admin_bp import get_estatus_pesos
+            from dashboard_bp import _estatus_ranking
+            pesos_estatus = get_estatus_pesos(alertas_thresholds)
+            limite_observacion = float(alertas_thresholds.get('estatus_banda_observacion', 75))
+            limite_seguimiento = float(alertas_thresholds.get('estatus_banda_seguimiento', 60))
+            company_id = _get_user_company_id(cur, get_jwt_identity())
+            calificados_alertas, _ = _estatus_ranking(
+                cur, year=None, month=None, day=None, desde=None,
+                company_id=company_id, thresholds=alertas_thresholds, pesos=pesos_estatus
+            )
+            for c in calificados_alertas:
+                nota = c.get('nota')
+                cid = c.get('id')
+                cnombre = c.get('nombre')
+                if cliente and str(cliente) != str(cid) and str(cliente) != str(cnombre):
+                    continue
+                if nota is not None and nota < limite_observacion:
+                    es_critico = nota < limite_seguimiento
+                    banda = 'Crítico' if es_critico else 'Requiere seguimiento'
+                    color = 'rojo' if es_critico else 'amarillo'
+                    alertas.append({
+                        "id": f"r14_{cid}",
+                        "regla": 14,
+                        "motivo": (f'Cliente en riesgo. "{cnombre}" tiene una calificación de {nota:g}/100 '
+                                   f'en Estatus de Cliente ({banda}).'),
+                        "texto": f'Cliente en riesgo: "{cnombre}" — {nota:g}/100 ({banda})',
+                        "accion": "Ver Estatus de Cliente",
+                        "ruta_navegacion": f"/dashboard/gestion/?cliente={cid}",
+                        "record_id": None,
+                        "form_type": "estatus_cliente",
+                        "color_semaforo": color,
+                        "timestamp": date.today().isoformat(),
+                        "horas": None,
+                    })
+        except Exception as r14_err:
+            app_logger.warning(f"cgeo_api_alertas: regla 14 clientes en riesgo omitida: {r14_err}")
+
         # ── Asignaciones pendientes de cualquier origen ───────────────────────
+
         # Van aparte de las 8 reglas: nacen de una acción explícita del
         # Administrador, no de una condición evaluada sobre las tablas.
         try:
@@ -1674,6 +1714,34 @@ def cgeo_api_morning_briefing_data():
             for d in days7
         ]
 
+        # ── Clientes en riesgo (Estatus de Cliente: Requiere seguimiento / Crítico) ──
+        clientes_en_riesgo = []
+        try:
+            from admin_bp import get_estatus_pesos
+            from dashboard_bp import _estatus_ranking
+            pesos_estatus = get_estatus_pesos(thresholds)
+            limite_observacion = float(thresholds.get('estatus_banda_observacion', 75))
+            limite_seguimiento = float(thresholds.get('estatus_banda_seguimiento', 60))
+            company_id = _get_user_company_id(cur, get_jwt_identity())
+            calificados, _ = _estatus_ranking(
+                cur, year=None, month=None, day=None, desde=fecha_inicio_raw,
+                company_id=company_id, thresholds=thresholds, pesos=pesos_estatus
+            )
+            for c in calificados:
+                nota = c.get('nota')
+                if nota is not None and nota < limite_observacion:
+                    banda = 'Crítico' if nota < limite_seguimiento else 'Requiere seguimiento'
+                    color = 'rojo' if nota < limite_seguimiento else 'amarillo'
+                    clientes_en_riesgo.append({
+                        'id': c['id'],
+                        'nombre': c['nombre'],
+                        'nota': nota,
+                        'banda': banda,
+                        'color': color,
+                    })
+        except Exception as cr_err:
+            app_logger.warning(f"cgeo_api_morning_briefing_data: error calculando clientes en riesgo: {cr_err}")
+
         return jsonify({
             "kpis": {
                 "inc_abiertos":    inc_abiertos,
@@ -1696,6 +1764,10 @@ def cgeo_api_morning_briefing_data():
                 "comp_por_vencer": comp_por_vencer,
                 "visita_completadas": visita_completadas,
                 "visita_programadas": visita_meta,
+            },
+            "clientes_en_riesgo": {
+                "total": len(clientes_en_riesgo),
+                "clientes": clientes_en_riesgo,
             },
             "thresholds": {
                 "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),
