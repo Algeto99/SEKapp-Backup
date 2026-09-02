@@ -2962,6 +2962,9 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     """
     from admin_bp import calcular_supervisiones
 
+    if not desde and thresholds:
+        desde = thresholds.get('fecha_inicio_operacion') or None
+
     umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
 
 
@@ -3237,6 +3240,8 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
     if pesos is None:
         from admin_bp import get_estatus_pesos
         pesos = get_estatus_pesos(thresholds)
+    if not desde and thresholds:
+        desde = thresholds.get('fecha_inicio_operacion') or None
 
     umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
 

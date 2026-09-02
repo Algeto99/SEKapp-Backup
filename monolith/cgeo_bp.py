@@ -1357,7 +1357,7 @@ def cgeo_api_alertas():
             limite_seguimiento = float(alertas_thresholds.get('estatus_banda_seguimiento', 60))
             company_id = _get_user_company_id(cur, get_jwt_identity())
             calificados_alertas, _ = _estatus_ranking(
-                cur, year=None, month=None, day=None, desde=None,
+                cur, year=None, month=None, day=None, desde=alertas_thresholds.get('fecha_inicio_operacion'),
                 company_id=company_id, thresholds=alertas_thresholds, pesos=pesos_estatus
             )
             for c in calificados_alertas:
