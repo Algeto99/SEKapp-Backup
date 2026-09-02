@@ -287,10 +287,84 @@
 
   /* ── Responsive ──────────────────────────────────────────────────────── */
   @media (max-width: 768px) {
-    .df-bar { flex-direction: column; }
-    .df-divider { width: 100%; height: 1px; align-self: auto; }
-    .df-reset { margin-left: 0; align-self: flex-start; }
-    .df-select { min-width: 100%; }
+    .df-bar {
+      flex-direction: column !important;
+      padding: 1rem 0.75rem !important;
+      gap: 0.875rem !important;
+      margin-bottom: 1.25rem !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+    }
+    .df-section {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .df-select {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .df-static {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .ms-wrap {
+      width: 100% !important;
+      display: block !important;
+      box-sizing: border-box !important;
+    }
+    .ms-btn {
+      width: 100% !important;
+      min-width: 0 !important;
+      box-sizing: border-box !important;
+    }
+    #df-empresa-wrap, #df-puesto-wrap, #df-responsable-wrap, #df-year-wrap, #df-day-row {
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .df-months {
+      display: grid !important;
+      grid-template-columns: repeat(6, 1fr) !important;
+      gap: 0.25rem !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .df-month-btn {
+      width: 100% !important;
+      min-width: 0 !important;
+      padding: 0.4rem 0.1rem !important;
+      font-size: 0.7rem !important;
+      text-align: center !important;
+      box-sizing: border-box !important;
+    }
+    .df-divider {
+      display: none !important;
+    }
+    .df-reset {
+      margin-left: 0 !important;
+      width: 100% !important;
+      justify-content: center !important;
+      box-sizing: border-box !important;
+    }
+    .df-active-chips {
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .df-months {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
   }
 </style>
 
@@ -309,7 +383,7 @@
   <!-- ① Cliente / Empresa ──────────────────────────────────────── -->
   <div class="df-section" id="df-cliente-section">
     <span class="df-label">Cliente / Empresa</span>
-    <select id="df-cliente" class="df-select" style="min-width:180px;">
+    <select id="df-cliente" class="df-select">
       <option value="">Todos los clientes</option>
     </select>
   </div>
@@ -319,7 +393,7 @@
   <!-- ② Propiedad / Instalación ─────────────────────────────────── -->
   <div class="df-section" id="df-property-section">
     <span class="df-label">Propiedad / Instalación</span>
-    <select id="df-property" class="df-select" style="min-width:190px;">
+    <select id="df-property" class="df-select">
       <option value="">Todas las instalaciones</option>
     </select>
   </div>
@@ -329,7 +403,7 @@
     <div class="df-divider"></div>
     <div class="df-section" id="df-puesto-section">
       <span class="df-label">Puesto</span>
-      <select id="df-puesto" class="df-select" style="min-width:180px;">
+      <select id="df-puesto" class="df-select">
         <option value="">Todos los puestos</option>
       </select>
     </div>
@@ -340,13 +414,13 @@
   <!-- ② Año ─────────────────────────────────────────────────────────── -->
   <div class="df-section">
     <span class="df-label">Año</span>
-    <div id="df-year-wrap" style="min-width:110px;"></div>
+    <div id="df-year-wrap"></div>
   </div>
 
   <div class="df-divider"></div>
 
   <!-- ③ Mes ─────────────────────────────────────────────────────────── -->
-  <div class="df-section" style="flex:1; min-width:280px;">
+  <div class="df-section" style="flex:1;">
     <span class="df-label">Mes</span>
     <div class="df-months">
       <button class="df-month-btn df-month-disabled" data-month="1"  disabled>Ene</button>
@@ -366,7 +440,7 @@
     <!-- ④ Día — only visible when a month is selected -->
     <div id="df-day-row" class="df-day-row df-hidden">
       <span class="df-label">Día</span>
-      <select id="df-day" class="df-select" style="min-width:120px;">
+      <select id="df-day" class="df-select">
         <option value="">Todos los días</option>
       </select>
     </div>
@@ -377,7 +451,7 @@
     <div class="df-divider"></div>
     <div class="df-section">
       <span class="df-label">Responsable / Rol</span>
-      <select id="df-responsable" class="df-select" style="min-width:180px;">
+      <select id="df-responsable" class="df-select">
         <option value="">Todos</option>
       </select>
     </div>

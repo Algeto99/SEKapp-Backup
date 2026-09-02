@@ -171,13 +171,14 @@
         @media (max-width:1024px) { .kpi-grid { grid-template-columns:repeat(2,1fr); } }
         @media (max-width:900px)  { .charts-row { grid-template-columns:1fr; } }
         @media (max-width:700px)  {
-            .kpi-grid { grid-template-columns:1fr 1fr; }
-            body { }
-
+            .main-container { padding:1rem 0.75rem !important; width:100% !important; max-width:100vw !important; box-sizing:border-box !important; overflow-x:hidden !important; }
+            .kpi-grid { grid-template-columns:1fr !important; }
+            .charts-row { grid-template-columns:1fr !important; }
+            .card { padding:1rem 0.75rem !important; width:100% !important; box-sizing:border-box !important; }
         }
         @media (max-width:500px)  {
             .kpi-value { font-size:1.75rem; }
-            .kpi-grid  { grid-template-columns:1fr; }
+            .kpi-grid  { grid-template-columns:1fr !important; }
         }
 
         /* ── Modal ────────────────────────────────────────────────────────── */
