@@ -1794,6 +1794,26 @@ def _gestion_add_multi_date_filter(conds, params, text_expr, years, months, days
         params.extend(p + "%" for p in prefixes)
 
 
+def _gestion_add_desde(conds, params, date_expr, desde):
+    """Recorta la consulta a partir de `fecha_inicio_operacion` (Umbrales KPI).
+
+    Es opt-in: solo actúa cuando el llamador manda `desde`, así que ningún
+    dashboard existente cambia de comportamiento. Lo usa el Estatus de Cliente
+    para no consolidar los datos del piloto previos al arranque de la operación.
+    """
+    desde = (desde or '').strip() if isinstance(desde, str) else desde
+    if not desde:
+        return
+    conds.append(f"({date_expr})::date >= %s")
+    params.append(desde)
+
+
+def _gestion_desde_arg():
+    """`desde` tal como llega por querystring, validado como YYYY-MM-DD."""
+    raw = (request.args.get('desde') or '').strip()
+    return raw if re.match(r'^\d{4}-\d{2}-\d{2}$', raw) else None
+
+
 def _gestion_where(conds):
     return ('WHERE ' + ' AND '.join(conds)) if conds else ''
 
@@ -1819,11 +1839,23 @@ def _gestion_score_payload(module_key, title, route, score, primary_value, prima
 @jwt_required()
 @admin_required
 def api_gestion_filtros():
+    # Umbrales y fecha de inicio configurados por el Administrador. Van en esta
+    # respuesta —que la pantalla ya pide al cargar— para que el semáforo del
+    # Estatus de Cliente sea el mismo que usa el resto de la app.
+    from admin_bp import get_thresholds
+    t = get_thresholds()
+    umbrales = {
+        'verde_min':    float(t.get('supervision_verde_min', 90)),
+        'amarillo_min': float(t.get('supervision_amarillo_min', 70)),
+    }
+    fecha_inicio = t.get('fecha_inicio_operacion')
+
     conn = cur = None
     try:
         conn = get_db_connection()
         if not conn:
-            return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno']})
+            return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'],
+                            'umbrales': umbrales, 'fecha_inicio_operacion': fecha_inicio})
 
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         user_email = get_jwt_identity()
@@ -1910,10 +1942,13 @@ def api_gestion_filtros():
             'paises': [],
             'turnos': turnos,
             'responsables': responsables,
+            'umbrales': umbrales,
+            'fecha_inicio_operacion': fecha_inicio,
         })
     except Exception as e:
         app_logger.error(f"api_gestion_filtros error: {e}", exc_info=True)
-        return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'], 'responsables': []})
+        return jsonify({'clientes': [], 'properties': [], 'proyectos': [], 'paises': [], 'turnos': ['Diurno', 'Nocturno'], 'responsables': [],
+                        'umbrales': umbrales, 'fecha_inicio_operacion': fecha_inicio})
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -2421,6 +2456,10 @@ def api_gestion_data():
             if label not in trend_labels:
                 trend_labels.append(label)
 
+        # Cumplimiento usa el mismo patrón de período que el resto de módulos
+        # con fecha real; sin estos dos alias el endpoint lanzaba NameError.
+        cum_period_label = extract_period_label
+        cum_period_order = extract_period_order
         cum_period_expr = extract_period_expr.format(expr="fecha_hora")
         cur.execute(f"""
             SELECT {cum_period_label.format(expr="fecha_hora")} AS label,
@@ -2601,10 +2640,11 @@ def _sat_add_multi_date_filter(conds, params, text_expr, year, month, day):
     _gestion_add_multi_date_filter(conds, params, text_expr, year, month, day)
 
 
-def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None):
+def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, "fecha_hora", desde)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
@@ -2771,7 +2811,8 @@ def api_satisfaccion_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        where,      params      = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, desde=desde)
         where_prev, params_prev = _sat_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
 
         # ── Main summary ─────────────────────────────────────────────────
@@ -2946,7 +2987,8 @@ def api_satisfaccion_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        where, params = _sat_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, desde=desde)
         cur.execute("""
             SELECT column_name
             FROM information_schema.columns
@@ -3035,10 +3077,11 @@ def api_satisfaccion_detalles():
 
 # ── Incidentes Dashboard ─────────────────────────────────────────────────────
 
-def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None, puesto=None):
+def _inc_where(cliente, year, month, day, categoria=None, severidad=None, turno=None, responsable=None, company_id=None, propiedad=None, puesto=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, "fecha_hora", desde)
     if categoria:
         conds.append("categoria = %s")
         params.append(categoria)
@@ -3166,7 +3209,8 @@ def api_incidentes_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        desde = _gestion_desde_arg()
+        where, params           = _inc_where(cliente, year, month, day, categoria, severidad, responsable=responsable, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
         where_prev, params_prev = _inc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # ── KPI summary ───────────────────────────────────────────────────
@@ -3323,7 +3367,8 @@ def api_incidentes_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        desde = _gestion_desde_arg()
+        where, params = _inc_where(cliente, year, month, day, categoria, severidad, turno, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
         inc_cliente_expr, inc_propiedad_expr = _scope_name_exprs('reportes_incidentes')
 
         # Fetch with optional tracking columns (may not exist yet)
@@ -3516,10 +3561,11 @@ def api_incidentes_historial(id_reporte):
 
 # ── Disciplina Dashboard ─────────────────────────────────────────────────────
 
-def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None, propiedad=None, puesto=None):
+def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company_id=None, propiedad=None, puesto=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="puesto_area_especifica")
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, "fecha_hora", desde)
     if tipo:
         conds.append("tipo_novedad = %s")
         params.append(tipo)
@@ -3611,7 +3657,8 @@ def api_disciplina_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _disc_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        desde = _gestion_desde_arg()
+        where, params           = _disc_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
         where_prev, params_prev = _disc_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # ── KPIs via CTE on employee counts ──────────────────────────────
@@ -3804,7 +3851,8 @@ def api_disciplina_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        desde = _gestion_desde_arg()
+        where, params = _disc_where(cliente, year, month, day, tipo, empleado_num, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
 
         cur.execute(f"""
             SELECT
@@ -3875,7 +3923,7 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, puesto=None):
+def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, puesto=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
     if responsable:
@@ -3885,6 +3933,7 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
         conds.append("TRIM(supervisor) = %s")
         params.append(nombre_usuario)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, "fecha_hora", desde)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -4006,7 +4055,8 @@ def api_supervision_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        desde = _gestion_desde_arg()
+        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
         where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
@@ -4238,7 +4288,8 @@ def api_supervision_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        desde = _gestion_desde_arg()
+        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]
@@ -4318,10 +4369,11 @@ _CUMPL_CRITERIA = [
     ('fechas_vigentes',               'Vigente'),
 ]
 
-def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None):
+def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, "fecha_hora", desde)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
     if company_id is not None:
@@ -4404,7 +4456,8 @@ def api_cumplimiento_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _cumpl_where(base_conds)
 
         # ── KPI summary ────────────────────────────────────────────────────
@@ -4629,7 +4682,8 @@ def api_cumplimiento_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _cumpl_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _cumpl_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _cumpl_where(base_conds)
 
         cur.execute(f"""
@@ -4693,11 +4747,12 @@ _CAPAC_CLIENTE_EXPR = (
     "(SELECT nombre FROM propiedades WHERE id_propiedad = registro_de_capacitaciones.id_propiedad)))"
 )
 
-def _capac_conds(cliente, year, month, day, company_id=None, propiedad=None):
+def _capac_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     date_expr = _capac_date_expr()
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, date_expr, desde)
     if company_id is not None: conds.append('company_id = %s'); params.append(company_id)
     return conds, params
 
@@ -4766,7 +4821,8 @@ def api_capacitacion_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _capac_where(base_conds)
         safe_len = _capac_safe_len()
         date_expr = _capac_date_expr()
@@ -4932,7 +4988,8 @@ def api_capacitacion_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _capac_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _capac_where(base_conds)
         safe_len = _capac_safe_len()
         date_expr = _capac_date_expr()
@@ -4991,11 +5048,12 @@ def api_capacitacion_detalles():
 def _visita_date_expr():
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
-def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None):
+def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     date_expr = _visita_date_expr()
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, date_expr, desde)
     if company_id is not None:
         # Historical visits predate the company_id column.  Keep those records
         # visible only when their submitter belongs to the current tenant; a bare
@@ -5226,7 +5284,8 @@ def api_visitas_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
-        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _visita_where(base_conds)
 
         cur.execute(f"""
@@ -5388,7 +5447,8 @@ def api_visitas_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
-        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
 
         cur.execute(f"""
@@ -5616,11 +5676,12 @@ def _moto_date_expr():
     return "COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en)"
 
 
-def _moto_conds(cliente, year, month, day, company_id=None, propiedad=None):
+def _moto_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     de = _moto_date_expr()
     _gestion_add_multi_date_filter(conds, params, f"({de})::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, de, desde)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -5674,7 +5735,8 @@ def api_motocicletas_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _moto_where(base_conds)
 
         # ── KPIs ──────────────────────────────────────────────────────────
@@ -5828,7 +5890,8 @@ def api_motocicletas_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _moto_date_expr()
-        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         moto_cliente_expr, moto_propiedad_expr = _scope_name_exprs('planilla_motocicletas')
         nov_conds = base_conds + [
             "novedades_criticas_detectadas IS NOT NULL",
@@ -5955,11 +6018,12 @@ def _veh_date_expr():
     return "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
 
 
-def _veh_conds(cliente, year, month, day, company_id=None, propiedad=None):
+def _veh_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
     de = _veh_date_expr()
     _gestion_add_multi_date_filter(conds, params, f"({de})::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, de, desde)
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -6013,7 +6077,8 @@ def api_vehiculos_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _veh_where(base_conds)
 
         # ── KPIs ──────────────────────────────────────────────────────────
@@ -6167,7 +6232,8 @@ def api_vehiculos_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         de = _veh_date_expr()
-        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         veh_cliente_expr, veh_propiedad_expr = _scope_name_exprs('planilla_vehicular')
         nov_conds = base_conds + [
             "novedades_criticas IS NOT NULL",
@@ -6264,10 +6330,11 @@ _EQ_BASE = [
 ]
 
 
-def _eq_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None):
+def _eq_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, prefix="c.")
     _gestion_add_multi_date_filter(conds, params, "c.fecha::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, "c.fecha", desde)
     if responsable:
         conds.append("TRIM(c.rol_aplicador) = %s")
         params.append(responsable)
@@ -6362,7 +6429,8 @@ def api_equipos_data():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,
@@ -6507,7 +6575,8 @@ def api_equipos_detalles():
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
-        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad)
+        desde = _gestion_desde_arg()
+        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where  = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,

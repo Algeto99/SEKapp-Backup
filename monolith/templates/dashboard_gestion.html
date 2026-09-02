@@ -130,6 +130,35 @@
         }
         .kpi-alert-meta { font-size: 0.78rem; color: #64748b; line-height: 1.5; margin-top: 0.5rem; }
 
+        /* ── Estatus de Cliente: valoración consolidada ─────────────────── */
+        .estatus-hero {
+            display: grid; grid-template-columns: 1fr auto;
+            gap: 0.5rem 1.5rem; align-items: center;
+            margin-bottom: 1.25rem;
+            border-left: 6px solid var(--estatus-color, #94a3b8);
+        }
+        .estatus-hero-label {
+            font-family: 'Roboto', sans-serif; font-size: 0.6875rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: #6b7280; margin-bottom: 0.35rem;
+        }
+        .estatus-hero-client { font-family: 'Merriweather', serif; font-size: 1.35rem; line-height: 1.2; }
+        .estatus-hero-meta { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 0.4rem; }
+        .estatus-hero-score { text-align: right; }
+        .estatus-hero-value {
+            font-family: 'Merriweather', serif; font-size: 3rem; font-weight: 700;
+            line-height: 1; color: var(--estatus-color, #94a3b8);
+        }
+        .estatus-hero-bar {
+            grid-column: 1 / -1; width: 100%; height: 10px;
+            border-radius: 999px; overflow: hidden;
+            background-color: rgba(148,163,184,0.15); margin-top: 0.9rem;
+        }
+        .estatus-hero-bar-fill {
+            height: 100%; width: 0; border-radius: 999px;
+            background: var(--estatus-color, #94a3b8); transition: width .3s ease;
+        }
+
         .kpi-value {
             font-family: 'Merriweather', serif; font-size: 2.4rem; font-weight: 700;
             line-height: 1; margin-bottom: 0.375rem;
@@ -434,6 +463,8 @@
             body { }
 
             .kpi-grid, .filters-grid, .modules-grid { grid-template-columns: 1fr; }
+            .estatus-hero { grid-template-columns: 1fr; }
+            .estatus-hero-score { text-align: left; }
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -458,8 +489,8 @@
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
             </button>
             <div>
-                <div class="snw-page-title">Gestión y Resultados</div>
-                <div class="snw-page-subtitle">Indicadores consolidados de gestión operativa</div>
+                <div class="snw-page-title">Estatus de Cliente</div>
+                <div class="snw-page-subtitle">Valoración general de la operación del cliente seleccionado</div>
             </div>
         </div>
     </div>
@@ -512,6 +543,21 @@
                     <button id="resetFilters" class="filter-btn">Limpiar filtros</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Valoración general del cliente: promedio de los módulos con datos,
+             con el semáforo que el Administrador configura en Umbrales KPI. -->
+        <div class="card estatus-hero" id="estatusHero">
+            <div>
+                <div class="estatus-hero-label">Estatus de Cliente</div>
+                <div class="estatus-hero-client" id="estatusHeroClient">Todos los clientes</div>
+                <div class="estatus-hero-meta" id="estatusHeroMeta">Cargando valoración...</div>
+            </div>
+            <div class="estatus-hero-score">
+                <div class="estatus-hero-value" id="estatusHeroValue">—</div>
+                <div class="status-badge status-slate" id="estatusHeroBadge">Sin Información</div>
+            </div>
+            <div class="estatus-hero-bar"><div class="estatus-hero-bar-fill" id="estatusHeroBar"></div></div>
         </div>
 
         <div class="kpi-grid" id="kpiGrid"></div>
@@ -588,6 +634,7 @@
             disciplina: { data: '/dashboard/api/disciplina/data', route: '/dashboard/disciplina/', title: 'Disciplina' },
             visitas: { data: '/dashboard/api/visitas/data', route: '/dashboard/visitas/', title: 'Visitas' },
             vehiculos: { data: '/dashboard/api/vehiculos/data', route: '/dashboard/vehiculos/', title: 'Vehículos' },
+            motocicletas: { data: '/dashboard/api/motocicletas/data', route: '/dashboard/motocicletas/', title: 'Motocicletas' },
             equipos: { data: '/dashboard/api/equipos/data', route: '/dashboard/equipos/', title: 'Equipos' }
         };
 
@@ -704,6 +751,34 @@
                     status: row.no_apta ? `No apta · ${row.fallas || 0} fallas` : 'Apta'
                 })
             },
+            motocicletas: {
+                endpoint: '/dashboard/api/motocicletas/detalles',
+                route: ENDPOINTS.motocicletas.route,
+                responseKey: 'inspecciones',
+                title: 'Motocicletas',
+                viewer: createDashboardRecordViewer({ formType: 'planilla_motocicletas', recordTitle: 'Detalle de Planilla de Chequeo Pre-Operacional de Motocicletas' }),
+                normalize: row => ({
+                    id: row.id,
+                    date: row.fecha || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.placa || '—'} · ${row.responsable || '—'}`,
+                    status: row.no_apta ? `No apta · ${row.fallas || 0} fallas` : 'Apta'
+                })
+            },
+            compromisos: {
+                endpoint: '/dashboard/api/visitas/detalles',
+                route: ENDPOINTS.visitas.route,
+                responseKey: 'detalles',
+                title: 'Compromisos',
+                viewer: createDashboardRecordViewer({ formType: 'registro_y_acta_de_visita', recordTitle: 'Detalle de Visita' }),
+                normalize: row => ({
+                    id: row.id_visita,
+                    date: row.fecha_visita || '—',
+                    client: row.cliente || '—',
+                    summary: `${row.acuerdo || '—'} · ${row.responsable || '—'}`,
+                    status: `${row.estado || '—'} · vence ${row.fecha_cumplimiento || '—'}`
+                })
+            },
             equipos: {
                 endpoint: '/dashboard/api/equipos/detalles',
                 route: ENDPOINTS.equipos.route,
@@ -755,10 +830,22 @@
         const gestionDetailClose = document.getElementById('gestionDetailClose');
         const gestionDetailDismiss = document.getElementById('gestionDetailDismiss');
 
+        const estatusHero = document.getElementById('estatusHero');
+        const estatusHeroClient = document.getElementById('estatusHeroClient');
+        const estatusHeroMeta = document.getElementById('estatusHeroMeta');
+        const estatusHeroValue = document.getElementById('estatusHeroValue');
+        const estatusHeroBadge = document.getElementById('estatusHeroBadge');
+        const estatusHeroBar = document.getElementById('estatusHeroBar');
+
         let trendChart = null;
         let rankingChart = null;
         let distributionChart = null;
         let latestCards = [];
+
+        // Los pisa /dashboard/api/gestion/filtros con lo configurado en Umbrales
+        // KPI. Los valores de aquí solo aplican si esa llamada falla.
+        let umbrales = { verde_min: 90, amarillo_min: 70 };
+        let fechaInicioOperacion = '';
 
         
 
@@ -776,9 +863,16 @@
             if (score === null || score === undefined || Number.isNaN(score)) {
                 return { label: 'Sin Información', tone: 'slate', color: colors.slate };
             }
-            if (score >= 85) return { label: 'Operativo', tone: 'green', color: colors.green };
-            if (score >= 70) return { label: 'Requiere Seguimiento', tone: 'yellow', color: colors.yellow };
-            if (score >= 55) return { label: 'Atención Requerida', tone: 'orange', color: colors.orange };
+            // Verde y amarillo salen de Umbrales KPI, igual que en Morning Briefing.
+            // La franja naranja es propia de esta pantalla: parte el rojo en dos
+            // usando el mismo ancho que la franja amarilla, para no inventar un
+            // umbral que el Administrador no configuró.
+            const verde = umbrales.verde_min;
+            const amarillo = umbrales.amarillo_min;
+            const naranja = Math.max(0, amarillo - (verde - amarillo));
+            if (score >= verde) return { label: 'Operativo', tone: 'green', color: colors.green };
+            if (score >= amarillo) return { label: 'Requiere Seguimiento', tone: 'yellow', color: colors.yellow };
+            if (score >= naranja) return { label: 'Atención Requerida', tone: 'orange', color: colors.orange };
             return { label: 'Crítico', tone: 'red', color: colors.red };
         }
 
@@ -943,6 +1037,9 @@
             if (filterDay.value) params.set('day', filterDay.value);
             if (filterResponsable.value) params.set('responsable', filterResponsable.value);
             if (filterNombre.value) params.set('nombre_usuario', filterNombre.value);
+            // No es un filtro que el usuario elija: es la fecha de inicio de
+            // operación de Umbrales KPI, que deja fuera los datos del piloto.
+            if (fechaInicioOperacion) params.set('desde', fechaInicioOperacion);
             return params.toString();
         }
 
@@ -1024,7 +1121,7 @@
             const extraFilters = options.extraFilters || {};
             const suffix = options.titleSuffix ? ` — ${options.titleSuffix}` : '';
             gestionDetailTitle.textContent = `Detalle de ${cfg.title}${suffix}`;
-            gestionDetailSubtitle.textContent = 'Registros filtrados con el mismo contexto aplicado en Gestión y Resultados';
+            gestionDetailSubtitle.textContent = 'Registros filtrados con el mismo contexto aplicado en Estatus de Cliente';
             gestionDetailCount.textContent = 'Cargando...';
             gestionDetailDashboardLink.href = buildModuleUrl(moduleKey, extraFilters);
             gestionDetailContent.innerHTML = '<div class="detail-empty">Cargando registros...</div>';
@@ -1080,6 +1177,8 @@
                 const data = await res.json();
                 allGestionClientes = data.clientes || [];
                 allGestionProperties = data.properties || [];
+                if (data.umbrales) umbrales = data.umbrales;
+                fechaInicioOperacion = data.fecha_inicio_operacion || '';
                 fillSelect(filterCliente, allGestionClientes, 'Todos');
                 fillSelect(filterResponsable, data.responsables || [], 'Todos');
                 refreshGestionProperties();
@@ -1126,6 +1225,21 @@
 
             const veh = results.vehiculos;
             const vehScore = clamp(veh?.kpi?.pct_aptas ?? null);
+
+            const moto = results.motocicletas;
+            const motoScore = clamp(moto?.kpi?.pct_aptas ?? null);
+
+            // Compromisos no consulta nada nuevo: son los acuerdos de las actas de
+            // visita, que /api/visitas/data ya devuelve clasificados por estado.
+            const compEstados = vis?.estado_compromisos || null;
+            const compTotal = compEstados
+                ? (compEstados.cumplido || 0) + (compEstados.pendiente || 0) + (compEstados.vencido || 0)
+                : 0;
+            const compVencidos = compEstados ? (compEstados.vencido || 0) : 0;
+            const compCumplidos = compEstados ? (compEstados.cumplido || 0) : 0;
+            const compScore = compTotal
+                ? clamp(+(((compTotal - compVencidos) / compTotal) * 100).toFixed(1))
+                : null;
 
             const eq = results.equipos;
             const eqScore = clamp(eq?.kpi?.pct_general ?? null);
@@ -1209,6 +1323,17 @@
                     secondaryLabel: 'Clientes visitados'
                 },
                 {
+                    key: 'compromisos',
+                    title: 'Compromisos',
+                    route: ENDPOINTS.visitas.route,
+                    score: compScore,
+                    status: statusFromScore(compScore),
+                    primaryValue: compScore != null ? `${compScore}%` : '—',
+                    primaryLabel: '% sin vencer',
+                    secondaryValue: compTotal ? `${compCumplidos}/${compTotal}` : '—',
+                    secondaryLabel: 'Cumplidos'
+                },
+                {
                     key: 'vehiculos',
                     title: ENDPOINTS.vehiculos.title,
                     route: ENDPOINTS.vehiculos.route,
@@ -1217,6 +1342,17 @@
                     primaryValue: veh?.kpi?.pct_aptas != null ? `${veh.kpi.pct_aptas}%` : '—',
                     primaryLabel: '% aptas',
                     secondaryValue: veh?.kpi?.total_fallas ?? 0,
+                    secondaryLabel: 'Fallas'
+                },
+                {
+                    key: 'motocicletas',
+                    title: ENDPOINTS.motocicletas.title,
+                    route: ENDPOINTS.motocicletas.route,
+                    score: motoScore,
+                    status: statusFromScore(motoScore),
+                    primaryValue: moto?.kpi?.pct_aptas != null ? `${moto.kpi.pct_aptas}%` : '—',
+                    primaryLabel: '% aptas',
+                    secondaryValue: moto?.kpi?.total_fallas ?? 0,
                     secondaryLabel: 'Fallas'
                 },
                 {
@@ -1271,6 +1407,36 @@
             if (total === 0) return { tone: 'green', label: 'Sin incidentes', value: '0', meta: 'No se registran incidentes en el período' };
             if (pctAlto >= 25 || totalAlto > 0) return { tone: 'red', label: 'Crítico', value: total, meta: `${total} incidentes · ${totalAlto} de severidad alta (${pctAlto}%)` };
             return { tone: 'yellow', label: 'Requiere Seguimiento', value: total, meta: `${total} incidentes · ${pctAlto}% severidad alta` };
+        }
+
+        function renderEstatusCliente(cards) {
+            const conDatos = cards.filter(c => c.score !== null && c.score !== undefined && !Number.isNaN(c.score));
+            const score = safeAvg(conDatos.map(c => c.score));
+            const status = statusFromScore(score);
+
+            const clienteOpt = filterCliente.options[filterCliente.selectedIndex];
+            const clienteLabel = filterCliente.value && clienteOpt
+                ? clienteOpt.textContent
+                : 'Todos los clientes';
+            const propOpt = filterPropiedad ? filterPropiedad.options[filterPropiedad.selectedIndex] : null;
+            const propLabel = filterPropiedad && filterPropiedad.value && propOpt
+                ? ` · ${propOpt.textContent}`
+                : '';
+
+            const enAlerta = conDatos.filter(c => c.status.tone === 'red' || c.status.tone === 'orange').length;
+            const sinDatos = cards.length - conDatos.length;
+
+            estatusHero.style.setProperty('--estatus-color', status.color);
+            estatusHeroClient.textContent = `${clienteLabel}${propLabel}`;
+            estatusHeroValue.textContent = score != null ? `${score}%` : '—';
+            estatusHeroBadge.className = `status-badge status-${status.tone}`;
+            estatusHeroBadge.textContent = status.label;
+            estatusHeroBar.style.width = `${score || 0}%`;
+            estatusHeroMeta.textContent = score != null
+                ? `Promedio de ${conDatos.length} de ${cards.length} módulos con datos`
+                  + ` · ${enAlerta} en alerta o crítico`
+                  + (sinDatos ? ` · ${sinDatos} sin información` : '')
+                : 'No hay módulos con datos suficientes para valorar este cliente.';
         }
 
         function renderKpis(cards, results) {
@@ -1344,6 +1510,22 @@
                     title: 'La flota presenta unidades no aptas',
                     text: `Se registran ${results.vehiculos.kpi.no_aptas} inspecciones no aptas y ${results.vehiculos.kpi.total_fallas || 0} fallas acumuladas.`,
                     route: veh.route
+                });
+            }
+            if ((results.visitas?.vencidos_total || 0) > 0) {
+                items.push({
+                    cls: 'danger',
+                    title: 'Hay compromisos vencidos con el cliente',
+                    text: `Se registran ${results.visitas.vencidos_total} compromisos vencidos en las actas de visita.`,
+                    route: ENDPOINTS.visitas.route
+                });
+            }
+            if ((results.motocicletas?.kpi?.no_aptas || 0) > 0) {
+                items.push({
+                    cls: 'warning',
+                    title: 'Hay motocicletas no aptas',
+                    text: `Se registran ${results.motocicletas.kpi.no_aptas} inspecciones no aptas y ${results.motocicletas.kpi.total_fallas || 0} fallas acumuladas.`,
+                    route: ENDPOINTS.motocicletas.route
                 });
             }
             if (eq?.score !== null && eq.score < 85) {
@@ -1724,6 +1906,7 @@
                 dataError.textContent = `Se cargó información parcial. Módulos sin respuesta: ${failures.join(', ')}.`;
             }
 
+            renderEstatusCliente(cards);
             renderKpis(cards, results);
             renderAnalysis(cards, results, failures);
             renderModules(cards);
