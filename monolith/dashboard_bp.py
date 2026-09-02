@@ -2809,14 +2809,25 @@ def api_gestion_estatus():
         umbral_horas = float(thresholds.get('horas_incidente_escalar') or 24)
         excede_tiempo = inc_avg_min is not None and inc_avg_min > umbral_horas * 60
 
-        descuento = 15 * inc_alta + 7 * inc_media + 3 * inc_baja + (10 if excede_tiempo else 0)
-        detalle_inc = (f"{inc_alta} alta(s), {inc_media} media(s), {inc_baja} baja(s)"
-                       f" · −{descuento} puntos" if inc_total else "Sin incidentes en el período")
-        if excede_tiempo:
-            detalle_inc += (f" · atención promedio {round(inc_avg_min / 60, 1)} h"
-                            f" sobre el umbral de {umbral_horas:g} h")
+        if inc_total:
+            descuento = 15 * inc_alta + 7 * inc_media + 3 * inc_baja + (10 if excede_tiempo else 0)
+            inc_sin_sev = max(0, inc_total - inc_alta - inc_media - inc_baja)
+            detalle_inc = (f"{inc_alta} alta(s), {inc_media} media(s), {inc_baja} baja(s)"
+                           + (f", {inc_sin_sev} sin severidad" if inc_sin_sev else "")
+                           + f" · −{descuento} puntos")
+            if excede_tiempo:
+                detalle_inc += (f" · atención promedio {round(inc_avg_min / 60, 1)} h"
+                                f" sobre el umbral de {umbral_horas:g} h")
+            score_eventos = max(0.0, 100.0 - descuento)
+        else:
+            # Sin registros no hay información que valorar: la ausencia de
+            # incidentes no equivale a una calificación perfecta. El eje queda
+            # fuera del cálculo y su peso se reparte entre los demás.
+            score_eventos = None
+            detalle_inc = 'Sin incidentes registrados en el período'
+
         ejes['eventos'] = {
-            'score': max(0.0, 100.0 - descuento),
+            'score': score_eventos,
             'detalle': detalle_inc,
             'componentes': [],
         }
@@ -2832,15 +2843,21 @@ def api_gestion_estatus():
                 'peso': pesos.get(key, 0),
             })
         con_datos = [e for e in salida if e['score'] is not None]
-        peso_total = sum(e['peso'] for e in con_datos)
+        # Con menos de dos ejes con información la calificación no se emite: un
+        # solo eje no representa la operación del cliente.
+        suficiente = len(con_datos) >= 2
+        peso_total = sum(e['peso'] for e in con_datos) if suficiente else 0
         for e in salida:
             e['peso_efectivo'] = (round(e['peso'] / peso_total * 100, 1)
                                   if (e['score'] is not None and peso_total > 0) else 0)
         score = (round(sum(e['score'] * e['peso'] for e in con_datos) / peso_total, 1)
-                 if (con_datos and peso_total > 0) else None)
+                 if peso_total > 0 else None)
 
         return jsonify({
             'score': score,
+            'suficiente': suficiente,
+            'ejes_con_datos': len(con_datos),
+            'total_ejes': len(salida),
             'ejes': salida,
             'umbrales': {
                 'verde_min':    float(thresholds.get('supervision_verde_min', 90)),

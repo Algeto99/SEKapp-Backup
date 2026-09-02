@@ -1479,22 +1479,30 @@
 
             const conDatos = ejes.filter(e => e.score !== null);
             const sinDatos = ejes.filter(e => e.score === null);
-            if (score == null) {
-                estatusHeroMeta.textContent = 'No hay datos suficientes en ningún eje para calificar a este cliente.';
+            const total = estatus.total_ejes || ejes.length;
+            if (!estatus.suficiente) {
+                // Menos de dos ejes con información: no se emite calificación.
+                estatusHeroMeta.textContent =
+                    'Información insuficiente para calificar a este cliente.'
+                    + ` Solo ${conDatos.length} de ${total} ejes`
+                    + `${conDatos.length === 1 ? ' tiene' : ' tienen'} registros en el período.`;
             } else if (sinDatos.length) {
                 estatusHeroMeta.textContent =
-                    `Ponderado sobre ${conDatos.length} de ${ejes.length} ejes`
-                    + ` · sin datos: ${sinDatos.map(e => e.nombre).join(', ')}`
+                    `Calculado sobre ${conDatos.length} de ${total} ejes`
+                    + ` · sin información: ${sinDatos.map(e => e.nombre).join(', ')}`
                     + ' · su peso se repartió entre los demás';
             } else {
-                estatusHeroMeta.textContent = 'Ponderado sobre los 4 ejes, con los pesos definidos en Umbrales KPI.';
+                estatusHeroMeta.textContent =
+                    `Calculado sobre los ${total} ejes, con los pesos definidos en Umbrales KPI.`;
             }
 
             estatusEjes.innerHTML = ejes.map(eje => {
                 const st = statusFromScore(eje.score);
-                const peso = eje.score !== null
-                    ? `Peso aplicado ${eje.peso_efectivo}%`
-                    : `Sin datos · peso ${eje.peso}% redistribuido`;
+                const peso = !estatus.suficiente
+                    ? 'Sin ponderar'
+                    : (eje.score !== null
+                        ? `Peso aplicado ${eje.peso_efectivo}%`
+                        : `Sin información · peso ${eje.peso}% redistribuido`);
                 const componentes = (eje.componentes || [])
                     .filter(c => c.valor !== null)
                     .map(c => `${c.label} ${c.valor}% (${c.peso}%)`)
