@@ -1354,18 +1354,25 @@ def submit_supervision_puesto():
                 supervisions_map[index][field_name] = value
 
         # 3. Handle Files (supervisions[index][foto_evidencia])
-        for key, file_storage in request.files.items():
+        for key in list(request.files.keys()):
             match = pattern.match(key)
             if match:
                 index = int(match.group(1))
                 field = match.group(2)
                 if field == 'foto_evidencia':
-                    # Upload file
-                    url = upload_file_to_gcs(file_storage, GCS_BUCKET_NAME)
-                    if url:
-                         if index not in supervisions_map:
-                             supervisions_map[index] = {}
-                         supervisions_map[index]['foto_evidencia_url'] = url
+                    files = request.files.getlist(key)
+                    uploaded_urls = []
+                    for file_storage in files:
+                        if file_storage and file_storage.filename:
+                            url = upload_file_to_gcs(file_storage, GCS_BUCKET_NAME)
+                            if url:
+                                uploaded_urls.append(url)
+                    if uploaded_urls:
+                        if index not in supervisions_map:
+                            supervisions_map[index] = {}
+                        existing = supervisions_map[index].get('foto_evidencia_url')
+                        combined = f"{existing}\n" + "\n".join(uploaded_urls) if existing else "\n".join(uploaded_urls)
+                        supervisions_map[index]['foto_evidencia_url'] = combined
 
         # 4. Process and Insert Each Supervision
         column_cache = None # Optimization to fetch columns once if needed, but simple query is fine
@@ -1524,10 +1531,14 @@ def submit_supervision_puesto_editar(id):
             'firma_supervisor': request.form.get('firma_supervisor'),
             'firma_guardia': request.form.get('firma_guardia'),
         }
-        if 'foto_evidencia' in request.files and request.files['foto_evidencia'].filename:
-            url = upload_file_to_gcs(request.files['foto_evidencia'], GCS_BUCKET_NAME)
-            if url:
-                form_data['foto_evidencia_url'] = url
+        foto_urls = []
+        for file in request.files.getlist('foto_evidencia'):
+            if file and file.filename:
+                url = upload_file_to_gcs(file, GCS_BUCKET_NAME)
+                if url:
+                    foto_urls.append(url)
+        if foto_urls:
+            form_data['foto_evidencia_url'] = "\n".join(foto_urls)
         form_data.update(_resolve_scope_fields(
             cur,
             user_email,

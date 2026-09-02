@@ -471,10 +471,8 @@
                     <textarea name="observaciones_novedades" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
                 </div>
 
-                <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Foto/Evidencia</h3>
                 <div class="mb-6">
-                    <input type="file" name="foto_evidencia" class="form-input" accept="image/*,application/pdf">
-                    <p class="text-xs text-gray-400 mt-1">Deje en blanco para conservar la evidencia actual.</p>
+                    <div id="foto_evidencia_edit_wrapper"></div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -573,6 +571,16 @@
             var guardiaPad = new SignaturePad(document.getElementById('signaturePadGuardiaEdit'));
             document.getElementById('clearSigSupervisorEdit').addEventListener('click', function() { supervisorPad.clear(); });
             document.getElementById('clearSigGuardiaEdit').addEventListener('click', function() { guardiaPad.clear(); });
+
+            var existingEvidence = {% if edit_mode and record and record.foto_evidencia_url %}{{ record.foto_evidencia_url | tojson | safe }}{% else %}""{% endif %};
+            window.SecappMultiPhotoUploader.init('#foto_evidencia_edit_wrapper', {
+                inputName: 'foto_evidencia',
+                inputId: 'foto_evidencia_edit',
+                label: 'Foto/Evidencia',
+                existingUrls: existingEvidence,
+                helpText: '📸 Puede tomar varias fotos consecutivas con la cámara o seleccionar múltiples archivos desde la galería. Deje en blanco para conservar la evidencia actual.'
+            });
+
             var form = document.getElementById('supervisionForm');
             form.addEventListener('submit', function() {
                 if (!supervisorPad.isEmpty()) document.getElementById('firma_supervisor_edit').value = supervisorPad.toDataURL();
@@ -649,8 +657,7 @@
             }
         });
     </script>
-    {% endif %}
-
+    <script src="{{ url_for('static', filename='js/multi-photo-uploader.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -926,9 +933,8 @@
                     </div>
 
                     <!-- Foto -->
-                    <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Foto/Evidencia</h3>
                     <div class="mb-6">
-                         <input type="file" name="supervisions[${index}][foto_evidencia]" class="form-input" accept="image/*,application/pdf">
+                        <div id="foto_evidencia_wrapper_${index}"></div>
                     </div>
 
                     <!-- Firmas -->
@@ -1024,6 +1030,14 @@
                 window.secappSupervisionSelects.initScope(block);
 
                 initSignaturePad(index);
+
+                // Initialize multi-photo uploader for this supervision block
+                window.SecappMultiPhotoUploader.init(`#foto_evidencia_wrapper_${index}`, {
+                    inputName: `supervisions[${index}][foto_evidencia]`,
+                    inputId: `foto_evidencia_${index}`,
+                    label: 'Foto/Evidencia',
+                    helpText: '📸 Puede tomar varias fotos consecutivas con la cámara o seleccionar múltiples archivos desde la galería. Todas se conservarán.'
+                });
 
                 // Arma logic
                 const sel = block.querySelector('.porta-arma-select');
