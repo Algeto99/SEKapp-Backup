@@ -217,6 +217,17 @@ def _module_enabled(cur, company_id, module_key):
     return bool(row and row[0] and module_key in row[0])
 
 
+# --- Technical / System columns that should never be displayed in functional report details ---
+TECHNICAL_SYSTEM_COLUMNS = {
+    'company_id', 'customer_company_id', 'id_propiedad', 'cliente_instalacion',
+    'latitude', 'latitud', 'longitude', 'longitud', 'location_accuracy', 'precision',
+    'submitter_timezone', 'user_name', 'cliente_nombre', 'propiedad_nombre',
+    'editado', 'editado_por', 'editado_en', 'motivo_edicion', 'motivo_detalle',
+    'csrf_token', 'session_token', 'personas_involucradas', 'personas_data',
+    'id', 'id_reporte_incidente', 'id_encuesta', 'id_supervision', 'id_informe',
+    'id_patrulla', 'id_capacitacion', 'id_visita', 'id_planilla_vehicular'
+}
+
 # --- Form Configurations ---
 FORM_CONFIGS = {
     'reporte_incidente': {
@@ -266,11 +277,12 @@ FORM_CONFIGS = {
             u.name AS user_name
         """,
         'data_mapping': {
+            # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
             "Puesto o Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
-            "Rol del Aplicador": "rol_aplicador",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
             "Turno": "turno",
             "Hora de Ingreso": "hora_entrada",
             "Hora de Salida": "hora_salida",
@@ -281,6 +293,7 @@ FORM_CONFIGS = {
             "¿Se cubre el puesto?": "cubre_puesto",
             "Nombre persona que cubre": "nombre_persona_cubre",
             "Número de empleado (cubre)": "numero_empleado_cubre",
+            # 2. Detalles del Incidente
             "Tipo de Incidente": "tipo_incidente",
             "Descripción": "descripcion_incidente",
             "Nivel de Severidad": "nivel_severidad",
@@ -289,10 +302,12 @@ FORM_CONFIGS = {
             "Personas Involucradas": "personas_involucradas",
             "¿Reportado a autoridades?": "reportado_autoridades",
             "Número de reporte / radicado": "numero_reporte_autoridades",
+            # 3. Plan de Acción y Seguimiento
             "Plan de Acción": "plan_accion",
             "Responsable Plan de Acción": "nombre_responsable_plan",
             "Fecha de Cumplimiento": "fecha_cumplimiento_plan",
             "Estado / Seguimiento": "estado_seguimiento_plan",
+            # 4. Firmas y Evidencias
             "Firma": "firma_responsable",
             "Foto Evidencia": "foto_evidencia_url",
             "URLs de Imágenes o PDFs": "foto_evidencia_url"
@@ -339,13 +354,13 @@ FORM_CONFIGS = {
             u.name as user_name
         """,
         'data_mapping': {
+            # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
             "Fecha y Hora": "fecha_hora",
-            "Rol del Aplicador": "rol_aplicador",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
             "Nombre del Responsable": "nombre_responsable",
-            "Categoría Evaluada": "categoria_evaluada",
-            "Encuestado": "encuestado",
+            # 2. Evaluación de la Seguridad (1-5)
             "Atención al Cliente": "atencion_cliente",
             "Comunicación": "comunicacion",
             "Confiabilidad": "confiabilidad",
@@ -354,9 +369,13 @@ FORM_CONFIGS = {
             "Competencia del Personal": "competencia_personal",
             "Actitud de Servicio": "actitud_servicio",
             "Atención de Quejas": "atencion_quejas",
+            # 3. Satisfacción Global
             "Calificación Global / NPS": "calificacion_global_nps",
             "¿Recomendaría el Servicio?": "recomendaria_servicio",
+            # 4. Observaciones
             "Observaciones del Cliente": "observaciones_cliente",
+            # 5. Validación y Firmas
+            "Encuestado": "encuestado",
             "Firma Encuestado": "firma_encuestado",
             "Firma Responsable": "firma_responsable"
         }
@@ -402,35 +421,53 @@ FORM_CONFIGS = {
             u.name AS user_name
         """,
         'data_mapping': {
+            # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
-            "Puesto o Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
-            "Supervisor": "supervisor",
+            "Nombre Supervisor": "supervisor",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
+            # 2. Datos del Puesto
+            "Puesto o Área Específica": "puesto_area_especifica",
+            "Horario del Servicio": "horario_servicio",
+            "Hora de Ingreso": "hora_entrada",
+            "Hora de Salida": "hora_salida",
             "Tipo de Instalación": "tipo_servicio",
             "Modalidad de Servicio": "modalidad_servicio",
-            "Nombre Guardia": "nombre_guardia",
-            "Documento Guardia": "documento_guardia",
+            # 3. Datos del Guardia de Seguridad
+            "Nombre del Guardia": "nombre_guardia",
             "Número de Empleado": "numero_empleado",
-            "Rol del Aplicador": "rol_aplicador",
-            "Serie Arma": "serie_arma",
-            "Cantidad Munición": "cantidad_municion",
-            "Porta Arma": "porta_arma",
-            "Realiza Inducción": "realiza_induccion",
-            "Asistencia/Puntualidad": "asistencia_puntualidad",
-            "Presentación Uniforme": "presentacion_uniforme",
-            "Problemas Uniforme": "problemas_uniforme",
-            "Estado Limpieza": "estado_limpieza_puesto",
+            "Documento del Guardia": "documento_guardia",
+            "Tiempo en el Puesto (meses)": "tiempo_en_puesto",
+            "No. Licencia Portar Arma": "licencia_portar_arma",
+            # 4. Inducción y Equipamiento
+            "¿Se realiza inducción al puesto?": "realiza_induccion",
+            "¿Conoce Órdenes y Consignas?": "conoce_ordenes_consignas",
+            "¿Horario y detalles claros?": "horario_detalles_claros",
+            "Porta arma en el puesto": "porta_arma",
+            "Tipo de Arma": "tipo_arma",
+            "Serie del Arma": "serie_arma",
+            "Matrícula / Permiso": "matricula_arma",
+            "Cantidad de Munición": "cantidad_municion",
+            "Vencimiento Permiso de Porte": "fecha_vencimiento_permiso_porte",
+            "Último Mtto (Arma)": "fecha_ultimo_mtto_arma",
+            "Radio Asignado (Serial)": "radio_asignado_serial",
+            "Marca del Radio": "marca_radio",
+            "Tipo de Radio": "tipo_radio",
+            "Último Mtto (Radio)": "fecha_ultimo_mtto_radio",
+            # 5. Inspección de Puesto
+            "Asistencia y Puntualidad": "asistencia_puntualidad",
+            "Presentación y Uniforme": "presentacion_uniforme",
+            "Prendas con Problemas": "problemas_uniforme",
+            "Estado y Limpieza del Puesto": "estado_limpieza_puesto",
             "Equipamiento Completo": "equipamiento_completo",
-            "Estado Bitácora": "estado_bitacora",
-            "Conoce Órdenes y Consignas": "conoce_ordenes_consignas",
-            "Horario y Detalles Claros": "horario_detalles_claros",
+            "Estado de Bitácora y Registros": "estado_bitacora",
+            # 6. Observaciones, Evidencias y Firmas
             "Observaciones / Novedades": "observaciones_novedades",
-            "Firma Guardia": "firma_guardia",
-            "Nombre Guardia Firma": "nombre_guardia_firma",
-            "Firma Supervisor": "firma_supervisor",
             "Foto Evidencia": "foto_evidencia_url",
-            "URLs de Imágenes o PDFs": "foto_evidencia_url"
+            "URLs de Imágenes o PDFs": "foto_evidencia_url",
+            "Firma Supervisor": "firma_supervisor",
+            "Firma del Guardia": "firma_guardia"
         }
     },
     'informe_novedades_disciplinario': {
@@ -439,29 +476,71 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Informe Disciplinario',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
-            "Empleado": "empleado_nombre",
-            "Cargo": "empleado_cargo",
-            "Tipo de Novedad": "tipo_novedad",
-            "Descripción": "descripcion_novedad",
-            "Sitio de Ocurrencia": "sitio_ocurrencia",
+            # 1. Datos Generales
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Puesto o Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
-            "Responsable": "nombre_responsable",
-            "Cargo Responsable": "realizado_por_cargo",
-            "Dirigido A": "dirigido_a",
-            "Número de Empleado": "empleado_numero",
-            "Documento Empleado": "empleado_documento",
-            "Otras Personas Involucradas": "otras_personas_involucradas",
-            "Rol del Aplicador": "rol_aplicador",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
             "Turno": "turno",
-            "Recibido Por Nombre": "recibido_revisado_por_nombre",
-            "Recibido Por Cargo": "recibido_revisado_por_cargo",
-            "Firma Responsable": "firma_responsable",
-            "Firma Recibido": "firma_recibido_revisado",
-            "Anexos": "anexos",
-            "Foto Evidencia": "anexos"
+            "Hora de Ingreso": "hora_entrada",
+            "Hora de Salida": "hora_salida",
+            "Nombre del Responsable": "nombre_responsable",
+            # 2. Datos del Empleado Involucrado
+            "Nombre del Colaborador": "empleado_nombre",
+            "Número de Empleado": "empleado_numero",
+            "Documento del Colaborador": "empleado_documento",
+            "Cargo del Colaborador": "empleado_cargo",
+            # 3. Tipo de Novedad / Falta Disciplinaria
+            "Tipo de Novedad / Falta": "tipo_novedad",
+            # 4. Descripción de la Novedad
+            "Sitio donde ocurrió": "sitio_ocurrencia",
+            "Descripción de la Novedad": "descripcion_novedad",
+            "Otras Personas Involucradas": "otras_personas_involucradas",
+            # 5. Anexos / Evidencias
+            "Anexos / Evidencias": "anexos",
+            "Foto Evidencia": "anexos",
+            # 6. Firmas
+            "Firma del Responsable": "firma_responsable",
+            "Firma del Colaborador": "firma_recibido_revisado",
+            "¿Empleado se niega a firmar?": "empleado_niega_firmar",
+            "Nombre del Testigo": "nombre_testigo",
+            "Firma del Testigo": "firma_testigo"
         }
     },
     'log_de_patrullas': {
@@ -473,17 +552,20 @@ FORM_CONFIGS = {
         'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
         'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
-            "Guardia": "id_guardia_nombre_guardia",
-            "Sitio": "sitio_ubicacion",
+            # 1. Datos de la Patrulla
+            "ID Guardia / Nombre Guardia": "id_guardia_nombre_guardia",
+            "Sitio / Ubicación": "sitio_ubicacion",
+            "ID Patrulla": "id_patrulla_consecutivo",
             "Fecha": "fecha",
             "Hora Inicio": "hora_inicio",
             "Hora Fin": "hora_fin",
-            "Nivel Riesgo": "nivel_riesgo",
-            "Estado": "estado_patrulla",
-            "Patrulla ID": "id_patrulla_consecutivo",
+            # 2. Detalles de la Patrulla
             "Detalles Incidente": "detalles_incidente",
             "Riesgo Detectado": "riesgo_detectado",
-            "Contexto": "contexto_observaciones",
+            "Nivel de Riesgo": "nivel_riesgo",
+            "Estado Patrulla": "estado_patrulla",
+            "Contexto / Observaciones": "contexto_observaciones",
+            # 3. Firmas
             "Firma Guardia": "firma_guardia",
             "Firma Supervisor": "firma_supervisor"
         }
@@ -494,20 +576,53 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Registro de Capacitaciones',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
-            "Capacitación": "nombre_capacitacion",
-            "Objetivo": "objetivo_capacitacion",
-            "Responsable": "nombre_responsable",
+            # 1. Datos Generales
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
             "Fecha y Hora": "fecha_hora",
-            "Nivel Comprensión": "nivel_comprension",
-            "Observaciones": "observaciones_retroalimentacion",
-            "Lista Asistencia": "lista_asistencia",
-            "Práctica Realizada": "practica_simulacro_realizado",
-            "Recomendaciones": "recomendaciones",
-            "Foto Evidencia": "foto_evidencia_url",
-            "URLs de Imágenes o PDFs": "foto_evidencia_url"
+            "Tema de la Capacitación": "nombre_capacitacion",
+            "Nombre del Responsable/Capacitador": "nombre_responsable",
+            "Cargo del Responsable": "cargo_responsable",
+            "Firma del Responsable": "firma_responsable",
+            "Fotos/Documentos": "foto_evidencia_url",
+            "URLs de Imágenes o PDFs": "foto_evidencia_url",
+            # 2. Asistencia
+            "Lista de Asistencia": "lista_asistencia"
         }
     },
     'registro_y_acta_de_visita': {
@@ -551,30 +666,22 @@ FORM_CONFIGS = {
             u.name as user_name
         """,
         'data_mapping': {
+            # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
-            "Puesto o Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
-            "Rol del Aplicador": "rol_aplicador",
-            "Turno": "turno",
             "Motivo de la Visita": "motivo_visita",
-            "Objetivo de la Reunión": "objetivo_reunion",
-            "Actividades Realizadas": "actividades_realizadas",
-            "Visitante": "nombre_visitante",
-            "Cargo Visitante": "cargo_visitante",
-            "Visita Realizada Por": "visita_realizada_por",
-            "Atendió": "persona_atendio",
-            "Cargo Atendió": "cargo_atendio",
-            "Teléfono de Contacto": "telefono_contacto",
-            "Satisfacción del Cliente": "satisfaccion_cliente",
-            "Comentarios de Satisfacción": "comentarios_satisfaccion",
-            "Detalles Participantes": "detalles_participantes",
+            # 2. Agenda y Compromisos
             "Temas Tratados": "temas_tratados",
             "Acuerdos y Compromisos": "acuerdos_compromisos",
             "Nombre Responsable": "nombre_responsable",
-            "Fecha Cumplimiento": "fecha_cumplimiento",
-            "Compromisos Estados": "compromisos_estados",
-            "Firma Visitante": "firma_visitante"
+            "Fecha de Cumplimiento": "fecha_cumplimiento",
+            "Estado / Seguimiento": "compromisos_estados",
+            # 3. Participantes y Firmas
+            "Nombre del Visitante": "nombre_visitante",
+            "Cargo del Visitante": "cargo_visitante",
+            "Firma del Visitante": "firma_visitante",
+            "Participantes del Cliente": "detalles_participantes"
         }
     },
     'planilla_vehicular': {
@@ -584,31 +691,64 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Planilla de Chequeo Pre-Operacional Vehicular',
         'sheet_title': 'Pre-Operacional Vehicular',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
+            # 1. Datos Generales
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
+            "Nombre del Responsable": "nombre_responsable",
+            "Fecha y Hora": "fecha_hora",
+            "Turno": "turno",
+            "Hora de Ingreso": "hora_entrada",
+            "Hora de Salida": "hora_salida",
+            "Número de Empleado": "numero_empleado",
+            "Vehículo (Propio/Empresa)": "vehiculo_tipo",
             "Placa": "placa_vehiculo",
+            "Fecha Último Mantenimiento": "fecha_ultimo_mantenimiento",
             "Último Kilometraje Registrado": "kilometraje_anterior",
             "Kilometraje Actual": "kilometraje_vehiculo",
             "Kilometraje Recorrido": "kilometraje_recorrido",
-            "Foto Frente": "foto_frente_url",
-            "Foto Atrás": "foto_atras_url",
-            "Foto Lado Derecho": "foto_lado_derecho_url",
-            "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
-            "Responsable": "nombre_responsable",
-            "Fecha y Hora": "fecha_hora",
-            "Novedades Críticas": "novedades_criticas",
-            "Rol del Aplicador": "rol_aplicador",
-            "Turno": "turno",
-            "Firma Responsable": "firma_responsable",
-            "Km Entrega": "kilometraje_entrega",
-            "Km Salida": "kilometraje_salida",
+            # 2. Matriz de Inspección
             "Estado Rines": "estado_rines",
-            "Juego Señales": "juego_senales_carretera",
+            "Juego Señales Carretera": "juego_senales_carretera",
             "Gato Hidráulico": "gato_hidraulico",
             "Palanca Gato": "palanca_gato",
             "Estado Asientos": "estado_asientos",
-            "Estado Tapetes": "estado_tapetes_alfombras",
+            "Estado Tapetes / Alfombras": "estado_tapetes_alfombras",
             "Limpieza Carrocería": "limpieza_carroceria",
             "Luces Delanteras": "luces_delanteras",
             "Luces Direccionales": "luces_direccionales",
@@ -617,23 +757,33 @@ FORM_CONFIGS = {
             "Parabrisas Trasero": "parabrisas_trasero",
             "Defensa Delantera": "defensa_delantera",
             "Defensa Trasera": "defensa_trasera",
-            "Puertas/Vidrios": "puertas_vidrios",
+            "Puertas / Vidrios": "puertas_vidrios",
             "Tapa Radiador": "tapa_radiador",
-            "Tapa Aceite": "tapa_aceite_motor",
+            "Tapa Aceite Motor": "tapa_aceite_motor",
             "Batería Tapa": "bateria_tapa",
-            "Espejo Interno": "espejo_retrovisor_interno",
-            "Espejos Externos": "espejos_retrovisores_externos",
+            "Espejo Retrovisor Interno": "espejo_retrovisor_interno",
+            "Espejos Retrovisores Externos": "espejos_retrovisores_externos",
             "Limpiabrisas": "limpia_brisas",
             "Antena Radio": "antena_radio",
             "Radio Funciona": "radio_funciona",
             "Llanta Repuesto": "llanta_repuesto",
             "Aire Acondicionado": "aire_acondicionado",
-            "Diagrama Daños": "diagrama_danos",
+            # 3. Evidencias, Diagrama y Novedades
+            "Foto Frente": "foto_frente_url",
+            "Foto Atrás": "foto_atras_url",
+            "Foto Lado Derecho": "foto_lado_derecho_url",
+            "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
+            "Diagrama de Daños": "diagrama_danos",
+            "Novedades Críticas": "novedades_criticas",
             "Acción Inmediata": "accion_inmediata",
+            # 4. Entrega y Cierre
+            "Kilometraje de Entrega": "kilometraje_entrega",
             "Firma Entrega": "firma_entrega",
+            "Kilometraje de Salida": "kilometraje_salida",
             "Firma Recibe": "firma_recibe",
-            "Oficial Operaciones": "oficial_operaciones_nombre",
-            "Firma Oficial": "oficial_operaciones_firma"
+            "Oficial de Operaciones": "oficial_operaciones_nombre",
+            "Firma Oficial": "oficial_operaciones_firma",
+            "Firma Responsable": "firma_responsable"
         }
     },
     'planilla_motocicletas': {
@@ -643,56 +793,98 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Planilla de Chequeo Pre-Operacional de Motocicletas',
         'sheet_title': 'Pre-Operacional Motocicletas',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
-        'columns': "t.creado_en, t.*, u.name as user_name",
+        'joins': """
+            LEFT JOIN users u ON t.submitted_by_email = u.email
+            LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+            LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
+            LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
+            LEFT JOIN LATERAL (
+                SELECT pl.id_propiedad, pl.nombre, pl.customer_company_id
+                FROM propiedades pl
+                LEFT JOIN customer_companies ccl ON pl.customer_company_id = ccl.id
+                WHERE t.id_propiedad IS NULL
+                  AND LOWER(TRIM(pl.nombre)) = LOWER(TRIM(t.cliente_instalacion))
+                ORDER BY
+                    CASE WHEN ccl.company_id = t.company_id THEN 0 ELSE 1 END,
+                    pl.id_propiedad
+                LIMIT 1
+            ) p_legacy ON TRUE
+            LEFT JOIN customer_companies cc3
+              ON p_legacy.customer_company_id = cc3.id
+        """,
+        'columns': """
+            t.creado_en,
+            t.*,
+            COALESCE(
+                NULLIF(TRIM(cc.name), ''),
+                NULLIF(TRIM(cc2.name), ''),
+                NULLIF(TRIM(cc3.name), '')
+            ) AS cliente_nombre,
+            COALESCE(
+                NULLIF(TRIM(p.nombre), ''),
+                NULLIF(TRIM(p_legacy.nombre), ''),
+                NULLIF(TRIM(t.cliente_instalacion), '')
+            ) AS propiedad_nombre,
+            u.name as user_name
+        """,
         'data_mapping': {
+            # 1. Datos Generales
+            "Cliente / Empresa": "cliente_nombre",
+            "Propiedad / Instalación": "propiedad_nombre",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
+            "Nombre del Responsable": "nombre_responsable",
+            "Fecha y Hora": "fecha_hora",
+            "Turno": "turno",
+            "Hora de Ingreso": "hora_entrada",
+            "Hora de Salida": "hora_salida",
+            "Número de Empleado": "numero_empleado",
             "Placa": "placa_motocicleta",
+            "Fecha Último Mantenimiento": "fecha_ultimo_mantenimiento",
             "Último Kilometraje Registrado": "kilometraje_anterior",
             "Kilometraje Actual": "kilometraje_motocicleta",
             "Kilometraje Recorrido": "kilometraje_recorrido",
+            # 2. Matriz de Inspección
+            "Estado Neumáticos": "estado_neumaticos",
+            "Estado Rines": "estado_rines",
+            "Equipo Carretera": "equipo_carretera",
+            "Kit de Arrastre": "estado_kit_arrastre",
+            "Palanca Soporte": "estado_palanca_soporte",
+            "Forro Asiento": "estado_forro_asiento",
+            "Tapas Derecha": "estado_tapas_derecha",
+            "Luces Direccionales Derecha": "estado_luces_direccionales_derecha",
+            "Luces Delanteras": "estado_luces_delanteras",
+            "Guardafango Delantero": "estado_guarda_fango_delantero",
+            "Sistema Freno Delantero": "estado_sistema_freno_delantero",
+            "Manillar Embrague": "estado_manillar_embrague",
+            "Manillar Freno Delantero": "estado_manillar_freno_delantero",
+            "Manómetros / Indicadores": "estado_manometros_indicadores",
+            "Tanque Combustible": "estado_tanque_combustible",
+            "Tapa Tanque Combustible": "tapa_tanque_combustible",
+            "Espejos Retrovisores": "espejos_retrovisores",
+            "Tapa Aceite Motor": "tapa_aceite_motor",
+            "Batería Tapa": "bateria_tapa",
+            "Luces Izquierda": "estado_luces_izquierda",
+            "Luces Direccionales Izquierda": "estado_luces_direccionales_izquierda",
+            "Luz Trasera": "estado_luz_trasera",
+            "Guardafango Trasero": "estado_guarda_fango_trasero",
+            "Tubo de Escape": "estado_tubo_escape",
+            "Palanca Freno": "estado_palanca_freno",
+            "Palanca Cambios": "estado_palanca_cambios",
+            # 3. Evidencias y Novedades
             "Foto Frente": "foto_frente_url",
             "Foto Atrás": "foto_atras_url",
             "Foto Lado Derecho": "foto_lado_derecho_url",
             "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
-            "Responsable": "nombre_responsable",
-            "Fecha y Hora": "fecha_hora",
             "Novedades Críticas": "novedades_criticas_detectadas",
-            "Rol del Aplicador": "rol_aplicador",
-            "Turno": "turno",
-            "Km Entrega": "kilometraje_entrega",
-            "Km Salida": "kilometraje_salida",
-            "Estado Neumáticos": "estado_neumaticos",
-            "Estado Rines": "estado_rines",
-            "Equipo Carretera": "equipo_carretera",
-            "Kit Arrastre": "estado_kit_arrastre",
-            "Palanca Soporte": "estado_palanca_soporte",
-            "Forro Asiento": "estado_forro_asiento",
-            "Tapas Derecha": "estado_tapas_derecha",
-            "Direccionales Derecha": "estado_luces_direccionales_derecha",
-            "Luces Delanteras": "estado_luces_delanteras",
-            "Guardafango Delantero": "estado_guarda_fango_delantero",
-            "Freno Delantero": "estado_sistema_freno_delantero",
-            "Manillar Embrague": "estado_manillar_embrague",
-            "Manillar Freno": "estado_manillar_freno_delantero",
-            "Manómetros": "estado_manometros_indicadores",
-            "Tanque Combustible": "estado_tanque_combustible",
-            "Tapa Tanque": "tapa_tanque_combustible",
-            "Espejos Retrovisores": "espejos_retrovisores",
-            "Tapa Aceite": "tapa_aceite_motor",
-            "Batería Tapa": "bateria_tapa",
-            "Luces Izquierda": "estado_luces_izquierda",
-            "Direccionales Izquierda": "estado_luces_direccionales_izquierda",
-            "Luz Trasera": "estado_luz_trasera",
-            "Guardafango Trasero": "estado_guarda_fango_trasero",
-            "Tubo Escape": "estado_tubo_escape",
-            "Palanca Freno": "estado_palanca_freno",
-            "Palanca Cambios": "estado_palanca_cambios",
             "Acción Inmediata": "accion_inmediata_tomada",
+            # 4. Entrega y Cierre
+            "Kilometraje de Entrega": "kilometraje_entrega",
             "Firma Entrega": "firma_entrega",
+            "Kilometraje de Salida": "kilometraje_salida",
             "Firma Recibe": "firma_recibe",
-            "Firma Responsable": "firma_responsable",
-            "Oficial Operaciones": "oficial_operaciones_nombre",
-            "Firma Oficial": "oficial_operaciones_firma"
+            "Oficial de Operaciones": "oficial_operaciones_nombre",
+            "Firma Oficial": "oficial_operaciones_firma",
+            "Firma Responsable": "firma_responsable"
         }
     },
     'checklist_cumplimiento': {
@@ -736,19 +928,22 @@ FORM_CONFIGS = {
             u.name as user_name
         """,
         'data_mapping': {
+            # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
             "Puesto o Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
             "Turno": "turno",
-            "Rol del Aplicador": "rol_aplicador",
+            "Rol del Aplicador/Responsable": "rol_aplicador",
             "Auditor": "nombre_auditor",
+            # 2. Datos del Agente Supervisado
             "Agente Supervisado": "agente_nombre_completo",
             "Tipo de Documento": "agente_tipo_documento",
             "Número de Documento": "agente_numero_documento",
             "Cargo / Rol del Agente": "agente_cargo_rol",
             "Número de Empleado": "agente_numero_empleado",
             "Puesto del Agente": "agente_puesto",
+            # 3. Documentación y Certificaciones
             "Curso / Certificación": "curso_certificacion",
             "Academia que Certifica": "academia_certifica",
             "Nro. Resolución": "nro_resolucion",
@@ -760,6 +955,7 @@ FORM_CONFIGS = {
             "Certificados en Sistema": "certificados_cargados_sistema",
             "Documentación Coincide con HV": "documentacion_coincide_hv",
             "Fechas Vigentes": "fechas_vigentes",
+            # 4. Firmas y Evidencias
             "Firma Auditor": "firma_auditor",
             "Firma Guardia Supervisado": "firma_guarda_supervisado",
             "Foto Evidencia": "evidencia_url",
@@ -807,12 +1003,15 @@ FORM_CONFIGS = {
             u.name as user_name
         """,
         'data_mapping': {
+            # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
             "Sitio / Ubicación": "sitio",
             "Fecha": "fecha",
             "Hora": "hora",
+            # 2. Inventario de Equipos
             "Inventario": "inventario",
+            # 3. Responsables y Firmas
             "Técnico de Mantenimiento": "tecnico_mantenimiento",
             "Supervisor de Seguridad": "supervisor_seguridad",
             "Firma Técnico": "firma_tecnico",
@@ -1143,13 +1342,13 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
 
                     mapped_data[label] = val
 
-                # 2. Add unmapped fields, filtering out system columns
+                # 2. Add unmapped fields, filtering out system and technical columns
                 system_cols = {
                     config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone',
-                    'editado', 'editado_por', 'editado_en',
-                }
+                    'editado', 'editado_por', 'editado_en', 'motivo_edicion', 'motivo_detalle',
+                }.union(TECHNICAL_SYSTEM_COLUMNS)
                 for col_name, val in row_dict.items():
-                    if col_name not in processed_cols and col_name not in system_cols:
+                    if col_name not in processed_cols and col_name.lower() not in system_cols:
                         # Sign signatures if they are GCS URLs
                         if (_es_columna_de_imagen(col_name) and val and not skip_signing
                                 and isinstance(val, str) and 'storage.googleapis.com' in val):
@@ -1313,13 +1512,13 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                     val = "N/A"
                 data_content[label] = val
 
-            # 2. Add unmapped fields, filtering out system columns
+            # 2. Add unmapped fields, filtering out system and technical columns
             system_cols = {
                 config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone',
-                'editado', 'editado_por', 'editado_en',
-            }
+                'editado', 'editado_por', 'editado_en', 'motivo_edicion', 'motivo_detalle',
+            }.union(TECHNICAL_SYSTEM_COLUMNS)
             for col_name, val in row_dict.items():
-                if col_name not in processed_cols and col_name not in system_cols:
+                if col_name not in processed_cols and col_name.lower() not in system_cols:
                     # Sign signatures if they are GCS URLs
                     if _es_columna_de_imagen(col_name) and val and isinstance(val, str) and 'storage.googleapis.com' in val:
                          if not skip_signing:

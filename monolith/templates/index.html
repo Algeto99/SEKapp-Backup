@@ -1204,15 +1204,24 @@
 
                 for (const key in reportDetails.data) {
                     if (reportDetails.data.hasOwnProperty(key) && reportDetails.data[key] && String(reportDetails.data[key]).trim() !== 'N/A' && String(reportDetails.data[key]).trim() !== 'None') {
+                        const lowerKey = key.toLowerCase().trim();
                         if (key === 'URLs de Imágenes o PDFs' || key === 'Foto Evidencia' || key === 'Anexos') {
                             // Handle images/PDFs separately at the bottom or full width
                             continue;
                         }
-                        if (key === 'Latitude' || key === 'Longitude') {
+                        if (lowerKey === 'latitude' || lowerKey === 'longitude') {
+                            continue;
+                        }
+                        const technicalKeys = new Set([
+                            'company id', 'customer company id', 'id propiedad', 'cliente instalacion',
+                            'location accuracy', 'submitter timezone',
+                            'editado', 'editado por', 'editado en', 'motivo edicion', 'motivo detalle',
+                            'user name', 'propiedad nombre', 'cliente nombre', 'csrf token', 'session token'
+                        ]);
+                        if (technicalKeys.has(lowerKey)) {
                             continue;
                         }
                         const rawValue = reportDetails.data[key];
-                        const lowerKey = key.toLowerCase();
                         let displayContent;
                         let isFullWidth = false;
 
@@ -1234,6 +1243,8 @@
                             const allKeys = [...new Set(listData.flatMap(row => Object.keys(row)))];
                             const isInventario = lowerKey.includes('inventario');
                             const isAsistencia = lowerKey.includes('asistencia');
+                            const isPersonas = lowerKey.includes('personas');
+                            const isParticipantes = lowerKey.includes('participantes');
                             const _INV_LABELS = {
                                 tipo_equipo:           'Tipo de Equipo',
                                 total_equipos:         'Total',
@@ -1251,7 +1262,16 @@
                                 firma:             'Firma',
                                 via:               'Vía de registro',
                             };
-                            const _LIST_LABELS = isInventario ? _INV_LABELS : (isAsistencia ? _ASISTENCIA_LABELS : null);
+                            const _PERSONAS_LABELS = {
+                                tipo:              'Tipo',
+                                nombre:            'Nombre Completo',
+                            };
+                            const _PARTICIPANTES_LABELS = {
+                                nombre:            'Nombre',
+                                cargo:             'Cargo',
+                                firma:             'Firma',
+                            };
+                            const _LIST_LABELS = isInventario ? _INV_LABELS : (isAsistencia ? _ASISTENCIA_LABELS : (isPersonas ? _PERSONAS_LABELS : (isParticipantes ? _PARTICIPANTES_LABELS : null)));
 
                             let headers;
                             if (_LIST_LABELS) {
