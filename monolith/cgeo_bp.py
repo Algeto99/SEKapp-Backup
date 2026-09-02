@@ -1360,6 +1360,7 @@ def cgeo_api_alertas():
                 cur, year=None, month=None, day=None, desde=alertas_thresholds.get('fecha_inicio_operacion'),
                 company_id=company_id, thresholds=alertas_thresholds, pesos=pesos_estatus
             )
+            en_riesgo = []
             for c in calificados_alertas:
                 nota = c.get('nota')
                 cid = c.get('id')
@@ -1367,23 +1368,33 @@ def cgeo_api_alertas():
                 if cliente and str(cliente) != str(cid) and str(cliente) != str(cnombre):
                     continue
                 if nota is not None and nota < limite_observacion:
-                    es_critico = nota < limite_seguimiento
-                    banda = 'Crítico' if es_critico else 'Requiere seguimiento'
-                    color = 'rojo' if es_critico else 'amarillo'
-                    alertas.append({
-                        "id": f"r14_{cid}",
-                        "regla": 14,
-                        "motivo": (f'Cliente en riesgo. "{cnombre}" tiene una calificación de {nota:g}/100 '
-                                   f'en Estatus de Cliente ({banda}).'),
-                        "texto": f'Cliente en riesgo: "{cnombre}" — {nota:g}/100 ({banda})',
-                        "accion": "Ver Estatus de Cliente",
-                        "ruta_navegacion": f"/dashboard/gestion/?cliente={cid}",
-                        "record_id": None,
-                        "form_type": "estatus_cliente",
-                        "color_semaforo": color,
-                        "timestamp": date.today().isoformat(),
-                        "horas": None,
-                    })
+                    en_riesgo.append(c)
+            # Un solo renglón, no uno por cliente: el briefing muestra las 5
+            # primeras alertas, así que una alerta por cliente en riesgo tapa
+            # incidentes y supervisiones con una lista que ya vive en Gestión.
+            if en_riesgo:
+                # `_estatus_ranking` devuelve los calificados de peor a mejor,
+                # así que los primeros son los que hay que mirar hoy.
+                peores = en_riesgo[:3]
+                resumen = ' · '.join(f"{c['nombre']} {c['nota']:g}" for c in peores)
+                n_riesgo = len(en_riesgo)
+                hay_critico = any(c['nota'] < limite_seguimiento for c in en_riesgo)
+                alertas.append({
+                    "id": "r14",
+                    "regla": 14,
+                    "motivo": (f"{n_riesgo} cliente{'s' if n_riesgo != 1 else ''} por debajo de "
+                               f'{limite_observacion:g}/100 en Estatus de Cliente. '
+                               f'De menor calificación: {resumen}.'),
+                    "texto": (f'Cliente en riesgo: {resumen}' if n_riesgo == 1
+                              else f'Clientes en riesgo: {n_riesgo} · {resumen}'),
+                    "accion": "Ver listado",
+                    "ruta_navegacion": "/dashboard/gestion/",
+                    "record_id": None,
+                    "form_type": "estatus_cliente",
+                    "color_semaforo": 'rojo' if hay_critico else 'amarillo',
+                    "timestamp": date.today().isoformat(),
+                    "horas": None,
+                })
         except Exception as r14_err:
             app_logger.warning(f"cgeo_api_alertas: regla 14 clientes en riesgo omitida: {r14_err}")
 
@@ -1767,6 +1778,9 @@ def cgeo_api_morning_briefing_data():
             },
             "clientes_en_riesgo": {
                 "total": len(clientes_en_riesgo),
+                # Los tres de menor calificación, para el resumen de una línea;
+                # `clientes` sigue completo para el detalle que se abre al tocarlo.
+                "top": clientes_en_riesgo[:3],
                 "clientes": clientes_en_riesgo,
             },
             "thresholds": {

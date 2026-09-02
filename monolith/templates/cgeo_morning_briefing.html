@@ -231,12 +231,18 @@ body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
 body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155}
 /* ── Clientes en riesgo ──────────────────────────────────────────────────── */
 .clientes-riesgo-wrap{margin-bottom:1.25rem}
-.cr-card{background:#fff;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:.875rem;padding:.875rem 1.25rem;box-shadow:0 2px 8px rgba(239,68,68,0.06);transition:all .15s ease}
-.cr-header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.5rem;flex-wrap:wrap}
-.cr-title-box{display:flex;align-items:center;gap:.5rem;font-size:.9375rem;font-weight:700;color:#991b1b}
+.cr-card{display:flex;align-items:center;gap:.625rem;flex-wrap:wrap;width:100%;text-align:left;font:inherit;background:#fff;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:.875rem;padding:.875rem 1.25rem;box-shadow:0 2px 8px rgba(239,68,68,0.06);cursor:pointer;transition:all .15s ease}
+.cr-card:hover{background:#fef2f2;box-shadow:0 4px 14px rgba(239,68,68,.12)}
+.cr-title-box{display:flex;align-items:center;gap:.5rem;font-size:.9375rem;font-weight:700;color:#991b1b;flex-shrink:0}
 .cr-icon{font-size:1.1rem;line-height:1}
-.cr-all-link{font-size:.78rem;font-weight:600;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;transition:color .15s}
-.cr-all-link:hover{color:#1d4ed8;text-decoration:underline}
+/* Resumen de una línea: los tres de menor calificación. */
+.cr-resumen{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;min-width:0;font-size:.8125rem;color:#334155}
+.cr-chip{display:inline-flex;align-items:center;gap:.3rem;min-width:0}
+.cr-chip-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14rem}
+.cr-chip-score{font-weight:700;font-variant-numeric:tabular-nums}
+.cr-sep{color:#cbd5e1;font-weight:700}
+.cr-all-link{font-size:.78rem;font-weight:600;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;margin-left:auto;flex-shrink:0;transition:color .15s}
+.cr-card:hover .cr-all-link,.cr-all-link:hover{color:#1d4ed8;text-decoration:underline}
 .cr-items{display:flex;flex-direction:column;gap:.35rem}
 .cr-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.4rem .625rem;border-radius:.5rem;font-size:.8125rem;color:#334155;text-decoration:none;background:#fef2f2;transition:background .15s,transform .1s}
 .cr-item:hover{background:#fee2e2;transform:translateX(2px)}
@@ -252,6 +258,9 @@ body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155
 .cr-badge-amarillo{background:rgba(245,158,11,0.12);color:#b45309;border:1px solid rgba(245,158,11,0.25)}
 
 body:not(.light-mode) .cr-card{background:#1e293b;border-color:#7f1d1d;border-left-color:#ef4444;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+body:not(.light-mode) .cr-card:hover{background:#27384f}
+body:not(.light-mode) .cr-resumen{color:#cbd5e1}
+body:not(.light-mode) .cr-sep{color:#475569}
 body:not(.light-mode) .cr-title-box{color:#fca5a5}
 body:not(.light-mode) .cr-all-link{color:#60a5fa}
 body:not(.light-mode) .cr-all-link:hover{color:#93c5fd}
@@ -281,6 +290,12 @@ body:not(.light-mode) .cr-score-amarillo{color:#fbbf24}
   .kpi-card{padding:1rem 1.125rem}
   .kpi-val{font-size:2.25rem}
   .alerta-ts{display:none}
+  /* El resumen baja a su propia línea bajo el título, en vez de partirse
+     entre el título y el enlace. */
+  .cr-card{gap:.375rem .625rem;padding:.75rem .875rem}
+  .cr-title-box{font-size:.875rem}
+  .cr-resumen{order:3;width:100%;font-size:.78rem;gap:.375rem}
+  .cr-chip-name{max-width:9rem}
 }
 @media(max-width:420px){
   .content{padding:.75rem}
@@ -409,17 +424,19 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         </div>
 
         <!-- ══ ELEMENTO: CLIENTES EN RIESGO ══ -->
+        <!-- Un solo renglón: el conteo y los tres de menor calificación. La lista
+             completa se abre al tocarlo, para que el briefing siga siendo un
+             resumen y no una copia del listado de Gestión. -->
         <div class="clientes-riesgo-wrap hidden" id="clientesRiesgoWrap">
-            <div class="cr-card">
-                <div class="cr-header">
-                    <div class="cr-title-box">
-                        <span class="cr-icon">⚠️</span>
-                        <span class="cr-title">Clientes en riesgo: <strong id="crTotalCount">0</strong></span>
-                    </div>
-                    <a href="/dashboard/gestion/" class="cr-all-link">Consultar listado en Gestión →</a>
-                </div>
-                <div class="cr-items" id="crItems"></div>
-            </div>
+            <button type="button" class="cr-card" onclick="abrirClientesEnRiesgo()"
+                    title="Ver el listado completo de clientes en riesgo">
+                <span class="cr-title-box">
+                    <span class="cr-icon">⚠️</span>
+                    <span class="cr-title">Clientes en riesgo: <strong id="crTotalCount">0</strong></span>
+                </span>
+                <span class="cr-resumen" id="crResumen"></span>
+                <span class="cr-all-link">Ver todos →</span>
+            </button>
         </div>
 
         <!-- ══ SECCIÓN 3: KPIs 2×2 ══ -->
@@ -721,41 +738,76 @@ function renderKpis(k, thr) {
 
 // ── Render Clientes en riesgo ─────────────────────────────────────────────────
 
+// La lista completa no se pinta en el briefing: se guarda aquí y se abre en una
+// ventana al tocar el renglón. Así el bloque ocupa una línea sin importar si hay
+// 3 clientes en riesgo o 30.
+let _crClientes = [];
+
+function _crNota(c) {
+    return typeof c.nota === 'number' ? Math.round(c.nota) : (c.nota || '—');
+}
+
+function _crItemHtml(c) {
+    const scoreCls = c.color === 'rojo' ? 'cr-score-rojo' : 'cr-score-amarillo';
+    const badgeCls = c.color === 'rojo' ? 'cr-badge-rojo' : 'cr-badge-amarillo';
+    return `
+        <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
+           class="cr-item" title="Ver Estatus de ${_esc(c.nombre)}">
+            <div class="cr-item-left">
+                <span class="cr-bullet">•</span>
+                <span class="cr-item-name">${_esc(c.nombre)}</span>
+                <span style="color:#94a3b8;font-weight:400">—</span>
+                <span class="cr-item-score ${scoreCls}">${_crNota(c)}</span>
+            </div>
+            <div class="cr-item-score-wrap">
+                <span class="cr-item-badge ${badgeCls}">${_esc(c.banda)}</span>
+                <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
+            </div>
+        </a>
+    `;
+}
+
 function renderClientesEnRiesgo(data) {
     const wrap = document.getElementById('clientesRiesgoWrap');
     if (!wrap) return;
     const total = data?.total || 0;
-    const clientes = data?.clientes || [];
+    _crClientes = data?.clientes || [];
+    // El backend ya manda los tres peores; si no vinieran, los primeros de la
+    // lista lo son igual: `_estatus_ranking` ordena de menor a mayor nota.
+    const top = (data?.top?.length ? data.top : _crClientes).slice(0, 3);
 
-    if (!total || !clientes.length) {
+    if (!total || !top.length) {
         wrap.classList.add('hidden');
         return;
     }
 
     document.getElementById('crTotalCount').textContent = total;
-    const itemsCont = document.getElementById('crItems');
-    itemsCont.innerHTML = clientes.map(c => {
+    document.getElementById('crResumen').innerHTML = top.map(c => {
         const scoreCls = c.color === 'rojo' ? 'cr-score-rojo' : 'cr-score-amarillo';
-        const badgeCls = c.color === 'rojo' ? 'cr-badge-rojo' : 'cr-badge-amarillo';
-        const notaStr = typeof c.nota === 'number' ? Math.round(c.nota) : (c.nota || '—');
-        return `
-            <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
-               class="cr-item" title="Ver Estatus de ${c.nombre}">
-                <div class="cr-item-left">
-                    <span class="cr-bullet">•</span>
-                    <span class="cr-item-name">${_esc(c.nombre)}</span>
-                    <span style="color:#94a3b8;font-weight:400">—</span>
-                    <span class="cr-item-score ${scoreCls}">${notaStr}</span>
-                </div>
-                <div class="cr-item-score-wrap">
-                    <span class="cr-item-badge ${badgeCls}">${_esc(c.banda)}</span>
-                    <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
-                </div>
-            </a>
-        `;
-    }).join('');
+        return `<span class="cr-chip"><span class="cr-chip-name">${_esc(c.nombre)}</span>`
+             + `<span class="cr-chip-score ${scoreCls}">${_crNota(c)}</span></span>`;
+    }).join('<span class="cr-sep">·</span>');
 
     wrap.classList.remove('hidden');
+}
+
+function abrirClientesEnRiesgo() {
+    if (!_crClientes.length) return;
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal sg-modal-wide">
+            <div class="sg-modal-title">⚠️ Clientes en riesgo: ${_crClientes.length}</div>
+            <div class="sg-modal-sub">Por debajo del umbral de Estatus de Cliente, de menor a mayor calificación — toca uno para ver su detalle</div>
+            <div class="cr-items">${_crClientes.map(_crItemHtml).join('')}</div>
+            <a href="/dashboard/gestion/" class="cr-all-link" style="margin:1rem 0 0">Consultar listado en Gestión →</a>
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
 }
 
 // ── Semáforo global ───────────────────────────────────────────────────────────
