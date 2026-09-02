@@ -241,6 +241,12 @@ body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155
 .cr-chip-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14rem}
 .cr-chip-score{font-weight:700;font-variant-numeric:tabular-nums}
 .cr-sep{color:#cbd5e1;font-weight:700}
+/* Sin clientes en riesgo el renglón se queda, en verde y sin clic: que el
+   indicador se haya evaluado y salido bien también es información. */
+.cr-card-ok{border-color:#bbf7d0;border-left-color:#22c55e;box-shadow:0 2px 8px rgba(34,197,94,.06);cursor:default}
+.cr-card-ok:hover{background:#fff;box-shadow:0 2px 8px rgba(34,197,94,.06)}
+.cr-card-ok .cr-title-box{color:#166534}
+.cr-vacio{color:#475569}
 .cr-all-link{font-size:.78rem;font-weight:600;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;margin-left:auto;flex-shrink:0;transition:color .15s}
 .cr-card:hover .cr-all-link,.cr-all-link:hover{color:#1d4ed8;text-decoration:underline}
 .cr-items{display:flex;flex-direction:column;gap:.35rem}
@@ -261,6 +267,10 @@ body:not(.light-mode) .cr-card{background:#1e293b;border-color:#7f1d1d;border-le
 body:not(.light-mode) .cr-card:hover{background:#27384f}
 body:not(.light-mode) .cr-resumen{color:#cbd5e1}
 body:not(.light-mode) .cr-sep{color:#475569}
+body:not(.light-mode) .cr-card-ok{border-color:#14532d;border-left-color:#22c55e}
+body:not(.light-mode) .cr-card-ok:hover{background:#1e293b}
+body:not(.light-mode) .cr-card-ok .cr-title-box{color:#86efac}
+body:not(.light-mode) .cr-vacio{color:#94a3b8}
 body:not(.light-mode) .cr-title-box{color:#fca5a5}
 body:not(.light-mode) .cr-all-link{color:#60a5fa}
 body:not(.light-mode) .cr-all-link:hover{color:#93c5fd}
@@ -428,14 +438,14 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
              completa se abre al tocarlo, para que el briefing siga siendo un
              resumen y no una copia del listado de Gestión. -->
         <div class="clientes-riesgo-wrap hidden" id="clientesRiesgoWrap">
-            <button type="button" class="cr-card" onclick="abrirClientesEnRiesgo()"
+            <button type="button" class="cr-card" id="crCard" onclick="abrirClientesEnRiesgo()"
                     title="Ver el listado completo de clientes en riesgo">
                 <span class="cr-title-box">
-                    <span class="cr-icon">⚠️</span>
+                    <span class="cr-icon" id="crIcon">⚠️</span>
                     <span class="cr-title">Clientes en riesgo: <strong id="crTotalCount">0</strong></span>
                 </span>
                 <span class="cr-resumen" id="crResumen"></span>
-                <span class="cr-all-link">Ver todos →</span>
+                <span class="cr-all-link" id="crVerTodos">Ver todos →</span>
             </button>
         </div>
 
@@ -776,12 +786,31 @@ function renderClientesEnRiesgo(data) {
     // lista lo son igual: `_estatus_ranking` ordena de menor a mayor nota.
     const top = (data?.top?.length ? data.top : _crClientes).slice(0, 3);
 
+    const card = document.getElementById('crCard');
+    const icono = document.getElementById('crIcon');
+    const verTodos = document.getElementById('crVerTodos');
+    document.getElementById('crTotalCount').textContent = total;
+
+    // Sin clientes en riesgo el renglón se queda: en verde, sin lista que abrir
+    // y sin clic. Esconderlo dejaría al gerente sin saber si el indicador se
+    // evaluó o si simplemente no cargó.
     if (!total || !top.length) {
-        wrap.classList.add('hidden');
+        card.classList.add('cr-card-ok');
+        card.disabled = true;
+        card.title = 'Ningún cliente por debajo del umbral de Estatus de Cliente';
+        icono.textContent = '✅';
+        verTodos.hidden = true;
+        document.getElementById('crResumen').innerHTML =
+            '<span class="cr-vacio">Ningún cliente por debajo del umbral</span>';
+        wrap.classList.remove('hidden');
         return;
     }
 
-    document.getElementById('crTotalCount').textContent = total;
+    card.classList.remove('cr-card-ok');
+    card.disabled = false;
+    card.title = 'Ver el listado completo de clientes en riesgo';
+    icono.textContent = '⚠️';
+    verTodos.hidden = false;
     document.getElementById('crResumen').innerHTML = top.map(c => {
         const scoreCls = c.color === 'rojo' ? 'cr-score-rojo' : 'cr-score-amarillo';
         return `<span class="cr-chip"><span class="cr-chip-name">${_esc(c.nombre)}</span>`
