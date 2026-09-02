@@ -2368,7 +2368,7 @@ def _parse_visit_form_data(request, user_email):
             if nombre or cargo or firma:
                 detalles_participantes.append({'nombre': nombre, 'cargo': cargo, 'firma': firma})
 
-    detalles_participantes_json = json.dumps(detalles_participantes)
+    detalles_participantes_json = json.dumps(detalles_participantes, ensure_ascii=False)
 
     # Collect all repeatable block data (indexed temas_tratados_N, acuerdos_compromisos_N, etc.)
     bloques = {}
@@ -2401,7 +2401,7 @@ def _parse_visit_form_data(request, user_email):
 
     temas_combined = '\n---\n'.join(temas_list) if any(temas_list) else None
     acuerdos_combined = '\n---\n'.join(acuerdos_list) if any(acuerdos_list) else None
-    responsables_json = json.dumps(responsables_list) if any(r['nombre'] or r['fecha'] or r['estado'] for r in responsables_list) else None
+    responsables_json = json.dumps(responsables_list, ensure_ascii=False) if any(r['nombre'] or r['fecha'] or r['estado'] for r in responsables_list) else None
 
     return {
         'cliente_instalacion': request.form.get('cliente_visitado'),

@@ -667,8 +667,59 @@
       </div>`;
   }
 
+  function decodeUnicodeAndJson(str) {
+    if (!str || typeof str !== 'string') return str || '';
+    let text = str.trim();
+    if (!text) return '';
+
+    // If it's a JSON array or object string
+    if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          const items = parsed.map(item => {
+            if (typeof item === 'object' && item !== null) {
+              const name = item.nombre || item.name || '';
+              const role = item.cargo || item.role || '';
+              const date = item.fecha || item.date || '';
+              const status = item.estado || item.status || '';
+              const parts = [];
+              if (name) parts.push(name);
+              if (role) parts.push(`(${role})`);
+              if (date) parts.push(`Vence: ${date}`);
+              if (status) parts.push(`[${status}]`);
+              return parts.length ? parts.join(' ') : Object.values(item).filter(v => v && !String(v).startsWith('data:image')).join(' - ');
+            }
+            return String(item);
+          }).filter(Boolean);
+          text = items.join(', ');
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          text = Object.entries(parsed).filter(([_, v]) => v && !String(v).startsWith('data:image')).map(([k, v]) => `${k}: ${v}`).join(', ');
+        }
+      } catch (_) {}
+    }
+
+    // Decode unicode escape sequences (\uXXXX)
+    try {
+      text = text.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+    } catch (_) {}
+
+    // Replace repeatable block delimiter "\n---\n" with bulleted lines
+    if (text.includes('---')) {
+      const parts = text.split(/\n?---\n?/).map(p => p.trim()).filter(Boolean);
+      if (parts.length > 1) {
+        text = parts.map(p => `• ${p}`).join('\n');
+      } else if (parts.length === 1) {
+        text = parts[0];
+      }
+    }
+
+    return text;
+  }
+
   function escHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const cleaned = decodeUnicodeAndJson(str);
+    return cleaned.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g, '<br>');
   }
 
   // ── QR Modal ──────────────────────────────────────────────────────────────

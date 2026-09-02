@@ -308,6 +308,78 @@ def _parse_and_sign_foto_urls(raw_fotos):
     return signed_urls
 
 
+def _format_json_field(obj):
+    if isinstance(obj, list):
+        items = []
+        for item in obj:
+            if isinstance(item, dict):
+                nombre = item.get('nombre') or item.get('name') or ''
+                cargo = item.get('cargo') or item.get('role') or ''
+                fecha = item.get('fecha') or item.get('date') or ''
+                estado = item.get('estado') or item.get('status') or ''
+                parts = []
+                if nombre:
+                    parts.append(str(nombre))
+                if cargo:
+                    parts.append(f"({cargo})")
+                if fecha:
+                    parts.append(f"Vence: {fecha}")
+                if estado:
+                    parts.append(f"[{estado}]")
+                if parts:
+                    items.append(" ".join(parts))
+                else:
+                    sub_vals = [f"{k}: {v}" for k, v in item.items() if v and not str(v).startswith('data:image')]
+                    if sub_vals:
+                        items.append(", ".join(sub_vals))
+            elif isinstance(item, (str, int, float)):
+                items.append(str(item))
+        return ", ".join(items) if items else ""
+    elif isinstance(obj, dict):
+        sub_vals = [f"{k}: {v}" for k, v in obj.items() if v and not str(v).startswith('data:image')]
+        return ", ".join(sub_vals) if sub_vals else ""
+    return str(obj)
+
+
+def _clean_field_text(val):
+    if val is None:
+        return None
+    if not isinstance(val, str):
+        return val
+
+    s = val.strip()
+    if not s:
+        return ''
+
+    # 1. Unescape literal unicode escape sequences (\uXXXX)
+    if '\\u' in s:
+        try:
+            if (s.startswith('{') and s.endswith('}')) or (s.startswith('[') and s.endswith(']')):
+                parsed = json.loads(s)
+                return _format_json_field(parsed)
+            s = re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), s)
+        except Exception:
+            pass
+
+    # 2. Check if string is a JSON array or object
+    if (s.startswith('{') and s.endswith('}')) or (s.startswith('[') and s.endswith(']')):
+        try:
+            parsed = json.loads(s)
+            return _format_json_field(parsed)
+        except Exception:
+            pass
+
+    # 3. Clean up repeatable block delimiter "\n---\n"
+    if '---' in s:
+        parts = [p.strip() for p in re.split(r'\n?---\n?', s) if p.strip()]
+        if len(parts) > 1:
+            s = ' • '.join(parts)
+        elif parts:
+            s = parts[0]
+
+    return s
+
+
 def _serialize_event(row, prop_lat, prop_lng):
     e = dict(row)
     e.setdefault('distance_m', None)
@@ -322,6 +394,11 @@ def _serialize_event(row, prop_lat, prop_lng):
         v = e.get(k)
         if v and hasattr(v, 'isoformat'):
             e[k] = v.isoformat()
+
+    # Clean text fields of technical codes, unicode escapes (\u00e9), and JSON structures
+    for text_key in ('summary', 'actor', 'asunto', 'lugar', 'estado', 'compromisos_estados', 'nivel_severidad'):
+        if text_key in e and e[text_key] is not None:
+            e[text_key] = _clean_field_text(e[text_key])
 
     # Parse and sign photo URLs for the event
     raw_foto = e.get('foto_url')
@@ -522,12 +599,17 @@ def api_feed():
             SELECT
                 rav.id_visita::text,
                 'ACUERDO'::text,
-                rav.creado_en,
+                COALESCE(rav.fecha_hora, rav.creado_en),
                 NULL::numeric, NULL::numeric, NULL::numeric,
                 NULL::text,
-                rav.nombre_responsable,
+                COALESCE(
+                    NULLIF(TRIM(rav.nombre_visitante), ''),
+                    rav.submitted_by_email,
+                    'Visitante'
+                ),
                 COALESCE(
                     NULLIF(TRIM(rav.acuerdos_compromisos), ''),
+                    NULLIF(TRIM(rav.temas_tratados), ''),
                     'Visita registrada sin acuerdos o compromisos adicionales.'
                 ),
                 rav.compromisos_estados,
@@ -535,10 +617,13 @@ def api_feed():
                 NULL::date,
                 rav.compromisos_estados,
                 NULL::text                                       AS lugar,
-                rav.motivo_visita                                AS asunto
+                COALESCE(
+                    NULLIF(TRIM(rav.motivo_visita), ''),
+                    'Visita a cliente'
+                )                                                 AS asunto
             FROM registro_y_acta_de_visita rav
             WHERE {_anchor_sql('rav')} {cf_vis}
-              AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(rav.fecha_hora, rav.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -1152,15 +1237,24 @@ def public_expediente_viewer(token):
 
             SELECT
                 rav.id_visita::text, 'ACUERDO'::text,
-                rav.creado_en,
+                COALESCE(rav.fecha_hora, rav.creado_en),
                 NULL::numeric, NULL::numeric, NULL::numeric,
-                NULL::text, rav.nombre_responsable,
-                COALESCE(rav.acuerdos_compromisos, ''),
+                NULL::text,
+                COALESCE(
+                    NULLIF(TRIM(rav.nombre_visitante), ''),
+                    rav.submitted_by_email,
+                    'Visitante'
+                ),
+                COALESCE(
+                    NULLIF(TRIM(rav.acuerdos_compromisos), ''),
+                    NULLIF(TRIM(rav.temas_tratados), ''),
+                    'Visita registrada sin acuerdos o compromisos adicionales.'
+                ),
                 rav.compromisos_estados, NULL::text,
                 NULL::date, rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
             WHERE {_anchor_sql('rav')} {cf_vis}
-              AND rav.creado_en >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(rav.fecha_hora, rav.creado_en) >= NOW() - (%s * INTERVAL '1 day')
 
             UNION ALL
 
