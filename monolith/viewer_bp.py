@@ -2530,6 +2530,15 @@ def generate_pdf():
     if not requests_payload and not report_ids:
         return jsonify({"success": False, "message": "No reports provided."}), 400
 
+    # Sin las librerías nativas de WeasyPrint no hay PDF que entregar. Antes se
+    # devolvía un PDF vacío hardcodeado: el usuario se llevaba un archivo que no
+    # abre y nadie se enteraba de la falla. Mismo criterio que el endpoint del
+    # Morning Briefing, que ya respondía 503 en este caso.
+    if not WEASYPRINT_AVAILABLE:
+        app_logger.error("PDF solicitado pero WeasyPrint no está disponible en este entorno")
+        return jsonify({"success": False,
+                        "message": "La generación de PDF no está disponible en este entorno."}), 503
+
     app_logger.info(f"User {user_email} requested PDF generation")
 
     try:
@@ -2549,10 +2558,7 @@ def generate_pdf():
         
         # Create PDF using WeasyPrint
         pdf_buffer = BytesIO()
-        if WEASYPRINT_AVAILABLE:
-            HTML(string=html_content).write_pdf(pdf_buffer)
-        else:
-            pdf_buffer.write(b"%PDF-1.4\n%Mock PDF\n1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n2 0 obj <</Type /Pages /Kids [] /Count 0>> endobj\nxref\n0 3\n0000000000 65535 f \n0000000021 00000 n \n0000000071 00000 n \ntrailer <</Size 3 /Root 1 0 R>>\nstartxref\n120\n%%EOF")
+        HTML(string=html_content).write_pdf(pdf_buffer)
         pdf_buffer.seek(0)
 
         # Create filename
@@ -2953,6 +2959,12 @@ def generate_reports_html(reports):
 
     gen_date_str = format_local_datetime(datetime.now(), tz=tz, time_sep=" a las ")
 
+    # `escape()` devuelve un Markup, no un str, y Markup redefine la suma: al
+    # concatenar `str + Markup` markupsafe escapa el operando izquierdo. En una
+    # cadena que se evalúa de izquierda a derecha eso convierte TODO el documento
+    # anterior —DOCTYPE, <head> y el bloque <style> completo— en texto escapado,
+    # y WeasyPrint termina imprimiendo el CSS en vez de aplicarlo. De ahí el
+    # str() alrededor de cada escape() que se concatene aquí abajo.
     html_parts = ["""<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -3028,7 +3040,7 @@ td.val { color: #1f2937; }
         <span class="header-logo">""" + logo_img + """</span>
         <span class="header-title">
             <h1>Kanan Sentinel SekApp</h1>
-            <p>""" + escape(header_subtitle) + """</p>
+            <p>""" + str(escape(header_subtitle)) + """</p>
         </span>
     </div>
     <div class="header-right">Generado el<br>""" + gen_date_str + """</div>
