@@ -505,10 +505,21 @@ def _ensure_thresholds_table(conn):
     cur.execute("ALTER TABLE kpi_thresholds ADD COLUMN IF NOT EXISTS text_value TEXT")
     cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS kpi_thresholds_key_uidx ON kpi_thresholds (key)")
     for k, v in _THRESHOLD_DEFAULTS.items():
-        cur.execute(
-            "INSERT INTO kpi_thresholds (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
-            (k, v)
-        )
+        # `value` es NUMERIC: una clave de texto va a `text_value`, con 0 de
+        # relleno. Mandarla a `value` aborta el INSERT —el cast ocurre antes de
+        # que ON CONFLICT vea nada— y con él toda la pantalla de Umbrales KPI.
+        # Es el mismo reparto que hacen create_kpi_thresholds.sql y el POST.
+        if k in _THRESHOLD_TEXT_KEYS:
+            cur.execute(
+                "INSERT INTO kpi_thresholds (key, value, text_value) VALUES (%s, 0, %s)"
+                " ON CONFLICT (key) DO NOTHING",
+                (k, v)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO kpi_thresholds (key, value) VALUES (%s, %s) ON CONFLICT (key) DO NOTHING",
+                (k, v)
+            )
     conn.commit()
     cur.close()
 
@@ -868,8 +879,10 @@ def get_thresholds():
         for r in cur.fetchall():
             if r['key'] in _THRESHOLD_TEXT_KEYS:
                 rows[r['key']] = r['text_value']
-            else:
+            elif r['value'] is not None:
                 rows[r['key']] = float(r['value'])
+            # `value` es NULL-able en el esquema: una fila sin número se queda
+            # con su valor por defecto en vez de tumbar la pantalla entera.
         cur.close()
         result = dict(_THRESHOLD_DEFAULTS)
         result['fecha_inicio_operacion'] = None
@@ -879,7 +892,13 @@ def get_thresholds():
         result.update(rows)
         return result
     except Exception as e:
-        app_logger.error(f"Error fetching thresholds: {e}", exc_info=True)
+        # CRITICAL y no ERROR: el retorno silencioso a defaults deja a toda la
+        # app (Morning Briefing, alertas, Estatus de Cliente) operando con
+        # valores del código e ignorando lo configurado, sin señal en pantalla.
+        app_logger.critical(
+            "get_thresholds: no se pudo leer kpi_thresholds; la app opera con "
+            "VALORES POR DEFECTO y la configuración guardada se está ignorando: %s",
+            e, exc_info=True)
         return dict(_THRESHOLD_DEFAULTS)
     finally:
         if conn:
@@ -904,8 +923,10 @@ def thresholds():
         for r in cur.fetchall():
             if r['key'] in _THRESHOLD_TEXT_KEYS:
                 rows[r['key']] = r['text_value']
-            else:
+            elif r['value'] is not None:
                 rows[r['key']] = float(r['value'])
+            # `value` es NULL-able en el esquema: una fila sin número se queda
+            # con su valor por defecto en vez de tumbar la pantalla entera.
         cur.close()
         t = dict(_THRESHOLD_DEFAULTS)
         t['fecha_inicio_operacion'] = None
