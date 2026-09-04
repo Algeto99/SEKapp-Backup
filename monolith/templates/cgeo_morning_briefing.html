@@ -990,7 +990,7 @@ function computeSemaforo(alertasData, kpis, thr) {
         if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
             condiciones.push({ nivel:'amarillo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% entre 5% y 15%)` });
         if (certProx >= 1)
-            condiciones.push({ nivel:'amarillo', texto:`${certProx} certificación${certProx!==1?'es':''} por vencer en 30 días` });
+            condiciones.push({ nivel:'amarillo', texto:`${certProx} ${certProx!==1?'certificaciones':'certificación'} por vencer en 30 días` });
         if (compPorVencer >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${compPorVencer} compromiso${compPorVencer!==1?'s':''} de visita próximo${compPorVencer!==1?'s':''} a vencer` });
         if (visitaProg > 0 && visitaPct >= visitaAmarilloMin && visitaPct < visitaVerdeMin)
@@ -1025,7 +1025,7 @@ function renderSemaforo(alertasData, kpis) {
     const activasCond = condiciones.filter(c => c.nivel === nivel).length;
     document.getElementById('sgHint').textContent = nivel === 'verde'
         ? 'Toca para ver el detalle de condiciones evaluadas'
-        : `${activasCond} condición${activasCond!==1?'es':''} activando este estado — toca para ver`;
+        : `${activasCond} ${activasCond!==1?'condiciones':'condición'} activando este estado — toca para ver`;
 }
 
 // Agrupa las alertas accionables por tipo de registro para el detalle del semáforo

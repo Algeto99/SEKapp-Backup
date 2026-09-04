@@ -1749,7 +1749,7 @@ function computeSemaforo(alertasData, kpis) {
         if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
             condiciones.push({ nivel: 'amarillo', texto: `${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota, entre 5% y 15%)` });
         if (certProx >= 1)
-            condiciones.push({ nivel: 'amarillo', texto: `${certProx} certificación${certProx !== 1 ? 'es' : ''} por vencer en 30 días` });
+            condiciones.push({ nivel: 'amarillo', texto: `${certProx} ${certProx !== 1 ? 'certificaciones' : 'certificación'} por vencer en 30 días` });
     }
 
     const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');
@@ -1779,7 +1779,7 @@ function renderSemaforoGlobal(alertasData, kpis) {
 
     const hint = nivel === 'verde'
         ? 'Toca para ver el detalle de condiciones evaluadas'
-        : `${condiciones.filter(c => c.nivel === nivel).length} condición${condiciones.filter(c => c.nivel === nivel).length !== 1 ? 'es' : ''} activando este estado — toca para ver`;
+        : `${condiciones.filter(c => c.nivel === nivel).length} ${condiciones.filter(c => c.nivel === nivel).length !== 1 ? 'condiciones' : 'condición'} activando este estado — toca para ver`;
     document.getElementById('sgHint').textContent = hint;
 }
 

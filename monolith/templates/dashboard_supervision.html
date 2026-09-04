@@ -762,7 +762,7 @@
                                 const pct = total ? ((v / total) * 100).toFixed(1) : 0;
                                 const nivelKey = NIVEL_KEYS_FILTER[ctx.dataIndex];
                                 const action = activeNivelFilter === nivelKey ? 'clic para quitar filtro' : 'clic para filtrar dashboard';
-                                return ` ${v} inspección${v !== 1 ? 'es' : ''} (${pct}%) — ${action}`;
+                                return ` ${v} ${v !== 1 ? 'inspecciones' : 'inspección'} (${pct}%) — ${action}`;
                             }
                         }
                     },
