@@ -132,6 +132,37 @@ def _add_scope(conds, params, cliente=None, propiedad=None, alias=''):
             params.extend([str(cliente).strip(), str(cliente).strip()])
 
 
+# ── Nombres de cliente que no son nombres ───────────────────────────────────
+# La planilla vehicular y la de motocicletas guardan 'NO APLICA' cuando el
+# formulario no se hizo para un cliente (forms_bp, submit_planilla_*), y los
+# registros sin instalación dejan la columna en NULL, que la f-string imprime
+# como "None". Ninguno de los dos nombra a un cliente: no pueden encabezar una
+# alerta ni agrupar una. Es el mismo criterio que ya usa forms_bp al decidir si
+# el valor heredado vale como cliente.
+_CLIENTE_PLACEHOLDERS = ('no aplica', 'no aplica.', 'n/a', 'na', 'none', 'null',
+                         'sin cliente', 'sin instalacion', 'sin instalación',
+                         '-', '--', '---', '—')
+_CLIENTE_PLACEHOLDER_SQL = ", ".join("'" + v.replace("'", "''") + "'"
+                                     for v in _CLIENTE_PLACEHOLDERS)
+
+
+def _cliente_real_sql(col='cliente_instalacion'):
+    """Condición SQL: la columna nombra a un cliente de verdad.
+
+    Se suma a las reglas cuyo sujeto ES el cliente o el puesto —una alerta sobre
+    una instalación sin nombre no es accionable— y se deja fuera de aquellas
+    donde el cliente es solo contexto de un registro que sí existe.
+    """
+    return (f"{col} IS NOT NULL AND TRIM({col}) <> ''"
+            f" AND LOWER(TRIM({col})) NOT IN ({_CLIENTE_PLACEHOLDER_SQL})")
+
+
+def _cliente_real(valor):
+    """El mismo criterio sobre un valor ya leído: devuelve el nombre o None."""
+    v = (valor or '').strip()
+    return v if v and v.lower() not in _CLIENTE_PLACEHOLDERS else None
+
+
 def _add_cliente(conds, params, cliente, alias='', propiedad=None):
     """Append client and property filter to existing conds/params lists. alias: e.g. 'c.'"""
     _add_scope(conds, params, cliente=cliente, propiedad=propiedad, alias=alias)
@@ -828,6 +859,7 @@ def cgeo_api_alertas():
 
         # ── REGLA 1: Puesto sin supervisión > 48 h ────────────────────────────
         r1_conds, r1_params = _cp("id_propiedad")
+        r1_conds.append(_cliente_real_sql())
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
@@ -907,6 +939,7 @@ def cgeo_api_alertas():
         # ── REGLA 3: Cliente con historial reciente pero sin supervisión hoy ──
         # Proxy: clientes supervisados en los últimos 7 días pero NO hoy.
         r3_conds, r3_params = _cp("id_propiedad")
+        r3_conds.append(_cliente_real_sql())
         r3_conds_hist = r3_conds + ["fecha_hora >= NOW() - INTERVAL '7 days'"]
         r3_conds_hoy  = r3_conds + ["fecha_hora::date = CURRENT_DATE"]
         cur.execute(f"""
@@ -966,13 +999,15 @@ def cgeo_api_alertas():
         """, tuple(r4_params))
         for r in cur.fetchall():
             d = int(r["dias_restantes"] or 0)
+            cli = _cliente_real(r["cliente"])
+            en_cliente = f' en {cli}' if cli else ''
             alertas.append({
                 "id": f"r4_{r['id']}",
                 "regla": 4,
-                "motivo": (f'Certificación próxima a vencer. "{r["cert"]}" en {r["cliente"]} pierde '
+                "motivo": (f'Certificación próxima a vencer. "{r["cert"]}"{en_cliente} pierde '
                            f'vigencia el {r["vigencia_hasta"]:%d/%m/%Y}, dentro de {d} día{"s" if d != 1 else ""} '
                            f'(umbral de aviso: 30 días).'),
-                "texto": f"Certificación \"{r['cert']}\" en {r['cliente']} vence en {d} días",
+                "texto": f"Certificación \"{r['cert']}\"{en_cliente} vence en {d} días",
                 "accion": "Ver certificación",
                 "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
                 "record_id": r["id"],
@@ -984,6 +1019,7 @@ def cgeo_api_alertas():
 
         # ── REGLA 5: Equipo sin registro de confiabilidad > 45 días ──────────
         r5_conds, r5_params = _cp()
+        r5_conds.append(_cliente_real_sql())
         cur.execute(f"""
             SELECT id, cliente_instalacion AS instalacion, fecha AS ultimo_reg,
                    (CURRENT_DATE - fecha) AS dias
@@ -1023,14 +1059,18 @@ def cgeo_api_alertas():
             SELECT id_planilla_vehicular AS id, placa, cliente, ultimo_preop,
                    EXTRACT(EPOCH FROM (NOW() - ultimo_preop)) / 3600 AS horas
             FROM (
-                SELECT DISTINCT ON (TRIM(placa_vehiculo), cliente_instalacion)
+                -- Por placa, no por placa+cliente: el pre-operacional es del
+                -- vehículo. Agrupando también por cliente, una unidad chequeada
+                -- hoy en una sede seguía alertando por su último registro en
+                -- otra, y las dos filas colisionaban en el mismo id de alerta.
+                SELECT DISTINCT ON (TRIM(placa_vehiculo))
                     id_planilla_vehicular,
                     TRIM(placa_vehiculo) AS placa,
                     cliente_instalacion AS cliente,
                     COALESCE(fecha_hora, creado_en) AS ultimo_preop
                 FROM planilla_vehicular
                 {_where(r6_conds)}
-                ORDER BY TRIM(placa_vehiculo), cliente_instalacion, COALESCE(fecha_hora, creado_en) DESC
+                ORDER BY TRIM(placa_vehiculo), COALESCE(fecha_hora, creado_en) DESC
             ) ultimo
             WHERE ultimo_preop < NOW() - INTERVAL '24 hours'
             ORDER BY ultimo_preop ASC
@@ -1038,15 +1078,24 @@ def cgeo_api_alertas():
         """, tuple(r6_params))
         for r in cur.fetchall():
             h = float(r["horas"] or 0)
+            # La planilla guarda 'NO APLICA' cuando el chequeo no se hizo para un
+            # cliente. La placa sigue siendo real, así que la alerta se mantiene
+            # y lo que se omite es la atribución que no existe.
+            cli = _cliente_real(r["cliente"])
+            de_cliente = f' de {cli}' if cli else ''
+            en_cliente = f' ({cli})' if cli else ''
+            ruta = f"/dashboard/vehiculos/?placa={_quote(r['placa'])}"
+            if cli:
+                ruta += f"&cliente={_quote(cli)}"
             alertas.append({
                 "id": f"r6_{r['placa']}",
                 "regla": 6,
-                "motivo": (f'Pre-operacional vencido. El vehículo {r["placa"]} de {r["cliente"]} lleva '
+                "motivo": (f'Pre-operacional vencido. El vehículo {r["placa"]}{de_cliente} lleva '
                            f'{int(h)} h sin chequeo pre-operacional (umbral: 24 h). '
                            f'El último se registró el {r["ultimo_preop"]:%d/%m/%Y %H:%M}.'),
-                "texto": f"Vehículo {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
+                "texto": f"Vehículo {r['placa']}{en_cliente} sin pre-operacional hace {int(h)}h",
                 "accion": "Ver último pre-operacional",
-                "ruta_navegacion": f"/dashboard/vehiculos/?placa={r['placa']}&cliente={r['cliente']}",
+                "ruta_navegacion": ruta,
                 "record_id": r["id"],
                 "form_type": "planilla_vehicular",
                 "color_semaforo": "amarillo",
@@ -1061,14 +1110,15 @@ def cgeo_api_alertas():
             SELECT id AS id, placa, cliente, ultimo_preop,
                    EXTRACT(EPOCH FROM (NOW() - ultimo_preop)) / 3600 AS horas
             FROM (
-                SELECT DISTINCT ON (TRIM(placa_motocicleta), cliente_instalacion)
+                -- Por placa, por la misma razón que la regla 6.
+                SELECT DISTINCT ON (TRIM(placa_motocicleta))
                     id,
                     TRIM(placa_motocicleta) AS placa,
                     cliente_instalacion AS cliente,
                     COALESCE(fecha_hora, creado_en) AS ultimo_preop
                 FROM planilla_motocicletas
                 {_where(r12_conds)}
-                ORDER BY TRIM(placa_motocicleta), cliente_instalacion, COALESCE(fecha_hora, creado_en) DESC
+                ORDER BY TRIM(placa_motocicleta), COALESCE(fecha_hora, creado_en) DESC
             ) ultimo
             WHERE ultimo_preop < NOW() - INTERVAL '24 hours'
             ORDER BY ultimo_preop ASC
@@ -1076,15 +1126,21 @@ def cgeo_api_alertas():
         """, tuple(r12_params))
         for r in cur.fetchall():
             h = float(r["horas"] or 0)
+            cli = _cliente_real(r["cliente"])
+            de_cliente = f' de {cli}' if cli else ''
+            en_cliente = f' ({cli})' if cli else ''
+            ruta = f"/dashboard/motocicletas/?placa={_quote(r['placa'])}"
+            if cli:
+                ruta += f"&cliente={_quote(cli)}"
             alertas.append({
                 "id": f"r12_{r['placa']}",
                 "regla": 12,
-                "motivo": (f'Pre-operacional vencido. La motocicleta {r["placa"]} de {r["cliente"]} lleva '
+                "motivo": (f'Pre-operacional vencido. La motocicleta {r["placa"]}{de_cliente} lleva '
                            f'{int(h)} h sin chequeo pre-operacional (umbral: 24 h). '
                            f'El último se registró el {r["ultimo_preop"]:%d/%m/%Y %H:%M}.'),
-                "texto": f"Motocicleta {r['placa']} ({r['cliente']}) sin pre-operacional hace {int(h)}h",
+                "texto": f"Motocicleta {r['placa']}{en_cliente} sin pre-operacional hace {int(h)}h",
                 "accion": "Ver último pre-operacional",
-                "ruta_navegacion": f"/dashboard/motocicletas/?placa={r['placa']}&cliente={r['cliente']}",
+                "ruta_navegacion": ruta,
                 "record_id": r["id"],
                 "form_type": "planilla_motocicletas",
                 "color_semaforo": "amarillo",
@@ -1112,12 +1168,15 @@ def cgeo_api_alertas():
         """, tuple(r7_params))
         for r in cur.fetchall():
             d = int(r["dias_vencido"] or 0)
+            inst = _cliente_real(r["instalacion"])
+            de_inst = f' de {inst}' if inst else ''
+            en_inst = f' en {inst}' if inst else ''
             alertas.append({
                 "id": f"r7_{r['id']}",
                 "regla": 7,
-                "motivo": (f'Cumplimiento vencido. El checklist "{r["nombre"]}" de {r["instalacion"]} '
+                "motivo": (f'Cumplimiento vencido. El checklist "{r["nombre"]}"{de_inst} '
                            f'venció el {r["vigencia_hasta"]:%d/%m/%Y}, hace {d} día{"s" if d != 1 else ""}.'),
-                "texto": f"Checklist \"{r['nombre']}\" en {r['instalacion']} vencido hace {d} días",
+                "texto": f"Checklist \"{r['nombre']}\"{en_inst} vencido hace {d} días",
                 "accion": "Renovar checklist",
                 "ruta_navegacion": f"/dashboard/cumplimiento/?id={r['id']}",
                 "record_id": r["id"],
@@ -1130,7 +1189,7 @@ def cgeo_api_alertas():
         # ── REGLA 8: NPS cliente bajo (< 3.0/5) en últimos 30 días ───────────
         # La escala almacenada es 0-40; 3.0/5 equivale a 24 en esa escala.
         r8_conds, r8_params = _cp()
-        r8_conds += ["fecha_hora >= NOW() - INTERVAL '30 days'"]
+        r8_conds += ["fecha_hora >= NOW() - INTERVAL '30 days'", _cliente_real_sql()]
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS cliente,
@@ -1238,7 +1297,8 @@ def cgeo_api_alertas():
         visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
 
         r11_conds, r11_params = _cp("id_propiedad")
-        r11_conds_hist = r11_conds + ["fecha_hora >= NOW() - INTERVAL '30 days'"]
+        r11_conds_hist = r11_conds + ["fecha_hora >= NOW() - INTERVAL '30 days'",
+                                      _cliente_real_sql()]
         cur.execute(f"""
             SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
             FROM supervision_puesto
