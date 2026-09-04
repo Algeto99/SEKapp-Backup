@@ -34,6 +34,11 @@ app_logger = logging.getLogger(__name__)
 
 # --- Initialize Monolith Flask App ---
 app = Flask(__name__)
+# Flask ordena las claves del JSON alfabéticamente por defecto. Los registros se
+# arman siguiendo el `data_mapping` de cada formulario, que es el orden en que se
+# diligencian; ordenarlas alfabéticamente lo destruía y hacía que la vista previa
+# de Reportes mostrara los primeros del abecedario en vez de los del encabezado.
+app.json.sort_keys = False
 is_production = os.environ.get('K_SERVICE') is not None
 
 # --- Global Configs ---

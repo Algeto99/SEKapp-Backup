@@ -875,6 +875,7 @@ FORM_CONFIGS = {
             "Foto Atrás": "foto_atras_url",
             "Foto Lado Derecho": "foto_lado_derecho_url",
             "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
+            "Diagrama de Daños": "diagrama_danos",
             "Novedades Críticas": "novedades_criticas_detectadas",
             "Acción Inmediata": "accion_inmediata_tomada",
             # 4. Entrega y Cierre
@@ -1068,6 +1069,49 @@ def _localizar_fechas(data, tz):
 
 
 _EXPORT_BLANK_TEXT = {'', 'N/A', 'None', 'null', '[]', '{}'}
+
+
+# ── Vista previa de la tarjeta de Reportes ──────────────────────────────────
+# Los primeros campos con contenido, para que la tarjeta diga de qué va el
+# registro sin abrirlo. Se resuelve aquí y no en la plantilla porque la misma
+# tarjeta se pinta dos veces —Jinja en la carga inicial, JavaScript al paginar—
+# y la regla escrita dos veces se separa.
+_PREVIEW_KEY_HINTS = ('firma', 'lista', 'json', 'foto', 'participantes',
+                      'diagrama', 'evidencia', 'anexo', 'inventario', 'latitude',
+                      'longitude', 'latitud', 'longitud')
+_PREVIEW_MAX_LEN = 160
+
+
+def _sirve_para_vista_previa(key, value):
+    """True si el campo se puede leer de un vistazo en la tarjeta.
+
+    El descarte mira el valor y no solo el nombre: "Diagrama Daños" guarda la
+    imagen como data:image/png;base64,… y se imprimía entera, desbordando la
+    tarjeta a lo ancho. Una imagen, un enlace o un párrafo largo se ven en el
+    detalle, que sí sabe renderizarlos.
+    """
+    if _is_blank_export_value(value):
+        return False
+    k = str(key or '').lower()
+    if any(h in k for h in _PREVIEW_KEY_HINTS):
+        return False
+    if isinstance(value, (list, dict)):
+        return False
+    v = str(value).strip()
+    if v.startswith(('data:', 'http://', 'https://', '/api/media', '[', '{')):
+        return False
+    return len(v) <= _PREVIEW_MAX_LEN
+
+
+def _campos_vista_previa(data, limite=4):
+    """Los primeros `limite` campos legibles, en el orden del formulario."""
+    previa = []
+    for k, v in (data or {}).items():
+        if _sirve_para_vista_previa(k, v):
+            previa.append([k, str(v).strip()])
+            if len(previa) >= limite:
+                break
+    return previa
 
 def _is_blank_export_value(value):
     """True when a field holds nothing the form actually captured.
@@ -1419,6 +1463,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" "),
                     "submitterTimezone": submitter_tz,
                     "data": _localizar_fechas(mapped_data, _tz_op),
+                    "preview": _campos_vista_previa(mapped_data),
                     "formType": f_type,
                     "editado": bool(row_dict.get('editado')),
                     "editado_por": row_dict.get('editado_por') or '',
@@ -1607,6 +1652,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" "),
                 "submitterTimezone": submitter_tz,
                 "data": _localizar_fechas(data_content, _tz_op),
+                "preview": _campos_vista_previa(data_content),
                 "formType": form_type,
                 "editado": bool(row_dict.get('editado')),
                 "editado_por": row_dict.get('editado_por') or '',

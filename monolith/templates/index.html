@@ -922,14 +922,11 @@
                     </div>
                 </div>
                 <div class="text-gray-700 mb-4">
-                    {% set count = namespace(value=0) %}
-                    {% for key, value in form.data.items() %}
-                    {% if count.value < 4 and key !='URLs de Imágenes o PDFs' and value and value !='N/A' and value
-                        !='None' and value !='No especificado' and 'Firma' not in key and 'Lista' not in key and 'Json'
-                        not in key and 'foto' not in key %} <p><strong>{{ key }}:</strong> {{ value }}</p>
-                        {% set count.value = count.value + 1 %}
-                        {% endif %}
-                        {% endfor %}
+                    {# La selección la resuelve viewer_bp._campos_vista_previa, para que
+                       esta tarjeta y la que pinta el JS al paginar no puedan divergir. #}
+                    {% for key, value in form.preview %}
+                    <p><strong>{{ key }}:</strong> {{ value }}</p>
+                    {% endfor %}
                 </div>
 
                 <button class="toggle-details-button base-button-style btn-secondary-professional"
@@ -1462,6 +1459,12 @@
             return `<span class="edited-badge" title="${title}">✎ Editado</span>`;
         }
 
+        // El valor viene de la base y se inyecta con innerHTML: se escapa.
+        function escapeHtmlPreview(v) {
+            return String(v ?? '').replace(/[&<>"']/g,
+                c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         function createReportBlock(form) {
             const reportBlock = document.createElement('div');
             reportBlock.className = 'report-block bg-white shadow-md rounded-lg p-6';
@@ -1470,19 +1473,10 @@
             reportBlock.setAttribute('data-lat', form.data['Latitude'] || '');
             reportBlock.setAttribute('data-lng', form.data['Longitude'] || '');
 
-            let dataHtml = '';
-            let count = 0;
-            // Display first 4 relevant fields
-            for (const key in form.data) {
-                if (count >= 4) break;
-                const value = form.data[key];
-                const lowerKey = key.toLowerCase();
-                const isComplexField = lowerKey.includes('firma') || lowerKey.includes('lista') || lowerKey.includes('json') || lowerKey.includes('foto') || lowerKey.includes('participantes');
-                if (!isComplexField && key !== 'URLs de Imágenes o PDFs' && key !== 'Latitude' && key !== 'Longitude' && value && value !== 'N/A' && value !== 'None' && value !== 'No especificado') {
-                    dataHtml += `<p><strong>${key}:</strong> ${value}</p>`;
-                    count++;
-                }
-            }
+            // Mismos campos que la tarjeta inicial: los elige el servidor.
+            const dataHtml = (form.preview || [])
+                .map(([key, value]) => `<p><strong>${escapeHtmlPreview(key)}:</strong> ${escapeHtmlPreview(value)}</p>`)
+                .join('');
 
             reportBlock.innerHTML = `
                 <div class="flex justify-between items-start mb-4">

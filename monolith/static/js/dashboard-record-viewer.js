@@ -1092,7 +1092,7 @@
         // ── ZONA 2: detalle técnico completo, COLAPSADO ──
         const usadas = qmap ? new Set(Object.values(qmap).flat()) : new Set();
         const META_KEYS = new Set(['id', 'formType', 'submittedBy', 'dateSubmitted',
-                                   'dateSubmittedLocal', 'title']);
+                                   'dateSubmittedLocal', 'preview', 'title']);
 
         const metaRows = `
             <div class="drv-detail-field"><label>ID</label><p>${escapeHtml(d.id || currentRecordId || '—')}</p></div>
