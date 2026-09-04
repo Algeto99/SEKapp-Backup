@@ -1564,6 +1564,23 @@
         // Catálogo de propiedades con su cliente, para encadenar los dos filtros.
         let _allProperties = [];
 
+        // Etiqueta de una instalación dentro de una lista ya filtrada. El sufijo
+        // solo aparece cuando hace falta: sin cliente elegido, el nombre puede
+        // repetirse entre clientes; dentro de un cliente, dos instalaciones
+        // homónimas solo se distinguen por su dirección.
+        function _labelPropiedad(p, visibles, clienteId) {
+            const mismoNombre = visibles.filter(o => o.name === p.name);
+            let etiqueta = p.name;
+            if (!clienteId && p.cliente) etiqueta += ` — ${p.cliente}`;
+            if (mismoNombre.length > 1 && p.direccion) {
+                // Si el cliente ya las separa, la dirección sobra.
+                const clienteBasta = !clienteId && p.cliente
+                    && mismoNombre.filter(o => o.cliente === p.cliente).length === 1;
+                if (!clienteBasta) etiqueta += ` — ${p.direccion}`;
+            }
+            return etiqueta;
+        }
+
         // Repuebla Propiedad / Instalación con lo que cuelga del cliente elegido.
         // Conserva la selección si sigue siendo válida bajo el nuevo cliente.
         function fillPropertyOptions() {
@@ -1581,8 +1598,7 @@
             visibles.forEach(p => {
                 const option = document.createElement('option');
                 option.value = p.id;
-                // Sin cliente elegido, el nombre solo puede ser ambiguo entre clientes.
-                option.textContent = clienteId || !p.cliente ? p.name : `${p.name} — ${p.cliente}`;
+                option.textContent = _labelPropiedad(p, visibles, clienteId);
                 propertySelect.appendChild(option);
             });
 
@@ -2137,7 +2153,7 @@
             visibles.forEach(p => {
                 const o = document.createElement('option');
                 o.value = p.id;
-                o.textContent = clienteId || !p.cliente ? p.name : `${p.name} — ${p.cliente}`;
+                o.textContent = _labelPropiedad(p, visibles, clienteId);
                 propSel.appendChild(o);
             });
         }

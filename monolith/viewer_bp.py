@@ -1794,24 +1794,32 @@ def get_properties():
         user_email = _get_current_user_email()
         company_id = _get_user_company_id(cur, user_email)
         
+        # Mismo criterio que /forms/api/properties y /dashboard/api/properties:
+        # solo instalaciones activas. Era el único listado del repo sin ese
+        # filtro, y por eso Reportes seguía ofreciendo las propiedades dadas de
+        # baja —los nombres viejos que ya nadie usa— junto a las vigentes.
         if company_id is not None and _table_has_column(cur, 'propiedades', 'customer_company_id'):
             query = """
-                SELECT DISTINCT p.id_propiedad, p.nombre,
+                SELECT DISTINCT p.id_propiedad, p.nombre, p.direccion,
                        p.customer_company_id, cc.name AS cliente
                 FROM propiedades p
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE p.nombre IS NOT NULL
-                  AND cc.company_id = %s
+                  AND COALESCE(p.activa, TRUE) = TRUE
+                  -- Sin el OR, la condición sobre cc convierte el LEFT JOIN en
+                  -- INNER y desaparecen las instalaciones aún sin cliente.
+                  AND (cc.company_id = %s OR p.customer_company_id IS NULL)
                 ORDER BY p.nombre
             """
             cur.execute(query, (company_id,))
         else:
             query = """
-                SELECT DISTINCT p.id_propiedad, p.nombre,
+                SELECT DISTINCT p.id_propiedad, p.nombre, p.direccion,
                        p.customer_company_id, cc.name AS cliente
                 FROM propiedades p
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE p.nombre IS NOT NULL
+                  AND COALESCE(p.activa, TRUE) = TRUE
                 ORDER BY p.nombre
             """
             cur.execute(query)
@@ -1829,6 +1837,9 @@ def get_properties():
                 # Con qué encadenar Cliente / Empresa → Propiedad / Instalación.
                 "cliente_id": cid,
                 "cliente": cnombre,
+                # Solo se muestra cuando dos instalaciones del mismo cliente
+                # comparten nombre: es lo único que las distingue en pantalla.
+                "direccion": (row["direccion"] or '').strip(),
             })
             if cid is not None and cnombre:
                 clientes[cid] = cnombre
