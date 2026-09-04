@@ -1727,6 +1727,12 @@ def cgeo_api_morning_briefing_data():
 
         # ── Clientes en riesgo (Estatus de Cliente: Requiere seguimiento / Crítico) ──
         clientes_en_riesgo = []
+        # Un cliente sin información suficiente no está en riesgo: está sin
+        # evaluar. Contarlos por separado es lo que deja al briefing distinguir
+        # "ninguno por debajo del umbral" de "no se pudo calificar a nadie".
+        n_calificados = 0
+        clientes_sin_calificar = []
+        estatus_evaluado = False
         try:
             from admin_bp import get_estatus_pesos
             from dashboard_bp import _estatus_ranking
@@ -1734,10 +1740,18 @@ def cgeo_api_morning_briefing_data():
             limite_observacion = float(thresholds.get('estatus_banda_observacion', 75))
             limite_seguimiento = float(thresholds.get('estatus_banda_seguimiento', 60))
             company_id = _get_user_company_id(cur, get_jwt_identity())
-            calificados, _ = _estatus_ranking(
+            calificados, sin_calificar = _estatus_ranking(
                 cur, year=None, month=None, day=None, desde=fecha_inicio_raw,
                 company_id=company_id, thresholds=thresholds, pesos=pesos_estatus
             )
+            n_calificados = len(calificados)
+            # `_estatus_ranking` ya los devuelve por cobertura descendente.
+            clientes_sin_calificar = [{
+                'id': c['id'],
+                'nombre': c['nombre'],
+                'instalaciones': c['instalaciones'],
+                'ejes_con_datos': c['ejes_con_datos'],
+            } for c in sin_calificar]
             for c in calificados:
                 nota = c.get('nota')
                 if nota is not None and nota < limite_observacion:
@@ -1750,6 +1764,8 @@ def cgeo_api_morning_briefing_data():
                         'banda': banda,
                         'color': color,
                     })
+            # Solo al final: una evaluación a medias no puede pintarse en verde.
+            estatus_evaluado = True
         except Exception as cr_err:
             app_logger.warning(f"cgeo_api_morning_briefing_data: error calculando clientes en riesgo: {cr_err}")
 
@@ -1782,6 +1798,14 @@ def cgeo_api_morning_briefing_data():
                 # `clientes` sigue completo para el detalle que se abre al tocarlo.
                 "top": clientes_en_riesgo[:3],
                 "clientes": clientes_en_riesgo,
+                # Cobertura de la evaluación: sin esto, "0 en riesgo" se lee como
+                # "todo bien" incluso cuando no hubo un solo cliente calificable.
+                "calificados": n_calificados,
+                "sin_calificar": len(clientes_sin_calificar),
+                "total_clientes": n_calificados + len(clientes_sin_calificar),
+                "clientes_sin_calificar": clientes_sin_calificar,
+                # False si el cálculo falló: tampoco entonces corresponde el verde.
+                "evaluado": estatus_evaluado,
             },
             "thresholds": {
                 "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),

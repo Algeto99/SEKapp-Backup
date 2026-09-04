@@ -3464,7 +3464,10 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
     for idx, fila in enumerate(calificados):
         fila['posicion'] = total - idx
         fila['total'] = total
-    sin_calificar.sort(key=lambda x: x['nombre'])
+    # Los que están más cerca de poder calificarse, primero: con dos ejes se
+    # califica, así que el orden por cobertura dice dónde falta menos trabajo
+    # para que el cliente entre al ranking. El nombre solo desempata.
+    sin_calificar.sort(key=lambda x: (-x['ejes_con_datos'], x['nombre']))
     return calificados, sin_calificar
 
 @dashboard_bp.route('/api/gestion/estatus')

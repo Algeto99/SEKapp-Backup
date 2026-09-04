@@ -246,7 +246,13 @@ body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155
 .cr-card-ok{border-color:#bbf7d0;border-left-color:#22c55e;box-shadow:0 2px 8px rgba(34,197,94,.06);cursor:default}
 .cr-card-ok:hover{background:#fff;box-shadow:0 2px 8px rgba(34,197,94,.06)}
 .cr-card-ok .cr-title-box{color:#166534}
+/* Sin un solo cliente calificable no hay nada que semaforizar: gris. El verde
+   afirma que se evaluó y salió bien, y eso es justo lo que no se sabe. */
+.cr-card-neutro{border-color:#e2e8f0;border-left-color:#94a3b8;box-shadow:0 2px 8px rgba(100,116,139,.06)}
+.cr-card-neutro:hover{background:#f8fafc;box-shadow:0 4px 14px rgba(100,116,139,.12)}
+.cr-card-neutro .cr-title-box{color:#334155}
 .cr-vacio{color:#475569}
+.cr-sin-nota{color:#64748b}
 .cr-all-link{font-size:.78rem;font-weight:600;color:#2563eb;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem;margin-left:auto;flex-shrink:0;transition:color .15s}
 .cr-card:hover .cr-all-link,.cr-all-link:hover{color:#1d4ed8;text-decoration:underline}
 .cr-items{display:flex;flex-direction:column;gap:.35rem}
@@ -262,12 +268,22 @@ body:not(.light-mode) .semaforo-skeleton{background:#1e293b;border-color:#334155
 .cr-item-badge{font-size:.68rem;font-weight:600;padding:.1rem .45rem;border-radius:999px;text-transform:uppercase;letter-spacing:.03em}
 .cr-badge-rojo{background:rgba(239,68,68,0.12);color:#b91c1c;border:1px solid rgba(239,68,68,0.25)}
 .cr-badge-amarillo{background:rgba(245,158,11,0.12);color:#b45309;border:1px solid rgba(245,158,11,0.25)}
+/* Listado de clientes sin calificar: mismo renglón que el de riesgo, en gris. */
+.cr-item-sin{background:#f8fafc}
+.cr-item-sin:hover{background:#f1f5f9}
+.cr-item-sin .cr-bullet{color:#94a3b8}
+.cr-ejes{font-weight:700;font-variant-numeric:tabular-nums;font-size:.8125rem;color:#475569}
+.cr-ejes-cero{color:#94a3b8}
 
 body:not(.light-mode) .cr-card{background:#1e293b;border-color:#7f1d1d;border-left-color:#ef4444;box-shadow:0 2px 12px rgba(0,0,0,.25)}
 body:not(.light-mode) .cr-card:hover{background:#27384f}
 body:not(.light-mode) .cr-resumen{color:#cbd5e1}
 body:not(.light-mode) .cr-sep{color:#475569}
 body:not(.light-mode) .cr-card-ok{border-color:#14532d;border-left-color:#22c55e}
+body:not(.light-mode) .cr-card-neutro{border-color:#334155;border-left-color:#64748b}
+body:not(.light-mode) .cr-card-neutro:hover{background:#27384f}
+body:not(.light-mode) .cr-card-neutro .cr-title-box{color:#cbd5e1}
+body:not(.light-mode) .cr-sin-nota{color:#94a3b8}
 body:not(.light-mode) .cr-card-ok:hover{background:#1e293b}
 body:not(.light-mode) .cr-card-ok .cr-title-box{color:#86efac}
 body:not(.light-mode) .cr-vacio{color:#94a3b8}
@@ -278,6 +294,10 @@ body:not(.light-mode) .cr-item{background:rgba(239,68,68,0.08);color:#e2e8f0}
 body:not(.light-mode) .cr-item:hover{background:rgba(239,68,68,0.16)}
 body:not(.light-mode) .cr-score-rojo{color:#f87171}
 body:not(.light-mode) .cr-score-amarillo{color:#fbbf24}
+body:not(.light-mode) .cr-item-sin{background:rgba(148,163,184,0.10)}
+body:not(.light-mode) .cr-item-sin:hover{background:rgba(148,163,184,0.18)}
+body:not(.light-mode) .cr-ejes{color:#cbd5e1}
+body:not(.light-mode) .cr-ejes-cero{color:#64748b}
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
@@ -442,7 +462,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                     title="Ver el listado completo de clientes en riesgo">
                 <span class="cr-title-box">
                     <span class="cr-icon" id="crIcon">⚠️</span>
-                    <span class="cr-title">Clientes en riesgo: <strong id="crTotalCount">0</strong></span>
+                    <span class="cr-title" id="crTitle">Clientes en riesgo: <strong>0</strong></span>
                 </span>
                 <span class="cr-resumen" id="crResumen"></span>
                 <span class="cr-all-link" id="crVerTodos">Ver todos →</span>
@@ -752,6 +772,9 @@ function renderKpis(k, thr) {
 // ventana al tocar el renglón. Así el bloque ocupa una línea sin importar si hay
 // 3 clientes en riesgo o 30.
 let _crClientes = [];
+// Los que no llegaron a calificarse, con su cobertura de ejes. El backend los
+// manda de mayor a menor: primero los que están más cerca de poder evaluarse.
+let _crSinCalificar = [];
 
 function _crNota(c) {
     return typeof c.nota === 'number' ? Math.round(c.nota) : (c.nota || '—');
@@ -777,41 +800,103 @@ function _crItemHtml(c) {
     `;
 }
 
+function _crSinItemHtml(c) {
+    const ejes = c.ejes_con_datos ?? 0;
+    // Se califica con 2 de 4 ejes; en cero no hay ni por dónde empezar.
+    const ejesCls = ejes === 0 ? 'cr-ejes cr-ejes-cero' : 'cr-ejes';
+    return `
+        <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
+           class="cr-item cr-item-sin" title="Ver Estatus de ${_esc(c.nombre)}">
+            <div class="cr-item-left">
+                <span class="cr-bullet">•</span>
+                <span class="cr-item-name">${_esc(c.nombre)}</span>
+            </div>
+            <div class="cr-item-score-wrap">
+                <span class="${ejesCls}">${ejes} de 4 ejes</span>
+                <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
+            </div>
+        </a>
+    `;
+}
+
 function renderClientesEnRiesgo(data) {
     const wrap = document.getElementById('clientesRiesgoWrap');
     if (!wrap) return;
     const total = data?.total || 0;
     _crClientes = data?.clientes || [];
+    _crSinCalificar = data?.clientes_sin_calificar || [];
     // El backend ya manda los tres peores; si no vinieran, los primeros de la
     // lista lo son igual: `_estatus_ranking` ordena de menor a mayor nota.
     const top = (data?.top?.length ? data.top : _crClientes).slice(0, 3);
 
+    // Cobertura de la evaluación. Un cliente sin información suficiente no está
+    // en riesgo: está sin calificar, y no puede sumar a ninguno de los dos lados.
+    const calificados = data?.calificados ?? 0;
+    const totalClientes = data?.total_clientes ?? (calificados + _crSinCalificar.length);
+    const evaluado = data?.evaluado !== false;
+
     const card = document.getElementById('crCard');
     const icono = document.getElementById('crIcon');
+    const titulo = document.getElementById('crTitle');
+    const resumen = document.getElementById('crResumen');
     const verTodos = document.getElementById('crVerTodos');
-    document.getElementById('crTotalCount').textContent = total;
+    card.classList.remove('cr-card-ok', 'cr-card-neutro');
 
-    // Sin clientes en riesgo el renglón se queda: en verde, sin lista que abrir
-    // y sin clic. Esconderlo dejaría al gerente sin saber si el indicador se
-    // evaluó o si simplemente no cargó.
-    if (!total || !top.length) {
-        card.classList.add('cr-card-ok');
-        card.disabled = true;
-        card.title = 'Ningún cliente por debajo del umbral de Estatus de Cliente';
-        icono.textContent = '✅';
-        verTodos.hidden = true;
-        document.getElementById('crResumen').innerHTML =
-            '<span class="cr-vacio">Ningún cliente por debajo del umbral</span>';
+    // ESTADO 1 — Nadie calificado: gris. El verde afirmaría que se evaluó a los
+    // clientes y ninguno está mal; aquí lo único cierto es que no se sabe.
+    if (!evaluado || calificados === 0) {
+        card.classList.add('cr-card-neutro');
+        icono.textContent = '⚪';
+        if (!evaluado) {
+            titulo.innerHTML = 'Estatus de cliente: no evaluado';
+            resumen.innerHTML = '<span class="cr-sin-nota">No se pudo calcular en el período</span>';
+        } else if (totalClientes === 0) {
+            titulo.innerHTML = 'Estatus de cliente: sin clientes registrados';
+            resumen.innerHTML = '<span class="cr-sin-nota">No hay clientes que evaluar en el período</span>';
+        } else {
+            titulo.innerHTML = `Estatus de cliente: <strong>0</strong> de ${totalClientes} cliente`
+                             + `${totalClientes !== 1 ? 's' : ''} calificado${totalClientes !== 1 ? 's' : ''}`;
+            resumen.innerHTML = '<span class="cr-sin-nota">Información insuficiente en el período</span>';
+        }
+        // El listado de sin calificar responde por qué, sin salir del briefing.
+        const hayDetalle = _crSinCalificar.length > 0;
+        card.disabled = !hayDetalle;
+        card.title = hayDetalle
+            ? 'Ver los clientes sin información suficiente para calificar'
+            : 'Sin clientes para evaluar en el período';
+        verTodos.hidden = !hayDetalle;
+        verTodos.textContent = 'Ver detalle →';
         wrap.classList.remove('hidden');
         return;
     }
 
-    card.classList.remove('cr-card-ok');
+    const coberturaTxt = `${calificados} de ${totalClientes} cliente`
+                       + `${totalClientes !== 1 ? 's' : ''} calificado${totalClientes !== 1 ? 's' : ''}`;
+
+    // ESTADO 2 — Hay clientes calificados y ninguno bajo el umbral: verde, con
+    // la cobertura a la vista para que el verde se lea con su alcance.
+    if (!total || !top.length) {
+        card.classList.add('cr-card-ok');
+        card.disabled = true;
+        card.title = `Ningún cliente por debajo del umbral de Estatus de Cliente · ${coberturaTxt}`;
+        icono.textContent = '✅';
+        titulo.innerHTML = 'Clientes en riesgo: <strong>0</strong>';
+        verTodos.hidden = true;
+        resumen.innerHTML = '<span class="cr-vacio">Sin clientes por debajo del umbral</span>'
+                          + '<span class="cr-sep">·</span>'
+                          + `<span class="cr-sin-nota">${coberturaTxt}</span>`;
+        wrap.classList.remove('hidden');
+        return;
+    }
+
+    // ESTADO 3 — Hay clientes en riesgo.
     card.disabled = false;
-    card.title = 'Ver el listado completo de clientes en riesgo';
+    card.title = `Ver el listado completo de clientes en riesgo · ${coberturaTxt}`;
     icono.textContent = '⚠️';
+    titulo.innerHTML = `Clientes en riesgo: <strong>${total}</strong>`;
     verTodos.hidden = false;
-    document.getElementById('crResumen').innerHTML = top.map(c => {
+    verTodos.textContent = 'Ver todos →';
+    resumen.innerHTML = top.map(c => {
         const scoreCls = c.color === 'rojo' ? 'cr-score-rojo' : 'cr-score-amarillo';
         return `<span class="cr-chip"><span class="cr-chip-name">${_esc(c.nombre)}</span>`
              + `<span class="cr-chip-score ${scoreCls}">${_crNota(c)}</span></span>`;
@@ -821,14 +906,26 @@ function renderClientesEnRiesgo(data) {
 }
 
 function abrirClientesEnRiesgo() {
-    if (!_crClientes.length) return;
+    // Sin clientes en riesgo la misma tarjeta abre el listado de los que no se
+    // pudieron calificar: es la pregunta que deja abierta el estado gris.
+    const sinRiesgo = !_crClientes.length;
+    if (sinRiesgo && !_crSinCalificar.length) return;
+    const titulo = sinRiesgo
+        ? `⚪ Clientes sin calificar: ${_crSinCalificar.length}`
+        : `⚠️ Clientes en riesgo: ${_crClientes.length}`;
+    const subtitulo = sinRiesgo
+        ? 'Sin información suficiente para calificar en el período — de mayor a menor cobertura de ejes. Se califica con 2 de 4 ejes con datos'
+        : 'Por debajo del umbral de Estatus de Cliente, de menor a mayor calificación — toca uno para ver su detalle';
+    const filas = sinRiesgo
+        ? _crSinCalificar.map(_crSinItemHtml).join('')
+        : _crClientes.map(_crItemHtml).join('');
     const modal = document.createElement('div');
     modal.className = 'sg-modal-overlay';
     modal.innerHTML = `
         <div class="sg-modal sg-modal-wide">
-            <div class="sg-modal-title">⚠️ Clientes en riesgo: ${_crClientes.length}</div>
-            <div class="sg-modal-sub">Por debajo del umbral de Estatus de Cliente, de menor a mayor calificación — toca uno para ver su detalle</div>
-            <div class="cr-items">${_crClientes.map(_crItemHtml).join('')}</div>
+            <div class="sg-modal-title">${titulo}</div>
+            <div class="sg-modal-sub">${subtitulo}</div>
+            <div class="cr-items">${filas}</div>
             <a href="/dashboard/gestion/" class="cr-all-link" style="margin:1rem 0 0">Consultar listado en Gestión →</a>
             <button onclick="this.closest('.sg-modal-overlay').remove()"
                 style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
