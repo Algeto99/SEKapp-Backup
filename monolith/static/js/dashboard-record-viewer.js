@@ -964,6 +964,19 @@
         return partes.join(' ');
     }
 
+    // Un registro arrastra todas las columnas de su tabla, incluidas las que el
+    // formulario ya no pregunta, y el backend convierte esos NULL en "N/A".
+    // Mismo criterio que index.html y que _EXPORT_BLANK_TEXT en viewer_bp.
+    const BLANK_VALUES = new Set(['', 'N/A', 'None', 'null', '[]', '{}']);
+
+    function isBlankValue(v) {
+        if (v === null || v === undefined) return true;
+        if (typeof v === 'number' || typeof v === 'boolean') return false;  // 0 y false son respuestas
+        if (Array.isArray(v)) return v.length === 0;
+        if (typeof v === 'object') return Object.keys(v).length === 0;
+        return BLANK_VALUES.has(String(v).trim());
+    }
+
     const FIVE_Q_LABELS = {
         QUE:    { icon: '📋', title: 'QUÉ' },
         CUANDO: { icon: '🕐', title: 'CUÁNDO' },
@@ -1042,13 +1055,15 @@
 
             for (const lbl of labels) {
                 const val = raw[lbl];
-                if (val !== null && val !== undefined && val !== '') {
+                if (!isBlankValue(val)) {
                     parts.push(renderValue(lbl, val, 0));
                 }
             }
             // CUÁNDO falls back to dateSubmitted; QUIÉN falls back to submittedBy
             if (!parts.length) {
-                if (key === 'CUANDO' && d.dateSubmitted) parts.push(escapeHtml(d.dateSubmitted));
+                // La local, no la ISO: es la que coincide con el PDF.
+                const enviado = d.dateSubmittedLocal || d.dateSubmitted;
+                if (key === 'CUANDO' && enviado) parts.push(escapeHtml(enviado));
                 if (key === 'QUIEN'  && d.submittedBy)  parts.push(escapeHtml(d.submittedBy));
                 // Nunca dejar el QUÉ vacío si el registro trae con qué llenarlo.
                 if (key === 'QUE') {
@@ -1076,16 +1091,19 @@
 
         // ── ZONA 2: detalle técnico completo, COLAPSADO ──
         const usadas = qmap ? new Set(Object.values(qmap).flat()) : new Set();
-        const META_KEYS = new Set(['id', 'formType', 'submittedBy', 'dateSubmitted', 'title']);
+        const META_KEYS = new Set(['id', 'formType', 'submittedBy', 'dateSubmitted',
+                                   'dateSubmittedLocal', 'title']);
 
         const metaRows = `
             <div class="drv-detail-field"><label>ID</label><p>${escapeHtml(d.id || currentRecordId || '—')}</p></div>
             <div class="drv-detail-field"><label>Enviado por</label><p>${escapeHtml(d.submittedBy || '—')}</p></div>
-            <div class="drv-detail-field"><label>Fecha de envío</label><p>${escapeHtml(d.dateSubmitted || '—')}</p></div>
+            <div class="drv-detail-field"><label>Fecha de envío</label><p>${escapeHtml(d.dateSubmittedLocal || d.dateSubmitted || '—')}</p></div>
             <div class="drv-detail-field"><label>Formulario</label><p>${escapeHtml(d.title || 'Registro')}</p></div>`;
 
         const rows = Object.entries(raw)
-            .filter(([k]) => !META_KEYS.has(k) && !usadas.has(k))
+            // Sin los marcadores de vacío: una columna que el formulario no
+            // preguntó no es "N/A", simplemente no forma parte del registro.
+            .filter(([k, v]) => !META_KEYS.has(k) && !usadas.has(k) && !isBlankValue(v))
             .map(([k, v]) => `
                 <div class="drv-detail-field">
                     <label>${escapeHtml(k)}</label>

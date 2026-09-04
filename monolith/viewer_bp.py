@@ -1035,6 +1035,38 @@ def _ensure_json_serializable(val):
             pass
     return val
 
+# ── Fechas: un solo criterio para el detalle, el PDF, el Excel y el correo ──
+# El PDF ya convertía a la hora de operación; el JSON que alimenta el detalle
+# devolvía `str(datetime)`, o sea UTC cruda. El mismo instante salía como
+# "2026-09-01 12:05:00+00:00" en pantalla y "01/09/2026 07:05 a. m." en el PDF.
+# Compartir la regla es lo que impide que vuelvan a separarse.
+_DATE_KEY_HINTS = ('fecha', 'vigencia')
+
+
+def _es_clave_de_fecha(key):
+    """True si la etiqueta de un campo corresponde a una fecha.
+
+    Deliberadamente no incluye 'hora': "Horario del Servicio" vale 'Diurno' y
+    no debe pasar por el formateador.
+    """
+    k = str(key or '').lower()
+    return any(h in k for h in _DATE_KEY_HINTS)
+
+
+def _localizar_fechas(data, tz):
+    """Pasa a la hora local de la operación los campos de fecha ya serializados.
+
+    Se aplica al construir el registro, así que el detalle, el PDF, el Excel y
+    el correo parten del mismo texto. `format_local_datetime` es idempotente,
+    de modo que las vistas que ya lo llamaban siguen funcionando igual.
+    """
+    from admin_bp import format_local_datetime
+    for k, v in list(data.items()):
+        if isinstance(v, str) and v and _es_clave_de_fecha(k):
+            data[k] = format_local_datetime(v, tz=tz, time_sep=" ") or v
+    return data
+
+
 _EXPORT_BLANK_TEXT = {'', 'N/A', 'None', 'null', '[]', '{}'}
 
 def _is_blank_export_value(value):
@@ -1296,7 +1328,12 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
             
             cur.execute(query, tuple(query_params + [fetch_limit]))
             rows = cur.fetchall()
-            
+
+            # Una sola vez por consulta: get_operation_timezone lee los umbrales
+            # y con ellos toca la base, así que no puede ir dentro del bucle.
+            from admin_bp import get_operation_timezone, format_local_datetime as _fmt_local
+            _tz_op = get_operation_timezone()
+
             for row_dict in rows:
                 # Determine display name
                 display_name = row_dict.get("user_name") or row_dict.get(config['user_col'], "desconocido")
@@ -1379,8 +1416,9 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     "title": f"{config['title_prefix']} #{row_dict.get(config['id_col'])}",
                     "submittedBy": display_name,
                     "dateSubmitted": date_str,
+                    "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" "),
                     "submitterTimezone": submitter_tz,
-                    "data": mapped_data,
+                    "data": _localizar_fechas(mapped_data, _tz_op),
                     "formType": f_type,
                     "editado": bool(row_dict.get('editado')),
                     "editado_por": row_dict.get('editado_por') or '',
@@ -1475,6 +1513,9 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
         rows = cur.fetchall()
         app_logger.info(f"Fetched {len(rows)} specific reports.")
         
+        from admin_bp import get_operation_timezone, format_local_datetime as _fmt_local
+        _tz_op = get_operation_timezone()
+
         for row_dict in rows:
             # Determine display name
             display_name = row_dict.get("user_name") or row_dict.get(config['user_col'], "desconocido")
@@ -1560,9 +1601,12 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 "id": row_dict[config['id_col']],
                 "title": f"{config['title_prefix']} #{row_dict[config['id_col']]}",
                 "submittedBy": display_name,
+                # ISO: se ordena por este campo como texto, así que no se
+                # formatea. La versión legible viaja aparte.
                 "dateSubmitted": date_str,
+                "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" "),
                 "submitterTimezone": submitter_tz,
-                "data": data_content,
+                "data": _localizar_fechas(data_content, _tz_op),
                 "formType": form_type,
                 "editado": bool(row_dict.get('editado')),
                 "editado_por": row_dict.get('editado_por') or '',
@@ -3189,7 +3233,7 @@ td.val { color: #1f2937; }
 
             if isinstance(value, (datetime, date)):
                 val_str = format_local_datetime(value, tz=tz, time_sep=" ")
-            elif isinstance(value, str) and any(k in key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento', 'vigencia')):
+            elif isinstance(value, str) and _es_clave_de_fecha(key):
                 val_str = format_local_datetime(value, tz=tz, time_sep=" ")
             else:
                 val_str = str(value).strip()
@@ -3461,8 +3505,10 @@ def _backup_excel_bytes(por_tipo):
         ws.append(['ID', 'Formulario', 'Enviado Por', 'Fecha Envío'] + etiquetas)
         for fila in filas:
             datos = fila.get('data') or {}
+            # Hora de operación, igual que el resto de las vistas y que el
+            # export normal; `dateSubmitted` sigue en ISO solo para ordenar.
             ws.append([fila.get('id'), fila.get('title'), fila.get('submittedBy'),
-                       fila.get('dateSubmitted')] +
+                       fila.get('dateSubmittedLocal') or fila.get('dateSubmitted')] +
                       [_excel_safe(datos.get(e)) for e in etiquetas])
 
     out = BytesIO()
