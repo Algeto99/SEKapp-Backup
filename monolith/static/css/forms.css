@@ -1,0 +1,71 @@
+/* ==========================================================================
+   Campos de formulario — reglas compartidas por los formularios de campo.
+
+   Cada plantilla define su propio `.form-input`, así que aquí sólo va lo que
+   debe valer igual en todas y no puede quedar en 15 copias que se separen.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Fecha y hora en móvil
+
+   Los controles nativos de fecha no se encogen con su contenedor: WebKit les
+   da al valor interno un ancho intrínseco y lo centra, de modo que en pantalla
+   estrecha el campo sobresale unos píxeles respecto del resto —aunque tenga
+   `width: 100%`— y el valor queda centrado mientras los demás campos alinean
+   a la izquierda. `min-width: 0` es lo que permite que ceda; el resto alinea
+   su interior con el de un input de texto normal.
+
+   No se usa `appearance: none`: quitaría el icono nativo del calendario, que
+   varias plantillas ya estilizan vía ::-webkit-calendar-picker-indicator.
+   -------------------------------------------------------------------------- */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"] {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+/* El valor interno: sin ancho propio, alineado como cualquier otro campo. */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value,
+input[type="week"]::-webkit-date-and-time-value {
+    text-align: left;
+    min-width: 0;
+    margin: 0;
+}
+
+/* En móvil, el control nativo conserva un ancho propio que no cede al del
+   contenedor: es lo que hace que el campo sobresalga. Quitarle la apariencia
+   nativa lo convierte en una caja normal que sí respeta el `width: 100%`.
+
+   Va dentro de la media query a propósito: en escritorio, `appearance: none`
+   se llevaría por delante el icono del calendario, que varias plantillas
+   estilizan con ::-webkit-calendar-picker-indicator. En una pantalla táctil ese
+   icono no se usa —el sistema abre su propio selector al tocar el campo—, así
+   que ahí no se pierde nada. */
+@media (hover: none) and (pointer: coarse) {
+    input[type="date"],
+    input[type="time"],
+    input[type="datetime-local"],
+    input[type="month"],
+    input[type="week"] {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+}
+
+/* El editor de campos (día / mes / año) tampoco debe reservar ancho extra. */
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit,
+input[type="month"]::-webkit-datetime-edit,
+input[type="week"]::-webkit-datetime-edit {
+    padding: 0;
+    min-width: 0;
+}
