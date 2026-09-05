@@ -28,6 +28,15 @@
         }
     }
 
+    // Un pointerdown sobre la barra de scroll de un elemento con overflow: cae
+    // fuera de la caja de contenido, así que offsetX se sale de clientWidth.
+    function isOnScrollbar(event) {
+        const el = event.target;
+        if (!(el instanceof Element)) return false;
+        return (el.scrollHeight > el.clientHeight && event.offsetX >= el.clientWidth)
+            || (el.scrollWidth > el.clientWidth && event.offsetY >= el.clientHeight);
+    }
+
     function normalize(text) {
         return String(text == null ? '' : text)
             .normalize('NFD')
@@ -226,11 +235,27 @@
             // A ghost tap has no matching press, and a drag releases somewhere else,
             // so both are rejected without relying on timing heuristics.
             this.panel.addEventListener('pointerdown', (event) => {
-                const row = event.target.closest('.ss-opt');
-                if (!row) return;
+                // Cuándo se presionó dentro del panel. Respaldo portátil del
+                // relatedTarget de más abajo: si un motor no informa null al
+                // pulsar una zona no enfocable, esta marca lo cubre igual.
+                this._pressedInPanelAt = Date.now();
                 // Mouse only: hold focus on the input so the panel can't blur-close
                 // mid-click. Never for touch — it would stop the list scrolling.
-                if (event.pointerType === 'mouse') event.preventDefault();
+                //
+                // Se aplica a TODO el panel, no sólo a las filas. La cabecera
+                // "N opciones — escribe para filtrar" aparece siempre que hay más
+                // de ocho opciones y ocupa la primera línea, justo donde cae el
+                // cursor al abrir; un clic ahí, o en el hueco entre filas, dejaba
+                // escapar el foco y el cierre por blur mataba el panel antes de
+                // que se pudiera elegir nada.
+                //
+                // La barra de scroll se excluye: prevenir su pointerdown impide
+                // arrastrar el tirador.
+                if (event.pointerType === 'mouse' && !isOnScrollbar(event)) {
+                    event.preventDefault();
+                }
+                const row = event.target.closest('.ss-opt');
+                if (!row) return;
                 this._press = {
                     pos: Number(row.dataset.pos),
                     x: event.clientX,
@@ -282,9 +307,28 @@
                 this.searchInput.addEventListener('pointerdown', (event) => event.stopPropagation());
             }
 
-            const closeIfFocusLeft = () => {
+            const closeIfFocusLeft = (event) => {
+                // Pulsar una zona que no acepta foco —la barra de scroll del
+                // panel, el hueco entre filas— manda el foco a ninguna parte, y
+                // el blur llega con relatedTarget null. Eso no es "el usuario se
+                // fue del campo": es un gesto dentro del propio desplegable.
+                //
+                // Pesa sobre todo en Linux y ChromeOS, donde Chrome dibuja barras
+                // de scroll clásicas de ~15 px —en macOS son superpuestas y casi
+                // no se pulsan—, así que arrastrar la de una lista de 30 clientes
+                // es el gesto natural y cerraba el panel.
+                //
+                // Salir de verdad (Tab, o pulsar otro control) sí trae destino, y
+                // un clic fuera lo cierra el handler de document de más abajo.
+                // Si el navegador no informa relatedTarget llega undefined, y
+                // entonces se conserva el comportamiento anterior.
+                if (event && event.relatedTarget === null) return;
                 setTimeout(() => {
                     if (!this.isOpen || this._press) return;
+                    // El blur nació de una presión dentro del panel: el gesto es
+                    // del propio desplegable, no una salida del campo. Cubre a los
+                    // motores que no informan relatedTarget como null.
+                    if (Date.now() - (this._pressedInPanelAt || 0) < 400) return;
                     // Focus moving into the panel's search box is not leaving the field.
                     if (this.wrap.contains(document.activeElement)) return;
                     this._close();
