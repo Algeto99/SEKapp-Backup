@@ -392,7 +392,9 @@
               <span class="tl-meta {{ 'gps-ok' if e.status == 'GREEN' else 'gps-bad' }}" style="font-size:.68rem;color:{% if e.status == 'GREEN' %}#059669{% else %}#dc2626{% endif %};">{{ e.distance_m }}m</span>
             {% endif %}
           </div>
-          <span class="tl-ts">{{ e.timestamp[:16] | replace('T',' ') if e.timestamp else '' }}</span>
+          {# Ya viene en la hora de operación desde expediente_bp; cortar la
+             cadena ISO mostraba UTC, cinco horas por delante. #}
+          <span class="tl-ts">{{ e.timestamp_local or '' }}</span>
         </div>
         <p class="tl-summary">{{ e.summary if e.summary else '—' }}</p>
         <div class="tl-meta">
@@ -637,7 +639,7 @@
       <div class="sheet-header">
         <div style="display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;">
           <span class="mod-badge ${modClass[e.module] || ''}">${modLabels[e.module] || e.module}</span>
-          <span class="tl-ts">${fmtTs(e.timestamp)}</span>
+          <span class="tl-ts">${e.timestamp_local || fmtTs(e.timestamp)}</span>
         </div>
         <div class="sheet-title">${e.module === 'ENCUESTA' ? esc(e.estado || e.actor || 'Encuesta a cliente') : esc(e.summary || '—')}</div>
       </div>

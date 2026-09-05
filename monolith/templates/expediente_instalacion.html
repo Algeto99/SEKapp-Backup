@@ -592,7 +592,9 @@
     const actor   = (e.actor  || '').trim();
     const asunto  = (e.asunto || '').trim();
     const lugar   = (e.lugar  || '').trim();
-    const ts      = fmtTs(e.timestamp);
+    // La del servidor, en la zona de la operación: fmtTs convierte a la zona
+    // del dispositivo y dos personas en husos distintos veían horas distintas.
+    const ts      = e.timestamp_local || fmtTs(e.timestamp);
 
     let gpsHtml = '';
     if (e.module === 'SUPERVISION') {

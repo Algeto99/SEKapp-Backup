@@ -380,7 +380,7 @@ def _clean_field_text(val):
     return s
 
 
-def _serialize_event(row, prop_lat, prop_lng):
+def _serialize_event(row, prop_lat, prop_lng, tz=None):
     e = dict(row)
     e.setdefault('distance_m', None)
     # Status must be computed on the raw date/datetime objects, before they
@@ -388,7 +388,14 @@ def _serialize_event(row, prop_lat, prop_lng):
     e['status'] = _compute_status(e, prop_lat, prop_lng)
 
     ts = e.get('event_ts')
+    # `timestamp` queda en ISO: es lo que ordena y lo que consume el mapa.
     e['timestamp'] = ts.isoformat() if ts and hasattr(ts, 'isoformat') else str(ts or '')
+    # `timestamp_local` es lo que se muestra. Se resuelve aquí, en el servidor y
+    # con la zona de la operación, porque las vistas lo formateaban cada una por
+    # su cuenta: el expediente en el navegador convertía a la zona del
+    # dispositivo y la vista del QR cortaba la cadena ISO en crudo, o sea UTC.
+    # El mismo evento salía con cinco horas de diferencia según dónde se mirara.
+    e['timestamp_local'] = format_local_datetime(ts, tz=tz, time_sep=" ") if ts else ''
 
     for k in ('compromisos_fecha_limite',):
         v = e.get(k)
@@ -680,7 +687,8 @@ def api_feed():
             prop_id, cliente, days_int,
         ))
         rows = cur.fetchall()
-        events = [_serialize_event(dict(r), prop_lat, prop_lng) for r in rows]
+        _tz_op = get_operation_timezone()
+        events = [_serialize_event(dict(r), prop_lat, prop_lng, tz=_tz_op) for r in rows]
 
         return jsonify({
             'cliente': cliente,
@@ -755,7 +763,9 @@ def _fetch_equipos_data(cur, cliente, days=None, company_id=None, prop_id=None):
     sum_func  = int(krow['sum_func']  or 0)
     pct_gen   = round(sum_func / sum_total * 100, 1) if sum_total else None
     ultima    = krow['ultima_inspeccion']
-    ultima_str = ultima.strftime('%d/%m/%Y') if ultima and hasattr(ultima, 'strftime') else str(ultima or '—')
+    # Solo fecha, pero por el mismo formateador: un timestamp cercano a
+    # medianoche en UTC cae en el día anterior al leerlo en hora local.
+    ultima_str = format_local_datetime(ultima, include_time=False) if ultima else str(ultima or '—')
 
     cur.execute(f"""
         SELECT
@@ -1296,7 +1306,8 @@ def public_expediente_viewer(token):
         """
         cur.execute(query, (*bp(), *bp(), *bp(), *bp(), prop_id, cliente, days_int))
         rows = cur.fetchall()
-        events = [_serialize_event(dict(r), prop_lat, prop_lng) for r in rows]
+        _tz_op = get_operation_timezone()
+        events = [_serialize_event(dict(r), prop_lat, prop_lng, tz=_tz_op) for r in rows]
 
         if module_filter != 'ALL':
             events = [e for e in events if e['module'] == module_filter]
@@ -1414,7 +1425,9 @@ def public_evidence_viewer(hash_token):
             record['prop_lng'] = center_lng
 
         ts = record.get('fecha_hora') or record.get('creado_en')
-        timestamp_str = ts.strftime('%d/%m/%Y %H:%M:%S') if ts else 'N/D'
+        # strftime sobre el datetime crudo imprimía UTC. Mismo formateador que
+        # el resto de las vistas, para que el registro tenga una sola hora.
+        timestamp_str = format_local_datetime(ts, time_sep=" ") if ts else 'N/D'
 
         foto_urls = _parse_and_sign_foto_urls(record.get('foto_evidencia_url'))
 
