@@ -15,6 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from functools import wraps
 from io import BytesIO
+from urllib.parse import unquote as _unquote
 
 import psycopg2
 from psycopg2 import extras, errors as pg_errors
@@ -114,6 +115,75 @@ def generate_signed_url(gcs_url):
     except Exception as e:
         app_logger.error(f"Error generating signed URL for {gcs_url}: {e}", exc_info=True)
         return gcs_url
+
+
+# ── Evidencias dentro del PDF y del correo ─────────────────────────────────
+# El bucket es privado, así que una foto vive en GCS y el documento la traía por
+# su URL firmada. Las firmas y el diagrama, en cambio, se guardan como data: URI
+# y sí aparecían: todo lo embebido se veía, todo lo remoto no. Descargar aquí,
+# con las credenciales que el servidor ya tiene, quita del medio al renderizador
+# —que no tiene por qué alcanzar la red— y de paso la caducidad de la firma.
+_PDF_FOTO_ANCHO_MAX = 1200      # px; de sobra para una página impresa
+_PDF_FOTO_CALIDAD = 80          # JPEG
+_PDF_FOTO_MAX_BYTES = 12 * 1024 * 1024
+
+
+def _gcs_blob_bytes(url):
+    """Contenido de un objeto de GCS a partir de su URL, o None."""
+    try:
+        base = url.split('?')[0]
+        if 'storage.googleapis.com' not in base:
+            return None
+        partes = base.replace('https://storage.googleapis.com/', '').split('/', 1)
+        if len(partes) != 2:
+            return None
+        bucket_name, blob_name = partes
+        blob = storage.Client().bucket(bucket_name).blob(_unquote(blob_name))
+        if blob.size and blob.size > _PDF_FOTO_MAX_BYTES:
+            app_logger.warning(f"_gcs_blob_bytes: {blob_name} pesa {blob.size} B, se omite")
+            return None
+        return blob.download_as_bytes(timeout=30)
+    except Exception as e:
+        app_logger.warning(f"_gcs_blob_bytes: no se pudo descargar {url.split('?')[0]}: {e}")
+        return None
+
+
+def _imagen_data_url(url, _cache=None):
+    """Una imagen de GCS como data: URI, reescalada para el documento.
+
+    Si algo falla devuelve la URL original: el documento queda como estaba —con
+    la imagen dependiendo de la red del renderizador— en vez de perderla del todo.
+    """
+    if not url or url.startswith('data:'):
+        return url
+    if _cache is not None and url in _cache:
+        return _cache[url]
+
+    resultado = url
+    datos = _gcs_blob_bytes(url)
+    if datos:
+        try:
+            from PIL import Image
+            img = Image.open(BytesIO(datos))
+            img.load()
+            if img.mode not in ('RGB', 'L'):
+                img = img.convert('RGB')
+            if img.width > _PDF_FOTO_ANCHO_MAX:
+                alto = round(img.height * _PDF_FOTO_ANCHO_MAX / img.width)
+                img = img.resize((_PDF_FOTO_ANCHO_MAX, alto), Image.LANCZOS)
+            buf = BytesIO()
+            img.save(buf, format='JPEG', quality=_PDF_FOTO_CALIDAD, optimize=True)
+            resultado = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
+        except Exception as e:
+            # Sin Pillow o con un formato que no abre: se embebe tal cual, que
+            # sigue siendo mejor que depender de la red del renderizador.
+            app_logger.warning(f"_imagen_data_url: no se pudo reescalar, se embebe sin tocar: {e}")
+            tipo = 'image/png' if datos[:8] == b'\x89PNG\r\n\x1a\n' else 'image/jpeg'
+            resultado = f'data:{tipo};base64,' + base64.b64encode(datos).decode()
+
+    if _cache is not None:
+        _cache[url] = resultado
+    return resultado
 
 
 def _es_columna_de_imagen(col_name):
@@ -2300,7 +2370,7 @@ def email_selected_reports_api():
             fotos_html = ''.join(
                 f'<div style="display:inline-block;margin-right:12px;margin-bottom:8px;vertical-align:top;text-align:center;border:1px solid #e2e8f0;border-radius:4px;padding:6px;background:#f8fafc;">'
                 f'<p style="margin:0 0 4px 0;font-size:10px;font-weight:bold;color:#1e3a8a;">{escape(lbl)}</p>'
-                f'<a href="{_media_proxy_url(u)}" target="_blank"><img src="{u}" alt="{escape(lbl)}" style="max-width:160px;max-height:120px;border-radius:3px;display:block;margin:0 auto;"></a>'
+                f'<a href="{escape(_media_proxy_url(u))}" target="_blank"><img src="{escape(u)}" alt="{escape(lbl)}" style="max-width:160px;max-height:120px;border-radius:3px;display:block;margin:0 auto;"></a>'
                 f'</div>'
                 for lbl, u in foto_items
             )
@@ -2332,11 +2402,12 @@ def email_selected_reports_api():
         if attachment_urls:
             p.append('<tr><td colspan="2" style="padding:12px 14px;border-top:1px solid #e5e7eb;"><p style="margin:0 0 8px 0;font-size:11px;font-weight:bold;color:#374151;">Archivos Adjuntos</p>')
             for url in attachment_urls:
-                fname = url.split('?')[0].split('/')[-1]
-                proxy_url = _media_proxy_url(url)
+                fname = escape(url.split('?')[0].split('/')[-1])
+                proxy_url = escape(_media_proxy_url(url))
+                src = escape(url)
                 lower = url.lower().split('?')[0]
                 if lower.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp')):
-                    p.append(f'<a href="{proxy_url}" target="_blank"><img src="{url}" alt="{fname}" style="max-width:180px;max-height:150px;border:1px solid #d1d5db;border-radius:4px;margin:4px 4px 0 0;"></a>')
+                    p.append(f'<a href="{proxy_url}" target="_blank"><img src="{src}" alt="{fname}" style="max-width:180px;max-height:150px;border:1px solid #d1d5db;border-radius:4px;margin:4px 4px 0 0;"></a>')
                 else:
                     p.append(f'<p style="margin:4px 0;font-size:11px;"><a href="{proxy_url}" target="_blank" style="color:#2563eb;">{fname}</a></p>')
             p.append('</td></tr>')
@@ -2661,10 +2732,11 @@ def generate_pdf():
 
         # Generate HTML content for PDF
         html_content = generate_reports_html(reports_to_pdf)
-        
-        # Create PDF using WeasyPrint
+
+        # base_url: sin él WeasyPrint no puede resolver ninguna ruta relativa.
+        # Las evidencias ya viajan embebidas, así que el render no necesita red.
         pdf_buffer = BytesIO()
-        HTML(string=html_content).write_pdf(pdf_buffer)
+        HTML(string=html_content, base_url=request.host_url).write_pdf(pdf_buffer)
         pdf_buffer.seek(0)
 
         # Create filename
@@ -3035,6 +3107,8 @@ def _render_personas_involucradas_html(value):
 
 def generate_reports_html(reports):
     """Generate HTML content for PDF generation."""
+    # Cache de descargas, compartido por todos los registros del mismo PDF.
+    _media_cache = {}
     from admin_bp import get_operation_timezone, format_local_datetime
     tz = get_operation_timezone(reports=reports)
 
@@ -3320,10 +3394,14 @@ td.val { color: #1f2937; }
             )
             for lbl, url in foto_items:
                 clean_lbl = escape(lbl)
+                # `src` embebido: el PDF lleva la foto dentro y no depende de que
+                # el renderizador alcance GCS. `href` conserva la URL, para quien
+                # abra el PDF y quiera el original a tamaño completo.
+                src = escape(_imagen_data_url(url, _media_cache))
                 html_parts.append(
                     f'<div class="foto-item-cell">'
                     f'<p class="foto-label">{clean_lbl}</p>'
-                    f'<a href="{_media_proxy_url(url)}"><img class="foto-img" src="{url}" alt="{clean_lbl}"></a>'
+                    f'<a href="{escape(_media_proxy_url(url))}"><img class="foto-img" src="{src}" alt="{clean_lbl}"></a>'
                     f'</div>'
                 )
             html_parts.append('</div></div>')
@@ -3348,14 +3426,15 @@ td.val { color: #1f2937; }
             if has_att:
                 html_parts.append('<div class="att-cell"><p class="section-label">Archivos Adjuntos</p><div class="att-grid">')
                 for url in image_urls:
-                    fname = url.split('?')[0].split('/')[-1]
-                    html_parts.append(f'<a href="{_media_proxy_url(url)}"><img src="{url}" alt="{fname}"></a>')
+                    fname = escape(url.split('?')[0].split('/')[-1])
+                    src = escape(_imagen_data_url(url, _media_cache))
+                    html_parts.append(f'<a href="{escape(_media_proxy_url(url))}"><img src="{src}" alt="{fname}"></a>')
                 for url in pdf_urls:
-                    fname = url.split('?')[0].split('/')[-1]
-                    html_parts.append(f'<a href="{_media_proxy_url(url)}" class="pdf-link">&#128196; {fname}</a><br>')
+                    fname = escape(url.split('?')[0].split('/')[-1])
+                    html_parts.append(f'<a href="{escape(_media_proxy_url(url))}" class="pdf-link">&#128196; {fname}</a><br>')
                 for url in other_urls:
-                    fname = url.split('?')[0].split('/')[-1]
-                    html_parts.append(f'<a href="{_media_proxy_url(url)}" class="pdf-link">&#128206; {fname}</a><br>')
+                    fname = escape(url.split('?')[0].split('/')[-1])
+                    html_parts.append(f'<a href="{escape(_media_proxy_url(url))}" class="pdf-link">&#128206; {fname}</a><br>')
                 html_parts.append('</div></div>')
 
             html_parts.append('</div>')
