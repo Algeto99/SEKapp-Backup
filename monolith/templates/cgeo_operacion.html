@@ -988,11 +988,18 @@ async function exportPDF() {
             if (yOffset > 0) pdf.addPage();
 
             // End the page at the last block boundary that fits, so cards stay whole.
-            // Hard cut only if a single block is taller than a full page.
+            // Hard cut when no boundary leaves the page reasonably full.
             let sliceEnd = Math.min(yOffset + pageContentH, totalH);
             if (sliceEnd < totalH) {
                 const fitting = breaksMm.filter(b => b > yOffset + 20 && b < sliceEnd);
-                if (fitting.length) sliceEnd = fitting[fitting.length - 1];
+                // Sólo se corta en el borde de un bloque si la página queda
+                // razonablemente llena. Sin esta condición, un bloque más alto
+                // que una página entera —las Alertas Accionables con todos los
+                // clientes seleccionados— empujaba el corte al borde anterior y
+                // dejaba la primera página con la cabecera y nada más.
+                const minimoUtil = yOffset + pageContentH * 0.6;
+                const utiles = fitting.filter(b => b >= minimoUtil);
+                if (utiles.length) sliceEnd = utiles[utiles.length - 1];
             }
 
             const sliceH_mm = sliceEnd - yOffset;
