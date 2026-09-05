@@ -168,6 +168,16 @@
                 padding: 6px;
                 display: block;
             }
+            .drv-file-link {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: #60a5fa;
+                text-decoration: none;
+            }
+            .drv-file-link:hover { text-decoration: underline; }
             .drv-inline-text {
                 white-space: pre-wrap;
             }
@@ -416,6 +426,9 @@
             }
             body.light-mode .drv-inline-image {
                 border-color: rgba(15,23,42,0.14);
+            }
+            body.light-mode .drv-file-link {
+                color: #2563eb;
             }
             body.light-mode .drv-inv-table thead tr {
                 background: rgba(79,70,229,0.1);
@@ -743,20 +756,40 @@
         }
     }
 
-    function isImageLikeKey(key) {
-        const lower = String(key || '').toLowerCase();
-        return ['firma', 'signature', 'imagen', 'image', 'foto', 'photo', 'evidencia', 'diagram'].some(token => lower.includes(token));
-    }
-
+    // La decisión se toma sobre el VALOR, no sobre el nombre del campo. Antes se
+    // miraba la clave contra una lista de palabras, y "URLs de Imágenes o PDFs"
+    // no coincidía con 'imagen' por el acento de "Imágenes": el campo caía en la
+    // rama de texto y se imprimía la URL firmada de GCS bajo la fotografía.
     function isImageSource(value) {
         const str = String(value || '').trim();
-        return str.startsWith('data:image')
-            || /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(str)
-            || (str.startsWith('http://') || str.startsWith('https://'));
+        if (str.startsWith('data:image')) return true;
+        // Las URL firmadas de GCS llevan la firma en el query: la extensión se
+        // busca sobre la ruta, no sobre la cadena completa.
+        return /\.(png|jpe?g|gif|webp|svg)$/i.test(str.split('?')[0]);
+    }
+
+    // Cualquier cosa que sea una ruta de almacenamiento: nunca se imprime tal cual.
+    function isStoredFile(value) {
+        const str = String(value || '').trim();
+        return str.startsWith('http://') || str.startsWith('https://')
+            || str.startsWith('/api/media') || str.startsWith('data:');
     }
 
     function renderImage(value, alt) {
         return `<img src="${escapeHtml(value)}" alt="${escapeHtml(alt || 'Imagen')}" class="drv-inline-image">`;
+    }
+
+    // Un adjunto que no es imagen (un PDF, típicamente): se ofrece el acceso sin
+    // exponer la ruta interna donde SEKapp lo guarda.
+    function renderFileLink(value, label) {
+        return `<a href="${escapeHtml(value)}" target="_blank" rel="noopener"
+                   class="drv-file-link">📄 ${escapeHtml(label || 'Ver documento')}</a>`;
+    }
+
+    // Un archivo almacenado, en la forma que corresponda a su tipo.
+    function renderStored(value, key) {
+        return isImageSource(value) ? renderImage(value, key)
+                                    : renderFileLink(value, 'Ver documento');
     }
 
     function renderPrimitive(key, value) {
@@ -769,12 +802,13 @@
         if (!strVal) {
             return '<span class="drv-inline-text">—</span>';
         }
-        if (isImageLikeKey(key) && isImageSource(strVal)) {
+        if (isStoredFile(strVal)) {
             const urls = strVal.split('\n').map(u => u.trim()).filter(Boolean);
             if (urls.length > 1) {
-                return `<div style="display:flex;flex-wrap:wrap;gap:8px;">${urls.map(u => renderImage(u, key)).join('')}</div>`;
+                return `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">`
+                     + urls.map(u => renderStored(u, key)).join('') + `</div>`;
             }
-            return renderImage(strVal, key);
+            return renderStored(strVal, key);
         }
         return `<span class="drv-inline-text">${escapeHtml(strVal)}</span>`;
     }

@@ -225,7 +225,12 @@ TECHNICAL_SYSTEM_COLUMNS = {
     'editado', 'editado_por', 'editado_en', 'motivo_edicion', 'motivo_detalle',
     'csrf_token', 'session_token', 'personas_involucradas', 'personas_data',
     'id', 'id_reporte_incidente', 'id_encuesta', 'id_supervision', 'id_informe',
-    'id_patrulla', 'id_capacitacion', 'id_visita', 'id_planilla_vehicular'
+    'id_patrulla', 'id_capacitacion', 'id_visita', 'id_planilla_vehicular',
+    # Marcas de tiempo internas de la fila. Cuando no son la fecha del registro
+    # —confiabilidad_equipos usa `fecha` y arrastra además `created_at`— salían
+    # como un campo más, duplicando la Fecha de envío que ya se muestra aparte.
+    'created_at', 'updated_at', 'creado_en', 'actualizado_en',
+    'fecha_creacion', 'fecha_actualizacion'
 }
 
 # --- Form Configurations ---
