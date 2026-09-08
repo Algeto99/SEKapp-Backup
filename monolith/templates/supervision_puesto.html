@@ -66,23 +66,6 @@
             background-color: white;
         }
 
-        /* Señalización del campo que detiene el envío. */
-        .field-invalid,
-        .field-invalid:focus {
-            border-color: #f56565 !important;
-            box-shadow: 0 0 0 3px rgba(245, 101, 101, 0.35) !important;
-        }
-
-        .field-error-msg {
-            color: #feb2b2;
-            font-size: 0.8rem;
-            margin-top: 0.35rem;
-        }
-
-        .block-invalid {
-            box-shadow: 0 0 0 2px rgba(245, 101, 101, 0.55);
-        }
-
         .theme-toggle {
             position: fixed;
             top: 1.5rem;
@@ -567,14 +550,6 @@
                 </button>
             </div>
             {% endif %}
-
-            <!-- El navegador detiene el envío sin decir nada cuando falta un campo
-                 obligatorio —en iOS Safari ni siquiera dibuja la burbuja—, y con
-                 varias supervisiones el campo que falta queda fuera de la pantalla.
-                 Aquí se nombra. -->
-            <div id="validationSummary"
-                class="hidden mt-4 px-4 py-3 rounded-lg bg-red-900 bg-opacity-60 border border-red-500 text-red-100 text-sm"
-                role="alert" aria-live="assertive"></div>
         </form>
     </div>
 
@@ -1346,163 +1321,6 @@
         })();
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
-    <script>
-    /* Aviso visible cuando la validación del navegador detiene el envío.
-     *
-     * La validación sigue siendo la nativa: esto solo la hace audible. Hacía falta
-     * porque con dos o más supervisiones el formulario mide varias pantallas —el
-     * campo obligatorio que falta queda muy lejos del botón— y en iOS Safari no se
-     * dibuja ninguna burbuja de validación. El resultado era que "Enviar Todas las
-     * Supervisiones" no hacía nada visible y el envío parecía roto; borrar la
-     * Supervisión #2 se llevaba por delante el control inválido y entonces sí
-     * enviaba, que es justo lo que se reportó.
-     *
-     * Se registra durante el parseo, antes que los handlers de envío que añaden los
-     * bloques y customer-hierarchy.js, para que limpiar el aviso ocurra al principio
-     * del envío y cualquier reportValidity() posterior vuelva a pintarlo. */
-    (function () {
-        var form = document.getElementById('supervisionForm');
-        var summary = document.getElementById('validationSummary');
-        if (!form || !summary) return;
-
-        var pending = [];
-        var flushTimer = null;
-
-        /* La etiqueta vive en el contenedor del campo, pero los combobox de
-         * customer-hierarchy.js insertan un .ss-wrap —o la caja de texto libre
-         * .ss-manual— entre el <label> y el control, así que se sube desde ahí. */
-        function holderOf(el) {
-            var host = el.closest('.ss-wrap') || el.closest('.ss-manual') || el;
-            return host.parentElement || el.parentElement;
-        }
-
-        function fieldLabel(el) {
-            var host = el.closest('.ss-wrap') || el.closest('.ss-manual') || el;
-            for (var node = host.parentElement; node && node !== form; node = node.parentElement) {
-                var label = node.querySelector('label');
-                if (label) return label.textContent.replace('*', '').trim();
-            }
-            return 'un campo obligatorio';
-        }
-
-        /* Dónde está el campo, con las mismas palabras que ve el usuario. El
-         * encabezado del bloque ya se renumera al eliminar supervisiones, así que
-         * "Supervisión #2" en el aviso es la #2 de la pantalla. Fuera de los
-         * bloques (Datos Generales, o el motivo en modo edición) sirve el título de
-         * la sección. */
-        function sectionName(el) {
-            var block = el.closest('.supervision-block');
-            if (block) {
-                var header = block.querySelector('h2');
-                return header ? header.textContent.trim() : null;
-            }
-            var section = el.closest('.form-section');
-            var heading = section && section.querySelector('h2, h3');
-            return heading ? heading.textContent.trim() : null;
-        }
-
-        function mark(el) {
-            el.classList.add('field-invalid');
-            var block = el.closest('.supervision-block');
-            if (block) block.classList.add('block-invalid');
-            var holder = holderOf(el);
-            if (!holder) return;
-            var note = holder.querySelector(':scope > .field-error-msg');
-            if (!note) {
-                note = document.createElement('p');
-                note.className = 'field-error-msg';
-                holder.appendChild(note);
-            }
-            note.textContent = el.validationMessage || 'Complete este campo.';
-        }
-
-        function unmark(el) {
-            el.classList.remove('field-invalid');
-            var holder = holderOf(el);
-            var note = holder && holder.querySelector(':scope > .field-error-msg');
-            if (note) note.remove();
-            var block = el.closest('.supervision-block');
-            if (block && !block.querySelector('.field-invalid')) block.classList.remove('block-invalid');
-        }
-
-        function clearAll() {
-            form.querySelectorAll('.field-invalid').forEach(function (el) { el.classList.remove('field-invalid'); });
-            form.querySelectorAll('.field-error-msg').forEach(function (el) { el.remove(); });
-            form.querySelectorAll('.block-invalid').forEach(function (el) { el.classList.remove('block-invalid'); });
-            summary.textContent = '';
-            summary.classList.add('hidden');
-        }
-
-        function flush() {
-            var fields = pending;
-            pending = [];
-            if (!fields.length) return;
-
-            clearAll();
-            fields.forEach(mark);
-
-            var lines = [];
-            fields.forEach(function (el) {
-                var where = sectionName(el);
-                var line = where ? where + ' — ' + fieldLabel(el) : fieldLabel(el);
-                if (lines.indexOf(line) === -1) lines.push(line);
-            });
-
-            var title = document.createElement('p');
-            title.className = 'font-bold mb-1';
-            title.textContent = 'No se pudo enviar: faltan campos obligatorios.';
-            var list = document.createElement('ul');
-            list.className = 'list-disc pl-5 space-y-0.5';
-            lines.forEach(function (text) {
-                var item = document.createElement('li');
-                item.textContent = text;
-                list.appendChild(item);
-            });
-            summary.appendChild(title);
-            summary.appendChild(list);
-            summary.classList.remove('hidden');
-
-            var first = fields[0];
-            try { first.focus({ preventScroll: true }); } catch (err) { /* el foco es opcional */ }
-            try { first.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
-            catch (err) { first.scrollIntoView(true); }
-        }
-
-        /* 'invalid' no burbujea: hay que escucharlo en captura. El navegador lo
-         * dispara una vez por control antes de cancelar el envío, así que se
-         * acumulan y se procesan todos juntos al terminar la tanda. */
-        form.addEventListener('invalid', function (event) {
-            pending.push(event.target);
-            clearTimeout(flushTimer);
-            flushTimer = setTimeout(flush, 0);
-        }, true);
-
-        /* La marca se retira en cuanto el campo queda correcto, sin esperar a otro
-         * intento. Se revisan todos los marcados porque el evento de un combobox lo
-         * emite el <select> nativo, no el control visible que lleva la marca. Se
-         * consulta .validity en vez de checkValidity(), que volvería a disparar
-         * 'invalid' y a arrastrar la página hasta el campo. Y se aplaza un turno:
-         * al elegir en un combobox el 'change' sale antes de que el propio combobox
-         * sincronice el control visible, así que leer la validez en el acto todavía
-         * la ve inválida. */
-        function refreshMarks() {
-            form.querySelectorAll('.field-invalid').forEach(function (el) {
-                if (el.validity.valid) unmark(el);
-            });
-            // Con el último campo corregido el resumen ya no describe nada.
-            if (!form.querySelector('.field-invalid')) {
-                summary.textContent = '';
-                summary.classList.add('hidden');
-            }
-        }
-
-        ['input', 'change'].forEach(function (type) {
-            form.addEventListener(type, function () { setTimeout(refreshMarks, 0); }, true);
-        });
-
-        form.addEventListener('submit', clearAll);
-    })();
-    </script>
     <script>
     /* Un envío a la vez.
      *

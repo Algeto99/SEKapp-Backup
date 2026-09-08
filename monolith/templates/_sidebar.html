@@ -343,3 +343,7 @@ function snwToggleForms() {
 })();
 </script>
 <script src="{{ url_for('static', filename='js/date-picker-mobile.js') }}"></script>
+<!-- Dice qué falta cuando la validación del navegador detiene un envío. Va aquí,
+     junto al resto de utilidades comunes, porque todos los formularios de campo
+     incluyen esta barra lateral. -->
+<script src="{{ url_for('static', filename='js/form-validation-feedback.js') }}"></script>
