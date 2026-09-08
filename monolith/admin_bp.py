@@ -774,13 +774,24 @@ def get_operation_timezone(conn=None, tz_hint=None, reports=None):
         return zoneinfo.ZoneInfo('UTC')
 
 
-def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", use_12h=True, assume_utc=False):
+def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", use_12h=True, assume_utc=False,
+                          wall_clock=False):
     """
     Convierte cualquier valor de fecha/hora (datetime, date, str ISO/SQL)
     a la zona horaria de la operación y retorna un string formateado consistente.
     Ejemplo: 21/08/2026 04:30 a. m.
     Si el valor es ingenuo (sin zona horaria) y assume_utc es False, respeta la
     hora local tal como fue diligenciada en el formulario (sin desfase de 5 horas).
+
+    `wall_clock=True` es para las fechas que escribe el usuario en el formulario.
+    Los campos `datetime-local` mandan hora local sin zona, y como las columnas son
+    TIMESTAMPTZ y la sesión de base corre en UTC, Postgres las guarda como si fueran
+    UTC: el valor almacenado ES el reloj de pared que se escribió. Convertirlo a la
+    zona de la operación le restaba el desfase —09:00 diligenciadas salían 03:00 en
+    el reporte—, y `assume_utc` no lo evitaba porque sólo actúa sobre valores sin
+    zona, que una columna TIMESTAMPTZ nunca devuelve. Con `wall_clock` se muestra
+    tal como se escribió. NO usarlo con `creado_en` ni `created_at`, que sí son
+    instantes reales en UTC y deben convertirse.
     """
     if val is None or val == '' or val == 'N/A' or val == '—':
         return ''
@@ -805,7 +816,7 @@ def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", u
     # Si es datetime
     if isinstance(val, datetime):
         if val.tzinfo:
-            dt_local = val.astimezone(tz)
+            dt_local = val.replace(tzinfo=None) if wall_clock else val.astimezone(tz)
         elif assume_utc:
             dt_local = val.replace(tzinfo=timezone.utc).astimezone(tz)
         else:
@@ -833,7 +844,7 @@ def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", u
         clean_iso = val_str.replace('Z', '+00:00').replace('z', '+00:00')
         dt = datetime.fromisoformat(clean_iso)
         if dt.tzinfo:
-            dt_local = dt.astimezone(tz)
+            dt_local = dt.replace(tzinfo=None) if wall_clock else dt.astimezone(tz)
         elif assume_utc:
             dt_local = dt.replace(tzinfo=timezone.utc).astimezone(tz)
         else:
@@ -855,7 +866,7 @@ def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", u
             if fmt == '%Y-%m-%d':
                 return dt.strftime("%d/%m/%Y")
             if dt.tzinfo:
-                dt_local = dt.astimezone(tz)
+                dt_local = dt.replace(tzinfo=None) if wall_clock else dt.astimezone(tz)
             elif assume_utc:
                 dt_local = dt.replace(tzinfo=timezone.utc).astimezone(tz)
             else:

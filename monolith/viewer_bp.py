@@ -1295,9 +1295,12 @@ FORM_CONFIGS = {
             # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
-            "Sitio / Ubicación": "sitio",
+            # El formulario pide Fecha y Hora antes que el Sitio; la exportación
+            # las traía al revés, y el orden del PDF y del Excel debe seguir al
+            # del formulario para poder cotejarlos.
             "Fecha": "fecha",
             "Hora": "hora",
+            "Sitio / Ubicación": "sitio",
             # 2. Inventario de Equipos
             "Inventario": "inventario",
             # 3. Responsables y Firmas
@@ -1355,7 +1358,10 @@ def _localizar_fechas(data, tz):
     from admin_bp import format_local_datetime
     for k, v in list(data.items()):
         if isinstance(v, str) and v and _es_clave_de_fecha(k):
-            data[k] = format_local_datetime(v, tz=tz, time_sep=" ", assume_utc=False) or v
+            # wall_clock: son las fechas que escribió el usuario en el formulario,
+            # y el valor guardado ya es su hora local. Convertirlas de zona les
+            # restaba el desfase (09:00 diligenciadas salían 03:00 en el reporte).
+            data[k] = format_local_datetime(v, tz=tz, time_sep=" ", wall_clock=True) or v
     return data
 
 
@@ -3138,6 +3144,12 @@ def email_selected_reports_api():
         return jsonify({"success": False, "message": f"Error al enviar correo electrónico: {message}"}), 500
 
 
+# Tamaño de las evidencias incrustadas en el Excel. El máximo en píxeles limita
+# el peso del archivo; el alto es el que se ve en la hoja.
+_EXCEL_FOTO_MAX_PX = 900
+_EXCEL_FOTO_ALTO = 180
+
+
 def _embed_excel_image(ws, cell, val, col_index, row, header_key):
     """Embed base64 or linked image in openpyxl worksheet cell, returning needed row height."""
     try:
@@ -3147,6 +3159,7 @@ def _embed_excel_image(ws, cell, val, col_index, row, header_key):
         import base64
 
         img_file = None
+        es_foto = False
         if val.strip().startswith('data:image'):
             try:
                 _, encoded = val.strip().split(',', 1)
@@ -3165,21 +3178,40 @@ def _embed_excel_image(ws, cell, val, col_index, row, header_key):
             except Exception as e:
                 app_logger.error(f"Error processing base64 image: {e}")
         elif 'http' in val or 'storage.googleapis.com' in val:
-            urls = val.split('\n')
-            valid_url = None
-            for u in urls:
-                if u.strip():
-                    valid_url = u.strip()
-                    break
+            urls = [u.strip() for u in val.split('\n') if u.strip()]
+            valid_url = urls[0] if urls else None
             if valid_url:
-                cell.value = "Ver Imagen Original"
+                cell.value = ("Ver Imagen Original" if len(urls) == 1
+                              else f"Ver Imagen Original (1 de {len(urls)})")
                 cell.hyperlink = valid_url
                 cell.style = "Hyperlink"
+                # Además del enlace, la evidencia se incrusta para que el archivo
+                # se pueda revisar sin conexión y siga sirviendo cuando la URL
+                # firmada expire. Antes sólo viajaba el enlace, así que las fotos
+                # no llegaban al Excel. Si la descarga falla queda el enlace.
+                try:
+                    raw = _gcs_blob_bytes(valid_url)
+                    if raw:
+                        pil_img = PILImage.open(BytesIO(raw))
+                        if pil_img.mode not in ('RGB', 'L'):
+                            pil_img = pil_img.convert('RGB')
+                        # Se reescala antes de incrustar: una evidencia de cámara
+                        # sin reducir infla el archivo varios MB por foto.
+                        pil_img.thumbnail((_EXCEL_FOTO_MAX_PX, _EXCEL_FOTO_MAX_PX))
+                        buf = BytesIO()
+                        pil_img.save(buf, format='PNG')
+                        buf.seek(0)
+                        img_file = buf
+                        es_foto = True
+                except Exception as e:
+                    app_logger.warning(f"No se pudo incrustar la evidencia en Excel: {e}")
 
         if img_file:
             img = OpenpyxlImage(img_file)
             aspect_ratio = img.width / img.height
-            new_height = 80
+            # Una firma es una línea y se lee bien pequeña; una evidencia
+            # fotográfica necesita alto suficiente para distinguir lo que muestra.
+            new_height = _EXCEL_FOTO_ALTO if es_foto else 80
             new_width = int(new_height * aspect_ratio)
             img.height = new_height
             img.width = new_width
@@ -3188,7 +3220,7 @@ def _embed_excel_image(ws, cell, val, col_index, row, header_key):
             cell_address = f"{col_letter}{row}"
             img.anchor = cell_address
             ws.add_image(img)
-            return 90
+            return new_height + 10
     except Exception as e:
         app_logger.error(f"Error embedding image for field {header_key}: {e}")
         if not cell.value:
