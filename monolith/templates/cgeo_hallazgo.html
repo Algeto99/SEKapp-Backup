@@ -1,0 +1,141 @@
+{#
+  Vista del hallazgo asignado.
+
+  Muestra únicamente el hallazgo que la persona debe gestionar: el qué, el cómo y
+  el contexto mínimo del registro donde se originó. No lista los demás compromisos
+  o novedades del mismo registro —el receptor no sabría cuál le toca— ni ofrece la
+  acción de asignar, que corresponde a quien administra las asignaciones.
+
+  Va como comentario Jinja y no HTML: así no se sirve al navegador.
+#}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hallazgo asignado · SEKapp</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background:#0f172a; color:#e2e8f0; font-family:Roboto,system-ui,sans-serif; }
+    .hz-card { background:#1e293b; border:1px solid #334155; border-radius:.75rem; }
+    .hz-label { font-size:.7rem; font-weight:800; letter-spacing:.06em; color:#94a3b8; text-transform:uppercase; }
+    .hz-value { font-size:.95rem; color:#f1f5f9; margin-top:.35rem; line-height:1.5; }
+    .hz-meta-k { color:#94a3b8; font-size:.8rem; white-space:nowrap; padding:.35rem 1rem .35rem 0; vertical-align:top; }
+    .hz-meta-v { color:#e2e8f0; font-size:.8rem; padding:.35rem 0; }
+    .hz-pill { display:inline-block; padding:.2rem .7rem; border-radius:999px; font-size:.7rem; font-weight:700; }
+</style>
+
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+    <a href="/cgeo/morning-briefing/" class="text-sm text-slate-400 hover:text-slate-200">← Volver al Morning Briefing</a>
+
+    <div class="flex items-center gap-3 mt-4 mb-6">
+        <h1 class="text-2xl font-bold text-white">Hallazgo asignado</h1>
+        {% if cerrado %}
+            <span class="hz-pill" style="background:#14532d;color:#86efac;">✓ Gestionado</span>
+        {% elif vencida %}
+            <span class="hz-pill" style="background:#7f1d1d;color:#fca5a5;">Vencido</span>
+        {% else %}
+            <span class="hz-pill" style="background:#78350f;color:#fcd34d;">Pendiente</span>
+        {% endif %}
+    </div>
+
+    <!-- El hallazgo: qué y cómo -->
+    <div class="hz-card p-5 mb-4">
+        <div class="hz-label">📋 Qué</div>
+        <div class="hz-value">
+            {{ asignacion.hallazgo_titulo or (etiqueta ~ ' #' ~ asignacion.record_id) }}
+        </div>
+
+        {% if asignacion.hallazgo_detalle %}
+        <div class="hz-label mt-5">🔧 Cómo</div>
+        <div class="hz-value">{{ asignacion.hallazgo_detalle }}</div>
+        {% endif %}
+
+        {% if not asignacion.hallazgo_ref %}
+        <div class="mt-5 text-xs text-amber-300/80 border-l-2 border-amber-500 pl-3">
+            Esta asignación es anterior al registro del hallazgo puntual, así que sólo
+            se conserva el registro completo donde se originó.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Instrucción de quien asignó -->
+    {% if asignacion.nota %}
+    <div class="hz-card p-5 mb-4" style="border-left:3px solid #f59e0b;">
+        <div class="hz-label">Observaciones del asignador</div>
+        <div class="hz-value">{{ asignacion.nota }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Contexto mínimo para ubicarlo -->
+    <div class="hz-card p-5 mb-4">
+        <div class="hz-label mb-2">Dónde se originó</div>
+        <table>
+            <tr><td class="hz-meta-k">Tipo de registro</td><td class="hz-meta-v">{{ etiqueta }}</td></tr>
+            <tr><td class="hz-meta-k">Consecutivo</td><td class="hz-meta-v">#{{ asignacion.record_id }}</td></tr>
+            {% if detalles.cliente and detalles.cliente != '—' %}
+            <tr><td class="hz-meta-k">Cliente / Instalación</td><td class="hz-meta-v">{{ detalles.cliente }}</td></tr>
+            {% endif %}
+            {% if detalles.ubicacion and detalles.ubicacion != '—' %}
+            <tr><td class="hz-meta-k">Puesto / Área</td><td class="hz-meta-v">{{ detalles.ubicacion }}</td></tr>
+            {% endif %}
+            <tr><td class="hz-meta-k">Responsable asignado</td><td class="hz-meta-v">{{ responsable }}</td></tr>
+            <tr><td class="hz-meta-k">Asignado por</td><td class="hz-meta-v">{{ asignador }}</td></tr>
+            <tr><td class="hz-meta-k">Fecha límite</td>
+                <td class="hz-meta-v">{{ asignacion.fecha_limite.strftime('%d/%m/%Y') if asignacion.fecha_limite else '—' }}</td></tr>
+            {% if cerrado %}
+            <tr><td class="hz-meta-k">Gestionado por</td><td class="hz-meta-v">{{ asignacion.cerrado_por or '—' }}</td></tr>
+            {% endif %}
+        </table>
+    </div>
+
+    {# Acciones del receptor: gestionar y cerrar. La acción de asignar no va aquí. #}
+    {% if not cerrado %}
+    <div class="hz-card p-5">
+        <label class="hz-label" for="notaCierre">Qué se hizo (opcional)</label>
+        <textarea id="notaCierre" rows="3"
+                  class="w-full mt-2 rounded-lg bg-slate-900 border border-slate-700 p-3 text-sm text-slate-100"
+                  placeholder="Describa la gestión realizada..."></textarea>
+        <button id="btnGestionar"
+                class="mt-3 w-full rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 font-semibold text-white">
+            ✓ Marcar como gestionado
+        </button>
+        <div id="msgGestion" class="mt-3 text-sm"></div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    var btn = document.getElementById('btnGestionar');
+    if (!btn) return;
+
+    function csrf() {
+        var c = document.cookie.split(';').map(function (x) { return x.trim(); })
+            .find(function (x) { return x.startsWith('csrf_access_token='); });
+        return c ? decodeURIComponent(c.substring('csrf_access_token='.length)) : '';
+    }
+
+    btn.addEventListener('click', async function () {
+        var msg = document.getElementById('msgGestion');
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
+        try {
+            var res = await fetch('/cgeo/api/asignaciones/{{ asignacion.id }}/gestionar', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+                body: JSON.stringify({ nota: document.getElementById('notaCierre').value.trim() })
+            });
+            var data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo gestionar el hallazgo.');
+            msg.style.color = '#86efac';
+            msg.textContent = 'Hallazgo gestionado. Deja de aparecer como pendiente.';
+            setTimeout(function () { window.location.reload(); }, 1200);
+        } catch (err) {
+            msg.style.color = '#fca5a5';
+            msg.textContent = err.message;
+            btn.disabled = false;
+            btn.textContent = '✓ Marcar como gestionado';
+        }
+    });
+})();
+</script>

@@ -1374,12 +1374,17 @@
         const emailMsg = modal.querySelector('.drv-email-msg');
         let currentRecordId = null;
         let _currentRecord  = null;
+        // Hallazgo puntual con el que se abrió el registro, cuando viene de una
+        // alerta del Morning Briefing. Queda vacío al abrir el registro por su
+        // cuenta, y entonces la asignación es a nivel de registro como antes.
+        let _hallazgoCtx    = null;
 
         function closeRecord() {
             modal.classList.remove('active');
             emailOverlay.classList.remove('active');
             currentRecordId = null;
             _currentRecord  = null;
+            _hallazgoCtx    = null;
         }
 
         async function openRecord(id, ctx) {
@@ -1388,6 +1393,14 @@
             // Contexto opcional de quien abre: hoy, el motivo de la alerta del
             // Morning Briefing. Sin él, el QUÉ se arma solo con el registro.
             const motivo = (ctx && ctx.motivo) || '';
+            // Contexto del hallazgo que originó la apertura. Se guarda fuera de
+            // openRecord porque lo necesita el envío de "Asignar hallazgo", para
+            // que la asignación identifique el ítem y no sólo el registro.
+            _hallazgoCtx = {
+                ref:     (ctx && ctx.hallazgoRef) || '',
+                titulo:  (ctx && ctx.hallazgoTitulo) || '',
+                detalle: motivo
+            };
             titleEl.textContent = cfg.recordTitle || 'Detalle del Registro';
             modal.classList.add('active');
             contentEl.style.display = 'none';
@@ -1623,6 +1636,13 @@
                 fecha_limite: asignarFecha.value || null,
                 nota:         asignarNota.value.trim() || null,
             };
+            // Cuando el registro se abrió desde una alerta del Morning Briefing,
+            // la asignación viaja con el hallazgo puntual identificado.
+            if (_hallazgoCtx && _hallazgoCtx.ref) {
+                bodyPayload.hallazgo_ref     = _hallazgoCtx.ref;
+                bodyPayload.hallazgo_titulo  = _hallazgoCtx.titulo || null;
+                bodyPayload.hallazgo_detalle = _hallazgoCtx.detalle || null;
+            }
             if (isExt) {
                 bodyPayload.asignado_email = extEmail;
             } else {

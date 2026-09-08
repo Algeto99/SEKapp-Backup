@@ -771,6 +771,7 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
     cur.execute(f"""
         SELECT
             a.id, a.form_type, a.record_id, a.fecha_limite, a.nota, a.creado_en,
+            a.hallazgo_ref, a.hallazgo_titulo, a.hallazgo_detalle,
             COALESCE(NULLIF(TRIM(a.estado), ''), 'Asignado') AS estado,
             COALESCE(NULLIF(TRIM(u.name), ''), NULLIF(TRIM(a.asignado_email), '')) AS responsable,
             (a.fecha_limite IS NOT NULL AND a.fecha_limite < CURRENT_DATE) AS vencida
@@ -787,12 +788,16 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
         etiqueta  = _ASIG_ETIQUETA.get(ft, 'Registro')
         resp      = r['responsable'] or 'sin responsable'
         vencida   = bool(r['vencida'])
+        # Con el hallazgo identificado la fila lo nombra; si la asignación es
+        # anterior al cambio sólo se conoce el registro, y se mantiene el texto viejo.
+        titulo = (r['hallazgo_titulo'] or '').strip()
+        sujeto = f'{titulo} — {etiqueta} #{r["record_id"]}' if titulo else f'{etiqueta} #{r["record_id"]}'
         if vencida:
-            texto = f'{etiqueta} #{r["record_id"]} asignado a {resp} — vencido el {r["fecha_limite"]:%d/%m/%Y}'
+            texto = f'{sujeto} asignado a {resp} — vencido el {r["fecha_limite"]:%d/%m/%Y}'
         elif r['fecha_limite']:
-            texto = f'{etiqueta} #{r["record_id"]} asignado a {resp} — vence el {r["fecha_limite"]:%d/%m/%Y}'
+            texto = f'{sujeto} asignado a {resp} — vence el {r["fecha_limite"]:%d/%m/%Y}'
         else:
-            texto = f'{etiqueta} #{r["record_id"]} asignado a {resp} — sin fecha límite'
+            texto = f'{sujeto} asignado a {resp} — sin fecha límite'
 
         ts = r['fecha_limite'] or r['creado_en']
         pendientes.append({
@@ -801,10 +806,15 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
             "asignacion": True,
             "asignacion_id": r['id'],
             "texto": texto,
-            "motivo": (f'{"Asignación vencida" if vencida else "Asignación pendiente"}. {texto}.'
-                       + (f' Nota al asignar: {r["nota"]}' if r['nota'] else '')),
+            "motivo": ((r['hallazgo_detalle'] or '').strip()
+                       or (f'{"Asignación vencida" if vencida else "Asignación pendiente"}. {texto}.'
+                           + (f' Nota al asignar: {r["nota"]}' if r['nota'] else ''))),
             "accion": "Ver hallazgo",
-            "ruta_navegacion": _ASIG_RUTA.get(ft, '/cgeo/morning-briefing/'),
+            # Siempre a la vista del hallazgo: es la que muestra sólo lo asignado,
+            # sirve igual para cualquier categoría y no ofrece "Asignar hallazgo".
+            "ruta_navegacion": f"/cgeo/hallazgo/{r['id']}",
+            "hallazgo_titulo": titulo,
+            "hallazgo_detalle": r['hallazgo_detalle'] or '',
             "record_id": r['record_id'],
             "form_type": ft,
             "estado": r['estado'],
@@ -1259,6 +1269,9 @@ def cgeo_api_alertas():
                                f'{c["acuerdo"]}. Responsable: {c["responsable"]}. '
                                f'Fecha de cumplimiento pactada: {c["fecha_cumplimiento"]}.'),
                     "texto": f"Compromiso vencido en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']})",
+                    # El "qué" aislado, para que al asignar el hallazgo se guarde el
+                    # compromiso concreto y no la visita entera.
+                    "hallazgo_titulo": c['acuerdo'],
                     "accion": "Gestionar compromiso",
                     "ruta_navegacion": "/dashboard/visitas/",
                     "record_id": c['id_visita'],
@@ -1283,6 +1296,7 @@ def cgeo_api_alertas():
                                    f'{"s" if dias_restantes != 1 else ""} (umbral de aviso: '
                                    f'{dias_compromiso_vencer} días).'),
                         "texto": f"Compromiso próximo a vencer en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']}, en {dias_restantes} día{'s' if dias_restantes != 1 else ''})",
+                        "hallazgo_titulo": c['acuerdo'],
                         "accion": "Gestionar compromiso",
                         "ruta_navegacion": "/dashboard/visitas/",
                         "record_id": c['id_visita'],
@@ -2711,7 +2725,8 @@ def _format_fecha(value) -> str:
 
 
 def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record_id,
-                                    fecha_limite, nota):
+                                    fecha_limite, nota, assignment_id=None,
+                                    hallazgo_titulo=None, hallazgo_detalle=None):
     """Build and send the enriched assignment notification email."""
     details = _fetch_record_details(form_type, record_id)
 
@@ -2747,9 +2762,12 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
         from urllib.parse import urlparse as _urlparse
         _p = _urlparse(_url_for('cgeo_bp.cgeo_morning_briefing', _external=True))
         base_url = f"{_p.scheme}://{_p.netloc}"
-        record_url = base_url + details.get('url_path', '/dashboard/')
+        # "Ver hallazgo" lleva a la vista del hallazgo asignado, no al registro
+        # completo: el receptor debe ver sólo lo que le toca gestionar.
+        destino = f"/cgeo/hallazgo/{assignment_id}" if assignment_id else details.get('url_path', '/dashboard/')
+        record_url = base_url + destino
     except Exception:
-        record_url = details.get('url_path', '/dashboard/')
+        record_url = f"/cgeo/hallazgo/{assignment_id}" if assignment_id else details.get('url_path', '/dashboard/')
 
     def row(label, value):
         if not value or value == '—':
@@ -2763,6 +2781,8 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
         )
 
     rows = ''.join([
+        row('Qué', hallazgo_titulo),
+        row('Cómo', hallazgo_detalle),
         row('Tipo de registro', tipo_label),
         row('Consecutivo', consecutivo),
         row('Cliente / Instalación', details.get('cliente', '—')),
@@ -2856,7 +2876,87 @@ def _ensure_asignaciones_table(conn):
             ALTER TABLE asignaciones_hallazgo
                 ADD COLUMN IF NOT EXISTS cerrado_por TEXT
         """)
+        # Identidad del hallazgo dentro del registro. Sin esto la asignación sólo
+        # apunta al registro completo (Visita #2) y el receptor aterriza en el acta
+        # entera, sin saber cuál de los compromisos debe gestionar.
+        #   hallazgo_ref     — id de la alerta que lo originó, p. ej. 'r9_2_1'
+        #                      (regla 9, visita 2, bloque 1): identifica el ítem.
+        #   hallazgo_titulo  — el "qué": el acuerdo o la novedad concreta.
+        #   hallazgo_detalle — el "cómo": por qué se está gestionando.
+        cur.execute("""
+            ALTER TABLE asignaciones_hallazgo
+                ADD COLUMN IF NOT EXISTS hallazgo_ref TEXT
+        """)
+        cur.execute("""
+            ALTER TABLE asignaciones_hallazgo
+                ADD COLUMN IF NOT EXISTS hallazgo_titulo TEXT
+        """)
+        cur.execute("""
+            ALTER TABLE asignaciones_hallazgo
+                ADD COLUMN IF NOT EXISTS hallazgo_detalle TEXT
+        """)
     conn.commit()
+
+
+@cgeo_bp.route('/hallazgo/<int:asignacion_id>')
+@jwt_required()
+def ver_hallazgo(asignacion_id):
+    """Vista del hallazgo asignado: sólo lo que el receptor debe gestionar.
+
+    Deliberadamente NO reutiliza el detalle del registro de origen. El acta de una
+    visita lista todos sus compromisos, y el receptor no sabría cuál le toca;
+    además ese detalle ofrece "Asignar hallazgo", que corresponde a quien asigna,
+    no a quien recibe. Al no depender del módulo de origen, la misma vista sirve
+    para compromisos, supervisiones, incidentes o equipos.
+    """
+    conn = _get_conn()
+    if not conn:
+        return render_template('error.html', error='Base de datos no disponible'), 500
+    try:
+        _ensure_asignaciones_table(conn)
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            permitido, fila = _puede_gestionar(cur, asignacion_id, get_jwt_identity())
+            if fila is None:
+                return render_template('error.html', error='Hallazgo no encontrado'), 404
+            if not permitido:
+                return render_template(
+                    'error.html',
+                    error='Este hallazgo está asignado a otra persona.'), 403
+
+            asignacion = dict(fila)
+            cur.execute("SELECT name FROM users WHERE email = %s", (asignacion.get('asignado_por'),))
+            quien = cur.fetchone()
+            asignador = (quien or {}).get('name') or asignacion.get('asignado_por') or '—'
+            cur.execute("SELECT name FROM users WHERE id = %s", (asignacion.get('asignado_a'),))
+            resp = cur.fetchone()
+            responsable = ((resp or {}).get('name')
+                           or asignacion.get('asignado_email') or '—')
+
+        # Contexto del registro de origen: sólo para ubicar el hallazgo (cliente,
+        # consecutivo, fecha). No se listan los demás ítems del mismo registro.
+        detalles = _fetch_record_details(asignacion['form_type'], asignacion['record_id']) or {}
+
+        cerrado = (asignacion.get('estado') or '').strip().lower() in _ASIG_ESTADOS_CERRADOS
+        vencida = bool(asignacion.get('fecha_limite')
+                       and not cerrado
+                       and asignacion['fecha_limite'] < date.today())
+
+        return render_template(
+            'cgeo_hallazgo.html',
+            asignacion=asignacion,
+            detalles=detalles,
+            asignador=asignador,
+            responsable=responsable,
+            cerrado=cerrado,
+            vencida=vencida,
+            etiqueta=_ASIG_ETIQUETA.get(asignacion['form_type'], 'Registro'),
+            ruta_registro=_ASIG_RUTA.get(asignacion['form_type'], '/cgeo/morning-briefing/'),
+        )
+    except Exception as e:
+        app_logger.error(f"ver_hallazgo error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno'), 500
+    finally:
+        conn.close()
 
 
 @cgeo_bp.route('/api/usuarios-asignables', methods=['GET'])
@@ -2899,6 +2999,12 @@ def asignar_hallazgo():
     asignado_email_ext = (payload.get('asignado_email') or '').strip()  # external email
     fecha_limite  = payload.get('fecha_limite')   # ISO date string or None
     nota          = payload.get('nota', '')
+    # Identidad del hallazgo dentro del registro, tal como la trae la alerta del
+    # Morning Briefing. Es opcional: si no viene, la asignación queda a nivel de
+    # registro como antes y la vista del hallazgo lo indica.
+    hallazgo_ref     = (payload.get('hallazgo_ref') or '').strip() or None
+    hallazgo_titulo  = (payload.get('hallazgo_titulo') or '').strip() or None
+    hallazgo_detalle = (payload.get('hallazgo_detalle') or '').strip() or None
 
     if not form_type or not record_id:
         return jsonify({"error": "Faltan campos requeridos: form_type, record_id"}), 400
@@ -2939,12 +3045,14 @@ def asignar_hallazgo():
                 """
                 INSERT INTO asignaciones_hallazgo
                     (form_type, record_id, asignado_a, asignado_email, asignado_por,
-                     fecha_limite, nota, estado, company_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Asignado', %s)
+                     fecha_limite, nota, estado, company_id,
+                     hallazgo_ref, hallazgo_titulo, hallazgo_detalle)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'Asignado', %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (form_type, record_id, db_asignado_a, db_asignado_email, asignado_por,
-                 fecha_limite or None, nota or None, company_id)
+                 fecha_limite or None, nota or None, company_id,
+                 hallazgo_ref, hallazgo_titulo, hallazgo_detalle)
             )
             assignment_id = cur.fetchone()['id']
 
@@ -2970,6 +3078,9 @@ def asignar_hallazgo():
                 record_id=record_id,
                 fecha_limite=fecha_limite,
                 nota=nota,
+                assignment_id=assignment_id,
+                hallazgo_titulo=hallazgo_titulo,
+                hallazgo_detalle=hallazgo_detalle,
             )
         except Exception as mail_err:
             app_logger.warning(f"asignar_hallazgo: email notification failed: {mail_err}")
@@ -2990,9 +3101,39 @@ def asignar_hallazgo():
         conn.close()
 
 
+def _puede_gestionar(cur, asignacion_id, email):
+    """El administrador gestiona cualquier hallazgo; el resto, sólo el suyo.
+
+    Antes esto era @_admin_required, así que el usuario al que se le asignaba un
+    hallazgo recibía 403 al intentar cerrarlo — no podía gestionar lo que se le
+    había asignado. Retorna (permitido, fila) o (False, None) si no existe.
+    """
+    cur.execute(
+        """
+        SELECT a.*, u.email AS asignado_a_email
+          FROM asignaciones_hallazgo a
+          LEFT JOIN users u ON u.id = a.asignado_a
+         WHERE a.id = %s
+        """,
+        (asignacion_id,)
+    )
+    fila = cur.fetchone()
+    if not fila:
+        return False, None
+    try:
+        es_admin = bool((get_jwt() or {}).get('is_admin', False))
+    except Exception:
+        es_admin = False
+    correo = (email or '').strip().lower()
+    destinatarios = {
+        (fila.get('asignado_a_email') or '').strip().lower(),
+        (fila.get('asignado_email') or '').strip().lower(),
+    } - {''}
+    return (es_admin or correo in destinatarios), fila
+
+
 @cgeo_bp.route('/api/asignaciones/<int:asignacion_id>/gestionar', methods=['POST'])
 @jwt_required()
-@_admin_required
 def gestionar_asignacion(asignacion_id):
     """
     Marca una asignación como gestionada: deja de contar como pendiente en el
@@ -3010,6 +3151,12 @@ def gestionar_asignacion(asignacion_id):
     try:
         _ensure_asignaciones_table(conn)
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            permitido, fila = _puede_gestionar(cur, asignacion_id, get_jwt_identity())
+            if fila is None:
+                return jsonify({"error": "Asignación no encontrada"}), 404
+            if not permitido:
+                return jsonify({"error": "Sólo el responsable asignado o un administrador "
+                                         "puede gestionar este hallazgo"}), 403
             cur.execute(
                 """
                 UPDATE asignaciones_hallazgo
