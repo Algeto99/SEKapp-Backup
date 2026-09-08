@@ -1056,6 +1056,55 @@
         return String(key || '').toLowerCase().includes('inventario');
     }
 
+    function isAsistenciaArray(key, arr) {
+        return String(key || '').toLowerCase().includes('asistencia');
+    }
+
+    function renderAsistenciaTable(arr) {
+        if (!Array.isArray(arr) || !arr.length) {
+            return '<span class="drv-inline-text" style="font-style:italic;color:#94a3b8;">Sin asistentes registrados</span>';
+        }
+        const headers = [
+            { key: 'nombre', label: 'Nombre' },
+            { key: 'cargo', label: 'Cargo' },
+            { key: 'numero_empleado', label: 'N° Empleado' },
+            { key: 'documento', label: 'Documento' },
+            { key: 'firma', label: 'Firma' },
+            { key: 'via', label: 'Vía de registro' }
+        ];
+        const headerRow = headers.map(h => `<th style="text-align:left;">${escapeHtml(h.label)}</th>`).join('');
+        const bodyRows = arr.map(item => {
+            if (!item || typeof item !== 'object') return '';
+            const cells = headers.map(h => {
+                let v = item[h.key];
+                if (v === null || v === undefined || v === '') {
+                    v = (h.key === 'via') ? 'Formulario' : '—';
+                }
+                if (h.key === 'firma' && (String(v).startsWith('data:image') || String(v).startsWith('http') || String(v).startsWith('/api/media'))) {
+                    return `<td style="text-align:center;"><img src="${escapeHtml(String(v))}" alt="Firma" style="max-height:36px;max-width:90px;object-fit:contain;border:1px solid #d1d5db;border-radius:4px;background:#fff;padding:1px;"></td>`;
+                }
+                if (h.key === 'via') {
+                    const isQr = String(v).toUpperCase().includes('QR');
+                    const badge = isQr
+                        ? `<span class="drv-status-badge drv-status-amarillo" style="font-size:0.75rem;padding:2px 6px;">📱 QR</span>`
+                        : `<span class="drv-status-badge drv-status-verde" style="font-size:0.75rem;padding:2px 6px;">📝 Formulario</span>`;
+                    return `<td style="text-align:center;">${badge}</td>`;
+                }
+                return `<td>${escapeHtml(String(v))}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+
+        return `
+            <div class="drv-inv-table-wrap" style="margin-top:6px;overflow-x:auto;">
+                <table class="drv-inv-table" style="width:100%;font-size:0.85rem;">
+                    <thead><tr>${headerRow}</tr></thead>
+                    <tbody>${bodyRows}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
     function renderInventarioTable(arr) {
         if (!Array.isArray(arr) || !arr.length) return '';
 
@@ -1207,7 +1256,14 @@
         }
         if (Array.isArray(value)) {
             if (isInventarioArray(key, value)) return renderInventarioTable(value);
+            if (isAsistenciaArray(key, value)) return renderAsistenciaTable(value);
             return renderArray(key, value, depth);
+        }
+        if (typeof value === 'string' && isAsistenciaArray(key, value) && value.trim().startsWith('[') && value.trim().endsWith(']')) {
+            try {
+                const parsed = JSON.parse(value.trim());
+                if (Array.isArray(parsed)) return renderAsistenciaTable(parsed);
+            } catch (e) {}
         }
         if (typeof value === 'object') {
             return renderObject(value, depth);

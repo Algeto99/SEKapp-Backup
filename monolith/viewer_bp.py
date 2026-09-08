@@ -3196,19 +3196,27 @@ def _render_lista_asistencia_html(value):
         firma = a.get('firma', '')
         via = a.get('via', '')
 
-        firma_html = ''
-        if firma and firma.startswith('data:image'):
+        firma_html = '—'
+        if firma and (firma.startswith('data:image') or firma.startswith('http') or firma.startswith('/api/media')):
             firma_html = f'<img src="{firma}" style="max-width:90px;max-height:45px;border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">'
-        elif via == 'QR':
-            firma_html = '<span style="font-size:7pt;color:#6b7280;">QR</span>'
+        
+        via_str = 'QR' if (via and 'QR' in str(via).upper()) else 'Formulario'
+        via_badge = (
+            f'<span style="display:inline-block;padding:2px 6px;font-size:7pt;font-weight:bold;border-radius:3px;'
+            f'background:#f3e8ff;color:#6b21a8;">QR</span>'
+            if via_str == 'QR' else
+            f'<span style="display:inline-block;padding:2px 6px;font-size:7pt;font-weight:bold;border-radius:3px;'
+            f'background:#dbeafe;color:#1e40af;">Formulario</span>'
+        )
 
         rows.append(
             f'<tr>'
-            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{nombre}</td>'
-            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{cargo}</td>'
-            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{num_emp}</td>'
-            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{doc}</td>'
-            f'<td style="padding:3px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">{firma_html}</td>'
+            f'<td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{nombre or "—"}</td>'
+            f'<td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{cargo or "—"}</td>'
+            f'<td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{num_emp or "—"}</td>'
+            f'<td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;font-size:7.5pt;">{doc or "—"}</td>'
+            f'<td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">{firma_html}</td>'
+            f'<td style="padding:4px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">{via_badge}</td>'
             f'</tr>'
         )
 
@@ -3222,6 +3230,7 @@ def _render_lista_asistencia_html(value):
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">N° Empleado</th>'
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Documento</th>'
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:center;border-bottom:1px solid #d1d5db;">Firma</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:center;border-bottom:1px solid #d1d5db;">Vía de Registro</th>'
         '</tr>'
     )
     return (

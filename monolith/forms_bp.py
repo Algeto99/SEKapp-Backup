@@ -2079,6 +2079,42 @@ def submit_asistencia_qr(session_token):
         if conn:
             conn.close()
 
+@forms_bp.route('/api/capacitacion_asistencia/<session_token>', methods=['GET'])
+@jwt_required()
+def get_capacitacion_asistencia_api(session_token):
+    """Return live list of attendees who checked in via QR for the active session."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(
+            "SELECT id, nombre, cargo, numero_empleado, documento, creado_en "
+            "FROM capacitacion_asistencia "
+            "WHERE session_token = %s "
+            "ORDER BY id ASC",
+            (session_token.strip(),)
+        )
+        rows = cur.fetchall()
+        attendees = [
+            {
+                'id': r['id'],
+                'nombre': r['nombre'] or '',
+                'cargo': r['cargo'] or '',
+                'numero_empleado': r['numero_empleado'] or '',
+                'documento': r['documento'] or '',
+                'creado_en': r['creado_en'].isoformat() if r['creado_en'] else ''
+            }
+            for r in rows
+        ]
+        cur.close()
+        return jsonify({'success': True, 'count': len(attendees), 'attendees': attendees}), 200
+    except Exception as e:
+        app_logger.error(f"Error fetching QR attendees for session {session_token}: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 # --- REGISTRO DE CAPACITACIONES ---
 @forms_bp.route('/registro_de_capacitaciones', methods=['GET', 'POST'])
 @jwt_required()
@@ -2120,19 +2156,27 @@ def submit_registro_de_capacitaciones():
         except Exception:
             lista_manual = []
 
-        session_token = request.form.get('session_token', '')
+        # Standardize manual entries with 'via': 'Formulario'
+        for item in lista_manual:
+            if isinstance(item, dict) and not item.get('via'):
+                item['via'] = 'Formulario'
+
+        session_token = (request.form.get('session_token') or '').strip()
         if session_token:
             try:
                 cur.execute(
-                    "SELECT nombre, cargo, numero_empleado, documento, firma FROM capacitacion_asistencia WHERE session_token = %s",
+                    "SELECT nombre, cargo, numero_empleado, documento, firma FROM capacitacion_asistencia WHERE session_token = %s ORDER BY id ASC",
                     (session_token,)
                 )
                 guest_rows = cur.fetchall()
                 for row in guest_rows:
                     lista_manual.append({
-                        'nombre': row[0], 'cargo': row[1],
-                        'numero_empleado': row[2], 'documento': row[3],
-                        'firma': row[4], 'via': 'QR'
+                        'nombre': row[0] or '',
+                        'cargo': row[1] or '',
+                        'numero_empleado': row[2] or '',
+                        'documento': row[3] or '',
+                        'firma': row[4] or '',
+                        'via': 'QR'
                     })
             except Exception as qr_err:
                 app_logger.warning(f"Could not fetch QR attendees: {qr_err}")
@@ -2301,6 +2345,16 @@ def submit_registro_de_capacitaciones_editar(id):
             'nivel_comprension': request.form.get('nivel_comprension'),
             'recomendaciones': request.form.get('recomendaciones'),
         }
+        lista_manual_raw = request.form.get('lista_asistencia')
+        if lista_manual_raw:
+            try:
+                lista_manual = _json.loads(lista_manual_raw)
+                for item in lista_manual:
+                    if isinstance(item, dict) and not item.get('via'):
+                        item['via'] = 'Formulario'
+                form_data['lista_asistencia'] = psycopg2.extras.Json(lista_manual)
+            except Exception:
+                pass
         if capacitacion_urls:
             form_data['foto_evidencia_url'] = "\n".join(capacitacion_urls)
         form_data.update(_resolve_scope_fields(

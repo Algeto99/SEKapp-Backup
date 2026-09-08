@@ -223,8 +223,8 @@
                 <h2 class="text-xl font-bold mb-4">1. Datos de la Capacitación/Reunión/Entrenamiento</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="id_propiedad" class="block text-sm font-medium mb-1">Propiedad / Instalación</label>
-                        <select name="id_propiedad" id="id_propiedad" class="form-select" data-allow-sesursa="true">
+                        <label for="id_propiedad" class="block text-sm font-medium mb-1">Propiedad / Instalación <span class="text-red-400">*</span></label>
+                        <select name="id_propiedad" id="id_propiedad" class="form-select" data-allow-sesursa="true" required>
                             <option value="" disabled selected>Cargando propiedades…</option>
                         </select>
                         <input type="hidden" id="cliente_instalacion" name="cliente_instalacion">
@@ -280,6 +280,18 @@
                 <div class="flex flex-col items-center gap-4">
                     <div id="qrcode" class="bg-white p-4 rounded-xl shadow-lg"></div>
                     <p class="text-xs text-gray-500 text-center">Escanear con la cámara del teléfono</p>
+                    <!-- Live QR attendance feedback -->
+                    <div id="qrAttendeesStatus" class="w-full max-w-md bg-gray-800/80 border border-gray-600 rounded-lg p-3 text-left">
+                        <div class="flex items-center justify-between border-b border-gray-700 pb-2 mb-2">
+                            <span class="text-xs font-semibold text-gray-300">Asistentes registrados por QR: <span id="qrAttendeesCount" class="text-emerald-400 font-bold">0</span></span>
+                            <button type="button" id="refreshQrAttendeesBtn" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                                🔄 Actualizar
+                            </button>
+                        </div>
+                        <div id="qrAttendeesList" class="text-xs text-gray-400 space-y-1 max-h-32 overflow-y-auto">
+                            <span class="italic text-gray-500">Ningún asistente ha escaneado el QR todavía.</span>
+                        </div>
+                    </div>
                 </div>
                 <input type="hidden" name="session_token" id="session_token">
             </div>
@@ -373,7 +385,7 @@
                 fechaHoraInput.value = now.toISOString().slice(0, 16);
             }
 
-            // ── QR Code + Session Token ───────────────────────────────────────────
+            // ── QR Code + Session Token + Live Monitoring ─────────────────────────
             function generateUUID() {
                 return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                     const r = Math.random() * 16 | 0;
@@ -381,8 +393,67 @@
                 });
             }
 
-            const sessionToken = generateUUID();
+            function escapeHtml(str) {
+                if (!str) return '';
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+
+            let sessionToken = sessionStorage.getItem('capacitacion_session_token');
+            if (!sessionToken) {
+                sessionToken = generateUUID();
+                sessionStorage.setItem('capacitacion_session_token', sessionToken);
+            }
             document.getElementById('session_token').value = sessionToken;
+
+            // Live polling for QR attendees
+            async function pollQrAttendees() {
+                if (!sessionToken) return;
+                try {
+                    const res = await fetch(`/forms/api/capacitacion_asistencia/${encodeURIComponent(sessionToken)}`, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'include'
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    if (data.success && Array.isArray(data.attendees)) {
+                        const countEl = document.getElementById('qrAttendeesCount');
+                        const listEl = document.getElementById('qrAttendeesList');
+                        if (countEl) countEl.textContent = data.attendees.length;
+                        if (listEl) {
+                            if (data.attendees.length === 0) {
+                                listEl.innerHTML = '<span class="italic text-gray-500">Ningún asistente ha escaneado el QR todavía.</span>';
+                            } else {
+                                listEl.innerHTML = data.attendees.map(a => 
+                                    `<div class="flex items-center justify-between py-1 border-b border-gray-700/50">
+                                        <span class="font-medium text-emerald-300">✓ ${escapeHtml(a.nombre)}</span>
+                                        <span class="text-gray-400">${escapeHtml(a.cargo || 'Asistente')}${a.documento ? ' - Doc: ' + escapeHtml(a.documento) : ''}</span>
+                                    </div>`
+                                ).join('');
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Silently catch polling issues
+                }
+            }
+
+            const qrPollInterval = setInterval(pollQrAttendees, 3500);
+            pollQrAttendees();
+            const refreshBtn = document.getElementById('refreshQrAttendeesBtn');
+            if (refreshBtn) refreshBtn.addEventListener('click', pollQrAttendees);
+
+            const propSelect = document.getElementById('id_propiedad');
+            if (propSelect) {
+                propSelect.addEventListener('change', function() {
+                    const opt = propSelect.options[propSelect.selectedIndex];
+                    const clienteHidden = document.getElementById('cliente_instalacion');
+                    if (clienteHidden && opt) {
+                        clienteHidden.value = opt.text;
+                    }
+                });
+            }
 
             // El QR de asistencia es una comodidad opcional. Si su libreria falla, la
             // excepcion abortaba todo el DOMContentLoaded — incluido el registro del
@@ -544,7 +615,8 @@
                         cargo: block.querySelector('[data-field="cargo"]').value,
                         numero_empleado: block.querySelector('[data-field="numero_empleado"]').value,
                         documento: block.querySelector('[data-field="documento"]').value,
-                        firma: pad && !pad.isEmpty() ? pad.toDataURL() : ''
+                        firma: pad && !pad.isEmpty() ? pad.toDataURL() : '',
+                        via: 'Formulario'
                     };
                     if (data.nombre || data.cargo || data.numero_empleado || data.documento) {
                         attendeesData.push(data);
@@ -588,6 +660,8 @@
                     }
 
                     if (response.ok) {
+                        sessionStorage.removeItem('capacitacion_session_token');
+                        if (typeof qrPollInterval !== 'undefined') clearInterval(qrPollInterval);
                         let data = null;
                         const ct = response.headers.get('content-type') || '';
                         if (ct.includes('application/json')) {

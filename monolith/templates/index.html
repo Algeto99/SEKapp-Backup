@@ -1236,13 +1236,17 @@
                             }
                         }
 
-                        if (listData && Array.isArray(listData) && listData.length > 0) {
+                        const isInventario = lowerKey.includes('inventario');
+                        const isAsistencia = lowerKey.includes('asistencia');
+                        const isPersonas = lowerKey.includes('personas');
+                        const isParticipantes = lowerKey.includes('participantes');
+
+                        if (isAsistencia && (!listData || !Array.isArray(listData) || listData.length === 0)) {
+                            isFullWidth = true;
+                            displayContent = `<div class="mt-2 p-3 text-sm text-gray-500 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-800/60 rounded-lg border border-gray-200 dark:border-gray-700">Sin asistentes registrados en esta capacitación.</div>`;
+                        } else if (listData && Array.isArray(listData) && listData.length > 0) {
                             isFullWidth = true;
                             const allKeys = [...new Set(listData.flatMap(row => Object.keys(row)))];
-                            const isInventario = lowerKey.includes('inventario');
-                            const isAsistencia = lowerKey.includes('asistencia');
-                            const isPersonas = lowerKey.includes('personas');
-                            const isParticipantes = lowerKey.includes('participantes');
                             const _INV_LABELS = {
                                 tipo_equipo:           'Tipo de Equipo',
                                 total_equipos:         'Total',
@@ -1272,7 +1276,10 @@
                             const _LIST_LABELS = isInventario ? _INV_LABELS : (isAsistencia ? _ASISTENCIA_LABELS : (isPersonas ? _PERSONAS_LABELS : (isParticipantes ? _PARTICIPANTES_LABELS : null)));
 
                             let headers;
-                            if (_LIST_LABELS) {
+                            if (isAsistencia) {
+                                // Guarantee standard consistent columns in order
+                                headers = ['nombre', 'cargo', 'numero_empleado', 'documento', 'firma', 'via'];
+                            } else if (_LIST_LABELS) {
                                 const cols = Object.keys(_LIST_LABELS).filter(k => allKeys.includes(k));
                                 const extras = allKeys.filter(k => !_LIST_LABELS[k]);
                                 headers = [...cols, ...extras];
@@ -1286,11 +1293,20 @@
                                 headers.forEach(h => {
                                     let cellVal = item[h];
                                     if (cellVal === null || cellVal === undefined || cellVal === '') {
-                                        cellVal = '—';
+                                        if (isAsistencia && h === 'via') {
+                                            cellVal = 'Formulario';
+                                        } else {
+                                            cellVal = '—';
+                                        }
                                     }
                                     // Check for signature in cell
-                                    if (h.toLowerCase().includes('firma') && String(cellVal).startsWith('data:image')) {
-                                        cellVal = `<img src="${cellVal}" alt="Firma" class="h-12 w-auto object-contain">`;
+                                    if (h.toLowerCase().includes('firma') && (String(cellVal).startsWith('data:image') || String(cellVal).startsWith('http') || String(cellVal).startsWith('/api/media'))) {
+                                        cellVal = `<img src="${cellVal}" alt="Firma" class="h-10 max-w-[120px] object-contain border border-gray-200 dark:border-gray-600 rounded bg-white p-0.5">`;
+                                    } else if (isAsistencia && h === 'via') {
+                                        const isQr = String(cellVal).toUpperCase().includes('QR');
+                                        cellVal = isQr
+                                            ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300">📱 QR</span>`
+                                            : `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300">📝 Formulario</span>`;
                                     }
                                     tableRows += `<td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">${cellVal}</td>`;
                                 });
