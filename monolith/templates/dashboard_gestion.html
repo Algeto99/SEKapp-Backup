@@ -795,16 +795,26 @@
         Chart.register(ChartDataLabels);
 
         const ENDPOINTS = {
-            satisfaccion: { data: '/dashboard/api/satisfaccion/data', route: '/dashboard/satisfaccion/', title: 'Satisfacción' },
-            incidentes: { data: '/dashboard/api/incidentes/data', route: '/dashboard/incidentes/', title: 'Incidentes' },
-            supervision: { data: '/dashboard/api/supervision/data', route: '/dashboard/supervision/', title: 'Supervisión' },
-            cumplimiento: { data: '/dashboard/api/cumplimiento/data', route: '/dashboard/cumplimiento/', title: 'Cumplimiento' },
-            capacitacion: { data: '/dashboard/api/capacitacion/data', route: '/dashboard/capacitacion/', title: 'Capacitación' },
-            disciplina: { data: '/dashboard/api/disciplina/data', route: '/dashboard/disciplina/', title: 'Disciplina' },
-            visitas: { data: '/dashboard/api/visitas/data', route: '/dashboard/visitas/', title: 'Visitas' },
-            vehiculos: { data: '/dashboard/api/vehiculos/data', route: '/dashboard/vehiculos/', title: 'Vehículos' },
-            motocicletas: { data: '/dashboard/api/motocicletas/data', route: '/dashboard/motocicletas/', title: 'Motocicletas' },
-            equipos: { data: '/dashboard/api/equipos/data', route: '/dashboard/equipos/', title: 'Equipos' }
+            satisfaccion: { data: '/dashboard/api/satisfaccion/data', route: '/dashboard/satisfaccion/', title: 'Satisfacción',
+                          cardTitle: 'Satisfacción Cliente / Promedio' },
+            incidentes: { data: '/dashboard/api/incidentes/data', route: '/dashboard/incidentes/', title: 'Incidentes',
+                        cardTitle: 'Incidentes de Seguridad' },
+            supervision: { data: '/dashboard/api/supervision/data', route: '/dashboard/supervision/', title: 'Supervisión',
+                         cardTitle: 'Calificación Global Promedio de Supervisiones' },
+            cumplimiento: { data: '/dashboard/api/cumplimiento/data', route: '/dashboard/cumplimiento/', title: 'Cumplimiento',
+                          cardTitle: 'Cumplimiento Normativo' },
+            capacitacion: { data: '/dashboard/api/capacitacion/data', route: '/dashboard/capacitacion/', title: 'Capacitación',
+                          cardTitle: 'Capacitaciones' },
+            disciplina: { data: '/dashboard/api/disciplina/data', route: '/dashboard/disciplina/', title: 'Disciplina',
+                        cardTitle: 'Disciplina del Personal' },
+            visitas: { data: '/dashboard/api/visitas/data', route: '/dashboard/visitas/', title: 'Visitas',
+                     cardTitle: 'Visitas a Clientes' },
+            vehiculos: { data: '/dashboard/api/vehiculos/data', route: '/dashboard/vehiculos/', title: 'Vehículos',
+                       cardTitle: 'Vehículos aptos' },
+            motocicletas: { data: '/dashboard/api/motocicletas/data', route: '/dashboard/motocicletas/', title: 'Motocicletas',
+                          cardTitle: 'Motocicletas aptas' },
+            equipos: { data: '/dashboard/api/equipos/data', route: '/dashboard/equipos/', title: 'Equipos',
+                     cardTitle: 'Confiabilidad de Equipos' }
         };
 
         const MODULE_DRILLDOWN = {
@@ -1401,7 +1411,11 @@
 
         function buildCards(results) {
             const sat = results.satisfaccion;
-            const satScore = clamp(sat?.kpi?.avg_global != null ? (sat.kpi.avg_global / 40) * 100 : null);
+            // avg_global es el promedio Likert de 1 a 5 que calcula el formulario.
+            // Dividirlo entre 40 —la escala vieja, suma de los 8 criterios— dejaba una
+            // satisfacción de 4.0 en 10% y la tarjeta en "Crítico" de forma permanente,
+            // arrastrando además el score ejecutivo y el ranking.
+            const satScore = clamp(sat?.kpi?.avg_global != null ? (sat.kpi.avg_global / 5) * 100 : null);
 
             const inc = results.incidentes;
             const incPctAlto = inc?.kpi?.pct_alto ?? 0;
@@ -1447,123 +1461,134 @@
                 {
                     key: 'satisfaccion',
                     title: ENDPOINTS.satisfaccion.title,
+                    cardTitle: ENDPOINTS.satisfaccion.cardTitle,
                     route: ENDPOINTS.satisfaccion.route,
                     score: satScore,
                     status: statusFromScore(satScore),
                     primaryValue: sat?.kpi?.avg_global != null ? sat.kpi.avg_global : '—',
-                    primaryLabel: 'Promedio global NPS',
+                    primaryLabel: 'promedio de 1 a 5 en encuestas de cliente',
                     secondaryValue: sat?.kpi?.pct_recomienda != null ? `${sat.kpi.pct_recomienda}%` : '—',
-                    secondaryLabel: '% recomienda'
+                    secondaryLabel: 'de clientes que recomiendan el servicio'
                 },
                 {
                     key: 'incidentes',
                     title: ENDPOINTS.incidentes.title,
+                    cardTitle: ENDPOINTS.incidentes.cardTitle,
                     route: ENDPOINTS.incidentes.route,
                     score: incScore,
                     status: statusFromScore(incScore),
                     primaryValue: inc?.kpi?.total ?? 0,
-                    primaryLabel: 'Incidentes',
+                    primaryLabel: 'incidentes registrados en el periodo',
                     secondaryValue: inc?.kpi?.pct_alto != null ? `${inc.kpi.pct_alto}%` : '—',
-                    secondaryLabel: 'Severidad alta'
+                    secondaryLabel: 'de ellos con severidad alta'
                 },
                 {
                     key: 'supervision',
                     title: ENDPOINTS.supervision.title,
+                    cardTitle: ENDPOINTS.supervision.cardTitle,
                     route: ENDPOINTS.supervision.route,
                     score: supScore,
                     status: statusFromScore(supScore),
                     primaryValue: sup?.kpi?.avg_score != null ? sup.kpi.avg_score : '—',
-                    primaryLabel: 'Score promedio',
+                    primaryLabel: 'puntaje promedio de 0 a 25 por supervisión',
                     secondaryValue: sup?.kpi?.cnt_critico ?? 0,
-                    secondaryLabel: 'Puestos críticos'
+                    secondaryLabel: 'puestos en rango crítico'
                 },
                 {
                     key: 'cumplimiento',
                     title: ENDPOINTS.cumplimiento.title,
+                    cardTitle: ENDPOINTS.cumplimiento.cardTitle,
                     route: ENDPOINTS.cumplimiento.route,
                     score: cumScore,
                     status: statusFromScore(cumScore),
                     primaryValue: cum?.kpi?.pct_cumple != null ? `${cum.kpi.pct_cumple}%` : '—',
-                    primaryLabel: 'Cumplimiento',
+                    primaryLabel: 'de verificaciones que cumplen la norma',
                     secondaryValue: cum?.kpi?.cnt_vencidos ?? 0,
-                    secondaryLabel: 'Vencidos'
+                    secondaryLabel: 'certificados vencidos'
                 },
                 {
                     key: 'capacitacion',
                     title: ENDPOINTS.capacitacion.title,
+                    cardTitle: ENDPOINTS.capacitacion.cardTitle,
                     route: ENDPOINTS.capacitacion.route,
                     score: capScore,
                     status: statusFromScore(capScore),
                     primaryValue: cap?.kpi?.total_capacitaciones ?? 0,
-                    primaryLabel: 'Sesiones',
+                    primaryLabel: 'sesiones impartidas en el periodo',
                     secondaryValue: cap?.kpi?.total_asistentes ?? 0,
-                    secondaryLabel: 'Asistentes'
+                    secondaryLabel: 'asistentes en total'
                 },
                 {
                     key: 'disciplina',
                     title: ENDPOINTS.disciplina.title,
+                    cardTitle: ENDPOINTS.disciplina.cardTitle,
                     route: ENDPOINTS.disciplina.route,
                     score: discScore,
                     status: statusFromScore(discScore),
                     primaryValue: disc?.kpi?.total ?? 0,
-                    primaryLabel: 'Novedades',
+                    primaryLabel: 'novedades disciplinarias registradas',
                     secondaryValue: disc?.kpi?.pct_reincidencia != null ? `${disc.kpi.pct_reincidencia}%` : '—',
-                    secondaryLabel: 'Reincidencia'
+                    secondaryLabel: 'de ellas son reincidencias'
                 },
                 {
                     key: 'visitas',
                     title: ENDPOINTS.visitas.title,
+                    cardTitle: ENDPOINTS.visitas.cardTitle,
                     route: ENDPOINTS.visitas.route,
                     score: visScore,
                     status: statusFromScore(visScore),
                     primaryValue: vis?.kpi?.total_visitas ?? 0,
-                    primaryLabel: 'Visitas',
+                    primaryLabel: 'visitas realizadas en el periodo',
                     secondaryValue: vis?.kpi?.clientes_visitados ?? 0,
-                    secondaryLabel: 'Clientes visitados'
+                    secondaryLabel: 'clientes distintos visitados'
                 },
                 {
                     key: 'compromisos',
                     title: 'Compromisos',
+                    cardTitle: 'Cumplimiento de Compromisos de Visitas',
                     route: ENDPOINTS.visitas.route,
                     score: compScore,
                     status: statusFromScore(compScore),
                     primaryValue: compScore != null ? `${compScore}%` : '—',
-                    primaryLabel: '% cumplidos a tiempo',
+                    primaryLabel: 'de compromisos cumplidos a tiempo',
                     secondaryValue: compEvaluables ? `${compCumplidos}/${compEvaluables}` : '—',
-                    secondaryLabel: 'Cumplidos / evaluables'
+                    secondaryLabel: 'cumplidos de los evaluados'
                 },
                 {
                     key: 'vehiculos',
                     title: ENDPOINTS.vehiculos.title,
+                    cardTitle: ENDPOINTS.vehiculos.cardTitle,
                     route: ENDPOINTS.vehiculos.route,
                     score: vehScore,
                     status: statusFromScore(vehScore),
                     primaryValue: veh?.kpi?.pct_aptas != null ? `${veh.kpi.pct_aptas}%` : '—',
-                    primaryLabel: '% aptas',
+                    primaryLabel: 'de inspecciones sin fallas',
                     secondaryValue: veh?.kpi?.total_fallas ?? 0,
-                    secondaryLabel: 'Fallas'
+                    secondaryLabel: 'fallas detectadas'
                 },
                 {
                     key: 'motocicletas',
                     title: ENDPOINTS.motocicletas.title,
+                    cardTitle: ENDPOINTS.motocicletas.cardTitle,
                     route: ENDPOINTS.motocicletas.route,
                     score: motoScore,
                     status: statusFromScore(motoScore),
                     primaryValue: moto?.kpi?.pct_aptas != null ? `${moto.kpi.pct_aptas}%` : '—',
-                    primaryLabel: '% aptas',
+                    primaryLabel: 'de inspecciones sin fallas',
                     secondaryValue: moto?.kpi?.total_fallas ?? 0,
-                    secondaryLabel: 'Fallas'
+                    secondaryLabel: 'fallas detectadas'
                 },
                 {
                     key: 'equipos',
                     title: ENDPOINTS.equipos.title,
+                    cardTitle: ENDPOINTS.equipos.cardTitle,
                     route: ENDPOINTS.equipos.route,
                     score: eqScore,
                     status: statusFromScore(eqScore),
                     primaryValue: eq?.kpi?.pct_general != null ? `${eq.kpi.pct_general}%` : '—',
-                    primaryLabel: 'Confiabilidad',
+                    primaryLabel: 'de equipos operativos',
                     secondaryValue: eq?.kpi?.total_equipos ?? 0,
-                    secondaryLabel: 'Equipos evaluados'
+                    secondaryLabel: 'equipos evaluados'
                 }
             ];
         }
@@ -1588,7 +1613,9 @@
             const avg = results.satisfaccion?.kpi?.avg_global ?? null;
             const pctRec = results.satisfaccion?.kpi?.pct_recomienda ?? null;
             if (avg === null) return { tone: 'slate', label: 'Sin datos', value: '—', meta: 'Sin encuestas de satisfacción' };
-            const avg5 = +(avg / 8).toFixed(2);
+            // avg ya es el promedio Likert de 1 a 5. Dividirlo entre 8 —conversión desde
+            // la escala vieja de 0 a 40— dejaba un 4.0 en 0.5/5 y la alerta siempre en rojo.
+            const avg5 = +avg.toFixed(2);
             const noRec = pctRec !== null && pctRec < 50;
             if (avg5 >= 4.0 && !noRec) return { tone: 'green', label: 'Satisfactorio', value: `${avg5}`, meta: `Promedio ${avg5}/5 · ${pctRec ?? '—'}% recomienda` };
             if (avg5 < 4.0 || noRec) {
@@ -1884,7 +1911,7 @@
                 items.push({
                     cls: 'warning',
                     title: 'Satisfacción por debajo del umbral esperado',
-                    text: `La satisfacción global se ubica en ${sat.primaryValue}/40 y la recomendación en ${sat.secondaryValue}.`,
+                    text: `La satisfacción global se ubica en ${sat.primaryValue}/5 y la recomendación en ${sat.secondaryValue}.`,
                     route: sat.route
                 });
             }
@@ -1976,7 +2003,7 @@
                 <div class="module-card">
                     <div class="module-top">
                         <div>
-                            <div class="module-name">${card.title}</div>
+                            <div class="module-name">${card.cardTitle || card.title}</div>
                             <div class="status-badge status-${card.status.tone}">${card.status.label}</div>
                         </div>
                         <div class="module-score">${card.score != null ? `${card.score}%` : '—'}</div>
@@ -2031,7 +2058,7 @@
                 });
             }
 
-            const satSeries = mapByLabels(satLabels, results.satisfaccion?.trend?.global || [], value => value != null ? +((value / 40) * 100).toFixed(1) : null);
+            const satSeries = mapByLabels(satLabels, results.satisfaccion?.trend?.global || [], value => value != null ? +((value / 5) * 100).toFixed(1) : null);
             const supSeries = mapByLabels(supLabels, results.supervision?.trend?.avg_score || [], value => value != null ? +((value / 25) * 100).toFixed(1) : null);
             const incSeries = mapByLabels(incLabels, results.incidentes?.trend?.counts || [], value => value ?? 0);
             const capSeries = mapByLabels(capLabels, (results.capacitacion?.tendencia || []).map(item => item.capacitaciones), value => value != null ? clamp(50 + (value * 8)) : null);
