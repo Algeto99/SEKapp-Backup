@@ -458,7 +458,8 @@ FORM_CONFIGS = {
         'id_col': 'id_encuesta',
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
-        'title_prefix': 'Medición Experiencia Cliente',
+        'title_prefix': 'Encuesta de Cliente',
+        'sheet_title': 'Encuesta de Cliente',
         'joins': """
             LEFT JOIN users u ON t.submitted_by_email = u.email
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad

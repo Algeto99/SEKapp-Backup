@@ -198,7 +198,7 @@ async function handleFormPost(request) {
 // ── Offline-saved confirmation page ──────────────────────────────────────────
 const FORM_NAMES = {
     incident_report: 'Reporte de Incidente',
-    medicion_experiencia_cliente: 'Encuesta a Cliente',
+    medicion_experiencia_cliente: 'Encuesta de Cliente',
     supervision_puesto: 'Control de Supervisión',
     informe_novedades_disciplinario: 'Reporte Disciplinario',
     log_de_patrullas: 'Log de Patrullas',
