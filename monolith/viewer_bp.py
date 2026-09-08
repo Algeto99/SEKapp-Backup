@@ -1375,7 +1375,7 @@ def _format_structured_value_as_text(val):
                     tipo_str = item.get('tipo') or 'Persona'
                     nombre_str = item.get('nombre') or ''
                     parts.append(f"{tipo_str}: {nombre_str}")
-                elif any(k in item for k in ('cargo', 'numero_empleado', 'documento', 'via')) and 'tipo_equipo' not in item:
+                elif any(k in item for k in ('cargo', 'numero_empleado', 'documento', 'via', 'firma')) and 'tipo_equipo' not in item:
                     nom = str(item.get('nombre', '') or '').strip()
                     carg = str(item.get('cargo', '') or '').strip()
                     num = str(item.get('numero_empleado', '') or '').strip()
@@ -1400,7 +1400,7 @@ def _format_structured_value_as_text(val):
                     # Add any other keys not in our preferred ordering
                     for k, v in item.items():
                         if k not in _INV_LABELS:
-                            if 'firma' in k.lower() and isinstance(v, str) and v.startswith('data:image'):
+                            if 'firma' in k.lower() and isinstance(v, str) and (v.startswith('data:image') or 'http' in v or 'storage.googleapis.com' in v or len(v) > 100):
                                 v = '[Firma adjunta]'
                             parts.append(f"{k.replace('_', ' ').capitalize()}: {v}")
                 items.append(f"[{i}] " + ", ".join(parts))
@@ -2663,6 +2663,79 @@ def email_selected_reports_api():
                 continue
 
             val_str = str(value).strip()
+            is_acta = report.get('formType') == 'registro_y_acta_de_visita'
+
+            if is_acta and key == 'Cargo del Visitante':
+                clean_val = str(escape(val_str)).replace('\n', '<br>')
+                bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                p.append(f"""      <tr style="background:{bg};">
+        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">Cargo</td>
+        <td style="padding:6px 12px;font-size:11px;color:#1f2937;border-bottom:1px solid #f1f5f9;">{clean_val}</td>
+      </tr>
+""")
+                row_idx += 1
+                continue
+
+            if is_acta and key == 'Firma del Visitante':
+                firma_src = _visita_clean_text(val_str)
+                if firma_src.startswith(('https://', 'http://')):
+                    firma_src = generate_signed_url(firma_src)
+                if firma_src:
+                    sig_html = f'<img src="{escape(firma_src)}" alt="Firma del Visitante" style="max-width:180px;max-height:70px;border:1px solid #d1d5db;border-radius:4px;padding:3px;background:#fff;">'
+                else:
+                    sig_html = '<span style="font-size:11px;color:#6b7280;font-style:italic;">Sin firma</span>'
+                bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                p.append(f"""      <tr style="background:{bg};">
+        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">Firma del Visitante</td>
+        <td style="padding:6px 12px;font-size:11px;color:#1f2937;border-bottom:1px solid #f1f5f9;">{sig_html}</td>
+      </tr>
+""")
+                row_idx += 1
+                continue
+
+            if is_acta and key in ('Participantes del Cliente', 'Detalles Participantes'):
+                participantes = _ensure_json_serializable(value)
+                if isinstance(participantes, dict):
+                    participantes = [participantes]
+                if not isinstance(participantes, list):
+                    participantes = []
+                valid_parts = [
+                    part for part in participantes
+                    if isinstance(part, dict) and (_visita_clean_text(part.get('nombre')) or _visita_clean_text(part.get('cargo')) or _visita_clean_text(part.get('firma')))
+                ]
+                if not valid_parts:
+                    bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                    p.append(f"""      <tr style="background:{bg};">
+        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">Nombre del Participante (Cliente)</td>
+        <td style="padding:6px 12px;font-size:11px;color:#6b7280;font-style:italic;border-bottom:1px solid #f1f5f9;">Sin participantes registrados</td>
+      </tr>
+""")
+                    row_idx += 1
+                else:
+                    is_multi = len(valid_parts) > 1
+                    for idx, part in enumerate(valid_parts, 1):
+                        num_str = f" {idx}" if is_multi else ""
+                        p_nom = escape(_visita_clean_text(part.get('nombre')) or '—')
+                        p_cargo = escape(_visita_clean_text(part.get('cargo')) or '—')
+                        p_firma = _visita_clean_text(part.get('firma'))
+                        if p_firma.startswith(('https://', 'http://')):
+                            p_firma = generate_signed_url(p_firma)
+                        p_sig_html = f'<img src="{escape(p_firma)}" alt="Firma del Participante" style="max-width:180px;max-height:70px;border:1px solid #d1d5db;border-radius:4px;padding:3px;background:#fff;">' if p_firma else '<span style="font-size:11px;color:#6b7280;font-style:italic;">Sin firma</span>'
+
+                        for sub_lbl, sub_val in [
+                            (f'Nombre del Participante (Cliente){num_str}', p_nom),
+                            (f'Cargo{num_str}', p_cargo),
+                            (f'Firma del Participante por el Cliente{num_str}', p_sig_html),
+                        ]:
+                            bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                            p.append(f"""      <tr style="background:{bg};">
+        <td style="padding:6px 12px;font-size:11px;font-weight:bold;color:#374151;width:38%;border-bottom:1px solid #f1f5f9;">{sub_lbl}</td>
+        <td style="padding:6px 12px;font-size:11px;color:#1f2937;border-bottom:1px solid #f1f5f9;">{sub_val}</td>
+      </tr>
+""")
+                            row_idx += 1
+                continue
+
             if ('firma' in key.lower() or val_str.startswith('data:image')) and 'diagrama' not in key.lower():
                 try:
                     sig_list = json.loads(val_str) if val_str.startswith('[') else None
@@ -3024,10 +3097,11 @@ def export_excel():
                                 cell.border = border
                                 cell.alignment = Alignment(wrap_text=True, vertical="top")
 
+                                val_parsed = _ensure_json_serializable(val)
                                 if isinstance(val, (datetime, date)):
                                     cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
-                                elif isinstance(val, (list, dict)):
-                                    cell_value = _format_structured_value_as_text(val)
+                                elif isinstance(val_parsed, (list, dict)):
+                                    cell_value = _format_structured_value_as_text(val_parsed)
                                 elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
                                     cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
                                 else:
@@ -3178,10 +3252,11 @@ def export_excel():
                                 cell.border = border
                                 cell.alignment = Alignment(wrap_text=True, vertical="top")
 
+                                val_parsed = _ensure_json_serializable(val)
                                 if isinstance(val, (datetime, date)):
                                     cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
-                                elif isinstance(val, (list, dict)):
-                                    cell_value = _format_structured_value_as_text(val)
+                                elif isinstance(val_parsed, (list, dict)):
+                                    cell_value = _format_structured_value_as_text(val_parsed)
                                 elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
                                     cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
                                 else:
@@ -3234,10 +3309,11 @@ def export_excel():
                             val = ''
 
                         col_index = 4 + i
+                        val_parsed = _ensure_json_serializable(val)
                         if isinstance(val, (datetime, date)):
                             cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
-                        elif isinstance(val, (list, dict)):
-                            cell_value = _format_structured_value_as_text(val)
+                        elif isinstance(val_parsed, (list, dict)):
+                            cell_value = _format_structured_value_as_text(val_parsed)
                         elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
                             cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
                         else:
@@ -3996,15 +4072,68 @@ td.val { color: #1f2937; }
                     )
                 continue
 
-            if key == 'Detalles Participantes':
-                participantes_html = _render_participantes_visita_html(value)
-                if participantes_html:
+            if is_acta and key == 'Cargo del Visitante':
+                val_str = str(value).strip() if value is not None else ""
+                clean_value = str(escape(val_str)).replace('\n', '<br>')
+                html_parts.append(f'<tr><td class="lbl">Cargo</td><td class="val">{clean_value}</td></tr>')
+                continue
+
+            if is_acta and key == 'Firma del Visitante':
+                val_str = str(value).strip() if value is not None else ""
+                firma_src = _visita_clean_text(val_str)
+                if firma_src.startswith('data:image'):
+                    pass
+                elif firma_src.startswith(('https://', 'http://')):
+                    firma_src = generate_signed_url(firma_src)
+                else:
+                    firma_src = ''
+
+                if firma_src:
+                    sig_html = f'<img class="sig-img" src="{escape(firma_src)}" alt="Firma del Visitante">'
+                else:
+                    sig_html = '<span style="font-size:7pt;color:#6b7280;font-style:italic;">Sin firma</span>'
+                html_parts.append(f'<tr><td class="lbl">Firma del Visitante</td><td class="val">{sig_html}</td></tr>')
+                continue
+
+            if key in ('Participantes del Cliente', 'Detalles Participantes'):
+                participantes = _ensure_json_serializable(value)
+                if isinstance(participantes, dict):
+                    participantes = [participantes]
+                if not isinstance(participantes, list):
+                    participantes = []
+
+                valid_parts = [
+                    p for p in participantes
+                    if isinstance(p, dict) and (_visita_clean_text(p.get('nombre')) or _visita_clean_text(p.get('cargo')) or _visita_clean_text(p.get('firma')))
+                ]
+
+                if not valid_parts:
                     html_parts.append(
-                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
-                        f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Participantes:</strong>'
-                        f'{participantes_html}'
-                        f'</td></tr>'
+                        f'<tr><td class="lbl">Nombre del Participante (Cliente)</td>'
+                        f'<td class="val"><span style="color:#6b7280;font-style:italic;">Sin participantes registrados</span></td></tr>'
                     )
+                else:
+                    is_multi = len(valid_parts) > 1
+                    for idx, p in enumerate(valid_parts, 1):
+                        num_str = f" {idx}" if is_multi else ""
+                        p_nom = escape(_visita_clean_text(p.get('nombre')) or '—')
+                        p_cargo = escape(_visita_clean_text(p.get('cargo')) or '—')
+                        p_firma = _visita_clean_text(p.get('firma'))
+
+                        p_firma_src = ''
+                        if p_firma.startswith('data:image'):
+                            p_firma_src = p_firma
+                        elif p_firma.startswith(('https://', 'http://')):
+                            p_firma_src = generate_signed_url(p_firma)
+
+                        if p_firma_src:
+                            p_firma_html = f'<img class="sig-img" src="{escape(p_firma_src)}" alt="Firma del Participante por el Cliente">'
+                        else:
+                            p_firma_html = '<span style="font-size:7pt;color:#6b7280;font-style:italic;">Sin firma</span>'
+
+                        html_parts.append(f'<tr><td class="lbl">Nombre del Participante (Cliente){num_str}</td><td class="val">{p_nom}</td></tr>')
+                        html_parts.append(f'<tr><td class="lbl">Cargo{num_str}</td><td class="val">{p_cargo}</td></tr>')
+                        html_parts.append(f'<tr><td class="lbl">Firma del Participante por el Cliente{num_str}</td><td class="val">{p_firma_html}</td></tr>')
                 continue
 
             if is_acta and key in _VISITA_COMPROMISO_KEYS:
