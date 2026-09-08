@@ -201,11 +201,13 @@
 
             if (signaturePad.isEmpty()) {
                 alert('Por favor firme antes de enviar.');
+                if (window.SecAppSubmitLock) window.SecAppSubmitLock.abort(this);
                 return;
             }
 
             document.getElementById('firmaInput').value = signaturePad.toDataURL();
 
+            const formulario = this;
             const formData = new FormData(this);
             const actionUrl = this.action;
 
@@ -219,14 +221,19 @@
                     document.getElementById('successView').classList.remove('hidden');
                 } else {
                     alert('Error al registrar asistencia. Por favor intente de nuevo.');
+                    if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(formulario);
                 }
             })
             .catch(() => {
                 alert('Error de conexión. Por favor intente de nuevo.');
+                if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(formulario);
             });
         });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <!-- Bloquea el botón Enviar mientras se procesa la solicitud para evitar envíos
+         duplicados. Va explícito porque esta vista pública no incluye _sidebar.html. -->
+    <script src="{{ url_for('static', filename='js/form-submit-lock.js') }}"></script>
 </body>
 
 </html>

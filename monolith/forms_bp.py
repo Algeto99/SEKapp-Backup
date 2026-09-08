@@ -262,13 +262,25 @@ def _form_error_response(message="Error interno del servidor. Por favor intente 
     return render_template('error.html', error=message), status
 
 
-# ── Deduplicación de Envíos en Memoria (Ventana Deslizante) ───────────────────
-# Previene la creación de registros duplicados cuando el usuario hace múltiples
-# clics seguidos o ante reintentos de red durante subidas lentas. No altera esquemas
-# de base de datos ni requiere campos nuevos.
+# ── Deduplicación de Envíos (memoria del proceso + candado persistente) ───────
+# Previene que una misma diligenciación genere más de un registro cuando el
+# usuario hace varios clics seguidos o la red reintenta durante una subida lenta.
+#
+# Dos capas complementarias:
+#   1. Memoria del proceso: resuelve el caso más común —dos clics atendidos por
+#      el mismo contenedor— y permite que el segundo espere al primero.
+#   2. Tabla `submission_idempotency`: sobrevive a reinicios y cubre el caso en
+#      que Cloud Run atiende los clics en instancias distintas (sessionAffinity
+#      está desactivado y minScale es 0, así que no hay garantía de afinidad).
+#
+# Un envío que NO llegó a guardarse libera su clave en ambas capas, para que un
+# reintento corregido sí se almacene en vez de recibir un falso "éxito".
 _DEDUP_CACHE = {}
 _DEDUP_LOCK = threading.Lock()
-_DEDUP_TTL = 45.0  # segundos
+_DEDUP_TTL = 45.0           # segundos que una clave sigue vigente en memoria
+_DEDUP_WAIT = 10.0          # espera máxima a que termine el envío en curso
+_DEDUP_DB_TTL_MINUTES = 10  # ventana de la clave en base de datos
+_DEDUP_TABLE_READY = False
 
 
 def _build_dedup_key(user_email, req):
@@ -291,8 +303,11 @@ def _build_dedup_key(user_email, req):
 
 def _acquire_submission_lock(key):
     """
-    Intenta registrar o consultar el estado de envío para la clave dada.
-    Retorna (is_duplicate: bool, wait_event: threading.Event | None).
+    Reclama la clave en la memoria del proceso.
+    Retorna (estado, evento):
+      'NUEVO'      -> este hilo toma el envío y debe procesarlo
+      'EN_CURSO'   -> hay un envío idéntico procesándose; `evento` avisa al terminar
+      'COMPLETADO' -> ya se guardó con éxito dentro de la ventana de tiempo
     """
     now = time.time()
     with _DEDUP_LOCK:
@@ -303,39 +318,141 @@ def _acquire_submission_lock(key):
 
         entry = _DEDUP_CACHE.get(key)
         if entry:
-            status = entry.get('status')
-            if status == 'COMPLETED':
-                return True, None
-            elif status == 'IN_PROGRESS':
-                return True, entry.get('event')
+            if entry.get('status') == 'COMPLETED':
+                return 'COMPLETADO', None
+            return 'EN_CURSO', entry.get('event')
 
-        event = threading.Event()
         _DEDUP_CACHE[key] = {
             'status': 'IN_PROGRESS',
             'time': now,
-            'event': event
+            'event': threading.Event()
         }
-        return False, None
+        return 'NUEVO', None
 
 
 def _release_submission_lock(key, success=True):
-    """Actualiza el estado de la clave a COMPLETED o la elimina en caso de fallo."""
+    """Marca la clave como completada si el envío se guardó; si falló la elimina
+    para que el usuario pueda corregir y reenviar."""
     with _DEDUP_LOCK:
         entry = _DEDUP_CACHE.get(key)
-        if entry:
-            event = entry.get('event')
-            if success:
-                entry['status'] = 'COMPLETED'
-                entry['time'] = time.time()
-            else:
-                _DEDUP_CACHE.pop(key, None)
-            if event:
-                event.set()
+        if not entry:
+            return
+        event = entry.get('event')
+        if success:
+            entry['status'] = 'COMPLETED'
+            entry['time'] = time.time()
+        else:
+            _DEDUP_CACHE.pop(key, None)
+        if event:
+            event.set()
+
+
+def _ensure_dedup_table(conn):
+    """Crea la tabla de idempotencia la primera vez que se necesita, con el mismo
+    patrón perezoso que ya usan kpi_thresholds y asignaciones_hallazgo."""
+    global _DEDUP_TABLE_READY
+    if _DEDUP_TABLE_READY:
+        return
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS submission_idempotency (
+            submission_key TEXT PRIMARY KEY,
+            creado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    cur.close()
+    _DEDUP_TABLE_READY = True
+
+
+def _db_claim_submission(key):
+    """
+    Reclama la clave en base de datos, donde la ven todas las instancias.
+    Retorna True si la clave es nueva (este envío debe procesarse), False si otra
+    instancia ya la registró (duplicado), o None si la base no está disponible
+    —en cuyo caso se sigue operando sólo con la memoria del proceso—.
+    """
+    conn = None
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return None
+        _ensure_dedup_table(conn)
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM submission_idempotency "
+            "WHERE creado_en < CURRENT_TIMESTAMP - make_interval(mins => %s)",
+            (_DEDUP_DB_TTL_MINUTES,)
+        )
+        cur.execute(
+            "INSERT INTO submission_idempotency (submission_key) VALUES (%s) "
+            "ON CONFLICT (submission_key) DO NOTHING RETURNING submission_key",
+            (key,)
+        )
+        claimed = cur.fetchone() is not None
+        conn.commit()
+        cur.close()
+        return claimed
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        app_logger.warning(f"Candado de idempotencia no disponible ({e}); se deduplica sólo en memoria.")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def _db_release_submission(key):
+    """Libera la clave persistente cuando el envío no llegó a guardarse."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return
+        cur = conn.cursor()
+        cur.execute("DELETE FROM submission_idempotency WHERE submission_key = %s", (key,))
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        app_logger.warning(f"No se pudo liberar la clave de idempotencia: {e}")
+    finally:
+        if conn:
+            conn.close()
+
+
+def _response_succeeded(response):
+    """Determina si lo que devolvió el handler representa un envío guardado.
+    Sólo un éxito debe quedar registrado como duplicado: un 400 o un 500 tiene
+    que dejar la puerta abierta a que el usuario corrija y reenvíe."""
+    status = None
+    if isinstance(response, tuple):
+        # Flask acepta (cuerpo, status), (cuerpo, status, headers) y (cuerpo, headers);
+        # el status explícito de la tupla manda sobre el del cuerpo.
+        for part in response[1:]:
+            if isinstance(part, int):
+                status = part
+                break
+        if status is None and response:
+            status = getattr(response[0], 'status_code', None)
+    else:
+        status = getattr(response, 'status_code', None)
+
+    if status is None:
+        return True  # cadena o respuesta sin status explícito: 200 por defecto
+    try:
+        return int(status) < 400
+    except (TypeError, ValueError):
+        return True
 
 
 def dedup_form_submission(f):
-    """Decorador que intercepta solicitudes POST duplicadas y retorna la respuesta
-    de éxito directamente, evitando inserciones múltiples en base de datos."""
+    """Decorador que garantiza que una diligenciación genere un solo registro:
+    los envíos repetidos (doble clic, reintento de red) reciben la respuesta de
+    éxito sin volver a insertar en base de datos."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if request.method != 'POST':
@@ -351,23 +468,42 @@ def dedup_form_submission(f):
             user_email = request.form.get('user_email') or request.form.get('numero_empleado') or request.remote_addr or 'anon'
 
         key = _build_dedup_key(user_email, request)
-        is_dup, wait_event = _acquire_submission_lock(key)
 
-        if is_dup:
-            if wait_event:
-                # Si el envío anterior sigue procesándose (ej. subiendo fotos),
-                # esperar hasta 10 segundos a que culmine
-                wait_event.wait(timeout=10)
+        # Capa 1 — memoria del proceso
+        estado, evento = _acquire_submission_lock(key)
+        if estado == 'EN_CURSO':
+            # El envío anterior sigue procesándose (p. ej. subiendo fotos): esperarlo
+            # y releer el estado, porque pudo terminar bien o haber fallado.
+            if evento is not None:
+                evento.wait(timeout=_DEDUP_WAIT)
+            estado, _ = _acquire_submission_lock(key)
+            if estado == 'EN_CURSO':
+                app_logger.info(f"Envío duplicado bloqueado (el original sigue en curso): {key}")
+                return _form_success_response()
+        if estado == 'COMPLETADO':
             app_logger.info(f"Envío duplicado bloqueado por deduplicación en servidor: {key}")
+            return _form_success_response()
+
+        # Capa 2 — candado persistente, compartido por todas las instancias
+        reclamado = _db_claim_submission(key)
+        if reclamado is False:
+            _release_submission_lock(key, success=True)
+            app_logger.info(f"Envío duplicado bloqueado por candado persistente: {key}")
             return _form_success_response()
 
         try:
             response = f(*args, **kwargs)
-            _release_submission_lock(key, success=True)
-            return response
         except Exception:
             _release_submission_lock(key, success=False)
+            if reclamado:
+                _db_release_submission(key)
             raise
+
+        guardado = _response_succeeded(response)
+        _release_submission_lock(key, success=guardado)
+        if reclamado and not guardado:
+            _db_release_submission(key)
+        return response
     return decorated_function
 
 

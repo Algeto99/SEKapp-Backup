@@ -939,6 +939,7 @@
                 if (typeof firstInvalidInput.reportValidity === 'function') {
                     firstInvalidInput.reportValidity();
                 }
+                if (window.SecAppSubmitLock) window.SecAppSubmitLock.abort(confiabilidadForm);
                 return false;
             }
 
@@ -987,6 +988,8 @@
 
                 if (response.status === 401) {
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    // Envío fallido: liberar el candado para permitir el reintento inmediato.
+                    if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(confiabilidadForm);
                     isSubmitting = false;
                     if (submitBtn) {
                         submitBtn.disabled = false;
@@ -1014,6 +1017,7 @@
                 } catch(err) {}
 
                 if (loadingOverlay) loadingOverlay.style.display = 'none';
+                if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(confiabilidadForm);
                 isSubmitting = false;
                 if (submitBtn) {
                     submitBtn.disabled = false;
@@ -1024,6 +1028,7 @@
             } catch (netErr) {
                 console.error('Error enviando confiabilidad_equipos:', netErr);
                 if (loadingOverlay) loadingOverlay.style.display = 'none';
+                if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(confiabilidadForm);
                 isSubmitting = false;
                 if (submitBtn) {
                     submitBtn.disabled = false;

@@ -55,12 +55,6 @@
         (document.head || document.documentElement).appendChild(s);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', inyectarEstilos);
-    } else {
-        inyectarEstilos();
-    }
-
     function generarTokenEnvio() {
         return 'sub_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
     }
@@ -77,6 +71,40 @@
             inputToken.value = generarTokenEnvio();
         }
         return inputToken.value;
+    }
+
+    /**
+     * Siembra el token de idempotencia en todos los formularios POST apenas carga
+     * la página.
+     *
+     * Es indispensable hacerlo aquí y no al enviar: varios formularios (checklist,
+     * confiabilidad, capacitaciones, asistencia QR) arman su propio
+     * `new FormData(form)` dentro de un handler propio, que corre en fase target
+     * — antes que este listener a nivel `document`, que corre en fase bubble —.
+     * Si el token se generara al enviar, esos formularios lo dejarían fuera del
+     * cuerpo de la petición y el servidor tendría que caer al respaldo por hash
+     * de contenido, que falla apenas un campo varíe entre clics (por ejemplo si
+     * la geolocalización se resuelve entre el primer toque y el segundo).
+     */
+    function sembrarTokens() {
+        var forms = document.querySelectorAll('form');
+        for (var i = 0; i < forms.length; i++) {
+            var metodo = (forms[i].getAttribute('method') || 'get').toLowerCase();
+            if (metodo === 'post') {
+                asegurarTokenEnForm(forms[i]);
+            }
+        }
+    }
+
+    function inicializar() {
+        inyectarEstilos();
+        sembrarTokens();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', inicializar);
+    } else {
+        inicializar();
     }
 
     function obtenerBotonesEnvio(form) {
@@ -170,6 +198,16 @@
             return;
         }
 
+        // El handler propio del formulario corre antes que este (fase target vs.
+        // fase bubble). Si decidió no enviar —una validación propia que la
+        // validación nativa no puede expresar, como una firma vacía— deja esta
+        // señal para que el candado ni siquiera se active y el usuario pueda
+        // corregir y reintentar de inmediato.
+        if (form._secappAbort) {
+            form._secappAbort = false;
+            return;
+        }
+
         // Marcar formulario en proceso de envío
         form.dataset.submitting = 'true';
         asegurarTokenEnForm(form);
@@ -207,6 +245,17 @@
     window.addEventListener('pageshow', function (e) {
         var forms = document.querySelectorAll('form[data-submitting="true"]');
         forms.forEach(desbloquearFormulario);
+
+        // Una página restaurada desde bfcache conserva los valores anteriores,
+        // token incluido. Renovarlo evita que un envío legítimo posterior
+        // (por ejemplo tras corregir un error de validación y volver atrás)
+        // se confunda con el envío anterior y se descarte como duplicado.
+        if (e.persisted) {
+            var todos = document.querySelectorAll('form input[name="client_submission_id"]');
+            for (var i = 0; i < todos.length; i++) {
+                todos[i].value = generarTokenEnvio();
+            }
+        }
     });
 
     // Exponer API global de conveniencia
@@ -218,6 +267,14 @@
             }
         },
         unlock: desbloquearFormulario,
+        // Para llamar desde el handler propio de un formulario cuando decide no
+        // enviar. A diferencia de unlock(), funciona aunque se invoque antes de
+        // que el candado se active, que es el orden natural de los eventos.
+        abort: function (form) {
+            if (!form) return;
+            form._secappAbort = true;
+            desbloquearFormulario(form);
+        },
         resetToken: function (form) {
             if (form) {
                 var input = form.querySelector('input[name="client_submission_id"]');

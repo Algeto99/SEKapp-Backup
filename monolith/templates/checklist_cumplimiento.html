@@ -801,6 +801,7 @@
 
                 if (!supervisorSigned) {
                     showErrorBanner('Por favor incluya la firma del supervisor en la sección 5 antes de enviar.', false);
+                    if (window.SecAppSubmitLock) window.SecAppSubmitLock.abort(form);
                     return;
                 }
 
@@ -834,6 +835,8 @@
                     // el pathname en vez de buscar la cadena '/login'.
                     if (response.status === 401 || bouncedToLogin(response)) {
                         if (loadingOverlay) loadingOverlay.style.display = 'none';
+                        // Envío fallido: liberar el candado para permitir el reintento inmediato.
+                        if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(form);
                         showErrorBanner('Tus datos <strong>NO se han perdido</strong>. Por favor <a href="/" target="_blank" class="underline font-bold text-yellow-300">inicia sesión en una nueva pestaña</a> y luego vuelve a presionar "Enviar" en esta ventana.', true);
                         return;
                     }
@@ -855,11 +858,13 @@
                     } catch(e) {}
 
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(form);
                     showErrorBanner(errorMsg, false);
 
                 } catch (netErr) {
                     console.error('Error enviando checklist:', netErr);
                     if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    if (window.SecAppSubmitLock) window.SecAppSubmitLock.unlock(form);
                     showErrorBanner('No fue posible enviar el formulario debido a un problema de conexión. Tus datos siguen intactos en pantalla. Por favor presiona "Enviar" nuevamente.', false);
                 }
             });
