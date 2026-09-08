@@ -347,3 +347,5 @@ function snwToggleForms() {
      junto al resto de utilidades comunes, porque todos los formularios de campo
      incluyen esta barra lateral. -->
 <script src="{{ url_for('static', filename='js/form-validation-feedback.js') }}"></script>
+<!-- Bloquea el botón Enviar mientras se procesa la solicitud para evitar envíos duplicados -->
+<script src="{{ url_for('static', filename='js/form-submit-lock.js') }}"></script>

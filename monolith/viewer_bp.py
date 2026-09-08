@@ -15,7 +15,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from functools import wraps
 from io import BytesIO
-from urllib.parse import unquote as _unquote
+from urllib.parse import unquote as _unquote, urlparse
 
 import psycopg2
 from psycopg2 import extras, errors as pg_errors
@@ -129,22 +129,69 @@ _PDF_FOTO_MAX_BYTES = 12 * 1024 * 1024
 
 
 def _gcs_blob_bytes(url):
-    """Contenido de un objeto de GCS a partir de su URL, o None."""
+    """Contenido de un objeto de GCS a partir de su URL, o None.
+
+    Implementa descarga a través de Google Cloud Storage SDK con fallback
+    mediante URL firmada + HTTP GET para máxima resiliencia al generar PDFs.
+    """
+    if not url or not isinstance(url, str):
+        return None
     try:
-        base = url.split('?')[0]
-        if 'storage.googleapis.com' not in base:
+        clean_url = url.strip()
+        parsed = urlparse(clean_url)
+        netloc = parsed.netloc.lower()
+        if 'storage.googleapis.com' not in netloc and 'storage.cloud.google.com' not in netloc:
             return None
-        partes = base.replace('https://storage.googleapis.com/', '').split('/', 1)
+
+        path = parsed.path.lstrip('/')
+        partes = path.split('/', 1)
         if len(partes) != 2:
             return None
-        bucket_name, blob_name = partes
-        blob = storage.Client().bucket(bucket_name).blob(_unquote(blob_name))
-        if blob.size and blob.size > _PDF_FOTO_MAX_BYTES:
-            app_logger.warning(f"_gcs_blob_bytes: {blob_name} pesa {blob.size} B, se omite")
-            return None
-        return blob.download_as_bytes(timeout=30)
+        bucket_name, blob_name = partes[0], _unquote(partes[1])
+
+        # 1. Intentar descarga mediante cliente SDK de GCS
+        client = None
+        try:
+            from gcs_utils import _get_storage_client
+            client = _get_storage_client()
+        except Exception:
+            pass
+        if client is None:
+            try:
+                client = storage.Client()
+            except Exception:
+                client = None
+
+        if client is not None:
+            try:
+                blob = client.bucket(bucket_name).blob(blob_name)
+                if blob.size and blob.size > _PDF_FOTO_MAX_BYTES:
+                    app_logger.warning(f"_gcs_blob_bytes: {blob_name} pesa {blob.size} B, se omite")
+                    return None
+                data = blob.download_as_bytes(timeout=25)
+                if data:
+                    return data
+            except Exception as e:
+                app_logger.warning(f"_gcs_blob_bytes: descarga SDK falló para {blob_name}: {e}")
+
+        # 2. Respaldo: descarga HTTP mediante URL firmada
+        try:
+            import requests
+            from gcs_utils import generate_signed_url
+            download_url = clean_url
+            if 'X-Goog-Signature' not in clean_url and 'Signature' not in clean_url:
+                download_url = generate_signed_url(clean_url, expiration_minutes=30)
+            resp = requests.get(download_url, timeout=25)
+            if resp.status_code == 200 and resp.content:
+                return resp.content
+            else:
+                app_logger.warning(f"_gcs_blob_bytes: HTTP status {resp.status_code} al descargar {clean_url.split('?')[0]}")
+        except Exception as e:
+            app_logger.warning(f"_gcs_blob_bytes: fallback HTTP falló para {clean_url.split('?')[0]}: {e}")
+
+        return None
     except Exception as e:
-        app_logger.warning(f"_gcs_blob_bytes: no se pudo descargar {url.split('?')[0]}: {e}")
+        app_logger.warning(f"_gcs_blob_bytes: error general con {url.split('?')[0]}: {e}")
         return None
 
 
@@ -201,7 +248,10 @@ def _es_columna_de_imagen(col_name):
 
 def _make_media_token(gcs_base_url):
     """Return a URL-safe token encoding a GCS base URL with an HMAC signature."""
-    secret = current_app.config.get('SECRET_KEY', '').encode()
+    try:
+        secret = current_app.config.get('SECRET_KEY', '').encode()
+    except Exception:
+        secret = b'fallback_secapp_key'
     encoded = base64.urlsafe_b64encode(gcs_base_url.encode()).decode().rstrip('=')
     sig = hmac.new(secret, gcs_base_url.encode(), hashlib.sha256).hexdigest()[:24]
     return f"{encoded}.{sig}"
@@ -211,10 +261,16 @@ def _media_proxy_url(url):
     """Convert a GCS URL into a proxy URL that hides bucket and path details."""
     if not url or url.startswith('data:'):
         return url or '#'
-    gcs_base = url.split('?')[0]
-    token = _make_media_token(gcs_base)
-    host = request.host_url.rstrip('/')
-    return f"{host}/api/media?f={token}"
+    try:
+        gcs_base = url.split('?')[0]
+        token = _make_media_token(gcs_base)
+        try:
+            host = request.host_url.rstrip('/')
+        except Exception:
+            host = ''
+        return f"{host}/api/media?f={token}"
+    except Exception:
+        return url
 
 
 @viewer_bp.route('/api/media')
@@ -1163,7 +1219,7 @@ def _localizar_fechas(data, tz):
     from admin_bp import format_local_datetime
     for k, v in list(data.items()):
         if isinstance(v, str) and v and _es_clave_de_fecha(k):
-            data[k] = format_local_datetime(v, tz=tz, time_sep=" ") or v
+            data[k] = format_local_datetime(v, tz=tz, time_sep=" ", assume_utc=False) or v
     return data
 
 
@@ -1710,6 +1766,9 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                 # Determine date
                 date_val = row_dict.get(config['date_col'])
                 if isinstance(date_val, datetime):
+                    if date_val.tzinfo is None:
+                        from datetime import timezone
+                        date_val = date_val.replace(tzinfo=timezone.utc)
                     date_str = date_val.isoformat()
                 else:
                     date_str = str(date_val) if date_val else "N/A"
@@ -1785,7 +1844,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     "title": f"{config['title_prefix']} #{row_dict.get(config['id_col'])}",
                     "submittedBy": display_name,
                     "dateSubmitted": date_str,
-                    "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" "),
+                    "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" ", assume_utc=True),
                     "submitterTimezone": submitter_tz,
                     "data": _localizar_fechas(mapped_data, _tz_op),
                     "preview": _campos_vista_previa(mapped_data),
@@ -1974,7 +2033,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 # ISO: se ordena por este campo como texto, así que no se
                 # formatea. La versión legible viaja aparte.
                 "dateSubmitted": date_str,
-                "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" "),
+                "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" ", assume_utc=True),
                 "submitterTimezone": submitter_tz,
                 "data": _localizar_fechas(data_content, _tz_op),
                 "preview": _campos_vista_previa(data_content),
@@ -2522,7 +2581,7 @@ def email_selected_reports_api():
         except (ValueError, TypeError):
             pass
 
-        report_date_str = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" a las ")
+        report_date_str = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" a las ", assume_utc=True)
         p.append(f"""
   <!-- Report card -->
   <tr><td style="padding:16px 24px 0 24px;">
@@ -2878,7 +2937,7 @@ def export_excel():
                     if not isinstance(items, list) or len(items) == 0:
                         items = [{}]
 
-                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ", assume_utc=True)
 
                     for item_idx, item in enumerate(items):
                         if not isinstance(item, dict):
@@ -3031,7 +3090,7 @@ def export_excel():
                     if not isinstance(items, list) or len(items) == 0:
                         items = [{}]
 
-                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ", assume_utc=True)
 
                     for item_idx, item in enumerate(items):
                         if not isinstance(item, dict):
@@ -3164,7 +3223,7 @@ def export_excel():
                 for row, report in enumerate(type_reports, 2):
                     ws.cell(row=row, column=1, value=report['id']).border = border
                     ws.cell(row=row, column=2, value=report['submittedBy']).border = border
-                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ", assume_utc=True)
                     ws.cell(row=row, column=3, value=date_sub_local).border = border
 
                     max_row_height = 25
@@ -3281,8 +3340,17 @@ def generate_pdf():
 
         # base_url: sin él WeasyPrint no puede resolver ninguna ruta relativa.
         # Las evidencias ya viajan embebidas, así que el render no necesita red.
+        def _weasyprint_fetcher(target_url, timeout=20, ssl_context=None):
+            from weasyprint import default_url_fetcher
+            if 'storage.googleapis.com' in target_url:
+                blob_bytes = _gcs_blob_bytes(target_url)
+                if blob_bytes:
+                    mime = 'image/png' if blob_bytes[:8] == b'\x89PNG\r\n\x1a\n' else 'image/jpeg'
+                    return {'string': blob_bytes, 'mime_type': mime}
+            return default_url_fetcher(target_url, timeout=timeout, ssl_context=ssl_context)
+
         pdf_buffer = BytesIO()
-        HTML(string=html_content, base_url=request.host_url).write_pdf(pdf_buffer)
+        HTML(string=html_content, base_url=request.host_url, url_fetcher=_weasyprint_fetcher).write_pdf(pdf_buffer)
         pdf_buffer.seek(0)
 
         # Create filename
@@ -3816,7 +3884,7 @@ td.val { color: #1f2937; }
         except (ValueError, TypeError):
             pass
 
-        report_date_str = format_local_datetime(report.get("dateSubmitted"), tz=tz, time_sep=" a las ")
+        report_date_str = format_local_datetime(report.get("dateSubmitted"), tz=tz, time_sep=" a las ", assume_utc=True)
 
         html_parts.append(
             f'<div class="report-block" style="{pb}">'
@@ -3875,13 +3943,12 @@ td.val { color: #1f2937; }
             k_lower = key.lower()
 
             is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes', 'diagrama'))
-            is_url_val = (val_str_raw.startswith('http://') or val_str_raw.startswith('https://') or
-                          val_str_raw.startswith('/api/media') or val_str_raw.startswith('data:image'))
+            is_url_val = bool(re.search(r'https?://|data:image/|/api/media|storage\.googleapis\.com', val_str_raw))
 
             if key in SKIP_KEYS or (is_foto_key and is_url_val):
                 # Parse attachment URLs
                 imagenes_del_campo = []
-                for url in val_str_raw.split('\n'):
+                for url in re.split(r'[\r\n,;]+', val_str_raw):
                     url = url.strip()
                     if not url or _is_blank_export_value(url) or url in urls_vistas:
                         continue

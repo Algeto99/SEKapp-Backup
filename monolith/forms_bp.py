@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import os
 import re
@@ -7,6 +8,7 @@ import unicodedata
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from functools import wraps
 import zoneinfo
 
 import psycopg2
@@ -243,17 +245,131 @@ def _is_ajax_request():
 
 def _form_success_response(message=None):
     """Returns JSON for AJAX/replay requests or redirects to success page for standard browser submissions."""
-    if _is_ajax_request():
-        kwargs = {'message': message} if message else {}
-        return jsonify({'success': True, 'redirect_url': url_for('forms_bp.success', **kwargs)}), 200
     kwargs = {'message': message} if message else {}
-    return redirect(url_for('forms_bp.success', **kwargs))
+    try:
+        success_url = url_for('forms_bp.success', **kwargs)
+    except Exception:
+        success_url = '/success'
+
+    if _is_ajax_request():
+        return jsonify({'success': True, 'redirect_url': success_url}), 200
+    return redirect(success_url)
 
 def _form_error_response(message="Error interno del servidor. Por favor intente nuevamente.", status=500):
     """Returns JSON error for AJAX requests or renders error template for standard submissions."""
     if _is_ajax_request():
         return jsonify({'success': False, 'message': message}), status
     return render_template('error.html', error=message), status
+
+
+# ── Deduplicación de Envíos en Memoria (Ventana Deslizante) ───────────────────
+# Previene la creación de registros duplicados cuando el usuario hace múltiples
+# clics seguidos o ante reintentos de red durante subidas lentas. No altera esquemas
+# de base de datos ni requiere campos nuevos.
+_DEDUP_CACHE = {}
+_DEDUP_LOCK = threading.Lock()
+_DEDUP_TTL = 45.0  # segundos
+
+
+def _build_dedup_key(user_email, req):
+    """Calcula una clave única de deduplicación para el envío actual."""
+    # 1. Prioridad: token de envío del cliente inyectado por form-submit-lock.js
+    token = req.form.get('client_submission_id')
+    if token and str(token).strip():
+        return f"{user_email}:{req.path}:{str(token).strip()}"
+
+    # 2. Respaldo: hash determinista de los campos no efímeros del formulario
+    ignored_keys = {'csrf_token', 'client_submission_id', 'submitter_timezone'}
+    items = []
+    for k in sorted(req.form.keys()):
+        if k not in ignored_keys:
+            items.append((k, tuple(req.form.getlist(k))))
+    serialized = str(items).encode('utf-8')
+    h = hashlib.sha256(serialized).hexdigest()[:16]
+    return f"{user_email}:{req.path}:{h}"
+
+
+def _acquire_submission_lock(key):
+    """
+    Intenta registrar o consultar el estado de envío para la clave dada.
+    Retorna (is_duplicate: bool, wait_event: threading.Event | None).
+    """
+    now = time.time()
+    with _DEDUP_LOCK:
+        # Purgar entradas cuya ventana de tiempo haya expirado
+        expired = [k for k, v in _DEDUP_CACHE.items() if now - v.get('time', 0) > _DEDUP_TTL]
+        for k in expired:
+            _DEDUP_CACHE.pop(k, None)
+
+        entry = _DEDUP_CACHE.get(key)
+        if entry:
+            status = entry.get('status')
+            if status == 'COMPLETED':
+                return True, None
+            elif status == 'IN_PROGRESS':
+                return True, entry.get('event')
+
+        event = threading.Event()
+        _DEDUP_CACHE[key] = {
+            'status': 'IN_PROGRESS',
+            'time': now,
+            'event': event
+        }
+        return False, None
+
+
+def _release_submission_lock(key, success=True):
+    """Actualiza el estado de la clave a COMPLETED o la elimina en caso de fallo."""
+    with _DEDUP_LOCK:
+        entry = _DEDUP_CACHE.get(key)
+        if entry:
+            event = entry.get('event')
+            if success:
+                entry['status'] = 'COMPLETED'
+                entry['time'] = time.time()
+            else:
+                _DEDUP_CACHE.pop(key, None)
+            if event:
+                event.set()
+
+
+def dedup_form_submission(f):
+    """Decorador que intercepta solicitudes POST duplicadas y retorna la respuesta
+    de éxito directamente, evitando inserciones múltiples en base de datos."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method != 'POST':
+            return f(*args, **kwargs)
+
+        user_email = ''
+        try:
+            identity = get_jwt_identity()
+            user_email = identity if isinstance(identity, str) else (identity.get('email') if isinstance(identity, dict) else '')
+        except Exception:
+            pass
+        if not user_email:
+            user_email = request.form.get('user_email') or request.form.get('numero_empleado') or request.remote_addr or 'anon'
+
+        key = _build_dedup_key(user_email, request)
+        is_dup, wait_event = _acquire_submission_lock(key)
+
+        if is_dup:
+            if wait_event:
+                # Si el envío anterior sigue procesándose (ej. subiendo fotos),
+                # esperar hasta 10 segundos a que culmine
+                wait_event.wait(timeout=10)
+            app_logger.info(f"Envío duplicado bloqueado por deduplicación en servidor: {key}")
+            return _form_success_response()
+
+        try:
+            response = f(*args, **kwargs)
+            _release_submission_lock(key, success=True)
+            return response
+        except Exception:
+            _release_submission_lock(key, success=False)
+            raise
+    return decorated_function
+
 
 def get_service_urls():
     """Helper to get all service URLs for templates."""
@@ -895,6 +1011,7 @@ def reporte_incidente_form():
 
 @forms_bp.route('/submit_incident_report', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_incident_report():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.reporte_incidente_form'))
@@ -990,6 +1107,7 @@ def reporte_incidente_editar_form(id):
 @forms_bp.route('/submit_incident_report/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_incident_report_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.reporte_incidente_editar_form', id=id))
@@ -1075,6 +1193,7 @@ def medicion_experiencia_cliente_form():
 
 @forms_bp.route('/submit_medicion_experiencia_cliente', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_medicion_experiencia_cliente():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.medicion_experiencia_cliente_form'))
@@ -1187,6 +1306,7 @@ def medicion_experiencia_cliente_editar_form(id):
 @forms_bp.route('/submit_medicion_experiencia_cliente/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_medicion_experiencia_cliente_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.medicion_experiencia_cliente_editar_form', id=id))
@@ -1288,6 +1408,7 @@ def supervision_puesto_form():
 
 @forms_bp.route('/submit_supervision_puesto', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_supervision_puesto():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.supervision_puesto_form'))
@@ -1468,6 +1589,7 @@ def supervision_puesto_editar_form(id):
 @forms_bp.route('/submit_supervision_puesto/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_supervision_puesto_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.supervision_puesto_editar_form', id=id))
@@ -1596,6 +1718,7 @@ def informe_novedades_disciplinario_form():
 
 @forms_bp.route('/submit_informe_novedades_disciplinario', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_informe_novedades_disciplinario():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.informe_novedades_disciplinario_form'))
@@ -1750,6 +1873,7 @@ def informe_novedades_disciplinario_editar_form(id):
 @forms_bp.route('/submit_informe_novedades_disciplinario/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_informe_novedades_disciplinario_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.informe_novedades_disciplinario_editar_form', id=id))
@@ -1868,6 +1992,7 @@ def log_de_patrullas_form():
 @forms_bp.route('/submit_log_de_patrullas', methods=['GET', 'POST'])
 @jwt_required()
 @module_required('log_de_patrullas')
+@dedup_form_submission
 def submit_log_de_patrullas():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.log_de_patrullas_form'))
@@ -1962,6 +2087,7 @@ def log_de_patrullas_editar_form(id):
 @jwt_required()
 @admin_required
 @module_required('log_de_patrullas')
+@dedup_form_submission
 def submit_log_de_patrullas_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.log_de_patrullas_editar_form', id=id))
@@ -2043,6 +2169,7 @@ def asistencia_qr_form(session_token):
     return render_template('asistencia_qr.html', session_token=session_token, topic=topic)
 
 @forms_bp.route('/submit_asistencia_qr/<session_token>', methods=['GET', 'POST'])
+@dedup_form_submission
 def submit_asistencia_qr(session_token):
     """Save a guest attendance entry; no JWT needed."""
     if request.method == 'GET':
@@ -2132,6 +2259,7 @@ def registro_de_capacitaciones_form():
 
 @forms_bp.route('/submit_registro_de_capacitaciones', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_registro_de_capacitaciones():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.registro_de_capacitaciones_form'))
@@ -2287,6 +2415,7 @@ def registro_de_capacitaciones_editar_form(id):
 @forms_bp.route('/submit_registro_de_capacitaciones/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_registro_de_capacitaciones_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.registro_de_capacitaciones_editar_form', id=id))
@@ -2483,6 +2612,7 @@ def _parse_visit_form_data(request, user_email):
 
 @forms_bp.route('/submit_registro_y_acta_de_visita', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_registro_y_acta_de_visita():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.registro_y_acta_de_visita_form'))
@@ -2560,6 +2690,7 @@ def registro_y_acta_de_visita_editar_form(id):
 @forms_bp.route('/submit_registro_y_acta_de_visita/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_registro_y_acta_de_visita_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.registro_y_acta_de_visita_editar_form', id=id))
@@ -2638,6 +2769,7 @@ def planilla_vehicular_form():
 
 @forms_bp.route('/submit_planilla_vehicular', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_planilla_vehicular():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.planilla_vehicular_form'))
@@ -2776,6 +2908,7 @@ def planilla_vehicular_editar_form(id):
 @forms_bp.route('/submit_planilla_vehicular/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_planilla_vehicular_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.planilla_vehicular_editar_form', id=id))
@@ -2909,6 +3042,7 @@ def planilla_motocicletas_form():
 
 @forms_bp.route('/submit_planilla_motocicletas', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_planilla_motocicletas():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.planilla_motocicletas_form'))
@@ -3029,6 +3163,7 @@ def planilla_motocicletas_editar_form(id):
 @forms_bp.route('/submit_planilla_motocicletas/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_planilla_motocicletas_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.planilla_motocicletas_editar_form', id=id))
@@ -3142,6 +3277,7 @@ def checklist_cumplimiento():
 
 @forms_bp.route('/submit_checklist_cumplimiento', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_checklist_cumplimiento():
     """Handles the submission of the updated compliance checklist form with multiple entries."""
     if request.method == 'GET':
@@ -3300,6 +3436,7 @@ def checklist_cumplimiento_editar_form(id):
 @forms_bp.route('/submit_checklist_cumplimiento/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_checklist_cumplimiento_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.checklist_cumplimiento_editar_form', id=id))
@@ -3452,6 +3589,7 @@ def confiabilidad_equipos_form():
 
 @forms_bp.route('/submit_confiabilidad_equipos', methods=['GET', 'POST'])
 @jwt_required()
+@dedup_form_submission
 def submit_confiabilidad_equipos():
     if request.method == 'GET':
         return redirect(url_for('forms_bp.confiabilidad_equipos_form'))
@@ -3613,6 +3751,7 @@ def confiabilidad_equipos_editar_form(id):
 @forms_bp.route('/submit_confiabilidad_equipos/<int:id>/editar', methods=['GET', 'POST'])
 @jwt_required()
 @admin_required
+@dedup_form_submission
 def submit_confiabilidad_equipos_editar(id):
     if request.method == 'GET':
         return redirect(url_for('forms_bp.confiabilidad_equipos_editar_form', id=id))
