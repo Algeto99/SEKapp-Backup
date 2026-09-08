@@ -196,3 +196,54 @@ ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_por VARCHAR(2
 ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS cargo_responsable VARCHAR(255);
 ALTER TABLE planilla_vehicular         ADD COLUMN IF NOT EXISTS vehiculo_tipo VARCHAR(255);
 ALTER TABLE planilla_motocicletas      ADD COLUMN IF NOT EXISTS motocicleta_tipo VARCHAR(255);
+
+-- Vista para análisis y exportación detallada de Confiabilidad de Equipos
+-- Desanida el inventario JSONB en filas individuales con sus campos correspondientes
+CREATE OR REPLACE VIEW v_confiabilidad_equipos_detalle AS
+SELECT
+    c.id AS reporte_id,
+    c.submitted_by_email AS enviado_por,
+    c.created_at AS fecha_envio,
+    COALESCE(
+        NULLIF(TRIM(cc.name), ''),
+        NULLIF(TRIM(c.cliente_instalacion), '')
+    ) AS cliente_empresa,
+    COALESCE(
+        NULLIF(TRIM(p.nombre), ''),
+        NULLIF(TRIM(c.cliente_instalacion), '')
+    ) AS propiedad_instalacion,
+    c.sitio AS sitio_ubicacion,
+    c.fecha,
+    c.hora,
+    elem->>'tipo_equipo' AS tipo_equipo,
+    NULLIF(elem->>'total_equipos', '')::numeric AS total,
+    NULLIF(elem->>'equipos_operativos', '')::numeric AS operativos,
+    COALESCE(
+        NULLIF(elem->>'equipos_con_falla', '')::numeric,
+        GREATEST(0, (NULLIF(elem->>'total_equipos', '')::numeric) - (NULLIF(elem->>'equipos_operativos', '')::numeric))
+    ) AS con_falla,
+    elem->>'pendiente_reparacion' AS pendiente_reparacion,
+    elem->>'pendiente_compra' AS pendiente_compra,
+    CASE
+        WHEN (NULLIF(elem->>'total_equipos', '')::numeric) > 0 AND (NULLIF(elem->>'equipos_operativos', '')::numeric) IS NOT NULL THEN
+            CASE
+                WHEN ROUND(((NULLIF(elem->>'equipos_operativos', '')::numeric) / (NULLIF(elem->>'total_equipos', '')::numeric)) * 100) >= 95 THEN 'Operativo'
+                WHEN ROUND(((NULLIF(elem->>'equipos_operativos', '')::numeric) / (NULLIF(elem->>'total_equipos', '')::numeric)) * 100) >= 85 THEN 'Operativo con observaciones'
+                WHEN ROUND(((NULLIF(elem->>'equipos_operativos', '')::numeric) / (NULLIF(elem->>'total_equipos', '')::numeric)) * 100) >= 70 THEN 'Riesgo operativo'
+                ELSE 'No confiable'
+            END
+        ELSE 'N/A'
+    END AS estatus,
+    elem->>'comentario' AS comentario,
+    c.tecnico_mantenimiento,
+    c.supervisor_seguridad
+FROM confiabilidad_equipos c
+LEFT JOIN users u ON c.submitted_by_email = u.email
+LEFT JOIN propiedades p ON c.id_propiedad = p.id_propiedad
+LEFT JOIN customer_companies cc ON c.customer_company_id = cc.id
+LEFT JOIN LATERAL jsonb_array_elements(
+    CASE 
+        WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario 
+        ELSE '[]'::jsonb 
+    END
+) AS elem ON TRUE;

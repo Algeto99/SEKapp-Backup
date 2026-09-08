@@ -2666,6 +2666,62 @@ def email_selected_reports_api():
         return jsonify({"success": False, "message": f"Error al enviar correo electrónico: {message}"}), 500
 
 
+def _embed_excel_image(ws, cell, val, col_index, row, header_key):
+    """Embed base64 or linked image in openpyxl worksheet cell, returning needed row height."""
+    try:
+        from openpyxl.drawing.image import Image as OpenpyxlImage
+        from openpyxl.utils import get_column_letter
+        from PIL import Image as PILImage
+        import base64
+
+        img_file = None
+        if val.strip().startswith('data:image'):
+            try:
+                _, encoded = val.strip().split(',', 1)
+                img_bytes = base64.b64decode(encoded)
+                pil_img = PILImage.open(BytesIO(img_bytes))
+                if pil_img.format not in ['PNG', 'JPEG', 'JPG', 'GIF', 'BMP']:
+                    png_buffer = BytesIO()
+                    pil_img.convert('RGB').save(png_buffer, format='PNG')
+                    png_buffer.seek(0)
+                    img_file = png_buffer
+                else:
+                    img_file = BytesIO(img_bytes)
+
+                cell.value = "Firma Digital"
+                cell.hyperlink = None
+            except Exception as e:
+                app_logger.error(f"Error processing base64 image: {e}")
+        elif 'http' in val or 'storage.googleapis.com' in val:
+            urls = val.split('\n')
+            valid_url = None
+            for u in urls:
+                if u.strip():
+                    valid_url = u.strip()
+                    break
+            if valid_url:
+                cell.value = "Ver Imagen Original"
+                cell.hyperlink = valid_url
+                cell.style = "Hyperlink"
+
+        if img_file:
+            img = OpenpyxlImage(img_file)
+            aspect_ratio = img.width / img.height
+            new_height = 80
+            new_width = int(new_height * aspect_ratio)
+            img.height = new_height
+            img.width = new_width
+
+            col_letter = get_column_letter(col_index)
+            cell_address = f"{col_letter}{row}"
+            img.anchor = cell_address
+            ws.add_image(img)
+            return 90
+    except Exception as e:
+        app_logger.error(f"Error embedding image for field {header_key}: {e}")
+    return 25
+
+
 @viewer_bp.route('/api/export-excel', methods=['POST'])
 @jwt_required()
 def export_excel():
@@ -2727,6 +2783,9 @@ def export_excel():
             reports_by_type[f_type].append(report)
 
         # Create a sheet for each form type
+        from admin_bp import get_operation_timezone, format_local_datetime
+        tz = get_operation_timezone(reports=reports_to_export)
+
         for f_type, type_reports in reports_by_type.items():
             # Get config for this form type to determine headers
             config = FORM_CONFIGS.get(f_type)
@@ -2734,166 +2793,235 @@ def export_excel():
                 app_logger.warning(f"No configuration found for form type: {f_type}. Skipping.")
                 continue
 
-            # Create sheet
-            # sheet_title existe donde el nombre oficial no sobrevive al corte de
-            # 30 caracteres de Excel sin volverse ambiguo frente a otra hoja.
             sheet_title = (config.get('sheet_title') or config.get('title_prefix', f_type))[:30]
             ws = wb.create_sheet(title=sheet_title)
 
-            # Define headers dynamically based on data_mapping
-            # Standard headers first
-            headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
-            
-            # Dynamic headers from the mapping, minus the columns this form never
-            # fills: a label left blank by every selected record is a leftover of
-            # the table's legacy columns, not a field of the form being exported.
-            dynamic_headers = [
-                label for label in config['data_mapping']
-                if any(not _is_blank_export_value(r.get('data', {}).get(label))
-                       for r in type_reports)
-            ]
-            headers.extend(dynamic_headers)
+            if f_type == 'confiabilidad_equipos':
+                # Check if any inventory item has comments
+                has_item_comments = any(
+                    isinstance(item, dict) and item.get('comentario')
+                    for r in type_reports
+                    for item in (_ensure_json_serializable(r.get('data', {}).get('Inventario') or r.get('data', {}).get('inventario')) or [])
+                    if isinstance(item, dict)
+                )
+                eq_col_defs = [
+                    ("Tipo de Equipo", "tipo_equipo"),
+                    ("Total", "total_equipos"),
+                    ("Operativos", "equipos_operativos"),
+                    ("Con Falla", "equipos_con_falla"),
+                    ("Pendiente Reparación", "pendiente_reparacion"),
+                    ("Pendiente Compra", "pendiente_compra"),
+                    ("Estatus", "estatus"),
+                ]
+                if has_item_comments:
+                    eq_col_defs.append(("Comentario de Equipo", "comentario"))
 
-            # Write headers
-            for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=1, column=col, value=header)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = header_alignment
-                cell.border = border
-
-            # Write data
-            from admin_bp import get_operation_timezone, format_local_datetime
-            tz = get_operation_timezone(reports=reports_to_export)
-
-            for row, report in enumerate(type_reports, 2):
-                # Standard data
-                ws.cell(row=row, column=1, value=report['id']).border = border
-                ws.cell(row=row, column=2, value=report['submittedBy']).border = border
-                date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
-                ws.cell(row=row, column=3, value=date_sub_local).border = border
-
-                # Dynamic data
-                max_row_height = 25 # Default height
-                
-                for i, header_key in enumerate(dynamic_headers):
-                    # Map header key to data key using config
-                    data_key = header_key # The keys in report['data'] match the keys in data_mapping (labels)
-                    val = report['data'].get(data_key, '')
-                    if _is_blank_export_value(val):
-                        val = ''
-                    
-                    col_index = 4 + i
-                    if isinstance(val, (datetime, date)):
-                        cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
-                    elif isinstance(val, (list, dict)):
-                        cell_value = _format_structured_value_as_text(val)
-                    elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
-                        cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
+                dynamic_headers = []
+                for label in config['data_mapping']:
+                    if label == "Inventario":
+                        for col_title, _ in eq_col_defs:
+                            headers.append(col_title)
+                        dynamic_headers.append(label)
                     else:
-                        cell_value = str(val) if val is not None else ''
-                    cell = ws.cell(row=row, column=col_index, value=cell_value)
+                        if any(not _is_blank_export_value(r.get('data', {}).get(label)) for r in type_reports):
+                            headers.append(label)
+                            dynamic_headers.append(label)
+
+                for col, header in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col, value=header)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
                     cell.border = border
-                    cell.alignment = Alignment(wrap_text=True, vertical="top")
 
-                    # Image Embedding Logic
-                    is_image_field = any(keyword in header_key.lower() for keyword in ['firma', 'foto', 'evidencia', 'diagrama', 'imagen'])
-                    
-                    if is_image_field and val and isinstance(val, str):
-                        try:
-                            from openpyxl.drawing.image import Image as OpenpyxlImage
-                            from PIL import Image as PILImage
-                            import base64
-                            
-                            img_file = None
-                            
-                            # Case A: Base64 Data URI
-                            if val.strip().startswith('data:image'):
-                                try:
-                                    # Format: data:image/png;base64,.....
-                                    header, encoded = val.strip().split(',', 1)
-                                    img_bytes = base64.b64decode(encoded)
-                                    
-                                    # Convert to PNG if needed (for WebP or other formats)
-                                    pil_img = PILImage.open(BytesIO(img_bytes))
-                                    if pil_img.format not in ['PNG', 'JPEG', 'JPG', 'GIF', 'BMP']:
-                                        png_buffer = BytesIO()
-                                        pil_img.convert('RGB').save(png_buffer, format='PNG')
-                                        png_buffer.seek(0)
-                                        img_file = png_buffer
+                current_row = 2
+                for report in type_reports:
+                    inv_raw = report.get('data', {}).get('Inventario') or report.get('data', {}).get('inventario')
+                    items = _ensure_json_serializable(inv_raw)
+                    if not isinstance(items, list) or len(items) == 0:
+                        items = [{}]
+
+                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+
+                    for item_idx, item in enumerate(items):
+                        if not isinstance(item, dict):
+                            item = {}
+
+                        # Standard columns
+                        ws.cell(row=current_row, column=1, value=report.get('id')).border = border
+                        ws.cell(row=current_row, column=2, value=report.get('submittedBy')).border = border
+                        ws.cell(row=current_row, column=3, value=date_sub_local).border = border
+
+                        max_row_height = 25
+                        col_index = 4
+
+                        for header_key in dynamic_headers:
+                            if header_key == "Inventario":
+                                for col_title, field_key in eq_col_defs:
+                                    cell = ws.cell(row=current_row, column=col_index)
+                                    cell.border = border
+
+                                    if field_key == 'tipo_equipo':
+                                        raw_tipo = str(item.get('tipo_equipo') or '').strip()
+                                        norm_t = _normalize_tipo(raw_tipo)
+                                        cell.value = _TIPO_EQUIPO_LABELS.get(norm_t, raw_tipo.title() if raw_tipo else '—')
+                                        cell.alignment = Alignment(horizontal="left", vertical="center")
+                                    elif field_key in ('total_equipos', 'equipos_operativos'):
+                                        raw_num = item.get(field_key)
+                                        if raw_num not in (None, '', '—'):
+                                            try:
+                                                cell.value = int(raw_num)
+                                            except (ValueError, TypeError):
+                                                cell.value = raw_num
+                                        else:
+                                            cell.value = ''
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                    elif field_key == 'equipos_con_falla':
+                                        raw_num = item.get('equipos_con_falla')
+                                        if raw_num not in (None, '', '—'):
+                                            try:
+                                                cell.value = int(raw_num)
+                                            except (ValueError, TypeError):
+                                                cell.value = raw_num
+                                        else:
+                                            try:
+                                                t = int(item.get('total_equipos'))
+                                                f = int(item.get('equipos_operativos'))
+                                                cell.value = max(0, t - f)
+                                            except (ValueError, TypeError):
+                                                cell.value = ''
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                    elif field_key in ('pendiente_reparacion', 'pendiente_compra'):
+                                        raw_val = item.get(field_key, '')
+                                        cell.value = str(raw_val).strip() if raw_val is not None else ''
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                    elif field_key == 'estatus':
+                                        _, st_text = _calc_item_status(item)
+                                        cell.value = st_text
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                        if st_text == "Operativo":
+                                            cell.fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
+                                            cell.font = Font(color="15803D", bold=True)
+                                        elif st_text == "Operativo con observaciones":
+                                            cell.fill = PatternFill(start_color="FEF9C3", end_color="FEF9C3", fill_type="solid")
+                                            cell.font = Font(color="A16207", bold=True)
+                                        elif st_text == "Riesgo operativo":
+                                            cell.fill = PatternFill(start_color="FFEDD5", end_color="FFEDD5", fill_type="solid")
+                                            cell.font = Font(color="C2410C", bold=True)
+                                        elif st_text == "No confiable":
+                                            cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+                                            cell.font = Font(color="B91C1C", bold=True)
+                                        else:
+                                            cell.font = Font(color="6B7280")
+                                    elif field_key == 'comentario':
+                                        cell.value = str(item.get('comentario') or '')
+                                        cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+                                    col_index += 1
+                            else:
+                                data_key = header_key
+                                val = report.get('data', {}).get(data_key, '')
+                                if _is_blank_export_value(val):
+                                    val = ''
+
+                                cell = ws.cell(row=current_row, column=col_index)
+                                cell.border = border
+                                cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+                                if isinstance(val, (datetime, date)):
+                                    cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                                elif isinstance(val, (list, dict)):
+                                    cell_value = _format_structured_value_as_text(val)
+                                elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
+                                    cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                                else:
+                                    cell_value = str(val) if val is not None else ''
+                                cell.value = cell_value
+
+                                is_image_field = any(keyword in header_key.lower() for keyword in ['firma', 'foto', 'evidencia', 'diagrama', 'imagen'])
+                                if is_image_field and val and isinstance(val, str):
+                                    if item_idx == 0:
+                                        img_h = _embed_excel_image(ws, cell, val, col_index, current_row, header_key)
+                                        if img_h:
+                                            max_row_height = max(max_row_height, img_h)
                                     else:
-                                        img_file = BytesIO(img_bytes)
-                                    
-                                    cell.value = "Firma Digital" # Set friendly text
-                                    cell.hyperlink = None # No external link for base64
-                                except Exception as e:
-                                    app_logger.error(f"Error processing base64 image: {e}")
-                                    
-                            # Case B: URL (HTTP/GCS)
-                            elif 'http' in val or 'storage.googleapis.com' in val:
-                                # Handle multiple images (newlines)
-                                urls = val.split('\n')
-                                
-                                valid_url = None
-                                for u in urls:
-                                    if u.strip():
-                                        valid_url = u.strip()
-                                        break
-                                
-                                if valid_url:
-                                    # Just set the hyperlink, do not attempt to download or embed
-                                    cell.value = "Ver Imagen Original"
-                                    cell.hyperlink = valid_url
-                                    cell.style = "Hyperlink"
+                                        if val.strip().startswith('data:image'):
+                                            cell.value = "Firma Digital"
 
-                            # If we successfully got an image file, resize and place it
-                            if img_file:
-                                img = OpenpyxlImage(img_file)
-                                
-                                # Resize image (thumbnail)
-                                # Target height ~80px
-                                aspect_ratio = img.width / img.height
-                                new_height = 80
-                                new_width = int(new_height * aspect_ratio)
-                                
-                                img.height = new_height
-                                img.width = new_width
-                                
-                                # Anchor to cell
-                                col_letter = get_column_letter(col_index)
-                                cell_address = f"{col_letter}{row}"
-                                img.anchor = cell_address
-                                
-                                ws.add_image(img)
-                                
-                                # Update max row height needed
-                                max_row_height = max(max_row_height, 90)
+                                col_index += 1
 
-                        except Exception as e:
-                            app_logger.error(f"Error embedding image for field {header_key}: {e}")
-                            # Keep original text value
-                            pass
+                        ws.row_dimensions[current_row].height = max_row_height
+                        current_row += 1
 
-                # Set row height
-                ws.row_dimensions[row].height = max_row_height
+            else:
+                # Standard export for other form types
+                headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
+                dynamic_headers = [
+                    label for label in config['data_mapping']
+                    if any(not _is_blank_export_value(r.get('data', {}).get(label))
+                           for r in type_reports)
+                ]
+                headers.extend(dynamic_headers)
+
+                for col, header in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col, value=header)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
+                    cell.border = border
+
+                for row, report in enumerate(type_reports, 2):
+                    ws.cell(row=row, column=1, value=report['id']).border = border
+                    ws.cell(row=row, column=2, value=report['submittedBy']).border = border
+                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+                    ws.cell(row=row, column=3, value=date_sub_local).border = border
+
+                    max_row_height = 25
+                    for i, header_key in enumerate(dynamic_headers):
+                        data_key = header_key
+                        val = report['data'].get(data_key, '')
+                        if _is_blank_export_value(val):
+                            val = ''
+
+                        col_index = 4 + i
+                        if isinstance(val, (datetime, date)):
+                            cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                        elif isinstance(val, (list, dict)):
+                            cell_value = _format_structured_value_as_text(val)
+                        elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
+                            cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                        else:
+                            cell_value = str(val) if val is not None else ''
+                        cell = ws.cell(row=row, column=col_index, value=cell_value)
+                        cell.border = border
+                        cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+                        is_image_field = any(keyword in header_key.lower() for keyword in ['firma', 'foto', 'evidencia', 'diagrama', 'imagen'])
+                        if is_image_field and val and isinstance(val, str):
+                            img_h = _embed_excel_image(ws, cell, val, col_index, row, header_key)
+                            if img_h:
+                                max_row_height = max(max_row_height, img_h)
+
+                    ws.row_dimensions[row].height = max_row_height
 
             # Auto-adjust column widths
             for col in range(1, len(headers) + 1):
                 column_letter = get_column_letter(col)
                 max_length = 0
-                # Check header length
                 max_length = max(max_length, len(headers[col-1]))
-                # Check data lengths (sample first 50 rows)
-                for row in range(2, min(52, ws.max_row + 1)):
-                    cell_value = ws[f"{column_letter}{row}"].value
+                for r in range(2, min(52, ws.max_row + 1)):
+                    cell_value = ws[f"{column_letter}{r}"].value
                     if cell_value:
                         max_length = max(max_length, len(str(cell_value)))
-                
+
                 adjusted_width = min(max(max_length + 2, 10), 50)
                 ws.column_dimensions[column_letter].width = adjusted_width
             
-            # Set header row height
+            # Set header row height and auto-filter
             ws.row_dimensions[1].height = 25
+            if ws.max_row >= 1 and len(headers) >= 1:
+                ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{ws.max_row}"
 
         # Create filename
         custom_filename = data.get('filename')
