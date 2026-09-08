@@ -188,3 +188,10 @@ ALTER TABLE checklist_cumplimiento ADD COLUMN IF NOT EXISTS editado_por VARCHAR(
 ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado BOOLEAN DEFAULT FALSE;
 ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ;
 ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255);
+
+-- Campos que el formulario diligencia y la tabla no tenía: el INSERT filtra por
+-- reflexión de columnas, así que el valor se descartaba en silencio.
+-- "Cargo" del responsable en Control de Capacitaciones y "Vehículo"
+-- (Propio/Empresa) en la Planilla Pre-Operacional Vehicular.
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS cargo_responsable VARCHAR(255);
+ALTER TABLE planilla_vehicular         ADD COLUMN IF NOT EXISTS vehiculo_tipo VARCHAR(255);

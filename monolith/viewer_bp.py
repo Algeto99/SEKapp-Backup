@@ -503,7 +503,11 @@ FORM_CONFIGS = {
             "Nombre Supervisor": "supervisor",
             "Rol del Aplicador/Responsable": "rol_aplicador",
             # 2. Datos del Puesto
-            "Puesto o Área Específica": "puesto_area_especifica",
+            # detalles_puestos, no puesto_area_especifica: esta tabla no tiene esa
+            # columna —el formulario guarda el puesto en detalles_puestos—, así que
+            # la etiqueta salía siempre vacía y el valor aparecía al final del PDF
+            # bajo el nombre automático "Detalles Puestos", fuera del Excel.
+            "Puesto o Área Específica": "detalles_puestos",
             "Horario del Servicio": "horario_servicio",
             "Hora de Ingreso": "hora_entrada",
             "Hora de Salida": "hora_salida",
@@ -804,6 +808,10 @@ FORM_CONFIGS = {
             # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
+            # El formulario no pregunta el puesto y el handler guarda 'NO APLICA',
+            # pero la columna se llena igual: sin etiqueta salía al final del PDF
+            # como "Puesto Area Especifica" y no llegaba al Excel.
+            "Puesto o Área Específica": "puesto_area_especifica",
             "Rol del Aplicador/Responsable": "rol_aplicador",
             "Nombre del Responsable": "nombre_responsable",
             "Fecha y Hora": "fecha_hora",
@@ -906,6 +914,7 @@ FORM_CONFIGS = {
             # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
+            "Puesto o Área Específica": "puesto_area_especifica",
             "Rol del Aplicador/Responsable": "rol_aplicador",
             "Nombre del Responsable": "nombre_responsable",
             "Fecha y Hora": "fecha_hora",

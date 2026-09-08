@@ -385,6 +385,7 @@ CREATE TABLE IF NOT EXISTS registro_de_capacitaciones (
     rol_aplicador VARCHAR(255),
     turno VARCHAR(255),
     nombre_responsable VARCHAR(255),
+    cargo_responsable VARCHAR(255),
     firma_responsable TEXT,
     nombre_capacitacion VARCHAR(255),
     objetivo_capacitacion TEXT,
@@ -482,6 +483,7 @@ CREATE TABLE IF NOT EXISTS planilla_vehicular (
     turno VARCHAR(255),
     nombre_responsable VARCHAR(255),
     firma_responsable TEXT,
+    vehiculo_tipo VARCHAR(255),
     placa_vehiculo VARCHAR(255),
     kilometraje_entrega INTEGER,
     kilometraje_salida INTEGER,
@@ -770,6 +772,13 @@ ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS editado_por VARCHAR(255)
 -- llamarse "Tipo de Instalación" en la interfaz). El INSERT de supervisión filtra
 -- por reflexión de columnas, así que sin esta columna el valor se descarta en silencio.
 ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS modalidad_servicio VARCHAR(255);
+
+-- Dos campos que el formulario pide desde siempre y la tabla no tenía, así que el
+-- INSERT —que filtra por reflexión de columnas— los descartaba en silencio: el
+-- Supervisor los diligenciaba y no llegaban ni al registro ni a la exportación.
+-- Mismo caso que modalidad_servicio más arriba.
+ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS cargo_responsable VARCHAR(255);
+ALTER TABLE planilla_vehicular         ADD COLUMN IF NOT EXISTS vehiculo_tipo VARCHAR(255);
 
 -- Cierre de una asignación: la fila se conserva para trazabilidad y solo deja de
 -- contar como pendiente en el Morning Briefing. Es el único cierre posible para
