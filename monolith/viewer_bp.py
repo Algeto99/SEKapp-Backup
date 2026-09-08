@@ -3203,13 +3203,22 @@ td.val { color: #1f2937; }
 .att-cell { display: table-cell; vertical-align: top; width: 50%; padding-left: 12px; }
 .section-label { font-size: 7.5pt; font-weight: bold; color: #374151; margin-bottom: 4px; }
 .sig-img { max-width: 180px; max-height: 80px; border: 1px solid #d1d5db; border-radius: 3px; padding: 3px; object-fit: contain; }
-.att-grid img { max-width: 120px; max-height: 90px; border: 1px solid #d1d5db; border-radius: 3px; object-fit: contain; }
 .pdf-link { color: #2563eb; text-decoration: none; font-size: 8pt; }
 .foto-section { margin-top: 10px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
-.foto-grid { width: 100%; }
-.foto-item-cell { display: inline-block; margin-right: 10px; margin-bottom: 8px; vertical-align: top; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 6px; background: #f8fafc; }
-.foto-label { font-size: 7.5pt; font-weight: bold; color: #1e3a8a; margin-bottom: 4px; max-width: 170px; word-break: break-word; }
-.foto-img { max-width: 170px; max-height: 125px; border-radius: 3px; object-fit: contain; display: block; margin: 0 auto; }
+/* Dos fotos por fila, en tabla y no en inline-block: WeasyPrint no parte una
+   pila de inline-blocks, así que a este tamaño empujaba el mosaico entero a la
+   página siguiente y dejaba la primera casi en blanco. Una tabla sí se divide
+   fila por fila, igual que la de campos de arriba.
+   El ancho útil del cuerpo es ~679px (A4 menos los márgenes de @page,
+   .report-block y .report-body); con dos columnas y 6px de separación cada
+   celda ofrece ~316px de contenido, de sobra para los 300px de la foto.
+   Solo se fijan máximos, nunca ancho y alto a la vez, para que la imagen
+   conserve su proporción: apaisada topa en el ancho, vertical en el alto. */
+.foto-grid { width: 100%; border-collapse: separate; border-spacing: 6px; table-layout: fixed; }
+.foto-grid td { width: 50%; vertical-align: top; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 6px; background: #f8fafc; }
+.foto-grid td.foto-vacia { border: none; background: transparent; }
+.foto-label { font-size: 7.5pt; font-weight: bold; color: #1e3a8a; margin-bottom: 4px; word-break: break-word; }
+.foto-img { max-width: 300px; max-height: 230px; border-radius: 3px; object-fit: contain; display: block; margin: 0 auto; }
 .map-thumb-cell { display: table-cell; vertical-align: middle; text-align: right; width: 170px; padding-left: 8px; }
 .map-thumb-cell a { display: inline-block; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.35); }
 .map-thumb-cell img { width: 150px; height: 90px; display: block; }
@@ -3268,7 +3277,11 @@ td.val { color: #1f2937; }
 
         foto_items = []  # list of (label, url)
         signatures = []  # list of (label, data_url)
-        image_urls, pdf_urls, other_urls = [], [], []
+        pdf_urls, other_urls = [], []
+        # Varias etiquetas apuntan a la misma columna —"Foto Evidencia" y "URLs de
+        # Imágenes o PDFs" salen las dos de foto_evidencia_url—, así que el mismo
+        # archivo llegaba dos veces y se pintaba dos veces en el PDF.
+        urls_vistas = set()
         is_acta = report.get('formType') == 'registro_y_acta_de_visita'
         compromisos_rendered = False
 
@@ -3291,20 +3304,31 @@ td.val { color: #1f2937; }
 
             if key in SKIP_KEYS or (is_foto_key and is_url_val):
                 # Parse attachment URLs
+                imagenes_del_campo = []
                 for url in val_str_raw.split('\n'):
                     url = url.strip()
-                    if not url or _is_blank_export_value(url):
+                    if not url or _is_blank_export_value(url) or url in urls_vistas:
                         continue
+                    urls_vistas.add(url)
                     lower = url.lower().split('?')[0]
-                    if lower.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg')) or 'storage.googleapis.com' in lower or url.startswith('data:image'):
-                        if is_foto_key and key not in SKIP_KEYS:
-                            foto_items.append((key, url))
-                        else:
-                            image_urls.append(url)
-                    elif lower.endswith('.pdf'):
+                    # La extensión manda sobre el origen: el bucket guarda también
+                    # los PDF que acepta el cargador de evidencias, y con el orden
+                    # anterior la condición de GCS los atrapaba antes y se pintaban
+                    # como si fueran una imagen.
+                    if lower.endswith('.pdf'):
                         pdf_urls.append(url)
+                    elif (lower.endswith(('.jpeg', '.jpg', '.png', '.gif', '.webp', '.svg'))
+                          or 'storage.googleapis.com' in lower or url.startswith('data:image')):
+                        imagenes_del_campo.append(url)
                     else:
                         other_urls.append(url)
+                # Todas las imágenes van al mismo mosaico a lo ancho de la página.
+                # Las de los campos genéricos de evidencia se pintaban antes dentro
+                # de la media columna de adjuntos, donde no cabían más que
+                # miniaturas de 120px: la evidencia no se podía revisar.
+                for i, url in enumerate(imagenes_del_campo, 1):
+                    etiqueta = f'{key} {i}' if len(imagenes_del_campo) > 1 else key
+                    foto_items.append((etiqueta, url))
                 continue
 
             if key.lower() == 'inventario':
@@ -3399,25 +3423,32 @@ td.val { color: #1f2937; }
             html_parts.append(
                 '<div class="foto-section">'
                 '<p class="section-label" style="font-size:8pt;font-weight:bold;color:#1e3a8a;margin-bottom:6px;">Registro Fotográfico / Evidencias</p>'
-                '<div class="foto-grid">'
+                '<table class="foto-grid">'
             )
-            for lbl, url in foto_items:
-                clean_lbl = escape(lbl)
-                # `src` embebido: el PDF lleva la foto dentro y no depende de que
-                # el renderizador alcance GCS. `href` conserva la URL, para quien
-                # abra el PDF y quiera el original a tamaño completo.
-                src = escape(_imagen_data_url(url, _media_cache))
-                html_parts.append(
-                    f'<div class="foto-item-cell">'
-                    f'<p class="foto-label">{clean_lbl}</p>'
-                    f'<a href="{escape(_media_proxy_url(url))}"><img class="foto-img" src="{src}" alt="{clean_lbl}"></a>'
-                    f'</div>'
-                )
-            html_parts.append('</div></div>')
+            for fila in range(0, len(foto_items), 2):
+                html_parts.append('<tr>')
+                for lbl, url in foto_items[fila:fila + 2]:
+                    clean_lbl = escape(lbl)
+                    # `src` embebido: el PDF lleva la foto dentro y no depende de que
+                    # el renderizador alcance GCS. `href` conserva la URL, para quien
+                    # abra el PDF y quiera el original a tamaño completo.
+                    src = escape(_imagen_data_url(url, _media_cache))
+                    html_parts.append(
+                        f'<td>'
+                        f'<p class="foto-label">{clean_lbl}</p>'
+                        f'<a href="{escape(_media_proxy_url(url))}"><img class="foto-img" src="{src}" alt="{clean_lbl}"></a>'
+                        f'</td>'
+                    )
+                # Número impar de fotos: la última fila se completa para que la
+                # que sí hay conserve su media página y no se estire.
+                if len(foto_items) - fila == 1:
+                    html_parts.append('<td class="foto-vacia"></td>')
+                html_parts.append('</tr>')
+            html_parts.append('</table></div>')
 
         # Signature + attachments side by side
         has_sig = bool(signatures)
-        has_att = bool(image_urls or pdf_urls or other_urls)
+        has_att = bool(pdf_urls or other_urls)
 
         if has_sig or has_att:
             html_parts.append('<div class="bottom-row">')
@@ -3434,10 +3465,6 @@ td.val { color: #1f2937; }
 
             if has_att:
                 html_parts.append('<div class="att-cell"><p class="section-label">Archivos Adjuntos</p><div class="att-grid">')
-                for url in image_urls:
-                    fname = escape(url.split('?')[0].split('/')[-1])
-                    src = escape(_imagen_data_url(url, _media_cache))
-                    html_parts.append(f'<a href="{escape(_media_proxy_url(url))}"><img src="{src}" alt="{fname}"></a>')
                 for url in pdf_urls:
                     fname = escape(url.split('?')[0].split('/')[-1])
                     html_parts.append(f'<a href="{escape(_media_proxy_url(url))}" class="pdf-link">&#128196; {fname}</a><br>')
