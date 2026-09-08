@@ -384,6 +384,20 @@
                                 <td class="cell-pct">—</td>
                                 <td class="cell-status">—</td>
                             </tr>
+                            <tr data-tipo="Radios">
+                                <td>Radios</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
+                            <tr data-tipo="Armas">
+                                <td>Armas</td>
+                                <td class="cell-total">—</td>
+                                <td class="cell-func">—</td>
+                                <td class="cell-pct">—</td>
+                                <td class="cell-status">—</td>
+                            </tr>
                             <tr class="average-row" id="averageRow">
                                 <td>Promedio General</td>
                                 <td class="cell-total" id="avg-total">—</td>
@@ -516,7 +530,12 @@
             'Grabadores',
             'Alarmas',
             'Boton de Panico',
-            'Control de Acceso'
+            'Control de Acceso',
+            // Radios y Armas alimentan las tarjetas "Radios Operativos" y "Armas
+            // Óptimas" del Informe Ejecutivo de Recursos, que hasta ahora no
+            // tenían dónde capturarse.
+            'Radios',
+            'Armas'
         ];
 
         const MSG_OPERATIVOS_INVALID = 'El número de equipos operativos no puede ser mayor al total de equipos registrados. Verifique la información ingresada.';
@@ -648,6 +667,8 @@
                             <option value="Alarmas">Alarmas</option>
                             <option value="Boton de Panico">Botón de Pánico</option>
                             <option value="Control de Acceso">Control de Acceso</option>
+                            <option value="Radios">Radios</option>
+                            <option value="Armas">Armas</option>
                         </select>
                     </div>
 

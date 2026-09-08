@@ -700,15 +700,20 @@ function renderData(d) {
     const fmt = v => v !== null && v !== undefined ? v + '%' : '—';
     document.getElementById('kpiConfGeneral').textContent = fmt(conf);
 
-    // Radios & Armas: use API fields if present, fall back to demo values
+    // Cada tarjeta lee su propia fuente. Antes, cuando la API no traía el campo,
+    // "Radios Operativos" caía en la confiabilidad general de equipos y "Carros
+    // Aptos" en el total de vehículos: números correctos bajo la etiqueta
+    // equivocada, que además no cuadraban con su propio dónut. Sin fuente ahora
+    // se dice "Sin datos", que es la verdad.
     const radios = d.radios || {};
     const armas  = d.armas  || {};
     const vehicCarros = d.vehiculos_carros || {};
     const vehicMotos  = d.vehiculos_motos  || {};
-    document.getElementById('kpiRadiosOp').textContent    = radios.pct    != null ? radios.pct    + '%' : (d.equipos.pct != null ? d.equipos.pct + '%' : '—');
-    document.getElementById('kpiArmasOp').textContent     = armas.pct     != null ? armas.pct     + '%' : '—';
-    document.getElementById('kpiCarrosAptos').textContent = vehicCarros.pct != null ? vehicCarros.pct + '%' : (d.vehiculos.pct != null ? d.vehiculos.pct + '%' : '—');
-    document.getElementById('kpiMotosAptas').textContent  = vehicMotos.pct  != null ? vehicMotos.pct  + '%' : '—';
+    const pctOrNoData = v => v != null ? v + '%' : 'Sin datos';
+    document.getElementById('kpiRadiosOp').textContent    = pctOrNoData(radios.pct);
+    document.getElementById('kpiArmasOp').textContent     = pctOrNoData(armas.pct);
+    document.getElementById('kpiCarrosAptos').textContent = pctOrNoData(vehicCarros.pct);
+    document.getElementById('kpiMotosAptas').textContent  = pctOrNoData(vehicMotos.pct);
 
     // KPI: Certificaciones por Vencer en 30 días
     const certProx = d.certificaciones.proximas_vencer ?? 0;
@@ -748,18 +753,20 @@ function renderData(d) {
         tension: .4, fill: true, pointRadius: 4, pointBackgroundColor: '#3b82f6',
     }]);
 
-    // Donut Radios por Estado
-    const radOp  = radios.operativos    != null ? radios.operativos    : (d.radios_op    ?? 45);
-    const radNoOp = radios.no_operativos != null ? radios.no_operativos : (d.radios_no_op ?? 5);
+    // Donut Radios por Estado.
+    // Antes, si la API no traía el campo, se pintaban 45 y 5: valores de
+    // demostración que en el informe se leían como inventario real.
+    const radOp   = radios.operativos    ?? 0;
+    const radNoOp = radios.no_operativos ?? 0;
     const radLabels = ['Operativos', 'No Operativos'];
     const radData   = [radOp, radNoOp];
     const radColors = ['#22c55e', '#ef4444'];
     buildDonutCenter('chartRadios', radLabels, radData, radColors, 'Total');
     document.getElementById('radiosLegend').innerHTML = legendHtml(radLabels, radData, radColors, radOp + radNoOp);
 
-    // Donut Armas por Estado
-    const armasOpt   = armas.optimas    != null ? armas.optimas    : (d.armas_opt   ?? 28);
-    const armasNoApt = armas.no_aptas   != null ? armas.no_aptas   : (d.armas_no_ap ?? 2);
+    // Donut Armas por Estado. Mismo caso: antes 28 y 2 fijos.
+    const armasOpt   = armas.optimas  ?? 0;
+    const armasNoApt = armas.no_aptas ?? 0;
     const armasLabels = ['Óptimas', 'No Aptas'];
     const armasData   = [armasOpt, armasNoApt];
     const armasColors = ['#22c55e', '#ef4444'];

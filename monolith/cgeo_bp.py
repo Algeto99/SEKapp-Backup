@@ -197,6 +197,30 @@ _VEH_FAULT_EXPR = " OR ".join(
 )
 
 
+def _eq_tipo_kpi(eq_por_tipo, nombres):
+    """Agrega el inventario de uno o más tipos de equipo en un KPI.
+
+    `eq_por_tipo` llega con el tipo ya normalizado a minúsculas. Se aceptan varios
+    nombres para tolerar singular y plural ('armas' / 'arma'). Si no hay inventario
+    de ese tipo retorna pct None y totales en cero, para que el informe muestre
+    "Sin datos" en vez de un cero que se lea como "todo mal".
+    """
+    total = operativos = 0
+    for fila in eq_por_tipo or []:
+        if (fila.get("tipo") or "").strip().lower() in nombres:
+            total += int(fila.get("total") or 0)
+            operativos += int(fila.get("operativos") or 0)
+    return {
+        "pct": round(operativos / total * 100, 1) if total else None,
+        "total": total,
+        "operativos": operativos,
+        "no_operativos": max(0, total - operativos),
+        # Alias para el dónut de armas, que rotula "Óptimas / No Aptas".
+        "optimas": operativos,
+        "no_aptas": max(0, total - operativos),
+    }
+
+
 def _where(conds):
     return ("WHERE " + " AND ".join(conds)) if conds else ""
 
@@ -468,14 +492,47 @@ def cgeo_api_recursos_data():
         veh_mant = veh_total - veh_aptos - veh_no_aptos
         veh_pct = round(veh_aptos / veh_total * 100, 1) if veh_total else None
 
+        # ── Motocicletas ──────────────────────────────────────────────────────
+        # `planilla_motocicletas` tiene su propia tabla y su propio dashboard, pero
+        # este informe nunca la consultaba: por eso "Motocicletas Aptas" salía sin
+        # valor. Los vehículos de arriba son sólo carros (planilla_vehicular).
+        from dashboard_bp import _MOTO_FAULT_EXPR
+        moto_conds, moto_params = [], []
+        _add_cliente(moto_conds, moto_params, cliente, propiedad=propiedad)
+        moto_fecha = "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
+        if start_date:
+            moto_conds.append(f"{moto_fecha} >= %s")
+            moto_params.append(start_date)
+        if end_date:
+            moto_conds.append(f"{moto_fecha} <= %s")
+            moto_params.append(end_date)
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN NOT ({_MOTO_FAULT_EXPR}) THEN 1 ELSE 0 END) AS aptas,
+                SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
+            FROM planilla_motocicletas
+            {_where(moto_conds)}
+        """, tuple(moto_params))
+        moto_row = cur.fetchone() or {}
+        moto_total = int(moto_row.get("total") or 0)
+        moto_aptas = int(moto_row.get("aptas") or 0)
+        moto_no_aptas = int(moto_row.get("no_aptas") or 0)
+        moto_pct = round(moto_aptas / moto_total * 100, 1) if moto_total else None
+
         # ── Certificaciones / Cumplimiento ────────────────────────────────────
         cum_conds, cum_params = [], []
         _add_cliente(cum_conds, cum_params, cliente, propiedad=propiedad)
+        # Misma fecha de referencia que el Dashboard de Cumplimiento
+        # (dashboard_bp._cumpl_date_expr): una verificación sin `fecha_hora` sigue
+        # contando por su `created_at` en vez de desaparecer del informe. Sin esto,
+        # informe y dashboard daban totales distintos sobre los mismos registros.
+        cum_fecha = "COALESCE(fecha_hora, created_at)"
         if start_date:
-            cum_conds.append("fecha_hora >= %s")
+            cum_conds.append(f"{cum_fecha} >= %s")
             cum_params.append(start_date)
         if end_date:
-            cum_conds.append("fecha_hora <= %s")
+            cum_conds.append(f"{cum_fecha} <= %s")
             cum_params.append(end_date)
         cum_where = _where(cum_conds)
         cur.execute(f"""
@@ -620,6 +677,23 @@ def cgeo_api_recursos_data():
                 "no_operativos": eq_no_op,
             },
             "equipos_por_tipo": eq_por_tipo,
+            # Radios y Armas salen del mismo inventario que el resto de equipos,
+            # así que la tarjeta y su dónut leen exactamente la misma fuente y no
+            # pueden discrepar. Quedan en null mientras no haya inventario de ese
+            # tipo capturado: el informe muestra "Sin datos", nunca un número
+            # inventado ni el porcentaje general con otra etiqueta.
+            "radios": _eq_tipo_kpi(eq_por_tipo, ('radios', 'radio')),
+            "armas":  _eq_tipo_kpi(eq_por_tipo, ('armas', 'arma')),
+            # Carros y motos separados: antes "Carros Aptos" mostraba el total de
+            # vehículos y "Motocicletas Aptas" no mostraba nada.
+            "vehiculos_carros": {
+                "pct": veh_pct, "total": veh_total,
+                "aptos": veh_aptos, "no_aptos": veh_no_aptos,
+            },
+            "vehiculos_motos": {
+                "pct": moto_pct, "total": moto_total,
+                "aptos": moto_aptas, "no_aptos": moto_no_aptas,
+            },
             "vehiculos": {
                 "pct": veh_pct,
                 "total": veh_total,
