@@ -1330,25 +1330,29 @@ def submit_supervision_puesto():
         # supervision_puesto now uses cliente_instalacion (renamed from cliente)
 
         # 2. Parse Dynamic Supervisions from request.form
-        # Keys are in format: supervisions[index][field_name]
+        # Keys are in format: supervisions[index][field_name], plus a trailing []
+        # for the checkbox groups: supervisions[index][problemas_uniforme][].
+        #
+        # El nombre del campo no puede leerse con `(.*)`: es codicioso y se comía el
+        # `][` del sufijo, así que problemas_uniforme[] llegaba como el campo
+        # 'problemas_uniforme][', que no es columna de supervision_puesto y se
+        # descartaba sin ruido — las prendas con problemas nunca se guardaban. El
+        # sufijo va en su propio grupo para distinguir el campo de lista del simple.
         supervisions_map = {}
-        pattern = re.compile(r'supervisions\[(\d+)\]\[(.*)\]')
+        pattern = re.compile(r'supervisions\[(\d+)\]\[([^\]]*)\](\[\])?$')
 
         for key in request.form.keys():
             match = pattern.match(key)
             if match:
                 index = int(match.group(1))
-                field = match.group(2)
-                
-                # Check for array fields (e.g., problemas_uniforme[])
-                if field.endswith('[]'):
-                    field_name = field[:-2]
-                    # Join multiple checkbox values with a comma
+                field_name = match.group(2)
+
+                if match.group(3):
+                    # Array field: several checked boxes travel under the same key.
                     value = ', '.join(request.form.getlist(key))
                 else:
-                    field_name = field
                     value = request.form.get(key)
-                
+
                 if index not in supervisions_map:
                     supervisions_map[index] = {}
                 supervisions_map[index][field_name] = value
