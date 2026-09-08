@@ -1,0 +1,87 @@
+{#
+  Bandeja de hallazgos del usuario en sesión.
+
+  Dos listas: lo que está pendiente de gestionar y el historial de lo ya cerrado.
+  Un hallazgo gestionado sale de pendientes pero se conserva aquí con quién lo
+  cerró, cuándo y qué se hizo. Cada fila lleva a /cgeo/hallazgo/<id>, que es donde
+  se gestiona; esta pantalla no ofrece la acción de asignar.
+#}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hallazgos Asignados · SEKapp</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { background:#0f172a; color:#e2e8f0; font-family:Roboto,system-ui,sans-serif; }
+    .hz-card { background:#1e293b; border:1px solid #334155; border-radius:.75rem; }
+    .hz-row { display:block; padding:1rem 1.25rem; border-bottom:1px solid #334155; text-decoration:none; }
+    .hz-row:last-child { border-bottom:none; }
+    .hz-row:hover { background:#243044; }
+    .hz-pill { display:inline-block; padding:.15rem .6rem; border-radius:999px; font-size:.68rem; font-weight:700; }
+    .hz-meta { font-size:.75rem; color:#94a3b8; margin-top:.3rem; }
+    .hz-heading { font-size:.72rem; font-weight:800; letter-spacing:.07em; color:#94a3b8; text-transform:uppercase; }
+</style>
+
+{% include '_sidebar.html' %}
+
+<div class="sidebar-main-content">
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+    <h1 class="text-2xl font-bold text-white mb-1">Hallazgos Asignados</h1>
+    <p class="text-sm text-slate-400 mb-6">Hallazgos que le fueron asignados para gestionar.</p>
+
+    {# ── Pendientes ────────────────────────────────────────────────────────── #}
+    <div class="hz-heading mb-2">
+        Pendientes de gestión{% if pendientes %} — {{ pendientes|length }}{% endif %}
+    </div>
+    <div class="hz-card mb-8">
+        {% for h in pendientes %}
+        <a class="hz-row" href="/cgeo/hallazgo/{{ h.id }}">
+            <div class="flex items-start justify-between gap-3">
+                <div class="text-sm font-semibold text-slate-100">{{ h.titulo }}</div>
+                {% if h.vencida %}
+                    <span class="hz-pill" style="background:#7f1d1d;color:#fca5a5;">Vencido</span>
+                {% else %}
+                    <span class="hz-pill" style="background:#78350f;color:#fcd34d;">Pendiente</span>
+                {% endif %}
+            </div>
+            <div class="hz-meta">
+                {{ h.etiqueta }} #{{ h.record_id }}
+                · {% if h.fecha_limite %}vence el {{ h.fecha_limite.strftime('%d/%m/%Y') }}{% else %}sin fecha límite{% endif %}
+            </div>
+        </a>
+        {% else %}
+        <div class="px-5 py-8 text-center text-sm text-slate-400">
+            No tiene hallazgos pendientes de gestión.
+        </div>
+        {% endfor %}
+    </div>
+
+    {# ── Historial ─────────────────────────────────────────────────────────── #}
+    <div class="hz-heading mb-2">
+        Historial de gestionados{% if historial %} — {{ historial|length }}{% endif %}
+    </div>
+    <div class="hz-card">
+        {% for h in historial %}
+        <a class="hz-row" href="/cgeo/hallazgo/{{ h.id }}">
+            <div class="flex items-start justify-between gap-3">
+                <div class="text-sm font-semibold text-slate-300">{{ h.titulo }}</div>
+                <span class="hz-pill" style="background:#14532d;color:#86efac;">✓ {{ h.estado }}</span>
+            </div>
+            <div class="hz-meta">
+                {{ h.etiqueta }} #{{ h.record_id }}
+                {%- if h.cerrado_en %} · gestionado el {{ h.cerrado_en.strftime('%d/%m/%Y') }}{% endif %}
+                {%- if h.cerrado_por %} por {{ h.cerrado_por }}{% endif %}
+            </div>
+            {% if h.nota %}
+            <div class="hz-meta" style="color:#cbd5e1;margin-top:.4rem;">{{ h.nota }}</div>
+            {% endif %}
+        </a>
+        {% else %}
+        <div class="px-5 py-8 text-center text-sm text-slate-400">
+            Todavía no ha gestionado ningún hallazgo.
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+</div>

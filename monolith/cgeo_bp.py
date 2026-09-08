@@ -2898,6 +2898,99 @@ def _ensure_asignaciones_table(conn):
     conn.commit()
 
 
+def _mis_hallazgos_sql():
+    """Asignaciones cuyo responsable es el usuario en sesión.
+
+    El destinatario puede estar guardado como usuario registrado (`asignado_a`) o
+    como correo externo (`asignado_email`); se comparan ambos en minúsculas para
+    que un cambio de mayúsculas en el correo no esconda un pendiente.
+    """
+    return """
+        SELECT a.id, a.form_type, a.record_id, a.fecha_limite, a.nota, a.creado_en,
+               a.hallazgo_ref, a.hallazgo_titulo, a.hallazgo_detalle,
+               a.cerrado_en, a.cerrado_por, a.asignado_por,
+               COALESCE(NULLIF(TRIM(a.estado), ''), 'Asignado') AS estado
+          FROM asignaciones_hallazgo a
+          LEFT JOIN users u ON u.id = a.asignado_a
+         WHERE LOWER(TRIM(COALESCE(u.email, ''))) = %s
+            OR LOWER(TRIM(COALESCE(a.asignado_email, ''))) = %s
+    """
+
+
+def _mis_hallazgos(cur, email):
+    """Retorna (pendientes, historial) del usuario, ya separados por estado."""
+    correo = (email or '').strip().lower()
+    cur.execute(_mis_hallazgos_sql() + " ORDER BY a.fecha_limite ASC NULLS LAST, a.creado_en DESC",
+                (correo, correo))
+    hoy = date.today()
+    pendientes, historial = [], []
+    for fila in cur.fetchall():
+        item = dict(fila)
+        item['etiqueta'] = _ASIG_ETIQUETA.get(item['form_type'], 'Registro')
+        item['titulo'] = (item.get('hallazgo_titulo') or '').strip() or \
+                         f"{item['etiqueta']} #{item['record_id']}"
+        cerrado = (item.get('estado') or '').strip().lower() in _ASIG_ESTADOS_CERRADOS
+        item['vencida'] = bool(item.get('fecha_limite') and not cerrado and item['fecha_limite'] < hoy)
+        (historial if cerrado else pendientes).append(item)
+    return pendientes, historial
+
+
+@cgeo_bp.route('/hallazgos')
+@jwt_required()
+def mis_hallazgos():
+    """Bandeja del usuario: sus hallazgos pendientes y el historial de gestionados.
+
+    Sin filtro por rol: cada quien ve lo suyo. Un administrador que además tenga
+    hallazgos asignados los ve aquí igual que cualquier otro usuario; para la
+    visión global de asignaciones está el Morning Briefing.
+    """
+    conn = _get_conn()
+    if not conn:
+        return render_template('error.html', error='Base de datos no disponible'), 500
+    try:
+        _ensure_asignaciones_table(conn)
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            pendientes, historial = _mis_hallazgos(cur, get_jwt_identity())
+            cur.execute("SELECT name, is_admin FROM users WHERE email = %s", (get_jwt_identity(),))
+            quien = cur.fetchone() or {}
+        return render_template(
+            'cgeo_hallazgos.html',
+            pendientes=pendientes,
+            historial=historial,
+            name=quien.get('name') or get_jwt_identity(),
+            is_admin=bool(quien.get('is_admin')),
+        )
+    except Exception as e:
+        app_logger.error(f"mis_hallazgos error: {e}", exc_info=True)
+        return render_template('error.html', error='Error interno'), 500
+    finally:
+        conn.close()
+
+
+@cgeo_bp.route('/api/mis-hallazgos/contador')
+@jwt_required()
+def mis_hallazgos_contador():
+    """Pendientes del usuario, para el distintivo del menú lateral.
+
+    Lo consulta la barra lateral en cada carga de página, así que el contador baja
+    solo en cuanto un hallazgo se gestiona. Nunca falla con error: si algo va mal
+    devuelve 0 y el distintivo simplemente no se pinta.
+    """
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"pendientes": 0})
+    try:
+        _ensure_asignaciones_table(conn)
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            pendientes, _ = _mis_hallazgos(cur, get_jwt_identity())
+        return jsonify({"pendientes": len(pendientes)})
+    except Exception as e:
+        app_logger.warning(f"mis_hallazgos_contador: {e}")
+        return jsonify({"pendientes": 0})
+    finally:
+        conn.close()
+
+
 @cgeo_bp.route('/hallazgo/<int:asignacion_id>')
 @jwt_required()
 def ver_hallazgo(asignacion_id):
