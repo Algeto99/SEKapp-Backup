@@ -917,7 +917,7 @@
         planilla_vehicular: {
             QUE:    ['Placa', 'Novedades Críticas'],
             CUANDO: ['Fecha y Hora', 'Fecha/Hora'],
-            DONDE:  ['Cliente / Empresa', 'Propiedad / Instalación'],
+            DONDE:  ['Cliente / Empresa', 'Propiedad / Instalación', 'Puesto o Área Específica'],
             COMO:   ['Novedades Críticas', 'Diagrama de Daños', 'Diagrama Daños', 'Acción Inmediata',
                      'Foto Frente', 'Foto Atrás', 'Foto Lado Derecho', 'Foto Lado Izquierdo'],
             QUIEN:  ['Nombre del Responsable', 'Responsable'],
@@ -925,8 +925,8 @@
         planilla_motocicletas: {
             QUE:    ['Placa', 'Novedades Críticas'],
             CUANDO: ['Fecha y Hora', 'Fecha/Hora'],
-            DONDE:  ['Cliente / Empresa', 'Propiedad / Instalación'],
-            COMO:   ['Novedades Críticas', 'Acción Inmediata',
+            DONDE:  ['Cliente / Empresa', 'Propiedad / Instalación', 'Puesto o Área Específica'],
+            COMO:   ['Novedades Críticas', 'Diagrama de Daños', 'Diagrama Daños', 'Acción Inmediata',
                      'Foto Frente', 'Foto Atrás', 'Foto Lado Derecho', 'Foto Lado Izquierdo'],
             QUIEN:  ['Nombre del Responsable', 'Responsable'],
         },

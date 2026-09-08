@@ -209,6 +209,8 @@ def _make_media_token(gcs_base_url):
 
 def _media_proxy_url(url):
     """Convert a GCS URL into a proxy URL that hides bucket and path details."""
+    if not url or url.startswith('data:'):
+        return url or '#'
     gcs_base = url.split('?')[0]
     token = _make_media_token(gcs_base)
     host = request.host_url.rstrip('/')
@@ -296,11 +298,17 @@ TECHNICAL_SYSTEM_COLUMNS = {
     'csrf_token', 'session_token', 'personas_involucradas', 'personas_data',
     'id', 'id_reporte_incidente', 'id_encuesta', 'id_supervision', 'id_informe',
     'id_patrulla', 'id_capacitacion', 'id_visita', 'id_planilla_vehicular',
+    'id_planilla_motocicletas',
     # Marcas de tiempo internas de la fila. Cuando no son la fecha del registro
     # —confiabilidad_equipos usa `fecha` y arrastra además `created_at`— salían
     # como un campo más, duplicando la Fecha de envío que ya se muestra aparte.
     'created_at', 'updated_at', 'creado_en', 'actualizado_en',
-    'fecha_creacion', 'fecha_actualizacion'
+    'fecha_creacion', 'fecha_actualizacion',
+    # Alias técnicos internos y columnas obsoletas que ya no pertenecen al formulario
+    'puesto_area_resuelto', 'puesto_area_especifica_resuelto',
+    'estado_tapas_derecha', 'estado_manometros_indicadores',
+    'tapa_tanque_combustible', 'estado_luces_izquierda',
+    'kilometraje_entrega', 'kilometraje_salida', 'firma_responsable'
 }
 
 # --- Form Configurations ---
@@ -795,13 +803,16 @@ FORM_CONFIGS = {
             COALESCE(
                 NULLIF(TRIM(cc.name), ''),
                 NULLIF(TRIM(cc2.name), ''),
-                NULLIF(TRIM(cc3.name), '')
+                NULLIF(TRIM(cc3.name), ''),
+                'Sesursa'
             ) AS cliente_nombre,
             COALESCE(
                 NULLIF(TRIM(p.nombre), ''),
                 NULLIF(TRIM(p_legacy.nombre), ''),
-                NULLIF(TRIM(t.cliente_instalacion), '')
+                NULLIF(TRIM(t.cliente_instalacion), ''),
+                'NO APLICA'
             ) AS propiedad_nombre,
+            COALESCE(NULLIF(TRIM(t.puesto_area_especifica), ''), 'NO APLICA') AS puesto_area_resuelto,
             u.name as user_name
         """,
         'data_mapping': {
@@ -811,7 +822,7 @@ FORM_CONFIGS = {
             # El formulario no pregunta el puesto y el handler guarda 'NO APLICA',
             # pero la columna se llena igual: sin etiqueta salía al final del PDF
             # como "Puesto Area Especifica" y no llegaba al Excel.
-            "Puesto o Área Específica": "puesto_area_especifica",
+            "Puesto o Área Específica": "puesto_area_resuelto",
             "Rol del Aplicador/Responsable": "rol_aplicador",
             "Nombre del Responsable": "nombre_responsable",
             "Fecha y Hora": "fecha_hora",
@@ -862,13 +873,10 @@ FORM_CONFIGS = {
             "Novedades Críticas": "novedades_criticas",
             "Acción Inmediata": "accion_inmediata",
             # 4. Entrega y Cierre
-            "Kilometraje de Entrega": "kilometraje_entrega",
             "Firma Entrega": "firma_entrega",
-            "Kilometraje de Salida": "kilometraje_salida",
             "Firma Recibe": "firma_recibe",
             "Oficial de Operaciones": "oficial_operaciones_nombre",
-            "Firma Oficial": "oficial_operaciones_firma",
-            "Firma Responsable": "firma_responsable"
+            "Firma Oficial": "oficial_operaciones_firma"
         }
     },
     'planilla_motocicletas': {
@@ -903,20 +911,23 @@ FORM_CONFIGS = {
             COALESCE(
                 NULLIF(TRIM(cc.name), ''),
                 NULLIF(TRIM(cc2.name), ''),
-                NULLIF(TRIM(cc3.name), '')
+                NULLIF(TRIM(cc3.name), ''),
+                'Sesursa'
             ) AS cliente_nombre,
             COALESCE(
                 NULLIF(TRIM(p.nombre), ''),
                 NULLIF(TRIM(p_legacy.nombre), ''),
-                NULLIF(TRIM(t.cliente_instalacion), '')
+                NULLIF(TRIM(t.cliente_instalacion), ''),
+                'NO APLICA'
             ) AS propiedad_nombre,
+            COALESCE(NULLIF(TRIM(t.puesto_area_especifica), ''), 'NO APLICA') AS puesto_area_resuelto,
             u.name as user_name
         """,
         'data_mapping': {
             # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
-            "Puesto o Área Específica": "puesto_area_especifica",
+            "Puesto o Área Específica": "puesto_area_resuelto",
             "Rol del Aplicador/Responsable": "rol_aplicador",
             "Nombre del Responsable": "nombre_responsable",
             "Fecha y Hora": "fecha_hora",
@@ -930,36 +941,30 @@ FORM_CONFIGS = {
             "Último Kilometraje Registrado": "kilometraje_anterior",
             "Kilometraje Actual": "kilometraje_motocicleta",
             "Kilometraje Recorrido": "kilometraje_recorrido",
-            # 2. Matriz de Inspección
+            # 2. Matriz de Inspección (orden exacto del formulario)
             "Estado Neumáticos": "estado_neumaticos",
             "Estado Rines": "estado_rines",
             "Equipo Carretera": "equipo_carretera",
             "Kit de Arrastre": "estado_kit_arrastre",
             "Palanca Soporte": "estado_palanca_soporte",
             "Forro Asiento": "estado_forro_asiento",
-            "Tapas Derecha": "estado_tapas_derecha",
             "Luces Direccionales Derecha": "estado_luces_direccionales_derecha",
+            "Luces Direccionales Izquierda": "estado_luces_direccionales_izquierda",
             "Luces Delanteras": "estado_luces_delanteras",
-            "Guardafango Delantero": "estado_guarda_fango_delantero",
             "Sistema Freno Delantero": "estado_sistema_freno_delantero",
             "Manillar Embrague": "estado_manillar_embrague",
             "Manillar Freno Delantero": "estado_manillar_freno_delantero",
-            "Manómetros / Indicadores": "estado_manometros_indicadores",
             "Tanque Combustible": "estado_tanque_combustible",
-            "Tapa Tanque Combustible": "tapa_tanque_combustible",
             "Espejos Retrovisores": "espejos_retrovisores",
             "Tapa Aceite Motor": "tapa_aceite_motor",
             "Batería Tapa": "bateria_tapa",
-            "Luces Izquierda": "estado_luces_izquierda",
-            "Luces Direccionales Izquierda": "estado_luces_direccionales_izquierda",
             "Luz Trasera": "estado_luz_trasera",
+            "Palanca Cambios": "estado_palanca_cambios",
+            "Palanca Freno": "estado_palanca_freno",
+            "Guardafango Delantero": "estado_guarda_fango_delantero",
             "Guardafango Trasero": "estado_guarda_fango_trasero",
             "Tubo de Escape": "estado_tubo_escape",
-            "Palanca Freno": "estado_palanca_freno",
-            "Palanca Cambios": "estado_palanca_cambios",
-            # 3. Evidencias y Novedades
-            # Mismo criterio que en la planilla vehicular: el diagrama se marca
-            # antes de tomar las cuatro vistas.
+            # 3. Evidencias, Diagrama y Novedades
             "Diagrama de Daños": "diagrama_danos",
             "Foto Frente": "foto_frente_url",
             "Foto Atrás": "foto_atras_url",
@@ -968,13 +973,10 @@ FORM_CONFIGS = {
             "Novedades Críticas": "novedades_criticas_detectadas",
             "Acción Inmediata": "accion_inmediata_tomada",
             # 4. Entrega y Cierre
-            "Kilometraje de Entrega": "kilometraje_entrega",
             "Firma Entrega": "firma_entrega",
-            "Kilometraje de Salida": "kilometraje_salida",
             "Firma Recibe": "firma_recibe",
             "Oficial de Operaciones": "oficial_operaciones_nombre",
-            "Firma Oficial": "oficial_operaciones_firma",
-            "Firma Responsable": "firma_responsable"
+            "Firma Oficial": "oficial_operaciones_firma"
         }
     },
     'checklist_cumplimiento': {
@@ -2313,9 +2315,9 @@ def email_selected_reports_api():
                 continue
             val_str_raw = str(value).strip() if value is not None else ""
             k_lower = key.lower()
-            is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes'))
+            is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes', 'diagrama'))
             is_url_val = (val_str_raw.startswith('http://') or val_str_raw.startswith('https://') or
-                          val_str_raw.startswith('/api/media'))
+                          val_str_raw.startswith('/api/media') or val_str_raw.startswith('data:image'))
 
             if key in SKIP_KEYS or (is_foto_key and is_url_val):
                 for url in val_str_raw.split('\n'):
@@ -2356,7 +2358,7 @@ def email_selected_reports_api():
                     continue
 
             val_str = str(value).strip()
-            if 'firma' in key.lower() or val_str.startswith('data:image'):
+            if ('firma' in key.lower() or val_str.startswith('data:image')) and 'diagrama' not in key.lower():
                 try:
                     sig_list = json.loads(val_str) if val_str.startswith('[') else None
                 except Exception:
@@ -3132,10 +3134,13 @@ def generate_reports_html(reports):
     HIDDEN_KEYS = {
         'Company Id', 'Customer Company Id', 'Id Propiedad',
         'Location Accuracy', 'Latitude', 'Longitude',
-        'Cliente Instalacion', 'Submitter Timezone'
+        'Cliente Instalacion', 'Submitter Timezone',
+        'Puesto Area Resuelto', 'Puesto Area Especifica Resuelto'
     }
 
     def _is_signature(key, val_str):
+        if 'diagrama' in key.lower():
+            return False
         return 'firma' in key.lower() or val_str.startswith('data:image')
     logo_src = _get_logo_data_url() or ""
 
@@ -3303,9 +3308,9 @@ td.val { color: #1f2937; }
             val_str_raw = str(value).strip() if value is not None else ""
             k_lower = key.lower()
 
-            is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes'))
+            is_foto_key = any(t in k_lower for t in ('foto', 'evidencia', 'imagen', 'photo', 'anexo', 'urls de imágenes', 'diagrama'))
             is_url_val = (val_str_raw.startswith('http://') or val_str_raw.startswith('https://') or
-                          val_str_raw.startswith('/api/media'))
+                          val_str_raw.startswith('/api/media') or val_str_raw.startswith('data:image'))
 
             if key in SKIP_KEYS or (is_foto_key and is_url_val):
                 # Parse attachment URLs
