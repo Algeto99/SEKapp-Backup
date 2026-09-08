@@ -8222,6 +8222,42 @@ def api_bases_de_datos_clientes():
         if conn: conn.close()
 
 
+def _bd_latest_cte(identifier_sql, where, score_sql=None):
+    """Consolidate within the selected filters, without changing form history.
+
+    Identifiers are scoped to the company. Missing identifiers retain separate
+    rows rather than merging unrelated assets/people. Creation time determines
+    the latest submission; the primary key breaks ties deterministically.
+    Only internal SQL expressions (never request values) are interpolated here.
+    """
+    partition = f"company_id, ({identifier_sql})"
+    score = (f", AVG({score_sql}) OVER (PARTITION BY {partition}) AS avg_score"
+             if score_sql else "")
+    return f"""
+        WITH ranked AS (
+            SELECT *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY {partition}
+                    ORDER BY creado_en DESC NULLS LAST,
+                             id_supervision DESC NULLS LAST
+                ) AS bd_rank
+                {score}
+            FROM supervision_puesto
+            {where}
+        )
+    """
+
+
+def _bd_identifier_sql(*columns):
+    # Prefix each fallback so an employee number cannot collide with a document.
+    identifiers = [
+        f"'{column}:' || NULLIF(UPPER(TRIM({column}::TEXT)), '')"
+        for column in columns
+    ]
+    identifiers.append("'record:' || id_supervision::TEXT")
+    return "COALESCE(" + ", ".join(identifiers) + ")"
+
+
 @dashboard_bp.route('/api/bases_de_datos/armas')
 @jwt_required()
 def api_bases_de_datos_armas():
@@ -8272,7 +8308,10 @@ def api_bases_de_datos_armas():
         fvp_sel          = "fecha_vencimiento_permiso_porte" if 'fecha_vencimiento_permiso_porte' in existing_cols else "NULL::DATE AS fecha_vencimiento_permiso_porte"
         fumtto_sel       = "fecha_ultimo_mtto_arma" if 'fecha_ultimo_mtto_arma' in existing_cols else "NULL::DATE AS fecha_ultimo_mtto_arma"
 
+        identifier = _bd_identifier_sql('serie_arma')
+        latest_cte = _bd_latest_cte(identifier, where)
         cur.execute(f"""
+            {latest_cte}
             SELECT
                 numero_empleado,
                 nombre_guardia,
@@ -8285,9 +8324,9 @@ def api_bases_de_datos_armas():
                 {fumtto_sel},
                 cantidad_municion,
                 fecha_hora
-            FROM supervision_puesto
-            {where}
-            ORDER BY fecha_hora DESC
+            FROM ranked
+            WHERE bd_rank = 1
+            ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
             LIMIT 500
         """, params)
         rows = []
@@ -8364,7 +8403,12 @@ def api_bases_de_datos_radios():
         tipo_sel     = "tipo_radio"                if 'tipo_radio'                in existing_cols else "NULL::TEXT AS tipo_radio"
         fumtto_sel   = "fecha_ultimo_mtto_radio"   if 'fecha_ultimo_mtto_radio'   in existing_cols else "NULL::DATE AS fecha_ultimo_mtto_radio"
 
+        identifier = (_bd_identifier_sql('radio_asignado_serial')
+                      if 'radio_asignado_serial' in existing_cols
+                      else _bd_identifier_sql())
+        latest_cte = _bd_latest_cte(identifier, where)
         cur.execute(f"""
+            {latest_cte}
             SELECT
                 numero_empleado,
                 nombre_guardia,
@@ -8377,9 +8421,9 @@ def api_bases_de_datos_radios():
                 equipamiento_completo,
                 supervisor,
                 fecha_hora
-            FROM supervision_puesto
-            {where}
-            ORDER BY fecha_hora DESC
+            FROM ranked
+            WHERE bd_rank = 1
+            ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
             LIMIT 500
         """, params)
         rows = []
@@ -8472,49 +8516,22 @@ def api_bases_de_datos_personal():
         has_tiempo = cur.fetchone() is not None
         tiempo_col = "tiempo_en_puesto" if has_tiempo else "NULL::TEXT AS tiempo_en_puesto"
 
-        # One row per distinct employee: avg score across all supervisions,
-        # tiempo_en_puesto from the most recent record.
+        identifier = _bd_identifier_sql('documento_guardia', 'numero_empleado')
+        latest_cte = _bd_latest_cte(identifier, base_where, score_sql)
         cur.execute(f"""
-            WITH agg AS (
-                SELECT
-                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id') AS emp_key,
-                    nombre_guardia,
-                    COALESCE(NULLIF(TRIM(documento_guardia),''), '—') AS documento_guardia,
-                    COALESCE(NULLIF(TRIM(numero_empleado),''),  '—') AS numero_empleado,
-                    cliente_instalacion AS cliente,
-                    MAX(creado_en)   AS ultima_supervision,
-                    AVG({score_sql}) AS avg_score
-                FROM supervision_puesto
-                {base_where}
-                GROUP BY
-                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id'),
-                    nombre_guardia, documento_guardia, numero_empleado, cliente_instalacion
-            ),
-            latest AS (
-                SELECT DISTINCT ON (
-                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id')
-                )
-                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id') AS emp_key,
-                    {tiempo_col}
-                FROM supervision_puesto
-                {base_where}
-                ORDER BY
-                    COALESCE(NULLIF(TRIM(documento_guardia),''), NULLIF(TRIM(nombre_guardia),''), 'sin_id'),
-                    creado_en DESC
-            )
+            {latest_cte}
             SELECT
-                a.emp_key,
-                a.nombre_guardia,
-                a.documento_guardia,
-                a.numero_empleado,
-                a.cliente,
-                a.ultima_supervision,
-                ROUND(a.avg_score::NUMERIC, 1) AS avg_score,
-                l.tiempo_en_puesto
-            FROM agg a
-            LEFT JOIN latest l ON l.emp_key = a.emp_key
-            ORDER BY a.nombre_guardia
-        """, params + params)
+                nombre_guardia,
+                COALESCE(NULLIF(TRIM(documento_guardia), ''), '—') AS documento_guardia,
+                COALESCE(NULLIF(TRIM(numero_empleado), ''), '—') AS numero_empleado,
+                cliente_instalacion AS cliente,
+                creado_en AS ultima_supervision,
+                ROUND(avg_score::NUMERIC, 1) AS avg_score,
+                {tiempo_col}
+            FROM ranked
+            WHERE bd_rank = 1
+            ORDER BY nombre_guardia, id_supervision
+        """, params)
         employees = cur.fetchall()
 
         rows = []
