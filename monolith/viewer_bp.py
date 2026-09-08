@@ -359,6 +359,9 @@ TECHNICAL_SYSTEM_COLUMNS = {
     # —confiabilidad_equipos usa `fecha` y arrastra además `created_at`— salían
     # como un campo más, duplicando la Fecha de envío que ya se muestra aparte.
     'created_at', 'updated_at', 'creado_en', 'actualizado_en',
+    # Marca automática de geocerca: se muestra como distintivo con etiqueta
+    # legible, no como dos columnas crudas al final del detalle.
+    'fuera_geocerca', 'distancia_geocerca_m',
     'fecha_creacion', 'fecha_actualizacion',
     # Alias técnicos internos y columnas obsoletas que ya no pertenecen al formulario
     'puesto_area_resuelto', 'puesto_area_especifica_resuelto',
@@ -2084,6 +2087,16 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
 
                     mapped_data[label] = val
 
+                # Distintivo de geocerca. Se agrega como un campo legible para que viaje
+                # igual a Reportes, al detalle, al PDF y al Excel: los tres leen este mismo
+                # diccionario. Sólo aparece cuando el registro quedó fuera — su ausencia
+                # significa "dentro o sin ubicación", y pintarlo siempre borra esa distinción.
+                if row_dict.get("fuera_geocerca"):
+                    _dist_geo = row_dict.get("distancia_geocerca_m")
+                    mapped_data["Fuera de Geocerca"] = (
+                        f"\u26a0 Sí — a {_dist_geo} m de la instalación" if _dist_geo is not None else "\u26a0 Sí"
+                    )
+
                 if f_type == 'medicion_experiencia_cliente':
                     sat = _calc_encuesta_satisfaccion(row_dict)
                     if sat:
@@ -2273,6 +2286,16 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 else:
                     val = "N/A"
                 data_content[label] = val
+
+            # Distintivo de geocerca. Se agrega como un campo legible para que viaje
+            # igual a Reportes, al detalle, al PDF y al Excel: los tres leen este mismo
+            # diccionario. Sólo aparece cuando el registro quedó fuera — su ausencia
+            # significa "dentro o sin ubicación", y pintarlo siempre borra esa distinción.
+            if row_dict.get("fuera_geocerca"):
+                _dist_geo = row_dict.get("distancia_geocerca_m")
+                data_content["Fuera de Geocerca"] = (
+                    f"\u26a0 Sí — a {_dist_geo} m de la instalación" if _dist_geo is not None else "\u26a0 Sí"
+                )
 
             if form_type == 'medicion_experiencia_cliente':
                 sat = _calc_encuesta_satisfaccion(row_dict)

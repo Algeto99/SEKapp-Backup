@@ -70,6 +70,63 @@ def _filter_existing_columns(cur, table_name, data):
     return filtered
 
 
+# ── Control de geocerca ──────────────────────────────────────────────────────
+# Marca automáticamente los registros diligenciados lejos de la instalación, con
+# la ubicación que los formularios ya capturan. No pide nada al usuario.
+#
+# El registro se guarda igual: la marca es informativa, para seguimiento.
+_GEOCERCA_LIMITE_M = 1000          # "a 1 km o más fuera del rango permitido"
+_GEOCERCA_TABLAS_LISTAS = set()
+
+
+def _ensure_geocerca_cols(cur, tabla):
+    """Añade las columnas de la marca, una vez por tabla y proceso.
+
+    Mismo patrón perezoso que el resto del proyecto (kpi_thresholds,
+    asignaciones_hallazgo): sin migración manual en producción. Son columnas del
+    sistema —las calcula la app— así que no aparecen en ningún formulario.
+    """
+    if tabla in _GEOCERCA_TABLAS_LISTAS:
+        return
+    cur.execute(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS fuera_geocerca BOOLEAN")
+    cur.execute(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS distancia_geocerca_m INTEGER")
+    _GEOCERCA_TABLAS_LISTAS.add(tabla)
+
+
+def _marcar_geocerca(cur, tabla, form_data):
+    """Calcula la distancia al centro de la geocerca y marca el registro.
+
+    Deja `distancia_geocerca_m` y `fuera_geocerca` en `form_data`. Si no hay
+    ubicación capturada o no se puede resolver el centro, no marca nada: se
+    distingue "lejos" de "no se sabe", y un NULL nunca debe leerse como "dentro".
+
+    Reutiliza el centro y la fórmula que ya usa el Expediente, para que ambos
+    midan igual. El import es diferido para no acoplar los blueprints al cargar.
+    """
+    lat, lng = form_data.get('latitude'), form_data.get('longitude')
+    if lat is None or lng is None:
+        return
+    try:
+        from expediente_bp import haversine_m, _resolve_geofence_center
+        # _resolve_geofence_center lee las filas por nombre de columna, y los
+        # handlers de formularios usan cursor de tuplas: hace falta uno propio.
+        with cur.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as gc:
+            centro_lat, centro_lng, _origen = _resolve_geofence_center(
+                gc,
+                form_data.get('cliente_instalacion'),
+                form_data.get('id_propiedad'),
+            )
+        if centro_lat is None or centro_lng is None:
+            return
+        distancia = round(haversine_m(lat, lng, centro_lat, centro_lng))
+        _ensure_geocerca_cols(cur, tabla)
+        form_data['distancia_geocerca_m'] = distancia
+        form_data['fuera_geocerca'] = distancia >= _GEOCERCA_LIMITE_M
+    except Exception as e:
+        # Nunca debe impedir que se guarde el formulario: la marca es accesoria.
+        app_logger.warning(f"No se pudo evaluar la geocerca para {tabla}: {e}")
+
+
 def _parse_float(val):
     try:
         return float(val) if val not in (None, '') else None
@@ -1172,6 +1229,7 @@ def submit_incident_report():
             property_id=request.form.get('id_propiedad'),
             customer_company_id=request.form.get('customer_company_id'),
         ))
+        _marcar_geocerca(cur, 'reportes_incidentes', form_data)
         valid_form_data = _filter_existing_columns(cur, 'reportes_incidentes', form_data)
 
         columns = ', '.join(valid_form_data.keys())
@@ -1286,6 +1344,7 @@ def submit_incident_report_editar(id):
         form_data.pop('user_email', None)
 
         form_data = _preservar_firmas_existentes(form_data)
+        _marcar_geocerca(cur, 'reportes_incidentes', form_data)
         valid_form_data = _filter_existing_columns(cur, 'reportes_incidentes', form_data)
 
         _record_edicion_historial(
@@ -1377,6 +1436,7 @@ def submit_medicion_experiencia_cliente():
         ))
 
         app_logger.info(f"Submitting customer experience survey for user: {user_email}")
+        _marcar_geocerca(cur, 'medicion_experiencia_cliente', form_data)
         valid_form_data = _filter_existing_columns(cur, 'medicion_experiencia_cliente', form_data)
         
         # Log keys for debugging (avoid logging sensitive values or large base64 strings)
@@ -1501,6 +1561,7 @@ def submit_medicion_experiencia_cliente_editar(id):
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
+        _marcar_geocerca(cur, 'medicion_experiencia_cliente', form_data)
         valid_form_data = _filter_existing_columns(cur, 'medicion_experiencia_cliente', form_data)
 
         _record_edicion_historial(
@@ -1636,6 +1697,10 @@ def submit_supervision_puesto():
                         supervisions_map[index]['foto_evidencia_url'] = combined
 
         # 4. Process and Insert Each Supervision
+        # La geocerca se evalúa una sola vez: todas las filas del envío comparten
+        # ubicación y propiedad. Va antes de leer column_cache para que las
+        # columnas de la marca ya existan cuando se filtren.
+        _marcar_geocerca(cur, 'supervision_puesto', global_data)
         column_cache = None # Optimization to fetch columns once if needed, but simple query is fine
 
         for index, sup_data in supervisions_map.items():
@@ -1810,6 +1875,7 @@ def submit_supervision_puesto_editar(id):
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
+        _marcar_geocerca(cur, 'supervision_puesto', form_data)
         valid_form_data = _filter_existing_columns(cur, 'supervision_puesto', form_data)
         valid_form_data = {k: v for k, v in valid_form_data.items() if v is not None and v != ''}
 
@@ -1946,6 +2012,7 @@ def submit_informe_novedades_disciplinario():
 
         app_logger.info(f"Submitting disciplinary report for {user_email}, Employee: {form_data.get('empleado_nombre')}")
 
+        _marcar_geocerca(cur, 'informe_novedades_disciplinario', form_data)
         valid_form_data = _filter_existing_columns(cur, 'informe_novedades_disciplinario', form_data)
 
         columns = ', '.join(valid_form_data.keys())
@@ -2083,6 +2150,7 @@ def submit_informe_novedades_disciplinario_editar(id):
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
+        _marcar_geocerca(cur, 'informe_novedades_disciplinario', form_data)
         valid_form_data = _filter_existing_columns(cur, 'informe_novedades_disciplinario', form_data)
 
         _record_edicion_historial(
@@ -2767,6 +2835,7 @@ def submit_registro_y_acta_de_visita():
             property_id=request.form.get('id_propiedad'),
             customer_company_id=request.form.get('customer_company_id'),
         ))
+        _marcar_geocerca(cur, 'registro_y_acta_de_visita', form_data)
         form_data = _filter_existing_columns(cur, 'registro_y_acta_de_visita', form_data)
 
         columns = ', '.join(form_data.keys())
@@ -2860,6 +2929,7 @@ def submit_registro_y_acta_de_visita_editar(id):
         form_data.pop('submitted_by_email', None)
 
         form_data = _preservar_firmas_existentes(form_data)
+        _marcar_geocerca(cur, 'registro_y_acta_de_visita', form_data)
         valid_form_data = _filter_existing_columns(cur, 'registro_y_acta_de_visita', form_data)
 
         _record_edicion_historial(
@@ -3795,6 +3865,7 @@ def submit_confiabilidad_equipos():
             customer_company_id=request.form.get('customer_company_id'),
         ))
 
+        _marcar_geocerca(cur, 'confiabilidad_equipos', form_data)
         valid_data = _filter_existing_columns(cur, 'confiabilidad_equipos', form_data)
 
         # Deduplication check: verify if an identical submission was received within the last 30 seconds
@@ -3963,6 +4034,7 @@ def submit_confiabilidad_equipos_editar(id):
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
+        _marcar_geocerca(cur, 'confiabilidad_equipos', form_data)
         valid_form_data = _filter_existing_columns(cur, 'confiabilidad_equipos', form_data)
 
         # inventario is JSON — diff against the raw list, not the Json() wrapper
