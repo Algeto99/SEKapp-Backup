@@ -368,7 +368,12 @@
     }
 
     function showCriticalNovelties() {
-        const rows = allInspectionRows.filter(r => r.novedades_criticas && r.novedades_criticas !== '—' && r.novedades_criticas.trim() !== '');
+        // Mismo criterio que el contador del banner (_MOTO_CRITICA_CONDS en el backend):
+        // hace falta al menos una falla real, no sólo texto en la nota. Sin esto una
+        // inspección "Sin fallas" con la nota "Ninguna" aparecía como crítica.
+        const rows = allInspectionRows.filter(r =>
+            r.fallas > 0 &&
+            r.novedades_criticas && r.novedades_criticas !== '—' && r.novedades_criticas.trim() !== '');
         openInspectionModal(rows, "Inspecciones con Novedades Críticas");
     }
 

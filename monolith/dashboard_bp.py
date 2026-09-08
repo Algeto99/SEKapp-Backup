@@ -6705,6 +6705,20 @@ _MOTO_FAULT_SUM = " + ".join(
      for col, _ in _MOTO_COMPONENTS]
 )
 
+# Misma regla que _VEH_CRITICA_CONDS en el módulo de vehículos: una inspección
+# cuenta como crítica sólo si, además de la nota, hay al menos un componente
+# reportado como falla. Antes bastaba con que el campo de texto no estuviera vacío,
+# así que una inspección sin fallas se listaba como crítica por llevar escrito
+# "Ninguna", y el contador no cuadraba con la columna "Fallas" del propio detalle.
+#
+# Las inspecciones con fallas pero sin nota no quedan invisibles: las cubren las
+# tarjetas "Con al menos una falla" y "Total Fallas Detectadas" del mismo tablero.
+_MOTO_CRITICA_CONDS = [
+    "novedades_criticas_detectadas IS NOT NULL",
+    "TRIM(novedades_criticas_detectadas) <> ''",
+    f"({_MOTO_FAULT_EXPR})",
+]
+
 
 def _moto_date_expr():
     # fecha_hora is TIMESTAMP WITHOUT TIME ZONE; AT TIME ZONE 'UTC' makes the
@@ -6854,10 +6868,7 @@ def api_motocicletas_data():
         ]
 
         # ── Alertas ────────────────────────────────────────────────────────
-        alertas_conds = base_conds + [
-            "novedades_criticas_detectadas IS NOT NULL",
-            "TRIM(novedades_criticas_detectadas) <> ''"
-        ]
+        alertas_conds = base_conds + _MOTO_CRITICA_CONDS
         cur.execute(f"""
             SELECT COUNT(*) FROM planilla_motocicletas {_moto_where(alertas_conds)}
         """, base_params)
@@ -6930,10 +6941,7 @@ def api_motocicletas_detalles():
         desde = _gestion_desde_arg()
         base_conds, base_params = _moto_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         moto_cliente_expr, moto_propiedad_expr = _scope_name_exprs('planilla_motocicletas')
-        nov_conds = base_conds + [
-            "novedades_criticas_detectadas IS NOT NULL",
-            "TRIM(novedades_criticas_detectadas) <> ''"
-        ]
+        nov_conds = base_conds + _MOTO_CRITICA_CONDS
         cur.execute(f"""
             SELECT
                 id,
