@@ -2753,6 +2753,8 @@ def _embed_excel_image(ws, cell, val, col_index, row, header_key):
             return 90
     except Exception as e:
         app_logger.error(f"Error embedding image for field {header_key}: {e}")
+        if not cell.value:
+            cell.value = "Firma Digital" if 'firma' in str(header_key).lower() else "Imagen Adjunta"
     return 25
 
 
@@ -2951,6 +2953,160 @@ def export_excel():
                                     elif field_key == 'comentario':
                                         cell.value = str(item.get('comentario') or '')
                                         cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+                                    col_index += 1
+                            else:
+                                data_key = header_key
+                                val = report.get('data', {}).get(data_key, '')
+                                if _is_blank_export_value(val):
+                                    val = ''
+
+                                cell = ws.cell(row=current_row, column=col_index)
+                                cell.border = border
+                                cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+                                if isinstance(val, (datetime, date)):
+                                    cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                                elif isinstance(val, (list, dict)):
+                                    cell_value = _format_structured_value_as_text(val)
+                                elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
+                                    cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
+                                else:
+                                    cell_value = str(val) if val is not None else ''
+                                cell.value = cell_value
+
+                                is_image_field = any(keyword in header_key.lower() for keyword in ['firma', 'foto', 'evidencia', 'diagrama', 'imagen'])
+                                if is_image_field and val and isinstance(val, str):
+                                    if item_idx == 0:
+                                        img_h = _embed_excel_image(ws, cell, val, col_index, current_row, header_key)
+                                        if img_h:
+                                            max_row_height = max(max_row_height, img_h)
+                                    else:
+                                        if val.strip().startswith('data:image'):
+                                            cell.value = "Firma Digital"
+
+                                col_index += 1
+
+                        ws.row_dimensions[current_row].height = max_row_height
+                        current_row += 1
+
+            elif f_type == 'registro_de_capacitaciones':
+                asist_col_defs = [
+                    ("Nombre", "nombre"),
+                    ("Cargo", "cargo"),
+                    ("N.º Empleado", "numero_empleado"),
+                    ("Documento", "documento"),
+                    ("Firma", "firma"),
+                    ("Vía de registro", "via"),
+                ]
+
+                headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
+                dynamic_headers = []
+                for label in config['data_mapping']:
+                    if label == "Lista de Asistencia":
+                        for col_title, _ in asist_col_defs:
+                            headers.append(col_title)
+                        dynamic_headers.append(label)
+                    else:
+                        if any(not _is_blank_export_value(r.get('data', {}).get(label)) for r in type_reports):
+                            headers.append(label)
+                            dynamic_headers.append(label)
+
+                for col, header in enumerate(headers, 1):
+                    cell = ws.cell(row=1, column=col, value=header)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
+                    cell.border = border
+
+                current_row = 2
+                for report in type_reports:
+                    asist_raw = report.get('data', {}).get('Lista de Asistencia') or report.get('data', {}).get('lista_asistencia')
+                    items = _ensure_json_serializable(asist_raw)
+                    if isinstance(items, str):
+                        try:
+                            items = json.loads(items)
+                        except Exception:
+                            items = []
+                    if not isinstance(items, list) or len(items) == 0:
+                        items = [{}]
+
+                    date_sub_local = format_local_datetime(report.get('dateSubmitted'), tz=tz, time_sep=" ")
+
+                    for item_idx, item in enumerate(items):
+                        if not isinstance(item, dict):
+                            item = {}
+
+                        # Standard columns
+                        ws.cell(row=current_row, column=1, value=report.get('id')).border = border
+                        ws.cell(row=current_row, column=2, value=report.get('submittedBy')).border = border
+                        ws.cell(row=current_row, column=3, value=date_sub_local).border = border
+
+                        max_row_height = 25
+                        col_index = 4
+
+                        for header_key in dynamic_headers:
+                            if header_key == "Lista de Asistencia":
+                                for col_title, field_key in asist_col_defs:
+                                    cell = ws.cell(row=current_row, column=col_index)
+                                    cell.border = border
+
+                                    if field_key == 'nombre':
+                                        val_nom = str(item.get('nombre') or item.get('nombre_asistente') or '').strip()
+                                        cell.value = val_nom or ('' if item == {} else '—')
+                                        cell.alignment = Alignment(horizontal="left", vertical="center")
+                                    elif field_key == 'cargo':
+                                        val_carg = str(item.get('cargo') or item.get('cargo_asistente') or '').strip()
+                                        cell.value = val_carg or ('' if item == {} else '—')
+                                        cell.alignment = Alignment(horizontal="left", vertical="center")
+                                    elif field_key == 'numero_empleado':
+                                        val_num = str(item.get('numero_empleado') or item.get('num_empleado') or '').strip()
+                                        cell.value = val_num or ('' if item == {} else '—')
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                    elif field_key == 'documento':
+                                        val_doc = str(item.get('documento') or item.get('cedula') or '').strip()
+                                        cell.value = val_doc or ('' if item == {} else '—')
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                    elif field_key == 'firma':
+                                        firma_val = str(item.get('firma') or '').strip()
+                                        via_val_check = str(item.get('via') or '').strip().upper()
+                                        if firma_val and (firma_val.startswith('data:image') or 'http' in firma_val or 'storage.googleapis.com' in firma_val):
+                                            img_h = _embed_excel_image(ws, cell, firma_val, col_index, current_row, "Firma")
+                                            if img_h:
+                                                max_row_height = max(max_row_height, img_h)
+                                        elif firma_val and (firma_val.lower() in ('true', 'si', 'sí', '✓', '1', 'ok') or 'adjunt' in firma_val.lower()):
+                                            cell.value = "✓"
+                                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                                            cell.font = Font(color="15803D", bold=True)
+                                        elif item and ('QR' not in via_val_check) and any(item.get(k) for k in ('nombre', 'cargo', 'numero_empleado', 'documento')):
+                                            cell.value = "✓"
+                                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                                            cell.font = Font(color="15803D", bold=True)
+                                        elif firma_val:
+                                            cell.value = firma_val
+                                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                                        else:
+                                            cell.value = ''
+                                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                                    elif field_key == 'via':
+                                        via_raw = str(item.get('via') or '').strip()
+                                        if 'QR' in via_raw.upper():
+                                            via_val = 'QR'
+                                        elif via_raw:
+                                            via_val = 'Formulario'
+                                        elif any(item.get(k) for k in ('nombre', 'cargo', 'numero_empleado', 'documento')):
+                                            via_val = 'Formulario'
+                                        else:
+                                            via_val = ''
+
+                                        cell.value = via_val
+                                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                                        if via_val == 'QR':
+                                            cell.fill = PatternFill(start_color="F3E8FF", end_color="F3E8FF", fill_type="solid")
+                                            cell.font = Font(color="6B21A8", bold=True)
+                                        elif via_val == 'Formulario':
+                                            cell.fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+                                            cell.font = Font(color="1E40AF", bold=True)
 
                                     col_index += 1
                             else:
@@ -3229,13 +3385,19 @@ def _render_lista_asistencia_html(value, _cache=None):
         doc = escape(str(a.get('documento', '') or '').strip())
         firma = a.get('firma', '') or ''
         via = str(a.get('via', '') or '').strip()
-
-        firma_html = '—'
-        if firma and (firma.startswith('data:image') or firma.startswith('http') or firma.startswith('/api/media')):
-            src = _imagen_data_url(firma, _cache) if _cache is not None else firma
-            firma_html = f'<img src="{escape(src)}" style="max-width:90px;max-height:45px;border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">'
-
+        firma_str = str(firma or '').strip()
         via_str = 'QR' if 'QR' in via.upper() else 'Formulario'
+        firma_html = '—'
+        if firma_str and (firma_str.startswith('data:image') or firma_str.startswith('http') or firma_str.startswith('/api/media')):
+            src = _imagen_data_url(firma_str, _cache) if _cache is not None else firma_str
+            firma_html = f'<img src="{escape(src)}" style="max-width:90px;max-height:45px;border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">'
+        elif firma_str and (firma_str.lower() in ('true', 'si', 'sí', '✓', '1', 'ok') or 'adjunt' in firma_str.lower()):
+            firma_html = '<span style="color:#15803d;font-size:11pt;font-weight:bold;">✓</span>'
+        elif via_str == 'Formulario':
+            firma_html = '<span style="color:#15803d;font-size:11pt;font-weight:bold;">✓</span>'
+        elif firma_str:
+            firma_html = escape(firma_str)
+
         via_badge = (
             f'<span style="display:inline-block;padding:2px 6px;font-size:7pt;font-weight:bold;border-radius:3px;'
             f'background:#f3e8ff;color:#6b21a8;">QR</span>'
@@ -3262,10 +3424,10 @@ def _render_lista_asistencia_html(value, _cache=None):
         '<tr style="background:#f1f5f9;">'
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Nombre</th>'
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Cargo</th>'
-        '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">N° Empleado</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">N.º Empleado</th>'
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:left;border-bottom:1px solid #d1d5db;">Documento</th>'
         '<th style="padding:4px 6px;font-size:7.5pt;text-align:center;border-bottom:1px solid #d1d5db;">Firma</th>'
-        '<th style="padding:4px 6px;font-size:7.5pt;text-align:center;border-bottom:1px solid #d1d5db;">Vía de Registro</th>'
+        '<th style="padding:4px 6px;font-size:7.5pt;text-align:center;border-bottom:1px solid #d1d5db;">Vía de registro</th>'
         '</tr>'
     )
     return (
