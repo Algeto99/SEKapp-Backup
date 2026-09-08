@@ -492,7 +492,136 @@ FORM_CONFIGS = {
                 NULLIF(TRIM(p_legacy.nombre), ''),
                 NULLIF(TRIM(t.cliente_instalacion), '')
             ) AS propiedad_nombre,
-            u.name as user_name
+            u.name as user_name,
+            COALESCE(
+                ROUND(
+                    (COALESCE(t.atencion_cliente, 0) + COALESCE(t.comunicacion, 0) + COALESCE(t.confiabilidad, 0) +
+                     COALESCE(t.capacidad_reaccion, 0) + COALESCE(t.cumplimiento, 0) + COALESCE(t.competencia_personal, 0) +
+                     COALESCE(t.actitud_servicio, 0) + COALESCE(t.atencion_quejas, 0))::numeric /
+                    NULLIF(
+                        (CASE WHEN t.atencion_cliente IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.comunicacion IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.confiabilidad IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.capacidad_reaccion IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.cumplimiento IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.competencia_personal IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.actitud_servicio IS NOT NULL THEN 1 ELSE 0 END +
+                         CASE WHEN t.atencion_quejas IS NOT NULL THEN 1 ELSE 0 END), 0
+                    ), 1
+                ),
+                CASE
+                    WHEN t.calificacion_global_nps > 5 THEN ROUND((t.calificacion_global_nps::numeric / 40.0) * 5.0, 1)
+                    ELSE t.calificacion_global_nps::numeric
+                END
+            ) AS calificacion_global,
+            CASE
+                WHEN COALESCE(
+                    ROUND(
+                        (COALESCE(t.atencion_cliente, 0) + COALESCE(t.comunicacion, 0) + COALESCE(t.confiabilidad, 0) +
+                         COALESCE(t.capacidad_reaccion, 0) + COALESCE(t.cumplimiento, 0) + COALESCE(t.competencia_personal, 0) +
+                         COALESCE(t.actitud_servicio, 0) + COALESCE(t.atencion_quejas, 0))::numeric /
+                        NULLIF(
+                            (CASE WHEN t.atencion_cliente IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.comunicacion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.confiabilidad IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.capacidad_reaccion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.cumplimiento IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.competencia_personal IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.actitud_servicio IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.atencion_quejas IS NOT NULL THEN 1 ELSE 0 END), 0
+                        ), 1
+                    ),
+                    CASE
+                        WHEN t.calificacion_global_nps > 5 THEN ROUND((t.calificacion_global_nps::numeric / 40.0) * 5.0, 1)
+                        ELSE t.calificacion_global_nps::numeric
+                    END
+                ) >= 4.5 THEN 'Totalmente satisfecho'
+                WHEN COALESCE(
+                    ROUND(
+                        (COALESCE(t.atencion_cliente, 0) + COALESCE(t.comunicacion, 0) + COALESCE(t.confiabilidad, 0) +
+                         COALESCE(t.capacidad_reaccion, 0) + COALESCE(t.cumplimiento, 0) + COALESCE(t.competencia_personal, 0) +
+                         COALESCE(t.actitud_servicio, 0) + COALESCE(t.atencion_quejas, 0))::numeric /
+                        NULLIF(
+                            (CASE WHEN t.atencion_cliente IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.comunicacion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.confiabilidad IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.capacidad_reaccion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.cumplimiento IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.competencia_personal IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.actitud_servicio IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.atencion_quejas IS NOT NULL THEN 1 ELSE 0 END), 0
+                        ), 1
+                    ),
+                    CASE
+                        WHEN t.calificacion_global_nps > 5 THEN ROUND((t.calificacion_global_nps::numeric / 40.0) * 5.0, 1)
+                        ELSE t.calificacion_global_nps::numeric
+                    END
+                ) >= 3.5 THEN 'Satisfecho'
+                WHEN COALESCE(
+                    ROUND(
+                        (COALESCE(t.atencion_cliente, 0) + COALESCE(t.comunicacion, 0) + COALESCE(t.confiabilidad, 0) +
+                         COALESCE(t.capacidad_reaccion, 0) + COALESCE(t.cumplimiento, 0) + COALESCE(t.competencia_personal, 0) +
+                         COALESCE(t.actitud_servicio, 0) + COALESCE(t.atencion_quejas, 0))::numeric /
+                        NULLIF(
+                            (CASE WHEN t.atencion_cliente IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.comunicacion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.confiabilidad IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.capacidad_reaccion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.cumplimiento IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.competencia_personal IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.actitud_servicio IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.atencion_quejas IS NOT NULL THEN 1 ELSE 0 END), 0
+                        ), 1
+                    ),
+                    CASE
+                        WHEN t.calificacion_global_nps > 5 THEN ROUND((t.calificacion_global_nps::numeric / 40.0) * 5.0, 1)
+                        ELSE t.calificacion_global_nps::numeric
+                    END
+                ) >= 2.5 THEN 'Oportunidades de mejora'
+                WHEN COALESCE(
+                    ROUND(
+                        (COALESCE(t.atencion_cliente, 0) + COALESCE(t.comunicacion, 0) + COALESCE(t.confiabilidad, 0) +
+                         COALESCE(t.capacidad_reaccion, 0) + COALESCE(t.cumplimiento, 0) + COALESCE(t.competencia_personal, 0) +
+                         COALESCE(t.actitud_servicio, 0) + COALESCE(t.atencion_quejas, 0))::numeric /
+                        NULLIF(
+                            (CASE WHEN t.atencion_cliente IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.comunicacion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.confiabilidad IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.capacidad_reaccion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.cumplimiento IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.competencia_personal IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.actitud_servicio IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.atencion_quejas IS NOT NULL THEN 1 ELSE 0 END), 0
+                        ), 1
+                    ),
+                    CASE
+                        WHEN t.calificacion_global_nps > 5 THEN ROUND((t.calificacion_global_nps::numeric / 40.0) * 5.0, 1)
+                        ELSE t.calificacion_global_nps::numeric
+                    END
+                ) >= 1.5 THEN 'Insatisfecho'
+                WHEN COALESCE(
+                    ROUND(
+                        (COALESCE(t.atencion_cliente, 0) + COALESCE(t.comunicacion, 0) + COALESCE(t.confiabilidad, 0) +
+                         COALESCE(t.capacidad_reaccion, 0) + COALESCE(t.cumplimiento, 0) + COALESCE(t.competencia_personal, 0) +
+                         COALESCE(t.actitud_servicio, 0) + COALESCE(t.atencion_quejas, 0))::numeric /
+                        NULLIF(
+                            (CASE WHEN t.atencion_cliente IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.comunicacion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.confiabilidad IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.capacidad_reaccion IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.cumplimiento IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.competencia_personal IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.actitud_servicio IS NOT NULL THEN 1 ELSE 0 END +
+                             CASE WHEN t.atencion_quejas IS NOT NULL THEN 1 ELSE 0 END), 0
+                        ), 1
+                    ),
+                    CASE
+                        WHEN t.calificacion_global_nps > 5 THEN ROUND((t.calificacion_global_nps::numeric / 40.0) * 5.0, 1)
+                        ELSE t.calificacion_global_nps::numeric
+                    END
+                ) >= 1.0 THEN 'Muy insatisfecho'
+                ELSE NULL
+            END AS clasificacion_satisfaccion
         """,
         'data_mapping': {
             # 1. Datos Generales
@@ -511,7 +640,8 @@ FORM_CONFIGS = {
             "Actitud de Servicio": "actitud_servicio",
             "Atención de Quejas": "atencion_quejas",
             # 3. Satisfacción Global
-            "Calificación Global / NPS": "calificacion_global_nps",
+            "Calificación Global": "calificacion_global",
+            "Clasificación": "clasificacion_satisfaccion",
             "¿Recomendaría el Servicio?": "recomendaria_servicio",
             # 4. Observaciones
             "Observaciones del Cliente": "observaciones_cliente",
@@ -1350,6 +1480,142 @@ def _render_status_badge(status_text, is_email=False):
         f'{dot}{status_text}</span>'
     )
 
+_SCORE_FIELDS_ENCUESTA = [
+    ('atencion_cliente', 'Atención al Cliente'),
+    ('comunicacion', 'Comunicación'),
+    ('confiabilidad', 'Confiabilidad'),
+    ('capacidad_reaccion', 'Capacidad de Reacción'),
+    ('cumplimiento', 'Cumplimiento'),
+    ('competencia_personal', 'Competencia del Personal'),
+    ('actitud_servicio', 'Actitud de Servicio'),
+    ('atencion_quejas', 'Atención de Quejas'),
+]
+
+_SCORE_LEVELS_ENCUESTA = [
+    {
+        'minAvg': 4.5,
+        'label': 'Totalmente satisfecho',
+        'dot': '#22c55e',
+        'bg': '#d1fae5',
+        'border': '#10b981',
+        'text': '#065f46',
+        'excel_fill': 'DCFCE7',
+        'excel_font': '15803D',
+        'interpretacion': 'El servicio se presta correctamente',
+    },
+    {
+        'minAvg': 3.5,
+        'label': 'Satisfecho',
+        'dot': '#eab308',
+        'bg': '#fef9c3',
+        'border': '#ca8a04',
+        'text': '#854d0e',
+        'excel_fill': 'FEF9C3',
+        'excel_font': 'A16207',
+        'interpretacion': 'Revisar algunos aspectos',
+    },
+    {
+        'minAvg': 2.5,
+        'label': 'Oportunidades de mejora',
+        'dot': '#f97316',
+        'bg': '#ffedd5',
+        'border': '#ea580c',
+        'text': '#9a3412',
+        'excel_fill': 'FFEDD5',
+        'excel_font': 'C2410C',
+        'interpretacion': 'Implementar acciones de mejora',
+    },
+    {
+        'minAvg': 1.5,
+        'label': 'Insatisfecho',
+        'dot': '#ef4444',
+        'bg': '#fee2e2',
+        'border': '#ef4444',
+        'text': '#991b1b',
+        'excel_fill': 'FEE2E2',
+        'excel_font': 'B91C1C',
+        'interpretacion': 'Generar plan de acción inmediato',
+    },
+    {
+        'minAvg': 1.0,
+        'label': 'Muy insatisfecho',
+        'dot': '#e11d48',
+        'bg': '#ffe4e6',
+        'border': '#e11d48',
+        'text': '#9f1239',
+        'excel_fill': 'FFE4E6',
+        'excel_font': '9F1239',
+        'interpretacion': 'Intervención urgente requerida',
+    },
+]
+
+def _calc_encuesta_satisfaccion(data_or_row):
+    """Calcula calificación global y nivel de satisfacción de Encuesta de Cliente.
+    
+    Replica de forma idéntica el cálculo del formulario en SEKapp:
+    promedio aritmético de las 8 preguntas Likert (1.0 a 5.0) redondeado a 1 decimal.
+    """
+    if not isinstance(data_or_row, dict):
+        return None
+
+    vals = []
+    for col_key, lbl_key in _SCORE_FIELDS_ENCUESTA:
+        raw = data_or_row.get(col_key)
+        if raw is None or str(raw).strip() in ('', '—', 'None', 'N/A'):
+            raw = data_or_row.get(lbl_key)
+        if raw is not None and str(raw).strip() not in ('', '—', 'None', 'N/A'):
+            try:
+                num = float(raw)
+                if 1.0 <= num <= 5.0:
+                    vals.append(num)
+            except (ValueError, TypeError):
+                pass
+
+    avg = None
+    if vals:
+        avg = round(sum(vals) / len(vals), 1)
+    else:
+        # Fallback a calificacion_global_nps si los campos individuales no vinieron
+        for fallback_k in ('calificacion_global', 'calificacion_global_nps', 'Calificación Global', 'Calificación Global / NPS'):
+            raw = data_or_row.get(fallback_k)
+            if raw is not None and str(raw).strip() not in ('', '—', 'None', 'N/A'):
+                try:
+                    num = float(raw)
+                    if num > 5.0:
+                        avg = round((num / 40.0) * 5.0, 1)
+                    elif num >= 1.0:
+                        avg = round(num, 1)
+                    break
+                except (ValueError, TypeError):
+                    pass
+
+    if avg is None:
+        return None
+
+    level_found = None
+    for lvl in _SCORE_LEVELS_ENCUESTA:
+        if avg >= lvl['minAvg']:
+            level_found = lvl
+            break
+
+    if not level_found:
+        return None
+
+    return {
+        'score': avg,
+        'score_str': f"{avg:.1f}",
+        'score_display': f"{avg:.1f} / 5",
+        'label': level_found['label'],
+        'dot': level_found['dot'],
+        'bg': level_found['bg'],
+        'border': level_found['border'],
+        'text': level_found['text'],
+        'excel_fill': level_found['excel_fill'],
+        'excel_font': level_found['excel_font'],
+        'interpretacion': level_found['interpretacion'],
+    }
+
+
 def _normalize_tipo(val):
     if not val:
         return ""
@@ -1818,6 +2084,13 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
 
                     mapped_data[label] = val
 
+                if f_type == 'medicion_experiencia_cliente':
+                    sat = _calc_encuesta_satisfaccion(row_dict)
+                    if sat:
+                        mapped_data["Calificación Global"] = sat["score"]
+                        mapped_data["Clasificación"] = sat["label"]
+                    processed_cols.update({'calificacion_global_nps', 'calificacion_global', 'clasificacion_satisfaccion'})
+
                 # 2. Add unmapped fields, filtering out system and technical columns
                 system_cols = {
                     config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone',
@@ -2000,6 +2273,13 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 else:
                     val = "N/A"
                 data_content[label] = val
+
+            if form_type == 'medicion_experiencia_cliente':
+                sat = _calc_encuesta_satisfaccion(row_dict)
+                if sat:
+                    data_content["Calificación Global"] = sat["score"]
+                    data_content["Clasificación"] = sat["label"]
+                processed_cols.update({'calificacion_global_nps', 'calificacion_global', 'clasificacion_satisfaccion'})
 
             # 2. Add unmapped fields, filtering out system and technical columns
             system_cols = {
@@ -3283,6 +3563,16 @@ def export_excel():
 
             else:
                 # Standard export for other form types
+                if f_type == 'medicion_experiencia_cliente':
+                    for r in type_reports:
+                        r_data = r.get('data') or {}
+                        if _is_blank_export_value(r_data.get('Calificación Global')) or _is_blank_export_value(r_data.get('Clasificación')):
+                            sat = _calc_encuesta_satisfaccion(r_data)
+                            if sat:
+                                r_data['Calificación Global'] = sat['score']
+                                r_data['Clasificación'] = sat['label']
+                                r['data'] = r_data
+
                 headers = ["ID Reporte", "Enviado Por", "Fecha Envío"]
                 dynamic_headers = [
                     label for label in config['data_mapping']
@@ -3324,6 +3614,34 @@ def export_excel():
                         cell = ws.cell(row=row, column=col_index, value=cell_value)
                         cell.border = border
                         cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+                        if header_key == 'Calificación Global' and val not in (None, '', '—'):
+                            try:
+                                cell.value = float(val)
+                                cell.number_format = '0.0'
+                                cell.alignment = Alignment(horizontal="center", vertical="top")
+                            except (ValueError, TypeError):
+                                cell.value = str(val)
+                                cell.alignment = Alignment(horizontal="center", vertical="top")
+                        elif header_key == 'Clasificación' and val not in (None, '', '—'):
+                            cell.value = str(val)
+                            cell.alignment = Alignment(horizontal="center", vertical="top")
+                            clasif_norm = str(val).strip().lower()
+                            if 'totalmente satisfecho' in clasif_norm:
+                                cell.fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
+                                cell.font = Font(color="15803D", bold=True)
+                            elif 'satisfecho' in clasif_norm:
+                                cell.fill = PatternFill(start_color="FEF9C3", end_color="FEF9C3", fill_type="solid")
+                                cell.font = Font(color="A16207", bold=True)
+                            elif 'oportunidades de mejora' in clasif_norm:
+                                cell.fill = PatternFill(start_color="FFEDD5", end_color="FFEDD5", fill_type="solid")
+                                cell.font = Font(color="C2410C", bold=True)
+                            elif 'muy insatisfecho' in clasif_norm:
+                                cell.fill = PatternFill(start_color="FFE4E6", end_color="FFE4E6", fill_type="solid")
+                                cell.font = Font(color="9F1239", bold=True)
+                            elif 'insatisfecho' in clasif_norm:
+                                cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+                                cell.font = Font(color="B91C1C", bold=True)
 
                         is_image_field = any(keyword in header_key.lower() for keyword in ['firma', 'foto', 'evidencia', 'diagrama', 'imagen'])
                         if is_image_field and val and isinstance(val, str):
@@ -3986,10 +4304,55 @@ td.val { color: #1f2937; }
         # archivo llegaba dos veces y se pintaba dos veces en el PDF.
         urls_vistas = set()
         is_acta = report.get('formType') == 'registro_y_acta_de_visita'
+        is_encuesta = report.get('formType') == 'medicion_experiencia_cliente'
         compromisos_rendered = False
+        satisfaccion_rendered = False
 
         for key, value in data.items():
             if key in HIDDEN_KEYS:
+                continue
+
+            if is_encuesta and (key in ('Calificación Global', 'Calificación Global / NPS', 'Satisfacción Global') or key == 'Clasificación'):
+                if not satisfaccion_rendered:
+                    satisfaccion_rendered = True
+                    sat = _calc_encuesta_satisfaccion(data)
+                    score_val = sat['score'] if sat else (data.get('Calificación Global') or data.get('Calificación Global / NPS') or value)
+                    try:
+                        score_str = f"{float(score_val):.1f}"
+                    except (ValueError, TypeError):
+                        score_str = str(score_val) if score_val is not None else '—'
+                    label_str = sat['label'] if sat else (str(data.get('Clasificación') or '') or '')
+                    dot_col = sat['dot'] if sat else '#9ca3af'
+                    bg_col = sat['bg'] if sat else '#f3f4f6'
+                    border_col = sat['border'] if sat else '#d1d5db'
+                    text_col = sat['text'] if sat else '#374151'
+                    interp_str = sat['interpretacion'] if sat else ''
+
+                    sat_html = (
+                        f'<div style="display:table;width:100%;margin:2px 0;">'
+                        f'<div style="display:table-cell;vertical-align:middle;width:85px;">'
+                        f'<span style="display:inline-block;background-color:{bg_col};color:{text_col};'
+                        f'border:1.5px solid {border_col};border-radius:6px;padding:3px 10px;'
+                        f'font-weight:bold;font-size:10pt;text-align:center;">'
+                        f'{score_str} / 5'
+                        f'</span>'
+                        f'</div>'
+                        f'<div style="display:table-cell;vertical-align:middle;padding-left:10px;">'
+                        f'<div style="font-weight:bold;font-size:8.5pt;color:{text_col};">'
+                        f'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;'
+                        f'background-color:{dot_col};margin-right:6px;vertical-align:middle;"></span>'
+                        f'{escape(label_str)}'
+                        f'</div>'
+                        f'<div style="font-size:7pt;color:#6b7280;margin-top:2px;">{escape(interp_str)}</div>'
+                        f'</div>'
+                        f'</div>'
+                    )
+                    html_parts.append(
+                        f'<tr style="background:#f8fafc;">'
+                        f'<td class="lbl" style="vertical-align:middle;font-weight:bold;color:#1e3a8a;">Satisfacción Global</td>'
+                        f'<td class="val" style="vertical-align:middle;">{sat_html}</td>'
+                        f'</tr>'
+                    )
                 continue
 
             is_asistencia_key = (

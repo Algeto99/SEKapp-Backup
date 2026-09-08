@@ -1380,6 +1380,40 @@
                                         </a>
                                     </div>`;
                                 }
+                            } else if (key === 'Calificación Global') {
+                                const scoreNum = parseFloat(valStr);
+                                const scoreDisplay = !isNaN(scoreNum) ? scoreNum.toFixed(1) + ' / 5' : valStr;
+                                displayContent = `<div class="mt-1">
+                                    <span class="inline-block px-3 py-1 font-bold text-sm bg-blue-50 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700 rounded-lg">
+                                        ${scoreDisplay}
+                                    </span>
+                                </div>`;
+                            } else if (key === 'Clasificación') {
+                                const cLower = valStr.toLowerCase();
+                                let badgeClass = 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-700 dark:text-gray-200';
+                                let dotColor = '#9ca3af';
+                                if (cLower.includes('totalmente')) {
+                                    badgeClass = 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700';
+                                    dotColor = '#22c55e';
+                                } else if (cLower.includes('satisfecho')) {
+                                    badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700';
+                                    dotColor = '#eab308';
+                                } else if (cLower.includes('oportunidad')) {
+                                    badgeClass = 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-700';
+                                    dotColor = '#f97316';
+                                } else if (cLower.includes('muy insatisfecho')) {
+                                    badgeClass = 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-700';
+                                    dotColor = '#e11d48';
+                                } else if (cLower.includes('insatisfecho')) {
+                                    badgeClass = 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700';
+                                    dotColor = '#ef4444';
+                                }
+                                displayContent = `<div class="mt-1">
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 font-semibold text-sm rounded-lg border ${badgeClass}">
+                                        <span class="inline-block w-2.5 h-2.5 rounded-full" style="background-color: ${dotColor}"></span>
+                                        ${valStr}
+                                    </span>
+                                </div>`;
                             } else {
                                 displayContent = `<span class="block text-gray-800 dark:text-gray-100">${valStr.replace(/\n/g, '<br>')}</span>`;
                             }
