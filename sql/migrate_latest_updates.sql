@@ -195,3 +195,4 @@ ALTER TABLE confiabilidad_equipos ADD COLUMN IF NOT EXISTS editado_por VARCHAR(2
 -- (Propio/Empresa) en la Planilla Pre-Operacional Vehicular.
 ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS cargo_responsable VARCHAR(255);
 ALTER TABLE planilla_vehicular         ADD COLUMN IF NOT EXISTS vehiculo_tipo VARCHAR(255);
+ALTER TABLE planilla_motocicletas      ADD COLUMN IF NOT EXISTS motocicleta_tipo VARCHAR(255);

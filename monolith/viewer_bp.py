@@ -852,11 +852,13 @@ FORM_CONFIGS = {
             "Llanta Repuesto": "llanta_repuesto",
             "Aire Acondicionado": "aire_acondicionado",
             # 3. Evidencias, Diagrama y Novedades
+            # El diagrama se marca antes de tomar las cuatro vistas, y así es como
+            # sale en el Excel: el orden de las columnas sigue al del formulario.
+            "Diagrama de Daños": "diagrama_danos",
             "Foto Frente": "foto_frente_url",
             "Foto Atrás": "foto_atras_url",
             "Foto Lado Derecho": "foto_lado_derecho_url",
             "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
-            "Diagrama de Daños": "diagrama_danos",
             "Novedades Críticas": "novedades_criticas",
             "Acción Inmediata": "accion_inmediata",
             # 4. Entrega y Cierre
@@ -922,6 +924,7 @@ FORM_CONFIGS = {
             "Hora de Ingreso": "hora_entrada",
             "Hora de Salida": "hora_salida",
             "Número de Empleado": "numero_empleado",
+            "Motocicleta (Propia/Empresa)": "motocicleta_tipo",
             "Placa": "placa_motocicleta",
             "Fecha Último Mantenimiento": "fecha_ultimo_mantenimiento",
             "Último Kilometraje Registrado": "kilometraje_anterior",
@@ -955,11 +958,13 @@ FORM_CONFIGS = {
             "Palanca Freno": "estado_palanca_freno",
             "Palanca Cambios": "estado_palanca_cambios",
             # 3. Evidencias y Novedades
+            # Mismo criterio que en la planilla vehicular: el diagrama se marca
+            # antes de tomar las cuatro vistas.
+            "Diagrama de Daños": "diagrama_danos",
             "Foto Frente": "foto_frente_url",
             "Foto Atrás": "foto_atras_url",
             "Foto Lado Derecho": "foto_lado_derecho_url",
             "Foto Lado Izquierdo": "foto_lado_izquierdo_url",
-            "Diagrama de Daños": "diagrama_danos",
             "Novedades Críticas": "novedades_criticas_detectadas",
             "Acción Inmediata": "accion_inmediata_tomada",
             # 4. Entrega y Cierre

@@ -551,6 +551,7 @@ CREATE TABLE IF NOT EXISTS planilla_motocicletas (
     fecha_hora TIMESTAMPTZ,
     rol_aplicador VARCHAR(255),
     turno VARCHAR(255),
+    motocicleta_tipo VARCHAR(255),
     placa_motocicleta VARCHAR(255),
     kilometraje_entrega INTEGER,
     kilometraje_salida INTEGER,
@@ -779,6 +780,7 @@ ALTER TABLE supervision_puesto ADD COLUMN IF NOT EXISTS modalidad_servicio VARCH
 -- Mismo caso que modalidad_servicio más arriba.
 ALTER TABLE registro_de_capacitaciones ADD COLUMN IF NOT EXISTS cargo_responsable VARCHAR(255);
 ALTER TABLE planilla_vehicular         ADD COLUMN IF NOT EXISTS vehiculo_tipo VARCHAR(255);
+ALTER TABLE planilla_motocicletas      ADD COLUMN IF NOT EXISTS motocicleta_tipo VARCHAR(255);
 
 -- Cierre de una asignación: la fila se conserva para trazabilidad y solo deja de
 -- contar como pendiente en el Morning Briefing. Es el único cierre posible para
