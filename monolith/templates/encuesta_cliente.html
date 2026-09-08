@@ -692,6 +692,35 @@
     </script>
     {% endif %}
 
+    <script>
+        /*
+         * Estampa "Fecha y Hora" al abrir el formulario.
+         *
+         * El campo es readonly (se abre con un toque), y un input readonly está excluido
+         * de la validación: `required` no impedía enviarlo vacío. Una encuesta sin fecha
+         * quedaba fuera de todos los indicadores del Dashboard de Satisfacción, que
+         * filtra por esa columna, aunque sí se viera en Reportes.
+         *
+         * Va en su propio bloque, y no dentro del DOMContentLoaded principal, para que
+         * un error en cualquier otro script de la página no impida estampar la fecha.
+         * En modo edición el valor ya viene del registro (se rellena al parsear) y el
+         * guard `!value` evita pisarlo.
+         */
+        (function estamparFechaHora() {
+            function estampar() {
+                var campo = document.getElementById('fecha_hora');
+                if (!campo || campo.value) return;
+                var ahora = new Date(), dd = function (n) { return String(n).padStart(2, '0'); };
+                campo.value = ahora.getFullYear() + '-' + dd(ahora.getMonth() + 1) + '-' + dd(ahora.getDate())
+                    + 'T' + dd(ahora.getHours()) + ':' + dd(ahora.getMinutes());
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', estampar);
+            } else {
+                estampar();
+            }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         // ── Calificación Global: auto-sum from section 2 ──────────────────────

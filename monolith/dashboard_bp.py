@@ -3616,11 +3616,52 @@ def _sat_add_multi_date_filter(conds, params, text_expr, year, month, day):
     _gestion_add_multi_date_filter(conds, params, text_expr, year, month, day)
 
 
+# Fecha de referencia de una encuesta de satisfacción.
+#
+# `fecha_hora` la elige el Supervisor y puede quedar NULL: el campo del formulario
+# es readonly, y un input readonly está excluido de la validación, así que `required`
+# no impedía enviarlo vacío. Como en SQL `NULL LIKE '2026%'` no es verdadero, esas
+# encuestas desaparecían de TODOS los indicadores —calificación global, total, NPS,
+# distribución y tendencia— aunque sí se vieran en Reportes, que ordena por
+# `creado_en`. `creado_en` siempre tiene valor (DEFAULT CURRENT_TIMESTAMP), así que
+# sirve de respaldo para ubicar la encuesta en el periodo en que se registró en vez
+# de perderla.
+_SAT_FECHA = "COALESCE(fecha_hora, creado_en)"
+
+
+def _sat_bucket(score):
+    """Tramo de la distribución al que pertenece una calificación global.
+
+    `calificacion_global_nps` guarda el promedio Likert (escala 1–5) que calcula el
+    formulario. El detalle clasificaba con umbrales 34/26/18, heredados de cuando la
+    columna guardaba la SUMA de los 8 criterios (máximo 40): con la escala actual
+    ninguna encuesta llegaba a 18, así que todas caían en 'insatisfecho' y al filtrar
+    por cualquier otro tramo del gráfico la tabla salía vacía.
+
+    Los cortes replican exactamente los del SELECT de api_satisfaccion_data —incluido
+    dejar fuera el 0, que allí tampoco entra en ningún tramo—; si divergen, el gráfico
+    y su detalle dejan de cuadrar.
+    """
+    if score is None:
+        return 'sin_dato'
+    if score >= 4.5:
+        return 'satisfecho'          # Totalmente satisfecho
+    if score >= 3.5:
+        return 'oportunidad'         # Satisfecho
+    if score >= 2.5:
+        return 'baja'                # Oportunidades de mejora
+    if score >= 1.5:
+        return 'insatisfecho'
+    if score > 0:
+        return 'muy_insatisfecho'
+    return 'sin_dato'
+
+
 def _sat_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, desde=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
-    _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
-    _gestion_add_desde(conds, params, "fecha_hora", desde)
+    _sat_add_multi_date_filter(conds, params, f"{_SAT_FECHA}::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, _SAT_FECHA, desde)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
         params.append(responsable)
@@ -3667,7 +3708,7 @@ def _sat_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
     else:
         prefix = str(now.year - 1)
 
-    conds.append("fecha_hora::TEXT LIKE %s")
+    conds.append(f"{_SAT_FECHA}::TEXT LIKE %s")
     params.append(prefix + "%")
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
@@ -3752,7 +3793,7 @@ def api_satisfaccion_debug():
         cur.execute(f"""
             SELECT COUNT(*) AS cnt
             FROM medicion_experiencia_cliente
-            WHERE fecha_hora::TEXT LIKE %s {cid_cond}
+            WHERE {_SAT_FECHA}::TEXT LIKE %s {cid_cond}
         """, year_params)
         this_year = cur.fetchone()['cnt']
 
@@ -3866,19 +3907,20 @@ def api_satisfaccion_data():
         criteria.sort(key=lambda x: x['avg'] if x['avg'] is not None else 0)
 
         # ── Trend — use SUBSTRING on TEXT to avoid TIMESTAMP cast issues ───
-        # fecha_hora is stored as 'YYYY-MM-DDTHH:MM' so SUBSTRING works safely.
+        # Se agrupa por la misma fecha con la que se filtra (_SAT_FECHA): si no, una
+        # encuesta sin fecha_hora pasaría el filtro y caería en un periodo nulo.
         if month and year:
             # Daily: group by day number within the month
-            group_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"   # 'DD'
-            label_expr = "SUBSTRING(fecha_hora::TEXT, 9, 2)"   # 'DD'
+            group_expr = f"SUBSTRING({_SAT_FECHA}::TEXT, 9, 2)"   # 'DD'
+            label_expr = f"SUBSTRING({_SAT_FECHA}::TEXT, 9, 2)"   # 'DD'
         elif year:
             # Monthly: group by 'YYYY-MM'
-            group_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"   # 'YYYY-MM'
-            label_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            group_expr = f"SUBSTRING({_SAT_FECHA}::TEXT, 1, 7)"   # 'YYYY-MM'
+            label_expr = f"SUBSTRING({_SAT_FECHA}::TEXT, 1, 7)"
         else:
             # All time: group by 'YYYY-MM'
-            group_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
-            label_expr = "SUBSTRING(fecha_hora::TEXT, 1, 7)"
+            group_expr = f"SUBSTRING({_SAT_FECHA}::TEXT, 1, 7)"
+            label_expr = f"SUBSTRING({_SAT_FECHA}::TEXT, 1, 7)"
 
         trend_criteria_sql = ", ".join(
             f"{_safe_avg(f)} as avg_{f}"
@@ -3978,7 +4020,7 @@ def api_satisfaccion_detalles():
         cur.execute(f"""
             SELECT 
                 id_encuesta as id, 
-                fecha_hora, 
+                {_SAT_FECHA} AS fecha_hora,
                 cliente_instalacion, 
                 encuestado,
                 recomendaria_servicio,
@@ -3986,7 +4028,7 @@ def api_satisfaccion_detalles():
                 {criteria_select_sql}
             FROM medicion_experiencia_cliente 
             {where}
-            ORDER BY fecha_hora DESC NULLS LAST, id_encuesta DESC
+            ORDER BY {_SAT_FECHA} DESC NULLS LAST, id_encuesta DESC
             LIMIT 500
         """, params)
         rows = cur.fetchall()
@@ -4004,16 +4046,7 @@ def api_satisfaccion_detalles():
             except (TypeError, ValueError):
                 calc_val = None
 
-            if calc_val is None:
-                calc_bucket = 'sin_dato'
-            elif calc_val >= 34:
-                calc_bucket = 'satisfecho'
-            elif calc_val >= 26:
-                calc_bucket = 'oportunidad'
-            elif calc_val >= 18:
-                calc_bucket = 'baja'
-            else:
-                calc_bucket = 'insatisfecho'
+            calc_bucket = _sat_bucket(calc_val)
 
             recomienda_raw = (r['recomendaria_servicio'] or '').strip()
             recomienda_norm = recomienda_raw.lower()
