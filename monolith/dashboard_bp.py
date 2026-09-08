@@ -5381,11 +5381,27 @@ _CUMPL_CRITERIA = [
     ('fechas_vigentes',               'Vigente'),
 ]
 
+def _cumpl_date_expr():
+    """Fecha de referencia de una verificación, para filtros y orden.
+
+    `fecha_hora` la elige el auditor y puede faltar (filas antiguas, importaciones o
+    un envío en el que el campo readonly no llegó a rellenarse). Como en SQL
+    `NULL LIKE '2026%'` no es verdadero, esas verificaciones desaparecían del
+    dashboard mientras seguían saliendo en Reportes y en el Excel, que ordenan por
+    `created_at` —justo la inconsistencia entre formulario, Reportes y Dashboard—.
+    `created_at` siempre tiene valor (DEFAULT CURRENT_TIMESTAMP) y sirve de respaldo.
+
+    Mismo criterio que _capac_date_expr() para el módulo de capacitaciones.
+    """
+    return "COALESCE(fecha_hora, created_at)"
+
+
 def _cumpl_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None, nombre_usuario=None):
     conds, params = [], []
+    date_expr = _cumpl_date_expr()
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
-    _gestion_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
-    _gestion_add_desde(conds, params, "fecha_hora", desde)
+    _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
+    _gestion_add_desde(conds, params, date_expr, desde)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s"); params.append(responsable)
     if nombre_usuario:
@@ -5701,14 +5717,14 @@ def api_cumplimiento_detalles():
         where = _cumpl_where(base_conds)
 
         cur.execute(f"""
-            SELECT id, fecha_hora, cliente_instalacion, nombre_auditor,
+            SELECT id, {_cumpl_date_expr()} AS fecha_hora, cliente_instalacion, nombre_auditor,
                    agente_numero_documento, agente_nombre_completo,
                    curso_certificacion, nivel_cumplimiento, vigencia_hasta,
                    copia_certificados_fisica, certificados_cargados_sistema,
                    documentacion_coincide_hv, fechas_vigentes
             FROM checklist_cumplimiento
             {where}
-            ORDER BY fecha_hora DESC
+            ORDER BY {_cumpl_date_expr()} DESC NULLS LAST, id DESC
             LIMIT 200
         """, base_params)
         detalles = [{
