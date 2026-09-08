@@ -214,6 +214,29 @@
             .drv-inv-table tbody tr:hover td {
                 background: rgba(255,255,255,0.04);
             }
+            .drv-status-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                padding: 0.2rem 0.6rem;
+                border-radius: 9999px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+            .drv-status-verde   { background: rgba(34,197,94,0.2);  color: #4ade80; border: 1px solid #22c55e; }
+            .drv-status-amarillo{ background: rgba(234,179,8,0.2);  color: #facc15; border: 1px solid #eab308; }
+            .drv-status-naranja { background: rgba(249,115,22,0.2); color: #fb923c; border: 1px solid #f97316; }
+            .drv-status-rojo    { background: rgba(239,68,68,0.2);  color: #f87171; border: 1px solid #ef4444; }
+            .drv-status-na      { background: rgba(107,114,128,0.2);color: #9ca3af; border: 1px solid #6b7280; }
+            .drv-inv-subtitle {
+                margin: 1.25rem 0 0.5rem;
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: #93c5fd;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
             .drv-action-bar {
                 display: none;
                 gap: 0.75rem;
@@ -444,6 +467,14 @@
             body.light-mode .drv-inv-table tbody tr:hover td {
                 background: rgba(15,23,42,0.04);
             }
+            body.light-mode .drv-inv-subtitle {
+                color: #1d4ed8;
+            }
+            body.light-mode .drv-status-verde   { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+            body.light-mode .drv-status-amarillo{ background: #fef9c3; color: #a16207; border: 1px solid #fde047; }
+            body.light-mode .drv-status-naranja { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
+            body.light-mode .drv-status-rojo    { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+            body.light-mode .drv-status-na      { background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
             body.light-mode .drv-action-bar {
                 border-top-color: rgba(15,23,42,0.08);
             }
@@ -854,6 +885,7 @@
         pendiente_reparacion:  'Pend. Reparación',
         pendiente_compra:      'Pend. Compra',
         comentario:            'Comentario',
+        estatus:               'Estatus',
     };
 
     // Keys are the LABELS produced by fetch_reports_by_ids (data_mapping in viewer_bp.py)
@@ -1025,10 +1057,23 @@
     }
 
     function renderInventarioTable(arr) {
+        if (!Array.isArray(arr) || !arr.length) return '';
+
+        function getStatusInfo(totalVal, funcVal) {
+            if (totalVal === null || isNaN(totalVal) || totalVal <= 0 || funcVal === null || isNaN(funcVal)) {
+                return { pct: null, text: 'N/A', cls: 'drv-status-na', dot: '⚪' };
+            }
+            const pct = Math.min(100, Math.max(0, Math.round((funcVal / totalVal) * 100)));
+            if (pct >= 95)  return { pct, text: 'Operativo', cls: 'drv-status-verde', dot: '🟢' };
+            if (pct >= 85)  return { pct, text: 'Operativo con observaciones', cls: 'drv-status-amarillo', dot: '🟡' };
+            if (pct >= 70)  return { pct, text: 'Riesgo operativo', cls: 'drv-status-naranja', dot: '🟠' };
+            return { pct, text: 'No confiable', cls: 'drv-status-rojo', dot: '🔴' };
+        }
+
         const allKeys = [...new Set(arr.flatMap(row => Object.keys(row)))];
-        const cols = Object.keys(_INV_LABELS).filter(k => allKeys.includes(k));
-        const extras = allKeys.filter(k => !_INV_LABELS[k]);
-        const headers = [...cols, ...extras];
+        const cols = Object.keys(_INV_LABELS).filter(k => allKeys.includes(k) && k !== 'estatus');
+        const extras = allKeys.filter(k => !_INV_LABELS[k] && k !== 'estatus');
+        const headers = [...cols, ...extras, 'estatus'];
 
         const headerRow = headers.map(h =>
             `<th>${escapeHtml(_INV_LABELS[h] || h.replace(/_/g, ' '))}</th>`
@@ -1036,18 +1081,118 @@
 
         const bodyRows = arr.map(row => {
             const cells = headers.map(h => {
+                if (h === 'estatus') {
+                    const t = parseInt(row.total_equipos, 10);
+                    const f = parseInt(row.equipos_operativos, 10);
+                    const st = getStatusInfo(t, f);
+                    return `<td><span class="drv-status-badge ${st.cls}">${st.dot} ${escapeHtml(st.text)}</span></td>`;
+                }
                 const v = row[h];
-                const text = (v === null || v === undefined || v === '') ? '—' : String(v);
+                let text = (v === null || v === undefined || v === '') ? '—' : String(v);
                 return `<td>${escapeHtml(text)}</td>`;
             }).join('');
             return `<tr>${cells}</tr>`;
         }).join('');
+
+        // Compute Confiabilidad table
+        const standardTipos = [
+            { key: 'camaras', label: 'Cámaras' },
+            { key: 'monitores', label: 'Monitores' },
+            { key: 'grabadores', label: 'Grabadores' },
+            { key: 'alarmas', label: 'Alarmas' },
+            { key: 'boton de panico', label: 'Botón de Pánico' },
+            { key: 'control de acceso', label: 'Control de Acceso' }
+        ];
+
+        const catData = {};
+        standardTipos.forEach(s => {
+            catData[s.key] = { label: s.label, total: null, func: null };
+        });
+
+        const customCats = {};
+        arr.forEach(row => {
+            if (!row || typeof row !== 'object') return;
+            const rawTipo = String(row.tipo_equipo || '').trim();
+            if (!rawTipo) return;
+            const norm = rawTipo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+            const t = parseInt(row.total_equipos, 10);
+            const f = parseInt(row.equipos_operativos, 10);
+
+            let target = catData[norm];
+            if (!target) {
+                if (!customCats[norm]) {
+                    customCats[norm] = { label: rawTipo, total: null, func: null };
+                }
+                target = customCats[norm];
+            }
+            if (!isNaN(t) && t >= 0) target.total = (target.total || 0) + t;
+            if (!isNaN(f) && f >= 0) target.func = (target.func || 0) + f;
+        });
+
+        const allCats = [...Object.values(catData), ...Object.values(customCats)];
+        let sumTotal = 0, sumFunc = 0, countValid = 0;
+
+        const confRows = allCats.map(cat => {
+            const tot = cat.total;
+            const fnc = cat.func;
+            const st = getStatusInfo(tot, fnc);
+            if (st.pct !== null) {
+                sumTotal += tot;
+                sumFunc += fnc;
+                countValid++;
+            }
+            const totStr = tot !== null ? tot : '—';
+            const fncStr = fnc !== null ? fnc : '—';
+            const pctStr = st.pct !== null ? `${st.pct}%` : '—';
+            return `
+                <tr>
+                    <td>${escapeHtml(cat.label)}</td>
+                    <td style="text-align:center;">${totStr}</td>
+                    <td style="text-align:center;">${fncStr}</td>
+                    <td style="text-align:center;">${pctStr}</td>
+                    <td style="text-align:center;"><span class="drv-status-badge ${st.cls}">${st.dot} ${escapeHtml(st.text)}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+        const avgSt = (countValid > 0 && sumTotal > 0)
+            ? getStatusInfo(sumTotal, sumFunc)
+            : { pct: null, text: 'N/A', cls: 'drv-status-na', dot: '⚪' };
+        const avgTotStr = countValid > 0 ? sumTotal : '—';
+        const avgFncStr = countValid > 0 ? sumFunc : '—';
+        const avgPctStr = avgSt.pct !== null ? `${avgSt.pct}%` : '—';
+
+        const avgRow = `
+            <tr style="font-weight:bold;background:rgba(99,102,241,0.12);">
+                <td>Promedio General</td>
+                <td style="text-align:center;">${avgTotStr}</td>
+                <td style="text-align:center;">${avgFncStr}</td>
+                <td style="text-align:center;">${avgPctStr}</td>
+                <td style="text-align:center;"><span class="drv-status-badge ${avgSt.cls}">${avgSt.dot} ${escapeHtml(avgSt.text)}</span></td>
+            </tr>
+        `;
 
         return `
             <div class="drv-inv-table-wrap">
                 <table class="drv-inv-table">
                     <thead><tr>${headerRow}</tr></thead>
                     <tbody>${bodyRows}</tbody>
+                </table>
+                <div class="drv-inv-subtitle">Confiabilidad</div>
+                <table class="drv-inv-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo de Equipo</th>
+                            <th style="text-align:center;">Total Equipos</th>
+                            <th style="text-align:center;">Funcionando</th>
+                            <th style="text-align:center;">% Funcionando</th>
+                            <th style="text-align:center;">Estatus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${confRows}
+                        ${avgRow}
+                    </tbody>
                 </table>
             </div>
         `;

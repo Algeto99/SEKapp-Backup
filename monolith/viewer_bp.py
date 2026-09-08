@@ -1230,6 +1230,73 @@ _INV_LABELS = {
     'pendiente_reparacion':  'Pend. Reparación',
     'pendiente_compra':      'Pend. Compra',
     'comentario':            'Comentario',
+    'estatus':               'Estatus',
+}
+
+def _calc_item_status(item):
+    try:
+        t_raw = item.get('total_equipos')
+        total = int(t_raw) if t_raw not in (None, '', '—') else None
+    except (ValueError, TypeError):
+        total = None
+    try:
+        f_raw = item.get('equipos_operativos')
+        func = int(f_raw) if f_raw not in (None, '', '—') else None
+    except (ValueError, TypeError):
+        func = None
+
+    if total is None or total <= 0 or func is None:
+        return None, "N/A"
+    pct = min(100, max(0, round((func / total) * 100)))
+    return pct, _get_status_text(pct)
+
+def _get_status_text(pct):
+    if pct is None:
+        return "N/A"
+    if pct >= 95:
+        return "Operativo"
+    elif pct >= 85:
+        return "Operativo con observaciones"
+    elif pct >= 70:
+        return "Riesgo operativo"
+    else:
+        return "No confiable"
+
+def _render_status_badge(status_text, is_email=False):
+    if status_text == "Operativo":
+        bg, color, border, dot_color = "#dcfce7", "#15803d", "#86efac", "#16a34a"
+    elif status_text == "Operativo con observaciones":
+        bg, color, border, dot_color = "#fef9c3", "#a16207", "#fde047", "#ca8a04"
+    elif status_text == "Riesgo operativo":
+        bg, color, border, dot_color = "#ffedd5", "#c2410c", "#fdba74", "#ea580c"
+    elif status_text == "No confiable":
+        bg, color, border, dot_color = "#fee2e2", "#b91c1c", "#fca5a5", "#dc2626"
+    else:
+        bg, color, border, dot_color = "#f3f4f6", "#6b7280", "#d1d5db", "#9ca3af"
+
+    font_size = "10px" if is_email else "7pt"
+    dot = f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background-color:{dot_color};margin-right:4px;vertical-align:middle;"></span>'
+    return (
+        f'<span style="display:inline-block;padding:2px 7px;border-radius:9999px;'
+        f'font-size:{font_size};font-weight:600;background-color:{bg};color:{color};'
+        f'border:1px solid {border};white-space:nowrap;line-height:1.2;">'
+        f'{dot}{status_text}</span>'
+    )
+
+def _normalize_tipo(val):
+    if not val:
+        return ""
+    import unicodedata
+    s = unicodedata.normalize('NFKD', str(val)).encode('ASCII', 'ignore').decode('utf-8')
+    return s.strip().lower()
+
+_TIPO_EQUIPO_LABELS = {
+    'camaras': 'Cámaras',
+    'monitores': 'Monitores',
+    'grabadores': 'Grabadores',
+    'alarmas': 'Alarmas',
+    'boton de panico': 'Botón de Pánico',
+    'control de acceso': 'Control de Acceso',
 }
 
 def _format_structured_value_as_text(val):
@@ -1249,6 +1316,9 @@ def _format_structured_value_as_text(val):
                         if k in item:
                             label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
                             parts.append(f"{label}: {item[k]}")
+                    if 'estatus' not in item and 'total_equipos' in item and 'equipos_operativos' in item:
+                        _, st_text = _calc_item_status(item)
+                        parts.append(f"Estatus: {st_text}")
                     # Add any other keys not in our preferred ordering
                     for k, v in item.items():
                         if k not in _INV_LABELS:
@@ -1267,6 +1337,9 @@ def _format_structured_value_as_text(val):
             if k in val:
                 label = _INV_LABELS.get(k, k.replace('_', ' ').capitalize())
                 parts.append(f"{label}: {val[k]}")
+        if 'estatus' not in val and 'total_equipos' in val and 'equipos_operativos' in val:
+            _, st_text = _calc_item_status(val)
+            parts.append(f"Estatus: {st_text}")
         for k, v in val.items():
             if k not in _INV_LABELS:
                 if 'firma' in k.lower() and isinstance(v, str) and v.startswith('data:image'):
@@ -1294,45 +1367,184 @@ def _render_inventario_html_table(value, is_email=False):
         if h in all_keys:
             active_headers.append(h)
     for k in all_keys:
-        if k not in headers:
+        if k not in headers and k != 'estatus':
             active_headers.append(k)
             
     if not active_headers:
         return ""
-        
+
+    # Always append 'estatus' as the last column of the inventory table
+    active_headers.append('estatus')
+
     # Styles matching standard premium look
     if is_email:
         th_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; background-color: #f1f5f9; font-weight: bold; color: #374151; font-size: 11px;"
-        td_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; color: #1f2937; font-size: 11px; vertical-align: top;"
-        table_style = "width: 100%; border-collapse: collapse; margin-top: 8px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;"
+        th_center_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; background-color: #f1f5f9; font-weight: bold; color: #374151; font-size: 11px;"
+        td_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; color: #1f2937; font-size: 11px; vertical-align: middle;"
+        td_center_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; color: #1f2937; font-size: 11px; vertical-align: middle;"
+        table_style = "width: 100%; border-collapse: collapse; margin-top: 5px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;"
+        title_style = "color: #374151; font-size: 11px; font-weight: bold; display: block; margin-top: 10px; margin-bottom: 5px;"
+        conf_th_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; background-color: #2563eb; font-weight: bold; color: #ffffff; font-size: 11px;"
+        conf_th_center_style = "border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; background-color: #2563eb; font-weight: bold; color: #ffffff; font-size: 11px;"
+        avg_row_style = "background-color: #eff6ff; font-weight: bold;"
+        avg_td_style = "border: 1px solid #cbd5e1; padding: 7px 8px; text-align: left; color: #1e40af; font-size: 11px; font-weight: bold; vertical-align: middle;"
+        avg_td_center_style = "border: 1px solid #cbd5e1; padding: 7px 8px; text-align: center; color: #1e40af; font-size: 11px; font-weight: bold; vertical-align: middle;"
     else:
         th_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; background-color: #f1f5f9; font-weight: bold; color: #374151; font-size: 7.5pt;"
-        td_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; color: #1f2937; font-size: 7.5pt; vertical-align: top;"
-        table_style = "width: 100%; border-collapse: collapse; margin-top: 5px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;"
-    
-    # Build header
+        th_center_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; background-color: #f1f5f9; font-weight: bold; color: #374151; font-size: 7.5pt;"
+        td_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; color: #1f2937; font-size: 7.5pt; vertical-align: middle;"
+        td_center_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; color: #1f2937; font-size: 7.5pt; vertical-align: middle;"
+        table_style = "width: 100%; border-collapse: collapse; margin-top: 4px; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;"
+        title_style = "color: #374151; font-size: 8pt; font-weight: bold; display: block; margin-top: 10px; margin-bottom: 5px;"
+        conf_th_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: left; background-color: #2563eb; font-weight: bold; color: #ffffff; font-size: 7.5pt;"
+        conf_th_center_style = "border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; background-color: #2563eb; font-weight: bold; color: #ffffff; font-size: 7.5pt;"
+        avg_row_style = "background-color: #eff6ff; font-weight: bold;"
+        avg_td_style = "border: 1px solid #cbd5e1; padding: 5px 6px; text-align: left; color: #1e40af; font-size: 7.5pt; font-weight: bold; vertical-align: middle;"
+        avg_td_center_style = "border: 1px solid #cbd5e1; padding: 5px 6px; text-align: center; color: #1e40af; font-size: 7.5pt; font-weight: bold; vertical-align: middle;"
+
+    center_headers = {'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'estatus'}
+
+    # Build header for Inventario Table
     table_hdr_cells = []
     for h in active_headers:
         lbl = _INV_LABELS.get(h, h.replace('_', ' ').capitalize())
-        table_hdr_cells.append(f'<th style="{th_style}">{lbl}</th>')
+        cur_th = th_center_style if h in center_headers else th_style
+        table_hdr_cells.append(f'<th style="{cur_th}">{lbl}</th>')
     table_hdr_html = "".join(table_hdr_cells)
-    
-    # Build body
+
+    # Build body for Inventario Table
     table_body_rows = []
     for item in items:
         if not isinstance(item, dict):
             continue
         row_cells = []
         for h in active_headers:
-            v = item.get(h, '')
-            v_str = str(v).strip() if v is not None else ''
-            if v_str == '':
-                v_str = '—'
-            row_cells.append(f'<td style="{td_style}">{v_str}</td>')
+            if h == 'estatus':
+                _, st_text = _calc_item_status(item)
+                badge = _render_status_badge(st_text, is_email=is_email)
+                row_cells.append(f'<td style="{td_center_style}">{badge}</td>')
+            else:
+                v = item.get(h, '')
+                v_str = str(v).strip() if v is not None else ''
+                if v_str == '':
+                    v_str = '—'
+                elif h == 'tipo_equipo':
+                    norm_t = _normalize_tipo(v_str)
+                    if norm_t in _TIPO_EQUIPO_LABELS:
+                        v_str = _TIPO_EQUIPO_LABELS[norm_t]
+                cur_td = td_center_style if h in center_headers else td_style
+                row_cells.append(f'<td style="{cur_td}">{v_str}</td>')
         table_body_rows.append(f'<tr>{"".join(row_cells)}</tr>')
     table_body_html = "".join(table_body_rows)
-    
-    return f'<table style="{table_style}"><thead><tr>{table_hdr_html}</tr></thead><tbody>{table_body_html}</tbody></table>'
+    inv_table_html = f'<table style="{table_style}"><thead><tr>{table_hdr_html}</tr></thead><tbody>{table_body_html}</tbody></table>'
+
+    # Build Confiabilidad Summary Table
+    standard_tipos = [
+        ('camaras', 'Cámaras'),
+        ('monitores', 'Monitores'),
+        ('grabadores', 'Grabadores'),
+        ('alarmas', 'Alarmas'),
+        ('boton de panico', 'Botón de Pánico'),
+        ('control de acceso', 'Control de Acceso')
+    ]
+    data = {}
+    for key_norm, label in standard_tipos:
+        data[key_norm] = {'label': label, 'total': None, 'func': None}
+
+    custom_tipos = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        raw_tipo = str(item.get('tipo_equipo') or '').strip()
+        if not raw_tipo:
+            continue
+        norm = _normalize_tipo(raw_tipo)
+        try:
+            t = int(item.get('total_equipos')) if item.get('total_equipos') not in (None, '', '—') else None
+        except (ValueError, TypeError):
+            t = None
+        try:
+            f = int(item.get('equipos_operativos')) if item.get('equipos_operativos') not in (None, '', '—') else None
+        except (ValueError, TypeError):
+            f = None
+
+        target = data.get(norm)
+        if not target:
+            if norm not in custom_tipos:
+                custom_tipos[norm] = {'label': raw_tipo, 'total': None, 'func': None}
+            target = custom_tipos[norm]
+
+        if t is not None and t >= 0:
+            target['total'] = (target['total'] or 0) + t
+        if f is not None and f >= 0:
+            target['func'] = (target['func'] or 0) + f
+
+    all_cat_rows = list(data.values()) + list(custom_tipos.values())
+
+    sum_total = 0
+    sum_func = 0
+    count_valid = 0
+
+    conf_body_rows = []
+    for cat in all_cat_rows:
+        tot = cat['total']
+        fnc = cat['func']
+        pct = None
+        if tot is not None and tot > 0 and fnc is not None:
+            pct = min(100, max(0, round((fnc / tot) * 100)))
+            sum_total += tot
+            sum_func += fnc
+            count_valid += 1
+
+        st_text = _get_status_text(pct)
+        badge = _render_status_badge(st_text, is_email=is_email)
+        tot_str = str(tot) if tot is not None else '—'
+        fnc_str = str(fnc) if fnc is not None else '—'
+        pct_str = f"{pct}%" if pct is not None else '—'
+
+        conf_body_rows.append(
+            f'<tr>'
+            f'<td style="{td_style}">{cat["label"]}</td>'
+            f'<td style="{td_center_style}">{tot_str}</td>'
+            f'<td style="{td_center_style}">{fnc_str}</td>'
+            f'<td style="{td_center_style}">{pct_str}</td>'
+            f'<td style="{td_center_style}">{badge}</td>'
+            f'</tr>'
+        )
+
+    # Average row (Promedio General)
+    avg_pct = None
+    if count_valid > 0 and sum_total > 0:
+        avg_pct = min(100, max(0, round((sum_func / sum_total) * 100)))
+    avg_st_text = _get_status_text(avg_pct)
+    avg_badge = _render_status_badge(avg_st_text, is_email=is_email)
+
+    avg_tot_str = str(sum_total) if count_valid > 0 else '—'
+    avg_fnc_str = str(sum_func) if count_valid > 0 else '—'
+    avg_pct_str = f"{avg_pct}%" if avg_pct is not None else '—'
+
+    conf_body_rows.append(
+        f'<tr style="{avg_row_style}">'
+        f'<td style="{avg_td_style}">Promedio General</td>'
+        f'<td style="{avg_td_center_style}">{avg_tot_str}</td>'
+        f'<td style="{avg_td_center_style}">{avg_fnc_str}</td>'
+        f'<td style="{avg_td_center_style}">{avg_pct_str}</td>'
+        f'<td style="{avg_td_center_style}">{avg_badge}</td>'
+        f'</tr>'
+    )
+
+    conf_hdr_html = (
+        f'<th style="{conf_th_style}">Tipo de Equipo</th>'
+        f'<th style="{conf_th_center_style}">Total Equipos</th>'
+        f'<th style="{conf_th_center_style}">Funcionando</th>'
+        f'<th style="{conf_th_center_style}">% Funcionando</th>'
+        f'<th style="{conf_th_center_style}">Estatus</th>'
+    )
+
+    conf_table_html = f'<table style="{table_style}"><thead><tr>{conf_hdr_html}</tr></thead><tbody>{"".join(conf_body_rows)}</tbody></table>'
+    conf_section_html = f'<div style="margin-top: 10px;"><strong style="{title_style}">Confiabilidad:</strong>{conf_table_html}</div>'
+
+    return f'{inv_table_html}{conf_section_html}'
 
 def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=False):
     conn = None
