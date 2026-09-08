@@ -1350,9 +1350,17 @@
                                 valStr.startsWith('/api/media')
                             );
 
+                            const isPdf = (valStr.startsWith('http') || valStr.startsWith('/api/media')) && valStr.toLowerCase().split('?')[0].endsWith('.pdf');
                             if (isFirma && (valStr.startsWith('http') || valStr.startsWith('data:image') || valStr.startsWith('/api/media'))) {
                                 displayContent = `<div class="mt-1">
                                     <img src="${valStr}" alt="${key}" class="h-24 w-auto object-contain border border-gray-300 dark:border-gray-600 rounded bg-white p-1">
+                                </div>`;
+                            } else if (isPdf) {
+                                displayContent = `<div class="mt-2">
+                                    <a href="${valStr}" target="_blank" class="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-sm font-medium transition-colors">
+                                        <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"/></svg>
+                                        Ver Documento PDF
+                                    </a>
                                 </div>`;
                             } else if (isImageLike) {
                                 const urls = valStr.split('\n').map(u => u.trim()).filter(Boolean);
@@ -1391,7 +1399,7 @@
                     const attachmentFields = [
                         'URLs de Imágenes o PDFs', 'Foto Evidencia', 'Anexos',
                         'Foto Frente', 'Foto Atrás', 'Foto Lado Derecho', 'Foto Lado Izquierdo',
-                        'Fotos/Documentos', 'Anexos / Evidencias', 'Evidencia URL'
+                        'Fotos/Documentos', 'Anexos / Evidencias', 'Evidencia URL', 'Cargue de Evidencia'
                     ];
                     let allAttachmentUrls = [];
                     attachmentFields.forEach(field => {

@@ -364,7 +364,8 @@ TECHNICAL_SYSTEM_COLUMNS = {
     'puesto_area_resuelto', 'puesto_area_especifica_resuelto',
     'estado_tapas_derecha', 'estado_manometros_indicadores',
     'tapa_tanque_combustible', 'estado_luces_izquierda',
-    'kilometraje_entrega', 'kilometraje_salida', 'firma_responsable'
+    'kilometraje_entrega', 'kilometraje_salida', 'firma_responsable',
+    'turno', 'agente_puesto'
 }
 
 # --- Form Configurations ---
@@ -1048,7 +1049,8 @@ FORM_CONFIGS = {
         'id_col': 'id',
         'date_col': 'created_at',
         'user_col': 'submitted_by_email',
-        'title_prefix': 'Checklist Cumplimiento',
+        'title_prefix': 'Checklist de Cumplimiento',
+        'sheet_title': 'Checklist Cumplimiento',
         'joins': """
             LEFT JOIN users u ON t.submitted_by_email = u.email
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
@@ -1069,7 +1071,6 @@ FORM_CONFIGS = {
               ON p_legacy.customer_company_id = cc3.id
         """,
         'columns': """
-            t.created_at,
             t.*,
             COALESCE(
                 NULLIF(TRIM(cc.name), ''),
@@ -1089,33 +1090,31 @@ FORM_CONFIGS = {
             "Propiedad / Instalación": "propiedad_nombre",
             "Puesto o Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
-            "Turno": "turno",
             "Rol del Aplicador/Responsable": "rol_aplicador",
-            "Auditor": "nombre_auditor",
-            # 2. Datos del Agente Supervisado
-            "Agente Supervisado": "agente_nombre_completo",
+            "Nombre / Auditor": "nombre_auditor",
+            # 2. Información del Agente
+            "Nombre Completo (Agente)": "agente_nombre_completo",
             "Tipo de Documento": "agente_tipo_documento",
             "Número de Documento": "agente_numero_documento",
-            "Cargo / Rol del Agente": "agente_cargo_rol",
+            "Cargo / Rol (Agente)": "agente_cargo_rol",
             "Número de Empleado": "agente_numero_empleado",
-            "Puesto del Agente": "agente_puesto",
-            # 3. Documentación y Certificaciones
+            # 3. Verificación de Cursos y Certificaciones
             "Curso / Certificación": "curso_certificacion",
-            "Academia que Certifica": "academia_certifica",
+            "Academia o Escuela que Certifica": "academia_certifica",
             "Nro. Resolución": "nro_resolucion",
             "Fecha de Resolución": "fecha_resolucion",
-            "Vigencia Desde": "vigencia_desde",
-            "Vigencia Hasta": "vigencia_hasta",
+            "Vigencia del Curso Desde": "vigencia_desde",
+            "Vigencia del Curso Hasta": "vigencia_hasta",
+            "Cargue de Evidencia": "evidencia_url",
             "Nivel de Cumplimiento": "nivel_cumplimiento",
-            "Copia Física de Certificados": "copia_certificados_fisica",
-            "Certificados en Sistema": "certificados_cargados_sistema",
-            "Documentación Coincide con HV": "documentacion_coincide_hv",
-            "Fechas Vigentes": "fechas_vigentes",
-            # 4. Firmas y Evidencias
-            "Firma Auditor": "firma_auditor",
-            "Firma Guardia Supervisado": "firma_guarda_supervisado",
-            "Foto Evidencia": "evidencia_url",
-            "URLs de Imágenes o PDFs": "evidencia_url"
+            # 4. Checklist de Verificación
+            "Copia de Certificados en Carpeta Física": "copia_certificados_fisica",
+            "Certificados Cargados en Sistema": "certificados_cargados_sistema",
+            "Documentación coincide con Datos en Hoja de Vida": "documentacion_coincide_hv",
+            "Fechas Dentro del Periodo de Vigencia": "fechas_vigentes",
+            # 5. Firmas
+            "Firma del Supervisor": "firma_auditor",
+            "Firma del Guarda Supervisado": "firma_guarda_supervisado"
         }
     },
     'confiabilidad_equipos': {
@@ -1204,8 +1203,11 @@ def _es_clave_de_fecha(key):
 
     Deliberadamente no incluye 'hora': "Horario del Servicio" vale 'Diurno' y
     no debe pasar por el formateador.
+    Tampoco debe incluir preguntas de checklist como 'Fechas Dentro del Periodo de Vigencia'.
     """
     k = str(key or '').lower()
+    if 'periodo' in k or 'vigente' in k:
+        return False
     return any(h in k for h in _DATE_KEY_HINTS)
 
 
@@ -3314,7 +3316,7 @@ def export_excel():
                             cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
                         elif isinstance(val_parsed, (list, dict)):
                             cell_value = _format_structured_value_as_text(val_parsed)
-                        elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')):
+                        elif isinstance(val, str) and any(k in header_key.lower() for k in ('fecha', 'fecha/hora', 'fecha hora', 'fecha evento', 'fecha incidente', 'fecha visita', 'fecha cumplimiento')) and not ('periodo' in header_key.lower() or 'vigente' in header_key.lower()):
                             cell_value = format_local_datetime(val, tz=tz, time_sep=" ")
                         else:
                             cell_value = str(val) if val is not None else ''
@@ -4022,6 +4024,11 @@ td.val { color: #1f2937; }
             is_url_val = bool(re.search(r'https?://|data:image/|/api/media|storage\.googleapis\.com', val_str_raw))
 
             if key in SKIP_KEYS or (is_foto_key and is_url_val):
+                if key == 'Cargue de Evidencia':
+                    is_pdf_doc = any(u.lower().split('?')[0].endswith('.pdf') for u in re.split(r'[\r\n,;]+', val_str_raw))
+                    ref_text = "[Documento PDF adjunto al final del reporte]" if is_pdf_doc else "[Evidencia fotográfica adjunta al final del reporte]"
+                    html_parts.append(f'<tr><td class="lbl">{escape(key)}</td><td class="val"><span style="color:#2563eb;font-style:italic;">{ref_text}</span></td></tr>')
+
                 # Parse attachment URLs
                 imagenes_del_campo = []
                 for url in re.split(r'[\r\n,;]+', val_str_raw):
