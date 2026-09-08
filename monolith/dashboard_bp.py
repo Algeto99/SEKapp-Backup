@@ -7050,6 +7050,20 @@ _VEH_FAULT_SUM = " + ".join(
      for col, _ in _VEH_COMPONENTS]
 )
 
+# Una inspección cuenta como crítica sólo si, además de la nota, hay al menos un
+# componente reportado como falla. Antes bastaba con que el campo de texto no
+# estuviera vacío, así que una inspección sin ninguna falla se listaba como crítica
+# por llevar escrito "Prueba" o "Ninguna", y el contador no cuadraba con la columna
+# "Fallas" del propio detalle.
+#
+# Las inspecciones con fallas pero sin nota no quedan invisibles: las cubren las
+# tarjetas "Con al menos una falla" y "Total Fallas Detectadas" del mismo tablero.
+_VEH_CRITICA_CONDS = [
+    "novedades_criticas IS NOT NULL",
+    "TRIM(novedades_criticas) <> ''",
+    f"({_VEH_FAULT_EXPR})",
+]
+
 
 def _veh_date_expr():
     return "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
@@ -7196,10 +7210,7 @@ def api_vehiculos_data():
         ]
 
         # ── Alertas: inspecciones con novedades críticas ───────────────────
-        alertas_conds = base_conds + [
-            "novedades_criticas IS NOT NULL",
-            "TRIM(novedades_criticas) <> ''"
-        ]
+        alertas_conds = base_conds + _VEH_CRITICA_CONDS
         cur.execute(f"""
             SELECT COUNT(*) FROM planilla_vehicular {_veh_where(alertas_conds)}
         """, base_params)
@@ -7272,10 +7283,7 @@ def api_vehiculos_detalles():
         desde = _gestion_desde_arg()
         base_conds, base_params = _veh_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         veh_cliente_expr, veh_propiedad_expr = _scope_name_exprs('planilla_vehicular')
-        nov_conds = base_conds + [
-            "novedades_criticas IS NOT NULL",
-            "TRIM(novedades_criticas) <> ''"
-        ]
+        nov_conds = base_conds + _VEH_CRITICA_CONDS
         cur.execute(f"""
             SELECT
                 id_planilla_vehicular,
