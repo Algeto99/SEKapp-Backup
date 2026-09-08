@@ -5861,17 +5861,18 @@ def api_capacitacion_data():
         cur.execute(f"""
             SELECT
                 COUNT(*)                       AS total_capacitaciones,
-                COALESCE(SUM({safe_len}), 0)   AS total_asistentes,
-                ROUND(COALESCE(AVG(
-                    NULLIF({safe_len}, 0)
-                ), 0), 1)                      AS promedio_asistentes
+                COALESCE(SUM({safe_len}), 0)   AS total_asistentes
             FROM registro_de_capacitaciones
             {where}
         """, base_params)
         kpi = cur.fetchone()
         total_cap   = int(kpi['total_capacitaciones'])   if kpi else 0
         total_asist = int(kpi['total_asistentes'])       if kpi else 0
-        promedio    = float(kpi['promedio_asistentes'])  if kpi else 0.0
+        # El promedio se deriva de las otras dos tarjetas para que las tres cuadren
+        # entre sí. Antes era AVG(NULLIF(len, 0)), que dejaba fuera del divisor las
+        # capacitaciones sin asistentes: con 5 capacitaciones y 8 asistentes la
+        # tarjeta mostraba 2.7 mientras 8/5 = 1.6, y las tres se ven juntas.
+        promedio    = round(total_asist / total_cap, 1) if total_cap else 0.0
 
         # ── Asistentes por capacitación (sorted ASC for chart) ────────────────
         tema_conds = base_conds + ['nombre_capacitacion IS NOT NULL']
