@@ -701,10 +701,18 @@ FORM_CONFIGS = {
             # 1. Datos Generales
             "Cliente / Empresa": "cliente_nombre",
             "Propiedad / Instalación": "propiedad_nombre",
+            "Puesto / Área Específica": "puesto_area_especifica",
             "Fecha y Hora": "fecha_hora",
             "Tema de la Capacitación": "nombre_capacitacion",
+            "Objetivo de la Capacitación": "objetivo_capacitacion",
+            "Rol del Aplicador": "rol_aplicador",
+            "Turno": "turno",
             "Nombre del Responsable/Capacitador": "nombre_responsable",
             "Cargo del Responsable": "cargo_responsable",
+            "Práctica o Simulacro": "practica_simulacro_realizado",
+            "Nivel de Comprensión": "nivel_comprension",
+            "Observaciones / Retroalimentación": "observaciones_retroalimentacion",
+            "Recomendaciones": "recomendaciones",
             "Firma del Responsable": "firma_responsable",
             "Fotos/Documentos": "foto_evidencia_url",
             "URLs de Imágenes o PDFs": "foto_evidencia_url",
@@ -1311,6 +1319,20 @@ def _format_structured_value_as_text(val):
                     tipo_str = item.get('tipo') or 'Persona'
                     nombre_str = item.get('nombre') or ''
                     parts.append(f"{tipo_str}: {nombre_str}")
+                elif any(k in item for k in ('cargo', 'numero_empleado', 'documento', 'via')) and 'tipo_equipo' not in item:
+                    nom = str(item.get('nombre', '') or '').strip()
+                    carg = str(item.get('cargo', '') or '').strip()
+                    num = str(item.get('numero_empleado', '') or '').strip()
+                    doc = str(item.get('documento', '') or '').strip()
+                    via = str(item.get('via', '') or '').strip()
+                    via_str = f" [Vía: {via}]" if via else ""
+                    if nom: parts.append(f"Nombre: {nom}")
+                    if carg: parts.append(f"Cargo: {carg}")
+                    if num: parts.append(f"N° Empleado: {num}")
+                    if doc: parts.append(f"Doc: {doc}")
+                    if item.get('firma'): parts.append("Firma: [Firma adjunta]")
+                    if via_str and not parts: parts.append(via_str.strip())
+                    elif via_str: parts[-1] += via_str
                 else:
                     for k in ['tipo_equipo', 'total_equipos', 'equipos_operativos', 'equipos_con_falla', 'pendiente_reparacion', 'pendiente_compra', 'comentario']:
                         if k in item:
@@ -2555,19 +2577,31 @@ def email_selected_reports_api():
                     row_idx += 1
                     continue
 
-            if key == 'Lista Asistencia':
+            is_asistencia_key = (
+                key in ('Lista de Asistencia', 'Lista Asistencia')
+                or key.lower() in ('lista de asistencia', 'lista asistencia', 'lista_asistencia')
+            )
+            if is_asistencia_key:
                 lista_table_html = _render_lista_asistencia_html(value)
                 if lista_table_html:
                     bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
                     p.append(f"""      <tr style="background:{bg};">
         <td colspan="2" style="padding:10px 12px;border-bottom:1px solid #f1f5f9;background:#fafafa;">
-          <strong style="font-size:11px;color:#374151;display:block;margin-bottom:6px;">Lista de Asistencia:</strong>
+          <strong style="font-size:11px;color:#1e3a8a;display:block;margin-bottom:6px;">Lista de Asistencia:</strong>
           {lista_table_html}
         </td>
       </tr>
 """)
                     row_idx += 1
-                    continue
+                else:
+                    bg = '#f8fafc' if row_idx % 2 == 0 else '#ffffff'
+                    p.append(f"""      <tr style="background:{bg};">
+        <td style="padding:8px 12px;font-weight:bold;color:#374151;font-size:11px;border-bottom:1px solid #f1f5f9;width:35%;">Lista de Asistencia</td>
+        <td style="padding:8px 12px;color:#6b7280;font-style:italic;font-size:11px;border-bottom:1px solid #f1f5f9;">Sin asistentes registrados en esta capacitación</td>
+      </tr>
+""")
+                    row_idx += 1
+                continue
 
             val_str = str(value).strip()
             if ('firma' in key.lower() or val_str.startswith('data:image')) and 'diagrama' not in key.lower():
@@ -3176,7 +3210,7 @@ def _map_thumbnail_html(lat: float, lng: float, width: int = 160, height: int = 
     return f'<div style="{container_style}">{inner}</div>'
 
 
-def _render_lista_asistencia_html(value):
+def _render_lista_asistencia_html(value, _cache=None):
     """Render a lista_asistencia JSON string as an HTML table for PDF."""
     try:
         attendees = json.loads(value) if isinstance(value, str) else value
@@ -3189,18 +3223,19 @@ def _render_lista_asistencia_html(value):
     for a in attendees:
         if not isinstance(a, dict):
             continue
-        nombre = a.get('nombre', '')
-        cargo = a.get('cargo', '')
-        num_emp = a.get('numero_empleado', '')
-        doc = a.get('documento', '')
-        firma = a.get('firma', '')
-        via = a.get('via', '')
+        nombre = escape(str(a.get('nombre', '') or '').strip())
+        cargo = escape(str(a.get('cargo', '') or '').strip())
+        num_emp = escape(str(a.get('numero_empleado', '') or '').strip())
+        doc = escape(str(a.get('documento', '') or '').strip())
+        firma = a.get('firma', '') or ''
+        via = str(a.get('via', '') or '').strip()
 
         firma_html = '—'
         if firma and (firma.startswith('data:image') or firma.startswith('http') or firma.startswith('/api/media')):
-            firma_html = f'<img src="{firma}" style="max-width:90px;max-height:45px;border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">'
-        
-        via_str = 'QR' if (via and 'QR' in str(via).upper()) else 'Formulario'
+            src = _imagen_data_url(firma, _cache) if _cache is not None else firma
+            firma_html = f'<img src="{escape(src)}" style="max-width:90px;max-height:45px;border:1px solid #d1d5db;border-radius:3px;object-fit:contain;">'
+
+        via_str = 'QR' if 'QR' in via.upper() else 'Formulario'
         via_badge = (
             f'<span style="display:inline-block;padding:2px 6px;font-size:7pt;font-weight:bold;border-radius:3px;'
             f'background:#f3e8ff;color:#6b21a8;">QR</span>'
@@ -3648,6 +3683,26 @@ td.val { color: #1f2937; }
             if key in HIDDEN_KEYS:
                 continue
 
+            is_asistencia_key = (
+                key in ('Lista de Asistencia', 'Lista Asistencia')
+                or key.lower() in ('lista de asistencia', 'lista asistencia', 'lista_asistencia')
+            )
+            if is_asistencia_key:
+                lista_html = _render_lista_asistencia_html(value, _cache=_media_cache)
+                if lista_html:
+                    html_parts.append(
+                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
+                        f'<strong style="color: #1e3a8a; font-size: 8.5pt; display: block; margin-bottom: 6px;">Lista de Asistencia:</strong>'
+                        f'{lista_html}'
+                        f'</td></tr>'
+                    )
+                else:
+                    html_parts.append(
+                        f'<tr><td class="lbl">Lista de Asistencia</td>'
+                        f'<td class="val"><span style="color:#6b7280;font-style:italic;">Sin asistentes registrados en esta capacitación</span></td></tr>'
+                    )
+                continue
+
             # Only what this record actually captured: columns the form no longer
             # asks for arrive as the "N/A" placeholder and used to print as rows
             # of a form that never had them.
@@ -3708,17 +3763,6 @@ td.val { color: #1f2937; }
                         f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
                         f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Personas Involucradas:</strong>'
                         f'{personas_html}'
-                        f'</td></tr>'
-                    )
-                continue
-
-            if key == 'Lista Asistencia':
-                lista_html = _render_lista_asistencia_html(value)
-                if lista_html:
-                    html_parts.append(
-                        f'<tr><td colspan="2" style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; background: #fafafa;">'
-                        f'<strong style="color: #374151; font-size: 8pt; display: block; margin-bottom: 5px;">Lista Asistencia:</strong>'
-                        f'{lista_html}'
                         f'</td></tr>'
                     )
                 continue
