@@ -202,7 +202,7 @@
                 <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-<form id="incidenteForm" action="{{ url_for('forms_bp.submit_incident_report_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_incident_report') }}" method="POST">
+<form id="incidenteForm" action="{{ url_for('forms_bp.submit_incident_report_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_incident_report') }}" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">

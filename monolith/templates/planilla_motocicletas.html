@@ -819,7 +819,7 @@
             <p class="text-gray-400 mt-2">Inspección completa de motocicletas y control de flota</p>
         </div>
 
-        <form id="motocicletaForm" action="{{ url_for('forms_bp.submit_planilla_motocicletas_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_planilla_motocicletas') }}" method="POST" data-skip-customer-hierarchy="true">
+        <form id="motocicletaForm" action="{{ url_for('forms_bp.submit_planilla_motocicletas_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_planilla_motocicletas') }}" method="POST" enctype="multipart/form-data" data-skip-customer-hierarchy="true">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">1. Datos Generales</h2>
