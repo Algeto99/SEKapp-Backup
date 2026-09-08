@@ -1,6 +1,6 @@
-// Bumped to v12: 401 JSON on expired sessions + signature_pad/qrcode auto-hospedados
+// Bumped to v13: Ignore AbortError in handleFormPost + Confiabilidad Equipos deduplication
 // OJO: SECAPP_CACHE_NAME en templates/select_form.html debe coincidir con este valor.
-const CACHE_VERSION = 'secapp-v12';
+const CACHE_VERSION = 'secapp-v13';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';
@@ -139,7 +139,12 @@ async function handleFormPost(request) {
     try {
         const response = await fetch(request);
         return response;
-    } catch {
+    } catch (err) {
+        // Do not queue requests that were explicitly aborted (e.g. navigation cancellation or rapid button double click)
+        if (err && (err.name === 'AbortError' || request.signal?.aborted)) {
+            return Response.error();
+        }
+
         const formData = await requestClone.formData();
         const entries = [];
         const filePromises = [];

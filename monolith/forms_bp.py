@@ -3469,6 +3469,39 @@ def submit_confiabilidad_equipos():
 
         valid_data = _filter_existing_columns(cur, 'confiabilidad_equipos', form_data)
 
+        # Deduplication check: verify if an identical submission was received within the last 30 seconds
+        prop_id_val = form_data.get('id_propiedad')
+        try:
+            prop_id_int = int(prop_id_val) if prop_id_val is not None else None
+        except (ValueError, TypeError):
+            prop_id_int = None
+
+        cur.execute("""
+            SELECT id FROM confiabilidad_equipos
+            WHERE submitted_by_email = %s
+              AND COALESCE(id_propiedad, 0) = COALESCE(%s, 0)
+              AND fecha = %s
+              AND hora = %s
+              AND COALESCE(sitio, '') = COALESCE(%s, '')
+              AND created_at >= NOW() - INTERVAL '30 seconds'
+            ORDER BY id DESC LIMIT 1
+        """, (
+            user_email,
+            prop_id_int,
+            form_data.get('fecha'),
+            form_data.get('hora'),
+            form_data.get('sitio') or ''
+        ))
+        existing = cur.fetchone()
+        if existing:
+            rec_id = existing[0]
+            app_logger.warning(
+                f"Duplicate submission detected for confiabilidad_equipos from {user_email} "
+                f"(matches ID {rec_id} within 30s window). Skipping duplicate insert."
+            )
+            cur.close()
+            return _form_success_response()
+
         columns      = ', '.join(valid_data.keys())
         placeholders = ', '.join(['%s'] * len(valid_data))
         sql = f"INSERT INTO confiabilidad_equipos ({columns}) VALUES ({placeholders})"

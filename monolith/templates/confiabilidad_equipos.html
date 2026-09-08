@@ -48,6 +48,42 @@
         }
         .form-textarea { resize: vertical; }
 
+        /* ─── Loading Overlay ─── */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
         /* ─── Signature Pad ─── */
         .signature-pad {
             touch-action: none;
@@ -181,6 +217,12 @@
 </head>
 
 <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">{{ 'Guardando cambios...' if edit_mode else 'Guardando registro...' }}</div>
+    </div>
+
     <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
         <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -437,7 +479,7 @@
     </div>
 
     <!-- SignaturePad Library -->
-    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/signature_pad.umd.min.js') }}"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -865,8 +907,18 @@
         document.getElementById('clearSignatureSupervisor').addEventListener('click', () => padSupervisor.clear());
 
         /* ─── Form Submit ─── */
+        let isSubmitting = false;
         const confiabilidadForm = document.getElementById('confiabilidadForm');
-        confiabilidadForm.addEventListener('submit', function (e) {
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        confiabilidadForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            if (isSubmitting) {
+                return false;
+            }
+
             // Validate all inventory blocks before submission
             const blocks = document.querySelectorAll('.inventory-block');
             let firstInvalidInput = null;
@@ -881,8 +933,6 @@
             }
 
             if (firstInvalidInput) {
-                e.preventDefault();
-                e.stopPropagation();
                 showConfiabilidadToast(MSG_OPERATIVOS_INVALID, true);
                 firstInvalidInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 firstInvalidInput.focus();
@@ -895,6 +945,92 @@
             // Capture signatures
             document.getElementById('firma_supervisor').value =
                 padSupervisor.isEmpty() ? '' : padSupervisor.toDataURL();
+
+            // Lock submission to prevent duplicates
+            isSubmitting = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+            if (loadingOverlay) {
+                loadingOverlay.style.display = 'flex';
+            }
+
+            // Ensure CSRF token is attached
+            var _c = document.cookie.split(';').map(function(x){return x.trim();}).find(function(x){return x.startsWith('csrf_access_token=');});
+            var _csrf = _c ? decodeURIComponent(_c.substring('csrf_access_token='.length)) : '';
+            var _i = document.getElementById('_jwt_csrf_form');
+            if (!_i) {
+                _i = document.createElement('input');
+                _i.type = 'hidden';
+                _i.name = 'csrf_token';
+                _i.id = '_jwt_csrf_form';
+                confiabilidadForm.appendChild(_i);
+            }
+            if (_csrf) {
+                _i.value = _csrf;
+            }
+
+            try {
+                const formData = new FormData(confiabilidadForm);
+                const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+                if (_csrf) {
+                    headers['X-CSRF-TOKEN'] = _csrf;
+                }
+
+                const response = await fetch(confiabilidadForm.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: headers,
+                    credentials: 'include'
+                });
+
+                if (response.status === 401) {
+                    if (loadingOverlay) loadingOverlay.style.display = 'none';
+                    isSubmitting = false;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                    showConfiabilidadToast('Sesión expirada. Por favor inicie sesión en otra pestaña y vuelva a intentar.', true);
+                    return;
+                }
+
+                if (response.ok) {
+                    let data = null;
+                    const ct = response.headers.get('content-type') || '';
+                    if (ct.includes('application/json')) {
+                        try { data = await response.json(); } catch(err) {}
+                    }
+                    window.location.href = (data && data.redirect_url) ? data.redirect_url : '/forms/success?message=' + encodeURIComponent('Registro de confiabilidad de equipos guardado exitosamente!');
+                    return;
+                }
+
+                let errorMsg = 'Error en el servidor (' + response.status + '). Por favor verifique e intente nuevamente.';
+                try {
+                    const errJson = await response.json();
+                    if (errJson && errJson.message) errorMsg = errJson.message;
+                    else if (errJson && errJson.error) errorMsg = errJson.error;
+                } catch(err) {}
+
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
+                isSubmitting = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                showConfiabilidadToast(errorMsg, true);
+
+            } catch (netErr) {
+                console.error('Error enviando confiabilidad_equipos:', netErr);
+                if (loadingOverlay) loadingOverlay.style.display = 'none';
+                isSubmitting = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                showConfiabilidadToast('No fue posible enviar el formulario debido a un problema de conexión. Sus datos siguen intactos en pantalla. Por favor intente nuevamente.', true);
+            }
         });
 
     });
