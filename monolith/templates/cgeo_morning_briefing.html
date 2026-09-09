@@ -667,17 +667,33 @@ function renderKpis(k, thr) {
     // Equipos: radios, armas, motos desde el inventario
     const radioData = _eqTipo(k.eq_por_tipo, 'radio', 'radios');
     const armaData  = _eqTipo(k.eq_por_tipo, 'arma', 'armas');
-    const motoData  = _eqTipo(k.eq_por_tipo, 'moto', 'motos', 'motocicleta');
+    // Las motos salen de planilla_motocicletas (la misma fuente que Recursos),
+    // no del inventario de equipos, donde nunca hubo filas de ese tipo.
+    const motoTotal = k.moto_total ?? 0;
+    const motoAptas = k.moto_aptas ?? 0;
 
-    const radioTotal = radioData?.total ?? k.eq_total ?? 0;
-    const radioOp    = radioData?.operativos ?? (k.eq_op ?? 0);
-    const radioNoOp  = radioTotal - radioOp;
+    // Sin inventario de radios NO se hereda el total general de equipos: eso
+    // ponía cámaras, alarmas y controles de acceso bajo la etiqueta "Radios"
+    // —el mismo error de "número correcto, etiqueta equivocada" que ya se quitó
+    // de la pantalla de Recursos—. Sin fuente propia, la tarjeta dice "Sin datos".
+    const radioTotal = radioData?.total ?? 0;
+    const radioOp    = radioData?.operativos ?? 0;
+    const radioNoOp  = Math.max(0, radioTotal - radioOp);
+
+    // Registrados en supervision_puesto: lo mismo que lista Bases de Datos.
+    // Mientras no se capture el inventario en Confiabilidad de Equipos no se
+    // puede afirmar cuántos están operativos, pero sí cuántos hay: decir "Sin
+    // datos" teniendo el parque registrado era ocultar información existente.
+    const radioReg = k.radios_registrados ?? 0;
+    const armaReg  = k.armas_registrados  ?? 0;
 
     const armaStr = armaData
         ? `${armaData.operativos} de ${armaData.total} armas operativas`
-        : '0 armas registradas';
-    const motoStr = motoData
-        ? `${motoData.operativos} de ${motoData.total} motos operativas`
+        : armaReg > 0
+            ? `${armaReg} armas registradas · estado sin capturar`
+            : '0 armas registradas';
+    const motoStr = motoTotal > 0
+        ? `${motoAptas} de ${motoTotal} motos aptas`
         : '0 motos registradas';
 
     // Certificaciones por nivel
@@ -715,11 +731,15 @@ function renderKpis(k, thr) {
             id: 'kpiEq',
             href: '/cgeo/recursos/',
             icon: '📡', iconBg: '#fff7ed',
-            val: radioTotal > 0 ? radioOp : '—',
+            // Tres estados, en este orden: inventario capturado → % operativo;
+            // sólo registro → cuántos hay, sin afirmar su estado; nada → sin datos.
+            val: radioTotal > 0 ? radioOp : radioReg > 0 ? radioReg : '—',
             lbl: 'Radios',
             sub: radioTotal > 0
                 ? `de ${radioTotal} operativos · ${armaStr} · ${motoStr}`
-                : `Sin datos de radios · ${armaStr} · ${motoStr}`,
+                : radioReg > 0
+                    ? `${radioReg} registrados · estado sin capturar · ${armaStr} · ${motoStr}`
+                    : `Sin datos de radios · ${armaStr} · ${motoStr}`,
             action: 'Ver equipos →',
             color: _kpiEqColor(radioNoOp, radioTotal, thr),
         },

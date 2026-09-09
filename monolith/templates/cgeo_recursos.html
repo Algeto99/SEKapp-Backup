@@ -369,11 +369,13 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                     <span class="kpi-icon">📻</span>
                     <div class="kpi-val" id="kpiRadiosOp">—</div>
                     <div class="kpi-lbl">Radios Operativos</div>
+                    <div id="kpiRadiosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-green" style="border-top-color:#16a34a">
                     <span class="kpi-icon">🔫</span>
                     <div class="kpi-val" id="kpiArmasOp">—</div>
                     <div class="kpi-lbl">Armas Óptimas</div>
+                    <div id="kpiArmasDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-sky">
                     <span class="kpi-icon">🚓</span>
@@ -710,8 +712,27 @@ function renderData(d) {
     const vehicCarros = d.vehiculos_carros || {};
     const vehicMotos  = d.vehiculos_motos  || {};
     const pctOrNoData = v => v != null ? v + '%' : 'Sin datos';
-    document.getElementById('kpiRadiosOp').textContent    = pctOrNoData(radios.pct);
-    document.getElementById('kpiArmasOp').textContent     = pctOrNoData(armas.pct);
+
+    // Radios y armas tienen dos fuentes complementarias: confiabilidad_equipos
+    // sabe cuántos están operativos, supervision_puesto sabe cuántos hay (es lo
+    // que lista Bases de Datos). Sin inventario capturado se muestra el parque
+    // registrado en vez de "Sin datos", que ocultaba información existente.
+    const inventarioKpi = (inv, unidad) => {
+        if (inv.pct != null) {
+            return { val: inv.pct + '%', sub: `${inv.operativos} de ${inv.total} operativos` };
+        }
+        if ((inv.registrados ?? 0) > 0) {
+            return { val: inv.registrados,
+                     sub: `${unidad} registradas · estado sin capturar en Confiabilidad de Equipos` };
+        }
+        return { val: 'Sin datos', sub: '' };
+    };
+    const radiosKpi = inventarioKpi(radios, 'unidades');
+    const armasKpi  = inventarioKpi(armas,  'unidades');
+    document.getElementById('kpiRadiosOp').textContent    = radiosKpi.val;
+    document.getElementById('kpiRadiosDenom').textContent = radiosKpi.sub;
+    document.getElementById('kpiArmasOp').textContent     = armasKpi.val;
+    document.getElementById('kpiArmasDenom').textContent  = armasKpi.sub;
     document.getElementById('kpiCarrosAptos').textContent = pctOrNoData(vehicCarros.pct);
     document.getElementById('kpiMotosAptas').textContent  = pctOrNoData(vehicMotos.pct);
 
@@ -820,8 +841,10 @@ function renderData(d) {
     // Alertas por categoría
     const cats = [
         { icon: '⚙️', label: 'Equipos', val: a.equipos_no_op || 0, sub: 'No operativos', color: '#ef4444' },
-        { icon: '📻', label: 'Radios', val: 0, sub: 'Sin datos', color: '#f97316' },
-        { icon: '🔫', label: 'Armas', val: 0, sub: 'Sin datos', color: '#eab308' },
+        { icon: '📻', label: 'Radios', val: radios.no_operativos || 0,
+          sub: radios.pct != null ? 'No operativos' : 'Sin inventario', color: '#f97316' },
+        { icon: '🔫', label: 'Armas', val: armas.no_aptas || 0,
+          sub: armas.pct != null ? 'No óptimas' : 'Sin inventario', color: '#eab308' },
         { icon: '🚗', label: 'Vehículos', val: a.vehiculos_no_aptos || 0, sub: 'No aptos', color: '#ef4444' },
         { icon: '📋', label: 'Cumplimiento', val: (a.certificaciones_vencidas || 0) + (a.proximas_vencer || 0), sub: 'Vencidas/Próx.', color: '#f97316' },
     ];

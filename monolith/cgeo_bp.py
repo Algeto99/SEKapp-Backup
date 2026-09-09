@@ -197,7 +197,61 @@ _VEH_FAULT_EXPR = " OR ".join(
 )
 
 
-def _eq_tipo_kpi(eq_por_tipo, nombres):
+def _registrados_supervision(cur, tipo, cliente=None, propiedad=None,
+                             start_date=None, end_date=None):
+    """Radios o armas registrados, contados como los cuenta Bases de Datos.
+
+    `confiabilidad_equipos` es la única fuente del % operativo, porque es la
+    única que captura total / operativos / con falla. Pero el parque real ya
+    está registrado en `supervision_puesto`: qué serial porta cada guardia. Esta
+    consulta reutiliza el mismo identificador y la misma partición por empresa
+    que `/api/bases_de_datos/{armas,radios}`, así que el KPI cuadra unidad por
+    unidad con la tabla que el usuario ve allí —incluidas las filas sin serial,
+    que Bases de Datos también lista y que representan un equipo asignado cuyo
+    número no se anotó.
+
+    Sirve para dejar de decir "Sin datos" cuando el sistema sí sabe cuántos
+    radios y armas hay; no convierte a supervision_puesto en fuente de estado.
+    """
+    from dashboard_bp import _bd_identifier_sql
+
+    cur.execute("""
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'supervision_puesto'
+    """)
+    cols = {(r['column_name'] if isinstance(r, dict) else r[0]) for r in cur.fetchall()}
+
+    if tipo == 'armas':
+        conds = ["LOWER(TRIM(COALESCE(porta_arma,''))) = 'si'"]
+        identifier = _bd_identifier_sql('serie_arma')
+    else:
+        conds = ["TRIM(COALESCE(equipamiento_completo, '')) <> ''"]
+        identifier = (_bd_identifier_sql('radio_asignado_serial')
+                      if 'radio_asignado_serial' in cols
+                      else _bd_identifier_sql())
+
+    params = []
+    _add_cliente(conds, params, cliente, propiedad=propiedad)
+    # Por fecha, no por instante: fecha_hora es TIMESTAMPTZ (ver _date_conds).
+    if start_date:
+        conds.append("fecha_hora::date >= %s")
+        params.append(start_date)
+    if end_date:
+        conds.append("fecha_hora::date <= %s")
+        params.append(end_date)
+
+    cur.execute(f"""
+        SELECT COUNT(DISTINCT (
+            COALESCE(company_id::TEXT, '-') || '|' || ({identifier})
+        )) AS n
+        FROM supervision_puesto
+        {_where(conds)}
+    """, tuple(params))
+    r = cur.fetchone()
+    return int((r.get('n') if isinstance(r, dict) else r[0]) or 0)
+
+
+def _eq_tipo_kpi(eq_por_tipo, nombres, registrados=None):
     """Agrega el inventario de uno o más tipos de equipo en un KPI.
 
     `eq_por_tipo` llega con el tipo ya normalizado a minúsculas. Se aceptan varios
@@ -218,6 +272,14 @@ def _eq_tipo_kpi(eq_por_tipo, nombres):
         # Alias para el dónut de armas, que rotula "Óptimas / No Aptas".
         "optimas": operativos,
         "no_aptas": max(0, total - operativos),
+        # Unidades registradas en supervision_puesto (lo mismo que lista Bases
+        # de Datos). `origen` dice qué puede afirmar la tarjeta: con inventario
+        # capturado muestra el % operativo; sin él, cuántas unidades hay pero
+        # sin estado; y sólo si tampoco hay registro, "Sin datos".
+        "registrados": int(registrados or 0),
+        "origen": ("confiabilidad" if total
+                   else "registro" if registrados
+                   else None),
     }
 
 
@@ -716,8 +778,14 @@ def cgeo_api_recursos_data():
             # pueden discrepar. Quedan en null mientras no haya inventario de ese
             # tipo capturado: el informe muestra "Sin datos", nunca un número
             # inventado ni el porcentaje general con otra etiqueta.
-            "radios": _eq_tipo_kpi(eq_por_tipo, ('radios', 'radio')),
-            "armas":  _eq_tipo_kpi(eq_por_tipo, ('armas', 'arma')),
+            "radios": _eq_tipo_kpi(
+                eq_por_tipo, ('radios', 'radio'),
+                registrados=_registrados_supervision(
+                    cur, 'radios', cliente, propiedad, start_date, end_date)),
+            "armas":  _eq_tipo_kpi(
+                eq_por_tipo, ('armas', 'arma'),
+                registrados=_registrados_supervision(
+                    cur, 'armas', cliente, propiedad, start_date, end_date)),
             # Carros y motos separados: antes "Carros Aptos" mostraba el total de
             # vehículos y "Motocicletas Aptas" no mostraba nada.
             "vehiculos_carros": {
@@ -1835,6 +1903,30 @@ def cgeo_api_morning_briefing_data():
         cert_por_nivel = {r["nivel"]: int(r["total"] or 0) for r in cur.fetchall()}
         cert_proximas = sum(cert_por_nivel.values())
 
+        # ── Motocicletas ──────────────────────────────────────────────────────
+        # Las motos NO viven en el inventario de confiabilidad_equipos: tienen su
+        # propia planilla, que es la fuente que ya usa Gestión de Recursos. El
+        # briefing las derivaba de `eq_por_tipo`, así que rotulaba "0 motos
+        # registradas" mientras Recursos mostraba la flota real sobre los mismos
+        # días. Sin filtro de fechas, como el resto de KPIs de esta pantalla.
+        from dashboard_bp import _MOTO_FAULT_EXPR
+        cur.execute(f"""
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN NOT ({_MOTO_FAULT_EXPR}) THEN 1 ELSE 0 END) AS aptas
+            FROM planilla_motocicletas
+        """)
+        moto_row = cur.fetchone() or {}
+        moto_total = int(moto_row.get("total") or 0)
+        moto_aptas = int(moto_row.get("aptas") or 0)
+
+        # ── Radios y armas registrados ────────────────────────────────────────
+        # El inventario de confiabilidad_equipos da el % operativo; supervision_puesto
+        # da cuántas unidades hay realmente registradas. Sin filtros, igual que el
+        # resto de indicadores de esta pantalla.
+        radios_registrados = _registrados_supervision(cur, 'radios')
+        armas_registrados  = _registrados_supervision(cur, 'armas')
+
         # ── Compromisos de visitas a clientes (vencidos / próximos a vencer) ──
         from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
         today = _date.today()
@@ -1967,6 +2059,10 @@ def cgeo_api_morning_briefing_data():
                 "eq_no_op":        eq_no_op,
                 "eq_pct":          eq_pct,
                 "eq_por_tipo":     eq_por_tipo,
+                "moto_total":      moto_total,
+                "moto_aptas":      moto_aptas,
+                "radios_registrados": radios_registrados,
+                "armas_registrados":  armas_registrados,
                 "cert_proximas":   cert_proximas,
                 "cert_por_nivel":  cert_por_nivel,
                 "comp_vencidos":   comp_vencidos,
