@@ -356,21 +356,55 @@ def cgeo_api_filtros():
                     seen_c.add(p["cliente"])
                     clientes.append({"id": p["cliente"], "name": p["cliente"]})
 
-        # 3. Distinct supervisors from incident reports, scoped by company
-        sup_query = """
-            SELECT DISTINCT TRIM(nombre_responsable) AS name
-            FROM reportes_incidentes ri
-            LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
-            LEFT JOIN customer_companies cc ON p.customer_company_id = cc.id
-            WHERE TRIM(COALESCE(nombre_responsable,'')) <> ''
-        """
+        # 3. Supervisores con registros en cualquiera de las secciones de la
+        #    pantalla, no sólo en incidentes.
+        #
+        #    Antes la lista salía únicamente de reportes_incidentes, así que quien
+        #    hizo supervisiones, capacitaciones, actas o encuestas pero nunca
+        #    reportó un incidente no aparecía — y el filtro mostraba un solo
+        #    nombre. Cada tabla aporta su propia columna de persona, la misma con
+        #    la que después se filtra en /api/operacion-data, para que la lista no
+        #    ofrezca nombres que no devuelvan nada.
+        _SUP_FUENTES = [
+            ('reportes_incidentes',             'nombre_responsable'),
+            ('medicion_experiencia_cliente',    'nombre_responsable'),
+            ('supervision_puesto',              'supervisor'),
+            ('registro_de_capacitaciones',      'nombre_responsable'),
+            ('informe_novedades_disciplinario', 'nombre_responsable'),
+            ('registro_y_acta_de_visita',       'nombre_visitante'),
+        ]
         sup_params = []
-        if company_id is not None:
-            sup_query += " AND cc.company_id = %s"
-            sup_params.append(company_id)
-        sup_query += " ORDER BY name"
-        cur.execute(sup_query, tuple(sup_params))
-        supervisores = [r["name"] for r in cur.fetchall()]
+        piezas = []
+        for tabla, columna in _SUP_FUENTES:
+            pieza = f"""
+                SELECT DISTINCT TRIM(t.{columna}) AS name
+                FROM {tabla} t
+                LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
+                LEFT JOIN customer_companies cc ON p.customer_company_id = cc.id
+                WHERE TRIM(COALESCE(t.{columna},'')) <> ''
+            """
+            if company_id is not None:
+                pieza += " AND cc.company_id = %s"
+                sup_params.append(company_id)
+            piezas.append(pieza)
+        # UNION (no UNION ALL) para que un mismo nombre presente en varias
+        # secciones aparezca una sola vez en el selector.
+        sup_query = " UNION ".join(piezas) + " ORDER BY name"
+        try:
+            cur.execute(sup_query, tuple(sup_params))
+            supervisores = [r["name"] for r in cur.fetchall()]
+        except Exception as sup_err:
+            # Una tabla ausente no puede dejar el selector vacío: se cae al
+            # comportamiento anterior, que al menos lista los de incidentes.
+            conn.rollback()
+            app_logger.warning(f"cgeo_api_filtros: lista de supervisores reducida: {sup_err}")
+            cur.execute("""
+                SELECT DISTINCT TRIM(nombre_responsable) AS name
+                FROM reportes_incidentes
+                WHERE TRIM(COALESCE(nombre_responsable,'')) <> ''
+                ORDER BY name
+            """)
+            supervisores = [r["name"] for r in cur.fetchall()]
 
         return jsonify({
             "clientes": clientes,
@@ -2004,6 +2038,17 @@ def cgeo_api_operacion_data():
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
+        def _add_supervisor(col, conds, params):
+            """Aplica el filtro de Supervisor con la columna propia de cada tabla.
+
+            Antes sólo se aplicaba a la tendencia de incidentes, así que elegir un
+            supervisor no movía ningún otro indicador de la pantalla. Se suma a los
+            filtros de Cliente, Propiedad y fechas; no los reemplaza.
+            """
+            if supervisor:
+                conds.append(f"TRIM(COALESCE({col},'')) = %s")
+                params.append(supervisor.strip())
+
         def _date_conds(date_col, conds, params):
             if start_date:
                 conds.append(f"{date_col} >= %s")
@@ -2016,6 +2061,7 @@ def cgeo_api_operacion_data():
         inc_conds, inc_params = [], []
         _add_cliente(inc_conds, inc_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", inc_conds, inc_params)
+        _add_supervisor("nombre_responsable", inc_conds, inc_params)
         inc_where = _where(inc_conds)
         cur.execute(f"""
             SELECT
@@ -2076,13 +2122,11 @@ def cgeo_api_operacion_data():
         inc_abiertos_total = int(inc_ab_row.get("total_abiertos") or 0)
         inc_mas_24h = int(inc_ab_row.get("mas_24h") or 0)
 
-        # Tendencia mensual incidentes — separate condition set so supervisor
-        # filter scopes only this chart without touching KPIs above.
+        # Tendencia mensual de incidentes. El filtro de Supervisor ya viene en
+        # inc_conds: antes se añadía sólo aquí, y por eso era el único elemento de
+        # la pantalla que reaccionaba al elegir un supervisor.
         trend_conds  = list(inc_conds)
         trend_params = list(inc_params)
-        if supervisor:
-            trend_conds.append("TRIM(COALESCE(nombre_responsable,'')) = %s")
-            trend_params.append(supervisor.strip())
         trend_where = _where(trend_conds)
         cur.execute(f"""
             SELECT
@@ -2100,6 +2144,7 @@ def cgeo_api_operacion_data():
         sat_conds, sat_params = [], []
         _add_cliente(sat_conds, sat_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", sat_conds, sat_params)
+        _add_supervisor("nombre_responsable", sat_conds, sat_params)
         sat_where = _where(sat_conds)
         cur.execute(f"""
             SELECT
@@ -2150,6 +2195,7 @@ def cgeo_api_operacion_data():
         sup_conds, sup_params = [], []
         _add_cliente(sup_conds, sup_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", sup_conds, sup_params)
+        _add_supervisor("supervisor", sup_conds, sup_params)
         sup_where = _where(sup_conds)
         _sup_score = " + ".join(
             f"COALESCE(CASE WHEN {col}::TEXT ~ '^[0-9.]+$' THEN {col}::NUMERIC ELSE 0 END, 0)"
@@ -2195,6 +2241,7 @@ def cgeo_api_operacion_data():
         cap_safe = _capac_safe_len()
         cap_conds, cap_params = [], []
         _add_cliente(cap_conds, cap_params, cliente, propiedad=propiedad)
+        _add_supervisor("nombre_responsable", cap_conds, cap_params)
         if start_date:
             cap_conds.append(f"{cap_date} >= %s")
             cap_params.append(start_date)
@@ -2227,6 +2274,7 @@ def cgeo_api_operacion_data():
         disc_conds, disc_params = [], []
         _add_cliente(disc_conds, disc_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", disc_conds, disc_params)
+        _add_supervisor("nombre_responsable", disc_conds, disc_params)
         disc_where = _where(disc_conds)
         cur.execute(f"""
             SELECT COUNT(*) AS total FROM informe_novedades_disciplinario {disc_where}
@@ -2238,6 +2286,7 @@ def cgeo_api_operacion_data():
         vis_conds, vis_params = [], []
         _add_cliente(vis_conds, vis_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", vis_conds, vis_params)
+        _add_supervisor("nombre_visitante", vis_conds, vis_params)
         vis_where = _where(vis_conds)
         compromisos_pend = []
         vis_total = vis_cumplidos = vis_pendientes = vis_vencidos = 0
