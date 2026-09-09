@@ -27,7 +27,10 @@
         .theme-toggle:hover { background-color:rgba(255,255,255,0.2); transform:scale(1.05); }
         .theme-toggle svg { width:1.25rem; height:1.25rem; }
 
-        .main-container { max-width:1280px; margin:0 auto; padding:2rem 1.5rem; }
+        .main-container {
+            max-width:1280px; margin:0 auto; padding:2rem 1.5rem;
+            width:100%; box-sizing:border-box;
+        }
 
         /* Module header */
         .module-header {
@@ -99,9 +102,20 @@
         }
         .results-summary strong { color:#94a3b8; }
 
+        /* Aviso de desplazamiento horizontal (solo móvil) */
+        .scroll-hint {
+            display:none; align-items:center; gap:0.4rem;
+            font-size:0.75rem; color:#64748b;
+            margin-bottom:0.5rem;
+        }
+        .scroll-hint svg { width:14px; height:14px; flex-shrink:0; }
+
         /* Table */
         .table-wrapper {
             overflow-x:auto;
+            -webkit-overflow-scrolling:touch;
+            overscroll-behavior-x:contain;
+            max-width:100%;
             border-radius:12px;
             border:1px solid rgba(255,255,255,0.07);
         }
@@ -210,10 +224,19 @@
         body.light-mode .empty-state { color:#94a3b8; }
 
         @media (max-width:768px) {
-
-            body { }
-            .filter-bar { flex-direction:column; }
+            .main-container { padding:1.25rem 0.75rem; }
+            .filter-bar { flex-direction:column; padding:1rem; }
             .filter-group { min-width:100%; }
+            .filter-bar .btn-primary, .filter-bar .btn-export { width:100%; justify-content:center; }
+
+            /* Cada fila en una sola línea: se consulta desplazando la tabla en horizontal */
+            .table-wrapper > table th,
+            .table-wrapper > table td { white-space:nowrap; }
+            .training-detail td,
+            .training-inner-table th,
+            .training-inner-table td { white-space:normal; }
+
+            .scroll-hint { display:flex; }
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
@@ -406,6 +429,9 @@
     <script>
     // ── Cached data for export ────────────────────────────────────────
     const _cache = { armas: [], radios: [], personal: [] };
+
+    // Aviso de desplazamiento: oculto por CSS salvo en móvil
+    const SCROLL_HINT = `<div class="scroll-hint"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l-3 3 3 3m8-6l3 3-3 3"/></svg>Deslice la tabla horizontalmente para ver todas las columnas</div>`;
 
     // ── Tabs ─────────────────────────────────────────────────────────
     const _tabLoaded = { armas: false, radios: false, personal: false };
@@ -623,7 +649,7 @@
                 summary.textContent = `Mostrando ${data.rows.length} registro${data.rows.length !== 1 ? 's' : ''} encontrado${data.rows.length !== 1 ? 's' : ''}.`;
                 summary.style.display = 'block';
 
-                let html = `<div class="table-wrapper"><table>
+                let html = SCROLL_HINT + `<div class="table-wrapper"><table>
                     <thead><tr>
                         <th>N° Empleado</th>
                         <th>Guardia</th>
@@ -682,7 +708,7 @@
                 summary.textContent = `Mostrando ${data.rows.length} registro${data.rows.length !== 1 ? 's' : ''} encontrado${data.rows.length !== 1 ? 's' : ''}.`;
                 summary.style.display = 'block';
 
-                let html = `<div class="table-wrapper"><table>
+                let html = SCROLL_HINT + `<div class="table-wrapper"><table>
                     <thead><tr>
                         <th>N° Empleado</th>
                         <th>Guardia</th>
@@ -741,7 +767,7 @@
                 summary.textContent = `Mostrando ${data.rows.length} colaborador${data.rows.length !== 1 ? 'es' : ''} encontrado${data.rows.length !== 1 ? 's' : ''}.`;
                 summary.style.display = 'block';
 
-                let html = `<div class="table-wrapper"><table>
+                let html = SCROLL_HINT + `<div class="table-wrapper"><table>
                     <thead><tr>
                         <th>N° Empleado</th>
                         <th>Nombre</th>
@@ -779,7 +805,7 @@
                     </tr>`;
                     if (hasCap) {
                         html += `<tr class="training-detail" id="training-detail-${idx}">
-                            <td colspan="9">
+                            <td colspan="10">
                                 <table class="training-inner-table">
                                     <thead><tr>
                                         <th>Capacitación</th>
