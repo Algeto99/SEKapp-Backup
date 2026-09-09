@@ -505,10 +505,10 @@ def cgeo_api_recursos_data():
         veh_conds, veh_params = [], []
         _add_cliente(veh_conds, veh_params, cliente, propiedad=propiedad)
         if start_date:
-            veh_conds.append(f"{veh_date} >= %s")
+            veh_conds.append(f"({veh_date})::date >= %s")
             veh_params.append(start_date)
         if end_date:
-            veh_conds.append(f"{veh_date} <= %s")
+            veh_conds.append(f"({veh_date})::date <= %s")
             veh_params.append(end_date)
         veh_where = _where(veh_conds)
         cur.execute(f"""
@@ -535,10 +535,10 @@ def cgeo_api_recursos_data():
         _add_cliente(moto_conds, moto_params, cliente, propiedad=propiedad)
         moto_fecha = "COALESCE(fecha_hora::timestamp, creado_en::timestamp)"
         if start_date:
-            moto_conds.append(f"{moto_fecha} >= %s")
+            moto_conds.append(f"({moto_fecha})::date >= %s")
             moto_params.append(start_date)
         if end_date:
-            moto_conds.append(f"{moto_fecha} <= %s")
+            moto_conds.append(f"({moto_fecha})::date <= %s")
             moto_params.append(end_date)
         cur.execute(f"""
             SELECT
@@ -563,10 +563,10 @@ def cgeo_api_recursos_data():
         # informe y dashboard daban totales distintos sobre los mismos registros.
         cum_fecha = "COALESCE(fecha_hora, created_at)"
         if start_date:
-            cum_conds.append(f"{cum_fecha} >= %s")
+            cum_conds.append(f"({cum_fecha})::date >= %s")
             cum_params.append(start_date)
         if end_date:
-            cum_conds.append(f"{cum_fecha} <= %s")
+            cum_conds.append(f"({cum_fecha})::date <= %s")
             cum_params.append(end_date)
         cum_where = _where(cum_conds)
         cur.execute(f"""
@@ -2050,11 +2050,21 @@ def cgeo_api_operacion_data():
                 params.append(supervisor.strip())
 
         def _date_conds(date_col, conds, params):
+            """Compara por fecha, no por instante.
+
+            Estas columnas son TIMESTAMPTZ, así que `fecha_hora <= '2026-09-09'`
+            se lee como `<= 2026-09-09 00:00:00` y dejaba fuera todo lo
+            registrado durante el día "Hasta". Como el rango por defecto termina
+            hoy, eso vaciaba cada indicador de la pantalla: el Morning Briefing
+            mostraba 10 supervisiones y aquí salía 0. El `::date` es además lo
+            que ya usa calcular_supervisiones, la fuente del Morning Briefing,
+            de modo que ambos lados cuentan sobre el mismo criterio.
+            """
             if start_date:
-                conds.append(f"{date_col} >= %s")
+                conds.append(f"({date_col})::date >= %s")
                 params.append(start_date)
             if end_date:
-                conds.append(f"{date_col} <= %s")
+                conds.append(f"({date_col})::date <= %s")
                 params.append(end_date)
 
         # ── Incidentes ────────────────────────────────────────────────────────
@@ -2243,10 +2253,10 @@ def cgeo_api_operacion_data():
         _add_cliente(cap_conds, cap_params, cliente, propiedad=propiedad)
         _add_supervisor("nombre_responsable", cap_conds, cap_params)
         if start_date:
-            cap_conds.append(f"{cap_date} >= %s")
+            cap_conds.append(f"({cap_date})::date >= %s")
             cap_params.append(start_date)
         if end_date:
-            cap_conds.append(f"{cap_date} <= %s")
+            cap_conds.append(f"({cap_date})::date <= %s")
             cap_params.append(end_date)
         cap_where = _where(cap_conds)
         cur.execute(f"""

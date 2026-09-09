@@ -648,8 +648,21 @@ function _eqTipo(porTipo, ...claves) {
     return null;
 }
 
+/** Fecha local en YYYY-MM-DD.
+ *
+ * `toISOString()` devuelve UTC: en Bogotá (UTC-5), a partir de las 19:00 daba
+ * ya la fecha de mañana, así que el enlace "Ver supervisiones" navegaba a un
+ * día sin registros y la pantalla de destino salía en 0 aunque el indicador
+ * de origen mostrara actividad.
+ */
+function _fechaLocal(d) {
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           String(d.getDate()).padStart(2, '0');
+}
+
 function renderKpis(k, thr) {
-    const today = new Date().toISOString().slice(0,10);
+    const today = _fechaLocal(new Date());
 
     // Equipos: radios, armas, motos desde el inventario
     const radioData = _eqTipo(k.eq_por_tipo, 'radio', 'radios');

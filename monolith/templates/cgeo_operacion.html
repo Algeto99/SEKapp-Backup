@@ -1478,7 +1478,11 @@ function setDefaultDates() {
     const now = new Date();
     const start = new Date(now);
     start.setDate(now.getDate() - 90);
-    const fmt = d => d.toISOString().slice(0, 10);
+    // Fecha local, no UTC: con toISOString el campo "Hasta" mostraba mañana
+    // a partir de las 19:00 en Bogotá.
+    const fmt = d => d.getFullYear() + '-' +
+                     String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                     String(d.getDate()).padStart(2, '0');
     document.getElementById('filtStart').value = fmt(start);
     document.getElementById('filtEnd').value   = fmt(now);
 }
