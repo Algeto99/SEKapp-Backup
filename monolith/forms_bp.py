@@ -253,10 +253,17 @@ def _resolve_scope_fields(cur, user_email, legacy_customer_value=None, property_
         cc_row = cur.fetchone()
         if cc_row:
             scope['customer_company_id'] = cc_row[0]
-        elif 'sesursa' in customer_company_id.lower():
-            def_cc = _ensure_default_customer_company(cur, company_id)
-            if def_cc:
-                scope['customer_company_id'] = def_cc['id']
+        # Sin coincidencia la columna queda NULL, igual que en el resto de los
+        # formularios. Antes se caía a _ensure_default_customer_company, que NO
+        # busca un cliente llamado Sesursa: devuelve el PRIMERO del tenant por id.
+        # Como Sesursa es la operadora y no existe como cliente, las planillas de
+        # flota —cuyo <select> sólo ofrece "Sesursa"— quedaban atribuidas a un
+        # cliente cualquiera, y Reportes lo mostraba como "Cliente / Empresa"
+        # porque esa ficha lee cc.name, no el campo elegido en el formulario.
+        # Con NULL, el COALESCE de viewer_bp resuelve el nombre de la operadora
+        # desde `companies`, que es lo correcto: la flota es de la empresa, no de
+        # un cliente. (Las dos planillas ya postean '' en vez del nombre, así que
+        # esta rama sólo la alcanza Capacitaciones con el grupo SESURSA.)
 
     scope['submitter_timezone'] = request.form.get('submitter_timezone') or 'UTC'
 
@@ -3046,7 +3053,7 @@ def submit_planilla_vehicular():
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
+            customer_company_id=request.form.get('customer_company_id'),
         ))
         for key in request.form.keys():
             if (key not in form_data and key != 'csrf_token'
@@ -3196,7 +3203,7 @@ def submit_planilla_vehicular_editar(id):
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
+            customer_company_id=request.form.get('customer_company_id'),
         ))
 
         form_data = _preservar_firmas_existentes(form_data)
@@ -3294,7 +3301,7 @@ def submit_planilla_motocicletas():
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
+            customer_company_id=request.form.get('customer_company_id'),
         ))
 
         # Add all form fields (checklist and inspection properties)
@@ -3430,7 +3437,7 @@ def submit_planilla_motocicletas_editar(id):
             user_email,
             legacy_customer_value=form_data.get('cliente_instalacion'),
             property_id=request.form.get('id_propiedad'),
-            customer_company_id=request.form.get('customer_company_id') or 'Sesursa',
+            customer_company_id=request.form.get('customer_company_id'),
         ))
 
         form_data = _preservar_firmas_existentes(form_data)

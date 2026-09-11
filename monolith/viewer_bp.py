@@ -1003,7 +1003,14 @@ FORM_CONFIGS = {
                 NULLIF(TRIM(cc.name), ''),
                 NULLIF(TRIM(cc2.name), ''),
                 NULLIF(TRIM(cc3.name), ''),
-                'Sesursa'
+                -- Sin cliente resuelto la flota es de la operadora. El nombre sale
+                -- de `companies`, no de un literal: cada proyecto aloja una sola
+                -- empresa, pero no siempre se llama Sesursa (en tz-dev-secapp es
+                -- Kanan Sentinel, y el literal mostraba la operadora equivocada).
+                (SELECT NULLIF(TRIM(c_op.name), '')
+                   FROM companies c_op
+                  WHERE c_op.id = COALESCE(t.company_id,
+                                           (SELECT MIN(id) FROM companies)))
             ) AS cliente_nombre,
             COALESCE(
                 NULLIF(TRIM(p.nombre), ''),
@@ -1111,7 +1118,14 @@ FORM_CONFIGS = {
                 NULLIF(TRIM(cc.name), ''),
                 NULLIF(TRIM(cc2.name), ''),
                 NULLIF(TRIM(cc3.name), ''),
-                'Sesursa'
+                -- Sin cliente resuelto la flota es de la operadora. El nombre sale
+                -- de `companies`, no de un literal: cada proyecto aloja una sola
+                -- empresa, pero no siempre se llama Sesursa (en tz-dev-secapp es
+                -- Kanan Sentinel, y el literal mostraba la operadora equivocada).
+                (SELECT NULLIF(TRIM(c_op.name), '')
+                   FROM companies c_op
+                  WHERE c_op.id = COALESCE(t.company_id,
+                                           (SELECT MIN(id) FROM companies)))
             ) AS cliente_nombre,
             COALESCE(
                 NULLIF(TRIM(p.nombre), ''),
