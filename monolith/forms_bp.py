@@ -902,7 +902,25 @@ def api_form_properties():
                     'name': p['nombre'],
                 })
 
+        # Clientes completos, no sólo los que ya tienen propiedades. El selector de
+        # Cliente / Empresa de los formularios se arma agrupando la lista de
+        # `propiedades`, así que un cliente sin instalaciones era invisible aquí
+        # mientras sí aparecía en KPI y Estatus de Cliente, que leen
+        # customer_companies directamente. Mismo origen y mismo alcance por empresa
+        # que /dashboard/api/properties, para que ambas pantallas listen lo mismo.
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        cid_cond = "WHERE company_id = %s" if company_id is not None else ""
+        cid_params = (company_id,) if company_id is not None else ()
+        cur.execute(f"""
+            SELECT id, name
+            FROM customer_companies
+            {cid_cond}
+            ORDER BY name
+        """, cid_params)
+        clientes = [{'id': r['id'], 'name': r['name']} for r in cur.fetchall() if r['name']]
+
         return jsonify({
+            'clientes': clientes,
             'properties': [
                 {
                     'id': r['id_propiedad'],
@@ -919,7 +937,7 @@ def api_form_properties():
         })
     except Exception as e:
         app_logger.error(f"api_form_properties error: {e}", exc_info=True)
-        return jsonify({'properties': []}), 500
+        return jsonify({'properties': [], 'clientes': []}), 500
     finally:
         if cur: cur.close()
         if conn: conn.close()

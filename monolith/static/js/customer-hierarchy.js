@@ -846,7 +846,7 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
     //     lowest id, which is the original row the history hangs off.
     // Comparison is accent- and case-insensitive: "Bodega Colón" and
     // "Bodega Colon" are the same place.
-    function buildClientTree(properties, allowSesursa = false) {
+    function buildClientTree(properties, allowSesursa = false, clientes = []) {
         const byName = new Map();
         const orphans = { groupKey: NO_CUSTOMER, name: NO_CUSTOMER_LABEL, properties: [] };
 
@@ -874,6 +874,29 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
             // property anyway, so a payload without it stays perfectly usable.
             const withId = client.properties.find((p) => p.customer_company_id != null);
             client.value = withId ? String(withId.customer_company_id) : (client.groupKey === 'n:sesursa' ? 'Sesursa' : NO_CUSTOMER);
+        });
+
+        // Clientes sin ninguna propiedad. El árbol se arma agrupando `propiedades`,
+        // así que un cliente recién creado —o que todavía no tiene instalaciones—
+        // no existía para los formularios aunque sí apareciera en KPI y Estatus de
+        // Cliente, que leen customer_companies directamente.
+        //
+        // Se les cuelga una instalación 'NO APLICA', el mismo recurso que ya usa el
+        // grupo SESURSA: el selector de Propiedad / Instalación es obligatorio en
+        // casi todos los formularios, así que sin una opción el cliente se podría
+        // elegir pero el formulario no se podría enviar.
+        (clientes || []).forEach((c) => {
+            const clientName = String(c && c.name || '').trim();
+            const nameKey = normalize(clientName);
+            if (!nameKey || byName.has(nameKey)) return;
+            const client = {
+                groupKey: 'n:' + nameKey,
+                name: clientName,
+                value: c.id != null ? String(c.id) : NO_CUSTOMER,
+                properties: [{ id: 'NO APLICA', name: 'NO APLICA', cliente: clientName }],
+            };
+            byName.set(nameKey, client);
+            clients.push(client);
         });
 
         clients.forEach((client) => {
@@ -1194,12 +1217,12 @@ body.light-mode .ss-manual-hint { color: #6b7280; }
             return;
         }
 
-        if (!data.properties.length && !allowSesursa) {
+        if (!data.properties.length && !(data.clientes || []).length && !allowSesursa) {
             renderEmptyState(propertySelect, 'No hay propiedades disponibles');
             return;
         }
 
-        const clients = buildClientTree(data.properties, allowSesursa);
+        const clients = buildClientTree(data.properties, allowSesursa, data.clientes);
         const clientSelect = buildClientField(propertySelect, clients);
         fillPropertyOptions(propertySelect, clients);
 
