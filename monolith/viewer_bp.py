@@ -372,6 +372,20 @@ TECHNICAL_SYSTEM_COLUMNS = {
 }
 
 # --- Form Configurations ---
+# El autor de cada registro se resuelve con un LEFT JOIN LATERAL … LIMIT 1 contra
+# `users`, nunca con un JOIN directo por correo.
+#
+# `users.email` no tiene restricción de unicidad (ni en schema.sql ni en ninguna
+# migración), así que una persona cargada dos veces con el mismo correo hacía que
+# el JOIN devolviera una fila por copia: el mismo registro aparecía repetido en
+# Reportes, en el detalle y en las exportaciones, y el contador de la paginación
+# contaba de más. El LATERAL toma una sola fila —prefiriendo la cuenta activa— y
+# mantiene la semántica LEFT: un registro cuyo autor ya no existe en `users` sigue
+# apareciendo.
+#
+# Mientras `users.email` no sea único, cualquier JOIN nuevo contra esa tabla por
+# correo reintroduce el defecto.
+
 FORM_CONFIGS = {
     'reporte_incidente': {
         'table': 'reportes_incidentes',
@@ -380,7 +394,14 @@ FORM_CONFIGS = {
         'user_col': 'user_email',
         'title_prefix': 'Reporte de Incidente',
         'joins': """
-            LEFT JOIN users u ON t.user_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.user_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -464,7 +485,14 @@ FORM_CONFIGS = {
         'title_prefix': 'Encuesta de Cliente',
         'sheet_title': 'Encuesta de Cliente',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -661,7 +689,14 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Control de Supervisión',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -755,7 +790,14 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Informe Disciplinario',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -827,7 +869,10 @@ FORM_CONFIGS = {
         'date_col': 'creado_en',
         'user_col': 'submitted_by_email',
         'title_prefix': 'Log de Patrullas',
-        'joins': "LEFT JOIN users u ON t.submitted_by_email = u.email",
+        # Autor por LATERAL: ver nota sobre users.email arriba.
+        'joins': ("LEFT JOIN LATERAL (SELECT u_sub.name, u_sub.company_id FROM users u_sub "
+                  "WHERE u_sub.email = t.submitted_by_email "
+                  "ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id LIMIT 1) u ON TRUE"),
         'columns': "t.creado_en, t.*, u.name as user_name",
         'data_mapping': {
             # 1. Datos de la Patrulla
@@ -855,7 +900,14 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Registro de Capacitaciones',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -918,7 +970,14 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Acta de Visita',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -978,7 +1037,14 @@ FORM_CONFIGS = {
         'title_prefix': 'Planilla de Chequeo Pre-Operacional Vehicular',
         'sheet_title': 'Pre-Operacional Vehicular',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -1093,7 +1159,14 @@ FORM_CONFIGS = {
         'title_prefix': 'Planilla de Chequeo Pre-Operacional de Motocicletas',
         'sheet_title': 'Pre-Operacional Motocicletas',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -1200,7 +1273,14 @@ FORM_CONFIGS = {
         'title_prefix': 'Checklist de Cumplimiento',
         'sheet_title': 'Checklist Cumplimiento',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
@@ -1272,7 +1352,14 @@ FORM_CONFIGS = {
         'user_col': 'submitted_by_email',
         'title_prefix': 'Confiabilidad Equipos',
         'joins': """
-            LEFT JOIN users u ON t.submitted_by_email = u.email
+            -- Autor por LATERAL: ver nota sobre users.email arriba.
+            LEFT JOIN LATERAL (
+                SELECT u_sub.name, u_sub.company_id
+                FROM users u_sub
+                WHERE u_sub.email = t.submitted_by_email
+                ORDER BY u_sub.is_active DESC NULLS LAST, u_sub.id
+                LIMIT 1
+            ) u ON TRUE
             LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
             LEFT JOIN customer_companies cc ON t.customer_company_id = cc.id
             LEFT JOIN customer_companies cc2 ON p.customer_company_id = cc2.id
