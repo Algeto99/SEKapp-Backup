@@ -170,6 +170,20 @@ def _add_cliente(conds, params, cliente, alias='', propiedad=None):
 
 # ── SQL constants (mirrors dashboard_bp) ────────────────────────────────────
 
+# Nota de satisfacción normalizada a la escala Likert 1–5.
+#
+# `calificacion_global_nps` guarda hoy el PROMEDIO de los 8 criterios (1.0–5.0),
+# pero los registros anteriores a la migración guardaban su SUMA (0–40). Hay que
+# normalizar por fila ANTES de promediar: promediar en crudo y dividir después
+# sólo funciona si todas las filas están en la misma escala, y da un número sin
+# sentido en cuanto se mezclan. Es la misma expresión que usa viewer_bp para el
+# detalle y el PDF, así que las tres pantallas cuentan igual.
+_SAT_SCORE_5_SQL = (
+    "CASE WHEN calificacion_global_nps > 5 "
+    "THEN ROUND((calificacion_global_nps::numeric / 40.0) * 5.0, 1) "
+    "ELSE calificacion_global_nps::numeric END"
+)
+
 _EQ_TOTAL_SQL = (
     "CASE WHEN elem->>'total_equipos' ~ '^[0-9]+$' "
     "THEN (elem->>'total_equipos')::int ELSE 0 END"
@@ -1373,14 +1387,16 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 8: NPS cliente bajo (< 3.0/5) en últimos 30 días ───────────
-        # La escala almacenada es 0-40; 3.0/5 equivale a 24 en esa escala.
+        # El umbral es 3.0 sobre 5, comparado contra la nota ya normalizada.
+        # Antes se comparaba contra 24 —3.0 en la vieja escala 0–40—, así que con
+        # los datos actuales (1–5) la condición era cierta siempre y TODOS los
+        # clientes salían como satisfacción baja.
         r8_conds, r8_params = _cp()
         r8_conds += ["fecha_hora >= NOW() - INTERVAL '30 days'", _cliente_real_sql()]
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS cliente,
-                ROUND(AVG(calificacion_global_nps), 2) AS avg_raw,
-                ROUND(AVG(calificacion_global_nps) / 40 * 5, 2) AS avg_5,
+                ROUND(AVG({_SAT_SCORE_5_SQL}), 2) AS avg_5,
                 COUNT(*) AS encuestas,
                 MAX(fecha_hora) AS ultima,
                 MAX(id_encuesta) AS last_encuesta_id
@@ -1388,8 +1404,8 @@ def cgeo_api_alertas():
             {_where(r8_conds)}
             GROUP BY TRIM(cliente_instalacion)
             HAVING COUNT(*) > 0
-               AND AVG(calificacion_global_nps) < 24
-            ORDER BY AVG(calificacion_global_nps) ASC
+               AND AVG({_SAT_SCORE_5_SQL}) < 3.0
+            ORDER BY AVG({_SAT_SCORE_5_SQL}) ASC
             LIMIT 5
         """, tuple(r8_params))
         for r in cur.fetchall():
@@ -2254,7 +2270,7 @@ def cgeo_api_operacion_data():
         sat_where = _where(sat_conds)
         cur.execute(f"""
             SELECT
-                AVG(calificacion_global_nps) AS avg_nps,
+                AVG({_SAT_SCORE_5_SQL}) AS avg_nps,
                 COUNT(*) AS total,
                 SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT,'')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda
             FROM medicion_experiencia_cliente
@@ -2264,14 +2280,14 @@ def cgeo_api_operacion_data():
         sat_avg = float(sat_row.get("avg_nps") or 0)
         sat_total = int(sat_row.get("total") or 0)
         sat_rec = int(sat_row.get("recomienda") or 0)
-        sat_pct = round(min(sat_avg / 40 * 100, 100), 1) if sat_avg else None
+        sat_pct = round(min(sat_avg / 5 * 100, 100), 1) if sat_avg else None
         sat_insatisfechos = max(sat_total - sat_rec, 0)
 
         # Ranking clientes por satisfacción
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS cliente,
-                ROUND(AVG(calificacion_global_nps) / 40 * 100, 1) AS pct
+                ROUND(AVG({_SAT_SCORE_5_SQL}) / 5 * 100, 1) AS pct
             FROM medicion_experiencia_cliente
             {sat_where}
             GROUP BY TRIM(cliente_instalacion)
@@ -2288,7 +2304,7 @@ def cgeo_api_operacion_data():
         cur.execute(f"""
             SELECT
                 TO_CHAR(DATE_TRUNC('month', fecha_hora), 'YYYY-MM') AS label,
-                ROUND(AVG(calificacion_global_nps) / 40 * 100, 1) AS pct
+                ROUND(AVG({_SAT_SCORE_5_SQL}) / 5 * 100, 1) AS pct
             FROM medicion_experiencia_cliente
             {sat_where}
             GROUP BY DATE_TRUNC('month', fecha_hora)

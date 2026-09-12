@@ -595,6 +595,18 @@
                 margin-bottom: 0.4rem;
             }
             body.light-mode .drv-5q-motivo { color: #92400e; border-left-color: #f59e0b; }
+            /* Resultado de la encuesta: se lee antes que nada dentro del QUÉ. */
+            .drv-5q-sat {
+                display: block;
+                font-weight: 700;
+                border-left: 3px solid currentColor;
+                padding-left: 0.5rem;
+                margin-bottom: 0.4rem;
+            }
+            .drv-5q-sat.neg { color: #f87171; }
+            .drv-5q-sat.pos { color: #4ade80; }
+            body.light-mode .drv-5q-sat.neg { color: #b91c1c; }
+            body.light-mode .drv-5q-sat.pos { color: #15803d; }
             details.drv-detail-section > summary {
                 cursor: pointer;
                 user-select: none;
@@ -912,7 +924,11 @@
             QUIEN:  ['Auditor', 'Agente Supervisado', 'Agente'],
         },
         medicion_experiencia_cliente: {
-            QUE:    ['Categoría Evaluada', 'Calificación Global / NPS', 'NPS'],
+            // El resultado (nivel + porcentaje) lo arma QUE_RESUMEN. Las tres
+            // etiquetas que había aquí —'Categoría Evaluada', 'Calificación
+            // Global / NPS', 'NPS'— no las produce viewer_bp, así que el QUÉ caía
+            // siempre al título del registro y no decía nada de la encuesta.
+            QUE:    ['¿Recomendaría el Servicio?'],
             CUANDO: ['Fecha y Hora', 'Fecha/Hora'],
             DONDE:  ['Cliente / Empresa', 'Propiedad / Instalación', 'Cliente/Instalación'],
             COMO:   ['Observaciones del Cliente', 'Observaciones', 'Atención al Cliente'],
@@ -990,6 +1006,32 @@
     // Frase de QUÉ construida con los datos reales del registro, para los tipos
     // cuyos campos sueltos no explican por sí solos qué pasó.
     const QUE_RESUMEN = {
+        // El QUÉ de una encuesta es su resultado, no su número de formulario.
+        // `Clasificación` y `Calificación Global` los inyecta viewer_bp con
+        // _calc_encuesta_satisfaccion, que es la fuente de verdad de la escala y
+        // ya normaliza los registros viejos que guardaban la suma 0–40. Aquí sólo
+        // se presenta: no se reimplementan umbrales ni conversiones.
+        medicion_experiencia_cliente: (raw) => {
+            const score = parseFloat(raw['Calificación Global']);
+            if (isNaN(score)) return '';
+            // Mismo porcentaje que el eje de satisfacción del Estatus de Cliente
+            // (`avg5 / 5 * 100` en dashboard_bp._estatus_ejes_de).
+            const pctSat = Math.round(score / 5 * 100);
+            // 3.5 es el piso de "Satisfecho" en dashboard_bp._sat_label_global.
+            const negativo = score < 3.5;
+            const nivel = isBlankValue(raw['Clasificación'])
+                ? (negativo ? 'Insatisfecho' : 'Satisfecho')
+                : String(raw['Clasificación']).trim();
+            const titular = negativo
+                ? `Cliente: ${nivel} — ${100 - pctSat}% de insatisfacción`
+                : `Cliente: ${nivel} — ${pctSat}% de satisfacción`;
+            return {
+                html: `<span class="drv-5q-sat ${negativo ? 'neg' : 'pos'}">`
+                    + `${escapeHtml(titular)}</span>`
+                    + escapeHtml(`Calificación global: ${score.toFixed(1)} / 5 `
+                                 + `(${pctSat}% de satisfacción)`),
+            };
+        },
         planilla_vehicular: (raw) => _resumenFlota(raw, 'El vehículo'),
         planilla_motocicletas: (raw) => _resumenFlota(raw, 'La motocicleta'),
         confiabilidad_equipos: (raw) => {
@@ -1285,7 +1327,10 @@
             // Luego, lo que el registro sí explica por sí mismo.
             if (key === 'QUE') {
                 const resumen = QUE_RESUMEN[formType] ? QUE_RESUMEN[formType](raw) : '';
-                if (resumen) parts.push(escapeHtml(resumen));
+                // Una entrada puede devolver texto plano —que se escapa aquí— o
+                // `{html}` ya armado, cuando necesita destacar parte del resumen.
+                if (resumen && resumen.html) parts.push(resumen.html);
+                else if (resumen) parts.push(escapeHtml(resumen));
             }
 
             for (const lbl of labels) {
