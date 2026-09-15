@@ -21,6 +21,8 @@ from werkzeug.utils import secure_filename
 
 from db import get_db_connection
 from gcs_utils import resolve_upload_bucket
+from normalizacion import (normalizar_fila, normalizar_identificador,
+                           normalizar_json_filas, normalizar_nombre)
 
 app_logger = logging.getLogger(__name__)
 
@@ -62,6 +64,9 @@ def _get_table_columns(cur, table_name):
 
 
 def _filter_existing_columns(cur, table_name, data):
+    # Normalizar antes de filtrar, no despues: asi un campo que solo traia
+    # espacios queda en '' y se descarta, en vez de guardarse en blanco.
+    data = normalizar_fila(table_name, data)
     table_columns = _get_table_columns(cur, table_name)
     filtered = {
         key: value for key, value in data.items()
@@ -1271,7 +1276,7 @@ def submit_incident_report():
             if tipo or nombre:
                 cur.execute(
                     "INSERT INTO reportes_incidentes_personas (id_reporte_incidente, persona_tipo, persona_nombre) VALUES (%s, %s, %s)",
-                    (report_id, tipo or None, nombre or None)
+                    (report_id, tipo or None, normalizar_nombre(nombre) or None)
                 )
 
         conn.commit()
@@ -1742,6 +1747,9 @@ def submit_supervision_puesto():
             # observaciones_novedades, nombre_guardia_firma, firma_guardia
             
             # Filter empty strings/None
+            # Esta ruta arma el INSERT a mano en vez de pasar por
+            # _filter_existing_columns, asi que normaliza por su cuenta.
+            row_data = normalizar_fila('supervision_puesto', row_data)
             filtered_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
 
             # Reflection to get valid columns (Safety)
@@ -2405,7 +2413,7 @@ def submit_asistencia_qr(session_token):
         return redirect(url_for('forms_bp.asistencia_qr_form', session_token=session_token))
     conn = None
     try:
-        nombre = request.form.get('nombre', '').strip()
+        nombre = normalizar_nombre(request.form.get('nombre', ''))
         if not nombre:
             return 'Nombre requerido', 400
 
@@ -2417,9 +2425,9 @@ def submit_asistencia_qr(session_token):
             (
                 session_token,
                 nombre,
-                request.form.get('cargo', ''),
-                request.form.get('numero_empleado', ''),
-                request.form.get('documento', ''),
+                normalizar_nombre(request.form.get('cargo', '')),
+                normalizar_identificador(request.form.get('numero_empleado', '')),
+                normalizar_identificador(request.form.get('documento', '')),
                 request.form.get('firma', '')
             )
         )
@@ -2538,7 +2546,8 @@ def submit_registro_de_capacitaciones():
             except Exception as qr_err:
                 app_logger.warning(f"Could not fetch QR attendees: {qr_err}")
 
-        lista_asistencia_json = psycopg2.extras.Json(lista_manual)
+        # Misma razon que en el Acta: los asistentes son filas de un JSON.
+        lista_asistencia_json = psycopg2.extras.Json(normalizar_json_filas(lista_manual))
 
         # Upload attached files (photos/documents)
         capacitacion_urls = []
@@ -2710,7 +2719,7 @@ def submit_registro_de_capacitaciones_editar(id):
                 for item in lista_manual:
                     if isinstance(item, dict) and not item.get('via'):
                         item['via'] = 'Formulario'
-                form_data['lista_asistencia'] = psycopg2.extras.Json(lista_manual)
+                form_data['lista_asistencia'] = psycopg2.extras.Json(normalizar_json_filas(lista_manual))
             except Exception:
                 pass
         if capacitacion_urls:
@@ -2786,7 +2795,10 @@ def _parse_visit_form_data(request, user_email):
             if nombre or cargo or firma:
                 detalles_participantes.append({'nombre': nombre, 'cargo': cargo, 'firma': firma})
 
-    detalles_participantes_json = json.dumps(detalles_participantes, ensure_ascii=False)
+    # Los nombres van dentro del JSON, no en una columna: se normalizan aqui,
+    # antes de serializar, para no tocar las claves del propio JSON.
+    detalles_participantes_json = json.dumps(
+        normalizar_json_filas(detalles_participantes), ensure_ascii=False)
 
     # Collect all repeatable block data (indexed temas_tratados_N, acuerdos_compromisos_N, etc.)
     bloques = {}
@@ -2819,7 +2831,7 @@ def _parse_visit_form_data(request, user_email):
 
     temas_combined = '\n---\n'.join(temas_list) if any(temas_list) else None
     acuerdos_combined = '\n---\n'.join(acuerdos_list) if any(acuerdos_list) else None
-    responsables_json = json.dumps(responsables_list, ensure_ascii=False) if any(r['nombre'] or r['fecha'] or r['estado'] for r in responsables_list) else None
+    responsables_json = json.dumps(normalizar_json_filas(responsables_list), ensure_ascii=False) if any(r['nombre'] or r['fecha'] or r['estado'] for r in responsables_list) else None
 
     return {
         'cliente_instalacion': request.form.get('cliente_visitado'),

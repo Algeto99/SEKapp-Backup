@@ -12,6 +12,8 @@ from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
 from gcs_utils import resolve_upload_bucket
+from normalizacion import (clave_identificador, normalizar_nombre,
+                          sql_clave_identificador, sql_clave_nombre)
 
 app_logger = logging.getLogger(__name__)
 
@@ -128,10 +130,16 @@ def _add_scope_filters(conds, params, cliente=None, propiedad=None, puesto=None,
         pu_str = str(puesto).strip()
         if pu_str.isdigit():
             pu_id = int(pu_str)
-            conds.append(f"({c_puesto} IN (SELECT nombre FROM puestos WHERE id_puesto = %s) OR {c_puesto} = %s)")
+            # Comparar normalizado de los dos lados: el puesto se escribe a mano
+            # en los formularios y ahora se guarda en MAYUSCULAS, mientras que
+            # puestos.nombre viene del onboarding tal cual se cargo.
+            conds.append(
+                f"({sql_clave_nombre(c_puesto)} IN "
+                f"(SELECT {sql_clave_nombre('nombre')} FROM puestos WHERE id_puesto = %s)"
+                f" OR {c_puesto} = %s)")
             params.extend([pu_id, str(pu_id)])
         else:
-            conds.append(f"LOWER(TRIM({c_puesto})) = LOWER(TRIM(%s))")
+            conds.append(f"{sql_clave_nombre(c_puesto)} = {sql_clave_nombre('%s')}")
             params.append(pu_str)
 
 
@@ -2071,7 +2079,8 @@ def api_gestion_data():
         inc_conds, inc_params = [], []
         _add_scope_filters(inc_conds, inc_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
-            inc_conds.append("puesto_area_especifica = %s")
+            inc_conds.append(
+                f"{sql_clave_nombre('puesto_area_especifica')} = {sql_clave_nombre('%s')}")
             inc_params.append(proyecto)
         if turno:
             inc_conds.append("LOWER(COALESCE(turno, '')) = %s")
@@ -2133,7 +2142,8 @@ def api_gestion_data():
         cum_conds, cum_params = [], []
         _add_scope_filters(cum_conds, cum_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
-            cum_conds.append("puesto_area_especifica = %s")
+            cum_conds.append(
+                f"{sql_clave_nombre('puesto_area_especifica')} = {sql_clave_nombre('%s')}")
             cum_params.append(proyecto)
         if turno:
             cum_conds.append("LOWER(COALESCE(turno, '')) = %s")
@@ -2162,7 +2172,8 @@ def api_gestion_data():
         cap_conds, cap_params = [], []
         _add_scope_filters(cap_conds, cap_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
-            cap_conds.append("puesto_area_especifica = %s")
+            cap_conds.append(
+                f"{sql_clave_nombre('puesto_area_especifica')} = {sql_clave_nombre('%s')}")
             cap_params.append(proyecto)
         if turno:
             cap_conds.append("LOWER(COALESCE(turno, '')) = %s")
@@ -2188,7 +2199,8 @@ def api_gestion_data():
         disc_conds, disc_params = [], []
         _add_scope_filters(disc_conds, disc_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
-            disc_conds.append("puesto_area_especifica = %s")
+            disc_conds.append(
+                f"{sql_clave_nombre('puesto_area_especifica')} = {sql_clave_nombre('%s')}")
             disc_params.append(proyecto)
         if turno:
             disc_conds.append("LOWER(COALESCE(turno, '')) = %s")
@@ -2224,7 +2236,8 @@ def api_gestion_data():
         vis_conds, vis_params = [], []
         _add_scope_filters(vis_conds, vis_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
-            vis_conds.append("puesto_area_especifica = %s")
+            vis_conds.append(
+                f"{sql_clave_nombre('puesto_area_especifica')} = {sql_clave_nombre('%s')}")
             vis_params.append(proyecto)
         if turno:
             vis_conds.append("LOWER(COALESCE(turno, '')) = %s")
@@ -2250,7 +2263,8 @@ def api_gestion_data():
         veh_conds, veh_params = [], []
         _add_scope_filters(veh_conds, veh_params, cliente=cliente, propiedad=propiedad)
         if proyecto:
-            veh_conds.append("puesto_area_especifica = %s")
+            veh_conds.append(
+                f"{sql_clave_nombre('puesto_area_especifica')} = {sql_clave_nombre('%s')}")
             veh_params.append(proyecto)
         if turno:
             veh_conds.append("LOWER(COALESCE(turno, '')) = %s")
@@ -2277,7 +2291,8 @@ def api_gestion_data():
         eq_conds, eq_params = [], []
         _add_scope_filters(eq_conds, eq_params, cliente=cliente, propiedad=propiedad, prefix="c.")
         if proyecto:
-            eq_conds.append("c.sitio = %s")
+            eq_conds.append(
+                f"{sql_clave_nombre('c.sitio')} = {sql_clave_nombre('%s')}")
             eq_params.append(proyecto)
         _gestion_add_multi_date_filter(eq_conds, eq_params, "c.fecha::TEXT", year, month, day)
         if company_id is not None:
@@ -4582,8 +4597,8 @@ def _disc_where(cliente, year, month, day, tipo=None, empleado_num=None, company
         conds.append("tipo_novedad = %s")
         params.append(tipo)
     if empleado_num:
-        conds.append("empleado_numero = %s")
-        params.append(empleado_num)
+        conds.append(f"{sql_clave_identificador('empleado_numero::TEXT')} = %s")
+        params.append(clave_identificador(empleado_num))
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
@@ -8250,8 +8265,12 @@ def _bd_latest_cte(identifier_sql, where, score_sql=None):
 
 def _bd_identifier_sql(*columns):
     # Prefix each fallback so an employee number cannot collide with a document.
+    # La clave ignora mayusculas, espacios y los separadores - . / para que
+    # "eg-4251", "EG 4251" y "eg4251" caigan en el mismo grupo. Se aplica del
+    # lado de la consulta a proposito: asi tambien consolida lo ya capturado,
+    # sin reescribir ni una fila historica.
     identifiers = [
-        f"'{column}:' || NULLIF(UPPER(TRIM({column}::TEXT)), '')"
+        f"'{column}:' || NULLIF({sql_clave_identificador(f'{column}::TEXT')}, '')"
         for column in columns
     ]
     identifiers.append("'record:' || id_supervision::TEXT")
@@ -8544,12 +8563,17 @@ def api_bases_de_datos_personal():
             # Novedades disciplinarias count
             if doc or nombre:
                 disc_conds, disc_params = [], []
+                # El cruce va por clave normalizada de los dos lados: sin esto un
+                # documento capturado como "eg-4251" no encuentra las novedades
+                # del mismo Oficial guardadas como "EG 4251".
                 if doc:
-                    disc_conds.append("TRIM(COALESCE(empleado_numero::TEXT,'')) = %s")
-                    disc_params.append(doc)
+                    empleado_numero_txt = "COALESCE(empleado_numero::TEXT, '')"
+                    disc_conds.append(
+                        f"{sql_clave_identificador(empleado_numero_txt)} = %s")
+                    disc_params.append(clave_identificador(doc))
                 if nombre:
-                    disc_conds.append("TRIM(empleado_nombre) ILIKE %s")
-                    disc_params.append(f"%{nombre}%")
+                    disc_conds.append(f"{sql_clave_nombre('empleado_nombre')} LIKE %s")
+                    disc_params.append(f"%{normalizar_nombre(nombre)}%")
                 cur2.execute(
                     f"SELECT COUNT(*) AS cnt FROM informe_novedades_disciplinario WHERE {' OR '.join(disc_conds)}",
                     disc_params
@@ -8557,23 +8581,27 @@ def api_bases_de_datos_personal():
                 novedades_count = int((cur2.fetchone() or {}).get('cnt', 0) or 0)
 
             if doc or nombre:
+                # Los asistentes viven dentro de lista_asistencia (JSON), asi que
+                # la clave se calcula sobre el valor extraido de cada elemento.
+                asistente_doc = "e->>'documento'"
+                asistente_nombre = "e->>'nombre'"
                 match_parts, train_params = [], []
                 if doc:
                     match_parts.append(
                         "EXISTS (SELECT 1 FROM jsonb_array_elements("
                         "CASE WHEN jsonb_typeof(lista_asistencia) = 'array'"
                         " THEN lista_asistencia ELSE '[]'::jsonb END) e"
-                        " WHERE e->>'documento' = %s)"
+                        f" WHERE {sql_clave_identificador(asistente_doc)} = %s)"
                     )
-                    train_params.append(doc)
+                    train_params.append(clave_identificador(doc))
                 if nombre:
                     match_parts.append(
                         "EXISTS (SELECT 1 FROM jsonb_array_elements("
                         "CASE WHEN jsonb_typeof(lista_asistencia) = 'array'"
                         " THEN lista_asistencia ELSE '[]'::jsonb END) e"
-                        " WHERE e->>'nombre' ILIKE %s)"
+                        f" WHERE {sql_clave_nombre(asistente_nombre)} LIKE %s)"
                     )
-                    train_params.append(f"%{nombre}%")
+                    train_params.append(f"%{normalizar_nombre(nombre)}%")
 
                 match_sql = " OR ".join(match_parts)
                 cur2.execute(f"""

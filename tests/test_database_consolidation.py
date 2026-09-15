@@ -2,15 +2,23 @@
 import ast
 from pathlib import Path
 import sqlite3
+import sys
 import unittest
 
-SOURCE = Path(__file__).resolve().parents[1] / 'monolith' / 'dashboard_bp.py'
+MONOLITH = Path(__file__).resolve().parents[1] / 'monolith'
+sys.path.insert(0, str(MONOLITH))
+from normalizacion import sql_clave_identificador  # noqa: E402
+
+SOURCE = MONOLITH / 'dashboard_bp.py'
 module = ast.parse(SOURCE.read_text())
 helpers = ast.Module(body=[node for node in module.body
                           if isinstance(node, ast.FunctionDef)
                           and node.name in {'_bd_identifier_sql', '_bd_latest_cte'}],
                      type_ignores=[])
-namespace = {}
+# Los helpers se extraen sueltos del blueprint, asi que hay que darles el unico
+# nombre del modulo que usan. sql_clave_identificador se escribio con UPPER/TRIM/
+# REPLACE justamente para que la misma expresion corra aqui sobre SQLite.
+namespace = {'sql_clave_identificador': sql_clave_identificador}
 exec(compile(helpers, str(SOURCE), 'exec'), namespace)
 
 
