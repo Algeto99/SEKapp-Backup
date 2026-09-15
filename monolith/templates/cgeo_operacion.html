@@ -366,7 +366,8 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
     <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
 </head>
 <body>
-{% include '_sidebar.html' %}
+{# Sin sesión no hay a dónde navegar: el menú lleva a pantallas que exigen login. #}
+{% if not public_mode %}{% include '_sidebar.html' %}{% endif %}
 <button id="themeToggle" class="theme-toggle" title="Cambiar tema">
     <svg id="darkModeIcon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display:none;width:22px;height:22px">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
@@ -416,31 +417,38 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
         </div>
 
         <!-- Filter bar -->
+        {# En modo público los filtros se muestran pero no se tocan: el alcance lo
+           fija el token firmado del QR, no quien mira la pantalla. #}
         <div class="filter-bar">
             <div class="filter-group">
                 <span class="filter-label">Cliente / Empresa</span>
-                <select id="filtCliente" class="filter-select" onchange="onClienteChange()">
+                <select id="filtCliente" class="filter-select" onchange="onClienteChange()"{% if public_mode %} disabled{% endif %}>
                     <option value="">Todos</option>
                 </select>
             </div>
             <div class="filter-group">
                 <span class="filter-label">Propiedad / Instalación</span>
-                <select id="filtPropiedad" class="filter-select" onchange="onPropiedadChange()">
+                <select id="filtPropiedad" class="filter-select" onchange="onPropiedadChange()"{% if public_mode %} disabled{% endif %}>
                     <option value="">Todas</option>
                 </select>
             </div>
             <div class="filter-group">
                 <span class="filter-label">Supervisor</span>
-                <select id="filtSupervisor" class="filter-select">
+                <select id="filtSupervisor" class="filter-select"{% if public_mode %} disabled{% endif %}>
                     <option value="">Todos</option>
                 </select>
             </div>
             <div class="filter-group">
                 <span class="filter-label">Desde</span>
-                <input type="date" id="filtStart" class="date-input">
+                <input type="date" id="filtStart" class="date-input"{% if public_mode %} disabled{% endif %}>
                 <span class="filter-label">Hasta</span>
-                <input type="date" id="filtEnd" class="date-input">
+                <input type="date" id="filtEnd" class="date-input"{% if public_mode %} disabled{% endif %}>
             </div>
+            {% if public_mode %}
+            <span style="display:inline-flex;align-items:center;gap:.4rem;font-size:.75rem;font-weight:600;color:#0369a1;background:#e0f2fe;border:1px solid #bae6fd;border-radius:.4rem;padding:.35rem .7rem">
+                Vista de sólo lectura
+            </span>
+            {% else %}
             <button class="btn-apply" onclick="loadData()">Aplicar</button>
             <button class="btn-apply" onclick="clearFilters()" style="background:#6b7280;">Limpiar</button>
             <button class="btn-pdf" onclick="exportPDF()">
@@ -451,6 +459,7 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12v.01M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z"/></svg>
                 Generar QR
             </button>
+            {% endif %}
         </div>
 
         <!-- ══════════════ SEMÁFORO GLOBAL ══════════════ -->
@@ -677,6 +686,19 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
 </div>
 
 <script>
+// Modo público: la página se está viendo desde un QR, sin sesión. El token firmado
+// acompaña a cada llamada de datos y es lo que autoriza la lectura; el alcance lo
+// decide el servidor a partir de la firma, no estos selectores.
+const PUBLIC_MODE  = {{ 'true' if public_mode else 'false' }};
+const PUBLIC_TOKEN = {{ (qr_token or '') | tojson }};
+const PUBLIC_SCOPE = {{ (qr_scope or {}) | tojson }};
+
+/** Agrega el token a los parámetros cuando la vista es pública. */
+function withToken(params) {
+    if (PUBLIC_MODE && PUBLIC_TOKEN) params.set('t', PUBLIC_TOKEN);
+    return params;
+}
+
 let charts = {};
 // Re-render all charts when the user toggles dark/light mode so center text colors update
 window.addEventListener('themechange', () => { Object.values(charts).forEach(c => c && c.update('none')); });
@@ -1399,7 +1421,7 @@ async function loadData() {
     if (start) params.set('start_date', start);
     if (end) params.set('end_date', end);
     try {
-        const r = await fetch('/cgeo/api/operacion-data?' + params);
+        const r = await fetch('/cgeo/api/operacion-data?' + withToken(params));
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const data = await r.json();
         if (data.error) throw new Error(data.error);
@@ -1443,7 +1465,7 @@ function clearFilters() {
 
 async function loadFiltros() {
     try {
-        const r = await fetch('/cgeo/api/filtros');
+        const r = await fetch('/cgeo/api/filtros?' + withToken(new URLSearchParams()));
         if (!r.ok) return;
         const d = await r.json();
         allClients = d.clientes || [];
@@ -1488,12 +1510,17 @@ function setDefaultDates() {
 }
 
 (async function init() {
+    // En modo público la URL es /cgeo/vop/<token> y no lleva query string: el
+    // alcance viene del token ya decodificado por el servidor.
     const urlParams = new URLSearchParams(window.location.search);
-    const urlCliente = urlParams.get('cliente');
-    const urlPropiedad = urlParams.get('propiedad') || urlParams.get('property_id') || urlParams.get('id_propiedad');
-    const urlStart   = urlParams.get('start_date');
-    const urlEnd     = urlParams.get('end_date');
-    const urlTab     = urlParams.get('tab');
+    const desdeToken = n => (PUBLIC_MODE ? (PUBLIC_SCOPE[n] || null) : null);
+    const urlCliente = desdeToken('cliente') ?? urlParams.get('cliente');
+    const urlPropiedad = desdeToken('propiedad')
+        ?? (urlParams.get('propiedad') || urlParams.get('property_id') || urlParams.get('id_propiedad'));
+    const urlStart   = desdeToken('start_date') ?? urlParams.get('start_date');
+    const urlEnd     = desdeToken('end_date')   ?? urlParams.get('end_date');
+    const urlTab     = desdeToken('tab')        ?? urlParams.get('tab');
+    const urlSupervisor = desdeToken('supervisor') ?? urlParams.get('supervisor');
 
     if (urlStart || urlEnd) {
         if (urlStart) document.getElementById('filtStart').value = urlStart;
@@ -1534,6 +1561,18 @@ function setDefaultDates() {
         }
     }
 
+    if (urlSupervisor) {
+        const supSel = document.getElementById('filtSupervisor');
+        if (supSel) {
+            if (![...supSel.options].some(o => o.value === urlSupervisor)) {
+                const o = document.createElement('option');
+                o.value = o.textContent = urlSupervisor;
+                supSel.appendChild(o);
+            }
+            supSel.value = urlSupervisor;
+        }
+    }
+
     if (urlTab === 'operativo') switchTab('operativo');
 
     await loadData();
@@ -1544,7 +1583,7 @@ function setDefaultDates() {
 
 
 // ── QR Modal ──────────────────────────────────────────────────────────────────
-function openQRModal() {
+async function openQRModal() {
     const clienteEl     = document.getElementById('filtCliente');
     const clienteVal    = clienteEl?.value || '';
     const clienteNombre = clienteEl?.options[clienteEl.selectedIndex]?.text || '';
@@ -1555,14 +1594,30 @@ function openQRModal() {
     const end    = document.getElementById('filtEnd')?.value   || '';
     const tab    = document.getElementById('tabBtnEjec')?.classList.contains('active') ? 'ejecutivo' : 'operativo';
 
-    // Build deep-link URL to this exact report with all active filters
+    // El QR se escanea desde un teléfono sin sesión, así que no puede apuntar a la
+    // ruta con login: el servidor firma un enlace público que congela este mismo
+    // alcance. Si la firma falla, se cae al enlace con sesión en vez de no mostrar
+    // nada — es lo que había antes y sigue sirviendo para quien ya está dentro.
+    const supervisorVal = document.getElementById('filtSupervisor')?.value || '';
     const params = new URLSearchParams();
     params.set('tab', tab);
-    if (clienteVal) params.set('cliente', clienteVal);
-    if (propVal)    params.set('propiedad', propVal);
-    if (start)      params.set('start_date', start);
-    if (end)        params.set('end_date', end);
-    const url = window.location.origin + '/cgeo/operacion/?' + params.toString();
+    if (clienteVal)    params.set('cliente', clienteVal);
+    if (propVal)       params.set('propiedad', propVal);
+    if (supervisorVal) params.set('supervisor', supervisorVal);
+    if (start)         params.set('start_date', start);
+    if (end)           params.set('end_date', end);
+
+    let url = window.location.origin + '/cgeo/operacion/?' + params.toString();
+    let esPublico = false;
+    try {
+        const r = await fetch('/cgeo/api/operacion-qr-url?' + params.toString());
+        if (r.ok) {
+            const data = await r.json();
+            if (data.url) { url = data.url; esPublico = true; }
+        }
+    } catch (e) {
+        console.warn('No se pudo firmar el enlace público del QR:', e);
+    }
 
     const tabLabel   = tab === 'ejecutivo' ? 'Informe Ejecutivo' : 'Resumen Operativo';
     let scopeStr = '';
@@ -1577,9 +1632,9 @@ function openQRModal() {
     modal.innerHTML = `
         <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
             <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR — Acceso Directo</div>
-            <div style="font-size:.82rem;font-weight:600;color:#1d4ed8;margin-bottom:.2rem">Operación y Novedades${clienteStr}</div>
+            <div style="font-size:.82rem;font-weight:600;color:#1d4ed8;margin-bottom:.2rem">Operación y Novedades${scopeStr}</div>
             <div style="font-size:.75rem;color:#64748b;margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
-            <div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.875rem">🔒 Requiere sesión activa</div>
+            <div style="display:inline-block;font-size:.72rem;font-weight:600;margin-bottom:.875rem;border-radius:.4rem;padding:.15rem .5rem;${esPublico ? 'color:#0369a1;background:#e0f2fe' : 'color:#92400e;background:#fef3c7'}">${esPublico ? 'Sólo lectura · vence en 24 horas' : '🔒 Requiere sesión activa'}</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
             <div style="font-size:.7rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
             <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
@@ -1656,7 +1711,7 @@ function renderAlertasList(alertas) {
             <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
             <span class="alerta-texto">${a.texto}</span>
             <span class="alerta-ts">${_relTime(a.timestamp)}</span>
-            <a href="${a.ruta_navegacion}" class="alerta-btn ${btnClass}">${a.accion} →</a>
+            ${PUBLIC_MODE ? '' : `<a href="${a.ruta_navegacion}" class="alerta-btn ${btnClass}">${a.accion} →</a>`}
         </div>`;
     }).join('');
 
@@ -1690,6 +1745,7 @@ async function evaluateAlerts() {
     const params = new URLSearchParams();
     if (cliente) params.set('cliente', cliente);
     if (propiedad) params.set('propiedad', propiedad);
+    withToken(params);
 
     try {
         const [alertasResp] = await Promise.all([
@@ -1833,6 +1889,7 @@ async function fetchSemaforoKpis() {
     const params = new URLSearchParams();
     if (cliente) params.set('cliente', cliente);
     if (propiedad) params.set('propiedad', propiedad);
+    withToken(params);
     try {
         const resp = await fetch(`/cgeo/api/semaforo-global${params.toString() ? '?' + params.toString() : ''}`,
             { headers: { Accept: 'application/json' } });

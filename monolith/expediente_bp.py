@@ -70,6 +70,20 @@ def _get_user_info(user_email):
     return user_name, is_admin
 
 
+def _acceso_denegado(mensaje, status, is_api):
+    """Corta la peticion: JSON con codigo si es API, redirect si es navegacion.
+
+    Va como if/else y no como expresion condicional a proposito. La forma
+    `return jsonify(...), 403 if is_api else redirect(...)` se agrupa como
+    `(jsonify(...), (403 if is_api else redirect(...)))`, asi que en una ruta de
+    navegacion Flask recibia una tupla (Response, Response) y devolvia 500 en vez
+    de mandar a la raiz.
+    """
+    if is_api:
+        return jsonify({"error": mensaje}), status
+    return redirect('/')
+
+
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -77,7 +91,7 @@ def admin_required(f):
         try:
             claims = get_jwt()
             if not claims.get('is_admin', False):
-                return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect('/')
+                return _acceso_denegado("Acceso denegado", 403, is_api)
 
             # DB verification — JWT claim may be stale if admin was revoked after token issuance
             email = get_jwt_identity()
@@ -90,12 +104,12 @@ def admin_required(f):
                     cur.close()
                     if not row or not row[0] or not row[1]:
                         app_logger.warning(f"admin_required DB check failed for {email}: row={row}")
-                        return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect('/')
+                        return _acceso_denegado("Acceso denegado", 403, is_api)
                 finally:
                     conn.close()
         except Exception as e:
             app_logger.error(f"admin_required error: {e}", exc_info=True)
-            return jsonify({"error": "Error de autenticación"}), 500 if is_api else redirect('/')
+            return _acceso_denegado("Error de autenticación", 500, is_api)
         return f(*args, **kwargs)
     return decorated
 

@@ -16,8 +16,10 @@ from io import BytesIO
 
 import psycopg2
 from psycopg2 import extras
-from flask import Blueprint, render_template, jsonify, request, redirect, send_file
+from flask import (Blueprint, current_app, render_template, jsonify, request,
+                   redirect, send_file)
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+from itsdangerous import BadData, SignatureExpired, URLSafeTimedSerializer
 
 try:
     from weasyprint import HTML as _WeasyprintHTML
@@ -69,6 +71,148 @@ def _get_user_info(user_email):
     return user_name, is_admin
 
 
+# ─── Acceso público por QR ────────────────────────────────────────────────────
+# El QR de Operación e Incidentes se escanea desde un teléfono que no tiene sesión
+# —ése es justamente el punto— así que la pantalla no puede exigir login. En vez de
+# abrir la ruta, el QR lleva un token firmado con el SECRET_KEY del despliegue que
+# CONGELA el alcance: cliente, instalación, supervisor y rango de fechas quedan
+# dentro de la firma. Quien escanea ve exactamente lo que el Administrador tenía en
+# pantalla al generarlo, y no puede ampliarlo reescribiendo la URL.
+#
+# Mismo patrón, misma librería y misma forma de token que el Expediente
+# (`_make_expediente_token` en expediente_bp), para no inventar un segundo
+# mecanismo de enlaces públicos.
+
+OPERACION_QR_SALT = 'sekapp-operacion-qr-v1'
+
+# El enlace vence a las 24 horas. La firma lleva el instante en que se emitió, así
+# que el vencimiento se comprueba al leerla: no hace falta guardar nada ni tener
+# una lista de revocación. Un QR de ayer deja de abrir solo.
+OPERACION_QR_MAX_AGE = 24 * 60 * 60
+
+# Campos del alcance que viajan firmados. Las claves son cortas porque el token
+# entero termina dentro de un código QR: mientras más corto, menos denso el dibujo.
+_ALCANCE_CLAVES = (
+    ('cliente',    'c'),
+    ('propiedad',  'p'),
+    ('supervisor', 's'),
+    ('start_date', 'd'),
+    ('end_date',   'h'),
+    ('tab',        't'),
+)
+
+
+def _make_operacion_token(alcance, company_id):
+    """Firma el alcance visible. Sólo entra lo que tiene valor, para no inflar el QR."""
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt=OPERACION_QR_SALT)
+    payload = {'cid': int(company_id or 0)}
+    for nombre, clave in _ALCANCE_CLAVES:
+        valor = (alcance.get(nombre) or '').strip()
+        if valor and valor not in ('Todos', 'Todas'):
+            payload[clave] = valor
+    return s.dumps(payload)
+
+
+def _decode_operacion_token(token):
+    """Devuelve (payload, motivo) — motivo es 'ok', 'vencido' o 'invalido'.
+
+    Se distingue vencido de inválido para poder decirle a quien escanea que pida un
+    QR nuevo, en vez de dejarlo pensando que el enlace está roto. `SignatureExpired`
+    hereda de `BadData`, así que va capturado primero.
+    """
+    s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt=OPERACION_QR_SALT)
+    try:
+        return s.loads(token, max_age=OPERACION_QR_MAX_AGE), 'ok'
+    except SignatureExpired:
+        return None, 'vencido'
+    except BadData:
+        return None, 'invalido'
+
+
+def _alcance_publico():
+    """Payload del token si la petición trae uno válido; None si no.
+
+    El token viaja como `?t=` para que las llamadas a las APIs lo puedan adjuntar
+    sin cambiar de ruta.
+    """
+    token = request.args.get('t')
+    if not token:
+        return None
+    payload, _motivo = _decode_operacion_token(token)
+    return payload
+
+
+def _filtro_efectivo(nombre, por_defecto=None):
+    """Valor de un filtro, con el token mandando por encima de la query string.
+
+    En modo público el alcance lo fija la firma, no quien mira: cambiar
+    `?cliente=` a mano en la URL no amplía lo que se ve.
+    """
+    alcance = _alcance_publico()
+    if alcance is not None:
+        clave = dict(_ALCANCE_CLAVES).get(nombre)
+        valor = alcance.get(clave) if clave else None
+        return valor or por_defecto
+    valor = request.args.get(nombre)
+    return valor if valor not in (None, '', 'Todos', 'Todas') else por_defecto
+
+
+def _company_id_efectivo(cur):
+    """company_id del token en modo público; el del usuario en sesión si no."""
+    alcance = _alcance_publico()
+    if alcance is not None:
+        return alcance.get('cid') or None
+    return _get_user_company_id(cur, get_jwt_identity())
+
+
+def _admin_o_token(f):
+    """Deja pasar a un Administrador con sesión, o a un QR con token válido.
+
+    Sin token se comporta exactamente como antes: `jwt_required` y luego la
+    verificación de administrador. El token nunca habilita escritura — sólo se
+    aplica a los endpoints de lectura que alimentan la pantalla.
+    """
+    protegido = jwt_required()(_admin_required(f))
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if _alcance_publico() is not None:
+            return f(*args, **kwargs)
+        return protegido(*args, **kwargs)
+    return decorated
+
+
+def _sesion_o_token(f):
+    """Igual que `_admin_o_token`, para los endpoints que sólo pedían sesión.
+
+    Va aparte a propósito: `semaforo-global` y `filtros` nunca exigieron ser
+    Administrador, y meterlos en `_admin_o_token` le habría quitado el acceso al
+    Supervisor de Seguridad, que hoy los usa.
+    """
+    protegido = jwt_required()(f)
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if _alcance_publico() is not None:
+            return f(*args, **kwargs)
+        return protegido(*args, **kwargs)
+    return decorated
+
+
+def _acceso_denegado(mensaje, status, is_api):
+    """Corta la peticion: JSON con codigo si es API, redirect si es navegacion.
+
+    Va como if/else y no como expresion condicional a proposito. La forma
+    `return jsonify(...), 403 if is_api else redirect(...)` se agrupa como
+    `(jsonify(...), (403 if is_api else redirect(...)))`, asi que en una ruta de
+    navegacion Flask recibia una tupla (Response, Response) y devolvia 500 en vez
+    de mandar al landing.
+    """
+    if is_api:
+        return jsonify({"error": mensaje}), status
+    return redirect("/landing/")
+
+
 def _admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -76,7 +220,7 @@ def _admin_required(f):
         try:
             claims = get_jwt()
             if not claims.get("is_admin", False):
-                return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect("/landing/")
+                return _acceso_denegado("Acceso denegado", 403, is_api)
 
             # DB verification — JWT claim may be stale if admin was revoked after token issuance
             email = get_jwt_identity()
@@ -89,12 +233,12 @@ def _admin_required(f):
                     cur.close()
                     if not row or not row[0] or not row[1]:
                         app_logger.warning(f"_admin_required DB check failed for {email}: row={row}")
-                        return jsonify({"error": "Acceso denegado"}), 403 if is_api else redirect("/landing/")
+                        return _acceso_denegado("Acceso denegado", 403, is_api)
                 finally:
                     conn.close()
         except Exception as e:
             app_logger.error(f"_admin_required error: {e}", exc_info=True)
-            return jsonify({"error": "Error de autenticación"}), 500 if is_api else redirect("/landing/")
+            return _acceso_denegado("Error de autenticación", 500, is_api)
         return f(*args, **kwargs)
     return decorated
 
@@ -360,6 +504,57 @@ def cgeo_operacion():
     )
 
 
+@cgeo_bp.route("/api/operacion-qr-url")
+@jwt_required()
+@_admin_required
+def cgeo_api_operacion_qr_url():
+    """Acuña el enlace público que codifica el QR. Sólo un Administrador lo emite."""
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+        alcance = {nombre: request.args.get(nombre, '')
+                   for nombre, _clave in _ALCANCE_CLAVES}
+        token = _make_operacion_token(alcance, company_id)
+        return jsonify({"url": request.host_url.rstrip('/') + f"/cgeo/vop/{token}"})
+    except Exception as e:
+        app_logger.error(f"cgeo_api_operacion_qr_url error: {e}", exc_info=True)
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        conn.close()
+
+
+@cgeo_bp.route("/vop/<string:token>")
+def cgeo_operacion_publica(token):
+    """Vista de sólo lectura de Operación e Incidentes, sin sesión.
+
+    Es el destino del QR. No lleva `jwt_required`: la autorización es la firma del
+    token, que además fija el alcance. La plantilla es la misma de siempre, en
+    modo público: sin filtros editables y sin ninguna acción que escriba.
+    """
+    alcance, motivo = _decode_operacion_token(token)
+    if not alcance:
+        mensaje = ('Este código QR venció. Los enlaces duran 24 horas: '
+                   'solicite uno nuevo al Administrador.' if motivo == 'vencido'
+                   else 'Enlace inválido. Solicite un código QR nuevo.')
+        return render_template('error.html', error=mensaje), 410 if motivo == 'vencido' else 400
+    # Los selectores se rellenan con el alcance firmado para que la pantalla diga
+    # lo que realmente se está viendo. Es sólo presentación: el filtrado de verdad
+    # lo hace el servidor leyendo el token, no estos valores.
+    return render_template(
+        "cgeo_operacion.html",
+        current_user=None,
+        user_name='Vista pública',
+        is_admin=False,
+        public_mode=True,
+        qr_token=token,
+        qr_scope={nombre: alcance.get(clave, '')
+                  for nombre, clave in _ALCANCE_CLAVES},
+    )
+
+
 @cgeo_bp.route("/morning-briefing/")
 @jwt_required()
 @_admin_required
@@ -377,14 +572,15 @@ def cgeo_morning_briefing():
 # ── API: shared filter options ────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/filtros")
-@jwt_required()
+@_sesion_o_token
 def cgeo_api_filtros():
     conn = _get_conn()
     if not conn:
         return jsonify({"error": "DB no disponible"}), 500
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
-        company_id = _get_user_company_id(cur, get_jwt_identity())
+        # En modo público no hay identidad de sesión: el company_id viaja firmado.
+        company_id = _company_id_efectivo(cur)
         
         # 1. Propiedades
         prop_query = """
@@ -1022,24 +1218,23 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
 
 
 @cgeo_bp.route("/api/alertas")
-@jwt_required()
-@_admin_required
+@_admin_o_token
 def cgeo_api_alertas():
     """
     Evalúa 8 reglas de negocio y devuelve alertas priorizadas.
     Orden: ROJO primero (reglas 1-3), luego AMARILLO (4-8); dentro de cada
     color, las más antiguas primero (mayor urgencia).
     """
-    cliente = request.args.get("cliente")
-    if cliente in ('Todos', ''):
-        cliente = None
+    cliente = _filtro_efectivo("cliente")
     # La pagina de Operacion ya enviaba `propiedad` en estas dos llamadas, pero
     # aqui se ignoraba: al elegir una instalacion las tarjetas y graficos se
     # acotaban y el panel de alertas y el semaforo global seguian consolidados.
-    propiedad = (request.args.get("propiedad") or request.args.get("property_id")
-                 or request.args.get("id_propiedad") or None)
-    if propiedad in ('Todos', 'Todas', ''):
-        propiedad = None
+    propiedad = _filtro_efectivo("propiedad")
+    if propiedad is None and _alcance_publico() is None:
+        propiedad = (request.args.get("property_id")
+                     or request.args.get("id_propiedad") or None)
+        if propiedad in ('Todos', 'Todas', ''):
+            propiedad = None
 
     conn = _get_conn()
     if not conn:
@@ -1701,22 +1896,22 @@ def cgeo_api_alertas():
 # ── API: Semáforo Global ─────────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/semaforo-global")
-@jwt_required()
+@_sesion_o_token
 def cgeo_api_semaforo_global():
     """
     Retorna los KPIs necesarios para calcular el semáforo global de la operación.
     Diseñado para ser llamado junto con /api/alertas desde el Morning Briefing.
     """
-    cliente = request.args.get("cliente")
-    if cliente in ('Todos', ''):
-        cliente = None
+    cliente = _filtro_efectivo("cliente")
     # La pagina de Operacion ya enviaba `propiedad` en estas dos llamadas, pero
     # aqui se ignoraba: al elegir una instalacion las tarjetas y graficos se
     # acotaban y el panel de alertas y el semaforo global seguian consolidados.
-    propiedad = (request.args.get("propiedad") or request.args.get("property_id")
-                 or request.args.get("id_propiedad") or None)
-    if propiedad in ('Todos', 'Todas', ''):
-        propiedad = None
+    propiedad = _filtro_efectivo("propiedad")
+    if propiedad is None and _alcance_publico() is None:
+        propiedad = (request.args.get("property_id")
+                     or request.args.get("id_propiedad") or None)
+        if propiedad in ('Todos', 'Todas', ''):
+            propiedad = None
 
     conn = _get_conn()
     if not conn:
@@ -2131,18 +2326,17 @@ def cgeo_api_morning_briefing_data():
 # ── API: Operación e Incidentes ────────────────────────────────────────────────
 
 @cgeo_bp.route("/api/operacion-data")
-@jwt_required()
-@_admin_required
+@_admin_o_token
 def cgeo_api_operacion_data():
-    cliente = request.args.get("cliente")
-    if cliente in ('Todos', 'Todas', ''):
-        cliente = None
-    propiedad = request.args.get("propiedad") or request.args.get("property_id") or request.args.get("id_propiedad") or None
-    if propiedad in ('Todos', 'Todas', ''):
-        propiedad = None
-    supervisor  = request.args.get("supervisor") or None
-    start_date = request.args.get("start_date") or None
-    end_date = request.args.get("end_date") or None
+    cliente = _filtro_efectivo("cliente")
+    propiedad = _filtro_efectivo("propiedad")
+    if propiedad is None and _alcance_publico() is None:
+        propiedad = request.args.get("property_id") or request.args.get("id_propiedad") or None
+        if propiedad in ('Todos', 'Todas', ''):
+            propiedad = None
+    supervisor = _filtro_efectivo("supervisor")
+    start_date = _filtro_efectivo("start_date")
+    end_date = _filtro_efectivo("end_date")
 
     conn = _get_conn()
     if not conn:
