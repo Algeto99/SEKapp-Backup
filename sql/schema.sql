@@ -853,6 +853,40 @@ CREATE TABLE IF NOT EXISTS formulario_edicion_historial (
 );
 CREATE INDEX IF NOT EXISTS idx_formulario_edicion_historial_tabla_registro ON formulario_edicion_historial (tabla, registro_id);
 
+-- Seguridad de acceso. La autenticación es un JWT en cookie; estas dos tablas
+-- son lo único que el servidor guarda de una sesión. login_bp las crea solas si
+-- no existen (producción no tiene acceso directo a la base).
+--
+-- Una sesión cuenta como activa mientras cerrada_en sea NULL y creado_en esté
+-- dentro de la vigencia del token (1 h). "Salir" marca cerrada_en.
+CREATE TABLE IF NOT EXISTS sesiones_usuario (
+    id            SERIAL PRIMARY KEY,
+    usuario_email VARCHAR(255) NOT NULL,
+    jti           VARCHAR(64)  NOT NULL,      -- identificador del JWT emitido
+    dispositivo   VARCHAR(20),                -- Computador | Celular | Tableta
+    user_agent    TEXT,
+    ip            VARCHAR(64),
+    creado_en     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    cerrada_en    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_email ON sesiones_usuario (usuario_email, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_jti ON sesiones_usuario (jti);
+
+-- Constancia de auditoría: una fila cada vez que dos o más sesiones usan el
+-- mismo usuario. El Morning Briefing la muestra como alerta roja (regla 15)
+-- hasta que un Administrador la marque como revisada; la fila se conserva.
+CREATE TABLE IF NOT EXISTS alertas_seguridad (
+    id               SERIAL PRIMARY KEY,
+    tipo             VARCHAR(50)  NOT NULL DEFAULT 'sesiones_simultaneas',
+    usuario_email    VARCHAR(255) NOT NULL,
+    sesiones_activas INTEGER      NOT NULL DEFAULT 2,
+    dispositivos     JSONB        NOT NULL DEFAULT '[]'::jsonb,
+    detectado_en     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    estado           VARCHAR(100) NOT NULL DEFAULT 'Sesiones simultáneas detectadas',
+    revisada_en      TIMESTAMPTZ,
+    revisada_por     VARCHAR(255)
+);
+
 -- Vista para análisis y exportación detallada de Confiabilidad de Equipos
 CREATE OR REPLACE VIEW v_confiabilidad_equipos_detalle AS
 SELECT

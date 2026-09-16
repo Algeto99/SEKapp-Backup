@@ -1100,6 +1100,7 @@ const _SG_GRUPOS = [
     { key: 'planilla_vehicular',           titulo: 'Vehículos sin pre-operacional' },
     { key: 'planilla_motocicletas',        titulo: 'Motocicletas sin pre-operacional' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
+    { key: 'alerta_seguridad',             titulo: '🔐 Seguridad de acceso' },
     { key: '__backup__',                   titulo: '💾 Backup de información' },
     { key: '__otros__',                    titulo: 'Otras alertas operativas' },
 ];
@@ -1236,6 +1237,66 @@ function _getAlertViewer(formType) {
 
 // Para alertas sin registro asociado (nada se ha registrado todavía): se informa
 // dentro del propio Morning Briefing en vez de salir hacia el módulo.
+// Alerta de seguridad de acceso (regla 15): no hay registro operativo que
+// abrir. Se muestra la ficha con el formato de auditoría y se puede marcar como
+// revisada; la fila queda en alertas_seguridad como constancia.
+function abrirAlertaSeguridad(a) {
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    const fila = (k, v) => `<div style="display:flex;justify-content:space-between;gap:1rem;padding:.3rem 0;border-bottom:1px solid rgba(148,163,184,.25)">
+            <span style="color:#94a3b8">${k}</span><strong style="text-align:right;word-break:break-all">${_esc(v)}</strong></div>`;
+    const dispositivos = (a.dispositivos || []).map((d, i) => fila(`Dispositivo ${i + 1}:`, d)).join('');
+    modal.innerHTML = `
+        <div class="sg-modal">
+            <div class="sg-modal-title">🔴 USUARIO CON SESIONES SIMULTÁNEAS</div>
+            <div class="sg-modal-sub">Dos o más sesiones iniciaron con las mismas credenciales.</div>
+            <div class="drv-5q-card" style="border-radius:.6rem;padding:.75rem;margin-bottom:.5rem;font-size:.85rem">
+                ${fila('Usuario:', a.usuario || '')}
+                ${fila('Sesiones activas:', String(a.sesiones_activas || ''))}
+                ${dispositivos}
+                ${fila('Fecha y hora:', a.fecha_hora || '')}
+                ${fila('Estado:', a.estado_seguridad || '')}
+            </div>
+            <div class="sg-detail-empty">Confirma con el usuario si ambas sesiones son suyas. Si no lo son,
+                cambia su contraseña desde el panel de administración. Al marcarla como revisada la alerta
+                sale del panel, pero el registro se conserva.</div>
+            <button id="segRevisarBtn" class="alerta-btn alerta-btn-rojo"
+                style="display:block;width:100%;text-align:center;margin-top:1.25rem;padding:.625rem;border:none;cursor:pointer;font-size:.875rem">
+                Marcar como revisada
+            </button>
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:.75rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.querySelector('#segRevisarBtn').addEventListener('click', async function () {
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Guardando…';
+        try {
+            const res = await fetch(`/cgeo/api/alertas-seguridad/${a.alerta_seguridad_id}/revisar`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken() },
+                body: '{}'
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo marcar como revisada.');
+            modal.remove();
+            // Fuera de la lista local para que el semáforo se recalcule sin recargar.
+            _alertasData = _alertasData.filter(x => x.id !== a.id);
+            renderSemaforo(_alertasData, _kpis);
+            renderAlertas(_alertasData);
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = 'Marcar como revisada';
+            alert(err.message);
+        }
+    });
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+}
+
 function abrirAlertaSinRegistro(a) {
     const modal = document.createElement('div');
     modal.className = 'sg-modal-overlay';
@@ -1325,6 +1386,10 @@ function abrirAlerta(ref, event) {
     const a = _alertaRegistry[ref];
     if (!a) return;   // sin preventDefault: que al menos siga el href
     event.preventDefault();
+    if (a.seguridad) {
+        abrirAlertaSeguridad(a);
+        return;
+    }
     if (a.backup || a.form_type === 'estatus_cliente') {
         window.location.href = a.ruta_navegacion;
         return;

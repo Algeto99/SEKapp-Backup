@@ -1,12 +1,14 @@
 import re
+import json
 import secrets
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, unset_jwt_cookies,
-    set_access_cookies, set_refresh_cookies, get_jwt_identity, get_jwt
+    set_access_cookies, set_refresh_cookies, get_jwt_identity, get_jwt,
+    decode_token
 )
 from psycopg2 import extras
 import psycopg2
@@ -162,6 +164,175 @@ def delete_reset_token(token):
     finally:
         if conn: conn.close()
 
+# --- Sesiones activas y alertas de seguridad de acceso ---
+#
+# La autenticación es un JWT en cookie y hasta aquí el servidor no guardaba
+# nada de la sesión: "Salir" sólo borraba la cookie. Para avisar "este usuario
+# ya tiene una sesión activa" hace falta dejar constancia de cada sesión emitida.
+# Una sesión cuenta como activa mientras no se haya cerrado con "Salir" y su
+# token siga vigente (JWT_ACCESS_TOKEN_EXPIRES). No hay heartbeat por petición
+# a propósito: no agrega ninguna consulta al resto de la app. El margen es que
+# quien cierra la app sin "Salir" sigue contando hasta que vence el token.
+
+_LOGIN_PENDIENTE_SEGUNDOS = 120
+
+
+def _ensure_sesiones_tables(conn):
+    """Crea las tablas si no existen. Producción no tiene acceso directo a la
+    base, así que se autocrean como asignaciones_hallazgo (ver schema.sql)."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sesiones_usuario (
+                id            SERIAL PRIMARY KEY,
+                usuario_email VARCHAR(255) NOT NULL,
+                jti           VARCHAR(64)  NOT NULL,
+                dispositivo   VARCHAR(20),
+                user_agent    TEXT,
+                ip            VARCHAR(64),
+                creado_en     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                cerrada_en    TIMESTAMPTZ
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_email
+                ON sesiones_usuario (usuario_email, creado_en DESC)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_jti
+                ON sesiones_usuario (jti)
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS alertas_seguridad (
+                id               SERIAL PRIMARY KEY,
+                tipo             VARCHAR(50)  NOT NULL DEFAULT 'sesiones_simultaneas',
+                usuario_email    VARCHAR(255) NOT NULL,
+                sesiones_activas INTEGER      NOT NULL DEFAULT 2,
+                dispositivos     JSONB        NOT NULL DEFAULT '[]'::jsonb,
+                detectado_en     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+                estado           VARCHAR(100) NOT NULL DEFAULT 'Sesiones simultáneas detectadas',
+                revisada_en      TIMESTAMPTZ,
+                revisada_por     VARCHAR(255)
+            )
+        """)
+    conn.commit()
+
+
+def _dispositivo_desde_user_agent(ua):
+    """Computador / Celular / Tableta: lo que ve el Administrador en la alerta."""
+    ua = (ua or '').lower()
+    if 'ipad' in ua or 'tablet' in ua or ('android' in ua and 'mobile' not in ua):
+        return 'Tableta'
+    if 'mobile' in ua or 'iphone' in ua or 'android' in ua:
+        return 'Celular'
+    return 'Computador'
+
+
+def _ip_cliente():
+    reenviada = request.headers.get('X-Forwarded-For', '')
+    ip = reenviada.split(',')[0].strip() if reenviada else (request.remote_addr or '')
+    return ip[:64]
+
+
+def _sesiones_activas(cur, email):
+    """Sesiones del usuario que siguen vigentes, de la más antigua a la más nueva."""
+    cur.execute("""
+        SELECT id, dispositivo, creado_en
+          FROM sesiones_usuario
+         WHERE usuario_email = %s
+           AND cerrada_en IS NULL
+           AND creado_en > NOW() - %s
+         ORDER BY creado_en ASC
+    """, (email, current_app.config['JWT_ACCESS_TOKEN_EXPIRES']))
+    return cur.fetchall()
+
+
+def _registrar_sesion(cur, email, access_token):
+    jti = (decode_token(access_token) or {}).get('jti') or ''
+    ua = request.user_agent.string or ''
+    cur.execute("""
+        INSERT INTO sesiones_usuario (usuario_email, jti, dispositivo, user_agent, ip)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (email, jti, _dispositivo_desde_user_agent(ua), ua[:500], _ip_cliente()))
+
+
+def _registrar_alerta_sesiones(cur, email, sesiones):
+    """Deja constancia de que dos o más sesiones usan el mismo usuario.
+
+    El Morning Briefing la muestra como alerta roja hasta que el Administrador
+    la marque como revisada. Si ya hay una sin revisar de este usuario en la
+    última hora, se actualizan conteo y dispositivos en vez de abrir otra.
+    """
+    dispositivos = json.dumps([s['dispositivo'] or 'Desconocido' for s in sesiones])
+    cur.execute("""
+        UPDATE alertas_seguridad
+           SET sesiones_activas = %s,
+               dispositivos     = %s::jsonb
+         WHERE usuario_email = %s
+           AND tipo = 'sesiones_simultaneas'
+           AND revisada_en IS NULL
+           AND detectado_en > NOW() - INTERVAL '1 hour'
+        RETURNING id
+    """, (len(sesiones), dispositivos, email))
+    if cur.fetchone():
+        return
+    cur.execute("""
+        INSERT INTO alertas_seguridad (tipo, usuario_email, sesiones_activas, dispositivos)
+        VALUES ('sesiones_simultaneas', %s, %s, %s::jsonb)
+    """, (email, len(sesiones), dispositivos))
+    current_app.logger.warning(f"Sesiones simultáneas detectadas para {email}: {len(sesiones)}")
+
+
+def _guardar_login_pendiente(email, next_url):
+    """Primer paso del aviso: la contraseña ya se validó, falta que el usuario
+    elija Continuar. Va en la cookie firmada de Flask (la misma de los mensajes
+    flash) para no reenviar la contraseña ni imprimirla en el HTML."""
+    vence = datetime.now(timezone.utc) + timedelta(seconds=_LOGIN_PENDIENTE_SEGUNDOS)
+    session['login_pendiente'] = {'email': email, 'next': next_url or '', 'hasta': vence.isoformat()}
+
+
+def _tomar_login_pendiente():
+    """Consume el login pendiente; None si no hay o ya venció."""
+    datos = session.pop('login_pendiente', None)
+    if not datos or not datos.get('email'):
+        return None
+    try:
+        if datetime.now(timezone.utc) > datetime.fromisoformat(datos['hasta']):
+            return None
+    except Exception:
+        return None
+    return datos
+
+
+def _cerrar_sesion_actual():
+    """Marca como cerrada la sesión del token en curso. Silencioso si no hay
+    token o ya venció: la fila deja de contar sola cuando vence el token."""
+    try:
+        from flask_jwt_extended import verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        jti = (get_jwt() or {}).get('jti')
+    except Exception:
+        return
+    if not jti:
+        return
+    conn = get_db_connection()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('sesiones_usuario')")
+        if (cur.fetchone() or [None])[0]:
+            cur.execute(
+                "UPDATE sesiones_usuario SET cerrada_en = NOW() WHERE jti = %s AND cerrada_en IS NULL",
+                (jti,)
+            )
+            conn.commit()
+        cur.close()
+    except Exception as e:
+        conn.rollback()
+        current_app.logger.warning(f"No se pudo cerrar la sesión {jti}: {e}")
+    finally:
+        conn.close()
+
 # --- Routes Blueprint ---
 
 @login_bp.route('/', methods=['GET', 'POST'])
@@ -169,6 +340,8 @@ def delete_reset_token(token):
 @limiter.limit("20 per minute; 5 per second")
 def login():
     if request.method == 'GET':
+        # Un login pendiente sólo tiene sentido dentro del POST que lo creó.
+        session.pop('login_pendiente', None)
         from flask_jwt_extended import verify_jwt_in_request
         try:
             verify_jwt_in_request(optional=True)
@@ -182,8 +355,20 @@ def login():
             pass
 
     if request.method == 'POST':
-        email = request.form.get('username') or request.form.get('email')
-        password = request.form.get('password')
+        # Segundo paso del aviso "USUARIO YA ACTIVO": la contraseña ya se validó
+        # hace un momento y el usuario eligió Continuar. El correo sale del login
+        # pendiente guardado en la cookie firmada, nunca del formulario.
+        pendiente = None
+        if request.form.get('confirmar_sesion') == '1':
+            pendiente = _tomar_login_pendiente()
+            if not pendiente:
+                flash("La confirmación venció. Ingresa tus credenciales nuevamente.", "warning")
+                return render_template('login.html')
+            email = pendiente['email']
+            password = None
+        else:
+            email = request.form.get('username') or request.form.get('email')
+            password = request.form.get('password')
         conn = get_db_connection()
         if not conn:
             flash("Service unavailable (DB connection failed)", "danger")
@@ -217,7 +402,8 @@ def login():
             cur.close()
 
             if user:
-                is_valid = bcrypt.check_password_hash(user['password_hash'], password)
+                # Con login pendiente la contraseña ya fue verificada en el primer paso.
+                is_valid = bool(pendiente) or bcrypt.check_password_hash(user['password_hash'], password)
 
                 if is_valid:
                     # Resolve is_admin: prefer authorized_emails.is_admin if present and active
@@ -242,9 +428,33 @@ def login():
                         set_access_cookies(response, limited_token)
                         return response
 
+                    # Aviso de seguridad de acceso: si otra sesión de este usuario
+                    # sigue vigente y todavía no se confirmó, no se emite el token.
+                    # Se muestra el modal "USUARIO YA ACTIVO" y queda el login
+                    # pendiente para que Continuar no repita la contraseña. Un
+                    # fallo del registro se anota pero no bloquea el ingreso.
+                    try:
+                        _ensure_sesiones_tables(conn)
+                        cur = conn.cursor(cursor_factory=extras.DictCursor)
+                        activas = _sesiones_activas(cur, user['email'])
+                        if activas and not pendiente:
+                            cur.close()
+                            _guardar_login_pendiente(
+                                user['email'], request.args.get('next') or request.form.get('next'))
+                            return render_template('login.html', sesion_activa=True, username=user['email'])
+                        _registrar_sesion(cur, user['email'], access_token)
+                        if activas:
+                            # Ya son dos o más: las vigentes más la recién emitida.
+                            _registrar_alerta_sesiones(cur, user['email'], _sesiones_activas(cur, user['email']))
+                        conn.commit()
+                        cur.close()
+                    except Exception as ses_err:
+                        conn.rollback()
+                        current_app.logger.error(f"Registro de sesión omitido para {email}: {ses_err}", exc_info=True)
+
                     fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
                     redirect_target = _safe_redirect(
-                        request.args.get('next') or request.form.get('next'),
+                        (pendiente or {}).get('next') or request.args.get('next') or request.form.get('next'),
                         fallback=fallback
                     )
                     response = redirect(redirect_target)
@@ -484,6 +694,17 @@ def change_password():
                         'name': user.get('name', ''),
                     }
                 )
+                # Aquí también nace una sesión completa: queda registrada igual
+                # que en el login para que el aviso de sesión activa la vea.
+                try:
+                    _ensure_sesiones_tables(conn)
+                    cur = conn.cursor(cursor_factory=extras.DictCursor)
+                    _registrar_sesion(cur, email, full_token)
+                    conn.commit()
+                    cur.close()
+                except Exception as ses_err:
+                    conn.rollback()
+                    current_app.logger.error(f"Registro de sesión omitido para {email}: {ses_err}", exc_info=True)
                 fallback = '/cgeo/morning-briefing/' if user.get('is_admin') else url_for('landing_bp.landing_page')
                 response = redirect(fallback)
                 set_access_cookies(response, full_token)
@@ -502,6 +723,7 @@ def change_password():
 
 @login_bp.route('/logout')
 def logout():
+    _cerrar_sesion_actual()
     response = redirect(url_for('login_bp.login'))
     unset_jwt_cookies(response)
     flash('Has cerrado sesión exitosamente.', 'success')

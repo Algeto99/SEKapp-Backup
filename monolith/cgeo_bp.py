@@ -1217,6 +1217,65 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
     return pendientes
 
 
+def _alertas_seguridad_pendientes(cur):
+    """Alertas de seguridad de acceso sin revisar, como alertas rojas del panel.
+
+    Las escribe login_bp cuando dos o más sesiones usan el mismo usuario. No hay
+    registro operativo que abrir: el Morning Briefing muestra la ficha y ofrece
+    marcarla como revisada. Devuelve [] si la tabla todavía no existe (nadie ha
+    iniciado sesión desde que se desplegó el registro de sesiones).
+    """
+    # Si una regla anterior falló, la transacción quedó abortada y cualquier
+    # consulta siguiente muere con ella. El endpoint sólo lee, así que cerrar
+    # esa transacción no pierde nada, y una alerta de seguridad no debe
+    # desaparecer porque una regla operativa tuvo un error.
+    cur.connection.rollback()
+    cur.execute("SELECT to_regclass('alertas_seguridad') AS t")
+    if not (cur.fetchone() or {}).get('t'):
+        return []
+    cur.execute("""
+        SELECT id, usuario_email, sesiones_activas, dispositivos, detectado_en, estado
+          FROM alertas_seguridad
+         WHERE tipo = 'sesiones_simultaneas'
+           AND revisada_en IS NULL
+         ORDER BY detectado_en DESC
+         LIMIT 20
+    """)
+    filas = cur.fetchall()
+    if not filas:
+        return []
+    from admin_bp import get_operation_timezone, format_local_datetime
+    tz = get_operation_timezone()
+    out = []
+    for r in filas:
+        dispositivos = [str(d) for d in (r['dispositivos'] or [])]
+        n = int(r['sesiones_activas'] or len(dispositivos) or 2)
+        fecha = format_local_datetime(r['detectado_en'], tz=tz, time_sep=' – ', use_12h=False)
+        detalle = ' · '.join(f'Dispositivo {i}: {d}' for i, d in enumerate(dispositivos, 1))
+        out.append({
+            "id": f"r15_{r['id']}",
+            "regla": 15,
+            "seguridad": True,
+            "alerta_seguridad_id": r['id'],
+            "texto": f"Usuario con sesiones simultáneas: {r['usuario_email']} ({n} sesiones)",
+            "motivo": (f"Usuario: {r['usuario_email']}. Sesiones activas: {n}. {detalle}. "
+                       f"Fecha y hora: {fecha}. Estado: {r['estado']}."),
+            "usuario": r['usuario_email'],
+            "sesiones_activas": n,
+            "dispositivos": dispositivos,
+            "fecha_hora": fecha,
+            "estado_seguridad": r['estado'],
+            "accion": "Ver detalle",
+            "ruta_navegacion": "/cgeo/morning-briefing/",
+            "record_id": None,
+            "form_type": "alerta_seguridad",
+            "color_semaforo": "rojo",
+            "timestamp": r['detectado_en'].isoformat() if r['detectado_en'] else None,
+            "horas": None,
+        })
+    return out
+
+
 @cgeo_bp.route("/api/alertas")
 @_admin_o_token
 def cgeo_api_alertas():
@@ -1868,6 +1927,17 @@ def cgeo_api_alertas():
         except Exception as asig_err:
             # Una asignación ilegible no puede dejar sin alertas al briefing.
             app_logger.warning(f"cgeo_api_alertas: asignaciones pendientes omitidas: {asig_err}")
+
+        # ── REGLA 15: Sesiones simultáneas (seguridad de acceso) ─────────────
+        # No nace de un registro operativo sino del login: login_bp deja una
+        # fila en alertas_seguridad cuando dos sesiones usan el mismo usuario.
+        # Se omite en modo público: quien mira Operación por QR no debe ver
+        # correos de usuarios de la empresa.
+        if _alcance_publico() is None:
+            try:
+                alertas.extend(_alertas_seguridad_pendientes(cur))
+            except Exception as seg_err:
+                app_logger.warning(f"cgeo_api_alertas: alertas de seguridad omitidas: {seg_err}")
 
         # ── Ordenar: ROJO primero, luego AMARILLO; dentro de cada color ───────
         # por timestamp ascendente (más antiguo = más urgente).
@@ -3715,6 +3785,45 @@ def gestionar_asignacion(asignacion_id):
     except Exception as e:
         conn.rollback()
         app_logger.error(f"gestionar_asignacion error: {e}", exc_info=True)
+        return jsonify({"error": "Error interno"}), 500
+    finally:
+        conn.close()
+
+
+@cgeo_bp.route('/api/alertas-seguridad/<int:alerta_id>/revisar', methods=['POST'])
+@jwt_required()
+@_admin_required
+def revisar_alerta_seguridad(alerta_id):
+    """
+    Marca una alerta de seguridad de acceso como revisada: deja de salir en el
+    panel de alertas, pero la fila se conserva con quién y cuándo la revisó,
+    que es la constancia de auditoría que pide el requerimiento.
+    """
+    conn = _get_conn()
+    if not conn:
+        return jsonify({"error": "DB no disponible"}), 500
+    try:
+        with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
+            cur.execute("SELECT to_regclass('alertas_seguridad') AS t")
+            if not (cur.fetchone() or {}).get('t'):
+                return jsonify({"error": "Alerta no encontrada"}), 404
+            cur.execute("""
+                UPDATE alertas_seguridad
+                   SET revisada_en  = NOW(),
+                       revisada_por = %s,
+                       estado       = 'Revisada'
+                 WHERE id = %s
+                   AND revisada_en IS NULL
+                RETURNING id
+            """, (get_jwt_identity(), alerta_id))
+            fila = cur.fetchone()
+        if not fila:
+            return jsonify({"error": "Alerta no encontrada o ya revisada"}), 404
+        conn.commit()
+        return jsonify({"success": True, "id": alerta_id})
+    except Exception as e:
+        conn.rollback()
+        app_logger.error(f"revisar_alerta_seguridad error: {e}", exc_info=True)
         return jsonify({"error": "Error interno"}), 500
     finally:
         conn.close()

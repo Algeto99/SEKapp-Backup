@@ -50,6 +50,35 @@
         .flash-info { @apply bg-blue-500 text-white; }
         .flash-warning { @apply bg-yellow-500 text-gray-900; }
         .flash-danger { @apply bg-red-500 text-white; }
+        /* Aviso de seguridad de acceso: USUARIO YA ACTIVO */
+        .sesion-modal-bg {
+            position: fixed; inset: 0; z-index: 50;
+            background: rgba(0, 0, 0, 0.65);
+            display: flex; align-items: center; justify-content: center;
+            padding: 1.5rem;
+        }
+        .sesion-modal {
+            box-sizing: border-box;
+            background-color: #2d3748;
+            border: 1px solid rgba(245, 158, 11, 0.55);
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            max-width: 420px; width: 100%;
+            padding: 1.75rem;
+            text-align: left;
+        }
+        .sesion-modal h2 { font-size: 1.125rem; margin-bottom: 0.75rem; }
+        .sesion-modal p { font-size: 0.9375rem; line-height: 1.5; margin-bottom: 0.5rem; }
+        .sesion-modal-acciones { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+        .sesion-modal-acciones button {
+            flex: 1; padding: 0.75rem 1rem; border-radius: 0.5rem;
+            font-weight: 600; font-size: 0.9375rem; cursor: pointer;
+        }
+        .sesion-btn-cancelar { background: transparent; border: 1px solid #a0aec0; color: #e2e8f0; }
+        .sesion-btn-continuar { background: #d97706; border: 1px solid #d97706; color: #fff; }
+        .sesion-btn-continuar:hover { background: #b45309; }
+        body.light-mode .sesion-modal { background-color: #ffffff; }
+        body.light-mode .sesion-btn-cancelar { border-color: #4a5568; color: #2d3748; }
         .theme-toggle {
             position: absolute;
             top: 1.5rem;
@@ -173,7 +202,25 @@
         </div>
     </div>
 
-    
+    {% if sesion_activa %}
+    <!-- Segundo ingreso con credenciales que ya tienen una sesión vigente. Continuar
+         reenvía sólo la confirmación: el correo lo toma el servidor del login pendiente. -->
+    <div class="sesion-modal-bg" id="sesionActivaModal" role="dialog" aria-modal="true" aria-labelledby="sesionActivaTitulo">
+        <div class="sesion-modal">
+            <h2 id="sesionActivaTitulo">⚠️ USUARIO YA ACTIVO</h2>
+            <p>Este usuario ya tiene una sesión activa en SEKapp desde otro dispositivo.</p>
+            <p>Si continúas, quedará registrado que dos sesiones están utilizando el mismo usuario.</p>
+            <form action="{{ url_for('login_bp.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') | urlencode }}{% endif %}" method="POST" class="sesion-modal-acciones">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+                <input type="hidden" name="confirmar_sesion" value="1">
+                <button type="button" class="sesion-btn-cancelar" onclick="document.getElementById('sesionActivaModal').remove()">Cancelar</button>
+                <button type="submit" class="sesion-btn-continuar">Continuar</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <script>
     (function () {
