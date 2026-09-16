@@ -326,6 +326,26 @@ body:not(.light-mode) .cr-ejes-cero{color:#64748b}
   .cr-title-box{font-size:.875rem}
   .cr-resumen{order:3;width:100%;font-size:.78rem;gap:.375rem}
   .cr-chip-name{max-width:9rem}
+  /* Detalle del semáforo (la ventana "Detalle de novedades") en celular. Cada
+     fila es un flex de una sola línea donde todo tiene ancho fijo menos el texto
+     del hallazgo: en pantalla angosta el texto queda con cero de ancho y, como
+     puede partir líneas, se rompe letra por letra — la "línea punteada" vertical
+     que se veía en el teléfono, con filas altísimas y sin nada legible.
+     La fila pasa a apilar: el texto arriba a todo el ancho (la base de
+     100% − 3.5rem deja sitio sólo para el punto y el ícono, así ningún otro
+     elemento cabe a su lado sin importar el ancho), debajo el estado, la
+     antigüedad y la acción, y "Gestionar" como barra propia al pie. */
+  .sg-modal{padding:1.125rem 1rem}
+  .sg-asignados{padding:.625rem}
+  .sg-modal .sg-detail-heading{flex-wrap:wrap;row-gap:.1rem}
+  .sg-modal .alerta-item{flex-wrap:wrap;row-gap:.45rem;padding:.7rem .75rem}
+  .sg-modal .alerta-texto{flex:1 1 calc(100% - 3.5rem);white-space:normal}
+  .sg-modal .alerta-estado-badge{max-width:100%}
+  .sg-modal .alerta-ts{display:inline;margin-left:auto}
+  .sg-asig-row{flex-wrap:wrap}
+  .sg-asig-row > .alerta-item{flex:1 1 100%}
+  .btn-gestionar{flex:1 1 100%;border-left:none;border-top:1px solid #f1f5f9;padding:.55rem .7rem}
+  body:not(.light-mode) .btn-gestionar{border-top-color:#334155}
 }
 @media(max-width:420px){
   .content{padding:.75rem}
@@ -338,6 +358,14 @@ body:not(.light-mode) .cr-ejes-cero{color:#64748b}
   .chart-card{padding:1rem}
   .alerta-estado-badge{max-width:80px}
   .alerta-estado-badge .badge-resp{display:none}
+  /* Dentro de la ventana de detalle la fila ya está apilada y sí cabe la acción
+     y el responsable, que aquí arriba se ocultan para la lista principal. La
+     antigüedad no: con estado y acción en la misma línea ya no entra a 375px. */
+  .sg-modal-overlay{padding:.5rem}
+  .sg-modal .alerta-btn{display:inline-block;margin-left:auto}
+  .sg-modal .alerta-ts{display:none}
+  .sg-modal .alerta-estado-badge{max-width:55%}
+  .sg-modal .alerta-estado-badge .badge-resp{display:block}
 }
 .hidden{display:none!important}
 
