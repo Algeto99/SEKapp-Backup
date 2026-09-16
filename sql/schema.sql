@@ -857,20 +857,29 @@ CREATE INDEX IF NOT EXISTS idx_formulario_edicion_historial_tabla_registro ON fo
 -- son lo único que el servidor guarda de una sesión. login_bp las crea solas si
 -- no existen (producción no tiene acceso directo a la base).
 --
--- Una sesión cuenta como activa mientras cerrada_en sea NULL y creado_en esté
--- dentro de la vigencia del token (1 h). "Salir" marca cerrada_en.
+-- "Otra sesión activa" = fila de OTRO dispositivo_id, con cerrada_en NULL,
+-- creado_en dentro de la vigencia del token (1 h) y ultima_actividad en los
+-- últimos 10 minutos. "Salir" marca cerrada_en; volver a entrar desde el mismo
+-- dispositivo cierra la fila anterior de ese dispositivo.
 CREATE TABLE IF NOT EXISTS sesiones_usuario (
-    id            SERIAL PRIMARY KEY,
-    usuario_email VARCHAR(255) NOT NULL,
-    jti           VARCHAR(64)  NOT NULL,      -- identificador del JWT emitido
-    dispositivo   VARCHAR(20),                -- Computador | Celular | Tableta
-    user_agent    TEXT,
-    ip            VARCHAR(64),
-    creado_en     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    cerrada_en    TIMESTAMPTZ
+    id               SERIAL PRIMARY KEY,
+    usuario_email    VARCHAR(255) NOT NULL,
+    jti              VARCHAR(64)  NOT NULL,   -- identificador del JWT emitido
+    dispositivo      VARCHAR(20),             -- Computador | Celular | Tableta
+    user_agent       TEXT,
+    ip               VARCHAR(64),
+    creado_en        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    cerrada_en       TIMESTAMPTZ,
+    dispositivo_id   VARCHAR(64),             -- cookie persistente del navegador/app
+    ultima_actividad TIMESTAMPTZ  DEFAULT NOW()   -- latido, como mucho cada 2 minutos
 );
 CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_email ON sesiones_usuario (usuario_email, creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_jti ON sesiones_usuario (jti);
+-- Instancias creadas antes de las dos últimas columnas.
+ALTER TABLE sesiones_usuario ADD COLUMN IF NOT EXISTS dispositivo_id VARCHAR(64);
+ALTER TABLE sesiones_usuario ADD COLUMN IF NOT EXISTS ultima_actividad TIMESTAMPTZ;
+UPDATE sesiones_usuario SET ultima_actividad = creado_en WHERE ultima_actividad IS NULL;
+ALTER TABLE sesiones_usuario ALTER COLUMN ultima_actividad SET DEFAULT NOW();
 
 -- Constancia de auditoría: una fila cada vez que dos o más sesiones usan el
 -- mismo usuario. El Morning Briefing la muestra como alerta roja (regla 15)

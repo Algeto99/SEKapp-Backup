@@ -173,7 +173,7 @@
             {% endif %}
         {% endwith %}
 
-        <form action="{{ url_for('login_bp.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') | urlencode }}{% endif %}" method="POST" class="space-y-6 text-left">
+        <form id="loginForm" action="{{ url_for('login_bp.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') | urlencode }}{% endif %}" method="POST" class="space-y-6 text-left">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
             <div>
@@ -210,7 +210,7 @@
             <h2 id="sesionActivaTitulo">⚠️ USUARIO YA ACTIVO</h2>
             <p>Este usuario ya tiene una sesión activa en SEKapp desde otro dispositivo.</p>
             <p>Si continúas, quedará registrado que dos sesiones están utilizando el mismo usuario.</p>
-            <form action="{{ url_for('login_bp.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') | urlencode }}{% endif %}" method="POST" class="sesion-modal-acciones">
+            <form id="sesionForm" action="{{ url_for('login_bp.login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') | urlencode }}{% endif %}" method="POST" class="sesion-modal-acciones">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
                 <input type="hidden" name="confirmar_sesion" value="1">
@@ -223,6 +223,28 @@
 
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <script>
+    // Un solo envío por toque. En producción el segundo POST de un doble toque
+    // llegaba mientras el primero seguía en camino, y el usuario veía la
+    // respuesta del segundo: el aviso de sesión activa contra su propio ingreso.
+    (function () {
+        ['loginForm', 'sesionForm'].forEach(function (id) {
+            var form = document.getElementById(id);
+            if (!form) return;
+            var btn = form.querySelector('button[type="submit"]');
+            var texto = btn ? btn.textContent : '';
+            function liberar() {
+                form.dataset.enviando = '';
+                if (btn) { btn.disabled = false; btn.textContent = texto; }
+            }
+            form.addEventListener('submit', function (e) {
+                if (form.dataset.enviando === '1') { e.preventDefault(); return; }
+                form.dataset.enviando = '1';
+                setTimeout(function () { if (btn) { btn.disabled = true; btn.textContent = 'Un momento…'; } }, 0);
+                setTimeout(liberar, 15000);
+            });
+            window.addEventListener('pageshow', liberar);
+        });
+    })();
     (function () {
         let deferredInstallPrompt = null;
         const installBtn = document.getElementById('install-pwa-btn');

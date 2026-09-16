@@ -1,10 +1,12 @@
 import re
 import json
+import time
 import secrets
 import hashlib
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlparse
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
+from flask import (Blueprint, render_template, request, redirect, url_for, flash,
+                   current_app, session, g, make_response)
 from flask_jwt_extended import (
     create_access_token, create_refresh_token, unset_jwt_cookies,
     set_access_cookies, set_refresh_cookies, get_jwt_identity, get_jwt,
@@ -33,6 +35,7 @@ def enforce_force_password_change():
     claims = get_jwt()
     if claims.get('force_pw') and request.endpoint not in _FORCE_PW_ALLOWED:
         return redirect(url_for('login_bp.change_password', forced='1'))
+    _latido_sesion(claims)
 
 _SUBMIT_TO_FORM_MAP = {
     'incident_report': 'reporte_incidente',
@@ -169,12 +172,22 @@ def delete_reset_token(token):
 # La autenticación es un JWT en cookie y hasta aquí el servidor no guardaba
 # nada de la sesión: "Salir" sólo borraba la cookie. Para avisar "este usuario
 # ya tiene una sesión activa" hace falta dejar constancia de cada sesión emitida.
-# Una sesión cuenta como activa mientras no se haya cerrado con "Salir" y su
-# token siga vigente (JWT_ACCESS_TOKEN_EXPIRES). No hay heartbeat por petición
-# a propósito: no agrega ninguna consulta al resto de la app. El margen es que
-# quien cierra la app sin "Salir" sigue contando hasta que vence el token.
+#
+# Qué cuenta como "otra sesión activa" (lo que dispara el aviso y la alerta):
+# una sesión de OTRO dispositivo, no cerrada con "Salir", con el token vigente
+# (JWT_ACCESS_TOKEN_EXPIRES) y con actividad en los últimos
+# _SESION_ACTIVA_MINUTOS. Las dos últimas condiciones existen por lo que pasó
+# en producción: la cookie del JWT muere al cerrar la app, así que volver a
+# entrar desde el mismo teléfono —o un doble toque en "Entrar"— contaba como
+# una segunda sesión. El dispositivo se identifica con una cookie persistente
+# y la actividad la deja un latido acotado en el hook de cada petición.
 
 _LOGIN_PENDIENTE_SEGUNDOS = 120
+_SESION_ACTIVA_MINUTOS = 10        # sin actividad más allá de esto, no cuenta como en uso
+_LATIDO_SEGUNDOS = 120             # mínimo entre dos escrituras de actividad por sesión
+_COOKIE_DISPOSITIVO = 'sekapp_dispositivo'
+_COOKIE_DISPOSITIVO_DIAS = 365
+_ultimo_latido = {}                # jti -> time.monotonic() del último latido en este proceso
 
 
 def _ensure_sesiones_tables(conn):
@@ -201,6 +214,13 @@ def _ensure_sesiones_tables(conn):
             CREATE INDEX IF NOT EXISTS idx_sesiones_usuario_jti
                 ON sesiones_usuario (jti)
         """)
+        # Identidad del navegador/app (cookie persistente) y última actividad.
+        # Instancias creadas antes de estas columnas: se agregan y se rellena la
+        # actividad con la fecha de creación para no marcar todo como reciente.
+        cur.execute("ALTER TABLE sesiones_usuario ADD COLUMN IF NOT EXISTS dispositivo_id VARCHAR(64)")
+        cur.execute("ALTER TABLE sesiones_usuario ADD COLUMN IF NOT EXISTS ultima_actividad TIMESTAMPTZ")
+        cur.execute("UPDATE sesiones_usuario SET ultima_actividad = creado_en WHERE ultima_actividad IS NULL")
+        cur.execute("ALTER TABLE sesiones_usuario ALTER COLUMN ultima_actividad SET DEFAULT NOW()")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS alertas_seguridad (
                 id               SERIAL PRIMARY KEY,
@@ -233,26 +253,104 @@ def _ip_cliente():
     return ip[:64]
 
 
-def _sesiones_activas(cur, email):
-    """Sesiones del usuario que siguen vigentes, de la más antigua a la más nueva."""
+def _dispositivo_id_actual():
+    """Identificador persistente del navegador o app instalada.
+
+    Se reutiliza el de la cookie si viene; si no, se genera uno y se guarda en
+    `g` para que la misma petición lo escriba en la fila y lo fije en la respuesta.
+    """
+    valor = getattr(g, '_sekapp_dispositivo', None)
+    if valor:
+        return valor
+    valor = request.cookies.get(_COOKIE_DISPOSITIVO) or ''
+    if not re.fullmatch(r'[A-Za-z0-9_-]{16,64}', valor):
+        valor = secrets.token_urlsafe(24)
+    g._sekapp_dispositivo = valor
+    return valor
+
+
+def _fijar_cookie_dispositivo(response):
+    """Cookie de un año: sobrevive al cierre de la app, a diferencia del JWT."""
+    response.set_cookie(
+        _COOKIE_DISPOSITIVO, _dispositivo_id_actual(),
+        max_age=_COOKIE_DISPOSITIVO_DIAS * 86400, httponly=True, samesite='Lax', path='/',
+        secure=bool(current_app.config.get('JWT_COOKIE_SECURE')),
+    )
+    return response
+
+
+def _sesiones_activas(cur, email, dispositivo_id):
+    """Sesiones del usuario en uso desde OTRO dispositivo: no cerradas, con el
+    token vigente y con actividad en los últimos _SESION_ACTIVA_MINUTOS."""
     cur.execute("""
         SELECT id, dispositivo, creado_en
           FROM sesiones_usuario
          WHERE usuario_email = %s
            AND cerrada_en IS NULL
+           AND COALESCE(dispositivo_id, '') <> %s
            AND creado_en > NOW() - %s
+           AND COALESCE(ultima_actividad, creado_en) > NOW() - %s
          ORDER BY creado_en ASC
-    """, (email, current_app.config['JWT_ACCESS_TOKEN_EXPIRES']))
+    """, (email, dispositivo_id, current_app.config['JWT_ACCESS_TOKEN_EXPIRES'],
+          timedelta(minutes=_SESION_ACTIVA_MINUTOS)))
     return cur.fetchall()
 
 
-def _registrar_sesion(cur, email, access_token):
+def _cerrar_sesiones_del_dispositivo(cur, email, dispositivo_id):
+    """Volver a entrar desde el mismo dispositivo no es una segunda sesión: la
+    anterior ya no tiene cookie. Se cierra y la nueva la reemplaza."""
+    cur.execute("""
+        UPDATE sesiones_usuario SET cerrada_en = NOW()
+         WHERE usuario_email = %s AND dispositivo_id = %s AND cerrada_en IS NULL
+    """, (email, dispositivo_id))
+
+
+def _registrar_sesion(cur, email, access_token, dispositivo_id):
     jti = (decode_token(access_token) or {}).get('jti') or ''
     ua = request.user_agent.string or ''
     cur.execute("""
-        INSERT INTO sesiones_usuario (usuario_email, jti, dispositivo, user_agent, ip)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (email, jti, _dispositivo_desde_user_agent(ua), ua[:500], _ip_cliente()))
+        INSERT INTO sesiones_usuario (usuario_email, jti, dispositivo, user_agent, ip, dispositivo_id)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id, dispositivo
+    """, (email, jti, _dispositivo_desde_user_agent(ua), ua[:500], _ip_cliente(), dispositivo_id))
+    return cur.fetchone()
+
+
+def _latido_sesion(claims):
+    """Deja constancia de actividad de la sesión, a lo sumo una vez cada
+    _LATIDO_SEGUNDOS por proceso. Es lo que distingue una sesión en uso de un
+    token vigente cuya cookie murió al cerrar la app. Nunca interrumpe la petición."""
+    jti = claims.get('jti')
+    if not jti or claims.get('force_pw') or request.endpoint == 'static':
+        return
+    ahora = time.monotonic()
+    if ahora - _ultimo_latido.get(jti, float('-inf')) < _LATIDO_SEGUNDOS:
+        return
+    _ultimo_latido[jti] = ahora
+    if len(_ultimo_latido) > 1000:
+        for viejo in [k for k, t in _ultimo_latido.items() if ahora - t > 7200]:
+            _ultimo_latido.pop(viejo, None)
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('sesiones_usuario')")
+        if (cur.fetchone() or [None])[0]:
+            cur.execute(
+                "UPDATE sesiones_usuario SET ultima_actividad = NOW() WHERE jti = %s AND cerrada_en IS NULL",
+                (jti,)
+            )
+            conn.commit()
+        cur.close()
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        current_app.logger.debug(f"Latido de sesión omitido: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 
 def _registrar_alerta_sesiones(cur, email, sesiones):
@@ -340,8 +438,6 @@ def _cerrar_sesion_actual():
 @limiter.limit("20 per minute; 5 per second")
 def login():
     if request.method == 'GET':
-        # Un login pendiente sólo tiene sentido dentro del POST que lo creó.
-        session.pop('login_pendiente', None)
         from flask_jwt_extended import verify_jwt_in_request
         try:
             verify_jwt_in_request(optional=True)
@@ -436,16 +532,20 @@ def login():
                     try:
                         _ensure_sesiones_tables(conn)
                         cur = conn.cursor(cursor_factory=extras.DictCursor)
-                        activas = _sesiones_activas(cur, user['email'])
-                        if activas and not pendiente:
+                        dispositivo_id = _dispositivo_id_actual()
+                        _cerrar_sesiones_del_dispositivo(cur, user['email'], dispositivo_id)
+                        otras = _sesiones_activas(cur, user['email'], dispositivo_id)
+                        if otras and not pendiente:
+                            conn.commit()
                             cur.close()
                             _guardar_login_pendiente(
                                 user['email'], request.args.get('next') or request.form.get('next'))
-                            return render_template('login.html', sesion_activa=True, username=user['email'])
-                        _registrar_sesion(cur, user['email'], access_token)
-                        if activas:
-                            # Ya son dos o más: las vigentes más la recién emitida.
-                            _registrar_alerta_sesiones(cur, user['email'], _sesiones_activas(cur, user['email']))
+                            return _fijar_cookie_dispositivo(make_response(
+                                render_template('login.html', sesion_activa=True, username=user['email'])))
+                        nueva = _registrar_sesion(cur, user['email'], access_token, dispositivo_id)
+                        if otras:
+                            # Ya son dos o más en uso: las de otros dispositivos más la recién emitida.
+                            _registrar_alerta_sesiones(cur, user['email'], list(otras) + [nueva])
                         conn.commit()
                         cur.close()
                     except Exception as ses_err:
@@ -460,6 +560,7 @@ def login():
                     response = redirect(redirect_target)
                     set_access_cookies(response, access_token)
                     set_refresh_cookies(response, refresh_token)
+                    _fijar_cookie_dispositivo(response)
                     return response
                 else:
                     flash("Credenciales inválidas", "danger")
@@ -473,7 +574,9 @@ def login():
         finally:
             conn.close()
 
-    return render_template('login.html')
+    # La cookie de dispositivo se fija ya al mostrar el formulario: así un doble
+    # toque en "Entrar" manda el mismo identificador en los dos envíos.
+    return _fijar_cookie_dispositivo(make_response(render_template('login.html')))
 
 @login_bp.route('/register', methods=['GET', 'POST'])
 @limiter.limit("5 per minute; 2 per second")
@@ -699,7 +802,7 @@ def change_password():
                 try:
                     _ensure_sesiones_tables(conn)
                     cur = conn.cursor(cursor_factory=extras.DictCursor)
-                    _registrar_sesion(cur, email, full_token)
+                    _registrar_sesion(cur, email, full_token, _dispositivo_id_actual())
                     conn.commit()
                     cur.close()
                 except Exception as ses_err:
@@ -708,6 +811,7 @@ def change_password():
                 fallback = '/cgeo/morning-briefing/' if user.get('is_admin') else url_for('landing_bp.landing_page')
                 response = redirect(fallback)
                 set_access_cookies(response, full_token)
+                _fijar_cookie_dispositivo(response)
                 return response
             return redirect(url_for('login_bp.login'))
 
