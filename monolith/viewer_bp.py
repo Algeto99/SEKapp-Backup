@@ -775,6 +775,11 @@ FORM_CONFIGS = {
             "Estado y Limpieza del Puesto": "estado_limpieza_puesto",
             "Equipamiento Completo": "equipamiento_completo",
             "Estado de Bitácora y Registros": "estado_bitacora",
+            # Columna virtual: no existe en la tabla. Se rellena al armar el
+            # registro (_calc_supervision_resultado) y va aquí para que el
+            # resultado quede junto a los cinco criterios que lo componen en el
+            # detalle, el PDF y el Excel, que respetan este orden.
+            "Resultado de Inspección": "resultado_inspeccion",
             # 6. Observaciones, Evidencias y Firmas
             "Observaciones / Novedades": "observaciones_novedades",
             "Foto Evidencia": "foto_evidencia_url",
@@ -1726,6 +1731,74 @@ def _calc_encuesta_satisfaccion(data_or_row):
     }
 
 
+# ── Resultado de Inspección (Control de Supervisión) ────────────────────────
+# Misma regla que el Dashboard de Supervisión (dashboard_bp.api_supervision_data):
+# cinco criterios de 1 a 5, los vacíos cuentan 0, máximo 25. Los rangos son los
+# de la tabla de referencia de ese dashboard: 21–25, 16–20 y 0–15.
+_SCORE_FIELDS_SUPERVISION = [
+    ('asistencia_puntualidad', 'Asistencia y Puntualidad'),
+    ('presentacion_uniforme', 'Presentación y Uniforme'),
+    ('estado_limpieza_puesto', 'Estado y Limpieza del Puesto'),
+    ('equipamiento_completo', 'Equipamiento Completo'),
+    ('estado_bitacora', 'Estado de Bitácora y Registros'),
+]
+_SCORE_MAX_SUPERVISION = 5 * len(_SCORE_FIELDS_SUPERVISION)
+
+# Registros antiguos guardan el criterio como texto en vez de 1-5.
+_SCORE_TEXTO_SUPERVISION = {
+    'excelente': 5, 'bueno': 4, 'bien': 4, 'regular': 3, 'aceptable': 3,
+    'malo': 2, 'deficiente': 2, 'pesimo': 1, 'pésimo': 1, 'muy malo': 1,
+}
+
+_SCORE_LEVELS_SUPERVISION = [
+    {'min': 21, 'nivel': 'Excelente',   'accion': 'Mantener estándares'},
+    {'min': 16, 'nivel': 'Seguimiento', 'accion': 'Seguimiento requerido'},
+    {'min': 0,  'nivel': 'Crítico',     'accion': 'Acción inmediata'},
+]
+
+
+def _calc_supervision_resultado(data_or_row):
+    """Puntaje total y nivel de la Inspección de Puesto del Control de Supervisión.
+
+    Acepta el registro crudo (columnas) o el diccionario ya etiquetado. Devuelve
+    None cuando ningún criterio está respondido: ese registro no tiene
+    inspección y no debe pintarse como "0 / 25 · Crítico".
+    """
+    if not isinstance(data_or_row, dict):
+        return None
+
+    total = 0
+    respondidos = 0
+    for col_key, lbl_key in _SCORE_FIELDS_SUPERVISION:
+        raw = data_or_row.get(col_key)
+        if raw is None or str(raw).strip() in ('', '—', 'None', 'N/A'):
+            raw = data_or_row.get(lbl_key)
+        if raw is None:
+            continue
+        txt = str(raw).strip()
+        if re.fullmatch(r'[0-9]+(\.[0-9]+)?', txt):
+            num = float(txt)
+        else:
+            num = _SCORE_TEXTO_SUPERVISION.get(txt.lower())
+        if num is None:
+            continue
+        total += num
+        respondidos += 1
+
+    if not respondidos:
+        return None
+
+    puntaje = int(total) if float(total).is_integer() else round(total, 1)
+    nivel = next(lvl for lvl in _SCORE_LEVELS_SUPERVISION if puntaje >= lvl['min'])
+    return {
+        'score': puntaje,
+        'max': _SCORE_MAX_SUPERVISION,
+        'nivel': nivel['nivel'],
+        'accion': nivel['accion'],
+        'texto': f"{puntaje} / {_SCORE_MAX_SUPERVISION} · {nivel['nivel']} — {nivel['accion']}",
+    }
+
+
 def _normalize_tipo(val):
     if not val:
         return ""
@@ -2211,6 +2284,11 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                         mapped_data["Clasificación"] = sat["label"]
                     processed_cols.update({'calificacion_global_nps', 'calificacion_global', 'clasificacion_satisfaccion'})
 
+                if f_type == 'supervision_puesto':
+                    res = _calc_supervision_resultado(row_dict)
+                    if res:
+                        mapped_data["Resultado de Inspección"] = res["texto"]
+
                 # 2. Add unmapped fields, filtering out system and technical columns
                 system_cols = {
                     config['id_col'], config['date_col'], config['user_col'], 'user_name', 'submitter_timezone',
@@ -2410,6 +2488,11 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                     data_content["Calificación Global"] = sat["score"]
                     data_content["Clasificación"] = sat["label"]
                 processed_cols.update({'calificacion_global_nps', 'calificacion_global', 'clasificacion_satisfaccion'})
+
+            if form_type == 'supervision_puesto':
+                res = _calc_supervision_resultado(row_dict)
+                if res:
+                    data_content["Resultado de Inspección"] = res["texto"]
 
             # 2. Add unmapped fields, filtering out system and technical columns
             system_cols = {

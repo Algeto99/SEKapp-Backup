@@ -1237,7 +1237,10 @@
                         }
 
                         const isInventario = lowerKey.includes('inventario');
-                        const isAsistencia = lowerKey.includes('asistencia');
+                        // Etiqueta exacta, igual que el PDF: `includes('asistencia')` atrapaba
+                        // "Asistencia y Puntualidad" del Control de Supervisión y tapaba el
+                        // puntaje con "Sin asistentes registrados en esta capacitación".
+                        const isAsistencia = ['lista de asistencia', 'lista asistencia', 'lista_asistencia'].includes(lowerKey);
                         const isPersonas = lowerKey.includes('personas');
                         const isParticipantes = lowerKey.includes('participantes');
 
@@ -1388,11 +1391,13 @@
                                         ${scoreDisplay}
                                     </span>
                                 </div>`;
-                            } else if (key === 'Clasificación') {
+                            } else if (key === 'Clasificación' || key === 'Resultado de Inspección') {
+                                // Encuesta: "Satisfecho", etc. Control de Supervisión:
+                                // "22 / 25 · Excelente — Mantener estándares".
                                 const cLower = valStr.toLowerCase();
                                 let badgeClass = 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-700 dark:text-gray-200';
                                 let dotColor = '#9ca3af';
-                                if (cLower.includes('totalmente')) {
+                                if (cLower.includes('excelente') || cLower.includes('totalmente')) {
                                     badgeClass = 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700';
                                     dotColor = '#22c55e';
                                 } else if (cLower.includes('satisfecho')) {
@@ -1404,9 +1409,12 @@
                                 } else if (cLower.includes('muy insatisfecho')) {
                                     badgeClass = 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-700';
                                     dotColor = '#e11d48';
-                                } else if (cLower.includes('insatisfecho')) {
+                                } else if (cLower.includes('insatisfecho') || cLower.includes('crítico')) {
                                     badgeClass = 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700';
                                     dotColor = '#ef4444';
+                                } else if (cLower.includes('seguimiento')) {
+                                    badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700';
+                                    dotColor = '#eab308';
                                 }
                                 displayContent = `<div class="mt-1">
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1 font-semibold text-sm rounded-lg border ${badgeClass}">
