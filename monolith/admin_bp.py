@@ -416,6 +416,13 @@ _THRESHOLD_KEYS = [
     'dias_certificacion_vencer',
     'dias_compromiso_vencer',
     'dias_backup_frecuencia',
+    # Equipos y disciplina en el Morning Briefing (reglas 16-19 de cgeo_bp).
+    'dias_mtto_radio',
+    'dias_mtto_arma',
+    'dias_mtto_aviso',
+    'dias_permiso_porte_aviso',
+    'dias_permiso_porte_prioridad',
+    'dias_disciplina_reciente',
     'visita_verde_min',
     'visita_amarillo_min',
     'visita_amarillo_max',
@@ -473,6 +480,15 @@ _THRESHOLD_DEFAULTS = {
     # Cada cuántos días debe repetirse el Backup de Información antes de que el
     # Morning Briefing lo marque como pendiente.
     'dias_backup_frecuencia':       7,
+    # Periodicidad de mantenimiento de radios y armas y aviso previo, ventanas
+    # del permiso de porte (amarillo / naranja "Prioritaria") y días en que un
+    # informe disciplinario grave sigue en alertas (reglas 16-19 de cgeo_bp).
+    'dias_mtto_radio':            365,
+    'dias_mtto_arma':              90,
+    'dias_mtto_aviso':             15,
+    'dias_permiso_porte_aviso':    30,
+    'dias_permiso_porte_prioridad': 15,
+    'dias_disciplina_reciente':    30,
     'visita_verde_min':            90,
     'visita_amarillo_min':         70,
     'visita_amarillo_max':         89,

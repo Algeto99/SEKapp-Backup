@@ -1276,6 +1276,372 @@ def _alertas_seguridad_pendientes(cur):
     return out
 
 
+
+# ── Reglas 16-19: mantenimiento, permisos, equipos con falla y disciplina ────
+# Pedidas para que el Morning Briefing también avise de mantenimientos y
+# permisos de radios y armas, de equipos reportados con falla y de faltas
+# disciplinarias graves. Todas leen campos que ya existían; los periodos y
+# ventanas viven en kpi_thresholds y se editan en Umbrales KPI.
+
+# Faltas del informe disciplinario que generan alerta: exactamente las opciones
+# del <select> de reporte_disciplinario.html definidas como graves. Se comparan
+# en minúsculas porque el formulario guarda el texto de la opción tal cual.
+_DISCIPLINA_FALTAS_GRAVES = (
+    'abandono del sitio de trabajo',
+    'ausencia del servicio',
+    'descuido con el arma de dotación',
+    'desobediencia',
+    'dormido',
+    'embriaguez',
+    'engaño',
+    'irrespeto',
+    'novedad durante el servicio',
+    'queja de clientes y/o usuarios',
+)
+
+
+def _dias_txt(n):
+    """'1 día' / 'N días' a partir de un número (se usa su valor absoluto)."""
+    n = abs(int(n))
+    return f'{n} día{"s" if n != 1 else ""}'
+
+
+def _ultimo_registro_equipo(cur, tipo, cliente=None, propiedad=None):
+    """Último registro de supervisión por serial de radio ('radio') o arma ('arma').
+
+    Misma consolidación que Bases de Datos (_bd_identifier_sql / _bd_latest_cte):
+    el equipo es el serial normalizado y manda el registro más reciente, así que
+    la alerta cuadra con la fila que el usuario ve en esa pantalla. Se excluyen
+    las filas sin serial: una alerta que no identifica el equipo no se puede
+    gestionar. Cada fila trae id_supervision, cliente_instalacion, nombre_guardia,
+    serial_equipo, descripcion, ultimo_mtto, vence_permiso y matricula (las dos
+    últimas sólo con valor para armas).
+    """
+    from dashboard_bp import _bd_identifier_sql, _bd_latest_cte
+
+    if tipo == 'radio':
+        conds = ["TRIM(COALESCE(equipamiento_completo, '')) <> ''",
+                 "NULLIF(TRIM(radio_asignado_serial), '') IS NOT NULL"]
+        identifier = _bd_identifier_sql('radio_asignado_serial')
+        campos = """
+            TRIM(radio_asignado_serial) AS serial_equipo,
+            NULLIF(CONCAT_WS(' ', NULLIF(TRIM(marca_radio), ''), NULLIF(TRIM(tipo_radio), '')), '') AS descripcion,
+            fecha_ultimo_mtto_radio AS ultimo_mtto,
+            NULL::date AS vence_permiso,
+            NULL::text AS matricula"""
+    else:
+        conds = ["LOWER(TRIM(COALESCE(porta_arma, ''))) = 'si'",
+                 "NULLIF(TRIM(serie_arma), '') IS NOT NULL"]
+        identifier = _bd_identifier_sql('serie_arma')
+        campos = """
+            TRIM(serie_arma) AS serial_equipo,
+            NULLIF(TRIM(tipo_arma), '') AS descripcion,
+            fecha_ultimo_mtto_arma AS ultimo_mtto,
+            fecha_vencimiento_permiso_porte AS vence_permiso,
+            NULLIF(TRIM(matricula_arma), '') AS matricula"""
+    params = []
+    _add_scope(conds, params, cliente=cliente, propiedad=propiedad)
+    cur.execute(f"""
+        {_bd_latest_cte(identifier, _where(conds))}
+        SELECT id_supervision, cliente_instalacion, nombre_guardia, {campos}
+        FROM ranked
+        WHERE bd_rank = 1
+    """, tuple(params))
+    return cur.fetchall()
+
+
+def _sujeto_equipo(etiqueta, r):
+    """'Radio RD-1001 (Motorola DEP450) en "Torre Norte"', con lo que haya."""
+    desc = f" ({r['descripcion']})" if r.get('descripcion') else ''
+    cli = _cliente_real(r.get('cliente_instalacion'))
+    return f"{etiqueta} {r['serial_equipo']}{desc}" + (f' en "{cli}"' if cli else '')
+
+
+def _alertas_mantenimiento_equipos(cur, thresholds, cliente=None, propiedad=None):
+    """Regla 16: radio o arma con mantenimiento por cumplirse o ya cumplido.
+
+    Radios cada `dias_mtto_radio` días (365) y armas cada `dias_mtto_arma` (90),
+    contados desde la fecha de último mantenimiento del registro más reciente
+    del serial. Amarilla `dias_mtto_aviso` días antes de cumplirse; roja una vez
+    cumplida, y sigue roja hasta que una nueva supervisión traiga la fecha del
+    mantenimiento hecho, porque no hay otro formulario donde registrarlo. Los
+    equipos sin fecha de mantenimiento no se evalúan.
+    """
+    aviso = int(thresholds.get('dias_mtto_aviso') or 15)
+    hoy = date.today()
+    out = []
+    for tipo, etiqueta, periodo in (
+        ('radio', 'Radio', int(thresholds.get('dias_mtto_radio') or 365)),
+        ('arma',  'Arma',  int(thresholds.get('dias_mtto_arma') or 90)),
+    ):
+        candidatos = []
+        for r in _ultimo_registro_equipo(cur, tipo, cliente=cliente, propiedad=propiedad):
+            if not r['ultimo_mtto']:
+                continue
+            proximo = r['ultimo_mtto'] + timedelta(days=periodo)
+            dias = (proximo - hoy).days
+            if dias <= aviso:
+                candidatos.append((proximo, dias, r))
+        # Los más atrasados primero; cinco por tipo, como el resto de reglas.
+        candidatos.sort(key=lambda c: c[0])
+        for proximo, dias, r in candidatos[:5]:
+            vencido = dias < 0
+            sujeto = _sujeto_equipo(etiqueta, r)
+            guardia = f" Asignado a {r['nombre_guardia']}." if r['nombre_guardia'] else ''
+            if vencido:
+                texto = f"{sujeto}: mantenimiento vencido hace {_dias_txt(dias)}"
+                motivo = (f'Mantenimiento vencido. {sujeto} registra su último mantenimiento el '
+                          f'{r["ultimo_mtto"]:%d/%m/%Y}; con periodicidad de {periodo} días se cumplió el '
+                          f'{proximo:%d/%m/%Y}.{guardia} Se mantiene como vencido hasta que una nueva '
+                          f'supervisión registre la fecha del mantenimiento realizado.')
+            else:
+                cuando = 'hoy' if dias == 0 else f'en {_dias_txt(dias)}'
+                texto = f"{sujeto}: mantenimiento vence {cuando}"
+                motivo = (f'Mantenimiento próximo a cumplirse. {sujeto} registra su último mantenimiento el '
+                          f'{r["ultimo_mtto"]:%d/%m/%Y}; con periodicidad de {periodo} días se cumple el '
+                          f'{proximo:%d/%m/%Y}, {cuando} (umbral de aviso: {aviso} días).{guardia}')
+            out.append({
+                "id": f"r16_{tipo}_{r['serial_equipo']}",
+                "regla": 16,
+                "texto": texto,
+                "motivo": motivo,
+                "hallazgo_titulo": texto,
+                "accion": "Ver equipo",
+                "ruta_navegacion": f"/dashboard/supervision/?id={r['id_supervision']}",
+                "record_id": r['id_supervision'],
+                "form_type": "supervision_puesto",
+                "color_semaforo": "rojo" if vencido else "amarillo",
+                "timestamp": proximo.isoformat(),
+                "horas": dias * 24,
+                "equipo": etiqueta,
+                "serial": r['serial_equipo'],
+            })
+    return out
+
+
+def _alertas_permiso_porte(cur, thresholds, cliente=None, propiedad=None):
+    """Regla 17: permiso de porte del arma por vencer o vencido.
+
+    Amarilla a `dias_permiso_porte_aviso` días (30), naranja "Prioritaria" a
+    `dias_permiso_porte_prioridad` (15) y roja una vez vencido. La fecha es la
+    del registro más reciente del serial.
+    """
+    aviso = int(thresholds.get('dias_permiso_porte_aviso') or 30)
+    prioridad = int(thresholds.get('dias_permiso_porte_prioridad') or 15)
+    hoy = date.today()
+    candidatos = []
+    for r in _ultimo_registro_equipo(cur, 'arma', cliente=cliente, propiedad=propiedad):
+        if not r['vence_permiso']:
+            continue
+        dias = (r['vence_permiso'] - hoy).days
+        if dias <= aviso:
+            candidatos.append((r['vence_permiso'], dias, r))
+    candidatos.sort(key=lambda c: c[0])
+    out = []
+    for vence, dias, r in candidatos[:5]:
+        color = 'rojo' if dias < 0 else 'naranja' if dias <= prioridad else 'amarillo'
+        sujeto = _sujeto_equipo('Arma', r)
+        matricula = f' Matrícula / permiso: {r["matricula"]}.' if r['matricula'] else ''
+        guardia = f" Asignada a {r['nombre_guardia']}." if r['nombre_guardia'] else ''
+        if dias < 0:
+            texto = f"{sujeto}: permiso de porte vencido hace {_dias_txt(dias)}"
+            motivo = (f'Permiso de porte vencido. {sujeto} tiene el permiso de porte vencido desde el '
+                      f'{vence:%d/%m/%Y}.{matricula}{guardia}')
+        else:
+            cuando = 'hoy' if dias == 0 else f'en {_dias_txt(dias)}'
+            texto = f"{sujeto}: permiso de porte vence {cuando}"
+            motivo = (f'{"Permiso de porte prioritario" if color == "naranja" else "Permiso de porte próximo a vencer"}. '
+                      f'{sujeto} pierde la vigencia del permiso el {vence:%d/%m/%Y}, {cuando} '
+                      f'(aviso: {aviso} días; prioritaria: {prioridad} días).{matricula}{guardia}')
+        out.append({
+            "id": f"r17_{r['serial_equipo']}",
+            "regla": 17,
+            "texto": texto,
+            "motivo": motivo,
+            "hallazgo_titulo": texto,
+            "accion": "Ver arma",
+            "ruta_navegacion": f"/dashboard/supervision/?id={r['id_supervision']}",
+            "record_id": r['id_supervision'],
+            "form_type": "supervision_puesto",
+            "color_semaforo": color,
+            "timestamp": vence.isoformat(),
+            "horas": dias * 24,
+            "equipo": "Arma",
+            "serial": r['serial_equipo'],
+        })
+    return out
+
+
+def _alertas_equipos_con_falla(cur, thresholds, cliente=None, propiedad=None):
+    """Regla 18: radios o armas reportados con falla o pendientes.
+
+    Lee el último reporte de Confiabilidad de Equipos por instalación y tipo
+    (Radios / Armas). Ese formulario cuenta unidades por tipo, no seriales, así
+    que la alerta identifica "N de M radios en la instalación" y trae como
+    novedad el comentario del técnico. Se apaga cuando un reporte posterior ya
+    no registra fallas ni pendientes. Roja si la proporción con falla alcanza
+    `equipos_rojo_min` (el mismo umbral del KPI de equipos); amarilla si no.
+    """
+    rojo_min = float(thresholds.get('equipos_rojo_min') or 15)
+    conds, params = [], []
+    _add_scope(conds, params, cliente=cliente, propiedad=propiedad, alias='c.')
+    conds.append("LOWER(TRIM(COALESCE(elem->>'tipo_equipo', ''))) IN ('radios', 'radio', 'armas', 'arma')")
+    cur.execute(f"""
+        SELECT * FROM (
+            SELECT DISTINCT ON (TRIM(COALESCE(c.cliente_instalacion, '')), LOWER(TRIM(elem->>'tipo_equipo')))
+                   c.id, c.cliente_instalacion, c.fecha, c.tecnico_mantenimiento,
+                   elem->>'tipo_equipo' AS tipo_equipo,
+                   {_EQ_TOTAL_SQL} AS total,
+                   {_EQ_FUNC_SQL} AS operativos,
+                   CASE WHEN elem->>'equipos_con_falla' ~ '^[0-9]+$'
+                        THEN (elem->>'equipos_con_falla')::int
+                        ELSE GREATEST(0, ({_EQ_TOTAL_SQL}) - ({_EQ_FUNC_SQL})) END AS con_falla,
+                   LOWER(TRIM(COALESCE(elem->>'pendiente_reparacion', ''))) = 'si' AS pendiente_reparacion,
+                   LOWER(TRIM(COALESCE(elem->>'pendiente_compra', ''))) = 'si'     AS pendiente_compra,
+                   NULLIF(TRIM(COALESCE(elem->>'comentario', '')), '') AS novedad
+            FROM confiabilidad_equipos c,
+                 LATERAL jsonb_array_elements(
+                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
+                 ) AS elem
+            {_where(conds)}
+            ORDER BY TRIM(COALESCE(c.cliente_instalacion, '')), LOWER(TRIM(elem->>'tipo_equipo')),
+                     c.fecha DESC NULLS LAST, c.id DESC
+        ) ultimo
+        WHERE con_falla > 0 OR pendiente_reparacion OR pendiente_compra
+        ORDER BY fecha DESC NULLS LAST, id DESC
+        LIMIT 5
+    """, tuple(params))
+    out = []
+    for r in cur.fetchall():
+        total = int(r['total'] or 0)
+        operativos = int(r['operativos'] or 0)
+        con_falla = int(r['con_falla'] or 0)
+        tipo_norm = (r['tipo_equipo'] or '').strip().lower()
+        etiqueta = 'Radios' if tipo_norm.startswith('radio') else 'Armas'
+        unidad = 'radios' if etiqueta == 'Radios' else 'armas'
+        pct_op = round(operativos / total * 100) if total else None
+        if pct_op is None:
+            estado = 'Sin inventario'
+        elif pct_op >= 95:
+            estado = 'Operativo'
+        elif pct_op >= 85:
+            estado = 'Operativo con observaciones'
+        elif pct_op >= 70:
+            estado = 'Riesgo operativo'
+        else:
+            estado = 'No confiable'
+        pendientes = [p for p, activo in (('pendiente de reparación', r['pendiente_reparacion']),
+                                          ('pendiente de compra', r['pendiente_compra'])) if activo]
+        cli = _cliente_real(r['cliente_instalacion'])
+        en_cliente = f' en "{cli}"' if cli else ''
+        partes = []
+        if con_falla > 0:
+            partes.append(f'{con_falla} de {total} con falla' if total else f'{con_falla} con falla')
+        partes.extend(pendientes)
+        texto = f'{etiqueta}{en_cliente}: ' + ' · '.join(partes)
+        fecha_txt = f'{r["fecha"]:%d/%m/%Y}' if r['fecha'] else 'sin fecha'
+        novedad = f' Novedad reportada: "{r["novedad"]}".' if r['novedad'] else ' Sin comentario del técnico.'
+        tecnico = f' Técnico: {r["tecnico_mantenimiento"]}.' if r['tecnico_mantenimiento'] else ''
+        motivo = (f'Equipos con novedad. El último reporte de Confiabilidad de Equipos{en_cliente} '
+                  f'({fecha_txt}) registra {con_falla} de {total} {unidad} con falla, {operativos} operativos '
+                  f'(estado: {estado})' + (', ' + ' y '.join(pendientes) if pendientes else '') + '.'
+                  + novedad + tecnico)
+        pct_falla = (con_falla / total * 100) if total else 0
+        color = 'rojo' if total and pct_falla >= rojo_min else 'amarillo'
+        out.append({
+            "id": f"r18_{unidad}_{cli or 'sin_instalacion'}",
+            "regla": 18,
+            "texto": texto,
+            "motivo": motivo,
+            "hallazgo_titulo": texto,
+            "accion": "Ver reporte",
+            "ruta_navegacion": f"/dashboard/equipos/?id={r['id']}",
+            "record_id": r['id'],
+            "form_type": "confiabilidad_equipos",
+            "color_semaforo": color,
+            "timestamp": r['fecha'].isoformat() if r['fecha'] else None,
+            "horas": None,
+            "estado": estado,
+            "equipo": etiqueta,
+            "con_falla": con_falla,
+            "total": total,
+            "novedad": r['novedad'] or '',
+        })
+    return out
+
+
+def _alertas_disciplina(cur, thresholds, cliente=None, propiedad=None):
+    """Regla 19: informe disciplinario reciente por una falta grave.
+
+    Ventana de `dias_disciplina_reciente` días (30) sobre la fecha del informe.
+    Sale como naranja "Prioritaria": requiere revisión o seguimiento, sin poner
+    en rojo el semáforo de la operación por sí sola. Se apaga al cerrar el
+    hallazgo asignado desde el propio Morning Briefing; no hay columna de estado
+    en el informe y no hace falta agregarla.
+    """
+    dias = int(thresholds.get('dias_disciplina_reciente') or 30)
+    conds = ["LOWER(TRIM(COALESCE(d.tipo_novedad, ''))) IN %s",
+             "COALESCE(d.fecha_hora, d.creado_en) >= NOW() - (%s * INTERVAL '1 day')"]
+    params = [_DISCIPLINA_FALTAS_GRAVES, dias]
+    _add_scope(conds, params, cliente=cliente, propiedad=propiedad, alias='d.')
+    cur.execute("SELECT to_regclass('asignaciones_hallazgo') AS t")
+    if (cur.fetchone() or {}).get('t'):
+        conds.append("""NOT EXISTS (
+                SELECT 1 FROM asignaciones_hallazgo a
+                 WHERE a.form_type = 'informe_novedades_disciplinario'
+                   AND a.record_id = d.id_informe
+                   AND LOWER(TRIM(COALESCE(a.estado, ''))) IN %s)""")
+        params.append(_ASIG_ESTADOS_CERRADOS)
+    cur.execute(f"""
+        SELECT d.id_informe, d.empleado_nombre, d.empleado_documento, d.empleado_cargo,
+               d.cliente_instalacion, d.puesto_area_especifica, d.tipo_novedad,
+               d.descripcion_novedad, COALESCE(d.fecha_hora, d.creado_en) AS ts
+        FROM informe_novedades_disciplinario d
+        {_where(conds)}
+        ORDER BY COALESCE(d.fecha_hora, d.creado_en) DESC
+        LIMIT 5
+    """, tuple(params))
+    filas = cur.fetchall()
+    if not filas:
+        return []
+    from admin_bp import get_operation_timezone, format_local_datetime
+    tz = get_operation_timezone()
+    out = []
+    for r in filas:
+        empleado = (r['empleado_nombre'] or '').strip() or 'Oficial de Seguridad sin nombre'
+        doc = f' (doc. {r["empleado_documento"]})' if r['empleado_documento'] else ''
+        cli = _cliente_real(r['cliente_instalacion'])
+        en_cliente = f' en "{cli}"' if cli else ''
+        puesto = f', puesto {r["puesto_area_especifica"]}' if r['puesto_area_especifica'] else ''
+        fecha = format_local_datetime(r['ts'], tz=tz, time_sep=' – ', use_12h=False) if r['ts'] else 'sin fecha'
+        descripcion = (r['descripcion_novedad'] or '').strip()
+        if len(descripcion) > 200:
+            descripcion = descripcion[:200].rstrip() + '…'
+        tipo = (r['tipo_novedad'] or '').strip()
+        texto = f'Falta grave "{tipo}": {empleado}{en_cliente}'
+        motivo = (f'Informe disciplinario reciente. {empleado}{doc}: "{tipo}"{en_cliente}{puesto}, '
+                  f'el {fecha}.' + (f' Novedad: {descripcion}' if descripcion else '')
+                  + f' Requiere revisión o seguimiento; permanece en alertas {dias} días o hasta '
+                    f'cerrar el hallazgo asignado.')
+        out.append({
+            "id": f"r19_{r['id_informe']}",
+            "regla": 19,
+            "texto": texto,
+            "motivo": motivo,
+            "hallazgo_titulo": texto,
+            "accion": "Ver informe",
+            "ruta_navegacion": f"/dashboard/disciplina/?id={r['id_informe']}",
+            "record_id": r['id_informe'],
+            "form_type": "informe_novedades_disciplinario",
+            "color_semaforo": "naranja",
+            "timestamp": r['ts'].isoformat() if r['ts'] else None,
+            "horas": None,
+            "tipo_novedad": tipo,
+            "empleado": empleado,
+        })
+    return out
+
+
 @cgeo_bp.route("/api/alertas")
 @_admin_o_token
 def cgeo_api_alertas():
@@ -1918,6 +2284,24 @@ def cgeo_api_alertas():
         except Exception as r14_err:
             app_logger.warning(f"cgeo_api_alertas: regla 14 clientes en riesgo omitida: {r14_err}")
 
+        # ── REGLAS 16-19: mantenimiento, permisos, equipos con falla y disciplina ──
+        # Cada regla va protegida por separado y con rollback: el endpoint es de
+        # solo lectura y una regla con error no debe dejar abortada la
+        # transacción para las que siguen (misma razón que la regla 15). La
+        # disciplinaria lleva nombres de empleados: se omite en modo público.
+        _publico = _alcance_publico() is not None
+        for _num, _regla_fn in ((16, _alertas_mantenimiento_equipos),
+                                (17, _alertas_permiso_porte),
+                                (18, _alertas_equipos_con_falla),
+                                (19, _alertas_disciplina)):
+            if _num == 19 and _publico:
+                continue
+            try:
+                alertas.extend(_regla_fn(cur, alertas_thresholds, cliente=cliente, propiedad=propiedad))
+            except Exception as regla_err:
+                conn.rollback()
+                app_logger.warning(f"cgeo_api_alertas: regla {_num} omitida: {regla_err}")
+
         # ── Asignaciones pendientes de cualquier origen ───────────────────────
 
         # Van aparte de las 8 reglas: nacen de una acción explícita del
@@ -1939,9 +2323,9 @@ def cgeo_api_alertas():
             except Exception as seg_err:
                 app_logger.warning(f"cgeo_api_alertas: alertas de seguridad omitidas: {seg_err}")
 
-        # ── Ordenar: ROJO primero, luego AMARILLO; dentro de cada color ───────
-        # por timestamp ascendente (más antiguo = más urgente).
-        prioridad = {"rojo": 0, "amarillo": 1}
+        # ── Ordenar: ROJO, luego NARANJA (Prioritaria), luego AMARILLO; ──────
+        # dentro de cada color por timestamp ascendente (más antiguo = más urgente).
+        prioridad = {"rojo": 0, "naranja": 1, "amarillo": 2}
         alertas.sort(key=lambda a: (
             prioridad.get(a["color_semaforo"], 9),
             a["timestamp"] or "9999",
@@ -1951,6 +2335,7 @@ def cgeo_api_alertas():
             "alertas": alertas,
             "total": len(alertas),
             "rojas": sum(1 for a in alertas if a["color_semaforo"] == "rojo"),
+            "naranjas": sum(1 for a in alertas if a["color_semaforo"] == "naranja"),
             "amarillas": sum(1 for a in alertas if a["color_semaforo"] == "amarillo"),
             "asignaciones": sum(1 for a in alertas if a.get("asignacion")),
             "timestamp": date.today().isoformat(),
@@ -2958,21 +3343,26 @@ def _build_briefing_html(payload: dict) -> str:
 
     # Alert rows (listado completo, sin límite)
     rojas    = [a for a in alertas if isinstance(a, dict) and a.get('color_semaforo') == 'rojo']
+    naranjas = [a for a in alertas if isinstance(a, dict) and a.get('color_semaforo') == 'naranja']
     amarillas = [a for a in alertas if isinstance(a, dict) and a.get('color_semaforo') == 'amarillo']
-    visible  = rojas + amarillas
+    visible  = rojas + naranjas + amarillas
 
     alerta_rows = ''
     if not visible:
         alerta_rows = '<tr><td colspan="2" style="color:#16a34a;padding:.5rem 0">✅ Sin alertas activas — operación en orden</td></tr>'
     else:
         for a in visible:
-            dot_color = '#dc2626' if a.get('color_semaforo') == 'rojo' else '#d97706'
+            color_a = a.get('color_semaforo')
+            dot_color = {'rojo': '#dc2626', 'naranja': '#ea580c'}.get(color_a, '#d97706')
+            prioritaria = ('<span style="margin-left:.4rem;font-size:.62rem;font-weight:800;color:#c2410c;'
+                           'text-transform:uppercase;letter-spacing:.05em">Prioritaria</span>'
+                           if color_a == 'naranja' else '')
             alerta_rows += f"""
             <tr>
               <td style="width:12px;padding-right:.5rem">
                 <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{dot_color}"></span>
               </td>
-              <td style="font-size:.82rem;color:#334155;padding:.25rem 0">{a.get('texto','')}</td>
+              <td style="font-size:.82rem;color:#334155;padding:.25rem 0">{a.get('texto','')}{prioritaria}</td>
             </tr>"""
 
     # Tendencia section

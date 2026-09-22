@@ -38,6 +38,7 @@
         .badge-green  { background:rgba(52,211,153,.12); color:#34d399; border:1px solid rgba(52,211,153,.2); }
         .badge-yellow { background:rgba(251,191,36,.12);  color:#fbbf24; border:1px solid rgba(251,191,36,.2); }
         .badge-red    { background:rgba(248,113,113,.12); color:#f87171; border:1px solid rgba(248,113,113,.2); }
+        .badge-orange { background:rgba(251,146,60,.12);  color:#fb923c; border:1px solid rgba(251,146,60,.2); }
         .badge-blue   { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.2); }
 
         .section-divider { border:none; border-top:1px solid rgba(255,255,255,.06); margin:1.5rem 0; }
@@ -410,6 +411,66 @@
                         <input type="number" name="dias_backup_frecuencia" min="1" max="365" step="1"
                                value="{{ thresholds.dias_backup_frecuencia | int }}">
                         <span class="unit">días sin backup → alerta en Morning Briefing</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Mantenimiento de Radios
+                        </span>
+                        <label>Periodicidad (días)</label>
+                        <input type="number" name="dias_mtto_radio" min="1" max="3650" step="1"
+                               value="{{ thresholds.dias_mtto_radio | int }}">
+                        <span class="unit">días entre mantenimientos (365 = anual)</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Mantenimiento de Armas
+                        </span>
+                        <label>Periodicidad (días)</label>
+                        <input type="number" name="dias_mtto_arma" min="1" max="3650" step="1"
+                               value="{{ thresholds.dias_mtto_arma | int }}">
+                        <span class="unit">días entre mantenimientos (90 = trimestral)</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Aviso de Mantenimiento
+                        </span>
+                        <label>Ventana de alerta (días)</label>
+                        <input type="number" name="dias_mtto_aviso" min="1" max="365" step="1"
+                               value="{{ thresholds.dias_mtto_aviso | int }}">
+                        <span class="unit">días antes de cumplirse → amarillo; cumplido → rojo</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-yellow">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Permiso de Porte
+                        </span>
+                        <label>Ventana de alerta (días)</label>
+                        <input type="number" name="dias_permiso_porte_aviso" min="1" max="365" step="1"
+                               value="{{ thresholds.dias_permiso_porte_aviso | int }}">
+                        <span class="unit">días antes de vencer → amarillo</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-orange">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Permiso de Porte · Prioritaria
+                        </span>
+                        <label>Ventana prioritaria (días)</label>
+                        <input type="number" name="dias_permiso_porte_prioridad" min="1" max="365" step="1"
+                               value="{{ thresholds.dias_permiso_porte_prioridad | int }}">
+                        <span class="unit">días antes de vencer → naranja (Prioritaria); vencido → rojo</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-orange">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Disciplina
+                        </span>
+                        <label>Informe reciente (días)</label>
+                        <input type="number" name="dias_disciplina_reciente" min="1" max="365" step="1"
+                               value="{{ thresholds.dias_disciplina_reciente | int }}">
+                        <span class="unit">días en que una falta grave sigue en alertas (Prioritaria)</span>
                     </div>
                 </div>
             </div>

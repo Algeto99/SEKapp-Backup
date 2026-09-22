@@ -128,6 +128,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alerta-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .alerta-dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
 .alerta-dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+.alerta-dot-naranja{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.15)}
 .alerta-dot-verde{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
 .alerta-icon{font-size:.9375rem;flex-shrink:0}
 .alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -140,6 +141,10 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alerta-btn-rojo:hover{background:#fee2e2}
 .alerta-btn-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
 .alerta-btn-amarillo:hover{background:#fef3c7}
+.alerta-btn-naranja{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+.alerta-btn-naranja:hover{background:#ffedd5}
+/* Tono naranja = alerta Prioritaria: entre la crítica (rojo) y la de atención (amarillo). */
+.alerta-prioridad-badge{flex-shrink:0;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:.15rem .45rem;border-radius:999px;background:rgba(234,88,12,.12);color:#c2410c;border:1px solid rgba(234,88,12,.35);white-space:nowrap}
 .alerta-btn-verde{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
 .alerta-btn-verde:hover{background:#dcfce7}
 
@@ -1002,6 +1007,7 @@ function abrirClientesEnRiesgo() {
 function computeSemaforo(alertasData, kpis, thr) {
     thr = thr || _thresholds || {};
     const rojas    = alertasData.filter(a => a.color_semaforo === 'rojo').length;
+    const naranjas = alertasData.filter(a => a.color_semaforo === 'naranja').length;
     const amarillas = alertasData.filter(a => a.color_semaforo === 'amarillo').length;
 
     const incAb   = kpis.inc_abiertos    ?? 0;
@@ -1042,6 +1048,10 @@ function computeSemaforo(alertasData, kpis, thr) {
     const esRojo = condiciones.some(c => c.nivel === 'rojo');
 
     if (!esRojo) {
+        // Las prioritarias (naranja) pesan como atención en el semáforo global:
+        // piden gestión pronta, no declaran la operación en alerta crítica.
+        if (naranjas >= 1)
+            condiciones.push({ nivel:'amarillo', texto:`${naranjas} alerta${naranjas!==1?'s':''} prioritaria${naranjas!==1?'s':''}` });
         if (amarillas >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${amarillas} alerta${amarillas!==1?'s':''} requieren atención` });
         if (supProg > 0 && supPct >= supAmarilloMin && supPct < supVerdeMin)
@@ -1224,6 +1234,7 @@ function _getAlertViewer(formType) {
             'medicion_experiencia_cliente': 'Detalle de Encuesta de Satisfacción',
             'registro_y_acta_de_visita': 'Detalle de Visita y Compromisos',
             'confiabilidad_equipos':    'Detalle de Confiabilidad de Equipos',
+            'informe_novedades_disciplinario': 'Detalle de Informe Disciplinario',
             'planilla_vehicular':       'Detalle de Pre-operacional de Vehículo',
             'planilla_motocicletas':    'Detalle de Pre-operacional de Motocicleta',
         };
@@ -1408,13 +1419,18 @@ function abrirAlerta(ref, event) {
 }
 
 function _alertaItemHtml(a) {
+    // Tres tonos: rojo (crítica), naranja (Prioritaria) y amarillo (atención).
     const color   = a.color_semaforo === 'rojo' ? 'rojo'
+                  : a.color_semaforo === 'naranja' ? 'naranja'
                   : a.color_semaforo === 'verde' ? 'verde' : 'amarillo';
     const dotCls  = `alerta-dot-${color}`;
     const btnCls  = `alerta-btn-${color}`;
-    const icon    = color === 'rojo' ? '🔴' : color === 'verde' ? '🟢' : '🟠';
+    const icon    = color === 'rojo' ? '🔴' : color === 'verde' ? '🟢' : color === 'naranja' ? '🟠' : '🟡';
     const ts      = _relTime(a.timestamp);
 
+    const prioridadBadge = color === 'naranja'
+        ? '<span class="alerta-prioridad-badge">Prioritaria</span>'
+        : '';
     const estadoBadge = (a.estado && a.estado !== 'Abierto')
         ? `<span class="alerta-estado-badge"><span class="badge-estado">${_esc(a.estado)}</span>${a.responsable_asignado ? `<span class="badge-resp">· ${_esc(a.responsable_asignado)}</span>` : ''}</span>`
         : '';
@@ -1424,6 +1440,7 @@ function _alertaItemHtml(a) {
         <div class="alerta-dot ${dotCls}"></div>
         <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
         <span class="alerta-texto">${_esc(a.texto)}</span>
+        ${prioridadBadge}
         ${estadoBadge}
         <span class="alerta-ts">${ts}</span>
         <span class="alerta-btn ${btnCls}">${_esc(a.accion)} →</span>

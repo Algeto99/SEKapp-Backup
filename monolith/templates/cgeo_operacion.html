@@ -167,6 +167,7 @@ canvas{outline:none}
 .alertas-badges{display:flex;gap:.375rem;align-items:center;flex-wrap:wrap;min-width:0}
 .badge-count-rojo{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
 .badge-count-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
+.badge-count-naranja{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
 .badge-count-ok{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-size:.7rem;font-weight:700;padding:.15rem .5rem;border-radius:999px}
 .alertas-toggle-icon{color:#94a3b8;transition:transform .2s;flex-shrink:0}
 .alertas-toggle-icon.open{transform:rotate(180deg)}
@@ -176,6 +177,7 @@ canvas{outline:none}
 .alerta-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .alerta-dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
 .alerta-dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+.alerta-dot-naranja{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.15)}
 .alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
 .alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap;flex-shrink:0}
 .alerta-btn{flex-shrink:0;padding:.3rem .75rem;font-size:.75rem;font-weight:600;border-radius:.4rem;border:none;cursor:pointer;white-space:nowrap;transition:all .15s;text-decoration:none;display:inline-block}
@@ -183,6 +185,10 @@ canvas{outline:none}
 .alerta-btn-rojo:hover{background:#fee2e2}
 .alerta-btn-amarillo{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
 .alerta-btn-amarillo:hover{background:#fef3c7}
+.alerta-btn-naranja{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
+.alerta-btn-naranja:hover{background:#ffedd5}
+/* Tono naranja = alerta Prioritaria: entre la crítica (rojo) y la de atención (amarillo). */
+.alerta-prioridad-badge{flex-shrink:0;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:.15rem .45rem;border-radius:999px;background:rgba(234,88,12,.12);color:#c2410c;border:1px solid rgba(234,88,12,.35);white-space:nowrap}
 .alertas-ver-mas{display:flex;justify-content:center;padding:.625rem 0;border-top:1px solid #f1f5f9}
 .btn-ver-mas{background:none;border:none;color:#3b82f6;cursor:pointer;font-size:.8125rem;font-weight:600;padding:.375rem .75rem;border-radius:.4rem;transition:background .15s}
 .btn-ver-mas:hover{background:#eff6ff}
@@ -352,8 +358,12 @@ body:not(.light-mode) .alerta-btn-rojo{background:rgba(239,68,68,.15);color:#fca
 body:not(.light-mode) .alerta-btn-rojo:hover{background:rgba(239,68,68,.25)}
 body:not(.light-mode) .alerta-btn-amarillo{background:rgba(245,158,11,.15);color:#fde68a;border-color:rgba(245,158,11,.3)}
 body:not(.light-mode) .alerta-btn-amarillo:hover{background:rgba(245,158,11,.25)}
+body:not(.light-mode) .alerta-btn-naranja{background:rgba(234,88,12,.15);color:#fdba74;border-color:rgba(234,88,12,.35)}
+body:not(.light-mode) .alerta-btn-naranja:hover{background:rgba(234,88,12,.25)}
+body:not(.light-mode) .alerta-prioridad-badge{background:rgba(234,88,12,.18);color:#fdba74;border-color:rgba(234,88,12,.4)}
 body:not(.light-mode) .badge-count-rojo{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.3)}
 body:not(.light-mode) .badge-count-amarillo{background:rgba(245,158,11,.15);color:#fde68a;border-color:rgba(245,158,11,.3)}
+body:not(.light-mode) .badge-count-naranja{background:rgba(234,88,12,.15);color:#fdba74;border-color:rgba(234,88,12,.35)}
 body:not(.light-mode) .alertas-ver-mas{border-top-color:#334155}
 body:not(.light-mode) .btn-ver-mas:hover{background:rgba(59,130,246,.1)}
 body:not(.light-mode) .status-estable{background:#052e16;color:#4ade80;border-color:#166534}
@@ -944,6 +954,9 @@ async function exportPDF() {
         .alerta-dot { width:8px !important; height:8px !important; border-radius:50% !important; flex-shrink:0 !important; margin-top:4px !important; }
         .alerta-dot-rojo    { background:#ef4444 !important; }
         .alerta-dot-amarillo{ background:#f59e0b !important; }
+        .alerta-dot-naranja { background:#ea580c !important; }
+        .alerta-prioridad-badge{ font-size:8px !important; font-weight:800 !important; color:#c2410c !important; text-transform:uppercase !important; }
+        .badge-count-naranja{ background:#fff7ed !important; color:#c2410c !important; border:1px solid #fed7aa !important; }
         .alerta-texto { flex:1 !important; font-size:.72rem !important; color:#334155 !important; font-weight:500 !important; line-height:1.4 !important; }
         .alerta-ts  { font-size:.65rem !important; color:#94a3b8 !important; white-space:nowrap !important; flex-shrink:0 !important; }
         .alerta-btn { flex-shrink:0 !important; padding:2px 7px !important; font-size:.65rem !important; font-weight:600 !important;
@@ -1702,14 +1715,19 @@ function renderAlertasList(alertas) {
     const ocultas  = alertas.length - ALERTAS_VISIBLES_MAX;
 
     lista.innerHTML = visibles.map(a => {
-        const esRojo = a.color_semaforo === 'rojo';
-        const dotClass   = esRojo ? 'alerta-dot-rojo' : 'alerta-dot-amarillo';
-        const btnClass   = esRojo ? 'alerta-btn-rojo' : 'alerta-btn-amarillo';
-        const icon       = esRojo ? '🔴' : '🟡';
+        // Tres tonos: rojo (crítica), naranja (Prioritaria) y amarillo (atención).
+        const color      = a.color_semaforo === 'rojo' ? 'rojo'
+                         : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo';
+        const dotClass   = `alerta-dot-${color}`;
+        const btnClass   = `alerta-btn-${color}`;
+        const icon       = color === 'rojo' ? '🔴' : color === 'naranja' ? '🟠' : '🟡';
+        const titulo     = color === 'rojo' ? 'Crítico' : color === 'naranja' ? 'Prioritaria' : 'Atención';
+        const prioridad  = color === 'naranja' ? '<span class="alerta-prioridad-badge">Prioritaria</span>' : '';
         return `<div class="alerta-item" data-id="${a.id}">
-            <span class="alerta-dot ${dotClass}" title="${esRojo ? 'Crítico' : 'Atención'}"></span>
+            <span class="alerta-dot ${dotClass}" title="${titulo}"></span>
             <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
             <span class="alerta-texto">${a.texto}</span>
+            ${prioridad}
             <span class="alerta-ts">${_relTime(a.timestamp)}</span>
             ${PUBLIC_MODE ? '' : `<a href="${a.ruta_navegacion}" class="alerta-btn ${btnClass}">${a.accion} →</a>`}
         </div>`;
@@ -1735,6 +1753,7 @@ function _updateBadges(data) {
     }
     let html = '';
     if (data.rojas)    html += `<span class="badge-count-rojo">🔴 ${data.rojas} crítica${data.rojas !== 1 ? 's' : ''}</span>`;
+    if (data.naranjas) html += `<span class="badge-count-naranja">🟠 ${data.naranjas} prioritaria${data.naranjas !== 1 ? 's' : ''}</span>`;
     if (data.amarillas) html += `<span class="badge-count-amarillo">🟡 ${data.amarillas} en seguimiento</span>`;
     badges.innerHTML = html;
 }
