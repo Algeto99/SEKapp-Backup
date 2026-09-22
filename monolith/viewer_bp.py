@@ -1506,14 +1506,34 @@ def _sirve_para_vista_previa(key, value):
     return len(v) <= _PREVIEW_MAX_LEN
 
 
-def _campos_vista_previa(data, limite=4):
-    """Los primeros `limite` campos legibles, en el orden del formulario."""
+# Campos que la tarjeta muestra aunque no estén entre los primeros. La placa
+# identifica al vehículo de un vistazo y en las dos planillas viene después de
+# los cuatro datos generales, así que sin esto había que abrir "Ver Detalles"
+# para saber de qué unidad era el registro. Van al final, para no mover lo que
+# ya se veía. Clave: form_type; valor: etiquetas tal como salen en data_mapping.
+_PREVIEW_CAMPOS_FIJOS = {
+    'planilla_vehicular':    ('Placa',),
+    'planilla_motocicletas': ('Placa',),
+}
+
+
+def _campos_vista_previa(data, limite=4, form_type=None):
+    """Los primeros `limite` campos legibles, en el orden del formulario, más
+    los fijos del tipo de formulario (_PREVIEW_CAMPOS_FIJOS) cuando tienen valor.
+    """
     previa = []
     for k, v in (data or {}).items():
         if _sirve_para_vista_previa(k, v):
             previa.append([k, str(v).strip()])
             if len(previa) >= limite:
                 break
+    vistos = {k for k, _ in previa}
+    for etiqueta in _PREVIEW_CAMPOS_FIJOS.get(form_type, ()):
+        if etiqueta in vistos:
+            continue
+        v = (data or {}).get(etiqueta)
+        if _sirve_para_vista_previa(etiqueta, v):
+            previa.append([etiqueta, str(v).strip()])
     return previa
 
 def _is_blank_export_value(value):
@@ -2321,7 +2341,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" ", assume_utc=True),
                     "submitterTimezone": submitter_tz,
                     "data": _localizar_fechas(mapped_data, _tz_op),
-                    "preview": _campos_vista_previa(mapped_data),
+                    "preview": _campos_vista_previa(mapped_data, form_type=f_type),
                     "formType": f_type,
                     "editado": bool(row_dict.get('editado')),
                     "editado_por": row_dict.get('editado_por') or '',
@@ -2532,7 +2552,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 "dateSubmittedLocal": _fmt_local(date_str, tz=_tz_op, time_sep=" ", assume_utc=True),
                 "submitterTimezone": submitter_tz,
                 "data": _localizar_fechas(data_content, _tz_op),
-                "preview": _campos_vista_previa(data_content),
+                "preview": _campos_vista_previa(data_content, form_type=form_type),
                 "formType": form_type,
                 "editado": bool(row_dict.get('editado')),
                 "editado_por": row_dict.get('editado_por') or '',
