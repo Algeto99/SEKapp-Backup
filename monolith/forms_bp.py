@@ -1107,7 +1107,10 @@ def api_fleet_ultimo_kilometraje():
     del pre-operacional. `tipo` elige la planilla (vehiculo | moto).
 
     `excluir_id` deja fuera el propio registro cuando el formulario se abre en
-    modo edición, o se compararía consigo mismo.
+    modo edición, o se compararía consigo mismo. `antes_de` (ISO 8601) limita
+    la búsqueda a registros anteriores en fecha a la planilla editada; sin ese
+    corte, al editar una que no es la última de la placa se compararía con una
+    posterior y el recorrido saldría negativo.
 
     Sin registro previo devuelve ultimo=None: el formulario muestra
     "Sin registro anterior" y no calcula recorrido.
@@ -1126,13 +1129,26 @@ def api_fleet_ultimo_kilometraje():
         return jsonify({'placa': '', 'ultimo': None})
 
     excluir_id = request.args.get('excluir_id', type=int)
+    antes_de = None
+    antes_de_raw = (request.args.get('antes_de') or '').strip()
+    if antes_de_raw:
+        try:
+            antes_de = datetime.fromisoformat(antes_de_raw.replace('Z', '+00:00'))
+        except ValueError:
+            antes_de = None
 
     conn = cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cond = f"AND {id_col} <> %s" if excluir_id else ""
-        params = [placa] + ([excluir_id] if excluir_id else [])
+        cond = ""
+        params = [placa]
+        if excluir_id:
+            cond += f" AND {id_col} <> %s"
+            params.append(excluir_id)
+        if antes_de:
+            cond += " AND COALESCE(fecha_hora, creado_en) < %s"
+            params.append(antes_de)
         cur.execute(f"""
             SELECT {id_col} AS id,
                    {km_col} AS km,
@@ -3195,6 +3211,9 @@ def submit_planilla_vehicular_editar(id):
             'vehiculo_tipo': request.form.get('vehiculo_tipo'),
             'placa_vehiculo': request.form.get('placa_vehiculo'),
             'kilometraje_vehiculo': request.form.get('kilometraje_vehiculo'),
+            # El Administrador puede corregir el antecedente; el recorrido llega recalculado.
+            'kilometraje_anterior': request.form.get('kilometraje_anterior'),
+            'kilometraje_recorrido': request.form.get('kilometraje_recorrido'),
             'estado_rines': request.form.get('estado_rines'),
             'juego_senales_carretera': request.form.get('juego_senales_carretera'),
             'gato_hidraulico': request.form.get('gato_hidraulico'),

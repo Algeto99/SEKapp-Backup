@@ -910,12 +910,18 @@
                         <input type="date" name="fecha_ultimo_mantenimiento" id="fecha_ultimo_mantenimiento" class="form-input">
                     </div>
                     <div>
-                        <label for="km_anterior_display" class="form-label">Último kilometraje registrado</label>
+                        <label for="{{ 'kilometraje_anterior' if edit_mode else 'km_anterior_display' }}" class="form-label">Último kilometraje registrado</label>
+                        {% if edit_mode %}
+                        <!-- En edición el Administrador corrige a mano un error de digitación del
+                             pre-operacional anterior. El valor se guarda en esta planilla. -->
+                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0">
+                        {% else %}
                         <input type="text" id="km_anterior_display" class="form-input" readonly tabindex="-1"
                             value="—" style="opacity:.75;cursor:default;">
                         <!-- Viaja al registro para que el histórico no dependa de que
                              el pre-operacional anterior siga existiendo sin cambios. -->
                         <input type="hidden" name="kilometraje_anterior" id="kilometraje_anterior">
+                        {% endif %}
                         <p class="text-xs text-gray-400 mt-1" id="km_anterior_hint">Seleccione una placa.</p>
                     </div>
                     <div>
@@ -1506,6 +1512,16 @@
                                 value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
                             }
                         }
+                        if (el.type === 'date' && value) {
+                            // Flask serializa DATE como "Sun, 20 Sep 2026 00:00:00 GMT" y el input
+                            // exige YYYY-MM-DD. Getters UTC: es una fecha suelta, no un instante;
+                            // con getters locales, al oeste de Greenwich saldría el día anterior.
+                            var fd = new Date(value);
+                            if (!isNaN(fd.getTime())) {
+                                var pad2 = function(n) { return String(n).padStart(2, '0'); };
+                                value = fd.getUTCFullYear() + '-' + pad2(fd.getUTCMonth()+1) + '-' + pad2(fd.getUTCDate());
+                            }
+                        }
                         el.value = value;
                     }
                 });
@@ -1567,6 +1583,9 @@
             (function controlKilometraje() {
                 const placa      = document.getElementById('placa_vehiculo');
                 const actual     = document.getElementById('kilometraje_vehiculo');
+                // En planilla nueva el antecedente se muestra formateado en un texto de
+                // solo lectura y viaja en un hidden. En edición no hay texto: el propio
+                // input numérico `kilometraje_anterior` es visible y editable.
                 const antDisplay = document.getElementById('km_anterior_display');
                 const antHidden  = document.getElementById('kilometraje_anterior');
                 const antHint    = document.getElementById('km_anterior_hint');
@@ -1575,8 +1594,17 @@
                 const error      = document.getElementById('km_error');
                 if (!placa || !actual) return;
 
+                const record      = (window.EDIT_MODE && window.EDIT_RECORD) || null;
+                const placaRecord = record ? String(record.placa_vehiculo || '').trim().toUpperCase() : '';
+                const kmGuardado  = (record && record.kilometraje_anterior !== null
+                                     && record.kilometraje_anterior !== undefined
+                                     && !Number.isNaN(Number(record.kilometraje_anterior)))
+                                    ? Number(record.kilometraje_anterior) : null;
+                const HINT_GUARDADO = 'Valor guardado en esta planilla. Corríjalo si el registro anterior tenía un error.';
+
                 let ultimoKm = null;   // null = sin registro anterior
                 const fmt = n => Number(n).toLocaleString('es');
+                const mostrar = texto => { if (antDisplay) antDisplay.value = texto; };
 
                 function recalcular() {
                     const v = actual.value.trim();
@@ -1607,48 +1635,76 @@
                     recHidden.value  = String(recorrido);
                 }
 
+                // Fija el antecedente en pantalla, en el campo que viaja y en el cálculo.
+                function fijarUltimo(km, hint) {
+                    ultimoKm = km;
+                    antHidden.value = km === null ? '' : String(km);
+                    mostrar(km === null ? 'Sin registro anterior' : `${fmt(km)} km`);
+                    antHint.textContent = hint;
+                    recalcular();
+                }
+
                 async function cargarUltimo() {
                     const p = (placa.value || '').trim().toUpperCase();
-                    ultimoKm = null;
-                    antHidden.value = '';
                     if (!p) {
-                        antDisplay.value = '—';
+                        ultimoKm = null;
+                        antHidden.value = '';
+                        mostrar('—');
                         antHint.textContent = 'Seleccione una placa.';
                         recalcular();
                         return;
                     }
-                    antDisplay.value = 'Consultando…';
+                    // En edición el antecedente ya quedó guardado en la planilla: ese es el
+                    // histórico y es lo que el Administrador corrige. La API sólo se consulta
+                    // si el registro no lo tiene (anterior a este control) o si cambia la placa.
+                    if (record && p === placaRecord && kmGuardado !== null) {
+                        fijarUltimo(kmGuardado, HINT_GUARDADO);
+                        return;
+                    }
+                    ultimoKm = null;
+                    antHidden.value = '';
+                    mostrar('Consultando…');
                     antHint.textContent = '';
                     try {
                         const params = new URLSearchParams({ placa: p, tipo: 'vehiculo' });
-                        // En edición, el propio registro no puede ser su antecedente.
-                        if (window.EDIT_MODE && window.EDIT_RECORD && window.EDIT_RECORD.id_planilla_vehicular) {
-                            params.set('excluir_id', window.EDIT_RECORD.id_planilla_vehicular);
+                        // En edición, el propio registro no puede ser su antecedente, y el
+                        // antecedente debe ser anterior en fecha a la planilla que se edita.
+                        if (record && record.id_planilla_vehicular) {
+                            params.set('excluir_id', record.id_planilla_vehicular);
+                            const corte = new Date(record.fecha_hora || record.creado_en || '');
+                            if (!isNaN(corte.getTime())) params.set('antes_de', corte.toISOString());
                         }
                         const res = await fetch(`/forms/api/fleet/ultimo-kilometraje?${params}`,
                                                 { headers: { Accept: 'application/json' } });
                         const d = await res.json();
                         if (d.ultimo === null || d.ultimo === undefined) {
-                            antDisplay.value = 'Sin registro anterior';
-                            antHint.textContent = `Primer pre-operacional registrado para ${p}.`;
+                            fijarUltimo(null, `Primer pre-operacional registrado para ${p}.`);
                         } else {
-                            ultimoKm = Number(d.ultimo);
-                            antHidden.value = String(ultimoKm);
-                            antDisplay.value = `${fmt(ultimoKm)} km`;
-                            antHint.textContent = d.fecha
+                            fijarUltimo(Number(d.ultimo), d.fecha
                                 ? `Registrado el ${new Date(d.fecha).toLocaleDateString('es')}.`
-                                : '';
+                                : '');
                         }
                     } catch (_) {
-                        antDisplay.value = '—';
+                        mostrar('—');
                         antHint.textContent = 'No se pudo consultar el kilometraje anterior.';
+                        recalcular();
                     }
-                    recalcular();
                 }
 
                 placa.addEventListener('change', cargarUltimo);
                 actual.addEventListener('input', recalcular);
+                // Corrección manual del antecedente (sólo posible en edición, donde el
+                // campo es visible): el recorrido se recalcula al instante.
+                antHidden.addEventListener('input', () => {
+                    const v = antHidden.value.trim();
+                    const km = v === '' ? null : Number(v);
+                    ultimoKm = (km === null || Number.isNaN(km)) ? null : km;
+                    recalcular();
+                });
                 if (placa.value) cargarUltimo();
+                // La flota carga de forma asíncrona; en edición el antecedente guardado se
+                // muestra desde el inicio y no depende de ese evento.
+                else if (record && kmGuardado !== null) fijarUltimo(kmGuardado, HINT_GUARDADO);
             })();
 
             // Initialize signature pads
