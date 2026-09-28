@@ -259,6 +259,7 @@ const VIEWER_SERVICE_URL    = "{{ VIEWER_SERVICE_URL if VIEWER_SERVICE_URL else 
 const currentUserEmail      = "{{ user_email if user_email else '' }}";
 const currentUserName       = "{{ user_name if user_name else '' }}";
 const currentUserIsAdmin    = {{ 'true' if is_admin else 'false' }};
+const currentUserIsCoordinador = {{ 'true' if is_coordinador else 'false' }};
 
 function show(id) { const el = document.getElementById(id); if (el) el.classList.remove('hidden'); }
 function hide(id) { const el = document.getElementById(id); if (el) el.classList.add('hidden'); }
@@ -280,7 +281,9 @@ function updateUI() {
         userPill.classList.remove('hidden');
         userText.textContent = currentUserIsAdmin
             ? `Administrador · ${currentUserName || currentUserEmail}`
-            : `${currentUserName || currentUserEmail}`;
+            : currentUserIsCoordinador
+                ? `Coordinador · ${currentUserName || currentUserEmail}`
+                : `${currentUserName || currentUserEmail}`;
 
         show('matrices-button');
         show('logout-button');

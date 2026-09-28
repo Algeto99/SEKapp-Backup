@@ -41,14 +41,16 @@ def user_info():
         user_email = claims.get('sub')
         user_name = claims.get('name', user_email)
         is_admin = claims.get('is_admin', False)
-        
+        is_coordinador = bool(claims.get('is_coordinador', False)) and not is_admin
+
         if user_email:
             current_app.logger.info(f"User info requested for: {user_email} (admin: {is_admin})")
             return jsonify({
                 "email": user_email,
                 "name": user_name,
                 "is_admin": is_admin,
-                "roles": ["admin"] if is_admin else ["user"]
+                "is_coordinador": is_coordinador,
+                "roles": ["admin"] if is_admin else (["coordinador"] if is_coordinador else ["user"])
             }), 200
         return jsonify({"msg": "Unauthorized: No valid user identity"}), 401
     except Exception as e:

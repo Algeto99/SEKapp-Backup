@@ -19,6 +19,8 @@ from db import get_db_connection
 from email_utils import send_password_reset_email, send_registration_notification
 from extensions import limiter
 from auditoria import anotar
+from coordinador import (asegurar_esquema as _asegurar_coordinador, leer_rol as _leer_rol_coordinador,
+                         RUTA_INICIO as _RUTA_COORDINADOR)
 
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
@@ -52,6 +54,16 @@ _SUBMIT_TO_FORM_MAP = {
     'checklist_cumplimiento': 'checklist_cumplimiento',
     'confiabilidad_equipos': 'confiabilidad_equipos',
 }
+
+def _ruta_de_inicio(is_admin, is_coordinador=False):
+    """Destino al entrar según el rol: Administrador al Morning Briefing,
+    Coordinador a Matrices → Alertas / Novedades, el resto al inicio."""
+    if is_admin:
+        return '/cgeo/morning-briefing/'
+    if is_coordinador:
+        return _RUTA_COORDINADOR
+    return url_for('landing_bp.landing_page')
+
 
 def _safe_redirect(next_url, fallback):
     if not next_url:
@@ -445,7 +457,7 @@ def login():
             claims = get_jwt()
             if claims and claims.get('sub') and not claims.get('force_pw'):
                 is_admin = bool(claims.get('is_admin', False))
-                fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
+                fallback = _ruta_de_inicio(is_admin, bool(claims.get('is_coordinador', False)))
                 redirect_target = _safe_redirect(request.args.get('next'), fallback=fallback)
                 return redirect(redirect_target)
         except Exception:
@@ -471,6 +483,11 @@ def login():
             flash("Service unavailable (DB connection failed)", "danger")
             return render_template('login.html')
 
+        # Columna de rol y tabla de ámbito del Coordinador: se crean aquí porque
+        # producción no tiene acceso directo a la base. Si falla, el rol se lee
+        # como False y el login sigue.
+        _asegurar_coordinador(conn)
+
         try:
             cur = conn.cursor(cursor_factory=extras.DictCursor)
             cur.execute('SELECT "id", "email", "password_hash", "name", "is_admin", "is_active" FROM "users" WHERE "email" = %s', (email,))
@@ -491,12 +508,14 @@ def login():
 
             is_super_admin = False
             force_password_change = False
+            is_coordinador = False
             if user:
                 cur.execute('SELECT "is_super_admin", "force_password_change" FROM "users" WHERE "id" = %s', (user['id'],))
                 row = cur.fetchone()
                 if row:
                     is_super_admin = bool(row['is_super_admin'])
                     force_password_change = bool(row['force_password_change'])
+                is_coordinador = _leer_rol_coordinador(cur, user_id=user['id'])
 
             cur.close()
 
@@ -512,7 +531,8 @@ def login():
                     current_app.logger.info(f"User {email} logged in. is_admin={is_admin}, is_super_admin={is_super_admin}, force_password_change={force_password_change}")
                     access_token = create_access_token(
                         identity=user['email'],
-                        additional_claims={'is_admin': is_admin, 'is_super_admin': is_super_admin, 'name': user['name']}
+                        additional_claims={'is_admin': is_admin, 'is_super_admin': is_super_admin,
+                                           'is_coordinador': is_coordinador, 'name': user['name']}
                     )
                     refresh_token = create_refresh_token(identity=user['email'])
 
@@ -562,8 +582,9 @@ def login():
 
                     anotar(usuario_email=user['email'], usuario_nombre=user['name'],
                            sesion_jti=(decode_token(access_token) or {}).get('jti'),
-                           detalle={'es_admin': is_admin, 'confirmo_sesion_activa': bool(pendiente)})
-                    fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
+                           detalle={'es_admin': is_admin, 'es_coordinador': is_coordinador,
+                                    'confirmo_sesion_activa': bool(pendiente)})
+                    fallback = _ruta_de_inicio(is_admin, is_coordinador)
                     redirect_target = _safe_redirect(
                         (pendiente or {}).get('next') or request.args.get('next') or request.form.get('next'),
                         fallback=fallback
@@ -787,6 +808,7 @@ def change_password():
             cur = conn.cursor(cursor_factory=extras.DictCursor)
             cur.execute('SELECT "id", "password_hash", "name", "is_admin", "is_super_admin" FROM "users" WHERE "email" = %s', (email,))
             user = cur.fetchone()
+            es_coordinador = _leer_rol_coordinador(cur, user_id=user['id']) if user else False
 
             if not user or not bcrypt.check_password_hash(user['password_hash'], current_password):
                 flash('Correo electrónico o contraseña actual incorrectos.', 'danger')
@@ -809,6 +831,7 @@ def change_password():
                     additional_claims={
                         'is_admin': bool(user.get('is_admin')),
                         'is_super_admin': bool(user.get('is_super_admin')),
+                        'is_coordinador': es_coordinador,
                         'name': user.get('name', ''),
                     }
                 )
@@ -823,7 +846,7 @@ def change_password():
                 except Exception as ses_err:
                     conn.rollback()
                     current_app.logger.error(f"Registro de sesión omitido para {email}: {ses_err}", exc_info=True)
-                fallback = '/cgeo/morning-briefing/' if user.get('is_admin') else url_for('landing_bp.landing_page')
+                fallback = _ruta_de_inicio(bool(user.get('is_admin')), es_coordinador)
                 response = redirect(fallback)
                 set_access_cookies(response, full_token)
                 _fijar_cookie_dispositivo(response)
