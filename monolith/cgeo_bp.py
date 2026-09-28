@@ -30,6 +30,8 @@ except OSError:
 
 from db import get_db_connection
 from auditoria import anotar
+from coordinador import (ambito_activo, condicion_ambito, registro_en_ambito, es_coordinador,
+                         coordinador_o_admin, acotar_filtros, fuera_de_ambito)
 from email_utils import send_email
 
 cgeo_bp = Blueprint("cgeo_bp", __name__)
@@ -183,6 +185,20 @@ def _admin_o_token(f):
     return decorated
 
 
+def _admin_coordinador_o_token(f):
+    """Como `_admin_o_token`, pero también deja pasar al Coordinador: su ámbito
+    lo aplica `_add_scope` en cada consulta. Sólo lo usa el endpoint de alertas,
+    que es lo que el Coordinador consulta desde Matrices."""
+    protegido = jwt_required()(coordinador_o_admin(f))
+
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if _alcance_publico() is not None:
+            return f(*args, **kwargs)
+        return protegido(*args, **kwargs)
+    return decorated
+
+
 def _sesion_o_token(f):
     """Igual que `_admin_o_token`, para los endpoints que sólo pedían sesión.
 
@@ -257,24 +273,43 @@ def _cliente_cond(cliente):
         return "TRIM(cliente_instalacion) = TRIM(%s)", cliente
 
 
-def _add_scope(conds, params, cliente=None, propiedad=None, alias=''):
-    """Append client and property scope filters to existing conds/params lists. alias: e.g. 'c.'"""
+def _add_scope(conds, params, cliente=None, propiedad=None, alias='', col_inst='cliente_instalacion'):
+    """Append client and property scope filters to existing conds/params lists. alias: e.g. 'c.'
+
+    col_inst=None para tablas sin columna de nombre de cliente (log_de_patrullas):
+    entonces sólo se filtra por id_propiedad. El ámbito del Coordinador, si hay
+    uno en sesión, se suma siempre al final, haya o no filtro.
+    """
+    inst = f"{alias}{col_inst}" if col_inst else None
     if propiedad and str(propiedad).strip() not in ('Todas', 'Todos', ''):
         try:
             p_val = int(propiedad)
             conds.append(f"{alias}id_propiedad = %s")
             params.append(p_val)
         except (ValueError, TypeError):
-            conds.append(f"({alias}id_propiedad IN (SELECT id_propiedad FROM propiedades WHERE TRIM(LOWER(nombre)) = TRIM(LOWER(%s))) OR TRIM(LOWER({alias}cliente_instalacion)) = TRIM(LOWER(%s)))")
-            params.extend([str(propiedad).strip(), str(propiedad).strip()])
+            piezas = [f"{alias}id_propiedad IN (SELECT id_propiedad FROM propiedades WHERE TRIM(LOWER(nombre)) = TRIM(LOWER(%s)))"]
+            params.append(str(propiedad).strip())
+            if inst:
+                piezas.append(f"TRIM(LOWER({inst})) = TRIM(LOWER(%s))")
+                params.append(str(propiedad).strip())
+            conds.append("(" + " OR ".join(piezas) + ")")
     elif cliente and str(cliente).strip() not in ('Todos', 'Todas', ''):
         try:
             c_val = int(cliente)
-            conds.append(f"({alias}id_propiedad IN (SELECT id_propiedad FROM propiedades WHERE customer_company_id = %s) OR TRIM(LOWER({alias}cliente_instalacion)) IN (SELECT TRIM(LOWER(name)) FROM customer_companies WHERE id = %s))")
-            params.extend([c_val, c_val])
+            piezas = [f"{alias}id_propiedad IN (SELECT id_propiedad FROM propiedades WHERE customer_company_id = %s)"]
+            params.append(c_val)
+            if inst:
+                piezas.append(f"TRIM(LOWER({inst})) IN (SELECT TRIM(LOWER(name)) FROM customer_companies WHERE id = %s)")
+                params.append(c_val)
+            conds.append("(" + " OR ".join(piezas) + ")")
         except (ValueError, TypeError):
-            conds.append(f"({alias}id_propiedad IN (SELECT p.id_propiedad FROM propiedades p JOIN customer_companies cc ON cc.id = p.customer_company_id WHERE TRIM(LOWER(cc.name)) = TRIM(LOWER(%s))) OR TRIM(LOWER({alias}cliente_instalacion)) = TRIM(LOWER(%s)))")
-            params.extend([str(cliente).strip(), str(cliente).strip()])
+            piezas = [f"{alias}id_propiedad IN (SELECT p.id_propiedad FROM propiedades p JOIN customer_companies cc ON cc.id = p.customer_company_id WHERE TRIM(LOWER(cc.name)) = TRIM(LOWER(%s)))"]
+            params.append(str(cliente).strip())
+            if inst:
+                piezas.append(f"TRIM(LOWER({inst})) = TRIM(LOWER(%s))")
+                params.append(str(cliente).strip())
+            conds.append("(" + " OR ".join(piezas) + ")")
+    condicion_ambito(conds, params, col_prop='id_propiedad', col_inst=col_inst, prefix=alias)
 
 
 # ── Nombres de cliente que no son nombres ───────────────────────────────────
@@ -622,6 +657,13 @@ def cgeo_api_filtros():
         cur.execute(cli_query, tuple(cli_params))
         cli_rows = cur.fetchall()
         clientes = [{"id": r["id"], "name": r["name"]} for r in cli_rows]
+
+        ambito = ambito_activo()
+        if ambito is not None:
+            clientes_ok = set(ambito['clientes']) | set(ambito['clientes_de_propiedades'])
+            propiedades = [p for p in propiedades
+                           if p["id"] in ambito['propiedades'] or p["customer_company_id"] in ambito['clientes']]
+            clientes = [c for c in clientes if c["id"] in clientes_ok]
         
         if not clientes and propiedades:
             seen_c = set()
@@ -1141,12 +1183,14 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
 
     # Alcance por Cliente/Propiedad. La tabla de asignaciones no guarda ninguna
     # de las dos, así que se cruza contra los ids del origen. Sin filtro no se
-    # cruza nada: el Morning Briefing pide la lista consolidada.
-    if cliente or propiedad:
+    # cruza nada: el Morning Briefing pide la lista consolidada. El Coordinador
+    # cruza siempre: _add_scope le agrega su ámbito a cada pieza.
+    if cliente or propiedad or ambito_activo() is not None:
         piezas, alcance_params = [], []
         for ft, (tabla, id_col) in _ASIG_ORIGEN.items():
             sc, sp = [], []
-            _add_scope(sc, sp, cliente=cliente, propiedad=propiedad)
+            _add_scope(sc, sp, cliente=cliente, propiedad=propiedad,
+                       col_inst=None if tabla == 'log_de_patrullas' else 'cliente_instalacion')
             piezas.append(f"SELECT %s AS form_type, {id_col} AS record_id FROM {tabla} {_where(sc)}")
             alcance_params.append(ft)
             alcance_params.extend(sp)
@@ -1645,7 +1689,7 @@ def _alertas_disciplina(cur, thresholds, cliente=None, propiedad=None):
 
 
 @cgeo_bp.route("/api/alertas")
-@_admin_o_token
+@_admin_coordinador_o_token
 def cgeo_api_alertas():
     """
     Evalúa 8 reglas de negocio y devuelve alertas priorizadas.
@@ -1670,6 +1714,12 @@ def cgeo_api_alertas():
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         alertas = []
+
+        # Coordinador: un cliente o instalación fuera de su ámbito se ignora y
+        # queda el ámbito completo; _add_scope lo aplica en cada regla.
+        ambito = ambito_activo()
+        if ambito is not None:
+            cliente, propiedad = acotar_filtros(conn, ambito, cliente, propiedad)
 
         def _cp(col="id_propiedad"):
             # _add_scope resuelve Propiedad y Cliente igual que /api/recursos-data y
@@ -2328,6 +2378,11 @@ def cgeo_api_alertas():
         # ── Ordenar: ROJO, luego NARANJA (Prioritaria), luego AMARILLO; ──────
         # dentro de cada color por timestamp ascendente (más antiguo = más urgente).
         prioridad = {"rojo": 0, "naranja": 1, "amarillo": 2}
+        # Coordinador: el backup y la seguridad de acceso no son de su ámbito.
+        if ambito is not None:
+            alertas = [a for a in alertas
+                       if a.get("regla") not in (13, 15) and not a.get("backup") and not a.get("seguridad")]
+
         alertas.sort(key=lambda a: (
             prioridad.get(a["color_semaforo"], 9),
             a["timestamp"] or "9999",
@@ -4018,6 +4073,10 @@ def asignar_hallazgo():
         return jsonify({"error": "DB no disponible"}), 500
     try:
         _ensure_asignaciones_table(conn)
+        if es_coordinador():
+            rechazo = fuera_de_ambito(form_type, record_id, conn=conn)
+            if rechazo:
+                return rechazo
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             company_id = _get_user_company_id(cur, asignado_por)
 
@@ -4126,7 +4185,11 @@ def _puede_gestionar(cur, asignacion_id, email):
         (fila.get('asignado_a_email') or '').strip().lower(),
         (fila.get('asignado_email') or '').strip().lower(),
     } - {''}
-    return (es_admin or correo in destinatarios), fila
+    permitido = es_admin or correo in destinatarios
+    if not permitido and es_coordinador():
+        # El Coordinador gestiona lo de su ámbito aunque no sea el responsable.
+        permitido = registro_en_ambito(fila.get('form_type'), fila.get('record_id'), conn=cur.connection)
+    return permitido, fila
 
 
 @cgeo_bp.route('/api/asignaciones/<int:asignacion_id>/gestionar', methods=['POST'])

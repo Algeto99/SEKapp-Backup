@@ -28,6 +28,7 @@ from google.oauth2 import service_account
 
 from markupsafe import escape
 from db import get_db_connection
+from coordinador import es_coordinador, fuera_de_ambito, registro_en_ambito
 
 # PDF generation imports
 try:
@@ -2989,6 +2990,10 @@ def get_more_reports():
 @jwt_required()
 def get_single_report(report_id):
     form_type = request.args.get('form_type', 'reporte_incidente')
+    if es_coordinador():
+        rechazo = fuera_de_ambito(form_type, report_id)
+        if rechazo:
+            return rechazo
     app_logger.info(f"Attempting to fetch single report with ID: {report_id} via GET /api/report/<id> with form_type: {form_type}")
     # fetch_reports_by_ids expects a list of IDs
     reports = fetch_reports_by_ids([report_id], form_type=form_type)
@@ -2999,6 +3004,27 @@ def get_single_report(report_id):
     else:
         app_logger.warning(f"Report with ID {report_id} not found for details.")
         return jsonify({"success": False, "message": f"Report with ID {report_id} not found."}), 404
+
+
+def _acotar_reportes_al_ambito(requests_payload, report_ids):
+    """Coordinador: sólo se exportan o envían registros de su ámbito. El resto
+    de roles pasa sin cambios. `report_ids` (formato viejo) son incidentes."""
+    if not es_coordinador():
+        return requests_payload, report_ids
+    conn = get_db_connection()
+    try:
+        if requests_payload:
+            requests_payload = [
+                r for r in requests_payload
+                if isinstance(r, dict) and registro_en_ambito(
+                    r.get('formType') or r.get('form_type') or 'reporte_incidente', r.get('id'), conn=conn)
+            ]
+        if report_ids:
+            report_ids = [i for i in report_ids if registro_en_ambito('reporte_incidente', i, conn=conn)]
+    finally:
+        if conn:
+            conn.close()
+    return requests_payload, report_ids
 
 
 @viewer_bp.route('/api/email-reports', methods=['POST'])
@@ -3012,6 +3038,9 @@ def email_selected_reports_api():
 
     if not requests_payload and not report_ids:
         return jsonify({"success": False, "message": "No reports provided."}), 400
+    requests_payload, report_ids = _acotar_reportes_al_ambito(requests_payload, report_ids)
+    if not requests_payload and not report_ids:
+        return jsonify({"success": False, "message": "Los registros están fuera de su ámbito."}), 403
 
     if not recipient_email or not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", recipient_email):
         return jsonify({"success": False, "message": "Invalid recipient email address."}), 400
@@ -3443,6 +3472,9 @@ def export_excel():
 
     if not requests_payload and not report_ids:
         return jsonify({"success": False, "message": "No reports provided."}), 400
+    requests_payload, report_ids = _acotar_reportes_al_ambito(requests_payload, report_ids)
+    if not requests_payload and not report_ids:
+        return jsonify({"success": False, "message": "Los registros están fuera de su ámbito."}), 403
 
     app_logger.info(f"User {user_email} requested Excel export")
 
@@ -3967,6 +3999,9 @@ def generate_pdf():
 
     if not requests_payload and not report_ids:
         return jsonify({"success": False, "message": "No reports provided."}), 400
+    requests_payload, report_ids = _acotar_reportes_al_ambito(requests_payload, report_ids)
+    if not requests_payload and not report_ids:
+        return jsonify({"success": False, "message": "Los registros están fuera de su ámbito."}), 403
 
     # Sin las librerías nativas de WeasyPrint no hay PDF que entregar. Antes se
     # devolvía un PDF vacío hardcodeado: el usuario se llevaba un archivo que no

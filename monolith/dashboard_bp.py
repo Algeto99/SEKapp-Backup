@@ -12,6 +12,7 @@ from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
 from auditoria import anotar
+from coordinador import condicion_ambito, es_coordinador, fuera_de_ambito
 from gcs_utils import resolve_upload_bucket
 from normalizacion import (clave_identificador, normalizar_nombre,
                           sql_clave_identificador, sql_clave_nombre)
@@ -142,6 +143,10 @@ def _add_scope_filters(conds, params, cliente=None, propiedad=None, puesto=None,
         else:
             conds.append(f"{sql_clave_nombre(c_puesto)} = {sql_clave_nombre('%s')}")
             params.append(pu_str)
+
+    # Coordinador: su ámbito se suma siempre, haya o no filtro de cliente. Usa
+    # las mismas columnas que el filtro, así que aplica en las mismas tablas.
+    condicion_ambito(conds, params, col_prop=c_prop, col_inst=c_inst, col_cust=c_cust)
 
 
 def _scope_name_exprs(table):
@@ -4201,12 +4206,15 @@ def api_incidentes_clientes():
         company_id = _get_user_company_id(cur, get_jwt_identity())
         cid_cond = "AND company_id = %s" if company_id is not None else ""
         cid_params = [company_id] if company_id is not None else []
+        amb_conds, amb_params = [], []
+        condicion_ambito(amb_conds, amb_params, col_cust='customer_company_id')
+        amb_cond = f"AND {amb_conds[0]}" if amb_conds else ""
         cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM reportes_incidentes
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond} {amb_cond}
             ORDER BY cliente_instalacion
-        """, cid_params)
+        """, cid_params + amb_params)
         return jsonify({'clientes': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_incidentes_clientes error: {e}", exc_info=True)
@@ -4507,6 +4515,11 @@ def api_incidentes_update_estado(id_reporte):
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+        if es_coordinador():
+            rechazo = fuera_de_ambito('reporte_incidente', id_reporte, conn=conn)
+            if rechazo:
+                return rechazo
+
         # SEKapp es single-tenant: no se filtra por company_id (regla del proyecto).
         cur.execute(
             "SELECT estado FROM reportes_incidentes WHERE id_reporte_incidente=%s",
@@ -4551,6 +4564,10 @@ def api_incidentes_historial(id_reporte):
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        if es_coordinador():
+            rechazo = fuera_de_ambito('reporte_incidente', id_reporte, conn=conn)
+            if rechazo:
+                return rechazo
 
         cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
         user_row = cur.fetchone()
@@ -6308,12 +6325,15 @@ def api_visitas_clientes():
             )
         """ if company_id is not None else ""
         cid_params = [company_id, company_id] if company_id is not None else []
+        amb_conds, amb_params = [], []
+        condicion_ambito(amb_conds, amb_params, col_cust='customer_company_id')
+        amb_cond = f"AND {amb_conds[0]}" if amb_conds else ""
         cur.execute(f"""
             SELECT DISTINCT cliente_instalacion
             FROM registro_y_acta_de_visita
-            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond}
+            WHERE cliente_instalacion IS NOT NULL AND cliente_instalacion <> '' {cid_cond} {amb_cond}
             ORDER BY cliente_instalacion
-        """, cid_params)
+        """, cid_params + amb_params)
         return jsonify({'clientes': [r['cliente_instalacion'] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_visitas_clientes error: {e}", exc_info=True)
@@ -6572,6 +6592,11 @@ def api_visitas_update_estado(id_visita):
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+        if es_coordinador():
+            rechazo = fuera_de_ambito('registro_y_acta_de_visita', id_visita, conn=conn)
+            if rechazo:
+                return rechazo
+
         # SEKapp es single-tenant: no se filtra por company_id (regla del proyecto).
         cur.execute(
             "SELECT compromisos_estados FROM registro_y_acta_de_visita WHERE id_visita = %s",
@@ -6631,6 +6656,10 @@ def api_visitas_historial(id_visita):
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        if es_coordinador():
+            rechazo = fuera_de_ambito('registro_y_acta_de_visita', id_visita, conn=conn)
+            if rechazo:
+                return rechazo
 
         cur.execute('SELECT company_id FROM users WHERE email = %s', (user_email,))
         user_row = cur.fetchone()
