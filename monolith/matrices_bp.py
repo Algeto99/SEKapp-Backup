@@ -14,6 +14,7 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from db import get_db_connection
+from coordinador import coordinador_o_admin, es_coordinador, ambito_activo, condicion_ambito
 
 matrices_bp = Blueprint("matrices_bp", __name__)
 app_logger = logging.getLogger(__name__)
@@ -68,6 +69,24 @@ def matrices_hub():
     )
 
 
+@matrices_bp.route("/alertas")
+@jwt_required()
+@coordinador_o_admin
+def matrices_alertas():
+    """Alertas / Novedades: el mismo endpoint de alertas del Morning Briefing,
+    acotado al ámbito del Coordinador. El Administrador lo ve completo."""
+    user_email = get_jwt_identity()
+    user_name, is_admin = _get_user_info(user_email)
+    return render_template(
+        "matrices_alertas.html",
+        current_user=user_email,
+        user_name=user_name,
+        is_admin=is_admin,
+        es_coordinador=es_coordinador(),
+        ambito=ambito_activo(),
+    )
+
+
 @matrices_bp.route("/api/stats")
 @jwt_required()
 def matrices_api_stats():
@@ -108,13 +127,17 @@ def matrices_api_stats():
         user_email = get_jwt_identity()
         company_id = _get_user_company_id(cur, user_email)
         cid_cond = "AND company_id = %s" if company_id is not None else ""
+        # Coordinador: los contadores del hub también se acotan a su ámbito.
+        amb_conds, amb_params = [], []
+        condicion_ambito(amb_conds, amb_params, col_cust='customer_company_id')
+        amb_cond = f"AND {amb_conds[0]}" if amb_conds else ""
         date_end = month_end + timedelta(days=1)
 
         stats = {}
 
         # ── Incidentes abiertos ──────────────────────────────────────────────
         try:
-            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            params = [month_start, date_end] + ([company_id] if company_id is not None else []) + amb_params
             cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,
@@ -124,7 +147,7 @@ def matrices_api_stats():
                 FROM reportes_incidentes
                 WHERE COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) >= %s
                   AND COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < %s
-                  {cid_cond}
+                  {cid_cond} {amb_cond}
             """, params)
             r = cur.fetchone() or {}
             stats["incidentes"] = {
@@ -137,7 +160,7 @@ def matrices_api_stats():
 
         # ── Visitas / compromisos pendientes ─────────────────────────────────
         try:
-            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            params = [month_start, date_end] + ([company_id] if company_id is not None else []) + amb_params
             cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,
@@ -146,7 +169,7 @@ def matrices_api_stats():
                 FROM registro_y_acta_de_visita
                 WHERE COALESCE(fecha_hora, creado_en) >= %s
                   AND COALESCE(fecha_hora, creado_en) < %s
-                  {cid_cond}
+                  {cid_cond} {amb_cond}
             """, params)
             r = cur.fetchone() or {}
             stats["visitas"] = {
@@ -159,10 +182,10 @@ def matrices_api_stats():
 
         # ── Supervisiones del mes ────────────────────────────────────────────
         try:
-            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            params = [month_start, date_end] + ([company_id] if company_id is not None else []) + amb_params
             cur.execute(f"""
                 SELECT COUNT(*) AS total FROM supervision_puesto
-                WHERE fecha_hora >= %s AND fecha_hora < %s {cid_cond}
+                WHERE fecha_hora >= %s AND fecha_hora < %s {cid_cond} {amb_cond}
             """, params)
             r = cur.fetchone() or {}
             stats["supervision"] = {"total": int(r.get("total") or 0)}
@@ -171,10 +194,10 @@ def matrices_api_stats():
 
         # ── Disciplina ───────────────────────────────────────────────────────
         try:
-            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            params = [month_start, date_end] + ([company_id] if company_id is not None else []) + amb_params
             cur.execute(f"""
                 SELECT COUNT(*) AS total FROM informe_novedades_disciplinario
-                WHERE fecha_hora >= %s AND fecha_hora < %s {cid_cond}
+                WHERE fecha_hora >= %s AND fecha_hora < %s {cid_cond} {amb_cond}
             """, params)
             r = cur.fetchone() or {}
             stats["disciplina"] = {"total": int(r.get("total") or 0)}
@@ -183,12 +206,12 @@ def matrices_api_stats():
 
         # ── Capacitaciones del mes ───────────────────────────────────────────
         try:
-            params = [month_start, date_end] + ([company_id] if company_id is not None else [])
+            params = [month_start, date_end] + ([company_id] if company_id is not None else []) + amb_params
             cur.execute(f"""
                 SELECT COUNT(*) AS total FROM registro_de_capacitaciones
                 WHERE COALESCE(fecha_hora, creado_en::timestamp) >= %s
                   AND COALESCE(fecha_hora, creado_en::timestamp) < %s
-                  {cid_cond}
+                  {cid_cond} {amb_cond}
             """, params)
             r = cur.fetchone() or {}
             stats["capacitaciones"] = {"total": int(r.get("total") or 0)}
@@ -197,8 +220,8 @@ def matrices_api_stats():
 
         # ── Certificaciones vencidas ─────────────────────────────────────────
         try:
-            params = [company_id] if company_id is not None else []
-            where = f"WHERE company_id = %s" if company_id is not None else ""
+            params = ([company_id] if company_id is not None else []) + amb_params
+            where = ("WHERE company_id = %s" if company_id is not None else "WHERE TRUE") + f" {amb_cond}"
             cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,

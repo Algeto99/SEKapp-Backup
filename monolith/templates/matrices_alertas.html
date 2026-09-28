@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alertas / Novedades · Kanan Sentinel SekApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+    <style>
+        body{font-family:'Roboto',sans-serif;background:#f8fafc;color:#0f172a}
+        h1,h2,h3{font-family:'Merriweather',serif}
+        .content{padding:1.25rem 1rem 4rem;max-width:1100px}
+        @media (min-width:768px){.content{padding:1.75rem 2rem 4rem}}
+        .card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.1rem 1.25rem;margin-bottom:1.25rem}
+        .card-title{font-size:.9rem;font-weight:700;color:#0f172a;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+        .muted{color:#64748b;font-size:.78rem}
+        .chips{display:flex;flex-wrap:wrap;gap:.4rem}
+        .chip{font-size:.72rem;font-weight:600;padding:.2rem .6rem;border-radius:999px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+        .chip-inst{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+        .aviso{padding:.75rem 1rem;border-radius:.6rem;font-size:.82rem;background:#fffbeb;color:#92400e;border:1px solid #fde68a;margin-bottom:1.25rem}
+        .filtros{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem;align-items:end}
+        .field{display:flex;flex-direction:column;gap:.3rem;min-width:0}
+        .field label{font-size:.66rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+        .field select{background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;color:#0f172a;padding:.5rem .6rem;font-size:.85rem;width:100%}
+        .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;transition:all .15s}
+        .btn:disabled{opacity:.5;cursor:default}
+        .btn-primary{background:#0ea5e9;color:#fff}
+        .btn-ghost{background:#fff;color:#334155;border-color:#cbd5e1}
+        .btn-mini{padding:.3rem .6rem;font-size:.72rem;border-radius:.4rem}
+        .btn-verde{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+        .btn-azul{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+        .btn-gris{background:#f8fafc;color:#475569;border-color:#e2e8f0}
+        .resumen{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem}
+        .pill{flex:1 1 140px;background:#fff;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem 1rem}
+        .pill-num{font-size:1.5rem;font-weight:800;line-height:1}
+        .pill-lbl{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:.3rem}
+        .rojo{color:#dc2626}.naranja{color:#ea580c}.amarillo{color:#d97706}.verde{color:#16a34a}
+        .grupo{margin-bottom:1.25rem}
+        .grupo-titulo{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:0 0 .5rem .25rem;display:flex;align-items:center;gap:.4rem}
+        .alertas-list{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;overflow:hidden}
+        .alerta{display:flex;align-items:flex-start;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #f1f5f9}
+        .alerta:last-child{border-bottom:none}
+        .alerta-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.35rem}
+        .dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
+        .dot-naranja{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.15)}
+        .dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
+        .dot-verde{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+        .alerta-cuerpo{flex:1;min-width:0}
+        .alerta-texto{font-size:.85rem;font-weight:600;color:#1e293b;line-height:1.35}
+        .alerta-motivo{font-size:.76rem;color:#64748b;margin-top:.15rem;line-height:1.4}
+        .alerta-meta{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin-top:.4rem}
+        .badge{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:.15rem .5rem;border-radius:999px;border:1px solid transparent;white-space:nowrap}
+        .badge-estado{background:rgba(245,158,11,.14);color:#92400e;border-color:rgba(245,158,11,.3)}
+        .badge-prioridad{background:rgba(234,88,12,.12);color:#c2410c;border-color:rgba(234,88,12,.35)}
+        .badge-vencida{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+        .badge-tipo{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+        .alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap}
+        .alerta-acciones{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
+        .panel-estado{display:none;margin-top:.6rem;padding:.7rem .8rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#f8fafc}
+        .panel-estado.open{display:block}
+        .panel-estado label{font-size:.66rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;font-weight:700;display:block;margin-bottom:.25rem}
+        .panel-estado select,.panel-estado input{width:100%;background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;padding:.45rem .6rem;font-size:.82rem;color:#0f172a;margin-bottom:.5rem}
+        .historial{display:none;margin-top:.6rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#f8fafc;padding:.6rem .8rem;font-size:.76rem;color:#334155;max-height:220px;overflow:auto}
+        .historial.open{display:block}
+        .historial .h-fila{padding:.3rem 0;border-bottom:1px dashed #e2e8f0}
+        .historial .h-fila:last-child{border-bottom:none}
+        .vacio{padding:2rem 1rem;text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:.875rem}
+        .vacio-icon{font-size:2rem;margin-bottom:.4rem}
+        .vacio-txt{font-size:.9rem;font-weight:600;color:#16a34a}
+        .vacio-sub{font-size:.78rem;color:#94a3b8;margin-top:.2rem}
+        .cargando{opacity:.5;pointer-events:none}
+
+        body:not(.light-mode){background:#0f172a;color:#e2e8f0}
+        body:not(.light-mode) .card,body:not(.light-mode) .pill,body:not(.light-mode) .alertas-list,body:not(.light-mode) .vacio{background:#1e293b;border-color:#334155}
+        body:not(.light-mode) .card-title,body:not(.light-mode) .alerta-texto{color:#f1f5f9}
+        body:not(.light-mode) .alerta{border-bottom-color:#334155}
+        body:not(.light-mode) .field select,body:not(.light-mode) .panel-estado select,body:not(.light-mode) .panel-estado input{background:#0f172a;border-color:#334155;color:#e2e8f0}
+        body:not(.light-mode) .btn-ghost{background:#1e293b;color:#cbd5e1;border-color:#334155}
+        body:not(.light-mode) .btn-verde{background:rgba(22,163,74,.12);color:#4ade80;border-color:rgba(22,163,74,.3)}
+        body:not(.light-mode) .btn-azul{background:rgba(59,130,246,.12);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+        body:not(.light-mode) .btn-gris{background:#0f172a;color:#cbd5e1;border-color:#334155}
+        body:not(.light-mode) .panel-estado,body:not(.light-mode) .historial{background:#0f172a;border-color:#334155;color:#cbd5e1}
+        body:not(.light-mode) .chip{background:rgba(59,130,246,.12);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+        body:not(.light-mode) .chip-inst{background:rgba(22,163,74,.12);color:#4ade80;border-color:rgba(22,163,74,.3)}
+        body:not(.light-mode) .aviso{background:rgba(245,158,11,.1);color:#fbbf24;border-color:rgba(245,158,11,.3)}
+        body:not(.light-mode) .badge-tipo{background:#0f172a;color:#94a3b8;border-color:#334155}
+    </style>
+</head>
+<body>
+{% set name = user_name %}
+{% include '_sidebar.html' %}
+
+<div class="sidebar-main-content" id="mainContent">
+    <div class="snw-topbar">
+        <div class="snw-topbar-left">
+            <button class="snw-page-icon" id="snwPageIcon" style="background:linear-gradient(135deg,#f59e0b,#ea580c)" title="Mostrar/Ocultar menú">
+                <svg fill="none" viewBox="0 0 24 24" stroke="#fff" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            </button>
+            <div>
+                <div class="snw-page-title">Alertas / Novedades</div>
+                <div class="snw-page-subtitle">{% if es_coordinador %}Novedades y hallazgos de su ámbito de responsabilidad{% else %}Novedades y hallazgos de toda la operación{% endif %}</div>
+            </div>
+        </div>
+        <a href="/matrices/" class="btn btn-ghost" style="font-size:.76rem;">‹ Matrices</a>
+    </div>
+
+    <div class="content">
+        {% if es_coordinador %}
+            {% if ambito and ambito['items'] %}
+            <div class="card">
+                <div class="card-title">Su ámbito de responsabilidad</div>
+                <div class="chips">
+                    {% for it in ambito['items'] %}
+                    <span class="chip {{ 'chip-inst' if it.tipo == 'instalacion' else '' }}">{{ 'Instalación' if it.tipo == 'instalacion' else 'Cliente' }} · {{ it.nombre }}</span>
+                    {% endfor %}
+                </div>
+                <div class="muted" style="margin-top:.6rem;">Solo se muestran las alertas de estos clientes e instalaciones. Un cliente cubre todas sus instalaciones.</div>
+            </div>
+            {% else %}
+            <div class="aviso">No tiene un ámbito de responsabilidad asignado todavía, por lo que no verá alertas. Solicite al Administrador que le asigne clientes o instalaciones desde el Panel de Administración.</div>
+            {% endif %}
+        {% endif %}
+
+        <div class="card">
+            <div class="filtros">
+                <div class="field">
+                    <label for="fCliente">Cliente</label>
+                    <select id="fCliente"><option value="">Todos</option></select>
+                </div>
+                <div class="field">
+                    <label for="fPropiedad">Instalación</label>
+                    <select id="fPropiedad"><option value="">Todas</option></select>
+                </div>
+                <div class="field">
+                    <label for="fTipo">Tipo de novedad</label>
+                    <select id="fTipo">
+                        <option value="">Todas</option>
+                        <option value="asignacion">Hallazgos asignados</option>
+                        <option value="incidente">Incidentes</option>
+                        <option value="supervision">Supervisiones</option>
+                        <option value="compromiso">Compromisos de visitas</option>
+                        <option value="otras">Otras alertas operativas</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn btn-primary" id="btnActualizar">Actualizar</button>
+                </div>
+            </div>
+            <div class="muted" style="margin-top:.6rem;">Toque "Ver detalle" para abrir el registro con su evidencia, quién lo registró y cuándo; desde ahí también se asigna o reasigna el hallazgo. Todas las acciones quedan en la trazabilidad.</div>
+        </div>
+
+        <div class="resumen">
+            <div class="pill"><div class="pill-num rojo" id="numRojas">–</div><div class="pill-lbl">Críticas</div></div>
+            <div class="pill"><div class="pill-num naranja" id="numNaranjas">–</div><div class="pill-lbl">Prioritarias</div></div>
+            <div class="pill"><div class="pill-num amarillo" id="numAmarillas">–</div><div class="pill-lbl">Atención</div></div>
+            <div class="pill"><div class="pill-num" id="numTotal">–</div><div class="pill-lbl">Total pendientes</div></div>
+        </div>
+
+        <div id="listas"><div class="vacio"><div class="muted">Cargando alertas…</div></div></div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
+<script>
+(function () {
+    const ES_COORDINADOR = {{ 'true' if es_coordinador else 'false' }};
+    const ESTADOS_INC = ['Reportado', 'En proceso', 'En revisión', 'Cerrado', 'Resuelto'];
+    const TITULOS = {
+        'reporte_incidente': 'Reporte de Incidente',
+        'supervision_puesto': 'Detalle de Supervisión',
+        'checklist_cumplimiento': 'Detalle de Cumplimiento',
+        'medicion_experiencia_cliente': 'Detalle de Encuesta de Satisfacción',
+        'registro_y_acta_de_visita': 'Detalle de Visita y Compromisos',
+        'confiabilidad_equipos': 'Detalle de Confiabilidad de Equipos',
+        'informe_novedades_disciplinario': 'Detalle de Informe Disciplinario',
+        'planilla_vehicular': 'Detalle de Pre-operacional de Vehículo',
+        'planilla_motocicletas': 'Detalle de Pre-operacional de Motocicleta',
+        'registro_de_capacitaciones': 'Detalle de Capacitación',
+        'log_de_patrullas': 'Detalle de Patrulla',
+    };
+    const ETIQUETA_TIPO = {
+        'reporte_incidente': 'Incidente', 'supervision_puesto': 'Supervisión',
+        'registro_y_acta_de_visita': 'Compromiso de visita', 'checklist_cumplimiento': 'Cumplimiento',
+        'medicion_experiencia_cliente': 'Satisfacción', 'confiabilidad_equipos': 'Equipos',
+        'informe_novedades_disciplinario': 'Disciplina', 'planilla_vehicular': 'Vehículo',
+        'planilla_motocicletas': 'Motocicleta', 'estatus_cliente': 'Estatus de cliente',
+    };
+    const listas = document.getElementById('listas');
+    const fCliente = document.getElementById('fCliente');
+    const fPropiedad = document.getElementById('fPropiedad');
+    const fTipo = document.getElementById('fTipo');
+    const registro = [];
+    const viewers = {};
+    let propiedadesTodas = [];
+    let alertas = [];
+
+    function esc(v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function csrf() {
+        const fila = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+        return fila ? decodeURIComponent(fila.substring('csrf_access_token='.length)) : '';
+    }
+    function relTime(iso) {
+        if (!iso) return '';
+        const d = new Date(iso); if (isNaN(d)) return '';
+        const h = Math.round((Date.now() - d.getTime()) / 36e5);
+        if (h < 1) return 'hace minutos';
+        if (h < 48) return `hace ${h} h`;
+        return `hace ${Math.round(h / 24)} días`;
+    }
+    function visor(formType) {
+        if (!viewers[formType]) {
+            viewers[formType] = createDashboardRecordViewer({ formType, recordTitle: TITULOS[formType] || 'Detalle del Registro' });
+        }
+        return viewers[formType];
+    }
+    function categoria(a) {
+        if (a.asignacion_id || a.regla === 'asignacion') return 'asignacion';
+        if (a.form_type === 'reporte_incidente') return 'incidente';
+        if (a.form_type === 'supervision_puesto') return 'supervision';
+        if (a.form_type === 'registro_y_acta_de_visita') return 'compromiso';
+        return 'otras';
+    }
+    function color(a) {
+        return a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja'
+             : a.color_semaforo === 'verde' ? 'verde' : 'amarillo';
+    }
+
+    async function cargarFiltros() {
+        try {
+            const res = await fetch('/cgeo/api/filtros', { credentials: 'include' });
+            const d = await res.json();
+            (d.clientes || []).forEach(c => fCliente.insertAdjacentHTML('beforeend', `<option value="${esc(c.id)}">${esc(c.name)}</option>`));
+            propiedadesTodas = d.propiedades || [];
+            pintarPropiedades();
+        } catch (e) { /* los selects quedan en "Todos" */ }
+    }
+    function pintarPropiedades() {
+        const cid = fCliente.value;
+        fPropiedad.innerHTML = '<option value="">Todas</option>';
+        propiedadesTodas
+            .filter(p => !cid || String(p.customer_company_id) === String(cid))
+            .forEach(p => fPropiedad.insertAdjacentHTML('beforeend', `<option value="${esc(p.id)}">${esc(p.name)}</option>`));
+    }
+
+    async function cargar() {
+        listas.classList.add('cargando');
+        const params = new URLSearchParams();
+        if (fCliente.value) params.set('cliente', fCliente.value);
+        if (fPropiedad.value) params.set('propiedad', fPropiedad.value);
+        try {
+            const res = await fetch('/cgeo/api/alertas' + (params.toString() ? '?' + params : ''), { credentials: 'include', headers: { Accept: 'application/json' } });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || 'No se pudieron cargar las alertas.');
+            alertas = Array.isArray(d.alertas) ? d.alertas : [];
+            render();
+        } catch (e) {
+            listas.innerHTML = `<div class="vacio"><div class="vacio-icon">⚠️</div><div class="muted">${esc(e.message)}</div></div>`;
+        } finally {
+            listas.classList.remove('cargando');
+        }
+    }
+
+    function render() {
+        const tipo = fTipo.value;
+        const visibles = alertas.filter(a => !tipo || categoria(a) === tipo);
+        const set = (id, v) => { document.getElementById(id).textContent = v; };
+        set('numRojas', alertas.filter(a => color(a) === 'rojo').length);
+        set('numNaranjas', alertas.filter(a => color(a) === 'naranja').length);
+        set('numAmarillas', alertas.filter(a => color(a) === 'amarillo').length);
+        set('numTotal', alertas.length);
+        registro.length = 0;
+        if (!visibles.length) {
+            listas.innerHTML = `<div class="vacio"><div class="vacio-icon">✅</div><div class="vacio-txt">Sin novedades pendientes</div><div class="vacio-sub">${ES_COORDINADOR ? 'No hay alertas en su ámbito para los filtros indicados.' : 'No hay alertas para los filtros indicados.'}</div></div>`;
+            return;
+        }
+        const grupos = [['rojo', '🔴 Críticas'], ['naranja', '🟠 Prioritarias'], ['amarillo', '🟡 Atención'], ['verde', '🟢 Informativas']];
+        listas.innerHTML = grupos.map(([c, titulo]) => {
+            const items = visibles.filter(a => color(a) === c);
+            if (!items.length) return '';
+            return `<div class="grupo"><div class="grupo-titulo">${titulo} · ${items.length}</div><div class="alertas-list">${items.map(fila).join('')}</div></div>`;
+        }).join('');
+    }
+
+    function fila(a) {
+        const ref = registro.push(a) - 1;
+        const c = color(a);
+        const tieneRegistro = a.record_id && a.form_type && a.form_type !== 'estatus_cliente';
+        const badges = [];
+        if (a.form_type && ETIQUETA_TIPO[a.form_type]) badges.push(`<span class="badge badge-tipo">${esc(ETIQUETA_TIPO[a.form_type])}</span>`);
+        if (c === 'naranja') badges.push('<span class="badge badge-prioridad">Prioritaria</span>');
+        if (a.vencida) badges.push('<span class="badge badge-vencida">Vencida</span>');
+        if (a.estado && a.estado !== 'Abierto') badges.push(`<span class="badge badge-estado">${esc(a.estado)}${a.responsable_asignado || a.responsable ? ' · ' + esc(a.responsable_asignado || a.responsable) : ''}</span>`);
+        const acciones = [];
+        if (tieneRegistro) acciones.push(`<button type="button" class="btn btn-mini btn-azul" data-accion="detalle" data-ref="${ref}">Ver detalle</button>`);
+        if (a.asignacion_id) acciones.push(`<button type="button" class="btn btn-mini btn-verde" data-accion="gestionar" data-ref="${ref}">✓ Gestionar</button>`);
+        if (a.form_type === 'reporte_incidente' && a.record_id) acciones.push(`<button type="button" class="btn btn-mini btn-gris" data-accion="estado" data-ref="${ref}">Cambiar estado</button>`);
+        if (a.form_type === 'registro_y_acta_de_visita' && a.record_id && /^r(9|10)_/.test(String(a.id))) acciones.push(`<button type="button" class="btn btn-mini btn-gris" data-accion="compromiso" data-ref="${ref}">Marcar cumplido</button>`);
+        if ((a.form_type === 'reporte_incidente' || a.form_type === 'registro_y_acta_de_visita') && a.record_id) acciones.push(`<button type="button" class="btn btn-mini btn-gris" data-accion="historial" data-ref="${ref}">Historial</button>`);
+        return `<div class="alerta" data-ref="${ref}">
+            <div class="alerta-dot dot-${c}"></div>
+            <div class="alerta-cuerpo">
+                <div class="alerta-texto">${esc(a.texto)}</div>
+                ${a.motivo && a.motivo !== a.texto ? `<div class="alerta-motivo">${esc(a.motivo)}</div>` : ''}
+                <div class="alerta-meta">${badges.join('')}<span class="alerta-ts">${esc(relTime(a.timestamp))}</span></div>
+                <div class="alerta-acciones">${acciones.join('')}</div>
+                <div class="panel-estado" id="estado-${ref}"></div>
+                <div class="historial" id="hist-${ref}"></div>
+            </div>
+        </div>`;
+    }
+
+    async function post(url, metodo, body) {
+        const res = await fetch(url, { method: metodo, credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() }, body: JSON.stringify(body || {}) });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d.error || d.message || 'No se pudo completar la acción.');
+        return d;
+    }
+
+    function panelEstado(ref, a) {
+        const panel = document.getElementById(`estado-${ref}`);
+        if (panel.classList.contains('open')) { panel.classList.remove('open'); return; }
+        const actual = a.estado || 'Reportado';
+        panel.innerHTML = `<label>Nuevo estado</label>
+            <select>${ESTADOS_INC.map(e => `<option value="${e}" ${e === actual ? 'selected' : ''}>${e}</option>`).join('')}</select>
+            <label>Acción tomada</label><input type="text" placeholder="Qué se hizo para gestionarlo">
+            <button type="button" class="btn btn-mini btn-primary">Guardar</button>`;
+        panel.classList.add('open');
+        panel.querySelector('button').onclick = async function () {
+            this.disabled = true;
+            try {
+                await post(`/dashboard/api/incidentes/${a.record_id}/estado`, 'PUT',
+                    { estado: panel.querySelector('select').value, accion_tomada: panel.querySelector('input').value.trim() });
+                cargar();
+            } catch (e) { alert(e.message); this.disabled = false; }
+        };
+    }
+
+    async function marcarCompromiso(a) {
+        const partes = String(a.id).split('_');
+        const bloque = partes.length >= 3 ? partes[2] : null;
+        if (bloque === null) { alert('No se pudo identificar el compromiso.'); return; }
+        const accion = prompt('¿Qué se hizo para cumplir el compromiso? (opcional)') ;
+        if (accion === null) return;
+        try {
+            await post(`/dashboard/api/visitas/${a.record_id}/estado`, 'PUT', { bloque_idx: bloque, estado: 'cumplido', accion_tomada: accion.trim() });
+            cargar();
+        } catch (e) { alert(e.message); }
+    }
+
+    async function gestionar(a, btn) {
+        const nota = prompt('Marcar el hallazgo como gestionado. Nota (opcional):');
+        if (nota === null) return;
+        btn.disabled = true;
+        try {
+            await post(`/cgeo/api/asignaciones/${a.asignacion_id}/gestionar`, 'POST', { nota: nota.trim() });
+            cargar();
+        } catch (e) { alert(e.message); btn.disabled = false; }
+    }
+
+    async function historial(ref, a) {
+        const box = document.getElementById(`hist-${ref}`);
+        if (box.classList.contains('open')) { box.classList.remove('open'); return; }
+        box.innerHTML = '<div class="muted">Cargando…</div>';
+        box.classList.add('open');
+        const modulo = a.form_type === 'reporte_incidente' ? 'incidentes' : 'visitas';
+        try {
+            const res = await fetch(`/dashboard/api/${modulo}/${a.record_id}/historial`, { credentials: 'include' });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || 'No se pudo cargar el historial.');
+            const filas = Array.isArray(d) ? d : (d.historial || d.items || d.data || []);
+            if (!filas.length) { box.innerHTML = '<div class="muted">Sin ediciones registradas para este registro.</div>'; return; }
+            box.innerHTML = filas.map(h => `<div class="h-fila"><strong>${esc(h.fecha_hora || h.fecha || '')}</strong> · ${esc(h.usuario_email || h.usuario || '')}
+                ${h.campo ? ` · <em>${esc(h.campo)}</em>: ${esc(h.valor_anterior ?? '')} → ${esc(h.valor_nuevo ?? '')}` : ''}
+                ${h.motivo ? ` · ${esc(h.motivo)}` : ''}</div>`).join('');
+        } catch (e) { box.innerHTML = `<div class="muted">${esc(e.message)}</div>`; }
+    }
+
+    listas.addEventListener('click', function (ev) {
+        const btn = ev.target.closest('button[data-accion]');
+        if (!btn) return;
+        const a = registro[Number(btn.dataset.ref)];
+        if (!a) return;
+        const ref = Number(btn.dataset.ref);
+        switch (btn.dataset.accion) {
+            case 'detalle':
+                visor(a.form_type).openRecord(a.record_id, { motivo: a.motivo || a.texto, hallazgoRef: a.id || '', hallazgoTitulo: a.hallazgo_titulo || a.texto || '' });
+                break;
+            case 'gestionar': gestionar(a, btn); break;
+            case 'estado': panelEstado(ref, a); break;
+            case 'compromiso': marcarCompromiso(a); break;
+            case 'historial': historial(ref, a); break;
+        }
+    });
+    document.getElementById('btnActualizar').addEventListener('click', cargar);
+    fCliente.addEventListener('change', function () { pintarPropiedades(); cargar(); });
+    fPropiedad.addEventListener('change', cargar);
+    fTipo.addEventListener('change', render);
+
+    cargarFiltros().then(cargar);
+})();
+</script>
+</body>
+</html>

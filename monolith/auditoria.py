@@ -231,7 +231,8 @@ _reg('expediente.public_evidence_viewer',    _e('Vista pública (QR)', 'publico'
                                                 'supervision_puesto'))
 
 # Matrices
-_reg('matrices_bp.matrices_hub', _e('Consultar Matrices', 'consulta', 'Consulta de módulo'))
+_reg('matrices_bp.matrices_hub',     _e('Consultar Matrices', 'consulta', 'Consulta de módulo'))
+_reg('matrices_bp.matrices_alertas', _e('Consultar Matrices', 'consulta', 'Consulta de Alertas / Novedades', args=True))
 
 # Administración
 _reg('admin_bp.panel',                 _e('Panel de Administración', 'consulta', 'Consulta del panel'))

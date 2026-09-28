@@ -155,10 +155,15 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <a href="/dashboard/gestion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/gestion') else '' }}">Estatus de Cliente</a>
         </div>
         {% endif %}
-        <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') else '' }}">
+        <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') and not request.path.startswith('/matrices/alertas') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
             Consultar Matrices
         </a>
+        {# Alertas / Novedades: el Coordinador gestiona aquí lo de su ámbito; el
+           Administrador también la ve, además del Morning Briefing. #}
+        {% if is_admin or is_coordinador %}
+        <a href="/matrices/alertas" class="snw-subitem {{ 'active' if request.path.startswith('/matrices/alertas') else '' }}">Alertas / Novedades</a>
+        {% endif %}
         {# Bandeja del usuario. Va fuera del bloque de administrador: cualquier rol
            puede recibir un hallazgo, y aquí sólo ve los suyos. El distintivo lo
            rellena snwCargarHallazgos() al cargar la página. #}

@@ -276,6 +276,37 @@ body.light-mode .theme-toggle:hover{background-color:rgba(0,0,0,0.2)}
         </div>
 
         <div class="matrices-grid">
+            {% if is_admin or is_coordinador %}
+            <!-- Alertas / Novedades: el Coordinador gestiona aquí lo de su ámbito -->
+            <a href="/matrices/alertas" class="matrix-card border-orange" id="alertasCard">
+                <div class="matrix-card-header">
+                    <div>
+                        <div class="matrix-card-title">Alertas / Novedades</div>
+                        <div class="matrix-card-desc">Hallazgos, incidentes, supervisiones y compromisos que requieren gestión{% if is_coordinador %} en su ámbito{% endif %}.</div>
+                    </div>
+                    <div class="matrix-card-icon icon-amber">🔔</div>
+                </div>
+                <div class="matrix-stats">
+                    <div class="stat-pill">
+                        <span class="stat-num text-red" id="alertasRojas"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Críticas</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num text-amber" id="alertasNaranjas"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Prioritarias</span>
+                    </div>
+                    <div class="stat-pill">
+                        <span class="stat-num" id="alertasTotal"><span class="loading-shimmer"></span></span>
+                        <span class="stat-lbl">Pendientes</span>
+                    </div>
+                </div>
+                <div class="matrix-action">
+                    <span class="matrix-action-text">Ver alertas y novedades</span>
+                    <svg class="matrix-action-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                </div>
+            </a>
+            {% endif %}
+
             <!-- Incidentes -->
             <a href="/dashboard/incidentes/" class="matrix-card border-orange">
                 <div class="matrix-card-header">
@@ -337,6 +368,24 @@ body.light-mode .theme-toggle:hover{background-color:rgba(0,0,0,0.2)}
 <script>
 let _picker = null;
 let _pickerRange = { from: null, to: null };
+
+// Contadores de la card de Alertas / Novedades: mismo endpoint que el Morning
+// Briefing; para el Coordinador el servidor ya lo acota a su ámbito.
+async function loadAlertCounts() {
+    if (!document.getElementById('alertasCard')) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    try {
+        const res = await fetch('/cgeo/api/alertas', { credentials: 'include', headers: { Accept: 'application/json' } });
+        const data = await res.json();
+        const alertas = Array.isArray(data.alertas) ? data.alertas : [];
+        set('alertasRojas', alertas.filter(a => a.color_semaforo === 'rojo').length);
+        set('alertasNaranjas', alertas.filter(a => a.color_semaforo === 'naranja').length);
+        set('alertasTotal', alertas.length);
+    } catch (e) {
+        set('alertasRojas', '—'); set('alertasNaranjas', '—'); set('alertasTotal', '—');
+    }
+}
+document.addEventListener('DOMContentLoaded', loadAlertCounts);
 
 async function loadStats() {
     try {
