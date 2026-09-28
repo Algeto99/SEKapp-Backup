@@ -13,6 +13,8 @@ import psycopg2.extras
 from db import get_db_connection
 from auditoria import (TIPOS_EVENTO, FORMULARIOS, ESTADOS, modulos as auditoria_modulos,
                        acciones as auditoria_acciones, leer_filtros, consultar_eventos, iterar_eventos)
+from coordinador import (asegurar_esquema as asegurar_coordinador, rol_disponible as rol_coordinador_disponible,
+                         cargar_ambito)
 
 app_logger = logging.getLogger(__name__)
 
@@ -82,13 +84,23 @@ def panel():
     conn = None
     try:
         conn = get_db_connection()
+        asegurar_coordinador(conn)
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("""
-            SELECT id, name, email, phone_number,
-                   is_admin, is_super_admin, is_active, company_id, created_at,
-                   force_password_change
-            FROM users ORDER BY created_at DESC
-        """)
+        if rol_coordinador_disponible(conn):
+            cur.execute("""
+                SELECT id, name, email, phone_number,
+                       is_admin, is_super_admin, is_active, company_id, created_at,
+                       force_password_change, is_coordinador,
+                       (SELECT COUNT(*) FROM coordinador_ambito a WHERE a.user_id = users.id) AS ambito_n
+                FROM users ORDER BY created_at DESC
+            """)
+        else:
+            cur.execute("""
+                SELECT id, name, email, phone_number,
+                       is_admin, is_super_admin, is_active, company_id, created_at,
+                       force_password_change, FALSE AS is_coordinador, 0 AS ambito_n
+                FROM users ORDER BY created_at DESC
+            """)
         users = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT id, name, enabled_modules FROM companies WHERE is_active = TRUE ORDER BY name")
         companies = [dict(r) for r in cur.fetchall()]
@@ -124,6 +136,7 @@ def create_user():
     phone = request.form.get('phone_number', '').strip()
     password = request.form.get('password', '').strip()
     is_admin = request.form.get('is_admin') == '1'
+    is_coordinador = request.form.get('is_coordinador') == '1'
     company_id = request.form.get('company_id') or None
 
     if not all([name, email, password]):
@@ -145,12 +158,22 @@ def create_user():
 
         force_pw = request.form.get('force_password_change') == '1'
         hashed = bcrypt.generate_password_hash(password).decode('utf-8')
-        cur.execute(
-            """INSERT INTO users (name, email, phone_number, password_hash,
-                                  is_admin, is_active, company_id, force_password_change)
-               VALUES (%s, %s, %s, %s, %s, TRUE, %s, %s)""",
-            (name, email, phone or None, hashed, is_admin, company_id, force_pw)
-        )
+        if rol_coordinador_disponible(conn):
+            cur.execute(
+                """INSERT INTO users (name, email, phone_number, password_hash,
+                                      is_admin, is_active, company_id, force_password_change, is_coordinador)
+                   VALUES (%s, %s, %s, %s, %s, TRUE, %s, %s, %s)""",
+                (name, email, phone or None, hashed, is_admin, company_id, force_pw, is_coordinador)
+            )
+        else:
+            cur.execute(
+                """INSERT INTO users (name, email, phone_number, password_hash,
+                                      is_admin, is_active, company_id, force_password_change)
+                   VALUES (%s, %s, %s, %s, %s, TRUE, %s, %s)""",
+                (name, email, phone or None, hashed, is_admin, company_id, force_pw)
+            )
+            if is_coordinador:
+                flash('La columna de Coordinador no existe en la base: correr sql/create_coordinador.sql.', 'error')
         conn.commit()
         cur.close()
         app_logger.info(f"Super admin created user {email}")
@@ -196,6 +219,134 @@ def toggle_admin(user_id):
             conn.rollback()
         app_logger.error(f"Error toggling admin: {e}", exc_info=True)
         flash('Error al actualizar el rol. Intente nuevamente.', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.panel'))
+
+
+@admin_bp.route('/users/<int:user_id>/toggle-coordinador', methods=['POST'])
+@jwt_required()
+def toggle_coordinador(user_id):
+    """Alterna el rol de Coordinador. El ámbito se administra aparte (ver `ambito`)."""
+    if not _is_super_admin():
+        return redirect('/landing/')
+    conn = None
+    try:
+        conn = get_db_connection()
+        asegurar_coordinador(conn)
+        if not rol_coordinador_disponible(conn):
+            flash('La columna de Coordinador no existe en la base: correr sql/create_coordinador.sql.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT email, is_coordinador, is_super_admin FROM users WHERE id = %s', (user_id,))
+        user = cur.fetchone()
+        if not user:
+            flash('Usuario no encontrado.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+        if user['is_super_admin']:
+            flash('No se puede modificar el rol de un super administrador.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+        new_val = not user['is_coordinador']
+        cur.execute('UPDATE users SET is_coordinador = %s, updated_at = NOW() WHERE id = %s', (new_val, user_id))
+        conn.commit()
+        cur.close()
+        app_logger.info(f"Super admin set user {user['email']} is_coordinador={new_val}")
+        if new_val:
+            flash(f'{user["email"]} ahora es Coordinador. Asígnele su ámbito de responsabilidad.', 'success')
+            return redirect(url_for('admin_bp.ambito', user_id=user_id))
+        flash(f'{user["email"]} dejó de ser Coordinador.', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error toggling coordinador: {e}", exc_info=True)
+        flash('Error al actualizar el rol. Intente nuevamente.', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.panel'))
+
+
+@admin_bp.route('/users/<int:user_id>/ambito', methods=['GET'])
+@jwt_required()
+def ambito(user_id):
+    """Editor del ámbito de un Coordinador: clientes e instalaciones asignadas."""
+    if not _is_super_admin():
+        return redirect('/landing/')
+    conn = None
+    try:
+        conn = get_db_connection()
+        asegurar_coordinador(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT id, name, email FROM users WHERE id = %s', (user_id,))
+        user = cur.fetchone()
+        if not user:
+            flash('Usuario no encontrado.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+        cur.execute("SELECT id, name FROM customer_companies WHERE is_active IS DISTINCT FROM FALSE ORDER BY name")
+        clientes = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT id_propiedad AS id, nombre, customer_company_id FROM propiedades "
+                    "WHERE activa IS DISTINCT FROM FALSE ORDER BY nombre")
+        propiedades = [dict(r) for r in cur.fetchall()]
+        cur.close()
+        for c in clientes:
+            c['propiedades'] = [p for p in propiedades if p['customer_company_id'] == c['id']]
+        sin_cliente = [p for p in propiedades if p['customer_company_id'] is None
+                       or p['customer_company_id'] not in {c['id'] for c in clientes}]
+        actual = cargar_ambito(conn, user['email'])
+        claims = get_jwt()
+        return render_template(
+            'admin_ambito.html',
+            usuario=dict(user),
+            clientes=clientes,
+            sin_cliente=sin_cliente,
+            clientes_sel=set(actual['clientes']),
+            propiedades_sel=set(actual['propiedades']),
+            user_name=claims.get('name', get_jwt_identity()),
+            is_admin=True,
+        )
+    except Exception as e:
+        return _error_page(e, 'Ámbito del Coordinador')
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/users/<int:user_id>/ambito', methods=['POST'])
+@jwt_required()
+def guardar_ambito(user_id):
+    """Reemplaza el ámbito completo del usuario con lo marcado en el formulario."""
+    if not _is_super_admin():
+        return redirect('/landing/')
+    clientes = [int(v) for v in request.form.getlist('clientes') if str(v).isdigit()]
+    propiedades = [int(v) for v in request.form.getlist('propiedades') if str(v).isdigit()]
+    conn = None
+    try:
+        conn = get_db_connection()
+        asegurar_coordinador(conn)
+        cur = conn.cursor()
+        cur.execute('SELECT email FROM users WHERE id = %s', (user_id,))
+        fila = cur.fetchone()
+        if not fila:
+            flash('Usuario no encontrado.', 'error')
+            return redirect(url_for('admin_bp.panel'))
+        cur.execute('DELETE FROM coordinador_ambito WHERE user_id = %s', (user_id,))
+        quien = get_jwt_identity()
+        for cid in clientes:
+            cur.execute('INSERT INTO coordinador_ambito (user_id, customer_company_id, creado_por) VALUES (%s, %s, %s)',
+                        (user_id, cid, quien))
+        for pid in propiedades:
+            cur.execute('INSERT INTO coordinador_ambito (user_id, id_propiedad, creado_por) VALUES (%s, %s, %s)',
+                        (user_id, pid, quien))
+        conn.commit()
+        cur.close()
+        app_logger.info(f"Ámbito de {fila[0]} actualizado por {quien}: clientes={clientes} propiedades={propiedades}")
+        flash(f'Ámbito de {fila[0]} guardado: {len(clientes)} cliente(s) y {len(propiedades)} instalación(es).', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error guardando ámbito: {e}", exc_info=True)
+        flash('Error al guardar el ámbito. Intente nuevamente.', 'error')
     finally:
         if conn:
             conn.close()

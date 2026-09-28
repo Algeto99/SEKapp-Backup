@@ -142,6 +142,7 @@
         .theme-toggle:hover { background-color: rgba(255,255,255,0.2); transform: scale(1.05); }
         .theme-toggle svg { width: 1.25rem; height: 1.25rem; }
         body.light-mode .theme-toggle { background-color: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.15); color: #334155; }
+            .badge-coord { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -222,6 +223,10 @@
                 <div class="form-group checkbox-row">
                     <input type="checkbox" name="is_admin" value="1" id="new_is_admin">
                     <label for="new_is_admin">Es administrador</label>
+                </div>
+                <div class="form-group checkbox-row">
+                    <input type="checkbox" name="is_coordinador" value="1" id="new_is_coordinador">
+                    <label for="new_is_coordinador" title="Gestiona novedades y hallazgos de su ámbito desde Matrices, sin Morning Briefing">Es coordinador</label>
                 </div>
                 <div class="form-group checkbox-row">
                     <input type="checkbox" name="force_password_change" value="1" id="new_force_pw" checked>
@@ -332,6 +337,9 @@
                                 <span class="badge badge-purple">Super Admin</span>
                             {% elif u.is_admin %}
                                 <span class="badge badge-blue">Admin</span>
+                            {% elif u.is_coordinador %}
+                                <span class="badge badge-coord">Coordinador</span>
+                                <a href="{{ url_for('admin_bp.ambito', user_id=u.id) }}" class="badge badge-gray" style="text-decoration:none;" title="Editar clientes e instalaciones asignadas">Ámbito: {{ u.ambito_n or 0 }}</a>
                             {% else %}
                                 <span class="badge badge-gray">Usuario</span>
                             {% endif %}
@@ -362,6 +370,13 @@
                                     <button type="submit" class="btn btn-sm {{ 'btn-warning' if u.is_admin else 'btn-ghost' }}"
                                         title="{{ 'Quitar admin' if u.is_admin else 'Hacer admin' }}">
                                         {{ '↓ Admin' if u.is_admin else '↑ Admin' }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin_bp.toggle_coordinador', user_id=u.id) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
+                                    <button type="submit" class="btn btn-sm {{ 'btn-warning' if u.is_coordinador else 'btn-ghost' }}"
+                                        title="{{ 'Quitar rol de Coordinador' if u.is_coordinador else 'Hacer Coordinador' }}">
+                                        {{ '↓ Coord' if u.is_coordinador else '↑ Coord' }}
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('admin_bp.toggle_active', user_id=u.id) }}" style="display:inline;">

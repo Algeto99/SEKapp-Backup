@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ámbito del Coordinador · Kanan Sentinel SekApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background: #0f172a; color: #e2e8f0; }
+        h1,h2,h3,h4 { font-family: 'Merriweather', serif; }
+        .main-content { padding: 1.5rem 1rem 4rem; max-width: 900px; }
+        @media (min-width: 768px) { .main-content { padding: 2rem 2rem 4rem; } }
+        .card { background:rgba(30,41,59,.7); border:1px solid rgba(255,255,255,.08); border-radius:.75rem; padding:1.25rem 1.5rem; margin-bottom:1.5rem; }
+        .card-title { font-size:.9rem; font-weight:700; color:#cbd5e1; margin-bottom:1rem; display:flex; align-items:center; gap:.5rem; }
+        .info-note { font-size:.78rem; color:#94a3b8; background:rgba(15,23,42,.5); border:1px solid rgba(255,255,255,.06); border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1.5rem; line-height:1.5; }
+        .flash { padding:.75rem 1rem; border-radius:.5rem; margin-bottom:1.25rem; font-size:.875rem; }
+        .flash.success { background:#14532d; color:#86efac; border:1px solid #16a34a; }
+        .flash.error   { background:#450a0a; color:#fca5a5; border:1px solid #dc2626; }
+        .cliente { border:1px solid rgba(255,255,255,.08); border-radius:.6rem; padding:.75rem 1rem; margin-bottom:.75rem; background:rgba(15,23,42,.4); }
+        .cliente-head { display:flex; align-items:center; gap:.6rem; font-weight:700; font-size:.9rem; color:#e2e8f0; }
+        .cliente-head input { width:16px; height:16px; }
+        .props { margin:.5rem 0 0 1.6rem; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.35rem .75rem; }
+        .props label { display:flex; align-items:center; gap:.45rem; font-size:.82rem; color:#cbd5e1; }
+        .props input { width:14px; height:14px; }
+        .cliente.cubierto .props label { color:#64748b; }
+        .btn { display:inline-flex; align-items:center; gap:.4rem; padding:.6rem 1.25rem; border-radius:.5rem; font-size:.85rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; }
+        .btn-primary { background:#0ea5e9; color:#fff; }
+        .btn-ghost   { background:rgba(255,255,255,.07); color:#cbd5e1; border:1px solid rgba(255,255,255,.1); }
+        .actions-row { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; margin-top:1.5rem; }
+        .resumen { font-size:.8rem; color:#94a3b8; margin-top:.5rem; }
+        body.light-mode { background:#f8fafc; color:#0f172a; }
+        body.light-mode .card { background:#fff; border-color:#e2e8f0; }
+        body.light-mode .card-title, body.light-mode .cliente-head { color:#0f172a; }
+        body.light-mode .cliente { background:#f8fafc; border-color:#e2e8f0; }
+        body.light-mode .props label { color:#334155; }
+        body.light-mode .info-note { background:#f8fafc; border-color:#e2e8f0; }
+        body.light-mode .btn-ghost { background:#fff; color:#334155; border-color:#cbd5e1; }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+</head>
+<body>
+{% set name = user_name %}
+{% include '_sidebar.html' %}
+
+<div class="sidebar-main-content">
+    <div class="snw-topbar">
+        <div class="snw-topbar-left">
+            <button class="snw-page-icon" id="snwPageIcon" style="background:rgba(245,158,11,.15);">
+                <svg fill="none" viewBox="0 0 24 24" stroke="#fbbf24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+            <div>
+                <div class="snw-page-title">Ámbito del Coordinador</div>
+                <div class="snw-page-subtitle">{{ usuario.name or usuario.email }} · {{ usuario.email }}</div>
+            </div>
+        </div>
+        <a href="/admin/" class="btn btn-ghost" style="font-size:.78rem;">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Panel Admin
+        </a>
+    </div>
+
+    <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for cat, msg in messages %}
+            <div class="flash {{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        <div class="info-note">
+            El Coordinador solo ve y gestiona las alertas y registros de los clientes e instalaciones
+            marcados aquí. Marcar un <strong>cliente</strong> cubre todas sus instalaciones, actuales y
+            futuras. Marcar una <strong>instalación</strong> suelta acota el ámbito a esa instalación.
+            Sin nada marcado, el Coordinador no ve ninguna alerta.
+        </div>
+
+        <form method="POST" action="{{ url_for('admin_bp.guardar_ambito', user_id=usuario.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ jwt_csrf_token }}">
+            <div class="card">
+                <div class="card-title">Clientes e instalaciones</div>
+                {% if not clientes and not sin_cliente %}
+                <div class="resumen">No hay clientes ni instalaciones registrados todavía.</div>
+                {% endif %}
+                {% for c in clientes %}
+                <div class="cliente {{ 'cubierto' if c.id in clientes_sel else '' }}" data-cliente="{{ c.id }}">
+                    <label class="cliente-head">
+                        <input type="checkbox" name="clientes" value="{{ c.id }}" {{ 'checked' if c.id in clientes_sel }} onchange="this.closest('.cliente').classList.toggle('cubierto', this.checked)">
+                        {{ c.name }}
+                        <span class="resumen" style="margin:0;font-weight:400;">· {{ c.propiedades | length }} instalación(es)</span>
+                    </label>
+                    {% if c.propiedades %}
+                    <div class="props">
+                        {% for p in c.propiedades %}
+                        <label><input type="checkbox" name="propiedades" value="{{ p.id }}" {{ 'checked' if p.id in propiedades_sel }}> {{ p.nombre }}</label>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if sin_cliente %}
+                <div class="cliente">
+                    <div class="cliente-head">Instalaciones sin cliente asociado</div>
+                    <div class="props">
+                        {% for p in sin_cliente %}
+                        <label><input type="checkbox" name="propiedades" value="{{ p.id }}" {{ 'checked' if p.id in propiedades_sel }}> {{ p.nombre }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="actions-row">
+                <button type="submit" class="btn btn-primary">Guardar ámbito</button>
+                <a href="/admin/" class="btn btn-ghost">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

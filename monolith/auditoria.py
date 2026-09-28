@@ -239,6 +239,10 @@ _reg('admin_bp.panel',                 _e('Panel de Administración', 'consulta'
 _reg('admin_bp.create_user',           _e('Panel de Administración', 'admin', 'Creación de usuario',
                                           form=('email', 'name', 'is_admin', 'company_id', 'force_password_change')), ('POST',))
 _reg('admin_bp.toggle_admin',          _e('Panel de Administración', 'admin', 'Cambio de rol de administrador'), ('POST',))
+_reg('admin_bp.toggle_coordinador',    _e('Panel de Administración', 'admin', 'Cambio de rol de coordinador'), ('POST',))
+_reg('admin_bp.ambito',                _e('Panel de Administración', 'consulta', 'Consulta de ámbito de coordinador'))
+_reg('admin_bp.guardar_ambito',        _e('Panel de Administración', 'admin', 'Modificación de ámbito de coordinador',
+                                          form=('clientes', 'propiedades')), ('POST',))
 _reg('admin_bp.toggle_company_module', _e('Panel de Administración', 'admin', 'Cambio de módulo de licencia',
                                           form=('module_key',)), ('POST',))
 _reg('admin_bp.toggle_active',         _e('Panel de Administración', 'admin', 'Activación o desactivación de usuario'), ('POST',))
