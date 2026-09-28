@@ -951,3 +951,48 @@ LEFT JOIN LATERAL jsonb_array_elements(
         ELSE '[]'::jsonb 
     END
 ) AS elem ON TRUE;
+
+-- Log de eventos (Administración → Auditoría). Lo escribe el hook de
+-- auditoria.py al terminar cada petición catalogada; la app nunca lo modifica
+-- ni lo borra y los triggers de abajo lo impiden también desde SQL. Las fechas
+-- van en UTC y la pantalla las muestra en la zona horaria de Umbrales KPI.
+-- Idempotente: auditoria.asegurar_tabla() corre lo mismo en producción.
+CREATE TABLE IF NOT EXISTS eventos_auditoria (
+    id             BIGSERIAL PRIMARY KEY,
+    fecha_hora     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    usuario_email  VARCHAR(255),            -- NULL en vistas públicas por QR
+    usuario_nombre VARCHAR(255),
+    licencia       VARCHAR(255),            -- nombre de la empresa de la instancia
+    sesion_jti     VARCHAR(64),             -- enlaza con sesiones_usuario.jti
+    tipo_evento    VARCHAR(40)  NOT NULL,   -- sesion | consulta | envio | edicion | estado | asignacion | descarga | admin | publico
+    modulo         VARCHAR(60)  NOT NULL,   -- sección de SEKapp tal como la ve el usuario
+    accion         VARCHAR(120) NOT NULL,   -- "Visualización de detalle", "Exportación a Excel", ...
+    formulario     VARCHAR(60),             -- form_type cuando aplica
+    registro_id    INTEGER,
+    detalle        JSONB,                   -- ids exportados, filtros, estado anterior/nuevo, ...
+    estado         VARCHAR(20)  NOT NULL,   -- Exitoso | Rechazado | No encontrado | Error | Pendiente
+    http_status    SMALLINT,
+    metodo_ruta    VARCHAR(200),
+    dispositivo    VARCHAR(20),             -- Computador | Celular | Tableta
+    user_agent     VARCHAR(300),
+    ip             VARCHAR(64),
+    origen         VARCHAR(20)  NOT NULL DEFAULT 'app'   -- app | retroactivo (backfill)
+);
+CREATE INDEX IF NOT EXISTS idx_eventos_auditoria_usuario_fecha ON eventos_auditoria (usuario_email, fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_eventos_auditoria_fecha         ON eventos_auditoria (fecha_hora DESC);
+CREATE INDEX IF NOT EXISTS idx_eventos_auditoria_registro      ON eventos_auditoria (formulario, registro_id);
+CREATE INDEX IF NOT EXISTS idx_eventos_auditoria_modulo_tipo   ON eventos_auditoria (modulo, tipo_evento, fecha_hora DESC);
+
+CREATE OR REPLACE FUNCTION eventos_auditoria_inmutable() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'eventos_auditoria es un registro de auditoría: no se permite %', TG_OP;
+END;
+$$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_eventos_auditoria_inmutable_fila ON eventos_auditoria;
+CREATE TRIGGER trg_eventos_auditoria_inmutable_fila
+    BEFORE UPDATE OR DELETE ON eventos_auditoria
+    FOR EACH ROW EXECUTE FUNCTION eventos_auditoria_inmutable();
+DROP TRIGGER IF EXISTS trg_eventos_auditoria_inmutable_truncate ON eventos_auditoria;
+CREATE TRIGGER trg_eventos_auditoria_inmutable_truncate
+    BEFORE TRUNCATE ON eventos_auditoria
+    FOR EACH STATEMENT EXECUTE FUNCTION eventos_auditoria_inmutable();

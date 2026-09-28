@@ -23,6 +23,7 @@ from expediente_bp import expediente_bp
 from admin_bp import admin_bp, init_admin_bp
 from cgeo_bp import cgeo_bp
 from matrices_bp import matrices_bp
+from auditoria import registrar_respuesta
 
 # --- Configure Logging ---
 logging.basicConfig(
@@ -260,6 +261,10 @@ app.register_blueprint(expediente_bp, url_prefix='')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(cgeo_bp, url_prefix='/cgeo')
 app.register_blueprint(matrices_bp, url_prefix='/matrices')
+
+# Log de eventos (Administración → Auditoría): al terminar cada petición se
+# registra si su endpoint está en auditoria.CATALOGO. Ver auditoria.py.
+app.after_request(registrar_respuesta)
 
 # JSON API blueprints — all routes are JWT-authenticated fetch calls, not browser forms.
 # JWT_COOKIE_CSRF_PROTECT=True provides double-submit protection for the JWT cookie itself.
