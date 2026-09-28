@@ -11,6 +11,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jw
 from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
+from auditoria import anotar
 from gcs_utils import resolve_upload_bucket
 from normalizacion import (clave_identificador, normalizar_nombre,
                           sql_clave_identificador, sql_clave_nombre)
@@ -4508,11 +4509,14 @@ def api_incidentes_update_estado(id_reporte):
 
         # SEKapp es single-tenant: no se filtra por company_id (regla del proyecto).
         cur.execute(
-            "SELECT 1 FROM reportes_incidentes WHERE id_reporte_incidente=%s",
+            "SELECT estado FROM reportes_incidentes WHERE id_reporte_incidente=%s",
             (id_reporte,)
         )
-        if not cur.fetchone():
+        actual = cur.fetchone()
+        if not actual:
             return jsonify({'error': 'Registro no encontrado'}), 404
+        anotar(detalle={'estado_anterior': actual['estado'], 'estado_nuevo': nuevo_estado,
+                        'accion_seguimiento': accion_seguimiento, 'con_evidencia': bool(evidencia_url)})
 
         if evidencia_url:
             cur.execute(
@@ -6590,6 +6594,10 @@ def api_visitas_update_estado(id_visita):
         if isinstance(existing, dict):
             existing_evidencia = existing.get('evidencia_url') or ''
 
+        anotar(detalle={'bloque_idx': bloque_idx,
+                        'estado_anterior': existing.get('estado') if isinstance(existing, dict) else None,
+                        'estado_nuevo': nuevo_estado, 'accion_tomada': accion_tomada,
+                        'con_evidencia': bool(evidencia_url)})
         estados[str(bloque_idx)] = {
             'estado': nuevo_estado,
             'accion_tomada': accion_tomada,

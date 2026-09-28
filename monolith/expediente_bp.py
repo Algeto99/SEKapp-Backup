@@ -20,6 +20,7 @@ except ImportError:
     QRCODE_AVAILABLE = False
 
 from db import get_db_connection
+from auditoria import anotar
 from email_utils import send_email
 from gcs_utils import (get_public_media_url,
                        verify_media_token, _get_storage_client)
@@ -1204,6 +1205,7 @@ def public_expediente_viewer(token):
     company_id    = payload.get('cid') or None
     if company_id == 0:
         company_id = None
+    anotar(detalle={'cliente': cliente, 'propiedad_id': prop_id, 'dias': days, 'modulo_filtro': module_filter})
 
     conn = cur = None
     try:
@@ -1384,6 +1386,7 @@ def public_evidence_viewer(hash_token):
         return render_template('error.html', message='Enlace inválido o expirado.'), 400
 
     id_supervision = payload.get('sid')
+    anotar(registro_id=id_supervision if isinstance(id_supervision, int) else None)
     conn = cur = None
     try:
         conn = get_db_connection()

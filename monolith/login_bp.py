@@ -18,6 +18,7 @@ import psycopg2
 from db import get_db_connection
 from email_utils import send_password_reset_email, send_registration_notification
 from extensions import limiter
+from auditoria import anotar
 
 # --- Initialize Blueprint ---
 login_bp = Blueprint('login_bp', __name__)
@@ -477,6 +478,8 @@ def login():
             auth_entry = None
 
             if user and not user['is_active']:
+                anotar(usuario_email=email, accion='Inicio de sesión fallido', estado='Rechazado',
+                       detalle={'motivo': 'usuario inactivo'})
                 flash("Credenciales inválidas", "danger")
                 cur.close()
                 return render_template('login.html')
@@ -520,6 +523,8 @@ def login():
                             additional_claims={'force_pw': True, 'name': user['name']}
                             # is_admin / is_super_admin intentionally omitted
                         )
+                        anotar(usuario_email=user['email'], usuario_nombre=user['name'],
+                               detalle={'cambio_de_clave_pendiente': True})
                         response = redirect(url_for('login_bp.change_password', forced='1'))
                         set_access_cookies(response, limited_token)
                         return response
@@ -540,6 +545,9 @@ def login():
                             cur.close()
                             _guardar_login_pendiente(
                                 user['email'], request.args.get('next') or request.form.get('next'))
+                            anotar(usuario_email=user['email'], usuario_nombre=user['name'],
+                                   accion='Aviso de sesión activa', estado='Pendiente',
+                                   detalle={'otras_sesiones': len(otras)})
                             return _fijar_cookie_dispositivo(make_response(
                                 render_template('login.html', sesion_activa=True, username=user['email'])))
                         nueva = _registrar_sesion(cur, user['email'], access_token, dispositivo_id)
@@ -552,6 +560,9 @@ def login():
                         conn.rollback()
                         current_app.logger.error(f"Registro de sesión omitido para {email}: {ses_err}", exc_info=True)
 
+                    anotar(usuario_email=user['email'], usuario_nombre=user['name'],
+                           sesion_jti=(decode_token(access_token) or {}).get('jti'),
+                           detalle={'es_admin': is_admin, 'confirmo_sesion_activa': bool(pendiente)})
                     fallback = '/cgeo/morning-briefing/' if is_admin else url_for('landing_bp.landing_page')
                     redirect_target = _safe_redirect(
                         (pendiente or {}).get('next') or request.args.get('next') or request.form.get('next'),
@@ -563,8 +574,12 @@ def login():
                     _fijar_cookie_dispositivo(response)
                     return response
                 else:
+                    anotar(usuario_email=email, accion='Inicio de sesión fallido', estado='Rechazado',
+                           detalle={'motivo': 'contraseña incorrecta'})
                     flash("Credenciales inválidas", "danger")
             else:
+                anotar(usuario_email=email, accion='Inicio de sesión fallido', estado='Rechazado',
+                       detalle={'motivo': 'usuario no existe'})
                 flash("Credenciales inválidas", "danger")
 
 

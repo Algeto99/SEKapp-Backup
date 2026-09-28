@@ -29,6 +29,7 @@ except OSError:
     _WEASYPRINT_AVAILABLE = False
 
 from db import get_db_connection
+from auditoria import anotar
 from email_utils import send_email
 
 cgeo_bp = Blueprint("cgeo_bp", __name__)
@@ -543,6 +544,7 @@ def cgeo_operacion_publica(token):
     # Los selectores se rellenan con el alcance firmado para que la pantalla diga
     # lo que realmente se está viendo. Es sólo presentación: el filtrado de verdad
     # lo hace el servidor leyendo el token, no estos valores.
+    anotar(detalle={'alcance': dict(alcance)})
     return render_template(
         "cgeo_operacion.html",
         current_user=None,
@@ -3916,6 +3918,8 @@ def ver_hallazgo(asignacion_id):
                     error='Este hallazgo está asignado a otra persona.'), 403
 
             asignacion = dict(fila)
+            anotar(formulario=asignacion.get('form_type'), registro_id=asignacion.get('record_id'),
+                   detalle={'asignacion_id': asignacion_id})
             cur.execute("SELECT name FROM users WHERE email = %s", (asignacion.get('asignado_por'),))
             quien = cur.fetchone()
             asignador = (quien or {}).get('name') or asignacion.get('asignado_por') or '—'
@@ -4047,6 +4051,7 @@ def asignar_hallazgo():
                  hallazgo_ref, hallazgo_titulo, hallazgo_detalle)
             )
             assignment_id = cur.fetchone()['id']
+            anotar(detalle={'asignacion_id': assignment_id, 'asignado_nombre': assignee['name']})
 
             # Keep reportes_incidentes in sync for incident reports
             if form_type == 'reporte_incidente':
@@ -4171,6 +4176,8 @@ def gestionar_asignacion(asignacion_id):
             # No existe, o ya estaba cerrada: en ambos casos no queda pendiente.
             return jsonify({"error": "Asignación no encontrada o ya gestionada"}), 404
         conn.commit()
+        anotar(formulario=row['form_type'], registro_id=row['record_id'],
+               detalle={'asignacion_id': asignacion_id})
         return jsonify({"success": True, **dict(row)})
     except Exception as e:
         conn.rollback()

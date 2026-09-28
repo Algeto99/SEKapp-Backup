@@ -20,6 +20,7 @@ from google.cloud import storage
 from werkzeug.utils import secure_filename
 
 from db import get_db_connection
+from auditoria import anotar, anotar_registro
 from gcs_utils import resolve_upload_bucket
 from normalizacion import (normalizar_fila, normalizar_identificador,
                            normalizar_json_filas, normalizar_nombre)
@@ -1285,6 +1286,7 @@ def submit_incident_report():
         cur.execute(sql, list(valid_form_data.values()))
         cur.execute("SELECT lastval()")
         report_id = cur.fetchone()[0]
+        anotar_registro(report_id)
 
         tipos = request.form.getlist('persona_tipo[]')
         nombres = request.form.getlist('persona_nombre[]')
@@ -1494,6 +1496,8 @@ def submit_medicion_experiencia_cliente():
 
         app_logger.info("Executing INSERT...")
         cur.execute(sql, list(valid_form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         app_logger.info("Committing transaction...")
         conn.commit()
         cur.close()
@@ -1784,6 +1788,8 @@ def submit_supervision_puesto():
             sql = f"INSERT INTO supervision_puesto ({columns}) VALUES ({placeholders})"
 
             cur.execute(sql, list(valid_row_data.values()))
+            cur.execute("SELECT lastval()")
+            anotar_registro(cur.fetchone()[0])
 
         conn.commit()
         cur.close()
@@ -2072,6 +2078,8 @@ def submit_informe_novedades_disciplinario():
         app_logger.debug(f"Inserting into informe_novedades_disciplinario with keys: {list(valid_form_data.keys())}")
 
         cur.execute(sql, list(valid_form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         conn.commit()
         cur.close()
 
@@ -2286,6 +2294,8 @@ def submit_log_de_patrullas():
         sql = f"INSERT INTO log_de_patrullas ({columns}) VALUES ({placeholders})"
 
         cur.execute(sql, list(form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         conn.commit()
         cur.close()
 
@@ -2447,6 +2457,8 @@ def submit_asistencia_qr(session_token):
                 request.form.get('firma', '')
             )
         )
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         conn.commit()
         cur.close()
         return '', 200
@@ -2616,6 +2628,8 @@ def submit_registro_de_capacitaciones():
         sql = f"INSERT INTO registro_de_capacitaciones ({columns}) VALUES ({placeholders})"
 
         cur.execute(sql, list(form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         conn.commit()
         cur.close()
 
@@ -2896,6 +2910,8 @@ def submit_registro_y_acta_de_visita():
         sql = f"INSERT INTO registro_y_acta_de_visita ({columns}) VALUES ({placeholders})"
 
         cur.execute(sql, list(form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         conn.commit()
         cur.close()
 
@@ -3112,6 +3128,8 @@ def submit_planilla_vehicular():
         sql = f"INSERT INTO planilla_vehicular ({columns}) VALUES ({placeholders})"
 
         cur.execute(sql, list(form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         # A plate typed by hand is a fleet asset we did not know about yet.
         # Registered in the same transaction as the inspection, so an offline
         # form that replays later still records the unit exactly once.
@@ -3369,6 +3387,8 @@ def submit_planilla_motocicletas():
         
         app_logger.info(f"Inserting into planilla_motocicletas with keys: {list(valid_form_data.keys())}")
         cur.execute(sql, list(valid_form_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         # A plate typed by hand is a fleet asset we did not know about yet.
         # Registered in the same transaction as the inspection, so an offline
         # form that replays later still records the unit exactly once.
@@ -3643,6 +3663,8 @@ def submit_checklist_cumplimiento():
                 VALUES ({', '.join(['%s'] * len(values))})
             """
             cur.execute(insert_query, values)
+            cur.execute("SELECT lastval()")
+            anotar_registro(cur.fetchone()[0])
 
         conn.commit()
         cur.close()
@@ -3961,6 +3983,8 @@ def submit_confiabilidad_equipos():
         placeholders = ', '.join(['%s'] * len(valid_data))
         sql = f"INSERT INTO confiabilidad_equipos ({columns}) VALUES ({placeholders})"
         cur.execute(sql, list(valid_data.values()))
+        cur.execute("SELECT lastval()")
+        anotar_registro(cur.fetchone()[0])
         conn.commit()
         cur.close()
 
