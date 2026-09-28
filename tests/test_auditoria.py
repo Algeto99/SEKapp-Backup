@@ -1,105 +1,30 @@
 """Log de eventos (auditoria.py): prueba de extremo a extremo con el cliente de Flask.
 
-Necesita un Postgres accesible en AUDITORIA_TEST_DATABASE_URL (por defecto el
-contenedor local `docker run -p 54329:5432 postgres:14`). Recrea el esquema
-público desde sql/schema.sql en cada corrida, así que NUNCA apuntar a una base
-real. Correr con:  monolith/venv/bin/python tests/test_auditoria.py
+Usa el arranque común de tests/sekapp_testing.py (Postgres desechable, esquema
+recreado desde sql/schema.sql). Correr con:
+    monolith/venv/bin/python tests/test_auditoria.py
 """
-import os
-import sys
 import json
 import unittest
 import zoneinfo
 from datetime import datetime, timedelta
 from io import BytesIO
-from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[1]
-MONOLITH = RAIZ / 'monolith'
-sys.path.insert(0, str(MONOLITH))
+import psycopg2
 
-DB_URL = os.environ.get('AUDITORIA_TEST_DATABASE_URL', 'postgresql://sekapp:sekapp@127.0.0.1:54329/sekapp')
-os.environ['DATABASE_URL'] = DB_URL
-os.environ.setdefault('FLASK_SECRET_KEY', 'clave-de-pruebas')
-os.environ.setdefault('JWT_SECRET_KEY', 'jwt-de-pruebas')
-os.environ['SMTP_SERVER'] = '127.0.0.1'   # que cualquier correo falle rápido
-os.environ['SMTP_PORT'] = '1'
-
-import psycopg2  # noqa: E402
-from psycopg2 import extras  # noqa: E402
-
-import logging  # noqa: E402
-logging.disable(logging.WARNING)
-
-import app as A  # noqa: E402
-from extensions import limiter  # noqa: E402
-import auditoria  # noqa: E402
+from sekapp_testing import (A, RAIZ, CLAVE, ZONA, auditoria, conectar, sql, eventos,
+                            configurar_app, recrear_base, crear_empresa, crear_usuario, login)
 
 ADMIN = 'admin@pruebas.sekapp'
 SUP = 'supervisor@pruebas.sekapp'
-CLAVE = 'Clave-Segura-123'
-ZONA = 'America/Bogota'
-
-
-def conectar():
-    c = psycopg2.connect(DB_URL)
-    c.autocommit = False
-    return c
-
-
-def eventos(**filtros):
-    """Filas de eventos_auditoria que cumplen las igualdades dadas, por id."""
-    conn = conectar()
-    try:
-        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
-        where = ' AND '.join(f'{k} = %s' for k in filtros) or 'TRUE'
-        cur.execute(f"SELECT * FROM eventos_auditoria WHERE {where} ORDER BY id", list(filtros.values()))
-        return [dict(r) for r in cur.fetchall()]
-    finally:
-        conn.close()
-
-
-def sql(consulta, params=None, uno=False):
-    conn = conectar()
-    try:
-        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
-        cur.execute(consulta, params or [])
-        filas = None
-        if cur.description:
-            filas = [dict(r) for r in cur.fetchall()]
-        conn.commit()
-        return (filas[0] if filas else None) if uno else filas
-    finally:
-        conn.close()
 
 
 def setUpModule():
-    A.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False, JWT_COOKIE_CSRF_PROTECT=False)
-    limiter.enabled = False
-    conn = conectar()
-    try:
-        cur = conn.cursor()
-        cur.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
-        cur.execute((RAIZ / 'sql' / 'schema.sql').read_text())
-        conn.commit()
-        cur.execute("INSERT INTO companies (name, slug, is_active, enabled_modules) "
-                    "VALUES ('Kanan Sentinel Pruebas', 'pruebas', TRUE, '[]'::jsonb) RETURNING id")
-        cid = cur.fetchone()[0]
-        hash_ = A.bcrypt.generate_password_hash(CLAVE).decode('utf-8')
-        cur.execute("INSERT INTO users (name, email, password_hash, is_admin, is_super_admin, is_active, company_id) "
-                    "VALUES ('Admin Pruebas', %s, %s, TRUE, TRUE, TRUE, %s)", (ADMIN, hash_, cid))
-        cur.execute("INSERT INTO users (name, email, password_hash, is_admin, is_super_admin, is_active, company_id) "
-                    "VALUES ('Supervisor Pruebas', %s, %s, FALSE, FALSE, TRUE, %s)", (SUP, hash_, cid))
-        conn.commit()
-    finally:
-        conn.close()
-    auditoria._tabla_lista = False
-
-
-def login(cliente, email, clave, **extra):
-    datos = {'username': email, 'password': clave}
-    datos.update(extra)
-    return cliente.post('/login', data=datos)
+    configurar_app()
+    recrear_base()
+    cid = crear_empresa()
+    crear_usuario(ADMIN, 'Admin Pruebas', cid, is_admin=True, is_super_admin=True)
+    crear_usuario(SUP, 'Supervisor Pruebas', cid)
 
 
 class AuditoriaTests(unittest.TestCase):
