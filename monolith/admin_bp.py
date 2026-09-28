@@ -1,14 +1,18 @@
+import json
 import logging
 import os
 import traceback
 import zoneinfo
 from datetime import datetime, date, time, timezone
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from io import BytesIO
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import psycopg2
 import psycopg2.extras
 
 from db import get_db_connection
+from auditoria import (TIPOS_EVENTO, FORMULARIOS, ESTADOS, modulos as auditoria_modulos,
+                       acciones as auditoria_acciones, leer_filtros, consultar_eventos, iterar_eventos)
 
 app_logger = logging.getLogger(__name__)
 
@@ -1143,3 +1147,179 @@ def save_thresholds():
         if conn:
             conn.close()
     return redirect(url_for('admin_bp.thresholds'))
+
+
+# ---------------------------------------------------------------------------
+# Auditoría (Log de Eventos) — Administración → Auditoría
+#
+# Solo lectura: la tabla eventos_auditoria la escribe el hook de auditoria.py y
+# dos triggers rechazan UPDATE, DELETE y TRUNCATE. Aquí se consulta con filtros
+# y se exporta a Excel. Las fechas se muestran en la zona horaria de Umbrales
+# KPI, y los límites "desde"/"hasta" se resuelven en esa misma zona.
+# ---------------------------------------------------------------------------
+
+_AUDITORIA_EXPORT_MAX = 50000
+
+
+def _puede_ver_auditoria():
+    claims = get_jwt()
+    return bool(claims.get('is_admin', False) or _is_super_admin())
+
+
+def _evento_json(fila, zona):
+    fh = fila['fecha_hora']
+    local = fh.astimezone(zona) if fh else None
+    formulario = fila['formulario']
+    return {
+        'id': fila['id'],
+        'fecha': local.strftime('%d/%m/%Y') if local else '',
+        'hora': local.strftime('%H:%M:%S') if local else '',
+        'fecha_hora_iso': fh.isoformat() if fh else None,
+        'usuario_email': fila['usuario_email'],
+        'usuario_nombre': fila['usuario_nombre'],
+        'licencia': fila['licencia'],
+        'tipo_evento': fila['tipo_evento'],
+        'tipo_etiqueta': TIPOS_EVENTO.get(fila['tipo_evento'], fila['tipo_evento']),
+        'modulo': fila['modulo'],
+        'accion': fila['accion'],
+        'formulario': formulario,
+        'formulario_etiqueta': FORMULARIOS.get(formulario, formulario) if formulario else '',
+        'registro_id': fila['registro_id'],
+        'detalle': fila['detalle'],
+        'estado': fila['estado'],
+        'http_status': fila['http_status'],
+        'metodo_ruta': fila['metodo_ruta'],
+        'dispositivo': fila['dispositivo'],
+        'ip': fila['ip'],
+        'origen': fila['origen'],
+    }
+
+
+@admin_bp.route('/auditoria', methods=['GET'])
+@jwt_required()
+def auditoria():
+    """Pantalla de consulta del log de eventos. Los datos los trae api_auditoria."""
+    if not _puede_ver_auditoria():
+        flash('No tienes permisos para acceder a esta sección.', 'error')
+        return redirect('/landing/')
+    claims = get_jwt()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT email, name FROM users WHERE email IS NOT NULL ORDER BY name NULLS LAST, email")
+        usuarios = [dict(r) for r in cur.fetchall()]
+        cur.close()
+        zona = get_operation_timezone(conn)
+        return render_template(
+            'admin_auditoria.html',
+            usuarios=usuarios,
+            modulos=auditoria_modulos(),
+            tipos=TIPOS_EVENTO,
+            formularios=FORMULARIOS,
+            acciones=auditoria_acciones(),
+            estados=ESTADOS,
+            filtros=leer_filtros(request.args),
+            zona_horaria=str(zona),
+            user_name=claims.get('name', get_jwt_identity()),
+            is_admin=True,
+        )
+    except Exception as e:
+        return _error_page(e, 'Auditoría')
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/api/auditoria', methods=['GET'])
+@jwt_required()
+def api_auditoria():
+    if not _puede_ver_auditoria():
+        return jsonify({'error': 'Acceso denegado'}), 403
+    filtros = leer_filtros(request.args)
+    try:
+        pagina = max(int(request.args.get('pagina') or 1), 1)
+        por_pagina = min(max(int(request.args.get('por_pagina') or 50), 10), 200)
+    except ValueError:
+        return jsonify({'error': 'Parámetros inválidos'}), 400
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Base de datos no disponible'}), 503
+        zona = get_operation_timezone(conn)
+        cur = conn.cursor()
+        total, filas = consultar_eventos(cur, filtros, zona, pagina, por_pagina)
+        cur.close()
+        return jsonify({
+            'total': total, 'pagina': pagina, 'por_pagina': por_pagina,
+            'zona_horaria': str(zona),
+            'eventos': [_evento_json(f, zona) for f in filas],
+        })
+    except ValueError as e:
+        return jsonify({'error': f'Filtro inválido: {e}'}), 400
+    except Exception as e:
+        app_logger.error(f"api_auditoria error: {e}", exc_info=True)
+        return jsonify({'error': 'Error al consultar el log de eventos'}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/api/auditoria/export', methods=['GET'])
+@jwt_required()
+def api_auditoria_export():
+    """Excel con los mismos filtros de la pantalla, acotado a _AUDITORIA_EXPORT_MAX filas."""
+    if not _puede_ver_auditoria():
+        return jsonify({'error': 'Acceso denegado'}), 403
+    filtros = leer_filtros(request.args)
+    conn = None
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Base de datos no disponible'}), 503
+        zona = get_operation_timezone(conn)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Log de eventos'
+        ws.append(['Fecha', 'Hora', 'Usuario', 'Nombre', 'Licencia', 'Tipo de evento', 'Módulo',
+                   'Acción', 'Formulario', 'Registro', 'Estado', 'HTTP', 'Ruta', 'Dispositivo',
+                   'IP', 'Origen', 'Detalle'])
+        for celda in ws[1]:
+            celda.font = Font(bold=True, color='FFFFFF')
+            celda.fill = PatternFill('solid', fgColor='1F2937')
+        cur = conn.cursor()
+        for f in iterar_eventos(cur, filtros, zona, _AUDITORIA_EXPORT_MAX):
+            local = f['fecha_hora'].astimezone(zona)
+            ws.append([
+                local.strftime('%d/%m/%Y'), local.strftime('%H:%M:%S'),
+                f['usuario_email'], f['usuario_nombre'], f['licencia'],
+                TIPOS_EVENTO.get(f['tipo_evento'], f['tipo_evento']), f['modulo'], f['accion'],
+                FORMULARIOS.get(f['formulario'], f['formulario']) if f['formulario'] else '',
+                f['registro_id'], f['estado'], f['http_status'], f['metodo_ruta'],
+                f['dispositivo'], f['ip'], f['origen'],
+                json.dumps(f['detalle'], ensure_ascii=False) if f['detalle'] else '',
+            ])
+        cur.close()
+        for col, ancho in zip('ABCDEFGHIJKLMNOPQ',
+                              (11, 9, 30, 24, 18, 20, 28, 36, 30, 10, 13, 6, 40, 12, 16, 11, 60)):
+            ws.column_dimensions[col].width = ancho
+        ws.freeze_panes = 'A2'
+
+        buf = BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        nombre = f"auditoria_sekapp_{datetime.now(zona).strftime('%Y%m%d_%H%M')}.xlsx"
+        return send_file(buf, as_attachment=True, download_name=nombre,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    except ValueError as e:
+        return jsonify({'error': f'Filtro inválido: {e}'}), 400
+    except Exception as e:
+        app_logger.error(f"api_auditoria_export error: {e}", exc_info=True)
+        return jsonify({'error': 'Error al exportar el log de eventos'}), 500
+    finally:
+        if conn:
+            conn.close()

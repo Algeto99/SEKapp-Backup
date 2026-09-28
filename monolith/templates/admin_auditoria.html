@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría · Kanan Sentinel SekApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; background: #0f172a; color: #e2e8f0; }
+        h1,h2,h3,h4 { font-family: 'Merriweather', serif; }
+        .main-content { padding: 1.5rem 1rem 4rem; max-width: 1400px; }
+        @media (min-width: 768px) { .main-content { padding: 2rem 2rem 4rem; } }
+        .card { background:rgba(30,41,59,.7); border:1px solid rgba(255,255,255,.08); border-radius:.75rem; padding:1.25rem; margin-bottom:1.5rem; }
+        .card-title { font-size:.9rem; font-weight:700; color:#cbd5e1; margin-bottom:1rem; display:flex; align-items:center; gap:.5rem; }
+        .card-title svg { width:16px; height:16px; flex-shrink:0; }
+        .info-note { font-size:.78rem; color:#64748b; background:rgba(15,23,42,.5); border:1px solid rgba(255,255,255,.06); border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1.5rem; }
+        .info-note svg { display:inline; width:14px; height:14px; vertical-align:middle; margin-right:.3rem; }
+
+        .filtros-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:.75rem; align-items:end; }
+        .field { display:flex; flex-direction:column; gap:.3rem; min-width:0; }
+        .field label { font-size:.68rem; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; }
+        .field input, .field select {
+            background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem;
+            color:#e2e8f0; padding:.5rem .6rem; font-size:.85rem; width:100%; min-width:0;
+        }
+        .field input:focus, .field select:focus { outline:none; border-color:#38bdf8; }
+        .btn { display:inline-flex; align-items:center; gap:.4rem; padding:.55rem 1.1rem; border-radius:.5rem; font-size:.82rem; font-weight:600; border:none; cursor:pointer; transition:all .15s; text-decoration:none; white-space:nowrap; }
+        .btn:hover { opacity:.85; }
+        .btn-primary { background:#0ea5e9; color:#fff; }
+        .btn-ghost   { background:rgba(255,255,255,.07); color:#cbd5e1; border:1px solid rgba(255,255,255,.1); }
+        .btn-success { background:#10b981; color:#fff; }
+        .btn:disabled { opacity:.4; cursor:default; }
+        .actions-row { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-top:1rem; }
+
+        .resumen { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; font-size:.8rem; color:#94a3b8; margin-bottom:.75rem; }
+        .tabla-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid rgba(255,255,255,.06); border-radius:.5rem; }
+        table { width:100%; border-collapse:collapse; font-size:.78rem; min-width:1100px; }
+        th { text-align:left; padding:.6rem .6rem; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; background:rgba(15,23,42,.7); border-bottom:1px solid rgba(255,255,255,.08); white-space:nowrap; position:sticky; top:0; }
+        td { padding:.55rem .6rem; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
+        tr.evento { cursor:pointer; }
+        tr.evento:hover td { background:rgba(255,255,255,.03); }
+        tr.detalle td { background:rgba(15,23,42,.6); padding:.75rem 1rem; }
+        pre.detalle-json { font-size:.72rem; white-space:pre-wrap; word-break:break-word; color:#cbd5e1; margin:0; font-family:ui-monospace,Menlo,monospace; }
+        .nowrap { white-space:nowrap; }
+        .muted { color:#64748b; }
+        .link { color:#60a5fa; cursor:pointer; text-decoration:underline dotted; }
+        .badge { display:inline-block; padding:.15rem .5rem; border-radius:9999px; font-size:.68rem; font-weight:600; white-space:nowrap; }
+        .badge-exitoso      { background:rgba(52,211,153,.12); color:#34d399; border:1px solid rgba(52,211,153,.25); }
+        .badge-rechazado    { background:rgba(251,146,60,.12);  color:#fb923c; border:1px solid rgba(251,146,60,.25); }
+        .badge-no-encontrado{ background:rgba(148,163,184,.12); color:#94a3b8; border:1px solid rgba(148,163,184,.25); }
+        .badge-error        { background:rgba(248,113,113,.12); color:#f87171; border:1px solid rgba(248,113,113,.25); }
+        .badge-pendiente    { background:rgba(251,191,36,.12);  color:#fbbf24; border:1px solid rgba(251,191,36,.25); }
+        .badge-tipo         { background:rgba(96,165,250,.12);  color:#60a5fa; border:1px solid rgba(96,165,250,.2); }
+        .badge-retro        { background:rgba(167,139,250,.12); color:#a78bfa; border:1px solid rgba(167,139,250,.25); }
+        .paginacion { display:flex; gap:.5rem; align-items:center; justify-content:flex-end; flex-wrap:wrap; margin-top:.9rem; font-size:.8rem; color:#94a3b8; }
+        .vacio { padding:2rem; text-align:center; color:#64748b; font-size:.85rem; }
+        .cargando { opacity:.5; pointer-events:none; }
+
+        body.light-mode .card { background:#fff; border-color:#e2e8f0; }
+        body.light-mode .card-title { color:#334155; }
+        body.light-mode .field input, body.light-mode .field select { background:#fff; border-color:#cbd5e1; color:#0f172a; }
+        body.light-mode .field label { color:#64748b; }
+        body.light-mode .info-note { background:#f8fafc; border-color:#e2e8f0; color:#64748b; }
+        body.light-mode th { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+        body.light-mode td { border-color:#f1f5f9; color:#0f172a; }
+        body.light-mode tr.evento:hover td { background:#f8fafc; }
+        body.light-mode tr.detalle td { background:#f8fafc; }
+        body.light-mode pre.detalle-json { color:#334155; }
+        body.light-mode .tabla-wrap { border-color:#e2e8f0; }
+        body.light-mode .btn-ghost { background:#fff; color:#334155; border-color:#cbd5e1; }
+        body.light-mode .resumen, body.light-mode .paginacion { color:#64748b; }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
+</head>
+<body>
+{% set name = user_name %}
+{% include '_sidebar.html' %}
+
+<div class="sidebar-main-content">
+    <div class="snw-topbar">
+        <div class="snw-topbar-left">
+            <button class="snw-page-icon" id="snwPageIcon" style="background:rgba(96,165,250,.15);">
+                <svg fill="none" viewBox="0 0 24 24" stroke="#60a5fa" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            </button>
+            <div>
+                <div class="snw-page-title">Auditoría</div>
+                <div class="snw-page-subtitle">Log de eventos y trazabilidad por usuario</div>
+            </div>
+        </div>
+        {% if is_super_admin %}
+        <a href="/admin/" class="btn btn-ghost" style="font-size:.78rem;">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Panel Admin
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="main-content">
+
+        <div class="info-note">
+            <svg fill="none" viewBox="0 0 24 24" stroke="#60a5fa" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Cada fila es una acción realizada en SEKapp: quién, qué, sobre qué registro y cuándo.
+            Los eventos no se pueden modificar ni eliminar. Las horas se muestran en la zona
+            horaria configurada en Umbrales KPI (<strong>{{ zona_horaria }}</strong>).
+            Toque una fila para ver el detalle; toque un usuario o un registro para filtrar por él.
+        </div>
+
+        <form id="filtrosForm" class="card" onsubmit="return false;">
+            <div class="card-title">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                Filtros
+            </div>
+            <div class="filtros-grid">
+                <div class="field">
+                    <label for="f_usuario">Usuario</label>
+                    <select id="f_usuario" name="usuario">
+                        <option value="">Todos</option>
+                        {% for u in usuarios %}
+                        <option value="{{ u.email }}" {{ 'selected' if filtros.usuario == u.email }}>{{ u.name or u.email }}{% if u.name %} · {{ u.email }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f_desde">Desde</label>
+                    <input type="date" id="f_desde" name="desde" value="{{ filtros.desde }}">
+                </div>
+                <div class="field">
+                    <label for="f_hasta">Hasta</label>
+                    <input type="date" id="f_hasta" name="hasta" value="{{ filtros.hasta }}">
+                </div>
+                <div class="field">
+                    <label for="f_modulo">Módulo</label>
+                    <select id="f_modulo" name="modulo">
+                        <option value="">Todos</option>
+                        {% for m in modulos %}<option value="{{ m }}" {{ 'selected' if filtros.modulo == m }}>{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f_tipo">Tipo de evento</label>
+                    <select id="f_tipo" name="tipo">
+                        <option value="">Todos</option>
+                        {% for clave, etiqueta in tipos.items() %}<option value="{{ clave }}" {{ 'selected' if filtros.tipo == clave }}>{{ etiqueta }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f_formulario">Formulario</label>
+                    <select id="f_formulario" name="formulario">
+                        <option value="">Todos</option>
+                        {% for clave, etiqueta in formularios.items() %}<option value="{{ clave }}" {{ 'selected' if filtros.formulario == clave }}>{{ etiqueta }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f_accion">Acción</label>
+                    <select id="f_accion" name="accion">
+                        <option value="">Todas</option>
+                        {% for a in acciones %}<option value="{{ a }}" {{ 'selected' if filtros.accion == a }}>{{ a }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f_registro">N.º de registro</label>
+                    <input type="number" id="f_registro" name="registro_id" min="1" step="1" value="{{ filtros.registro_id }}" placeholder="Ej. 125">
+                </div>
+                <div class="field">
+                    <label for="f_estado">Estado</label>
+                    <select id="f_estado" name="estado">
+                        <option value="">Todos</option>
+                        {% for e in estados %}<option value="{{ e }}" {{ 'selected' if filtros.estado == e }}>{{ e }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="f_q">Texto libre</label>
+                    <input type="text" id="f_q" name="q" value="{{ filtros.q }}" placeholder="correo, acción, ruta, detalle…">
+                </div>
+            </div>
+            <div class="actions-row">
+                <button type="button" class="btn btn-primary" id="btnBuscar">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    Buscar
+                </button>
+                <button type="button" class="btn btn-ghost" id="btnLimpiar">Limpiar</button>
+                <a class="btn btn-success" id="btnExportar" href="/admin/api/auditoria/export">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Exportar a Excel
+                </a>
+                <span class="muted" style="font-size:.75rem;">La exportación respeta los filtros (máx. 50 000 filas).</span>
+            </div>
+        </form>
+
+        <div class="card" id="resultados">
+            <div class="resumen">
+                <span id="resumenTexto">Cargando…</span>
+                <label style="display:flex;align-items:center;gap:.4rem;">
+                    Por página
+                    <select id="porPagina" style="background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.1);border-radius:.375rem;color:inherit;padding:.25rem .4rem;font-size:.78rem;">
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                </label>
+            </div>
+            <div class="tabla-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th><th>Hora</th><th>Usuario</th><th>Licencia</th><th>Tipo</th>
+                            <th>Módulo</th><th>Acción</th><th>Formulario</th><th>Registro</th>
+                            <th>Estado</th><th>Dispositivo</th><th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla">
+                        <tr><td colspan="12" class="vacio">Cargando…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="paginacion">
+                <button type="button" class="btn btn-ghost" id="btnAnterior">‹ Anterior</button>
+                <span id="paginaTexto"></span>
+                <button type="button" class="btn btn-ghost" id="btnSiguiente">Siguiente ›</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('filtrosForm');
+    var cuerpo = document.getElementById('cuerpoTabla');
+    var resumen = document.getElementById('resumenTexto');
+    var paginaTexto = document.getElementById('paginaTexto');
+    var btnAnterior = document.getElementById('btnAnterior');
+    var btnSiguiente = document.getElementById('btnSiguiente');
+    var porPagina = document.getElementById('porPagina');
+    var btnExportar = document.getElementById('btnExportar');
+    var pagina = 1;
+    var totalPaginas = 1;
+    var CAMPOS = ['usuario', 'desde', 'hasta', 'modulo', 'tipo', 'formulario', 'accion', 'registro_id', 'estado', 'q'];
+
+    function filtros() {
+        var f = {};
+        CAMPOS.forEach(function (k) {
+            var el = form.elements[k];
+            if (el && el.value) f[k] = el.value;
+        });
+        return f;
+    }
+
+    function queryString(extra) {
+        var f = filtros();
+        Object.keys(extra || {}).forEach(function (k) { f[k] = extra[k]; });
+        return Object.keys(f).map(function (k) {
+            return encodeURIComponent(k) + '=' + encodeURIComponent(f[k]);
+        }).join('&');
+    }
+
+    function esc(v) {
+        if (v === null || v === undefined) return '';
+        return String(v).replace(/[&<>"']/g, function (c) {
+            return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+        });
+    }
+
+    function claseEstado(estado) {
+        return 'badge badge-' + String(estado || '').toLowerCase().replace(/\s+/g, '-');
+    }
+
+    function fila(e) {
+        var usuario = e.usuario_email
+            ? '<span class="link" data-usuario="' + esc(e.usuario_email) + '">' + esc(e.usuario_nombre || e.usuario_email) + '</span>'
+              + (e.usuario_nombre ? '<div class="muted">' + esc(e.usuario_email) + '</div>' : '')
+            : '<span class="muted">' + esc(e.usuario_nombre || '—') + '</span>';
+        var registro = e.registro_id
+            ? '<span class="link" data-registro="' + esc(e.registro_id) + '" data-formulario="' + esc(e.formulario || '') + '">#' + esc(e.registro_id) + '</span>'
+            : '<span class="muted">—</span>';
+        var origen = e.origen === 'retroactivo' ? ' <span class="badge badge-retro" title="Importado del historial previo al log">histórico</span>' : '';
+        return '<tr class="evento" data-id="' + e.id + '">'
+            + '<td class="nowrap">' + esc(e.fecha) + '</td>'
+            + '<td class="nowrap">' + esc(e.hora) + '</td>'
+            + '<td>' + usuario + '</td>'
+            + '<td>' + esc(e.licencia || '—') + '</td>'
+            + '<td><span class="badge badge-tipo">' + esc(e.tipo_etiqueta) + '</span></td>'
+            + '<td>' + esc(e.modulo) + '</td>'
+            + '<td>' + esc(e.accion) + origen + '</td>'
+            + '<td>' + esc(e.formulario_etiqueta || '—') + '</td>'
+            + '<td class="nowrap">' + registro + '</td>'
+            + '<td><span class="' + claseEstado(e.estado) + '">' + esc(e.estado) + '</span>' + (e.http_status ? ' <span class="muted">' + esc(e.http_status) + '</span>' : '') + '</td>'
+            + '<td>' + esc(e.dispositivo || '—') + '</td>'
+            + '<td class="nowrap">' + esc(e.ip || '—') + '</td>'
+            + '</tr>';
+    }
+
+    function filaDetalle(e) {
+        var partes = [];
+        if (e.metodo_ruta) partes.push('Ruta: ' + e.metodo_ruta);
+        if (e.sesion_jti) partes.push('Sesión: ' + e.sesion_jti);
+        var json = e.detalle ? JSON.stringify(e.detalle, null, 2) : 'Sin detalle adicional.';
+        return '<tr class="detalle" data-para="' + e.id + '" hidden><td colspan="12">'
+            + '<div class="muted" style="margin-bottom:.4rem;">' + esc(partes.join(' · ')) + '</div>'
+            + '<pre class="detalle-json">' + esc(json) + '</pre></td></tr>';
+    }
+
+    function cargar() {
+        var qs = queryString({pagina: pagina, por_pagina: porPagina.value});
+        document.getElementById('resultados').classList.add('cargando');
+        try { history.replaceState(null, '', '/admin/auditoria?' + queryString()); } catch (err) {}
+        btnExportar.href = '/admin/api/auditoria/export?' + queryString();
+        fetch('/admin/api/auditoria?' + qs, {credentials: 'same-origin'})
+            .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, j: j}; }); })
+            .then(function (res) {
+                document.getElementById('resultados').classList.remove('cargando');
+                if (!res.ok) {
+                    cuerpo.innerHTML = '<tr><td colspan="12" class="vacio">' + esc(res.j.error || 'No se pudo consultar.') + '</td></tr>';
+                    resumen.textContent = '';
+                    return;
+                }
+                var d = res.j;
+                totalPaginas = Math.max(Math.ceil(d.total / d.por_pagina), 1);
+                if (!d.eventos.length) {
+                    cuerpo.innerHTML = '<tr><td colspan="12" class="vacio">Sin eventos para los filtros indicados.</td></tr>';
+                } else {
+                    cuerpo.innerHTML = d.eventos.map(function (e) { return fila(e) + filaDetalle(e); }).join('');
+                }
+                resumen.textContent = d.total.toLocaleString('es') + ' evento' + (d.total === 1 ? '' : 's') + ' · zona horaria ' + d.zona_horaria;
+                paginaTexto.textContent = 'Página ' + d.pagina + ' de ' + totalPaginas;
+                btnAnterior.disabled = d.pagina <= 1;
+                btnSiguiente.disabled = d.pagina >= totalPaginas;
+            })
+            .catch(function () {
+                document.getElementById('resultados').classList.remove('cargando');
+                cuerpo.innerHTML = '<tr><td colspan="12" class="vacio">Error de red al consultar el log.</td></tr>';
+            });
+    }
+
+    document.getElementById('btnBuscar').addEventListener('click', function () { pagina = 1; cargar(); });
+    document.getElementById('btnLimpiar').addEventListener('click', function () {
+        CAMPOS.forEach(function (k) { var el = form.elements[k]; if (el) el.value = ''; });
+        pagina = 1; cargar();
+    });
+    form.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter') { ev.preventDefault(); pagina = 1; cargar(); }
+    });
+    porPagina.addEventListener('change', function () { pagina = 1; cargar(); });
+    btnAnterior.addEventListener('click', function () { if (pagina > 1) { pagina--; cargar(); } });
+    btnSiguiente.addEventListener('click', function () { if (pagina < totalPaginas) { pagina++; cargar(); } });
+
+    cuerpo.addEventListener('click', function (ev) {
+        var enlace = ev.target.closest('.link');
+        if (enlace) {
+            ev.stopPropagation();
+            if (enlace.dataset.usuario) {
+                form.elements.usuario.value = enlace.dataset.usuario;
+            } else if (enlace.dataset.registro) {
+                form.elements.registro_id.value = enlace.dataset.registro;
+                form.elements.formulario.value = enlace.dataset.formulario || '';
+            }
+            pagina = 1; cargar();
+            return;
+        }
+        var tr = ev.target.closest('tr.evento');
+        if (!tr) return;
+        var det = cuerpo.querySelector('tr.detalle[data-para="' + tr.dataset.id + '"]');
+        if (det) det.hidden = !det.hidden;
+    });
+
+    cargar();
+})();
+</script>
+</body>
+</html>
