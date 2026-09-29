@@ -291,7 +291,7 @@
         /* ── Severity badge ───────────────────────────────────────────────── */
         .sev-badge {
             display:inline-block; padding:0.15rem 0.5rem; border-radius:999px;
-            font-size:0.75rem; font-weight:600;
+            font-size:0.75rem; font-weight:600; white-space:nowrap;
         }
         .sev-alto   { background:rgba(239,68,68,0.15);   color:#f87171; }
         .sev-medio  { background:var(--amber-badge-bg);   color:var(--amber-text); }
@@ -1468,10 +1468,10 @@
     function estadoBadge(estado) {
         const s = (estado || '').toLowerCase();
         if (s === 'cerrado' || s === 'resuelto')
-            return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>${estado}</span>`;
+            return `<span style="display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap;background:rgba(34,197,94,.12);color:#86efac;border:1px solid rgba(34,197,94,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;"></span>${estado}</span>`;
         if (s === 'en proceso' || s === 'en revisión')
             return `<span class="sev-badge sev-medio">${estado}</span>`;
-        return `<span style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span>${estado || '—'}</span>`;
+        return `<span style="display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap;background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25);border-radius:999px;padding:.15rem .55rem;font-size:.74rem;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block;"></span>${estado || '—'}</span>`;
     }
 
     function editedBadge(r) {
