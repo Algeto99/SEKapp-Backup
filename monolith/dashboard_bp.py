@@ -1822,9 +1822,27 @@ def _gestion_add_desde(conds, params, date_expr, desde):
     params.append(desde)
 
 
+def _gestion_add_hasta(conds, params, date_expr, hasta):
+    """Tope superior del rango, inclusivo por fecha (`::date <= hasta`), para
+    que el día "Hasta" entre completo aunque la columna sea TIMESTAMPTZ.
+    Opt-in igual que `desde`: sin `hasta` no cambia ninguna consulta."""
+    hasta = (hasta or '').strip() if isinstance(hasta, str) else hasta
+    if not hasta:
+        return
+    conds.append(f"({date_expr})::date <= %s")
+    params.append(hasta)
+
+
 def _gestion_desde_arg():
     """`desde` tal como llega por querystring, validado como YYYY-MM-DD."""
     raw = (request.args.get('desde') or '').strip()
+    return raw if re.match(r'^\d{4}-\d{2}-\d{2}$', raw) else None
+
+
+def _gestion_hasta_arg():
+    """`hasta` por querystring, validado como YYYY-MM-DD. Opt-in como `desde`:
+    lo manda Alertas / Novedades para acotar las supervisiones a un período."""
+    raw = (request.args.get('hasta') or '').strip()
     return raw if re.match(r'^\d{4}-\d{2}-\d{2}$', raw) else None
 
 
@@ -4971,7 +4989,10 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
-def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, puesto=None, desde=None):
+def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, puesto=None, desde=None, hasta=None):
+    # `company_id` se acepta por compatibilidad pero ya no filtra: cada ambiente
+    # sirve a una sola empresa de seguridad, así que la condición no distinguía
+    # nada y sólo escondía los registros antiguos con company_id NULL.
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
     if responsable:
@@ -4982,9 +5003,7 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
         params.append(nombre_usuario)
     _sat_add_multi_date_filter(conds, params, "fecha_hora::TEXT", year, month, day)
     _gestion_add_desde(conds, params, "fecha_hora", desde)
-    if company_id is not None:
-        conds.append("company_id = %s")
-        params.append(company_id)
+    _gestion_add_hasta(conds, params, "fecha_hora", hasta)
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
@@ -5000,9 +5019,6 @@ def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None, 
         return None, None
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
-    if company_id is not None:
-        conds.append("company_id = %s")
-        params.append(company_id)
     now = datetime.now(timezone.utc)
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
@@ -5337,7 +5353,8 @@ def api_supervision_detalles():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         desde = _gestion_desde_arg()
-        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
+        hasta = _gestion_hasta_arg()
+        where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde, hasta=hasta)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
             params = list(params) + [empleado_num]

@@ -22,7 +22,8 @@
         .filtros{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem;align-items:end}
         .field{display:flex;flex-direction:column;gap:.3rem;min-width:0}
         .field label{font-size:.66rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
-        .field select{background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;color:#0f172a;padding:.5rem .6rem;font-size:.85rem;width:100%}
+        .field select,.field input{background:#fff;border:1px solid #cbd5e1;border-radius:.4rem;color:#0f172a;padding:.5rem .6rem;font-size:.85rem;width:100%}
+        .field[hidden]{display:none}
         .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:600;border:1px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none;transition:all .15s}
         .btn:disabled{opacity:.5;cursor:default}
         .btn-primary{background:#0ea5e9;color:#fff}
@@ -55,6 +56,7 @@
         .badge-prioridad{background:rgba(234,88,12,.12);color:#c2410c;border-color:rgba(234,88,12,.35)}
         .badge-vencida{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
         .badge-tipo{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+        .badge-puntaje{background:#f8fafc;border-color:#e2e8f0}
         .alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap}
         .alerta-acciones{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
         .panel-estado{display:none;margin-top:.6rem;padding:.7rem .8rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#f8fafc}
@@ -75,7 +77,7 @@
         body:not(.light-mode) .card,body:not(.light-mode) .pill,body:not(.light-mode) .alertas-list,body:not(.light-mode) .vacio{background:#1e293b;border-color:#334155}
         body:not(.light-mode) .card-title,body:not(.light-mode) .alerta-texto{color:#f1f5f9}
         body:not(.light-mode) .alerta{border-bottom-color:#334155}
-        body:not(.light-mode) .field select,body:not(.light-mode) .panel-estado select,body:not(.light-mode) .panel-estado input{background:#0f172a;border-color:#334155;color:#e2e8f0}
+        body:not(.light-mode) .field select,body:not(.light-mode) .field input,body:not(.light-mode) .panel-estado select,body:not(.light-mode) .panel-estado input{background:#0f172a;border-color:#334155;color:#e2e8f0}
         body:not(.light-mode) .btn-ghost{background:#1e293b;color:#cbd5e1;border-color:#334155}
         body:not(.light-mode) .btn-verde{background:rgba(22,163,74,.12);color:#4ade80;border-color:rgba(22,163,74,.3)}
         body:not(.light-mode) .btn-azul{background:rgba(59,130,246,.12);color:#93c5fd;border-color:rgba(59,130,246,.3)}
@@ -85,6 +87,7 @@
         body:not(.light-mode) .chip-inst{background:rgba(22,163,74,.12);color:#4ade80;border-color:rgba(22,163,74,.3)}
         body:not(.light-mode) .aviso{background:rgba(245,158,11,.1);color:#fbbf24;border-color:rgba(245,158,11,.3)}
         body:not(.light-mode) .badge-tipo{background:#0f172a;color:#94a3b8;border-color:#334155}
+        body:not(.light-mode) .badge-puntaje{background:#0f172a;border-color:#334155}
     </style>
 </head>
 <body>
@@ -143,12 +146,31 @@
                         <option value="otras">Otras alertas operativas</option>
                     </select>
                 </div>
+                <div class="field" id="fieldPeriodo" hidden>
+                    <label for="fPeriodo">Período</label>
+                    <select id="fPeriodo">
+                        <option value="mes_actual">Mes actual</option>
+                        <option value="mes_anterior">Mes anterior</option>
+                        <option value="3m">Últimos 3 meses</option>
+                        <option value="6m">Últimos 6 meses</option>
+                        <option value="anio">Año actual</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+                </div>
+                <div class="field" id="fieldDesde" hidden>
+                    <label for="fDesde">Desde</label>
+                    <input type="date" id="fDesde">
+                </div>
+                <div class="field" id="fieldHasta" hidden>
+                    <label for="fHasta">Hasta</label>
+                    <input type="date" id="fHasta">
+                </div>
                 <div class="field">
                     <label>&nbsp;</label>
                     <button type="button" class="btn btn-primary" id="btnActualizar">Actualizar</button>
                 </div>
             </div>
-            <div class="muted" style="margin-top:.6rem;">Toque "Ver detalle" para abrir el registro con su evidencia, quién lo registró y cuándo; desde ahí también se asigna o reasigna el hallazgo. Todas las acciones quedan en la trazabilidad.</div>
+            <div class="muted" style="margin-top:.6rem;">Toque "Ver detalle" para abrir el registro con su evidencia, quién lo registró y cuándo; desde ahí también se asigna o reasigna el hallazgo. Todas las acciones quedan en la trazabilidad. Con Tipo de novedad "Supervisiones" puede elegir un Período para consultar las supervisiones registradas en ese lapso.</div>
         </div>
 
         <div class="resumen">
@@ -159,6 +181,7 @@
         </div>
 
         <div id="listas"><div class="vacio"><div class="muted">Cargando alertas…</div></div></div>
+        <div id="supervisiones"></div>
     </div>
 </div>
 
@@ -191,7 +214,12 @@
     const fCliente = document.getElementById('fCliente');
     const fPropiedad = document.getElementById('fPropiedad');
     const fTipo = document.getElementById('fTipo');
+    const fPeriodo = document.getElementById('fPeriodo');
+    const fDesde = document.getElementById('fDesde');
+    const fHasta = document.getElementById('fHasta');
+    const supervisiones = document.getElementById('supervisiones');
     const registro = [];
+    const registroSup = [];
     const viewers = {};
     let propiedadesTodas = [];
     let alertas = [];
@@ -268,10 +296,12 @@
         const tipo = fTipo.value;
         const visibles = alertas.filter(a => !tipo || categoria(a) === tipo);
         const set = (id, v) => { document.getElementById(id).textContent = v; };
-        set('numRojas', alertas.filter(a => color(a) === 'rojo').length);
-        set('numNaranjas', alertas.filter(a => color(a) === 'naranja').length);
-        set('numAmarillas', alertas.filter(a => color(a) === 'amarillo').length);
-        set('numTotal', alertas.length);
+        // Las tarjetas responden a los mismos filtros que el listado: Cliente e
+        // Instalación ya vienen aplicados por el servidor y el Tipo se aplica aquí.
+        set('numRojas', visibles.filter(a => color(a) === 'rojo').length);
+        set('numNaranjas', visibles.filter(a => color(a) === 'naranja').length);
+        set('numAmarillas', visibles.filter(a => color(a) === 'amarillo').length);
+        set('numTotal', visibles.length);
         registro.length = 0;
         if (!visibles.length) {
             listas.innerHTML = `<div class="vacio"><div class="vacio-icon">✅</div><div class="vacio-txt">Sin novedades pendientes</div><div class="vacio-sub">${ES_COORDINADOR ? 'No hay alertas en su ámbito para los filtros indicados.' : 'No hay alertas para los filtros indicados.'}</div></div>`;
@@ -312,6 +342,110 @@
             </div>
         </div>`;
     }
+
+    // ── Supervisiones registradas en el período (Tipo = Supervisiones) ──────
+    // Las alertas de supervisión son una foto del presente ("sin supervisión
+    // hace N días"); lo que se consulta por período son los registros, que
+    // salen del endpoint de detalles del dashboard, ya acotado al ámbito.
+    function fmtLocal(d) {
+        // Fecha local, no toISOString(): en UTC-5 desde las 19:00 ya daría "mañana".
+        const p = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+    function fmtCorta(iso) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '—');
+    }
+    function hoyMenosMeses(n) {
+        const hoy = new Date();
+        const y = hoy.getFullYear(), m = hoy.getMonth() - n;
+        const ultimo = new Date(y, m + 1, 0).getDate();
+        return new Date(y, m, Math.min(hoy.getDate(), ultimo));
+    }
+    function rangoPeriodo() {
+        const hoy = new Date();
+        const y = hoy.getFullYear(), m = hoy.getMonth();
+        switch (fPeriodo.value) {
+            case 'mes_actual':   return { desde: fmtLocal(new Date(y, m, 1)), hasta: fmtLocal(hoy) };
+            case 'mes_anterior': return { desde: fmtLocal(new Date(y, m - 1, 1)), hasta: fmtLocal(new Date(y, m, 0)) };
+            case '3m':           return { desde: fmtLocal(hoyMenosMeses(3)), hasta: fmtLocal(hoy) };
+            case '6m':           return { desde: fmtLocal(hoyMenosMeses(6)), hasta: fmtLocal(hoy) };
+            case 'anio':         return { desde: fmtLocal(new Date(y, 0, 1)), hasta: fmtLocal(hoy) };
+            case 'custom':       return (fDesde.value && fHasta.value) ? { desde: fDesde.value, hasta: fHasta.value } : null;
+        }
+        return null;
+    }
+    function togglePeriodo() {
+        const esSup = fTipo.value === 'supervision';
+        document.getElementById('fieldPeriodo').hidden = !esSup;
+        const custom = esSup && fPeriodo.value === 'custom';
+        document.getElementById('fieldDesde').hidden = !custom;
+        document.getElementById('fieldHasta').hidden = !custom;
+    }
+    function bloqueSup(titulo, cuerpo) {
+        return `<div class="grupo"><div class="grupo-titulo">${titulo}</div>${cuerpo}</div>`;
+    }
+    async function cargarSupervisiones() {
+        registroSup.length = 0;
+        if (fTipo.value !== 'supervision') { supervisiones.innerHTML = ''; return; }
+        const rango = rangoPeriodo();
+        if (!rango) {
+            supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', '<div class="vacio"><div class="muted">Indique las fechas Desde y Hasta del período.</div></div>');
+            return;
+        }
+        if (rango.desde > rango.hasta) {
+            supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', '<div class="vacio"><div class="muted">La fecha Desde no puede ser posterior a Hasta.</div></div>');
+            return;
+        }
+        supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', '<div class="vacio"><div class="muted">Cargando supervisiones…</div></div>');
+        const params = new URLSearchParams({ desde: rango.desde, hasta: rango.hasta });
+        if (fCliente.value) params.set('cliente', fCliente.value);
+        if (fPropiedad.value) params.set('propiedad', fPropiedad.value);
+        try {
+            const res = await fetch('/dashboard/api/supervision/detalles?' + params, { credentials: 'include', headers: { Accept: 'application/json' } });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || 'No se pudieron cargar las supervisiones.');
+            renderSupervisiones(Array.isArray(d.detalles) ? d.detalles : [], rango);
+        } catch (e) {
+            supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', `<div class="vacio"><div class="vacio-icon">⚠️</div><div class="muted">${esc(e.message)}</div></div>`);
+        }
+    }
+    function renderSupervisiones(filas, rango) {
+        const titulo = `📋 Supervisiones registradas · ${filas.length} · ${fmtCorta(rango.desde)} – ${fmtCorta(rango.hasta)}`;
+        if (!filas.length) {
+            const sub = ES_COORDINADOR ? 'No hay supervisiones de su ámbito en este período para los filtros indicados.'
+                                       : 'No hay supervisiones en este período para los filtros indicados.';
+            supervisiones.innerHTML = bloqueSup(titulo, `<div class="vacio"><div class="muted">${sub}</div></div>`);
+            return;
+        }
+        supervisiones.innerHTML = bloqueSup(titulo, `<div class="alertas-list">${filas.map(filaSup).join('')}</div>`);
+    }
+    function filaSup(s) {
+        const ref = registroSup.push(s) - 1;
+        const col = /^#[0-9a-fA-F]{6}$/.test(String(s.score_color || '')) ? s.score_color : '#6b7280';
+        const fh = String(s.fecha_hora || '');
+        const fecha = /^\d{4}-\d{2}-\d{2}/.test(fh) ? `${fmtCorta(fh)}${fh.length >= 16 ? ' ' + fh.slice(11, 16) : ''}` : 'sin fecha';
+        const dato = v => v && v !== '—' ? v : '';
+        const detalle = [dato(s.supervisor) && `Supervisor: ${s.supervisor}`, dato(s.guardia) && `Guardia: ${s.guardia}`, dato(s.turno) && `Turno: ${s.turno}`]
+            .filter(Boolean).join(' · ');
+        const puntaje = Number(s.score);
+        const puntajeTxt = isNaN(puntaje) ? '' : (puntaje % 1 === 0 ? String(puntaje) : puntaje.toFixed(1));
+        return `<div class="alerta">
+            <div class="alerta-dot" style="background:${col};box-shadow:0 0 0 3px ${col}26"></div>
+            <div class="alerta-cuerpo">
+                <div class="alerta-texto">${esc(s.cliente || '—')} · ${esc(fecha)}</div>
+                ${detalle ? `<div class="alerta-motivo">${esc(detalle)}</div>` : ''}
+                <div class="alerta-meta"><span class="badge badge-tipo">Supervisión</span><span class="badge badge-puntaje" style="color:${col}">${puntajeTxt ? 'Puntaje ' + esc(puntajeTxt) + ' · ' : ''}${esc(s.score_label || 'Sin datos')}</span></div>
+                <div class="alerta-acciones">${s.id ? `<button type="button" class="btn btn-mini btn-azul" data-sup="${ref}">Ver detalle</button>` : ''}</div>
+            </div>
+        </div>`;
+    }
+    supervisiones.addEventListener('click', function (ev) {
+        const btn = ev.target.closest('button[data-sup]');
+        if (!btn) return;
+        const s = registroSup[Number(btn.dataset.sup)];
+        if (s) visor('supervision_puesto').openRecord(s.id);
+    });
 
     async function post(url, metodo, body) {
         const res = await fetch(url, { method: metodo, credentials: 'include',
@@ -396,12 +530,17 @@
             case 'historial': historial(ref, a); break;
         }
     });
-    document.getElementById('btnActualizar').addEventListener('click', cargar);
-    fCliente.addEventListener('change', function () { pintarPropiedades(); cargar(); });
-    fPropiedad.addEventListener('change', cargar);
-    fTipo.addEventListener('change', render);
+    function actualizarTodo() { cargar(); cargarSupervisiones(); }
+    document.getElementById('btnActualizar').addEventListener('click', actualizarTodo);
+    fCliente.addEventListener('change', function () { pintarPropiedades(); actualizarTodo(); });
+    fPropiedad.addEventListener('change', actualizarTodo);
+    fTipo.addEventListener('change', function () { render(); togglePeriodo(); cargarSupervisiones(); });
+    fPeriodo.addEventListener('change', function () { togglePeriodo(); cargarSupervisiones(); });
+    fDesde.addEventListener('change', cargarSupervisiones);
+    fHasta.addEventListener('change', cargarSupervisiones);
 
-    cargarFiltros().then(cargar);
+    togglePeriodo();
+    cargarFiltros().then(actualizarTodo);
 })();
 </script>
 </body>

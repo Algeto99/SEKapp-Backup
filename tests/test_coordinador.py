@@ -5,6 +5,7 @@ recreado desde sql/schema.sql). Correr con:
     monolith/venv/bin/python tests/test_coordinador.py
 """
 import unittest
+from datetime import date, timedelta
 from io import BytesIO
 
 from sekapp_testing import (A, sql, eventos, configurar_app, recrear_base, crear_empresa,
@@ -204,8 +205,30 @@ class CoordinadorTests(unittest.TestCase):
         self.assertEqual(ids(self.admin), {D['incA'], D['incB']})
         self.assertEqual(ids(self.sup), {D['incA'], D['incB']}, 'el Supervisor no cambia')
         self.assertEqual(self.coord.get('/dashboard/api/incidentes/clientes').get_json()['clientes'], ['Instalación A1'])
-        self.assertEqual(self.coord.get('/matrices/api/stats').get_json()['incidentes']['total'], 1)
-        self.assertEqual(self.admin.get('/matrices/api/stats').get_json()['incidentes']['total'], 2)
+        # Sin rango, el hub usa el mes en curso y el incidente (hace 3 días) queda
+        # fuera los primeros días de cada mes: se pide un rango explícito.
+        hoy = date.today()
+        rango = f"?date_from={hoy - timedelta(days=30):%Y-%m-%d}&date_to={hoy:%Y-%m-%d}"
+        self.assertEqual(self.coord.get('/matrices/api/stats' + rango).get_json()['incidentes']['total'], 1)
+        self.assertEqual(self.admin.get('/matrices/api/stats' + rango).get_json()['incidentes']['total'], 2)
+
+    def test_09b_supervisiones_por_periodo(self):
+        # Alertas / Novedades → Supervisiones + Período: la lista de supervisiones
+        # registradas sale del endpoint de detalles, acotado al ámbito, entre
+        # `desde` y `hasta` (inclusive por fecha).
+        def ids(cliente, query):
+            r = cliente.get('/dashboard/api/supervision/detalles' + query)
+            self.assertEqual(r.status_code, 200, r.data[:200])
+            return {d['id'] for d in r.get_json()['detalles']}
+        hoy = date.today()
+        d30 = f"{hoy - timedelta(days=30):%Y-%m-%d}"
+        self.assertEqual(ids(self.coord, f"?desde={d30}&hasta={hoy:%Y-%m-%d}"), {D['supA']})
+        self.assertEqual(ids(self.admin, f"?desde={d30}&hasta={hoy:%Y-%m-%d}"), {D['supA'], D['supB']})
+        self.assertEqual(ids(self.coord2, f"?desde={d30}&hasta={hoy:%Y-%m-%d}"), set(), 'sin ámbito no ve nada')
+        # `hasta` recorta: la supervisión sembrada es de hace 5 días.
+        self.assertEqual(ids(self.admin, f"?desde={d30}&hasta={hoy - timedelta(days=6):%Y-%m-%d}"), set())
+        # Un `hasta` mal formado se ignora en vez de romper la consulta.
+        self.assertEqual(ids(self.coord, '?hasta=ayer'), {D['supA']})
 
     def test_10_coordinador_sin_ambito(self):
         self.assertEqual(self.alertas(self.coord2), [])
