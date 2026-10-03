@@ -13,6 +13,7 @@ from datetime import date, timedelta, datetime
 from html import escape
 from functools import wraps
 from io import BytesIO
+from urllib.parse import urlparse
 
 import psycopg2
 from psycopg2 import extras
@@ -1139,6 +1140,38 @@ _ASIG_RUTA = {
     'checklist_cumplimiento':         '/dashboard/cumplimiento/',
     'confiabilidad_equipos':          '/dashboard/equipos/',
 }
+
+# Páginas de Administrador desde las que se llega a la vista del hallazgo y a las
+# que tiene sentido "volver". Cualquier otra procedencia (la bandeja Hallazgos
+# Asignados, el correo de asignación, una URL escrita) vuelve a la bandeja, que
+# es la única que todos los perfiles tienen en el menú.
+_HALLAZGO_ORIGENES_ADMIN = (
+    ('/cgeo/morning-briefing/', 'Volver al Morning Briefing'),
+    ('/cgeo/operacion/',        'Volver a Operación e Incidentes'),
+)
+
+
+def _volver_de_hallazgo():
+    """(href, texto) del enlace de retorno de la vista del hallazgo.
+
+    Antes era un "Volver al Morning Briefing" fijo: el Supervisor de Seguridad y
+    el Coordinador, que no tienen acceso al briefing, caían en "No tienes
+    permisos". Sólo el Administrador que viene del briefing o de Operación e
+    Incidentes vuelve allí (con la misma query, para conservar sus filtros); el
+    Referer se usa únicamente para elegir entre destinos propios ya conocidos.
+    """
+    por_defecto = ('/cgeo/hallazgos', 'Volver a Hallazgos Asignados')
+    try:
+        es_admin = bool((get_jwt() or {}).get('is_admin', False))
+    except Exception:
+        es_admin = False
+    if not es_admin or not request.referrer:
+        return por_defecto
+    origen = urlparse(request.referrer)
+    for ruta, texto in _HALLAZGO_ORIGENES_ADMIN:
+        if origen.path.startswith(ruta):
+            return (ruta + (f'?{origen.query}' if origen.query else ''), texto)
+    return por_defecto
 
 
 def _quote(valor):
@@ -3991,6 +4024,7 @@ def ver_hallazgo(asignacion_id):
         vencida = bool(asignacion.get('fecha_limite')
                        and not cerrado
                        and asignacion['fecha_limite'] < date.today())
+        volver_href, volver_texto = _volver_de_hallazgo()
 
         return render_template(
             'cgeo_hallazgo.html',
@@ -4000,6 +4034,8 @@ def ver_hallazgo(asignacion_id):
             responsable=responsable,
             cerrado=cerrado,
             vencida=vencida,
+            volver_href=volver_href,
+            volver_texto=volver_texto,
             etiqueta=_ASIG_ETIQUETA.get(asignacion['form_type'], 'Registro'),
             ruta_registro=_ASIG_RUTA.get(asignacion['form_type'], '/cgeo/morning-briefing/'),
         )

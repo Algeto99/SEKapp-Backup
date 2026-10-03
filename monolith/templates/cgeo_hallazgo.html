@@ -24,7 +24,10 @@
 
 <div class="max-w-3xl mx-auto px-4 py-8">
 
-    <a href="/cgeo/morning-briefing/" class="text-sm text-slate-400 hover:text-slate-200">← Volver al Morning Briefing</a>
+    {# El destino lo decide la vista según el perfil y la página de origen:
+       Hallazgos Asignados por defecto; el briefing u Operación sólo para el
+       Administrador que vino de ahí. #}
+    <a href="{{ volver_href or '/cgeo/hallazgos' }}" class="text-sm text-slate-400 hover:text-slate-200">← {{ volver_texto or 'Volver a Hallazgos Asignados' }}</a>
 
     <div class="flex items-center gap-3 mt-4 mb-6">
         <h1 class="text-2xl font-bold text-white">Hallazgo asignado</h1>

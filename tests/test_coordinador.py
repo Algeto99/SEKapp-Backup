@@ -191,6 +191,24 @@ class CoordinadorTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.data[:200])
         self.assertEqual(self.coord.get(f"/cgeo/hallazgo/{D['asigB']}").status_code, 403)
         self.assertEqual(self.coord.get(f"/cgeo/hallazgo/{D['asigA']}").status_code, 200)
+        # El enlace de retorno depende del perfil y de la procedencia: el Coordinador
+        # y el Supervisor vuelven siempre a Hallazgos Asignados (no tienen briefing),
+        # aunque el navegador diga que vinieron de él; el Administrador vuelve al
+        # briefing sólo cuando viene de ahí, conservando su query.
+        url = f"/cgeo/hallazgo/{D['asigA']}"
+        briefing = {'Referer': 'http://localhost/cgeo/morning-briefing/?cliente=1'}
+        for quien in (self.coord, self.sup):
+            html = quien.get(url, headers=briefing).get_data(as_text=True)
+            self.assertIn('Volver a Hallazgos Asignados', html)
+            self.assertNotIn('Morning Briefing', html)
+        self.assertIn('Volver a Hallazgos Asignados', self.admin.get(url).get_data(as_text=True))
+        html = self.admin.get(url, headers=briefing).get_data(as_text=True)
+        self.assertIn('href="/cgeo/morning-briefing/?cliente=1"', html)
+        self.assertIn('Volver al Morning Briefing', html)
+        html = self.admin.get(url, headers={'Referer': 'http://localhost/cgeo/operacion/'}).get_data(as_text=True)
+        self.assertIn('Volver a Operación e Incidentes', html)
+        html = self.admin.get(url, headers={'Referer': 'http://localhost/cgeo/hallazgos'}).get_data(as_text=True)
+        self.assertIn('Volver a Hallazgos Asignados', html)
         self.assertEqual(self.coord.post(f"/cgeo/api/asignaciones/{D['asigB']}/gestionar", json={'nota': 'x'}).status_code, 403)
         r = self.coord.post(f"/cgeo/api/asignaciones/{D['asigA']}/gestionar", json={'nota': 'Atendido'})
         self.assertEqual(r.status_code, 200, r.data[:200])
