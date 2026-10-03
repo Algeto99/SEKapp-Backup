@@ -697,37 +697,48 @@ function _fechaLocal(d) {
 function renderKpis(k, thr) {
     const today = _fechaLocal(new Date());
 
-    // Equipos: radios, armas, motos desde el inventario
+    // Equipos: radios y armas (parque registrado en Bases de Datos + estado del
+    // inventario de Confiabilidad de Equipos) y motos (planilla de motocicletas,
+    // la misma fuente que Recursos; en el inventario nunca hubo filas de motos).
     const radioData = _eqTipo(k.eq_por_tipo, 'radio', 'radios');
     const armaData  = _eqTipo(k.eq_por_tipo, 'arma', 'armas');
-    // Las motos salen de planilla_motocicletas (la misma fuente que Recursos),
-    // no del inventario de equipos, donde nunca hubo filas de ese tipo.
     const motoTotal = k.moto_total ?? 0;
     const motoAptas = k.moto_aptas ?? 0;
 
     // Sin inventario de radios NO se hereda el total general de equipos: eso
-    // ponía cámaras, alarmas y controles de acceso bajo la etiqueta "Radios"
+    // ponía cámaras, alarmas y controles de acceso bajo la etiqueta de radios
     // —el mismo error de "número correcto, etiqueta equivocada" que ya se quitó
-    // de la pantalla de Recursos—. Sin fuente propia, la tarjeta dice "Sin datos".
+    // de la pantalla de Recursos—.
     const radioTotal = radioData?.total ?? 0;
     const radioOp    = radioData?.operativos ?? 0;
     const radioNoOp  = Math.max(0, radioTotal - radioOp);
+    const armaTotal  = armaData?.total ?? 0;
+    const armaOp     = armaData?.operativos ?? 0;
 
-    // Registrados en supervision_puesto: lo mismo que lista Bases de Datos.
-    // Mientras no se capture el inventario en Confiabilidad de Equipos no se
-    // puede afirmar cuántos están operativos, pero sí cuántos hay: decir "Sin
-    // datos" teniendo el parque registrado era ocultar información existente.
+    // Registrados en supervision_puesto: lo mismo que lista Bases de Datos. Es
+    // el parque real; el inventario sólo dice cuántos de ellos funcionan.
     const radioReg = k.radios_registrados ?? 0;
     const armaReg  = k.armas_registrados  ?? 0;
 
-    const armaStr = armaData
-        ? `${armaData.operativos} de ${armaData.total} armas operativas`
-        : armaReg > 0
-            ? `${armaReg} armas registradas · estado sin capturar`
-            : '0 armas registradas';
-    const motoStr = motoTotal > 0
-        ? `${motoAptas} de ${motoTotal} motos aptas`
-        : '0 motos registradas';
+    // Cifra principal: unidades registradas, radios + armas. Si el parque no está
+    // en Bases de Datos pero sí en el inventario, se usa el inventario. La primera
+    // frase del detalle la explica para que no se lea como "cantidad de radios".
+    const radiosParque = radioReg || radioTotal;
+    const armasParque  = armaReg  || armaTotal;
+    const equiposTotal = radiosParque + armasParque;
+    const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+    const eqDetalle = [
+        equiposTotal > 0
+            ? `${plural(radiosParque, 'radio', 'radios')} y ${plural(armasParque, 'arma', 'armas')} registrados en Bases de Datos`
+            : 'Sin radios ni armas registrados en Bases de Datos',
+        radioTotal > 0
+            ? `Radios operativos: ${radioOp} de ${radioTotal}`
+            : 'Radios operativos: estado sin capturar en Confiabilidad de Equipos',
+        `Armas registradas: ${armasParque}` + (armaTotal > 0 ? ` (${armaOp} de ${armaTotal} óptimas)` : ''),
+        motoTotal > 0
+            ? `Motos aptas: ${motoAptas} de ${motoTotal}`
+            : 'Motos aptas: sin planillas registradas',
+    ];
 
     // Certificaciones por nivel
     const certNivel = k.cert_por_nivel ?? {};
@@ -763,17 +774,17 @@ function renderKpis(k, thr) {
         {
             id: 'kpiEq',
             href: '/cgeo/recursos/',
-            icon: '📡', iconBg: '#fff7ed',
-            // Tres estados, en este orden: inventario capturado → % operativo;
-            // sólo registro → cuántos hay, sin afirmar su estado; nada → sin datos.
-            val: radioTotal > 0 ? radioOp : radioReg > 0 ? radioReg : '—',
-            lbl: 'Radios',
-            sub: radioTotal > 0
-                ? `de ${radioTotal} operativos · ${armaStr} · ${motoStr}`
-                : radioReg > 0
-                    ? `${radioReg} registrados · estado sin capturar · ${armaStr} · ${motoStr}`
-                    : `Sin datos de radios · ${armaStr} · ${motoStr}`,
+            icon: '🧰', iconBg: '#fff7ed',
+            // Antes se titulaba "Radios" y la cifra eran sólo radios, pero el
+            // detalle hablaba de radios, armas y motos: se leía como una cifra de
+            // radios que mezclaba todo. Ahora la cifra son unidades registradas
+            // (radios + armas) y cada valor del detalle lleva su nombre.
+            val: equiposTotal > 0 ? equiposTotal : '—',
+            lbl: 'Equipos',
+            sub: eqDetalle.join(' · '),
             action: 'Ver equipos →',
+            // El semáforo sigue saliendo del estado de los radios cuando hay
+            // inventario; sin inventario queda gris, como antes.
             color: _kpiEqColor(radioNoOp, radioTotal, thr),
         },
         {
