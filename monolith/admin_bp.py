@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import traceback
 import zoneinfo
 from datetime import datetime, date, time, timezone
@@ -697,9 +698,10 @@ def _ensure_thresholds_table(conn):
 
 def _periodo_inicio_actual(periodicidad):
     """Fecha de inicio del período vigente (día/semana/mes) según la periodicidad
-    configurada para la meta de supervisiones."""
-    from datetime import date, timedelta
-    today = date.today()
+    configurada para la meta de supervisiones. "Hoy" es el de la zona de la
+    operación: en UTC el período semanal o mensual arrancaba 5 h antes."""
+    from datetime import timedelta
+    today = hoy_operacion()
     if periodicidad == 'semanal':
         return today - timedelta(days=today.weekday())
     if periodicidad == 'mensual':
@@ -943,6 +945,60 @@ def get_operation_timezone(conn=None, tz_hint=None, reports=None):
         return zoneinfo.ZoneInfo('America/Bogota')
     except Exception:
         return zoneinfo.ZoneInfo('UTC')
+
+
+# ── "Hoy" y "ahora" de la operación ──────────────────────────────────────────
+#
+# `fecha_hora` guarda el reloj de pared de la operación (ver `wall_clock` en
+# format_local_datetime). Para decidir qué es "hoy" o cuánto hace de algo hay
+# que comparar contra el reloj de pared de ESA zona, no contra date.today() ni
+# contra CURRENT_DATE / NOW() de Postgres, que corren en UTC: desde las 19:00
+# de Panamá/Bogotá "hoy" ya era mañana, y una supervisión de las 8:19 p. m.
+# no contaba en "Supervisiones hoy" ni en el gráfico de 7 días.
+
+_TZ_NOMBRE_SEGURO = re.compile(r'^[A-Za-z0-9_+\-/]+$')
+
+
+def tz_operacion():
+    """Zona de la operación (Umbrales KPI), resuelta una sola vez por petición."""
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            tz = getattr(g, '_tz_operacion', None)
+            if tz is None:
+                tz = get_operation_timezone()
+                g._tz_operacion = tz
+            return tz
+    except Exception:
+        pass
+    return get_operation_timezone()
+
+
+def hoy_operacion():
+    """Fecha de hoy en la zona de la operación. Sustituye a date.today()."""
+    return datetime.now(tz_operacion()).date()
+
+
+def ahora_operacion():
+    """Reloj de pared local sin zona: comparable con `fecha_hora` tal como se guarda."""
+    return datetime.now(tz_operacion()).replace(tzinfo=None)
+
+
+def _tz_sql():
+    nombre = getattr(tz_operacion(), 'key', None) or 'UTC'
+    return nombre if _TZ_NOMBRE_SEGURO.match(nombre) else 'UTC'
+
+
+def sql_ahora():
+    """Expresión SQL del reloj de pared local. Sustituye a NOW() cuando se compara
+    con `fecha_hora` u otra columna de reloj de pared; frente a `creado_en` o
+    `generado_en` (instantes reales) NOW() sigue siendo lo correcto."""
+    return f"(NOW() AT TIME ZONE '{_tz_sql()}')"
+
+
+def sql_hoy():
+    """Expresión SQL de la fecha local. Sustituye a CURRENT_DATE."""
+    return f"(NOW() AT TIME ZONE '{_tz_sql()}')::date"
 
 
 def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", use_12h=True, assume_utc=False,

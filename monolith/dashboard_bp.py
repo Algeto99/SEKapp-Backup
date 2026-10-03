@@ -12,6 +12,7 @@ from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
 from auditoria import anotar
+from admin_bp import hoy_operacion, ahora_operacion, sql_hoy
 from coordinador import condicion_ambito, es_coordinador, fuera_de_ambito
 from gcs_utils import resolve_upload_bucket
 from normalizacion import (clave_identificador, normalizar_nombre,
@@ -399,8 +400,8 @@ def get_this_week_count(property_id=None, company_id=None):
         cur = conn.cursor()
 
         # Build query with optional property/tenant filter
-        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
-              AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'"""
+        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', {sql_hoy()})
+              AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week'"""
         params = []
 
         if property_id:
@@ -443,7 +444,7 @@ def get_this_month_count(property_id=None, company_id=None):
         cur = conn.cursor()
 
         # Build query with optional property/tenant filter
-        where_clause = f"""WHERE DATE_TRUNC('month', {INCIDENT_DATE_EXPR}) = DATE_TRUNC('month', CURRENT_DATE)"""
+        where_clause = f"""WHERE DATE_TRUNC('month', {INCIDENT_DATE_EXPR}) = DATE_TRUNC('month', {sql_hoy()})"""
         params = []
 
         if property_id:
@@ -552,27 +553,27 @@ def get_reports_for_stat(stat_type, property_id=None, limit=100):
             pass
         elif stat_type == 'thisMonth':
             where_conditions.append(f"""
-                DATE_TRUNC('month', {INCIDENT_DATE_EXPR}) = DATE_TRUNC('month', CURRENT_DATE)
+                DATE_TRUNC('month', {INCIDENT_DATE_EXPR}) = DATE_TRUNC('month', {sql_hoy()})
             """)
         elif stat_type == 'thisWeek':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
-                AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+                {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', {sql_hoy()})
+                AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week'
             """)
         elif stat_type == 'incidentTypes':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
-                AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+                {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', {sql_hoy()})
+                AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week'
             """)
         elif stat_type == 'incidentTypesMonthly':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '30 days'
-                AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
+                {INCIDENT_DATE_EXPR} >= {sql_hoy()} - INTERVAL '30 days'
+                AND {INCIDENT_DATE_EXPR} < {sql_hoy()} + INTERVAL '1 day'
             """)
         elif stat_type == 'incidentTypesYearly':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '365 days'
-                AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
+                {INCIDENT_DATE_EXPR} >= {sql_hoy()} - INTERVAL '365 days'
+                AND {INCIDENT_DATE_EXPR} < {sql_hoy()} + INTERVAL '1 day'
             """)
         
         # Build final query
@@ -645,18 +646,18 @@ def get_reports_for_incident_type(incident_type, stat_type='weekly', property_id
         # FIXED: Add date conditions based on stat type with consistent calculations
         if stat_type == 'weekly':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
-                AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+                {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', {sql_hoy()})
+                AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week'
             """)
         elif stat_type == 'monthly':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '30 days'
-                AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
+                {INCIDENT_DATE_EXPR} >= {sql_hoy()} - INTERVAL '30 days'
+                AND {INCIDENT_DATE_EXPR} < {sql_hoy()} + INTERVAL '1 day'
             """)
         elif stat_type == 'yearly':
             where_conditions.append(f"""
-                {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '365 days'
-                AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'
+                {INCIDENT_DATE_EXPR} >= {sql_hoy()} - INTERVAL '365 days'
+                AND {INCIDENT_DATE_EXPR} < {sql_hoy()} + INTERVAL '1 day'
             """)
         
         # Build final query
@@ -712,8 +713,8 @@ def get_incidents_by_week_with_types(property_id=None, company_id=None):
         query = f"""
             WITH seven_day_periods AS (
                 SELECT 
-                    CURRENT_DATE - (generate_series(0, 11) * 7) as period_end,
-                    CURRENT_DATE - (generate_series(0, 11) * 7) - 6 as period_start
+                    {sql_hoy()} - (generate_series(0, 11) * 7) as period_end,
+                    {sql_hoy()} - (generate_series(0, 11) * 7) - 6 as period_start
             ),
             all_types AS (
                 SELECT unnest(ARRAY['Hurto', 'Olvido', 'Recuperacion', 'Robo']) as incident_type
@@ -838,8 +839,8 @@ def get_incidents_by_week(property_id=None, company_id=None):
         query = f"""
             WITH seven_day_periods AS (
                 SELECT 
-                    CURRENT_DATE - (generate_series(0, 11) * 7) as period_end,
-                    CURRENT_DATE - (generate_series(0, 11) * 7) - 6 as period_start
+                    {sql_hoy()} - (generate_series(0, 11) * 7) as period_end,
+                    {sql_hoy()} - (generate_series(0, 11) * 7) - 6 as period_start
             )
             SELECT 
                 sdp.period_start,
@@ -1037,8 +1038,8 @@ def get_incident_types_stats(property_id=None):
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # FIXED: Use exact same date calculation as thisWeek and remove ti.nombre IS NOT NULL filter
-        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
-              AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'"""
+        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', {sql_hoy()})
+              AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week'"""
         params = []
         
         if property_id:
@@ -1143,8 +1144,8 @@ def get_incident_types_monthly(property_id=None):
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # Build query with optional property filter - Changed to last 30 days
-        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '30 days'
-              AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'"""
+        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= {sql_hoy()} - INTERVAL '30 days'
+              AND {INCIDENT_DATE_EXPR} < {sql_hoy()} + INTERVAL '1 day'"""
         params = []
         
         if property_id:
@@ -1213,8 +1214,8 @@ def get_incident_types_yearly(property_id=None):
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         # Build query with optional property filter - Changed to last 365 days
-        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= CURRENT_DATE - INTERVAL '365 days'
-              AND {INCIDENT_DATE_EXPR} < CURRENT_DATE + INTERVAL '1 day'"""
+        where_clause = f"""WHERE {INCIDENT_DATE_EXPR} >= {sql_hoy()} - INTERVAL '365 days'
+              AND {INCIDENT_DATE_EXPR} < {sql_hoy()} + INTERVAL '1 day'"""
         params = []
         
         if property_id:
@@ -2180,7 +2181,7 @@ def api_gestion_data():
             SELECT
                 COUNT(*) AS total,
                 SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END) AS cumple,
-                SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < CURRENT_DATE THEN 1 ELSE 0 END) AS vencidos
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < {sql_hoy()} THEN 1 ELSE 0 END) AS vencidos
             FROM checklist_cumplimiento
             {cum_where}
         """, cum_params)
@@ -3734,7 +3735,7 @@ def _sat_prev_where(cliente, year, month, day, company_id=None, propiedad=None):
         conds.append("company_id = %s")
         params.append(company_id)
 
-    now = datetime.now(timezone.utc)
+    now = ahora_operacion()
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
         prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
@@ -3828,7 +3829,7 @@ def api_satisfaccion_debug():
         )
         total = cur.fetchone()['cnt']
 
-        year_params = [f"{datetime.now().year}%"] + cid_params
+        year_params = [f"{hoy_operacion().year}%"] + cid_params
         cur.execute(f"""
             SELECT COUNT(*) AS cnt
             FROM medicion_experiencia_cliente
@@ -4167,7 +4168,7 @@ def _inc_prev_where(cliente, year, month, day, company_id=None, propiedad=None, 
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
-    now = datetime.now(timezone.utc)
+    now = ahora_operacion()
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
         prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
@@ -4660,7 +4661,7 @@ def _disc_prev_where(cliente, year, month, day, company_id=None, propiedad=None,
     if company_id is not None:
         conds.append("company_id = %s")
         params.append(company_id)
-    now = datetime.now(timezone.utc)
+    now = ahora_operacion()
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
         prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
@@ -5019,7 +5020,7 @@ def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None, 
         return None, None
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
-    now = datetime.now(timezone.utc)
+    now = ahora_operacion()
     if year and month and day:
         prev = datetime(year, month, day) - timedelta(days=1)
         prefix = f"{prev.year}-{prev.month:02d}-{prev.day:02d}"
@@ -5554,11 +5555,11 @@ def api_cumplimiento_data():
                 SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) LIKE 'cumple con%%'
                          THEN 1 ELSE 0 END)                                             AS cnt_hallazgos,
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                              AND vigencia_hasta < CURRENT_DATE
+                              AND vigencia_hasta < {sql_hoy()}
                          THEN 1 ELSE 0 END)                                             AS cnt_vencidos,
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                              AND vigencia_hasta >= CURRENT_DATE
-                              AND vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'
+                              AND vigencia_hasta >= {sql_hoy()}
+                              AND vigencia_hasta < {sql_hoy()} + INTERVAL '30 days'
                          THEN 1 ELSE 0 END)                                             AS cnt_proximos
             FROM checklist_cumplimiento
             {where}
@@ -5597,14 +5598,14 @@ def api_cumplimiento_data():
         cur.execute(f"""
             SELECT
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                              AND vigencia_hasta >= CURRENT_DATE + INTERVAL '30 days'
+                              AND vigencia_hasta >= {sql_hoy()} + INTERVAL '30 days'
                          THEN 1 ELSE 0 END)                                             AS vigente,
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                              AND vigencia_hasta >= CURRENT_DATE
-                              AND vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'
+                              AND vigencia_hasta >= {sql_hoy()}
+                              AND vigencia_hasta < {sql_hoy()} + INTERVAL '30 days'
                          THEN 1 ELSE 0 END)                                             AS proximo,
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                              AND vigencia_hasta < CURRENT_DATE
+                              AND vigencia_hasta < {sql_hoy()}
                          THEN 1 ELSE 0 END)                                             AS vencido
             FROM checklist_cumplimiento
             {where}
@@ -5677,11 +5678,11 @@ def api_cumplimiento_data():
             })
 
         # ── Alert: vencidos ────────────────────────────────────────────────
-        v_conds = base_conds + ['vigencia_hasta IS NOT NULL', 'vigencia_hasta < CURRENT_DATE']
+        v_conds = base_conds + ['vigencia_hasta IS NOT NULL', f'vigencia_hasta < {sql_hoy()}']
         cur.execute(f"""
             SELECT id, agente_nombre_completo, agente_numero_documento, curso_certificacion,
                    vigencia_hasta, cliente_instalacion,
-                   (CURRENT_DATE - vigencia_hasta) AS dias_vencido
+                   ({sql_hoy()} - vigencia_hasta) AS dias_vencido
             FROM checklist_cumplimiento
             {_cumpl_where(v_conds)}
             ORDER BY dias_vencido DESC
@@ -5700,13 +5701,13 @@ def api_cumplimiento_data():
         # ── Alert: próximos a vencer (<30 days) ────────────────────────────
         p_conds = base_conds + [
             'vigencia_hasta IS NOT NULL',
-            'vigencia_hasta >= CURRENT_DATE',
-            "vigencia_hasta < CURRENT_DATE + INTERVAL '30 days'",
+            f'vigencia_hasta >= {sql_hoy()}',
+            f"vigencia_hasta < {sql_hoy()} + INTERVAL '30 days'",
         ]
         cur.execute(f"""
             SELECT id, agente_nombre_completo, agente_numero_documento, curso_certificacion,
                    vigencia_hasta, cliente_instalacion,
-                   (vigencia_hasta - CURRENT_DATE) AS dias_restantes
+                   (vigencia_hasta - {sql_hoy()}) AS dias_restantes
             FROM checklist_cumplimiento
             {_cumpl_where(p_conds)}
             ORDER BY dias_restantes ASC
@@ -6212,7 +6213,7 @@ def _visita_status(acuerdo_text, fecha_limite):
     done_markers = ('cumplido', 'completado', 'realizado', 'ejecutado', 'cerrado', 'finalizado')
     if any(marker in text for marker in done_markers):
         return 'cumplido'
-    if fecha_limite and fecha_limite < datetime.now().date():
+    if fecha_limite and fecha_limite < hoy_operacion():
         return 'vencido'
     return 'pendiente'
 
@@ -6294,7 +6295,7 @@ def _visita_parse_compromisos(rows):
             elif raw_st == 'vencido':
                 estado = 'vencido'
             elif raw_st == 'pendiente':
-                if fecha_limite and fecha_limite < datetime.now().date():
+                if fecha_limite and fecha_limite < hoy_operacion():
                     estado = 'vencido'
                 else:
                     estado = 'pendiente'
@@ -7792,11 +7793,11 @@ def debug_thisweek():
         cid_params = [company_id] if company_id is not None else []
 
         # Get the current date and week boundaries
-        boundary_query = """
+        boundary_query = f"""
             SELECT
-                CURRENT_DATE as current_date,
-                DATE_TRUNC('week', CURRENT_DATE) as week_start,
-                DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week' - INTERVAL '1 day' as week_end
+                {sql_hoy()} as current_date,
+                DATE_TRUNC('week', {sql_hoy()}) as week_start,
+                DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week' - INTERVAL '1 day' as week_end
         """
 
         cur.execute(boundary_query)
@@ -7813,8 +7814,8 @@ def debug_thisweek():
                 ri.descripcion_incidente
             FROM reportes_incidentes ri
             LEFT JOIN propiedades p ON ri.id_propiedad = p.id_propiedad
-            WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', CURRENT_DATE)
-              AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', CURRENT_DATE) + INTERVAL '1 week'
+            WHERE {INCIDENT_DATE_EXPR} >= DATE_TRUNC('week', {sql_hoy()})
+              AND {INCIDENT_DATE_EXPR} < DATE_TRUNC('week', {sql_hoy()}) + INTERVAL '1 week'
               {cid_cond}
             ORDER BY {INCIDENT_ORDER_EXPR}
         """

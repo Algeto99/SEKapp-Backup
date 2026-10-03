@@ -24,7 +24,7 @@ from auditoria import anotar
 from email_utils import send_email
 from gcs_utils import (get_public_media_url,
                        verify_media_token, _get_storage_client)
-from admin_bp import format_local_datetime, get_operation_timezone
+from admin_bp import format_local_datetime, get_operation_timezone, hoy_operacion, sql_hoy, sql_ahora
 
 app_logger = logging.getLogger(__name__)
 
@@ -243,7 +243,7 @@ def _compute_status(event, prop_lat, prop_lng):
         fecha_limite = event.get('compromisos_fecha_limite')
         estados = str(event.get('compromisos_estados') or '').upper()
         if fecha_limite:
-            today = datetime.now(timezone.utc).date()
+            today = hoy_operacion()
             limit = fecha_limite if isinstance(fecha_limite, type(today)) else fecha_limite
             if hasattr(limit, 'date'):
                 limit = limit.date()
@@ -265,7 +265,7 @@ def _compute_status(event, prop_lat, prop_lng):
         # compromisos_fecha_limite is reused here to carry vigencia_hasta
         vigencia_hasta = event.get('compromisos_fecha_limite')
         if vigencia_hasta:
-            today = datetime.now(timezone.utc).date()
+            today = hoy_operacion()
             limit = vigencia_hasta.date() if hasattr(vigencia_hasta, 'date') else vigencia_hasta
             if limit < today:
                 return 'RED'
@@ -591,7 +591,7 @@ def api_feed():
                 sp.nombre_guardia                                AS asunto
             FROM supervision_puesto sp
             WHERE {_anchor_sql('sp')} {cf_sup}
-              AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(sp.fecha_hora, sp.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -614,7 +614,7 @@ def api_feed():
                 ri.tipo_incidente                                AS asunto
             FROM reportes_incidentes ri
             WHERE {_anchor_sql('ri')} {cf_inc}
-              AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(ri.fecha_hora, ri.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -645,7 +645,7 @@ def api_feed():
                 )                                                 AS asunto
             FROM registro_y_acta_de_visita rav
             WHERE {_anchor_sql('rav')} {cf_vis}
-              AND COALESCE(rav.fecha_hora, rav.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(rav.fecha_hora, rav.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -668,7 +668,7 @@ def api_feed():
                 mec.categoria_evaluada                           AS asunto
             FROM medicion_experiencia_cliente mec
             WHERE {_anchor_sql('mec')} {cf_enc}
-              AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(mec.fecha_hora, mec.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -691,7 +691,7 @@ def api_feed():
                 cc.curso_certificacion                           AS asunto
             FROM checklist_cumplimiento cc
             WHERE {_anchor_sql('cc')}
-              AND COALESCE(cc.fecha_hora, cc.created_at) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(cc.fecha_hora, cc.created_at) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             ORDER BY event_ts DESC NULLS LAST
         """
@@ -753,7 +753,7 @@ def _fetch_equipos_data(cur, cliente, days=None, company_id=None, prop_id=None):
     ]
     params = [prop_id, cliente]
     if days:
-        conds.append("c.fecha >= CURRENT_DATE - (%s * INTERVAL '1 day')")
+        conds.append(f"c.fecha >= {sql_hoy()} - (%s * INTERVAL '1 day')")
         params.append(int(days))
     if company_id is not None:
         conds.append("c.company_id = %s")
@@ -899,7 +899,7 @@ def api_kpi():
                 {geofence_sql}
             FROM supervision_puesto
             WHERE {_anchor_sql('supervision_puesto')} {cf}
-              AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
+              AND COALESCE(fecha_hora, creado_en) >= {sql_ahora()} - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
         """, p())
         sup = {r['mes']: dict(r) for r in cur.fetchall()}
@@ -914,7 +914,7 @@ def api_kpi():
                          AS abiertos
             FROM reportes_incidentes
             WHERE {_anchor_sql('reportes_incidentes')} {cf}
-              AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
+              AND COALESCE(fecha_hora, creado_en) >= {sql_ahora()} - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
         """, p())
         inc = {r['mes']: dict(r) for r in cur.fetchall()}
@@ -924,7 +924,7 @@ def api_kpi():
                 TO_CHAR(DATE_TRUNC('month', creado_en), 'YYYY-MM') AS mes,
                 COUNT(*) AS acuerdos,
                 COUNT(*) FILTER (
-                    WHERE fecha_cumplimiento < CURRENT_DATE - INTERVAL '1 day'
+                    WHERE fecha_cumplimiento < {sql_hoy()} - INTERVAL '1 day'
                       AND (compromisos_estados IS NULL
                            OR compromisos_estados NOT ILIKE '%%CUMPLIDO%%')
                 ) AS vencidos
@@ -942,7 +942,7 @@ def api_kpi():
                 ROUND(AVG(calificacion_global_nps)::numeric, 1) AS nps_promedio
             FROM medicion_experiencia_cliente
             WHERE {_anchor_sql('medicion_experiencia_cliente')} {cf}
-              AND COALESCE(fecha_hora, creado_en) >= NOW() - INTERVAL '6 months'
+              AND COALESCE(fecha_hora, creado_en) >= {sql_ahora()} - INTERVAL '6 months'
             GROUP BY mes ORDER BY mes
         """, p())
         enc = {r['mes']: dict(r) for r in cur.fetchall()}
@@ -1244,7 +1244,7 @@ def public_expediente_viewer(token):
                 NULL::text               AS compromisos_estados
             FROM supervision_puesto sp
             WHERE {_anchor_sql('sp')} {cf_sup}
-              AND COALESCE(sp.fecha_hora, sp.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(sp.fecha_hora, sp.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -1257,7 +1257,7 @@ def public_expediente_viewer(token):
                 ri.estado, ri.nivel_severidad, NULL::date, NULL::text
             FROM reportes_incidentes ri
             WHERE {_anchor_sql('ri')} {cf_inc}
-              AND COALESCE(ri.fecha_hora, ri.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(ri.fecha_hora, ri.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -1280,7 +1280,7 @@ def public_expediente_viewer(token):
                 NULL::date, rav.compromisos_estados
             FROM registro_y_acta_de_visita rav
             WHERE {_anchor_sql('rav')} {cf_vis}
-              AND COALESCE(rav.fecha_hora, rav.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(rav.fecha_hora, rav.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -1295,7 +1295,7 @@ def public_expediente_viewer(token):
                 NULL::date, NULL::text
             FROM medicion_experiencia_cliente mec
             WHERE {_anchor_sql('mec')} {cf_enc}
-              AND COALESCE(mec.fecha_hora, mec.creado_en) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(mec.fecha_hora, mec.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             UNION ALL
 
@@ -1316,7 +1316,7 @@ def public_expediente_viewer(token):
                 NULL::text
             FROM checklist_cumplimiento cc
             WHERE {_anchor_sql('cc')}
-              AND COALESCE(cc.fecha_hora, cc.created_at) >= NOW() - (%s * INTERVAL '1 day')
+              AND COALESCE(cc.fecha_hora, cc.created_at) >= {sql_ahora()} - (%s * INTERVAL '1 day')
 
             ORDER BY event_ts DESC NULLS LAST
         """

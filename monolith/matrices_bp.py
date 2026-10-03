@@ -15,6 +15,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from db import get_db_connection
 from coordinador import coordinador_o_admin, es_coordinador, ambito_activo, condicion_ambito
+from admin_bp import hoy_operacion, sql_hoy
 
 matrices_bp = Blueprint("matrices_bp", __name__)
 app_logger = logging.getLogger(__name__)
@@ -106,20 +107,20 @@ def matrices_api_stats():
                 month_start = date.fromisoformat(date_from_arg)
                 month_end   = date.fromisoformat(date_to_arg)
             except Exception:
-                month_start = date.today().replace(day=1)
-                last_day    = calendar.monthrange(date.today().year, date.today().month)[1]
-                month_end   = date(date.today().year, date.today().month, last_day)
+                month_start = hoy_operacion().replace(day=1)
+                last_day    = calendar.monthrange(hoy_operacion().year, hoy_operacion().month)[1]
+                month_end   = date(hoy_operacion().year, hoy_operacion().month, last_day)
         elif month_arg:
             try:
                 year, month = map(int, month_arg.split('-'))
                 selected_date = date(year, month, 1)
             except Exception:
-                selected_date = date.today()
+                selected_date = hoy_operacion()
             month_start = selected_date.replace(day=1)
             last_day    = calendar.monthrange(selected_date.year, selected_date.month)[1]
             month_end   = date(selected_date.year, selected_date.month, last_day)
         else:
-            today = date.today()
+            today = hoy_operacion()
             month_start = today.replace(day=1)
             last_day    = calendar.monthrange(today.year, today.month)[1]
             month_end   = date(today.year, today.month, last_day)
@@ -225,10 +226,10 @@ def matrices_api_stats():
             cur.execute(f"""
                 SELECT
                     COUNT(*) AS total,
-                    SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < CURRENT_DATE THEN 1 ELSE 0 END) AS vencidas,
+                    SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < {sql_hoy()} THEN 1 ELSE 0 END) AS vencidas,
                     SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                             AND vigencia_hasta >= CURRENT_DATE
-                             AND vigencia_hasta <= CURRENT_DATE + INTERVAL '15 days' THEN 1 ELSE 0 END) AS proximas
+                             AND vigencia_hasta >= {sql_hoy()}
+                             AND vigencia_hasta <= {sql_hoy()} + INTERVAL '15 days' THEN 1 ELSE 0 END) AS proximas
                 FROM checklist_cumplimiento {where}
             """, params)
             r = cur.fetchone() or {}

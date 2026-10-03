@@ -31,6 +31,7 @@ except OSError:
 
 from db import get_db_connection
 from auditoria import anotar
+from admin_bp import hoy_operacion, sql_hoy, sql_ahora
 from coordinador import (ambito_activo, condicion_ambito, registro_en_ambito, es_coordinador,
                          coordinador_o_admin, acotar_filtros, fuera_de_ambito)
 from email_utils import send_email
@@ -755,7 +756,7 @@ def cgeo_api_recursos_data():
         return jsonify({"error": "DB no disponible"}), 500
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
-        today = date.today()
+        today = hoy_operacion()
 
         # ── Equipos ──────────────────────────────────────────────────────────
         eq_conds, eq_params = [], []
@@ -890,10 +891,10 @@ def cgeo_api_recursos_data():
             SELECT
                 COUNT(*) AS total,
                 SUM(CASE WHEN LOWER(TRIM(nivel_cumplimiento)) = 'cumple' THEN 1 ELSE 0 END) AS vigentes,
-                SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < CURRENT_DATE THEN 1 ELSE 0 END) AS vencidas,
+                SUM(CASE WHEN vigencia_hasta IS NOT NULL AND vigencia_hasta < {sql_hoy()} THEN 1 ELSE 0 END) AS vencidas,
                 SUM(CASE WHEN vigencia_hasta IS NOT NULL
-                         AND vigencia_hasta >= CURRENT_DATE
-                         AND vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days' THEN 1 ELSE 0 END) AS proximas
+                         AND vigencia_hasta >= {sql_hoy()}
+                         AND vigencia_hasta <= {sql_hoy()} + INTERVAL '30 days' THEN 1 ELSE 0 END) AS proximas
             FROM checklist_cumplimiento
             {cum_where}
         """, tuple(cum_params))
@@ -928,7 +929,7 @@ def cgeo_api_recursos_data():
         # ── Listado de alertas (resumen operativo) ────────────────────────────
         alertas_listado = []
         # Certificaciones vencidas
-        cert_conds2 = list(cum_conds) + ["vigencia_hasta IS NOT NULL", "vigencia_hasta < CURRENT_DATE"]
+        cert_conds2 = list(cum_conds) + ["vigencia_hasta IS NOT NULL", f"vigencia_hasta < {sql_hoy()}"]
         cur.execute(f"""
             SELECT
                 'Certificación' AS tipo,
@@ -936,7 +937,7 @@ def cgeo_api_recursos_data():
                 cliente_instalacion AS cliente,
                 'Vencida' AS estado,
                 vigencia_hasta AS vencimiento,
-                (CURRENT_DATE - vigencia_hasta) AS dias_restantes
+                ({sql_hoy()} - vigencia_hasta) AS dias_restantes
             FROM checklist_cumplimiento
             {_where(cert_conds2)}
             ORDER BY vigencia_hasta ASC
@@ -1239,7 +1240,7 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
             a.hallazgo_ref, a.hallazgo_titulo, a.hallazgo_detalle,
             COALESCE(NULLIF(TRIM(a.estado), ''), 'Asignado') AS estado,
             COALESCE(NULLIF(TRIM(u.name), ''), NULLIF(TRIM(a.asignado_email), '')) AS responsable,
-            (a.fecha_limite IS NOT NULL AND a.fecha_limite < CURRENT_DATE) AS vencida
+            (a.fecha_limite IS NOT NULL AND a.fecha_limite < {sql_hoy()}) AS vencida
         FROM asignaciones_hallazgo a
         LEFT JOIN users u ON u.id = a.asignado_a
         {_where(conds)}
@@ -1447,7 +1448,7 @@ def _alertas_mantenimiento_equipos(cur, thresholds, cliente=None, propiedad=None
     equipos sin fecha de mantenimiento no se evalúan.
     """
     aviso = int(thresholds.get('dias_mtto_aviso') or 15)
-    hoy = date.today()
+    hoy = hoy_operacion()
     out = []
     for tipo, etiqueta, periodo in (
         ('radio', 'Radio', int(thresholds.get('dias_mtto_radio') or 365)),
@@ -1507,7 +1508,7 @@ def _alertas_permiso_porte(cur, thresholds, cliente=None, propiedad=None):
     """
     aviso = int(thresholds.get('dias_permiso_porte_aviso') or 30)
     prioridad = int(thresholds.get('dias_permiso_porte_prioridad') or 15)
-    hoy = date.today()
+    hoy = hoy_operacion()
     candidatos = []
     for r in _ultimo_registro_equipo(cur, 'arma', cliente=cliente, propiedad=propiedad):
         if not r['vence_permiso']:
@@ -1660,7 +1661,7 @@ def _alertas_disciplina(cur, thresholds, cliente=None, propiedad=None):
     """
     dias = int(thresholds.get('dias_disciplina_reciente') or 30)
     conds = ["LOWER(TRIM(COALESCE(d.tipo_novedad, ''))) IN %s",
-             "COALESCE(d.fecha_hora, d.creado_en) >= NOW() - (%s * INTERVAL '1 day')"]
+             f"COALESCE(d.fecha_hora, d.creado_en) >= {sql_ahora()} - (%s * INTERVAL '1 day')"]
     params = [_DISCIPLINA_FALTAS_GRAVES, dias]
     _add_scope(conds, params, cliente=cliente, propiedad=propiedad, alias='d.')
     cur.execute("SELECT to_regclass('asignaciones_hallazgo') AS t")
@@ -1769,12 +1770,12 @@ def cgeo_api_alertas():
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
                 MAX(fecha_hora) AS ultima_sup,
-                EXTRACT(EPOCH FROM (NOW() - MAX(fecha_hora))) / 3600 AS horas,
+                EXTRACT(EPOCH FROM ({sql_ahora()} - MAX(fecha_hora))) / 3600 AS horas,
                 MAX(id_supervision) AS last_id
             FROM supervision_puesto
             {_where(r1_conds)}
             GROUP BY TRIM(cliente_instalacion)
-            HAVING MAX(fecha_hora) < NOW() - INTERVAL '48 hours'
+            HAVING MAX(fecha_hora) < {sql_ahora()} - INTERVAL '48 hours'
             ORDER BY MAX(fecha_hora) ASC
             LIMIT 5
         """, tuple(r1_params))
@@ -1805,13 +1806,13 @@ def cgeo_api_alertas():
         r2_conds, r2_params = _cp()
         r2_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
-            "COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours'",
+            f"COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < {sql_ahora()} - INTERVAL '24 hours'",
         ]
         cur.execute(f"""
             SELECT
                 id_reporte_incidente AS id,
                 COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
-                EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en))) / 3600 AS horas,
+                EXTRACT(EPOCH FROM ({sql_ahora()} - COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en))) / 3600 AS horas,
                 COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) AS ts,
                 COALESCE(NULLIF(TRIM(estado),''), 'Abierto') AS estado,
                 NULLIF(TRIM(COALESCE(responsable_asignado,'')), '') AS responsable_asignado
@@ -1845,8 +1846,8 @@ def cgeo_api_alertas():
         # Proxy: clientes supervisados en los últimos 7 días pero NO hoy.
         r3_conds, r3_params = _cp("id_propiedad")
         r3_conds.append(_cliente_real_sql())
-        r3_conds_hist = r3_conds + ["fecha_hora >= NOW() - INTERVAL '7 days'"]
-        r3_conds_hoy  = r3_conds + ["fecha_hora::date = CURRENT_DATE"]
+        r3_conds_hist = r3_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '7 days'"]
+        r3_conds_hoy  = r3_conds + [f"fecha_hora::date = {sql_hoy()}"]
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
@@ -1887,8 +1888,8 @@ def cgeo_api_alertas():
         r4_conds, r4_params = _cp()
         r4_conds += [
             "vigencia_hasta IS NOT NULL",
-            "vigencia_hasta >= CURRENT_DATE",
-            "vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'",
+            f"vigencia_hasta >= {sql_hoy()}",
+            f"vigencia_hasta <= {sql_hoy()} + INTERVAL '30 days'",
         ]
         cur.execute(f"""
             SELECT
@@ -1896,7 +1897,7 @@ def cgeo_api_alertas():
                 COALESCE(NULLIF(TRIM(curso_certificacion),''), 'Certificación #' || id::text) AS cert,
                 cliente_instalacion AS cliente,
                 vigencia_hasta,
-                (vigencia_hasta - CURRENT_DATE) AS dias_restantes
+                (vigencia_hasta - {sql_hoy()}) AS dias_restantes
             FROM checklist_cumplimiento
             {_where(r4_conds)}
             ORDER BY vigencia_hasta ASC
@@ -1927,7 +1928,7 @@ def cgeo_api_alertas():
         r5_conds.append(_cliente_real_sql())
         cur.execute(f"""
             SELECT id, cliente_instalacion AS instalacion, fecha AS ultimo_reg,
-                   (CURRENT_DATE - fecha) AS dias
+                   ({sql_hoy()} - fecha) AS dias
             FROM (
                 SELECT DISTINCT ON (cliente_instalacion)
                     id, cliente_instalacion, fecha
@@ -1935,7 +1936,7 @@ def cgeo_api_alertas():
                 {_where(r5_conds)}
                 ORDER BY cliente_instalacion, fecha DESC
             ) ultimo
-            WHERE fecha < CURRENT_DATE - INTERVAL '45 days'
+            WHERE fecha < {sql_hoy()} - INTERVAL '45 days'
             ORDER BY fecha ASC
             LIMIT 5
         """, tuple(r5_params))
@@ -1962,7 +1963,7 @@ def cgeo_api_alertas():
         r6_conds += ["placa_vehiculo IS NOT NULL", "TRIM(placa_vehiculo) != ''"]
         cur.execute(f"""
             SELECT id_planilla_vehicular AS id, placa, cliente, ultimo_preop,
-                   EXTRACT(EPOCH FROM (NOW() - ultimo_preop)) / 3600 AS horas
+                   EXTRACT(EPOCH FROM ({sql_ahora()} - ultimo_preop)) / 3600 AS horas
             FROM (
                 -- Por placa, no por placa+cliente: el pre-operacional es del
                 -- vehículo. Agrupando también por cliente, una unidad chequeada
@@ -1977,7 +1978,7 @@ def cgeo_api_alertas():
                 {_where(r6_conds)}
                 ORDER BY TRIM(placa_vehiculo), COALESCE(fecha_hora, creado_en) DESC
             ) ultimo
-            WHERE ultimo_preop < NOW() - INTERVAL '24 hours'
+            WHERE ultimo_preop < {sql_ahora()} - INTERVAL '24 hours'
             ORDER BY ultimo_preop ASC
             LIMIT 5
         """, tuple(r6_params))
@@ -2013,7 +2014,7 @@ def cgeo_api_alertas():
         r12_conds += ["placa_motocicleta IS NOT NULL", "TRIM(placa_motocicleta) != ''"]
         cur.execute(f"""
             SELECT id AS id, placa, cliente, ultimo_preop,
-                   EXTRACT(EPOCH FROM (NOW() - ultimo_preop)) / 3600 AS horas
+                   EXTRACT(EPOCH FROM ({sql_ahora()} - ultimo_preop)) / 3600 AS horas
             FROM (
                 -- Por placa, por la misma razón que la regla 6.
                 SELECT DISTINCT ON (TRIM(placa_motocicleta))
@@ -2025,7 +2026,7 @@ def cgeo_api_alertas():
                 {_where(r12_conds)}
                 ORDER BY TRIM(placa_motocicleta), COALESCE(fecha_hora, creado_en) DESC
             ) ultimo
-            WHERE ultimo_preop < NOW() - INTERVAL '24 hours'
+            WHERE ultimo_preop < {sql_ahora()} - INTERVAL '24 hours'
             ORDER BY ultimo_preop ASC
             LIMIT 5
         """, tuple(r12_params))
@@ -2057,14 +2058,14 @@ def cgeo_api_alertas():
         r7_conds, r7_params = _cp()
         r7_conds += [
             "vigencia_hasta IS NOT NULL",
-            "vigencia_hasta < CURRENT_DATE",
+            f"vigencia_hasta < {sql_hoy()}",
         ]
         cur.execute(f"""
             SELECT
                 id,
                 cliente_instalacion AS instalacion,
                 vigencia_hasta,
-                (CURRENT_DATE - vigencia_hasta) AS dias_vencido,
+                ({sql_hoy()} - vigencia_hasta) AS dias_vencido,
                 COALESCE(NULLIF(TRIM(curso_certificacion),''), 'Checklist #' || id::text) AS nombre
             FROM checklist_cumplimiento
             {_where(r7_conds)}
@@ -2097,7 +2098,7 @@ def cgeo_api_alertas():
         # los datos actuales (1–5) la condición era cierta siempre y TODOS los
         # clientes salían como satisfacción baja.
         r8_conds, r8_params = _cp()
-        r8_conds += ["fecha_hora >= NOW() - INTERVAL '30 days'", _cliente_real_sql()]
+        r8_conds += [f"fecha_hora >= {sql_ahora()} - INTERVAL '30 days'", _cliente_real_sql()]
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS cliente,
@@ -2143,7 +2144,7 @@ def cgeo_api_alertas():
         # visitas (reglas 9/10) fuera del alcance de la instalacion seleccionada.
         v_conds, v_params = _visita_conds(cliente, None, None, None,
                                           company_id=company_id, propiedad=propiedad)
-        v_conds_full = v_conds + [f"{v_date_expr} >= NOW() - INTERVAL '180 days'"]
+        v_conds_full = v_conds + [f"{v_date_expr} >= {sql_ahora()} - INTERVAL '180 days'"]
         cur.execute(f"""
             SELECT
                 id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
@@ -2156,7 +2157,7 @@ def cgeo_api_alertas():
         """, v_params)
         compromisos = _visita_parse_compromisos(cur.fetchall())
 
-        today = date.today()
+        today = hoy_operacion()
         for c in compromisos:
             if c['estado'] == 'vencido':
                 alertas.append({
@@ -2208,7 +2209,7 @@ def cgeo_api_alertas():
         visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
 
         r11_conds, r11_params = _cp("id_propiedad")
-        r11_conds_hist = r11_conds + ["fecha_hora >= NOW() - INTERVAL '30 days'",
+        r11_conds_hist = r11_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '30 days'",
                                       _cliente_real_sql()]
         cur.execute(f"""
             SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
@@ -2363,7 +2364,7 @@ def cgeo_api_alertas():
                     "record_id": None,
                     "form_type": "estatus_cliente",
                     "color_semaforo": 'rojo' if hay_critico else 'amarillo',
-                    "timestamp": date.today().isoformat(),
+                    "timestamp": hoy_operacion().isoformat(),
                     "horas": None,
                 })
         except Exception as r14_err:
@@ -2428,7 +2429,7 @@ def cgeo_api_alertas():
             "naranjas": sum(1 for a in alertas if a["color_semaforo"] == "naranja"),
             "amarillas": sum(1 for a in alertas if a["color_semaforo"] == "amarillo"),
             "asignaciones": sum(1 for a in alertas if a.get("asignacion")),
-            "timestamp": date.today().isoformat(),
+            "timestamp": hoy_operacion().isoformat(),
         })
 
     except Exception as e:
@@ -2514,8 +2515,8 @@ def cgeo_api_semaforo_global():
         cert_conds, cert_params = _cp()
         cert_conds += [
             "vigencia_hasta IS NOT NULL",
-            "vigencia_hasta >= CURRENT_DATE",
-            "vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'",
+            f"vigencia_hasta >= {sql_hoy()}",
+            f"vigencia_hasta <= {sql_hoy()} + INTERVAL '30 days'",
         ]
         cur.execute(f"""
             SELECT COUNT(*) AS total FROM checklist_cumplimiento {_where(cert_conds)}
@@ -2576,22 +2577,22 @@ def cgeo_api_morning_briefing_data():
 
         # ── Incidentes abiertos ───────────────────────────────────────────────
         if fecha_inicio:
-            cur.execute("""
+            cur.execute(f"""
                 SELECT
                     COUNT(*) AS total_abiertos,
                     SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
-                    SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
+                    SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < {sql_ahora()} - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
                 FROM reportes_incidentes
                 WHERE LOWER(TRIM(COALESCE(estado,'')))
                       NOT IN ('cerrado','closed','resuelto','resolved')
                   AND COALESCE(fecha_hora::date, creado_en::date) >= %s
             """, (fecha_inicio,))
         else:
-            cur.execute("""
+            cur.execute(f"""
                 SELECT
                     COUNT(*) AS total_abiertos,
                     SUM(CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos,
-                    SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < NOW() - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
+                    SUM(CASE WHEN COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) < {sql_ahora()} - INTERVAL '24 hours' THEN 1 ELSE 0 END) AS mas_24h
                 FROM reportes_incidentes
                 WHERE LOWER(TRIM(COALESCE(estado,'')))
                       NOT IN ('cerrado','closed','resuelto','resolved')
@@ -2646,14 +2647,14 @@ def cgeo_api_morning_briefing_data():
         }
 
         # ── Certificaciones próximas a vencer (≤ 30 días) por nivel ─────────
-        cur.execute("""
+        cur.execute(f"""
             SELECT
                 COALESCE(NULLIF(TRIM(nivel_cumplimiento), ''), 'Sin categoría') AS nivel,
                 COUNT(*) AS total
             FROM checklist_cumplimiento
             WHERE vigencia_hasta IS NOT NULL
-              AND vigencia_hasta >= CURRENT_DATE
-              AND vigencia_hasta <= CURRENT_DATE + INTERVAL '30 days'
+              AND vigencia_hasta >= {sql_hoy()}
+              AND vigencia_hasta <= {sql_hoy()} + INTERVAL '30 days'
             GROUP BY TRIM(nivel_cumplimiento)
         """)
         cert_por_nivel = {r["nivel"]: int(r["total"] or 0) for r in cur.fetchall()}
@@ -2685,12 +2686,12 @@ def cgeo_api_morning_briefing_data():
 
         # ── Compromisos de visitas a clientes (vencidos / próximos a vencer) ──
         from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
-        today = _date.today()
+        today = hoy_operacion()
         dias_compromiso_vencer = int(thresholds.get('dias_compromiso_vencer') or 5)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         v_date_expr = _visita_date_expr()
         v_conds, v_params = _visita_conds(None, None, None, None, company_id=company_id)
-        v_conds_full = v_conds + [f"{v_date_expr} >= NOW() - INTERVAL '180 days'"]
+        v_conds_full = v_conds + [f"{v_date_expr} >= {sql_ahora()} - INTERVAL '180 days'"]
         cur.execute(f"""
             SELECT
                 id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
@@ -2727,7 +2728,7 @@ def cgeo_api_morning_briefing_data():
         visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
 
         # ── Tendencia supervisiones — últimos 7 días ──────────────────────────
-        today = _date.today()
+        today = hoy_operacion()
         days7 = [today - timedelta(days=i) for i in range(6, -1, -1)]
         # Si fecha_inicio es posterior al inicio de la ventana de 7 días, recortamos
         trend_start = max(days7[0], fecha_inicio) if fecha_inicio else days7[0]
@@ -2952,7 +2953,7 @@ def cgeo_api_operacion_data():
                 cliente_instalacion AS cliente,
                 nivel_severidad AS severidad,
                 COALESCE(estado, 'Abierto') AS estado,
-                (CURRENT_DATE - CAST(COALESCE(fecha_hora, creado_en) AS date)) AS dias_abierto
+                ({sql_hoy()} - CAST(COALESCE(fecha_hora, creado_en) AS date)) AS dias_abierto
             FROM reportes_incidentes
             {_where(inc_ab_conds)}
             ORDER BY COALESCE(fecha_hora, creado_en) DESC
@@ -2975,7 +2976,7 @@ def cgeo_api_operacion_data():
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total_abiertos,
-                SUM(CASE WHEN (CURRENT_DATE - CAST(COALESCE(fecha_hora, creado_en) AS date)) > 0 THEN 1 ELSE 0 END) AS mas_24h
+                SUM(CASE WHEN ({sql_hoy()} - CAST(COALESCE(fecha_hora, creado_en) AS date)) > 0 THEN 1 ELSE 0 END) AS mas_24h
             FROM reportes_incidentes
             {_where(inc_ab_conds)}
         """, tuple(inc_params))
@@ -3091,7 +3092,7 @@ def cgeo_api_operacion_data():
         sup_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
 
         # Supervisiones completadas hoy
-        sup_hoy_conds = list(sup_conds) + ["fecha_hora::date = CURRENT_DATE"]
+        sup_hoy_conds = list(sup_conds) + [f"fecha_hora::date = {sql_hoy()}"]
         cur.execute(f"""
             SELECT COUNT(*) AS hoy FROM supervision_puesto {_where(sup_hoy_conds)}
         """, tuple(sup_params))
@@ -3178,7 +3179,7 @@ def cgeo_api_operacion_data():
                     COALESCE(NULLIF(TRIM(motivo_visita),''), 'Visita') AS compromiso,
                     cliente_instalacion AS cliente,
                     COALESCE(estado, 'Pendiente') AS estado,
-                    (CURRENT_DATE - CAST(COALESCE(fecha_hora, creado_en) AS date)) AS dias_retraso
+                    ({sql_hoy()} - CAST(COALESCE(fecha_hora, creado_en) AS date)) AS dias_retraso
                 FROM registro_y_acta_de_visita
                 {vis_where}
                 ORDER BY COALESCE(fecha_hora, creado_en) DESC
@@ -3279,7 +3280,7 @@ def cgeo_api_operacion_data():
                 "capacitaciones": [cap_trend.get(l, 0) for l in all_labels],
                 "satisfaccion": [sat_trend.get(l) for l in all_labels],
             },
-            "ultima_actualizacion": date.today().isoformat(),
+            "ultima_actualizacion": hoy_operacion().isoformat(),
         })
     except Exception as e:
         app_logger.error(f"cgeo_api_operacion_data error: {e}", exc_info=True)
@@ -3552,7 +3553,7 @@ def cgeo_morning_briefing_pdf():
         buf = BytesIO()
         _WeasyprintHTML(string=html).write_pdf(buf)
         buf.seek(0)
-        filename = f"briefing_{date.today().isoformat()}.pdf"
+        filename = f"briefing_{hoy_operacion().isoformat()}.pdf"
         return send_file(buf, as_attachment=True, download_name=filename, mimetype='application/pdf')
     except Exception as e:
         app_logger.error(f"cgeo_morning_briefing_pdf error: {e}", exc_info=True)
@@ -3911,7 +3912,7 @@ def _mis_hallazgos(cur, email):
     correo = (email or '').strip().lower()
     cur.execute(_mis_hallazgos_sql() + " ORDER BY a.fecha_limite ASC NULLS LAST, a.creado_en DESC",
                 (correo, correo))
-    hoy = date.today()
+    hoy = hoy_operacion()
     pendientes, historial = [], []
     for fila in cur.fetchall():
         item = dict(fila)
@@ -4023,7 +4024,7 @@ def ver_hallazgo(asignacion_id):
         cerrado = (asignacion.get('estado') or '').strip().lower() in _ASIG_ESTADOS_CERRADOS
         vencida = bool(asignacion.get('fecha_limite')
                        and not cerrado
-                       and asignacion['fecha_limite'] < date.today())
+                       and asignacion['fecha_limite'] < hoy_operacion())
         volver_href, volver_texto = _volver_de_hallazgo()
 
         return render_template(
