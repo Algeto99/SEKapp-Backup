@@ -5967,6 +5967,32 @@ def _texto_filtros(cur, cliente, propiedad):
     return ' · '.join(partes) if partes else 'Todos los clientes'
 
 
+def _filtros_auditoria(cur, cliente, propiedad):
+    """Filtros aplicados, con id y nombre, para el detalle del log de Auditoría."""
+    def _fila(sql_, valor):
+        cur.execute(sql_, (int(valor),))
+        f = cur.fetchone()
+        return (f[0] if not hasattr(f, 'keys') else list(f.values())[0]) if f else None
+    salida = {'cliente': None, 'instalacion': None, 'texto': _texto_filtros(cur, cliente, propiedad)}
+    cl = str(cliente).strip() if cliente else None
+    if cl:
+        salida['cliente'] = ({'id': int(cl), 'nombre': _fila("SELECT name FROM customer_companies WHERE id = %s", cl)}
+                             if cl.isdigit() else {'id': None, 'nombre': cl})
+    pr = str(propiedad).strip() if propiedad else None
+    if pr:
+        salida['instalacion'] = ({'id': int(pr), 'nombre': _fila("SELECT nombre FROM propiedades WHERE id_propiedad = %s", pr)}
+                                 if pr.isdigit() else {'id': None, 'nombre': pr})
+    return salida
+
+
+def _periodo_auditoria(origen, datos=None, desde=None, hasta=None):
+    """Período consultado, legible, para el detalle del log de Auditoría."""
+    return {'clave': origen, 'etiqueta': _PERIODO_ETIQUETAS.get(origen, origen),
+            'desde': (datos or {}).get('desde') or (desde.isoformat() if desde else None),
+            'hasta': (datos or {}).get('hasta') or (hasta.isoformat() if hasta else None),
+            'recortado_inicio': (datos or {}).get('recortado_inicio')}
+
+
 def _coordinadores_activos(conn, ids=None):
     """Coordinadores activos con correo, con su ámbito ya cargado."""
     if not rol_coordinador_disponible(conn):
@@ -6033,7 +6059,8 @@ def api_supervision_cumplimiento_pdf():
         buf = BytesIO()
         _WeasyprintHTML(string=html).write_pdf(buf)
         buf.seek(0)
-        anotar(detalle={'desde': datos['desde'], 'hasta': datos['hasta'], 'periodo': origen})
+        anotar(detalle={'periodo': _periodo_auditoria(origen, datos),
+                        'filtros': _filtros_auditoria(cur, cliente, propiedad)})
         nombre = f"cumplimiento_supervisiones_{datos['desde']}_{datos['hasta']}.pdf"
         return send_file(buf, as_attachment=True, download_name=nombre, mimetype='application/pdf')
     except Exception as e:
@@ -6126,6 +6153,7 @@ def api_supervision_cumplimiento_email():
         asunto = (f"Cumplimiento de supervisiones {_fecha_corta(desde)} – {_fecha_corta(hasta)}"
                   " — Kanan Sentinel SekApp")
         resultados = []
+        ultimo_datos = None
         for u in _coordinadores_activos(conn, ids):
             base = {'id': u['id'], 'nombre': u['nombre'], 'email': u['email']}
             if u['sin_ambito']:
@@ -6137,6 +6165,7 @@ def api_supervision_cumplimiento_email():
                 continue
             datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, propiedad=propiedad,
                                                ambito=u['ambito'])
+            ultimo_datos = datos
             asignados = [i['nombre'] for i in u['ambito']['items']]
             nombre_pdf = (f"cumplimiento_supervisiones_{datos['desde']}_{datos['hasta']}_"
                           f"{_slug_archivo(u['nombre'])}.pdf")
@@ -6153,9 +6182,14 @@ def api_supervision_cumplimiento_email():
                                'clientes': len(datos['filas']), 'pct': datos['total']['pct'],
                                'pdf': nombre_pdf})
         enviados = [r['email'] for r in resultados if r['estado'] == 'enviado']
-        anotar(detalle={'desde': desde.isoformat(), 'hasta': hasta.isoformat(), 'periodo': origen,
+        # Registro del envío (sección 4 del pedido): quién lo pone el registro automático
+        # desde el JWT; aquí van a quién, con qué resultado, el período y los filtros.
+        anotar(detalle={'periodo': _periodo_auditoria(origen, ultimo_datos, desde, hasta),
+                        'filtros': _filtros_auditoria(cur, cliente, propiedad),
+                        'destinatarios': resultados,
                         'enviados': enviados,
-                        'omitidos': [r['email'] for r in resultados if r['estado'] != 'enviado']})
+                        'omitidos': [r['email'] for r in resultados if r['estado'] != 'enviado'],
+                        'mensaje': mensaje or None})
         if not resultados:
             return jsonify({'error': 'Ninguno de los Coordinadores elegidos está activo.'}), 404
         if not enviados:

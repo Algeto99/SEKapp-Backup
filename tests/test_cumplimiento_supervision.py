@@ -211,7 +211,13 @@ class CumplimientoTests(unittest.TestCase):
             self.assertTrue(r.data.startswith(b'%PDF'))
             self.assertIn(f"cumplimiento_supervisiones_{D['lunes']}_{D['domingo']}.pdf",
                           r.headers.get('Content-Disposition', ''))
-            self.assertTrue(eventos(accion='Generación de PDF de cumplimiento'), 'queda en Auditoría')
+            ev = eventos(accion='Generación de PDF de cumplimiento')
+            self.assertTrue(ev, 'queda en Auditoría')
+            self.assertEqual(ev[-1]['usuario_email'], ADMIN)
+            self.assertEqual(ev[-1]['detalle']['periodo'],
+                             {'clave': 'semana_anterior', 'etiqueta': 'Semana anterior', 'desde': D['lunes'].isoformat(),
+                              'hasta': D['domingo'].isoformat(), 'recortado_inicio': None})
+            self.assertEqual(ev[-1]['detalle']['filtros'], {'cliente': None, 'instalacion': None, 'texto': 'Todos los clientes'})
         else:
             print('\n[aviso] WeasyPrint no disponible en este proceso: el PDF responde 503 (correr con DYLD_FALLBACK_LIBRARY_PATH).')
             self.assertEqual(r.status_code, 503)
@@ -295,9 +301,23 @@ class CumplimientoTests(unittest.TestCase):
             self.assertIn(esperado, cuerpo)
         self.assertNotIn('Cliente B', cuerpo)
         self.assertNotIn('Cliente C', cuerpo)
+        # Sección 4: el log registra quién, a quién, período y filtros.
         ev = eventos(accion='Envío de cumplimiento a Coordinadores')
         self.assertEqual(len(ev), 1)
-        self.assertEqual(ev[0]['detalle'].get('enviados'), [COORD])
+        self.assertEqual((ev[0]['usuario_email'], ev[0]['estado']), (ADMIN, 'Exitoso'))
+        det = ev[0]['detalle']
+        self.assertEqual(det['enviados'], [COORD])
+        self.assertEqual(det['omitidos'], [COORD2])
+        self.assertEqual(det['periodo'], {'clave': 'semana_anterior', 'etiqueta': 'Semana anterior',
+                                          'desde': D['lunes'].isoformat(), 'hasta': D['domingo'].isoformat(),
+                                          'recortado_inicio': None})
+        self.assertEqual(det['filtros'], {'cliente': None, 'instalacion': None, 'texto': 'Todos los clientes'})
+        dest = {x['email']: x for x in det['destinatarios']}
+        self.assertEqual((dest[COORD]['nombre'], dest[COORD]['estado'], dest[COORD]['pdf'], dest[COORD]['pct']),
+                         ('Coordinador Pruebas', 'enviado', nombre_pdf, 90))
+        self.assertEqual((dest[COORD2]['estado'], dest[COORD2]['motivo']), ('omitido', 'Sin clientes asignados'))
+        self.assertEqual(det['mensaje'], 'Favor revisar <B>')
+        self.assertIn('coordinadores', det, 'los ids del cuerpo los captura el catálogo')
 
         # El HTML del PDF del Coordinador lleva período, generación, clientes asignados y su total.
         with A.app.test_request_context():
@@ -319,6 +339,12 @@ class CumplimientoTests(unittest.TestCase):
         self.assertEqual(r.status_code, 502)
         self.assertIn('fuera del filtro', r.get_json()['resultados'][0]['motivo'])
         self.assertEqual(enviados, [])
+        ev = eventos(accion='Envío de cumplimiento a Coordinadores')[-1]
+        self.assertEqual(ev['estado'], 'Error')
+        self.assertEqual(ev['detalle']['filtros']['cliente'], {'id': D['cliB'], 'nombre': 'Cliente B'})
+        self.assertEqual(ev['detalle']['filtros']['texto'], 'Cliente B')
+        self.assertIn('fuera del filtro', ev['detalle']['destinatarios'][0]['motivo'])
+        self.assertEqual(ev['detalle']['enviados'], [])
 
         # Con clientes asignados pero sin datos en el lapso sí recibe su PDF ("Sin datos").
         sql("INSERT INTO coordinador_ambito (user_id, customer_company_id, creado_por) VALUES (%s, %s, %s)",
