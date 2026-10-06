@@ -2,6 +2,8 @@ import logging
 import smtplib
 import ssl
 from html import escape
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -39,11 +41,14 @@ def get_email_password():
         return None
 
 
-def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
+def send_email(to_emails, subject, body, is_html=False, cc_emails=None, attachments=None):
     """Send an email via SMTP.
 
-    to_emails  – a single address string or a list of strings.
-    cc_emails  – optional single address string or list of strings.
+    to_emails   – a single address string or a list of strings.
+    cc_emails   – optional single address string or list of strings.
+    attachments – optional list of (filename, content_bytes, mimetype); e.g. the
+                  PDF de cumplimiento por Coordinador. Sin adjuntos el mensaje
+                  es idéntico al de siempre.
     Returns True on success, False on failure.
     """
     email_username = (
@@ -69,6 +74,13 @@ def send_email(to_emails, subject, body, is_html=False, cc_emails=None):
         msg['Cc'] = ', '.join(cc_list)
         recipients = recipients + cc_list
     msg.attach(MIMEText(body, 'html' if is_html else 'plain'))
+    for nombre, contenido, mimetype in (attachments or []):
+        tipo, _, subtipo = (mimetype or 'application/octet-stream').partition('/')
+        parte = MIMEBase(tipo or 'application', subtipo or 'octet-stream')
+        parte.set_payload(contenido)
+        encoders.encode_base64(parte)
+        parte.add_header('Content-Disposition', 'attachment', filename=nombre)
+        msg.attach(parte)
 
     try:
         context = ssl.create_default_context()

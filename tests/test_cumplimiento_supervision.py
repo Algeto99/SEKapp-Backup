@@ -233,6 +233,8 @@ class CumplimientoTests(unittest.TestCase):
         self.assertEqual(r.status_code, 403, 'sólo Administrador')
 
     def test_08_coordinadores_y_envio_por_correo(self):
+        import contextlib
+        import dashboard_bp
         r = self.admin.get('/dashboard/api/supervision/coordinadores')
         self.assertEqual(r.status_code, 200, r.data[:300])
         coords = {c['email']: c for c in r.get_json()['coordinadores']}
@@ -243,13 +245,28 @@ class CumplimientoTests(unittest.TestCase):
         self.assertEqual(self.coord.get('/dashboard/api/supervision/coordinadores',
                                         headers={'Accept': 'application/json'}).status_code, 403)
 
+        # Sin WeasyPrint en este proceso se simula el PDF para probar igual el flujo.
+        class _PdfFalso:
+            def __init__(self, string=''):
+                self.string = string
+
+            def write_pdf(self, buf):
+                buf.write(b'%PDF-1.4 simulado\n' + self.string.encode('utf-8'))
+
+        def parches():
+            pila = contextlib.ExitStack()
+            if not dashboard_bp._WEASYPRINT_AVAILABLE:
+                pila.enter_context(mock.patch.object(dashboard_bp, '_WEASYPRINT_AVAILABLE', True))
+                pila.enter_context(mock.patch.object(dashboard_bp, '_WeasyprintHTML', _PdfFalso))
+            return pila
+
         enviados = []
 
-        def falso_envio(to, asunto, cuerpo, is_html=False, cc_emails=None):
-            enviados.append((to, asunto, cuerpo, is_html))
+        def falso_envio(to, asunto, cuerpo, is_html=False, cc_emails=None, attachments=None):
+            enviados.append((to, asunto, cuerpo, is_html, attachments))
             return True
 
-        with mock.patch('dashboard_bp.send_email', side_effect=falso_envio):
+        with parches(), mock.patch('dashboard_bp.send_email', side_effect=falso_envio):
             r = self.admin.post('/dashboard/api/supervision/cumplimiento/email',
                                 json={'periodo': 'semana_anterior', 'coordinadores': [D['coord'], D['coord2']],
                                       'mensaje': 'Favor revisar <B>'})
@@ -257,31 +274,81 @@ class CumplimientoTests(unittest.TestCase):
         d = r.get_json()
         self.assertEqual(d['enviados'], 1)
         estados = {x['email']: x for x in d['resultados']}
+        nombre_pdf = f"cumplimiento_supervisiones_{D['lunes']}_{D['domingo']}_coordinador-pruebas.pdf"
         self.assertEqual(estados[COORD]['estado'], 'enviado')
-        self.assertEqual((estados[COORD]['clientes'], estados[COORD]['pct']), (1, 90))
-        self.assertEqual(estados[COORD2]['estado'], 'omitido')
+        self.assertEqual((estados[COORD]['clientes'], estados[COORD]['pct'], estados[COORD]['pdf']), (1, 90, nombre_pdf))
+        # Sin clientes asignados: ni PDF ni correo, y se informa.
+        self.assertEqual((estados[COORD2]['estado'], estados[COORD2]['motivo']), ('omitido', 'Sin clientes asignados'))
         self.assertEqual(len(enviados), 1)
-        to, asunto, cuerpo, is_html = enviados[0]
+        to, asunto, cuerpo, is_html, adjuntos = enviados[0]
         self.assertEqual(to, COORD)
         self.assertTrue(is_html)
         self.assertIn('Cumplimiento de supervisiones', asunto)
-        self.assertIn('Cliente A', cuerpo)
+        # Un PDF independiente por Coordinador, adjunto.
+        self.assertEqual(len(adjuntos), 1)
+        nombre, contenido, mimetype = adjuntos[0]
+        self.assertEqual((nombre, mimetype), (nombre_pdf, 'application/pdf'))
+        self.assertTrue(contenido.startswith(b'%PDF'))
+        # Cuerpo: sólo su cliente, saludo, mensaje escapado, clientes asignados y aviso del adjunto.
+        for esperado in ('Cliente A', 'Coordinador Pruebas', 'Favor revisar &lt;B&gt;', '>90 %<',
+                         'Clientes asignados:', 'Se adjunta el PDF', nombre_pdf):
+            self.assertIn(esperado, cuerpo)
         self.assertNotIn('Cliente B', cuerpo)
         self.assertNotIn('Cliente C', cuerpo)
-        self.assertIn('Coordinador Pruebas', cuerpo)
-        self.assertIn('Favor revisar &lt;B&gt;', cuerpo)
-        self.assertIn('>90 %<', cuerpo)
         ev = eventos(accion='Envío de cumplimiento a Coordinadores')
         self.assertEqual(len(ev), 1)
         self.assertEqual(ev[0]['detalle'].get('enviados'), [COORD])
 
+        # El HTML del PDF del Coordinador lleva período, generación, clientes asignados y su total.
+        with A.app.test_request_context():
+            conn = dashboard_bp.get_db_connection()
+            cur = conn.cursor(cursor_factory=dashboard_bp.psycopg2.extras.DictCursor)
+            from coordinador import cargar_ambito
+            datos = dashboard_bp._cumplimiento_programacion(cur, D['lunes'], D['domingo'], ambito=cargar_ambito(conn, COORD))
+            html = dashboard_bp._cumplimiento_html(datos, clientes_asignados=['Cliente A'], coordinador='Coordinador Pruebas')
+            conn.close()
+        for esperado in ('Período:', 'Generado el', 'Clientes asignados:</strong> Cliente A', 'Coordinador:</strong> Coordinador Pruebas',
+                         'Total del Coordinador', '>90 %<'):
+            self.assertIn(esperado, html)
+
+        # Filtro de Cliente ajeno al ámbito: no se genera ni envía, se informa.
+        enviados.clear()
+        with parches(), mock.patch('dashboard_bp.send_email', side_effect=falso_envio):
+            r = self.admin.post('/dashboard/api/supervision/cumplimiento/email',
+                                json={'periodo': 'semana_anterior', 'cliente': D['cliB'], 'coordinadores': [D['coord']]})
+        self.assertEqual(r.status_code, 502)
+        self.assertIn('fuera del filtro', r.get_json()['resultados'][0]['motivo'])
+        self.assertEqual(enviados, [])
+
+        # Con clientes asignados pero sin datos en el lapso sí recibe su PDF ("Sin datos").
+        sql("INSERT INTO coordinador_ambito (user_id, customer_company_id, creado_por) VALUES (%s, %s, %s)",
+            [D['coord2'], D['cliC'], ADMIN])
+        try:
+            with parches(), mock.patch('dashboard_bp.send_email', side_effect=falso_envio):
+                r = self.admin.post('/dashboard/api/supervision/cumplimiento/email',
+                                    json={'periodo': 'personalizado', 'desde': '2020-01-06', 'hasta': '2020-01-12',
+                                          'coordinadores': [D['coord2']]})
+            self.assertEqual(r.status_code, 200, r.data[:300])
+            self.assertEqual(r.get_json()['resultados'][0]['estado'], 'enviado')
+            self.assertIn('Sin datos', enviados[-1][2])
+            self.assertEqual(len(enviados[-1][4]), 1)
+        finally:
+            sql("DELETE FROM coordinador_ambito WHERE user_id = %s", [D['coord2']])
+
+        # Sin destinatarios → 400; correo caído → 502; sin WeasyPrint → 503 y nada enviado; Coordinador → 403.
         self.assertEqual(self.admin.post('/dashboard/api/supervision/cumplimiento/email',
                                          json={'periodo': 'semana_anterior', 'coordinadores': []}).status_code, 400)
-        with mock.patch('dashboard_bp.send_email', return_value=False):
+        with parches(), mock.patch('dashboard_bp.send_email', return_value=False):
             r = self.admin.post('/dashboard/api/supervision/cumplimiento/email',
                                 json={'periodo': 'semana_anterior', 'coordinadores': [D['coord']]})
         self.assertEqual(r.status_code, 502)
         self.assertEqual(r.get_json()['resultados'][0]['estado'], 'fallido')
+        enviados.clear()
+        with mock.patch.object(dashboard_bp, '_WEASYPRINT_AVAILABLE', False), \
+             mock.patch('dashboard_bp.send_email', side_effect=falso_envio):
+            r = self.admin.post('/dashboard/api/supervision/cumplimiento/email',
+                                json={'periodo': 'semana_anterior', 'coordinadores': [D['coord']]})
+        self.assertEqual((r.status_code, enviados), (503, []))
         self.assertEqual(self.coord.post('/dashboard/api/supervision/cumplimiento/email',
                                          json={'coordinadores': [D['coord']]},
                                          headers={'Accept': 'application/json'}).status_code, 403)
@@ -396,6 +463,45 @@ class CumplimientoTests(unittest.TestCase):
             self.assertEqual((d.day, h, (h + timedelta(days=1)).day), (1, D['hoy'].replace(day=1) - timedelta(days=1), 1))
             self.assertEqual(dbp._rango_periodo('personalizado', '2026-02-10', '2026-02-01'), (None, None), 'desde > hasta')
             self.assertEqual(dbp._rango_periodo(None, '2026-02-01', '2026-02-10'), (None, None), 'sin período no hay rango')
+
+    def test_13_send_email_con_adjunto(self):
+        # email_utils.send_email arma un multipart con el PDF; sin adjuntos el mensaje no cambia.
+        import email_utils
+        capturados = []
+
+        class SMTPFalso:
+            def __init__(self, *a, **k): pass
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def ehlo(self): pass
+            def starttls(self, context=None): pass
+            def login(self, usuario, clave): pass
+            def send_message(self, msg, to_addrs=None): capturados.append((msg, to_addrs))
+
+        claves = ('SENDER_EMAIL', 'SMTP_SERVER', 'SMTP_PORT', 'EMAIL_PASSWORD')
+        previo = {k: A.app.config.get(k) for k in claves}
+        A.app.config.update(SENDER_EMAIL='sekapp@pruebas.sekapp', SMTP_SERVER='smtp.pruebas', SMTP_PORT=587,
+                            EMAIL_PASSWORD='clave')
+        try:
+            with A.app.app_context(), mock.patch.object(email_utils.smtplib, 'SMTP', SMTPFalso):
+                ok = email_utils.send_email('destino@pruebas.sekapp', 'Asunto', '<b>hola</b>', is_html=True,
+                                            attachments=[('informe.pdf', b'%PDF-1.4 x', 'application/pdf')])
+                ok2 = email_utils.send_email('destino@pruebas.sekapp', 'Asunto', 'texto plano')
+        finally:
+            for k, v in previo.items():
+                if v is None:
+                    A.app.config.pop(k, None)
+                else:
+                    A.app.config[k] = v
+        self.assertTrue(ok and ok2)
+        msg, destinos = capturados[0]
+        partes = [p for p in msg.walk() if not p.is_multipart()]
+        self.assertEqual([p.get_content_type() for p in partes], ['text/html', 'application/pdf'])
+        self.assertEqual(partes[1].get_filename(), 'informe.pdf')
+        self.assertEqual(partes[1].get_payload(decode=True), b'%PDF-1.4 x')
+        self.assertEqual(destinos, ['destino@pruebas.sekapp'])
+        msg2, _ = capturados[1]
+        self.assertEqual([p.get_content_type() for p in msg2.walk() if not p.is_multipart()], ['text/plain'])
 
 
 if __name__ == '__main__':

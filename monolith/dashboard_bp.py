@@ -5775,7 +5775,8 @@ _PERIODO_UNIDAD = {'diario': 'por día', 'semanal': 'por semana', 'mensual': 'po
 
 
 def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=None,
-                       mensaje=None, para_correo=False):
+                       mensaje=None, para_correo=False, clientes_asignados=None,
+                       coordinador=None, adjunto=None):
     """HTML de la tabla de cumplimiento, para PDF (WeasyPrint) o cuerpo de correo.
 
     Estilos en línea y puntos de color dibujados con CSS, no con emoji: en Cloud
@@ -5794,6 +5795,16 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     verde = int(datos['umbrales']['verde_min'])
     amarillo = int(datos['umbrales']['amarillo_min'])
     tot = datos['total']
+    # PDF / correo de un Coordinador: a quién pertenece y qué clientes tiene
+    # asignados (todos los de su ámbito, tengan o no datos en el lapso).
+    extra = ''
+    if coordinador:
+        extra += (f'<div style="font-size:13px;color:#374151;margin-top:2px;"><strong>Coordinador:</strong> '
+                  f'{e(coordinador)}</div>')
+    if clientes_asignados is not None:
+        lista = ', '.join(e(c) for c in clientes_asignados) or '—'
+        extra += (f'<div style="font-size:13px;color:#374151;margin-top:2px;"><strong>Clientes asignados:</strong> '
+                  f'{lista}</div>')
 
     logo = ''
     try:
@@ -5844,7 +5855,7 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     if not filas_html:
         filas_html = f'<tr><td colspan="5" style="{td}text-align:center;color:#64748b;">Sin datos</td></tr>'
     tb = td + 'font-weight:700;border-top:2px solid #cbd5e1;border-bottom:none;'
-    total_nombre = 'Total'
+    total_nombre = 'Total del Coordinador' if coordinador else 'Total'
     if tot['estado'] == 'meta_general' and tot.get('meta_general'):
         mg = tot['meta_general']
         total_nombre += etiqueta(f"meta general {mg['meta']} {_PERIODO_UNIDAD.get(mg['periodicidad'], '')}")
@@ -5874,6 +5885,9 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
         if mensaje:
             saludo += ('<p style="margin:0 0 12px;font-size:13px;color:#374151;white-space:pre-wrap;">'
                        f'{e(mensaje)}</p>')
+        if adjunto:
+            saludo += (f'<p style="margin:0 0 12px;font-size:12px;color:#6b7280;">Se adjunta el PDF '
+                       f'<strong>{e(adjunto)}</strong> con este mismo detalle.</p>')
     pagina = '' if para_correo else '<style>@page { size: A4; margin: 18mm 16mm; }</style>'
     ancho = '600' if para_correo else '100%'
     relleno = '24px 0' if para_correo else '0'
@@ -5895,6 +5909,7 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     {saludo}
     <div style="font-size:13px;color:#374151;"><strong>Período:</strong> {e(lapso)} · {datos['dias']} día{plural}</div>
     <div style="font-size:13px;color:#374151;margin-top:2px;"><strong>Cliente / Empresa:</strong> {e(filtros_txt)}</div>
+    {extra}
   </td></tr>
   <tr><td style="padding:10px 20px 18px;">
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
@@ -6051,17 +6066,47 @@ def api_supervision_coordinadores():
         if conn: conn.close()
 
 
+def _slug_archivo(texto):
+    """Nombre seguro para el PDF adjunto: ASCII, minúsculas y guiones."""
+    import unicodedata
+    plano = unicodedata.normalize('NFKD', texto or '').encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z0-9]+', '-', plano).strip('-')[:40] or 'coordinador'
+
+
+def _cliente_id_de_filtro(cur, cliente, propiedad):
+    """Id del cliente que impone el filtro Cliente / Instalación, o None sin filtro."""
+    cl = str(cliente).strip() if cliente else None
+    if cl:
+        if cl.isdigit():
+            return int(cl)
+        cur.execute("SELECT id FROM customer_companies WHERE LOWER(TRIM(name)) = LOWER(TRIM(%s)) LIMIT 1", (cl,))
+        fila = cur.fetchone()
+        return int(fila[0] if not hasattr(fila, 'keys') else list(fila.values())[0]) if fila else None
+    pr = str(propiedad).strip() if propiedad else None
+    if pr and pr.isdigit():
+        cur.execute("SELECT customer_company_id FROM propiedades WHERE id_propiedad = %s", (int(pr),))
+        fila = cur.fetchone()
+        valor = (fila[0] if not hasattr(fila, 'keys') else list(fila.values())[0]) if fila else None
+        return int(valor) if valor is not None else None
+    return None
+
+
 @dashboard_bp.route('/api/supervision/cumplimiento/email', methods=['POST'])
 @jwt_required()
 @admin_required
 def api_supervision_cumplimiento_email():
-    """Envía a cada Coordinador elegido la tabla acotada a su ámbito.
+    """Envía a cada Coordinador elegido su cumplimiento: PDF independiente adjunto y
+    la misma tabla en el cuerpo del correo.
 
-    Cada destinatario recibe su propia tabla: los clientes listados son los de
-    su ámbito y las realizadas se cuentan sólo en sus clientes e instalaciones.
-    Un Coordinador sin ámbito, o sin clientes en el lapso y el filtro, se omite
-    y se informa en la respuesta.
+    Cada destinatario recibe sólo los clientes de su ámbito (lista "Clientes
+    asignados" y tabla acotada). No se genera ni envía nada a un Coordinador sin
+    clientes asignados, ni a uno cuyos clientes quedan fuera del filtro de Cliente /
+    Instalación activo; ambos casos se informan en la respuesta. Uno con ámbito y
+    sin datos en el lapso sí recibe su PDF ("Sin datos" / "Sin programación").
     """
+    if not _WEASYPRINT_AVAILABLE:
+        return jsonify({'error': 'La generación de PDF no está disponible en este entorno; '
+                                 'no se envió ningún correo.'}), 503
     payload = request.get_json(silent=True) or {}
     ids = [int(i) for i in (payload.get('coordinadores') or []) if str(i).isdigit()]
     if not ids:
@@ -6077,24 +6122,36 @@ def api_supervision_cumplimiento_email():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         desde, hasta, origen, cliente, propiedad = _args_rango_cumplimiento(payload)
         filtro_txt = _texto_filtros(cur, cliente, propiedad)
+        cliente_filtro_id = _cliente_id_de_filtro(cur, cliente, propiedad)
         asunto = (f"Cumplimiento de supervisiones {_fecha_corta(desde)} – {_fecha_corta(hasta)}"
                   " — Kanan Sentinel SekApp")
         resultados = []
         for u in _coordinadores_activos(conn, ids):
             base = {'id': u['id'], 'nombre': u['nombre'], 'email': u['email']}
             if u['sin_ambito']:
-                resultados.append({**base, 'estado': 'omitido', 'motivo': 'Sin ámbito asignado'})
+                resultados.append({**base, 'estado': 'omitido', 'motivo': 'Sin clientes asignados'})
                 continue
-            datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, propiedad=propiedad, ambito=u['ambito'])
-            if not datos['filas']:
+            if cliente_filtro_id is not None and cliente_filtro_id not in u['clientes']:
                 resultados.append({**base, 'estado': 'omitido',
-                                   'motivo': 'Sin clientes en el lapso o en el filtro'})
+                                   'motivo': 'Sus clientes quedan fuera del filtro de Cliente / Instalación'})
                 continue
-            html = _cumplimiento_html(datos, filtros_txt=filtro_txt, destinatario=u['nombre'],
-                                      mensaje=mensaje, para_correo=True)
-            ok = send_email(u['email'], asunto, html, is_html=True)
+            datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, propiedad=propiedad,
+                                               ambito=u['ambito'])
+            asignados = [i['nombre'] for i in u['ambito']['items']]
+            nombre_pdf = (f"cumplimiento_supervisiones_{datos['desde']}_{datos['hasta']}_"
+                          f"{_slug_archivo(u['nombre'])}.pdf")
+            buf = BytesIO()
+            _WeasyprintHTML(string=_cumplimiento_html(
+                datos, filtros_txt=filtro_txt, destinatario=u['nombre'],
+                clientes_asignados=asignados, coordinador=u['nombre'])).write_pdf(buf)
+            cuerpo = _cumplimiento_html(datos, filtros_txt=filtro_txt, destinatario=u['nombre'],
+                                        mensaje=mensaje, para_correo=True, clientes_asignados=asignados,
+                                        coordinador=u['nombre'], adjunto=nombre_pdf)
+            ok = send_email(u['email'], asunto, cuerpo, is_html=True,
+                            attachments=[(nombre_pdf, buf.getvalue(), 'application/pdf')])
             resultados.append({**base, 'estado': 'enviado' if ok else 'fallido',
-                               'clientes': len(datos['filas']), 'pct': datos['total']['pct']})
+                               'clientes': len(datos['filas']), 'pct': datos['total']['pct'],
+                               'pdf': nombre_pdf})
         enviados = [r['email'] for r in resultados if r['estado'] == 'enviado']
         anotar(detalle={'desde': desde.isoformat(), 'hasta': hasta.isoformat(), 'periodo': origen,
                         'enviados': enviados,
@@ -6102,8 +6159,7 @@ def api_supervision_cumplimiento_email():
         if not resultados:
             return jsonify({'error': 'Ninguno de los Coordinadores elegidos está activo.'}), 404
         if not enviados:
-            return jsonify({'error': 'No se pudo enviar ningún correo. Revise la configuración de correo.',
-                            'resultados': resultados}), 502
+            return jsonify({'error': 'No se envió ningún correo.', 'resultados': resultados}), 502
         return jsonify({'ok': True, 'enviados': len(enviados), 'resultados': resultados})
     except Exception as e:
         app_logger.error(f"api_supervision_cumplimiento_email error: {e}", exc_info=True)
