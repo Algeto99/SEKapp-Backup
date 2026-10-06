@@ -10,6 +10,8 @@
  *   - Mes (Month - multi-select)
  *   - Día (Day - select)
  *   - Responsable / Rol (optional)
+ *   - Período (optional): semana_anterior | mes_actual | mes_anterior | personalizado,
+ *     excluyente con Año / Mes / Día; activated via activatePeriodo()
  *
  * Filter state shape:
  *   cliente     : string | null   — null = all clients
@@ -20,6 +22,8 @@
  *   months      : number[]        — 1-12, empty = all months (multi-select)
  *   day         : number | null   — 1-31, null = all days
  *   responsable : string | null   — null = all; activated via activateResponsable()
+ *   periodo     : string | null   — null = según Año / Mes; activated via activatePeriodo()
+ *   desde, hasta: 'YYYY-MM-DD' | null — sólo con periodo = 'personalizado'
  */
 // Clave de sessionStorage: la seleccion sobrevive la navegacion entre dashboards
 // (el sidebar usa hrefs pelados, asi que sin esto el filtro se perdia en cada clic)
@@ -29,7 +33,8 @@ const DF_STORAGE_KEY = 'secapp:dashboard-filters:v1';
 // Parametros que la barra considera suyos y por lo tanto reescribe en la URL.
 // Cualquier otro (?id=... de un deep link a un registro) se conserva intacto.
 const DF_OWNED_PARAMS = ['cliente', 'propiedad', 'property_id', 'id_propiedad',
-                         'puesto', 'year', 'month', 'day', 'responsable'];
+                         'puesto', 'year', 'month', 'day', 'responsable',
+                         'periodo', 'desde', 'hasta'];
 
 class DashboardFilters {
     constructor() {
@@ -41,6 +46,9 @@ class DashboardFilters {
             months:      [],   // multi-select
             day:         null,
             responsable: null,
+            periodo:     null,
+            desde:       null,
+            hasta:       null,
         };
 
         // Cache for hierarchy
@@ -67,6 +75,14 @@ class DashboardFilters {
         this._resetBtn          = null;
         this._chipsRow          = null;
         this._responsableSelect = null;
+        // Período: igual que Puesto, sólo se aplica si el dashboard llama
+        // activatePeriodo(); hasta entonces lo de la URL queda pendiente.
+        this._periodoActive     = false;
+        this._pendingPeriodo    = null;
+        this._periodoSelect     = null;
+        this._desdeInput        = null;
+        this._hastaInput        = null;
+        this._rangoRow          = null;
 
         this._MONTH_NAMES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -143,6 +159,13 @@ class DashboardFilters {
         }
         if (this.state.responsable) {
             params.set('responsable', this.state.responsable);
+        }
+        if (this.state.periodo) {
+            params.set('periodo', this.state.periodo);
+            if (this.state.periodo === 'personalizado' && this._rangoValido()) {
+                params.set('desde', this.state.desde);
+                params.set('hasta', this.state.hasta);
+            }
         }
         return params.toString();
     }
@@ -262,7 +285,102 @@ class DashboardFilters {
         });
     }
 
+    /**
+     * Muestra el filtro Período (Semana anterior / Mes actual / Mes anterior /
+     * Personalizado). Es excluyente con Año / Mes / Día: elegir un Período los
+     * limpia y tocar cualquiera de ellos quita el Período. El rango de fechas lo
+     * resuelve el servidor con la zona de la operación; aquí sólo viaja la clave
+     * (y Desde / Hasta cuando es Personalizado).
+     */
+    activatePeriodo({ label = 'Período' } = {}) {
+        const wrap = document.getElementById('df-periodo-wrap');
+        const sel  = document.getElementById('df-periodo');
+        if (!wrap || !sel) return;
+        wrap.style.display = 'contents'; // transparent to flex layout
+        this._periodoActive = true;
+        this._periodoSelect = sel;
+        this._desdeInput    = document.getElementById('df-desde');
+        this._hastaInput    = document.getElementById('df-hasta');
+        this._rangoRow      = document.getElementById('df-rango-row');
+
+        const labelEl = wrap.querySelector('.df-label');
+        if (labelEl) labelEl.textContent = label;
+
+        sel.addEventListener('change', () => {
+            this.state.periodo = sel.value || null;
+            if (this.state.periodo) this._clearFechas();
+            if (this.state.periodo !== 'personalizado') {
+                this.state.desde = this.state.hasta = null;
+            }
+            this._syncPeriodoUI();
+            // Personalizado espera a tener las dos fechas antes de consultar.
+            if (this.state.periodo === 'personalizado' && !this._rangoValido()) {
+                this._syncChips();
+                return;
+            }
+            this._emit();
+        });
+        const onFecha = () => {
+            this.state.desde = (this._desdeInput && this._desdeInput.value) || null;
+            this.state.hasta = (this._hastaInput && this._hastaInput.value) || null;
+            if (this._rangoValido()) this._emit();
+        };
+        if (this._desdeInput) this._desdeInput.addEventListener('change', onFecha);
+        if (this._hastaInput) this._hastaInput.addEventListener('change', onFecha);
+
+        // Un Período que venía en la URL se aplica recién ahora que el filtro existe.
+        if (this._pendingPeriodo) {
+            const p = this._pendingPeriodo;
+            this._pendingPeriodo = null;
+            this.state.periodo = p.periodo || null;
+            this.state.desde   = p.desde || null;
+            this.state.hasta   = p.hasta || null;
+            if (this.state.periodo) this._clearFechas();
+            this._syncChips();
+            this._syncURL();
+        }
+        this._syncPeriodoUI();
+    }
+
     // ─── Private ─────────────────────────────────────────────────────────────
+
+    _rangoValido() {
+        return !!(this.state.desde && this.state.hasta && this.state.desde <= this.state.hasta);
+    }
+
+    /** Limpia Año / Mes / Día (un Período los reemplaza). */
+    _clearFechas() {
+        this.state.years  = [];
+        this.state.months = [];
+        this.state.day    = null;
+        if (this._yearMS) this._yearMS.reset();
+        if (this._daySelect) this._daySelect.value = '';
+        this._syncMonthButtons();
+        this._syncDayRow();
+    }
+
+    /** Quita el Período; lo llaman Año, Mes y Día al cambiar. */
+    _clearPeriodo() {
+        if (!this.state.periodo && !this.state.desde && !this.state.hasta) return;
+        this.state.periodo = this.state.desde = this.state.hasta = null;
+        this._syncPeriodoUI();
+    }
+
+    /** Refleja el estado del Período en el select y en la fila Desde / Hasta. */
+    _syncPeriodoUI() {
+        if (!this._periodoSelect) return;
+        this._periodoSelect.value = this.state.periodo || '';
+        if (this._desdeInput) this._desdeInput.value = this.state.desde || '';
+        if (this._hastaInput) this._hastaInput.value = this.state.hasta || '';
+        if (this._rangoRow) this._rangoRow.classList.toggle('df-hidden', this.state.periodo !== 'personalizado');
+    }
+
+    // 'YYYY-MM-DD' → '5 oct 2026' sin pasar por Date (new Date('2026-10-05') es
+    // UTC y en UTC-5 retrocedería un día).
+    _fechaCorta(iso) {
+        const [y, m, d] = String(iso).split('-').map(Number);
+        return (d && m && y) ? `${d} ${this._MONTH_SHORT[m - 1].toLowerCase()} ${y}` : iso;
+    }
 
     _populateYears() {
         const currentYear = new Date().getFullYear();
@@ -280,6 +398,7 @@ class DashboardFilters {
             options:     options,
             placeholder: 'Todos',
             onChange:    (values) => {
+                this._clearPeriodo();
                 this.state.years  = values.map(v => parseInt(v, 10));
                 this.state.months = [];
                 this.state.day    = null;
@@ -490,6 +609,7 @@ class DashboardFilters {
         // Month buttons — multi-select: each click toggles that month
         this._monthBtns.forEach(btn => {
             btn.addEventListener('click', () => {
+                this._clearPeriodo();
                 const val = parseInt(btn.dataset.month, 10);
                 const idx = this.state.months.indexOf(val);
                 if (idx >= 0) {
@@ -507,6 +627,7 @@ class DashboardFilters {
 
         // Day
         this._daySelect.addEventListener('change', () => {
+            this._clearPeriodo();
             const val = this._daySelect.value;
             this.state.day = val ? parseInt(val, 10) : null;
             this._emit();
@@ -568,9 +689,13 @@ class DashboardFilters {
             years:       [],
             months:      [],
             day:         null,
-            responsable: null
+            responsable: null,
+            periodo:     null,
+            desde:       null,
+            hasta:       null,
         };
 
+        this._syncPeriodoUI();
         if (this._clienteSelect) this._clienteSelect.value = '';
         this._refreshPropertyOptions();
         this._propertySelect.value = '';
@@ -650,6 +775,10 @@ class DashboardFilters {
         if (params.get('day')) {
             this.state.day = parseInt(params.get('day'), 10);
         }
+        if (params.get('periodo')) {
+            this._pendingPeriodo = { periodo: params.get('periodo'),
+                                     desde: params.get('desde'), hasta: params.get('hasta') };
+        }
         if (params.get('responsable')) {
             this.state.responsable = params.get('responsable');
             if (this._responsableSelect) {
@@ -696,6 +825,15 @@ class DashboardFilters {
         }
         if (this.state.responsable) {
             chips.push({ key: 'responsable', label: `Resp: ${this.state.responsable}` });
+        }
+        if (this.state.periodo) {
+            const nombres = { semana_anterior: 'Semana anterior', mes_actual: 'Mes actual',
+                              mes_anterior: 'Mes anterior', personalizado: 'Personalizado' };
+            let label = nombres[this.state.periodo] || this.state.periodo;
+            if (this.state.periodo === 'personalizado' && this._rangoValido()) {
+                label = `${this._fechaCorta(this.state.desde)} – ${this._fechaCorta(this.state.hasta)}`;
+            }
+            chips.push({ key: 'periodo', label: `Período: ${label}` });
         }
 
         if (chips.length === 0) {
@@ -745,6 +883,8 @@ class DashboardFilters {
         } else if (key === 'responsable') {
             this.state.responsable = null;
             if (this._responsableSelect) this._responsableSelect.value = '';
+        } else if (key === 'periodo') {
+            this._clearPeriodo();
         }
         this._emit();
     }
@@ -756,7 +896,8 @@ class DashboardFilters {
      * `responsable` queda deliberadamente fuera del almacenamiento: es un valor
      * propio de cada dashboard (el rol aplicador de Supervision no existe en
      * Vehiculos), y arrastrarlo dejaria el siguiente dashboard vacio sin motivo
-     * visible. Si esta en la URL sigue siendo un deep link valido.
+     * visible. Si esta en la URL sigue siendo un deep link valido. Lo mismo vale
+     * para el Período: sólo lo tiene Supervisión y viaja únicamente en la URL.
      */
     _persist() {
         const payload = {
@@ -800,6 +941,13 @@ class DashboardFilters {
             if (this.state.months.length) url.searchParams.set('month', this.state.months.join(','));
             if (this.state.day)         url.searchParams.set('day', this.state.day);
             if (this.state.responsable) url.searchParams.set('responsable', this.state.responsable);
+            if (this.state.periodo) {
+                url.searchParams.set('periodo', this.state.periodo);
+                if (this.state.periodo === 'personalizado' && this._rangoValido()) {
+                    url.searchParams.set('desde', this.state.desde);
+                    url.searchParams.set('hasta', this.state.hasta);
+                }
+            }
 
             window.history.replaceState(null, '', url.pathname + url.search + url.hash);
         } catch (e) {

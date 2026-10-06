@@ -198,6 +198,14 @@ _reg('dashboard_bp.api_incidentes_historial',     _e('Dashboards: Incidentes', '
 _reg('dashboard_bp.api_visitas_historial',        _e('Dashboards: Visitas', 'consulta', 'Consulta de historial de ediciones',
                                                      'registro_y_acta_de_visita'))
 _reg('dashboard_bp.api_report_details',           _e('Dashboards', 'consulta', 'Visualización de detalle', 'reporte_incidente'))
+# Cumplimiento de la programación de supervisiones: el PDF y el envío a
+# Coordinadores se registran; la consulta de la tabla (/api/*/cumplimiento) no,
+# por la misma regla que los /api/*/data de los dashboards.
+_reg('dashboard_bp.api_supervision_cumplimiento_pdf',   _e('Dashboards: Supervisión', 'descarga',
+                                                           'Generación de PDF de cumplimiento'), ('POST',))
+_reg('dashboard_bp.api_supervision_cumplimiento_email', _e('Dashboards: Supervisión', 'descarga',
+                                                           'Envío de cumplimiento a Coordinadores',
+                                                           json=('coordinadores',)), ('POST',))
 _reg('dashboard_bp.dashboard_bases_de_datos',     _e('Bases de Datos', 'consulta', 'Consulta de módulo'))
 
 # Centro de gestión (cgeo)

@@ -166,6 +166,24 @@
 
   .df-hidden { display: none !important; }
 
+  /* Período (se activa con filters.activatePeriodo()): fila Desde / Hasta
+     para la opción Personalizado. */
+  .df-rango-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.25rem;
+  }
+  .df-rango-row .df-label { margin: 0; white-space: nowrap; }
+  .df-date {
+    background-image: none;
+    padding-right: 0.875rem;
+    min-width: 0;
+    color-scheme: dark;
+  }
+  body.light-mode .df-date { color-scheme: light; }
+
   /* Reset button */
   .df-reset {
     display: flex;
@@ -325,7 +343,7 @@
       min-width: 0 !important;
       box-sizing: border-box !important;
     }
-    #df-empresa-wrap, #df-puesto-wrap, #df-responsable-wrap, #df-year-wrap, #df-day-row {
+    #df-empresa-wrap, #df-puesto-wrap, #df-responsable-wrap, #df-periodo-wrap, #df-year-wrap, #df-day-row, #df-rango-row {
       width: 100% !important;
       min-width: 0 !important;
       max-width: 100% !important;
@@ -420,7 +438,7 @@
   <div class="df-divider"></div>
 
   <!-- ③ Mes ─────────────────────────────────────────────────────────── -->
-  <div class="df-section" style="flex:1;">
+  <div class="df-section" id="df-mes-section" style="flex:1;">
     <span class="df-label">Mes</span>
     <div class="df-months">
       <button class="df-month-btn df-month-disabled" data-month="1"  disabled>Ene</button>
@@ -443,6 +461,29 @@
       <select id="df-day" class="df-select">
         <option value="">Todos los días</option>
       </select>
+    </div>
+  </div>
+
+  <!-- ④.1 Período — oculto por defecto; se activa con filters.activatePeriodo().
+       Excluyente con Año / Mes / Día: elegir uno limpia el otro. El rango de
+       fechas lo resuelve el servidor con la zona de la operación. -->
+  <div id="df-periodo-wrap" style="display:none;">
+    <div class="df-divider"></div>
+    <div class="df-section" id="df-periodo-section">
+      <span class="df-label">Período</span>
+      <select id="df-periodo" class="df-select">
+        <option value="">Según Año / Mes</option>
+        <option value="semana_anterior">Semana anterior</option>
+        <option value="mes_actual">Mes actual</option>
+        <option value="mes_anterior">Mes anterior</option>
+        <option value="personalizado">Personalizado</option>
+      </select>
+      <div id="df-rango-row" class="df-rango-row df-hidden">
+        <label class="df-label" for="df-desde">Desde</label>
+        <input type="date" id="df-desde" class="df-select df-date">
+        <label class="df-label" for="df-hasta">Hasta</label>
+        <input type="date" id="df-hasta" class="df-select df-date">
+      </div>
     </div>
   </div>
 

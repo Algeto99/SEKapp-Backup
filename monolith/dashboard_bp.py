@@ -3,17 +3,30 @@ import logging
 import re
 from datetime import date, timedelta, datetime, timezone
 from functools import wraps
+from html import escape as _html_escape
+from io import BytesIO
 
 import psycopg2
 from psycopg2 import extras
-from flask import Blueprint, render_template, request, jsonify, session, redirect
+
+# PDF de cumplimiento de supervisiones. Mismo guardado que cgeo_bp y viewer_bp:
+# sin las librerías nativas el endpoint responde 503 en vez de un PDF vacío.
+try:
+    from weasyprint import HTML as _WeasyprintHTML
+    _WEASYPRINT_AVAILABLE = True
+except Exception:   # OSError sin pango/cairo; ImportError sin el paquete
+    _WeasyprintHTML = None
+    _WEASYPRINT_AVAILABLE = False
+from flask import Blueprint, render_template, request, jsonify, session, redirect, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, unset_jwt_cookies
 from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
 from auditoria import anotar
 from admin_bp import hoy_operacion, ahora_operacion, sql_hoy
-from coordinador import condicion_ambito, es_coordinador, fuera_de_ambito
+from coordinador import (condicion_ambito, es_coordinador, fuera_de_ambito, ambito_activo,
+                         cargar_ambito, rol_disponible as rol_coordinador_disponible)
+from email_utils import send_email
 from gcs_utils import resolve_upload_bucket
 from normalizacion import (clave_identificador, normalizar_nombre,
                           sql_clave_identificador, sql_clave_nombre)
@@ -5008,7 +5021,18 @@ def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None,
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     return where, params
 
-def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None, puesto=None):
+def _sup_prev_where(cliente, year, month, day, company_id=None, propiedad=None, puesto=None,
+                    desde=None, hasta=None):
+    # Con un Período (desde/hasta como date) el lapso anterior es el de igual
+    # duración que termina el día antes de `desde`: así "vs período anterior"
+    # sigue teniendo sentido cuando no hay Año/Mes elegidos.
+    if desde and hasta and hasta >= desde:
+        dias = (hasta - desde).days + 1
+        conds, params = [], []
+        _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, puesto=puesto, col_puesto="detalles_puestos")
+        _gestion_add_desde(conds, params, "fecha_hora", (desde - timedelta(days=dias)).isoformat())
+        _gestion_add_hasta(conds, params, "fecha_hora", (desde - timedelta(days=1)).isoformat())
+        return "WHERE " + " AND ".join(conds), params
     # Coerce to single int — prev-period comparison only works for a single period
     try:
         year  = int(str(year).split(',')[0].strip())  if year  else None
@@ -5121,8 +5145,17 @@ def api_supervision_data():
         company_id = _get_user_company_id(cur, get_jwt_identity())
 
         desde = _gestion_desde_arg()
-        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde)
-        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto)
+        hasta = _gestion_hasta_arg()
+        # Período (semana anterior / mes actual / mes anterior / personalizado):
+        # se resuelve en el servidor con la zona de la operación y es excluyente
+        # con Año/Mes/Día, que se ignoran si viene uno.
+        periodo = request.args.get('periodo') or None
+        p_desde, p_hasta = _rango_periodo(periodo, desde, hasta)
+        if p_desde:
+            year = month = day = None
+            desde, hasta = p_desde.isoformat(), p_hasta.isoformat()
+        where, params           = _sup_where(cliente, year, month, day, responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde, hasta=hasta)
+        where_prev, params_prev = _sup_prev_where(cliente, year, month, day, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=p_desde, hasta=p_hasta)
 
         # ── Helper: cast 1-5 field to numeric, mapping text labels too ──────
         # Some records store 'Excelente'/'Bueno'/etc. instead of 1-5.
@@ -5288,6 +5321,7 @@ def api_supervision_data():
         ]
 
         return jsonify({
+            'rango': {'periodo': periodo if p_desde else None, 'desde': desde, 'hasta': hasta},
             'kpi': {
                 'total':                total,
                 'pct_change_total':     pct_change(total, total_prev),
@@ -5355,6 +5389,10 @@ def api_supervision_detalles():
 
         desde = _gestion_desde_arg()
         hasta = _gestion_hasta_arg()
+        p_desde, p_hasta = _rango_periodo(request.args.get('periodo') or None, desde, hasta)
+        if p_desde:
+            year = month = day = None
+            desde, hasta = p_desde.isoformat(), p_hasta.isoformat()
         where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde, hasta=hasta)
         if empleado_num:
             where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
@@ -5420,6 +5458,537 @@ def api_supervision_detalles():
         return jsonify({'detalles': detalles})
     except Exception as e:
         app_logger.error(f"api_supervision_detalles error: {e}", exc_info=True)
+        return jsonify({'error': 'Error interno'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# ── Período y cumplimiento de la programación de supervisiones ────────────────
+#
+# Pedido de KANAN (2026-10-05): filtro "Período" en el Dashboard de Supervisión
+# y tabla de cumplimiento por cliente contra la programación de Umbrales KPI,
+# con envío a los Coordinadores acotado al ámbito de cada uno.
+
+_PERIODOS = ('semana_anterior', 'mes_actual', 'mes_anterior', 'personalizado')
+_MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+_PERIODO_ETIQUETAS = {
+    'semana_anterior': 'Semana anterior',
+    'mes_actual':      'Mes actual',
+    'mes_anterior':    'Mes anterior',
+    'personalizado':   'Personalizado',
+    'anio_mes':        'Según Año / Mes',
+}
+# Paleta impresa (PDF y correo), la misma del PDF del Morning Briefing.
+_TONO_IMPRESO = {'verde': '#16a34a', 'amarillo': '#d97706', 'rojo': '#dc2626', 'gris': '#64748b'}
+
+
+def _fecha_corta(d):
+    """'5 oct 2026' para subtítulos, PDF y correo."""
+    return f"{d.day} {_MESES_CORTOS[d.month - 1]} {d.year}" if d else '—'
+
+
+def _fecha_iso_arg(valor):
+    """date a partir de 'YYYY-MM-DD'; None si falta o está mal formada."""
+    if not isinstance(valor, str) or not re.match(r'^\d{4}-\d{2}-\d{2}$', valor.strip()):
+        return None
+    try:
+        return date.fromisoformat(valor.strip())
+    except ValueError:
+        return None
+
+
+def _ints_de(valor):
+    """Enteros de un parámetro que puede venir como 2026, '2026' o '2025,2026'."""
+    if valor is None:
+        return []
+    if isinstance(valor, (int, float)):
+        return [int(valor)]
+    return [int(x) for x in str(valor).split(',') if x.strip().lstrip('-').isdigit()]
+
+
+def _rango_periodo(periodo, desde=None, hasta=None):
+    """(desde, hasta) como date para un Período, o (None, None) si no hay uno.
+
+    "Hoy" es el de la zona de la operación (Umbrales KPI), no el del navegador
+    ni el de UTC: ver project_sekapp_zona_horaria. La semana va de lunes a
+    domingo. Personalizado exige Desde y Hasta válidos y en orden.
+    """
+    if periodo not in _PERIODOS:
+        return None, None
+    hoy = hoy_operacion()
+    if periodo == 'semana_anterior':
+        lunes = hoy - timedelta(days=hoy.weekday())
+        return lunes - timedelta(days=7), lunes - timedelta(days=1)
+    if periodo == 'mes_actual':
+        return hoy.replace(day=1), hoy
+    if periodo == 'mes_anterior':
+        fin = hoy.replace(day=1) - timedelta(days=1)
+        return fin.replace(day=1), fin
+    d, h = _fecha_iso_arg(desde), _fecha_iso_arg(hasta)
+    if d and h and d <= h:
+        return d, h
+    return None, None
+
+
+def _rango_cumplimiento(periodo, desde, hasta, year, month, day):
+    """Lapso de la tabla de cumplimiento: el Período si lo hay; si no, lo que
+    marquen Año/Mes/Día; si no hay nada, el mes actual. Nunca pasa de hoy: una
+    supervisión futura no puede estar realizada y el prorrateo de la meta
+    mediría días que todavía no ocurren.
+
+    Devuelve (desde, hasta, origen) con origen en _PERIODO_ETIQUETAS.
+    """
+    hoy = hoy_operacion()
+    d, h = _rango_periodo(periodo, desde, hasta)
+    origen = periodo
+    if d is None:
+        years, months, dias = _ints_de(year), _ints_de(month), _ints_de(day)
+        if years:
+            # Con varios años o meses se toma el tramo que los abarca, no la
+            # unión exacta: prorratear una meta sobre meses salteados no tiene
+            # una lectura clara y la barra rara vez se usa así.
+            y0, y1 = min(years), max(years)
+            m0 = min(months) if months else 1
+            m1 = max(months) if months else 12
+            if dias and len(years) == 1 and len(months) == 1:
+                try:
+                    d = h = date(y0, m0, dias[0])
+                except ValueError:
+                    d = h = None
+            if d is None:
+                d = date(y0, m0, 1)
+                h = date(y1, m1, calendar.monthrange(y1, m1)[1])
+            origen = 'anio_mes'
+        else:
+            d, h = _rango_periodo('mes_actual')
+            origen = 'mes_actual'
+    if h > hoy:
+        h = hoy
+    return d, h, origen
+
+
+def _programadas_en_lapso(meta, periodicidad, desde, hasta):
+    """Supervisiones programadas de un cliente en un lapso cualquiera.
+
+    La meta de supervision_programacion es por periodicidad (día, semana, mes),
+    no por fecha, así que se prorratea por días: una meta semanal de 5 son 5 en
+    la semana anterior, 4 en los primeros 5 días del mes (3.6 redondeado) y 21
+    en un mes de 30 días. La mensual se reparte sobre los días reales de cada
+    mes que toca el lapso, para que un mes calendario completo dé exactamente
+    la meta. Mismo criterio que `programadas_dia` en calcular_supervisiones.
+    """
+    meta = int(meta or 0)
+    if meta <= 0 or desde is None or hasta is None or hasta < desde:
+        return 0
+    dias = (hasta - desde).days + 1
+    if periodicidad == 'diario':
+        return meta * dias
+    if periodicidad == 'mensual':
+        total = 0.0
+        cursor = desde
+        while cursor <= hasta:
+            dias_mes = calendar.monthrange(cursor.year, cursor.month)[1]
+            fin_mes = cursor.replace(day=dias_mes)
+            tramo = (min(fin_mes, hasta) - cursor).days + 1
+            total += meta * tramo / dias_mes
+            cursor = fin_mes + timedelta(days=1)
+        return int(total + 0.5)
+    return int(meta * dias / 7 + 0.5)
+
+
+def _tono_cumplimiento(pct, verde_min, amarillo_min):
+    if pct is None:
+        return 'gris'
+    if pct >= verde_min:
+        return 'verde'
+    if pct >= amarillo_min:
+        return 'amarillo'
+    return 'rojo'
+
+
+def _cumplimiento_programacion(cur, desde, hasta, cliente=None, ambito=None):
+    """Programadas / realizadas / contadas / % por cliente en [desde, hasta].
+
+    - Realizadas se cuentan con `_add_scope_filters(cliente=id)`, el mismo cruce
+      por id, instalación y nombre antiguo que usa el filtro Cliente, para que la
+      tabla y las tarjetas cuadren.
+    - Contadas = min(realizadas, programadas): el exceso de un cliente no
+      compensa el incumplimiento de otro, y el total sale de las sumas, no de
+      promediar porcentajes.
+    - `ambito` explícito acota la tabla a un Coordinador desde la sesión del
+      Administrador (envío por correo). Sin él rige el ámbito de la sesión, que
+      `_add_scope_filters` ya aplica solo.
+    - Sin programación por cliente no se inventa una meta: programadas queda en
+      0 y el % en None, con `hay_programacion` False para que la pantalla avise.
+    """
+    from admin_bp import get_thresholds, get_supervision_programacion
+    t = get_thresholds()
+    verde_min = float(t.get('supervision_verde_min') or 90)
+    amarillo_min = float(t.get('supervision_amarillo_min') or 70)
+
+    programacion = get_supervision_programacion(cur)
+    hay_programacion = any(int(p.get('meta') or 0) > 0 for p in programacion)
+
+    if cliente:
+        cl = str(cliente).strip()
+        if cl.isdigit():
+            programacion = [p for p in programacion if str(p['id']) == cl]
+        else:
+            programacion = [p for p in programacion
+                            if (p.get('name') or '').strip().lower() == cl.lower()]
+
+    ambito_lista = ambito if ambito is not None else ambito_activo()
+    if ambito_lista is not None:
+        permitidos = set(ambito_lista['clientes']) | set(ambito_lista['clientes_de_propiedades'])
+        programacion = [p for p in programacion if p['id'] in permitidos]
+
+    dias = (hasta - desde).days + 1 if (desde and hasta) else 0
+    filas = []
+    for p in programacion:
+        if dias <= 0:
+            break
+        conds, params = [], []
+        _add_scope_filters(conds, params, cliente=str(p['id']), col_puesto=None)
+        _gestion_add_desde(conds, params, "fecha_hora", desde.isoformat())
+        _gestion_add_hasta(conds, params, "fecha_hora", hasta.isoformat())
+        if ambito is not None:
+            condicion_ambito(conds, params, ambito=ambito, col_prop='id_propiedad',
+                             col_inst='cliente_instalacion', col_cust='customer_company_id')
+        cur.execute(f"SELECT COUNT(*) AS n FROM supervision_puesto WHERE {' AND '.join(conds)}", params)
+        fila = cur.fetchone()
+        realizadas = int((fila['n'] if hasattr(fila, 'keys') else fila[0]) or 0)
+        meta = int(p.get('meta') or 0)
+        periodicidad = p.get('periodicidad') or 'semanal'
+        programadas = _programadas_en_lapso(meta, periodicidad, desde, hasta) if hay_programacion else 0
+        if programadas == 0 and realizadas == 0:
+            continue
+        contadas = min(realizadas, programadas)
+        pct = int(contadas / programadas * 100 + 0.5) if programadas else None
+        filas.append({
+            'cliente_id': p['id'], 'cliente': p.get('name') or f"Cliente {p['id']}",
+            'periodicidad': periodicidad, 'meta': meta,
+            'programadas': programadas, 'realizadas': realizadas, 'contadas': contadas,
+            'pct': pct, 'tono': _tono_cumplimiento(pct, verde_min, amarillo_min),
+        })
+    # De menor a mayor cumplimiento; los clientes sin meta al final.
+    filas.sort(key=lambda f: (f['pct'] is None, f['pct'] if f['pct'] is not None else 0, f['cliente'].lower()))
+
+    t_prog = sum(f['programadas'] for f in filas)
+    t_real = sum(f['realizadas'] for f in filas)
+    t_cont = sum(f['contadas'] for f in filas)
+    t_pct = int(t_cont / t_prog * 100 + 0.5) if t_prog else None
+    return {
+        'desde': desde.isoformat() if desde else None,
+        'hasta': hasta.isoformat() if hasta else None,
+        'dias': max(0, dias),
+        'hay_programacion': hay_programacion,
+        'filas': filas,
+        'total': {'programadas': t_prog, 'realizadas': t_real, 'contadas': t_cont,
+                  'pct': t_pct, 'tono': _tono_cumplimiento(t_pct, verde_min, amarillo_min)},
+        'umbrales': {'verde_min': verde_min, 'amarillo_min': amarillo_min},
+    }
+
+
+def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=None,
+                       mensaje=None, para_correo=False):
+    """HTML de la tabla de cumplimiento, para PDF (WeasyPrint) o cuerpo de correo.
+
+    Estilos en línea y puntos de color dibujados con CSS, no con emoji: en Cloud
+    Run no hay fuente de emoji para el PDF y en los clientes de correo tampoco
+    es seguro. Misma maqueta de tabla de 600 px que el correo de Reportes.
+    """
+    from admin_bp import get_operation_timezone, format_local_datetime
+    tz = get_operation_timezone()
+    generado = format_local_datetime(datetime.now(), tz=tz, time_sep=" a las ")
+    e = _html_escape
+    d = date.fromisoformat(datos['desde']) if datos.get('desde') else None
+    h = date.fromisoformat(datos['hasta']) if datos.get('hasta') else None
+    lapso = f"{_fecha_corta(d)} – {_fecha_corta(h)}"
+    verde = int(datos['umbrales']['verde_min'])
+    amarillo = int(datos['umbrales']['amarillo_min'])
+    hay = datos['hay_programacion']
+
+    logo = ''
+    try:
+        from cgeo_bp import _briefing_logo_data_url
+        src = _briefing_logo_data_url()
+        if src:
+            logo = f'<img src="{src}" alt="SEKapp" style="height:34px;vertical-align:middle;">'
+    except Exception:
+        pass
+
+    def punto(tono):
+        return ('<span style="display:inline-block;width:11px;height:11px;border-radius:50%;'
+                f'background:{_TONO_IMPRESO[tono]};vertical-align:middle;margin-right:6px;"></span>')
+
+    def pct_txt(f):
+        return f"{f['pct']} %" if f['pct'] is not None else '—'
+
+    def n_txt(valor):
+        return str(valor) if hay else '—'
+
+    td = 'padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#1e293b;'
+    num = td + 'text-align:right;'
+    filas_html = ''
+    for f in datos['filas']:
+        color = _TONO_IMPRESO[f['tono']]
+        filas_html += (
+            f'<tr><td style="{td}">{e(f["cliente"])}</td>'
+            f'<td style="{num}">{n_txt(f["programadas"])}</td>'
+            f'<td style="{num}">{f["realizadas"]}</td>'
+            f'<td style="{num}">{n_txt(f["contadas"])}</td>'
+            f'<td style="{td}white-space:nowrap;">{punto(f["tono"])}'
+            f'<span style="color:{color};font-weight:600;">{pct_txt(f)}</span></td></tr>'
+        )
+    if not filas_html:
+        filas_html = (f'<tr><td colspan="5" style="{td}text-align:center;color:#64748b;">'
+                      'Sin supervisiones ni programación en el lapso.</td></tr>')
+    tot = datos['total']
+    tb = td + 'font-weight:700;border-top:2px solid #cbd5e1;border-bottom:none;'
+    total_html = (
+        f'<tr><td style="{tb}">Total</td>'
+        f'<td style="{tb}text-align:right;">{n_txt(tot["programadas"])}</td>'
+        f'<td style="{tb}text-align:right;">{tot["realizadas"]}</td>'
+        f'<td style="{tb}text-align:right;">{n_txt(tot["contadas"])}</td>'
+        f'<td style="{tb}white-space:nowrap;">{punto(tot["tono"])}'
+        f'<span style="color:{_TONO_IMPRESO[tot["tono"]]};">{pct_txt(tot)}</span></td></tr>'
+    )
+    th = ('padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;'
+          'color:#64748b;border-bottom:1px solid #cbd5e1;text-align:left;')
+    aviso = '' if hay else (
+        '<p style="margin:10px 0 0;font-size:12px;color:#b45309;">Ningún cliente tiene programación de '
+        'supervisiones configurada en Umbrales KPI, por eso no hay programadas ni porcentaje.</p>')
+    saludo = ''
+    if para_correo:
+        saludo = (f'<p style="margin:0 0 8px;font-size:13px;color:#374151;">Estimado/a {e(destinatario or "")},</p>'
+                  '<p style="margin:0 0 12px;font-size:13px;color:#6b7280;">Cumplimiento de la programación de '
+                  'supervisiones de los clientes de su ámbito en el período indicado.</p>')
+        if mensaje:
+            saludo += ('<p style="margin:0 0 12px;font-size:13px;color:#374151;white-space:pre-wrap;">'
+                       f'{e(mensaje)}</p>')
+    pagina = '' if para_correo else '<style>@page { size: A4; margin: 18mm 16mm; }</style>'
+    ancho = '600' if para_correo else '100%'
+    relleno = '24px 0' if para_correo else '0'
+    plural = 's' if datos['dias'] != 1 else ''
+    return f"""<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><title>Cumplimiento de supervisiones</title>{pagina}</head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:{relleno};">
+<tr><td align="center">
+<table width="{ancho}" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0;">
+  <tr><td style="background:#1e3a8a;padding:14px 20px;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td style="vertical-align:middle;">{logo}&nbsp;&nbsp;<span style="color:#fff;font-size:15px;font-weight:bold;vertical-align:middle;">Kanan Sentinel SekApp</span><br>
+        <span style="color:#bfdbfe;font-size:11px;">Cumplimiento de la programación de supervisiones</span></td>
+      <td align="right" style="color:#bfdbfe;font-size:11px;vertical-align:middle;">Generado el<br>{e(generado)}</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:18px 20px 6px;">
+    {saludo}
+    <div style="font-size:13px;color:#374151;"><strong>Período:</strong> {e(lapso)} · {datos['dias']} día{plural}</div>
+    <div style="font-size:13px;color:#374151;margin-top:2px;"><strong>Cliente / Empresa:</strong> {e(filtros_txt)}</div>
+  </td></tr>
+  <tr><td style="padding:10px 20px 18px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+      <thead><tr>
+        <th style="{th}">Cliente</th><th style="{th}text-align:right;">Programadas</th>
+        <th style="{th}text-align:right;">Realizadas</th><th style="{th}text-align:right;">Realizadas contadas</th>
+        <th style="{th}">Cumplimiento</th>
+      </tr></thead>
+      <tbody>{filas_html}{total_html}</tbody>
+    </table>
+    {aviso}
+    <p style="margin:12px 0 0;font-size:11px;color:#64748b;">
+      {punto('verde')}{verde} % o más &nbsp; {punto('amarillo')}{amarillo} % – {verde - 1} % &nbsp; {punto('rojo')}menos de {amarillo} %.
+      Las realizadas contadas no superan las programadas: el exceso de un cliente no compensa el incumplimiento de otro.
+    </p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:10px 20px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;">
+    Kanan Sentinel SekApp · Dashboard de Supervisión
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>"""
+
+
+def _args_rango_cumplimiento(fuente):
+    """(desde, hasta, origen, cliente) desde la query string o el JSON del POST."""
+    g_ = fuente.get
+    desde, hasta, origen = _rango_cumplimiento(
+        g_('periodo') or None, g_('desde') or None, g_('hasta') or None,
+        g_('year') or None, g_('month') or None, g_('day') or None)
+    return desde, hasta, origen, (g_('cliente') or None)
+
+
+def _nombre_cliente(cur, cliente):
+    """Texto del filtro Cliente para el PDF y el correo."""
+    if not cliente:
+        return 'Todos los clientes'
+    cl = str(cliente).strip()
+    if cl.isdigit():
+        cur.execute("SELECT name FROM customer_companies WHERE id = %s", (int(cl),))
+        fila = cur.fetchone()
+        if fila:
+            return (fila['name'] if hasattr(fila, 'keys') else fila[0]) or cl
+    return cl
+
+
+def _coordinadores_activos(conn, ids=None):
+    """Coordinadores activos con correo, con su ámbito ya cargado."""
+    if not rol_coordinador_disponible(conn):
+        return []
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    consulta = ("SELECT id, name, email FROM users WHERE is_coordinador = TRUE "
+                "AND COALESCE(is_active, TRUE) AND email IS NOT NULL")
+    params = []
+    if ids is not None:
+        consulta += " AND id = ANY(%s)"
+        params.append(list(ids))
+    cur.execute(consulta + " ORDER BY name NULLS LAST, email", params)
+    usuarios = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    for u in usuarios:
+        ambito = cargar_ambito(conn, u['email'])
+        u['ambito'] = ambito
+        u['nombre'] = u.get('name') or u['email']
+        u['clientes'] = sorted(set(ambito['clientes']) | set(ambito['clientes_de_propiedades']))
+        u['sin_ambito'] = not ambito['clientes'] and not ambito['propiedades']
+    return usuarios
+
+
+@dashboard_bp.route('/api/supervision/cumplimiento')
+@jwt_required()
+def api_supervision_cumplimiento():
+    """Tabla de cumplimiento de la programación por cliente. Acotada al ámbito
+    del Coordinador por `_add_scope_filters`, como el resto del dashboard."""
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        desde, hasta, origen, cliente = _args_rango_cumplimiento(request.args)
+        datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente)
+        datos['origen'] = origen
+        datos['origen_etiqueta'] = _PERIODO_ETIQUETAS.get(origen, origen)
+        return jsonify(datos)
+    except Exception as e:
+        app_logger.error(f"api_supervision_cumplimiento error: {e}", exc_info=True)
+        return jsonify({'error': 'Error interno'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/supervision/cumplimiento/pdf', methods=['POST'])
+@jwt_required()
+@admin_required
+def api_supervision_cumplimiento_pdf():
+    if not _WEASYPRINT_AVAILABLE:
+        return jsonify({'error': 'La generación de PDF no está disponible en este entorno.'}), 503
+    payload = request.get_json(silent=True) or {}
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        desde, hasta, origen, cliente = _args_rango_cumplimiento(payload)
+        datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente)
+        html = _cumplimiento_html(datos, filtros_txt=_nombre_cliente(cur, cliente))
+        buf = BytesIO()
+        _WeasyprintHTML(string=html).write_pdf(buf)
+        buf.seek(0)
+        anotar(detalle={'desde': datos['desde'], 'hasta': datos['hasta'], 'periodo': origen})
+        nombre = f"cumplimiento_supervisiones_{datos['desde']}_{datos['hasta']}.pdf"
+        return send_file(buf, as_attachment=True, download_name=nombre, mimetype='application/pdf')
+    except Exception as e:
+        app_logger.error(f"api_supervision_cumplimiento_pdf error: {e}", exc_info=True)
+        return jsonify({'error': 'Error generando PDF'}), 500
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/supervision/coordinadores')
+@jwt_required()
+@admin_required
+def api_supervision_coordinadores():
+    """Coordinadores a los que se puede enviar el cumplimiento, con su ámbito."""
+    conn = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'coordinadores': []})
+        salida = [{'id': u['id'], 'nombre': u['nombre'], 'email': u['email'],
+                   'ambito': [i['nombre'] for i in u['ambito']['items']],
+                   'clientes': u['clientes'], 'sin_ambito': u['sin_ambito']}
+                  for u in _coordinadores_activos(conn)]
+        return jsonify({'coordinadores': salida})
+    except Exception as e:
+        app_logger.error(f"api_supervision_coordinadores error: {e}", exc_info=True)
+        return jsonify({'coordinadores': [], 'error': 'Error interno'}), 500
+    finally:
+        if conn: conn.close()
+
+
+@dashboard_bp.route('/api/supervision/cumplimiento/email', methods=['POST'])
+@jwt_required()
+@admin_required
+def api_supervision_cumplimiento_email():
+    """Envía a cada Coordinador elegido la tabla acotada a su ámbito.
+
+    Cada destinatario recibe su propia tabla: los clientes listados son los de
+    su ámbito y las realizadas se cuentan sólo en sus clientes e instalaciones.
+    Un Coordinador sin ámbito, o sin clientes en el lapso y el filtro, se omite
+    y se informa en la respuesta.
+    """
+    payload = request.get_json(silent=True) or {}
+    ids = [int(i) for i in (payload.get('coordinadores') or []) if str(i).isdigit()]
+    if not ids:
+        return jsonify({'error': 'Seleccione al menos un Coordinador.'}), 400
+    mensaje = (payload.get('mensaje') or '').strip()[:1000]
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'DB connection failed'}), 500
+        if not rol_coordinador_disponible(conn):
+            return jsonify({'error': 'El perfil Coordinador no está habilitado en esta instancia.'}), 400
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        desde, hasta, origen, cliente = _args_rango_cumplimiento(payload)
+        filtro_txt = _nombre_cliente(cur, cliente)
+        asunto = (f"Cumplimiento de supervisiones {_fecha_corta(desde)} – {_fecha_corta(hasta)}"
+                  " — Kanan Sentinel SekApp")
+        resultados = []
+        for u in _coordinadores_activos(conn, ids):
+            base = {'id': u['id'], 'nombre': u['nombre'], 'email': u['email']}
+            if u['sin_ambito']:
+                resultados.append({**base, 'estado': 'omitido', 'motivo': 'Sin ámbito asignado'})
+                continue
+            datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, ambito=u['ambito'])
+            if not datos['filas']:
+                resultados.append({**base, 'estado': 'omitido',
+                                   'motivo': 'Sin clientes en el lapso o en el filtro'})
+                continue
+            html = _cumplimiento_html(datos, filtros_txt=filtro_txt, destinatario=u['nombre'],
+                                      mensaje=mensaje, para_correo=True)
+            ok = send_email(u['email'], asunto, html, is_html=True)
+            resultados.append({**base, 'estado': 'enviado' if ok else 'fallido',
+                               'clientes': len(datos['filas']), 'pct': datos['total']['pct']})
+        enviados = [r['email'] for r in resultados if r['estado'] == 'enviado']
+        anotar(detalle={'desde': desde.isoformat(), 'hasta': hasta.isoformat(), 'periodo': origen,
+                        'enviados': enviados,
+                        'omitidos': [r['email'] for r in resultados if r['estado'] != 'enviado']})
+        if not resultados:
+            return jsonify({'error': 'Ninguno de los Coordinadores elegidos está activo.'}), 404
+        if not enviados:
+            return jsonify({'error': 'No se pudo enviar ningún correo. Revise la configuración de correo.',
+                            'resultados': resultados}), 502
+        return jsonify({'ok': True, 'enviados': len(enviados), 'resultados': resultados})
+    except Exception as e:
+        app_logger.error(f"api_supervision_cumplimiento_email error: {e}", exc_info=True)
         return jsonify({'error': 'Error interno'}), 500
     finally:
         if cur: cur.close()

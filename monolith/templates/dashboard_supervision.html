@@ -258,6 +258,73 @@
         .clickable-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.3); border-color:#60a5fa; }
         body.light-mode .clickable-card:hover { border-color:#3b82f6; }
 
+        /* Con Período en la barra, a ~1400 px la sección Mes quedaba con el ancho
+           sobrante y los 12 botones se apilaban en una columna. Un ancho mínimo
+           la manda entera a la segunda fila (con Período y Responsable) cuando no
+           cabe. Sólo en esta pantalla; en móvil manda el 100 % de la barra. */
+        #df-mes-section { min-width:320px; }
+
+        /* ── Acciones PDF · Email · Compartir (bajo Limpiar) ───────────── */
+        .sup-actions {
+            display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0.75rem;
+            margin:-1rem 0 1.5rem; padding:0 0.25rem;
+        }
+        .sup-actions-label { font-family:'Roboto',sans-serif; font-size:0.75rem; color:#6b7280; letter-spacing:0.5px; text-transform:uppercase; font-weight:600; }
+        .sup-actions-btns { display:flex; flex-wrap:wrap; gap:0.5rem; }
+        .sup-btn {
+            display:inline-flex; align-items:center; gap:0.4rem;
+            background-color:#374151; color:#e2e8f0; border:1px solid rgba(255,255,255,0.1);
+            border-radius:8px; padding:0.5rem 0.875rem; font-size:0.8125rem; font-weight:600;
+            font-family:'Roboto',sans-serif; cursor:pointer; transition:all 0.18s ease; white-space:nowrap;
+        }
+        .sup-btn svg { width:15px; height:15px; }
+        .sup-btn:hover:not(:disabled) { background-color:#4b5563; border-color:rgba(255,255,255,0.25); }
+        .sup-btn:disabled { opacity:0.5; cursor:wait; }
+        .sup-btn-primary { background-color:#1d4ed8; border-color:#3b82f6; color:#fff; }
+        .sup-btn-primary:hover:not(:disabled) { background-color:#2563eb; }
+        body.light-mode .sup-btn { background-color:#f1f5f9; color:#1e293b; border-color:rgba(0,0,0,0.12); }
+        body.light-mode .sup-btn:hover:not(:disabled) { background-color:#e2e8f0; }
+        body.light-mode .sup-btn-primary { background-color:#1d4ed8; color:#fff; border-color:#3b82f6; }
+        body.light-mode .sup-actions-label { color:#94a3b8; }
+
+        /* ── Cumplimiento de la programación ───────────────────────────── */
+        .cumpl-wrap { overflow-x:auto; }
+        .cumpl-table { width:100%; border-collapse:collapse; font-size:0.875rem; font-family:'Roboto',sans-serif; }
+        .cumpl-table th { padding:0.6rem 0.75rem; text-align:left; color:#6b7280; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid rgba(255,255,255,0.1); white-space:nowrap; }
+        .cumpl-table td { padding:0.65rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.05); color:#e2e8f0; }
+        .cumpl-table th.num, .cumpl-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+        .cumpl-table td:first-child { white-space:nowrap; }
+        .cumpl-table tfoot td { font-weight:700; border-top:2px solid rgba(255,255,255,0.15); border-bottom:none; }
+        .cumpl-table tbody tr:hover td { background-color:rgba(255,255,255,0.03); }
+        .cumpl-pct { font-weight:700; white-space:nowrap; }
+        .cumpl-aviso { background:var(--amber-bg); border:1px solid var(--amber-border); color:var(--amber-muted); border-radius:10px; padding:0.6rem 0.875rem; font-size:0.8125rem; margin-bottom:0.75rem; font-family:'Roboto',sans-serif; }
+        .cumpl-leyenda { display:flex; gap:1.25rem; flex-wrap:wrap; margin-top:0.75rem; font-size:0.75rem; font-family:'Roboto',sans-serif; color:#9ca3af; }
+        .cumpl-leyenda span { display:flex; align-items:center; gap:0.35rem; }
+        body.light-mode .cumpl-table th { color:#64748b; border-bottom-color:rgba(0,0,0,0.1); }
+        body.light-mode .cumpl-table td { color:#334155; border-bottom-color:rgba(0,0,0,0.05); }
+        body.light-mode .cumpl-table tfoot td { border-top-color:rgba(0,0,0,0.15); }
+        body.light-mode .cumpl-table tbody tr:hover td { background-color:rgba(0,0,0,0.02); }
+
+        /* ── Modal de envío a Coordinadores ────────────────────────────── */
+        .correo-intro { font-size:0.875rem; color:#94a3b8; margin:0 0 1rem; font-family:'Roboto',sans-serif; }
+        .correo-lista { display:flex; flex-direction:column; gap:0.5rem; max-height:40vh; overflow-y:auto; margin-bottom:1rem; }
+        .correo-item { display:flex; align-items:flex-start; gap:0.75rem; padding:0.65rem 0.875rem; border:1px solid rgba(255,255,255,0.08); border-radius:10px; background:#374151; cursor:pointer; }
+        .correo-item input { margin-top:0.2rem; accent-color:#3b82f6; }
+        .correo-item.deshabilitado { opacity:0.55; cursor:not-allowed; }
+        .correo-nombre { font-weight:600; font-size:0.875rem; color:#e2e8f0; font-family:'Roboto',sans-serif; }
+        .correo-email { font-size:0.75rem; color:#94a3b8; }
+        .correo-ambito { font-size:0.75rem; color:#9ca3af; margin-top:0.2rem; }
+        .correo-label { display:block; font-size:0.6875rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#6b7280; margin-bottom:0.4rem; font-family:'Roboto',sans-serif; }
+        .correo-textarea { width:100%; box-sizing:border-box; background:#374151; color:#e2e8f0; border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.6rem 0.875rem; font-size:0.875rem; font-family:'Roboto',sans-serif; resize:vertical; }
+        .correo-textarea:focus { outline:none; border-color:#60a5fa; box-shadow:0 0 0 3px rgba(96,165,250,0.15); }
+        .correo-resultado { margin-top:1rem; font-size:0.8125rem; font-family:'Roboto',sans-serif; }
+        .correo-resultado ul { margin:0.4rem 0 0; padding-left:1.1rem; color:#cbd5e1; }
+        .correo-acciones { display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1.25rem; }
+        body.light-mode .correo-item { background:#f8fafc; border-color:rgba(0,0,0,0.1); }
+        body.light-mode .correo-nombre { color:#1e293b; }
+        body.light-mode .correo-textarea { background:#f8fafc; color:#1e293b; border-color:rgba(0,0,0,0.12); }
+        body.light-mode .correo-resultado ul { color:#334155; }
+
         /* ── Score badge ────────────────────────────────────────────────── */
         .score-badge {
             display:inline-block; padding:0.15rem 0.6rem; border-radius:999px;
@@ -312,6 +379,23 @@
         <!-- Filter bar -->
         {% include '_dashboard_filters.html' %}
 
+        <!-- ── Acciones sobre el cumplimiento: PDF · Email · Compartir ──── -->
+        <div class="sup-actions" id="supActions">
+            <span class="sup-actions-label">Cumplimiento de la programación</span>
+            <div class="sup-actions-btns">
+                <button type="button" class="sup-btn" id="btnCumplPdf" onclick="descargarCumplimientoPdf()" title="Descargar la tabla de cumplimiento en PDF">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> PDF
+                </button>
+                <button type="button" class="sup-btn" id="btnCumplEmail" onclick="abrirModalCorreo()" title="Enviar la tabla a los Coordinadores, cada uno con su ámbito">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> Email
+                </button>
+                <button type="button" class="sup-btn" id="btnCumplShare" onclick="compartirCumplimiento()" title="Compartir el PDF">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg> Compartir
+                </button>
+            </div>
+        </div>
+
+
         <!-- ── KPI Row ───────────────────────────────────────────────────── -->
         <div class="kpi-grid">
 
@@ -358,6 +442,34 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- ── Cumplimiento de la programación por cliente ───────────────── -->
+        <div class="chart-full">
+            <div class="card" style="position:relative;">
+                <div class="card-title" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;">
+                    Cumplimiento de la programación
+                    <span id="cumplSubtitulo" style="color:#4b5563;font-weight:400;font-size:0.75rem;letter-spacing:0;text-transform:none;">— cargando…</span>
+                </div>
+                <div id="cumplAviso" class="cumpl-aviso" style="display:none;"></div>
+                <div class="cumpl-wrap">
+                    <table class="cumpl-table">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th class="num">Programadas</th>
+                                <th class="num">Realizadas</th>
+                                <th class="num">Realizadas contadas</th>
+                                <th>Cumplimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cumplBody"></tbody>
+                        <tfoot id="cumplFoot"></tfoot>
+                    </table>
+                </div>
+                <div class="cumpl-leyenda" id="cumplLeyenda"></div>
+                <div class="loading-overlay" id="cumplLoading"><div class="spinner"></div></div>
+            </div>
         </div>
 
         <!-- ── Row 1: Distribution (left) + Criteria bar (right) ──── -->
@@ -499,6 +611,27 @@
                         </thead>
                         <tbody id="detailsTableBody"></tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Modal: enviar cumplimiento a Coordinadores ───────────────────── -->
+    <div class="modal-backdrop" id="correoModal" onclick="if(event.target===this) cerrarModalCorreo()">
+        <div class="modal-container" style="max-width:640px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Enviar cumplimiento a Coordinadores</h3>
+                <button class="modal-close" onclick="cerrarModalCorreo()">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="correo-intro" id="correoIntro"></p>
+                <div id="correoLista" class="correo-lista"></div>
+                <label class="correo-label" for="correoMensaje">Mensaje (opcional)</label>
+                <textarea id="correoMensaje" class="correo-textarea" rows="3" maxlength="1000" placeholder="Texto que acompañará la tabla en el correo"></textarea>
+                <div id="correoResultado" class="correo-resultado" style="display:none;"></div>
+                <div class="correo-acciones">
+                    <button type="button" class="sup-btn" onclick="cerrarModalCorreo()">Cancelar</button>
+                    <button type="button" class="sup-btn sup-btn-primary" id="btnCorreoEnviar" onclick="enviarCumplimientoCorreo()">Enviar</button>
                 </div>
             </div>
         </div>
@@ -1081,8 +1214,282 @@
         }
     }
 
+    // ── Cumplimiento de la programación ───────────────────────────────────
+    // Paleta de la pantalla (la impresa vive en el servidor, en el PDF y el correo).
+    const TONO_COLOR = { verde:'#22c55e', amarillo:'var(--amber-dot)', rojo:'#ef4444', gris:'#6b7280' };
+    const TONO_TEXTO = { verde:'#4ade80', amarillo:'var(--amber-text)', rojo:'#f87171', gris:'#94a3b8' };
+    const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    let cumplimientoActual = null;
+
+    // 'YYYY-MM-DD' → '5 oct 2026' sin pasar por Date: new Date('2026-10-05') es UTC
+    // y en UTC-5 retrocedería un día.
+    function fmtFechaCorta(iso) {
+        if (!iso) return '—';
+        const [y, m, d] = iso.split('-').map(Number);
+        return `${d} ${MESES_CORTOS[m - 1]} ${y}`;
+    }
+
+    function escHtml(v) {
+        return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function puntoHtml(tono) {
+        return `<span class="tl-dot" style="background:${TONO_COLOR[tono] || TONO_COLOR.gris};"></span>`;
+    }
+
+    function renderCumplimiento(data) {
+        cumplimientoActual = data;
+        const body  = document.getElementById('cumplBody');
+        const foot  = document.getElementById('cumplFoot');
+        const sub   = document.getElementById('cumplSubtitulo');
+        const aviso = document.getElementById('cumplAviso');
+        const hay   = !!data.hay_programacion;
+        const n     = v => hay ? v : '—';
+        const pctTxt = f => (f.pct !== null && f.pct !== undefined) ? `${f.pct} %` : '—';
+
+        sub.textContent = `— ${data.origen_etiqueta || ''} · ${fmtFechaCorta(data.desde)} – ${fmtFechaCorta(data.hasta)} · ${data.dias} día${data.dias === 1 ? '' : 's'}`;
+
+        if (!hay) {
+            aviso.textContent = 'Ningún cliente tiene programación de supervisiones en Umbrales KPI. Configúrela para ver programadas y porcentaje de cumplimiento.';
+            aviso.style.display = 'block';
+        } else {
+            aviso.style.display = 'none';
+        }
+
+        body.innerHTML = '';
+        if (!data.filas.length) {
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem;">Sin supervisiones ni programación en el lapso.</td></tr>';
+        }
+        data.filas.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${escHtml(f.cliente)}</td>
+                <td class="num">${n(f.programadas)}</td>
+                <td class="num">${f.realizadas}</td>
+                <td class="num">${n(f.contadas)}</td>
+                <td><span class="cumpl-pct" style="color:${TONO_TEXTO[f.tono] || TONO_TEXTO.gris}">${puntoHtml(f.tono)}${pctTxt(f)}</span></td>`;
+            body.appendChild(tr);
+        });
+        const t = data.total;
+        foot.innerHTML = `<tr>
+            <td>Total</td>
+            <td class="num">${n(t.programadas)}</td>
+            <td class="num">${t.realizadas}</td>
+            <td class="num">${n(t.contadas)}</td>
+            <td><span class="cumpl-pct" style="color:${TONO_TEXTO[t.tono] || TONO_TEXTO.gris}">${puntoHtml(t.tono)}${pctTxt(t)}</span></td></tr>`;
+        const u = data.umbrales || { verde_min: 90, amarillo_min: 70 };
+        document.getElementById('cumplLeyenda').innerHTML =
+            `<span>${puntoHtml('verde')}${u.verde_min} % o más</span>` +
+            `<span>${puntoHtml('amarillo')}${u.amarillo_min} % – ${u.verde_min - 1} %</span>` +
+            `<span>${puntoHtml('rojo')}menos de ${u.amarillo_min} %</span>` +
+            `<span style="color:#6b7280;">Las realizadas contadas no superan las programadas.</span>`;
+    }
+
+    async function loadCumplimiento(qs = '') {
+        setLoading('cumplLoading', true);
+        try {
+            const res  = await fetch(`/dashboard/api/supervision/cumplimiento${qs ? '?' + qs : ''}`);
+            const data = await res.json();
+            if (!res.ok || data.error) { showError(`Cumplimiento: ${data.error || `HTTP ${res.status}`}`); return; }
+            renderCumplimiento(data);
+        } catch (err) {
+            showError(`Error cargando cumplimiento: ${err.message}`);
+        } finally {
+            setLoading('cumplLoading', false);
+        }
+    }
+
+    function _csrfToken() {
+        const row = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
+        return row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '';
+    }
+
+    function showOk(msg) {
+        let t = document.getElementById('df-ok-toast');
+        if (!t) {
+            t = document.createElement('div'); t.id = 'df-ok-toast';
+            t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#14532d;color:#bbf7d0;border:1px solid #22c55e;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:pre-wrap;';
+            document.body.appendChild(t);
+        }
+        t.textContent = '✓  ' + msg;
+        t.style.display = 'block';
+        clearTimeout(t._timer);
+        t._timer = setTimeout(() => t.style.display = 'none', 6000);
+    }
+
+    // Lo que define la tabla: Período (o Año / Mes / Día) y Cliente. Instalación,
+    // Puesto y Responsable no entran porque la programación es por cliente.
+    function cumplimientoCuerpo() {
+        const s = currentFiltersState || {};
+        const cuerpo = {};
+        if (s.periodo) {
+            cuerpo.periodo = s.periodo;
+            if (s.periodo === 'personalizado' && s.desde && s.hasta) { cuerpo.desde = s.desde; cuerpo.hasta = s.hasta; }
+        } else {
+            if (s.years && s.years.length)   cuerpo.year  = s.years.join(',');
+            if (s.months && s.months.length) cuerpo.month = s.months.join(',');
+            if (s.day)                       cuerpo.day   = String(s.day);
+        }
+        if (s.cliente) cuerpo.cliente = s.cliente;
+        return cuerpo;
+    }
+
+    async function pedirCumplimientoPdf() {
+        const res = await fetch('/dashboard/api/supervision/cumplimiento/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/pdf, application/json', 'X-CSRF-TOKEN': _csrfToken() },
+            body: JSON.stringify(cumplimientoCuerpo()),
+        });
+        if (!res.ok) {
+            let msg = `HTTP ${res.status}`;
+            try { msg = (await res.json()).error || msg; } catch (e) { /* cuerpo no JSON */ }
+            throw new Error(msg);
+        }
+        const blob = await res.blob();
+        const d = cumplimientoActual || {};
+        return { blob, nombre: `cumplimiento_supervisiones_${d.desde || ''}_${d.hasta || ''}.pdf` };
+    }
+
+    async function descargarCumplimientoPdf() {
+        const btn = document.getElementById('btnCumplPdf');
+        btn.disabled = true;
+        try {
+            const { blob, nombre } = await pedirCumplimientoPdf();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = nombre;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+            showError(`No se pudo generar el PDF: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // Mismo flujo que "Compartir" en Reportes: el PDF viaja como archivo por la
+    // hoja de compartir del dispositivo; si el navegador no comparte archivos se
+    // comparte el enlace al dashboard, que lleva los filtros en la URL.
+    async function compartirCumplimiento() {
+        if (!navigator.share) { showError('Función de compartir no disponible en este navegador. Use PDF o Email.'); return; }
+        const btn = document.getElementById('btnCumplShare');
+        btn.disabled = true;
+        const d = cumplimientoActual || {};
+        const titulo = 'Cumplimiento de supervisiones - Kanan Sentinel SekApp';
+        const total  = d.total && d.total.pct !== null && d.total.pct !== undefined ? ` · Total ${d.total.pct} %` : '';
+        const texto  = `Cumplimiento de la programación de supervisiones · ${fmtFechaCorta(d.desde)} – ${fmtFechaCorta(d.hasta)}${total}`;
+        try {
+            const { blob, nombre } = await pedirCumplimientoPdf();
+            const file = new File([blob], nombre, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: titulo, text: texto });
+            } else {
+                await navigator.share({ title: titulo, text: texto, url: window.location.href });
+            }
+        } catch (err) {
+            if (err.name !== 'AbortError') showError(`No se pudo compartir: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ── Envío a Coordinadores ─────────────────────────────────────────────
+    async function abrirModalCorreo() {
+        const modal     = document.getElementById('correoModal');
+        const lista     = document.getElementById('correoLista');
+        const intro     = document.getElementById('correoIntro');
+        const resultado = document.getElementById('correoResultado');
+        const btn       = document.getElementById('btnCorreoEnviar');
+        resultado.style.display = 'none'; resultado.innerHTML = '';
+        btn.disabled = false; btn.textContent = 'Enviar';
+        const d = cumplimientoActual || {};
+        intro.textContent = `Cada Coordinador recibe la tabla del período ${fmtFechaCorta(d.desde)} – ${fmtFechaCorta(d.hasta)} acotada a los clientes de su ámbito.`;
+        lista.innerHTML = '<div class="correo-intro">Cargando Coordinadores…</div>';
+        modal.classList.add('active');
+        try {
+            const res  = await fetch('/dashboard/api/supervision/coordinadores');
+            const data = await res.json();
+            if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+            const coords = data.coordinadores || [];
+            if (!coords.length) {
+                lista.innerHTML = '<div class="correo-intro">No hay Coordinadores activos. Créelos y asígneles ámbito en el Panel de Administración.</div>';
+                btn.disabled = true;
+                return;
+            }
+            const clienteFiltro = (currentFiltersState || {}).cliente;
+            lista.innerHTML = '';
+            coords.forEach(c => {
+                const sinAmbito = !!c.sin_ambito;
+                // Con un Cliente filtrado se preseleccionan sólo quienes lo tienen en su ámbito.
+                const enFiltro = !clienteFiltro || !/^\d+$/.test(String(clienteFiltro))
+                              || (c.clientes || []).includes(parseInt(clienteFiltro, 10));
+                const label = document.createElement('label');
+                label.className = 'correo-item' + (sinAmbito ? ' deshabilitado' : '');
+                label.innerHTML = `
+                    <input type="checkbox" value="${c.id}" ${sinAmbito ? 'disabled' : (enFiltro ? 'checked' : '')}>
+                    <div>
+                        <div class="correo-nombre">${escHtml(c.nombre)}</div>
+                        <div class="correo-email">${escHtml(c.email)}</div>
+                        <div class="correo-ambito">${sinAmbito ? 'Sin ámbito asignado: no recibirá el correo.' : 'Ámbito: ' + escHtml((c.ambito || []).join(', '))}</div>
+                    </div>`;
+                lista.appendChild(label);
+            });
+        } catch (err) {
+            lista.innerHTML = `<div class="correo-intro">No se pudo cargar la lista: ${escHtml(err.message)}</div>`;
+        }
+    }
+
+    function cerrarModalCorreo() {
+        document.getElementById('correoModal').classList.remove('active');
+    }
+
+    async function enviarCumplimientoCorreo() {
+        const ids = Array.from(document.querySelectorAll('#correoLista input[type=checkbox]:checked')).map(i => parseInt(i.value, 10));
+        if (!ids.length) { showError('Seleccione al menos un Coordinador.'); return; }
+        const btn       = document.getElementById('btnCorreoEnviar');
+        const resultado = document.getElementById('correoResultado');
+        btn.disabled = true;
+        btn.textContent = 'Enviando…';
+        try {
+            const cuerpo = { ...cumplimientoCuerpo(), coordinadores: ids, mensaje: document.getElementById('correoMensaje').value.trim() };
+            const res  = await fetch('/dashboard/api/supervision/cumplimiento/email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken() },
+                body: JSON.stringify(cuerpo),
+            });
+            const data = await res.json();
+            const filas = (data.resultados || []).map(r => {
+                let estado;
+                if (r.estado === 'enviado') {
+                    const pct = (r.pct !== null && r.pct !== undefined) ? `, ${r.pct} %` : '';
+                    estado = `✅ enviado (${r.clientes} cliente${r.clientes === 1 ? '' : 's'}${pct})`;
+                } else if (r.estado === 'omitido') {
+                    estado = `⏭ omitido: ${escHtml(r.motivo || '')}`;
+                } else {
+                    estado = '❌ falló el envío';
+                }
+                return `<li><strong>${escHtml(r.nombre)}</strong> &lt;${escHtml(r.email)}&gt; · ${estado}</li>`;
+            }).join('');
+            resultado.style.display = 'block';
+            if (!res.ok || data.error) {
+                resultado.innerHTML = `<div style="color:#f87171;">${escHtml(data.error || `HTTP ${res.status}`)}</div>${filas ? `<ul>${filas}</ul>` : ''}`;
+                btn.disabled = false; btn.textContent = 'Enviar';
+                return;
+            }
+            const plural = data.enviados === 1 ? '' : 'es';
+            resultado.innerHTML = `<div style="color:#4ade80;">Correo enviado a ${data.enviados} Coordinador${plural}.</div><ul>${filas}</ul>`;
+            showOk(`Cumplimiento enviado a ${data.enviados} Coordinador${plural}.`);
+            btn.textContent = 'Enviado';
+        } catch (err) {
+            resultado.style.display = 'block';
+            resultado.innerHTML = `<div style="color:#f87171;">Error de conexión: ${escHtml(err.message)}</div>`;
+            btn.disabled = false; btn.textContent = 'Enviar';
+        }
+    }
+
     // ── Main data loader ──────────────────────────────────────────────────
     async function loadData(qs = '') {
+        loadCumplimiento(qs);
         ['criteriaLoading','distLoading','puestosLoading','trendLoading','turnoTrendLoading']
             .forEach(id => setLoading(id, true));
         try {
@@ -1124,6 +1531,13 @@
         }
         if (state.day)         p.set('day',         state.day);
         if (state.responsable) p.set('responsable', state.responsable);
+        if (state.periodo) {
+            p.set('periodo', state.periodo);
+            if (state.periodo === 'personalizado' && state.desde && state.hasta) {
+                p.set('desde', state.desde);
+                p.set('hasta', state.hasta);
+            }
+        }
         if (activeNivelFilter) p.set('nivel',       activeNivelFilter);
         return p.toString();
     }
@@ -1160,6 +1574,7 @@
 
         filters.activatePuesto();
         filters.activateResponsable({ url: '/dashboard/api/supervision/filtros' });
+        filters.activatePeriodo();
 
         document.addEventListener('filtersChanged', e => {
             currentFiltersState = e.detail;
@@ -1170,7 +1585,9 @@
             loadData(currentQS);
         });
 
-        loadData(buildQS(filters.getState()));
+        currentFiltersState = filters.getState();
+        currentQS = buildQS(currentFiltersState);
+        loadData(currentQS);
 
         const _deepId = new URLSearchParams(window.location.search).get('id');
         if (_deepId) recordViewer.openRecord(_deepId);
