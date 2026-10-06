@@ -5568,33 +5568,23 @@ def _rango_cumplimiento(periodo, desde, hasta, year, month, day):
     return d, h, origen
 
 
-def _programadas_en_lapso(meta, periodicidad, desde, hasta):
-    """Supervisiones programadas de un cliente en un lapso cualquiera.
+def _programadas_en_lapso(meta, periodicidad, dias):
+    """(programadas, prorrateado) de un cliente en un lapso de `dias` días.
 
-    La meta de supervision_programacion es por periodicidad (día, semana, mes),
-    no por fecha, así que se prorratea por días: una meta semanal de 5 son 5 en
-    la semana anterior, 4 en los primeros 5 días del mes (3.6 redondeado) y 21
-    en un mes de 30 días. La mensual se reparte sobre los días reales de cada
-    mes que toca el lapso, para que un mes calendario completo dé exactamente
-    la meta. Mismo criterio que `programadas_dia` en calcular_supervisiones.
+    Mismo cálculo que la línea Programadas del gráfico "Supervisiones — últimos 7
+    días" del Morning Briefing: meta ÷ días de la periodicidad (_DIAS_PERIODO de
+    admin_bp, base fija 1 / 7 / 30) por cada día del lapso. Se redondea half-up y
+    se marca "prorrateado" cuando meta × días no es múltiplo exacto de la base:
+    una semana completa con meta semanal no lo es; un mes con meta semanal, o un
+    mes de 31 días con meta mensual, sí.
     """
+    from admin_bp import _DIAS_PERIODO
     meta = int(meta or 0)
-    if meta <= 0 or desde is None or hasta is None or hasta < desde:
-        return 0
-    dias = (hasta - desde).days + 1
-    if periodicidad == 'diario':
-        return meta * dias
-    if periodicidad == 'mensual':
-        total = 0.0
-        cursor = desde
-        while cursor <= hasta:
-            dias_mes = calendar.monthrange(cursor.year, cursor.month)[1]
-            fin_mes = cursor.replace(day=dias_mes)
-            tramo = (min(fin_mes, hasta) - cursor).days + 1
-            total += meta * tramo / dias_mes
-            cursor = fin_mes + timedelta(days=1)
-        return int(total + 0.5)
-    return int(meta * dias / 7 + 0.5)
+    if meta <= 0 or not dias or dias <= 0:
+        return 0, False
+    base = _DIAS_PERIODO.get(periodicidad or 'semanal', 7)
+    bruto = meta * dias
+    return int(bruto / base + 0.5), (bruto % base) != 0
 
 
 def _tono_cumplimiento(pct, verde_min, amarillo_min):
@@ -5607,87 +5597,181 @@ def _tono_cumplimiento(pct, verde_min, amarillo_min):
     return 'rojo'
 
 
-def _cumplimiento_programacion(cur, desde, hasta, cliente=None, ambito=None):
+def _realizadas_instalacion_dia(cur, conds, params):
+    """Instalaciones distintas supervisadas por día, sumadas en el lapso.
+
+    Es la misma cuenta que la línea Completadas del gráfico de 7 días del briefing
+    (COUNT(DISTINCT TRIM(cliente_instalacion)) por fecha): dos supervisiones a la
+    misma instalación el mismo día cuentan una, y las filas sin instalación no
+    cuentan. La tarjeta "Supervisiones del día" cuenta registros; esa diferencia
+    es anterior a la tabla y aquí no se toca.
+    """
+    where = " AND ".join(conds + ["cliente_instalacion IS NOT NULL"])
+    cur.execute(f"""
+        SELECT COUNT(*) AS n FROM (
+            SELECT DISTINCT fecha_hora::date AS dia, TRIM(cliente_instalacion) AS inst
+            FROM supervision_puesto
+            WHERE {where}
+        ) d
+    """, params)
+    fila = cur.fetchone()
+    return int((fila['n'] if hasattr(fila, 'keys') else fila[0]) or 0)
+
+
+_AMBITO_COLS = dict(col_prop='id_propiedad', col_inst='cliente_instalacion', col_cust='customer_company_id')
+
+
+def _cumplimiento_programacion(cur, desde, hasta, cliente=None, propiedad=None, ambito=None):
     """Programadas / realizadas / contadas / % por cliente en [desde, hasta].
 
-    - Realizadas se cuentan con `_add_scope_filters(cliente=id)`, el mismo cruce
-      por id, instalación y nombre antiguo que usa el filtro Cliente, para que la
-      tabla y las tarjetas cuadren.
-    - Contadas = min(realizadas, programadas): el exceso de un cliente no
-      compensa el incumplimiento de otro, y el total sale de las sumas, no de
-      promediar porcentajes.
-    - `ambito` explícito acota la tabla a un Coordinador desde la sesión del
-      Administrador (envío por correo). Sin él rige el ámbito de la sesión, que
-      `_add_scope_filters` ya aplica solo.
-    - Sin programación por cliente no se inventa una meta: programadas queda en
-      0 y el % en None, con `hay_programacion` False para que la pantalla avise.
+    Misma lógica que el gráfico "Supervisiones — últimos 7 días" del Morning
+    Briefing y que Umbrales KPI, sin inventar otra:
+    - Programadas: meta de supervision_programacion repartida por día
+      (_programadas_en_lapso). Si ningún cliente tiene meta propia rige la meta
+      general de Umbrales KPI, sólo en el Total; las filas quedan "Sin programación".
+    - Realizadas: instalaciones distintas por día (_realizadas_instalacion_dia).
+    - Contadas = min(realizadas, programadas): el exceso de un cliente no compensa
+      el incumplimiento de otro; el Total sale de las sumas, no de promedios.
+    - El lapso se recorta a fecha_inicio_operacion, como el gráfico.
+    - Un cliente con meta y sin realizadas es 0 % (incumplimiento). Sólo si el
+      lapso entero no tiene registros todo pasa a "Sin datos".
+    - Instalación filtrada: realizadas de esa instalación sobre la programación del
+      cliente, marcado en la fila (no hay meta por instalación).
+    - Clientes sin programación muestran sus realizadas y "Sin programación" y no
+      entran en el Total, igual que no existen para la tarjeta ni el gráfico.
+    - `ambito` explícito acota a un Coordinador desde la sesión del Administrador
+      (envío por correo). Sin él rige el ámbito de la sesión.
     """
     from admin_bp import get_thresholds, get_supervision_programacion
     t = get_thresholds()
     verde_min = float(t.get('supervision_verde_min') or 90)
     amarillo_min = float(t.get('supervision_amarillo_min') or 70)
+    meta_global = int(t.get('supervision_meta') or 0)
+    periodicidad_global = t.get('supervision_periodicidad') or 'diario'
+
+    # Como el gráfico: los días anteriores al inicio de operación no se miden.
+    inicio_op = _fecha_iso_arg(t.get('fecha_inicio_operacion'))
+    recortado = None
+    if desde and hasta and inicio_op and inicio_op > desde:
+        desde = recortado = inicio_op
+    dias = (hasta - desde).days + 1 if (desde and hasta) else 0
 
     programacion = get_supervision_programacion(cur)
     hay_programacion = any(int(p.get('meta') or 0) > 0 for p in programacion)
 
-    if cliente:
-        cl = str(cliente).strip()
-        if cl.isdigit():
-            programacion = [p for p in programacion if str(p['id']) == cl]
+    # Filtro Cliente; con sólo Instalación, el cliente dueño de esa instalación.
+    cliente_filtro = str(cliente).strip() if cliente else None
+    prop_str = str(propiedad).strip() if propiedad else None
+    if not cliente_filtro and prop_str and prop_str.isdigit():
+        cur.execute("SELECT customer_company_id FROM propiedades WHERE id_propiedad = %s", (int(prop_str),))
+        fila = cur.fetchone()
+        cid = (fila['customer_company_id'] if hasattr(fila, 'keys') else fila[0]) if fila else None
+        if cid is not None:
+            cliente_filtro = str(cid)
+    if cliente_filtro:
+        if cliente_filtro.isdigit():
+            programacion = [p for p in programacion if str(p['id']) == cliente_filtro]
         else:
             programacion = [p for p in programacion
-                            if (p.get('name') or '').strip().lower() == cl.lower()]
+                            if (p.get('name') or '').strip().lower() == cliente_filtro.lower()]
 
     ambito_lista = ambito if ambito is not None else ambito_activo()
     if ambito_lista is not None:
         permitidos = set(ambito_lista['clientes']) | set(ambito_lista['clientes_de_propiedades'])
         programacion = [p for p in programacion if p['id'] in permitidos]
 
-    dias = (hasta - desde).days + 1 if (desde and hasta) else 0
+    # ¿El lapso tiene algún registro? Se mira sin filtro de cliente ni instalación,
+    # sólo con el ámbito: un cliente filtrado en cero mientras otros sí tienen
+    # datos es incumplimiento, no falta de datos.
+    sin_datos = dias <= 0
+    if not sin_datos:
+        conds, params = [], []
+        _gestion_add_desde(conds, params, "fecha_hora", desde.isoformat())
+        _gestion_add_hasta(conds, params, "fecha_hora", hasta.isoformat())
+        condicion_ambito(conds, params, ambito=ambito_lista, **_AMBITO_COLS)
+        cur.execute(f"SELECT 1 FROM supervision_puesto WHERE {' AND '.join(conds)} LIMIT 1", params)
+        sin_datos = cur.fetchone() is None
+
+    por_instalacion = bool(prop_str)
     filas = []
     for p in programacion:
         if dias <= 0:
             break
         conds, params = [], []
-        _add_scope_filters(conds, params, cliente=str(p['id']), col_puesto=None)
+        _add_scope_filters(conds, params, cliente=str(p['id']), propiedad=prop_str, col_puesto=None)
         _gestion_add_desde(conds, params, "fecha_hora", desde.isoformat())
         _gestion_add_hasta(conds, params, "fecha_hora", hasta.isoformat())
         if ambito is not None:
-            condicion_ambito(conds, params, ambito=ambito, col_prop='id_propiedad',
-                             col_inst='cliente_instalacion', col_cust='customer_company_id')
-        cur.execute(f"SELECT COUNT(*) AS n FROM supervision_puesto WHERE {' AND '.join(conds)}", params)
-        fila = cur.fetchone()
-        realizadas = int((fila['n'] if hasattr(fila, 'keys') else fila[0]) or 0)
+            condicion_ambito(conds, params, ambito=ambito, **_AMBITO_COLS)
+        realizadas = _realizadas_instalacion_dia(cur, conds, params)
         meta = int(p.get('meta') or 0)
         periodicidad = p.get('periodicidad') or 'semanal'
-        programadas = _programadas_en_lapso(meta, periodicidad, desde, hasta) if hay_programacion else 0
-        if programadas == 0 and realizadas == 0:
-            continue
-        contadas = min(realizadas, programadas)
-        pct = int(contadas / programadas * 100 + 0.5) if programadas else None
-        filas.append({
-            'cliente_id': p['id'], 'cliente': p.get('name') or f"Cliente {p['id']}",
-            'periodicidad': periodicidad, 'meta': meta,
-            'programadas': programadas, 'realizadas': realizadas, 'contadas': contadas,
-            'pct': pct, 'tono': _tono_cumplimiento(pct, verde_min, amarillo_min),
-        })
-    # De menor a mayor cumplimiento; los clientes sin meta al final.
-    filas.sort(key=lambda f: (f['pct'] is None, f['pct'] if f['pct'] is not None else 0, f['cliente'].lower()))
+        fila = {'cliente_id': p['id'], 'cliente': p.get('name') or f"Cliente {p['id']}",
+                'periodicidad': periodicidad, 'meta': meta, 'realizadas': realizadas,
+                'por_instalacion': por_instalacion}
+        if meta <= 0:
+            if realizadas == 0:
+                continue    # sin programación y sin actividad en el lapso: no aparece
+            fila.update({'estado': 'sin_programacion', 'programadas': None, 'contadas': None,
+                         'pct': None, 'tono': 'gris', 'prorrateado': False})
+        else:
+            programadas, prorrateado = _programadas_en_lapso(meta, periodicidad, dias)
+            contadas = min(realizadas, programadas)
+            pct = int(contadas / programadas * 100 + 0.5) if programadas else None
+            if sin_datos:
+                fila.update({'estado': 'sin_datos', 'pct': None, 'tono': 'gris'})
+            else:
+                fila.update({'estado': 'ok', 'pct': pct,
+                             'tono': _tono_cumplimiento(pct, verde_min, amarillo_min)})
+            fila.update({'programadas': programadas, 'contadas': contadas, 'prorrateado': prorrateado})
+        filas.append(fila)
+    # De menor a mayor cumplimiento; los clientes sin programación al final.
+    filas.sort(key=lambda f: (f['estado'] == 'sin_programacion', f['pct'] is None,
+                              f['pct'] if f['pct'] is not None else 0, f['cliente'].lower()))
 
-    t_prog = sum(f['programadas'] for f in filas)
-    t_real = sum(f['realizadas'] for f in filas)
-    t_cont = sum(f['contadas'] for f in filas)
-    t_pct = int(t_cont / t_prog * 100 + 0.5) if t_prog else None
+    con_meta = [f for f in filas if f['estado'] != 'sin_programacion']
+    total = {'programadas': sum(f['programadas'] for f in con_meta),
+             'realizadas': sum(f['realizadas'] for f in con_meta),
+             'contadas': sum(f['contadas'] for f in con_meta),
+             'prorrateado': any(f['prorrateado'] for f in con_meta),
+             'estado': 'ok', 'meta_general': None}
+    if not hay_programacion and not cliente_filtro and ambito_lista is None:
+        # Nadie tiene meta propia: rige la meta general de Umbrales KPI, como en
+        # calcular_supervisiones. Las filas quedan "Sin programación" y el Total
+        # mide todas las realizadas contra la meta general repartida al lapso.
+        programadas, prorrateado = _programadas_en_lapso(meta_global, periodicidad_global, dias)
+        realizadas = sum(f['realizadas'] for f in filas)
+        total.update({'programadas': programadas, 'realizadas': realizadas,
+                      'contadas': min(realizadas, programadas), 'prorrateado': prorrateado,
+                      'estado': 'meta_general' if programadas else 'sin_programacion',
+                      'meta_general': {'meta': meta_global, 'periodicidad': periodicidad_global}})
+    elif not con_meta:
+        total.update({'estado': 'sin_programacion', 'realizadas': sum(f['realizadas'] for f in filas)})
+    if total['estado'] == 'sin_programacion':
+        total.update({'programadas': None, 'contadas': None, 'prorrateado': False})
+    if sin_datos and total['estado'] != 'sin_programacion':
+        total['estado'] = 'sin_datos'
+    pct = None
+    if total['estado'] in ('ok', 'meta_general') and total['programadas']:
+        pct = int(total['contadas'] / total['programadas'] * 100 + 0.5)
+    total['pct'] = pct
+    total['tono'] = _tono_cumplimiento(pct, verde_min, amarillo_min) if pct is not None else 'gris'
+
     return {
         'desde': desde.isoformat() if desde else None,
         'hasta': hasta.isoformat() if hasta else None,
         'dias': max(0, dias),
         'hay_programacion': hay_programacion,
+        'sin_datos': sin_datos,
+        'recortado_inicio': recortado.isoformat() if recortado else None,
+        'por_instalacion': por_instalacion,
         'filas': filas,
-        'total': {'programadas': t_prog, 'realizadas': t_real, 'contadas': t_cont,
-                  'pct': t_pct, 'tono': _tono_cumplimiento(t_pct, verde_min, amarillo_min)},
+        'total': total,
         'umbrales': {'verde_min': verde_min, 'amarillo_min': amarillo_min},
     }
+
+
+_PERIODO_UNIDAD = {'diario': 'por día', 'semanal': 'por semana', 'mensual': 'por mes'}
 
 
 def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=None,
@@ -5705,9 +5789,11 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     d = date.fromisoformat(datos['desde']) if datos.get('desde') else None
     h = date.fromisoformat(datos['hasta']) if datos.get('hasta') else None
     lapso = f"{_fecha_corta(d)} – {_fecha_corta(h)}"
+    if datos.get('recortado_inicio'):
+        lapso += f" · desde inicio de operación {_fecha_corta(date.fromisoformat(datos['recortado_inicio']))}"
     verde = int(datos['umbrales']['verde_min'])
     amarillo = int(datos['umbrales']['amarillo_min'])
-    hay = datos['hay_programacion']
+    tot = datos['total']
 
     logo = ''
     try:
@@ -5722,43 +5808,64 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
         return ('<span style="display:inline-block;width:11px;height:11px;border-radius:50%;'
                 f'background:{_TONO_IMPRESO[tono]};vertical-align:middle;margin-right:6px;"></span>')
 
-    def pct_txt(f):
-        return f"{f['pct']} %" if f['pct'] is not None else '—'
+    def etiqueta(txt):
+        return (f'<span style="font-size:9px;text-transform:uppercase;letter-spacing:.3px;color:#64748b;'
+                f'border:1px solid #cbd5e1;border-radius:9px;padding:1px 6px;margin-left:5px;'
+                f'white-space:nowrap;vertical-align:middle;">{e(txt)}</span>')
+
+    def celda_cumplimiento(f, negrita=False):
+        peso = 'font-weight:700;' if negrita else 'font-weight:600;'
+        if f['estado'] == 'sin_programacion':
+            return '<span style="color:#64748b;">Sin programación</span>'
+        if f['estado'] == 'sin_datos' or f.get('pct') is None:
+            return '<span style="color:#64748b;">Sin datos</span>'
+        return f'{punto(f["tono"])}<span style="color:{_TONO_IMPRESO[f["tono"]]};{peso}">{f["pct"]} %</span>'
+
+    def celda_programadas(f):
+        if f.get('programadas') is None:
+            return '—'
+        return f"{f['programadas']}" + (etiqueta('prorrateado') if f.get('prorrateado') else '')
 
     def n_txt(valor):
-        return str(valor) if hay else '—'
+        return '—' if valor is None else str(valor)
 
     td = 'padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#1e293b;'
     num = td + 'text-align:right;'
     filas_html = ''
     for f in datos['filas']:
-        color = _TONO_IMPRESO[f['tono']]
+        nombre = e(f['cliente']) + (etiqueta('sobre programación del cliente') if f.get('por_instalacion') else '')
         filas_html += (
-            f'<tr><td style="{td}">{e(f["cliente"])}</td>'
-            f'<td style="{num}">{n_txt(f["programadas"])}</td>'
+            f'<tr><td style="{td}">{nombre}</td>'
+            f'<td style="{num}white-space:nowrap;">{celda_programadas(f)}</td>'
             f'<td style="{num}">{f["realizadas"]}</td>'
-            f'<td style="{num}">{n_txt(f["contadas"])}</td>'
-            f'<td style="{td}white-space:nowrap;">{punto(f["tono"])}'
-            f'<span style="color:{color};font-weight:600;">{pct_txt(f)}</span></td></tr>'
+            f'<td style="{num}">{n_txt(f.get("contadas"))}</td>'
+            f'<td style="{td}white-space:nowrap;">{celda_cumplimiento(f)}</td></tr>'
         )
     if not filas_html:
-        filas_html = (f'<tr><td colspan="5" style="{td}text-align:center;color:#64748b;">'
-                      'Sin supervisiones ni programación en el lapso.</td></tr>')
-    tot = datos['total']
+        filas_html = f'<tr><td colspan="5" style="{td}text-align:center;color:#64748b;">Sin datos</td></tr>'
     tb = td + 'font-weight:700;border-top:2px solid #cbd5e1;border-bottom:none;'
+    total_nombre = 'Total'
+    if tot['estado'] == 'meta_general' and tot.get('meta_general'):
+        mg = tot['meta_general']
+        total_nombre += etiqueta(f"meta general {mg['meta']} {_PERIODO_UNIDAD.get(mg['periodicidad'], '')}")
     total_html = (
-        f'<tr><td style="{tb}">Total</td>'
-        f'<td style="{tb}text-align:right;">{n_txt(tot["programadas"])}</td>'
+        f'<tr><td style="{tb}">{total_nombre}</td>'
+        f'<td style="{tb}text-align:right;white-space:nowrap;">{celda_programadas(tot)}</td>'
         f'<td style="{tb}text-align:right;">{tot["realizadas"]}</td>'
-        f'<td style="{tb}text-align:right;">{n_txt(tot["contadas"])}</td>'
-        f'<td style="{tb}white-space:nowrap;">{punto(tot["tono"])}'
-        f'<span style="color:{_TONO_IMPRESO[tot["tono"]]};">{pct_txt(tot)}</span></td></tr>'
+        f'<td style="{tb}text-align:right;">{n_txt(tot.get("contadas"))}</td>'
+        f'<td style="{tb}white-space:nowrap;">{celda_cumplimiento(tot, negrita=True)}</td></tr>'
     )
     th = ('padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;'
           'color:#64748b;border-bottom:1px solid #cbd5e1;text-align:left;')
-    aviso = '' if hay else (
-        '<p style="margin:10px 0 0;font-size:12px;color:#b45309;">Ningún cliente tiene programación de '
-        'supervisiones configurada en Umbrales KPI, por eso no hay programadas ni porcentaje.</p>')
+    aviso = ''
+    if not datos['hay_programacion']:
+        if tot.get('meta_general'):
+            mg = tot['meta_general']
+            aviso = (f"Ningún cliente tiene programación propia en Umbrales KPI: el Total se mide contra la "
+                     f"meta general ({mg['meta']} {_PERIODO_UNIDAD.get(mg['periodicidad'], '')}).")
+        else:
+            aviso = 'Ningún cliente tiene programación de supervisiones configurada en Umbrales KPI.'
+        aviso = f'<p style="margin:10px 0 0;font-size:12px;color:#b45309;">{e(aviso)}</p>'
     saludo = ''
     if para_correo:
         saludo = (f'<p style="margin:0 0 8px;font-size:13px;color:#374151;">Estimado/a {e(destinatario or "")},</p>'
@@ -5801,7 +5908,9 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     {aviso}
     <p style="margin:12px 0 0;font-size:11px;color:#64748b;">
       {punto('verde')}{verde} % o más &nbsp; {punto('amarillo')}{amarillo} % – {verde - 1} % &nbsp; {punto('rojo')}menos de {amarillo} %.
-      Las realizadas contadas no superan las programadas: el exceso de un cliente no compensa el incumplimiento de otro.
+      Realizadas: instalaciones supervisadas por día, como el gráfico del Morning Briefing. Las realizadas contadas no
+      superan las programadas: el exceso de un cliente no compensa el incumplimiento de otro. Prorrateado: meta repartida
+      por día cuando el lapso no coincide con la periodicidad.
     </p>
   </td></tr>
   <tr><td style="background:#f8fafc;padding:10px 20px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;">
@@ -5813,25 +5922,34 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
 
 
 def _args_rango_cumplimiento(fuente):
-    """(desde, hasta, origen, cliente) desde la query string o el JSON del POST."""
+    """(desde, hasta, origen, cliente, propiedad) desde la query string o el JSON del POST.
+    Son los únicos filtros que la tabla respeta: Puesto y Responsable no, porque la
+    programación es por cliente."""
     g_ = fuente.get
     desde, hasta, origen = _rango_cumplimiento(
         g_('periodo') or None, g_('desde') or None, g_('hasta') or None,
         g_('year') or None, g_('month') or None, g_('day') or None)
-    return desde, hasta, origen, (g_('cliente') or None)
+    propiedad = g_('propiedad') or g_('property_id') or g_('id_propiedad') or None
+    return desde, hasta, origen, (g_('cliente') or None), propiedad
 
 
-def _nombre_cliente(cur, cliente):
-    """Texto del filtro Cliente para el PDF y el correo."""
-    if not cliente:
-        return 'Todos los clientes'
-    cl = str(cliente).strip()
-    if cl.isdigit():
-        cur.execute("SELECT name FROM customer_companies WHERE id = %s", (int(cl),))
+def _texto_filtros(cur, cliente, propiedad):
+    """Texto del filtro Cliente / Instalación para el PDF y el correo."""
+    def _nombre(sql_, valor):
+        cur.execute(sql_, (int(valor),))
         fila = cur.fetchone()
         if fila:
-            return (fila['name'] if hasattr(fila, 'keys') else fila[0]) or cl
-    return cl
+            return (fila[0] if not hasattr(fila, 'keys') else list(fila.values())[0]) or str(valor)
+        return str(valor)
+    partes = []
+    if cliente:
+        cl = str(cliente).strip()
+        partes.append(_nombre("SELECT name FROM customer_companies WHERE id = %s", cl) if cl.isdigit() else cl)
+    if propiedad:
+        pr = str(propiedad).strip()
+        nombre = _nombre("SELECT nombre FROM propiedades WHERE id_propiedad = %s", pr) if pr.isdigit() else pr
+        partes.append(f"Instalación {nombre} (realizadas de la instalación sobre la programación del cliente)")
+    return ' · '.join(partes) if partes else 'Todos los clientes'
 
 
 def _coordinadores_activos(conn, ids=None):
@@ -5868,8 +5986,8 @@ def api_supervision_cumplimiento():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        desde, hasta, origen, cliente = _args_rango_cumplimiento(request.args)
-        datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente)
+        desde, hasta, origen, cliente, propiedad = _args_rango_cumplimiento(request.args)
+        datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, propiedad=propiedad)
         datos['origen'] = origen
         datos['origen_etiqueta'] = _PERIODO_ETIQUETAS.get(origen, origen)
         return jsonify(datos)
@@ -5894,9 +6012,9 @@ def api_supervision_cumplimiento_pdf():
         if not conn:
             return jsonify({'error': 'DB connection failed'}), 500
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        desde, hasta, origen, cliente = _args_rango_cumplimiento(payload)
-        datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente)
-        html = _cumplimiento_html(datos, filtros_txt=_nombre_cliente(cur, cliente))
+        desde, hasta, origen, cliente, propiedad = _args_rango_cumplimiento(payload)
+        datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, propiedad=propiedad)
+        html = _cumplimiento_html(datos, filtros_txt=_texto_filtros(cur, cliente, propiedad))
         buf = BytesIO()
         _WeasyprintHTML(string=html).write_pdf(buf)
         buf.seek(0)
@@ -5957,8 +6075,8 @@ def api_supervision_cumplimiento_email():
         if not rol_coordinador_disponible(conn):
             return jsonify({'error': 'El perfil Coordinador no está habilitado en esta instancia.'}), 400
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        desde, hasta, origen, cliente = _args_rango_cumplimiento(payload)
-        filtro_txt = _nombre_cliente(cur, cliente)
+        desde, hasta, origen, cliente, propiedad = _args_rango_cumplimiento(payload)
+        filtro_txt = _texto_filtros(cur, cliente, propiedad)
         asunto = (f"Cumplimiento de supervisiones {_fecha_corta(desde)} – {_fecha_corta(hasta)}"
                   " — Kanan Sentinel SekApp")
         resultados = []
@@ -5967,7 +6085,7 @@ def api_supervision_cumplimiento_email():
             if u['sin_ambito']:
                 resultados.append({**base, 'estado': 'omitido', 'motivo': 'Sin ámbito asignado'})
                 continue
-            datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, ambito=u['ambito'])
+            datos = _cumplimiento_programacion(cur, desde, hasta, cliente=cliente, propiedad=propiedad, ambito=u['ambito'])
             if not datos['filas']:
                 resultados.append({**base, 'estado': 'omitido',
                                    'motivo': 'Sin clientes en el lapso o en el filtro'})

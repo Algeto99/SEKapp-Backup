@@ -184,6 +184,16 @@
   }
   body.light-mode .df-date { color-scheme: light; }
 
+  /* En escritorio Período se coloca después de Responsable / Rol: así la primera
+     fila (Cliente … Mes) queda exactamente como sin él. `order` también decide
+     los saltos de línea, de modo que Período cae donde hoy cae Responsable. En
+     móvil (apilado) manda el orden del HTML: entre Mes y Responsable. */
+  @media (min-width: 769px) {
+    #df-periodo-wrap > * { order: 1; }
+    #df-reset           { order: 2; }
+    #df-chips           { order: 3; }
+  }
+
   /* Reset button */
   .df-reset {
     display: flex;
@@ -438,7 +448,7 @@
   <div class="df-divider"></div>
 
   <!-- ③ Mes ─────────────────────────────────────────────────────────── -->
-  <div class="df-section" id="df-mes-section" style="flex:1;">
+  <div class="df-section" style="flex:1;">
     <span class="df-label">Mes</span>
     <div class="df-months">
       <button class="df-month-btn df-month-disabled" data-month="1"  disabled>Ene</button>

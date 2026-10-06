@@ -618,6 +618,11 @@ _ESTATUS_EJES = [
 _THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad', 'visita_periodicidad', 'zona_horaria']
 
 _PERIODICIDAD_VALUES = ('diario', 'semanal', 'mensual')
+# Días que cubre cada ventana, para repartir la meta por día: una meta semanal
+# no es un objetivo de cada día. Base fija (30 para mensual). La leen la gráfica
+# de 7 días del Morning Briefing (calcular_supervisiones) y la tabla de
+# cumplimiento del Dashboard de Supervisión, para que ambas coincidan.
+_DIAS_PERIODO = {'diario': 1, 'semanal': 7, 'mensual': 30}
 
 _THRESHOLD_DEFAULTS = {
     'supervision_verde_min':       90,
@@ -766,10 +771,6 @@ def calcular_supervisiones(cur, cliente=None, propiedad=None):
     Devuelve dict con programadas, realizadas, pendientes, pct y por_cliente.
     """
     from dashboard_bp import _add_scope_filters
-
-    # Días que cubre cada ventana, para repartir la meta en la gráfica diaria:
-    # una meta semanal no es un objetivo de cada día.
-    _DIAS_PERIODO = {'diario': 1, 'semanal': 7, 'mensual': 30}
 
     def _contar(conds, params):
         where = ("WHERE " + " AND ".join(conds)) if conds else ""

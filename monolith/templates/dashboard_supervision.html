@@ -258,12 +258,6 @@
         .clickable-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.3); border-color:#60a5fa; }
         body.light-mode .clickable-card:hover { border-color:#3b82f6; }
 
-        /* Con Período en la barra, a ~1400 px la sección Mes quedaba con el ancho
-           sobrante y los 12 botones se apilaban en una columna. Un ancho mínimo
-           la manda entera a la segunda fila (con Período y Responsable) cuando no
-           cabe. Sólo en esta pantalla; en móvil manda el 100 % de la barra. */
-        #df-mes-section { min-width:320px; }
-
         /* ── Acciones PDF · Email · Compartir (bajo Limpiar) ───────────── */
         .sup-actions {
             display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0.75rem;
@@ -297,6 +291,8 @@
         .cumpl-table tfoot td { font-weight:700; border-top:2px solid rgba(255,255,255,0.15); border-bottom:none; }
         .cumpl-table tbody tr:hover td { background-color:rgba(255,255,255,0.03); }
         .cumpl-pct { font-weight:700; white-space:nowrap; }
+        .cumpl-estado { color:#94a3b8; font-weight:600; white-space:nowrap; }
+        .cumpl-tag { display:inline-block; font-size:0.62rem; font-weight:600; letter-spacing:0.3px; text-transform:uppercase; color:#94a3b8; background:rgba(148,163,184,0.12); border:1px solid rgba(148,163,184,0.3); border-radius:999px; padding:0.1rem 0.45rem; vertical-align:middle; margin-left:0.3rem; white-space:nowrap; }
         .cumpl-aviso { background:var(--amber-bg); border:1px solid var(--amber-border); color:var(--amber-muted); border-radius:10px; padding:0.6rem 0.875rem; font-size:0.8125rem; margin-bottom:0.75rem; font-family:'Roboto',sans-serif; }
         .cumpl-leyenda { display:flex; gap:1.25rem; flex-wrap:wrap; margin-top:0.75rem; font-size:0.75rem; font-family:'Roboto',sans-serif; color:#9ca3af; }
         .cumpl-leyenda span { display:flex; align-items:center; gap:0.35rem; }
@@ -304,6 +300,8 @@
         body.light-mode .cumpl-table td { color:#334155; border-bottom-color:rgba(0,0,0,0.05); }
         body.light-mode .cumpl-table tfoot td { border-top-color:rgba(0,0,0,0.15); }
         body.light-mode .cumpl-table tbody tr:hover td { background-color:rgba(0,0,0,0.02); }
+        body.light-mode .cumpl-estado { color:#64748b; }
+        body.light-mode .cumpl-tag { color:#64748b; background:rgba(100,116,139,0.08); border-color:rgba(100,116,139,0.3); }
 
         /* ── Modal de envío a Coordinadores ────────────────────────────── */
         .correo-intro { font-size:0.875rem; color:#94a3b8; margin:0 0 1rem; font-family:'Roboto',sans-serif; }
@@ -1237,20 +1235,42 @@
         return `<span class="tl-dot" style="background:${TONO_COLOR[tono] || TONO_COLOR.gris};"></span>`;
     }
 
+    const PERIODO_UNIDAD = { diario: 'por día', semanal: 'por semana', mensual: 'por mes' };
+
+    function tagHtml(texto, titulo = '') {
+        return `<span class="cumpl-tag" title="${escHtml(titulo)}">${escHtml(texto)}</span>`;
+    }
+
+    // Cumplimiento: porcentaje con su punto, o el estado cuando no hay porcentaje.
+    function celdaCumplimiento(f) {
+        if (f.estado === 'sin_programacion') return '<span class="cumpl-estado">Sin programación</span>';
+        if (f.estado === 'sin_datos' || f.pct === null || f.pct === undefined) return '<span class="cumpl-estado">Sin datos</span>';
+        return `<span class="cumpl-pct" style="color:${TONO_TEXTO[f.tono] || TONO_TEXTO.gris}">${puntoHtml(f.tono)}${f.pct} %</span>`;
+    }
+
+    function celdaProgramadas(f) {
+        if (f.programadas === null || f.programadas === undefined) return '—';
+        const tag = f.prorrateado ? ' ' + tagHtml('prorrateado', 'Meta repartida por día: el lapso no coincide con la periodicidad del cliente') : '';
+        return `${f.programadas}${tag}`;
+    }
+
     function renderCumplimiento(data) {
         cumplimientoActual = data;
         const body  = document.getElementById('cumplBody');
         const foot  = document.getElementById('cumplFoot');
         const sub   = document.getElementById('cumplSubtitulo');
         const aviso = document.getElementById('cumplAviso');
-        const hay   = !!data.hay_programacion;
-        const n     = v => hay ? v : '—';
-        const pctTxt = f => (f.pct !== null && f.pct !== undefined) ? `${f.pct} %` : '—';
+        const t     = data.total || {};
+        const n     = v => (v === null || v === undefined) ? '—' : v;
 
-        sub.textContent = `— ${data.origen_etiqueta || ''} · ${fmtFechaCorta(data.desde)} – ${fmtFechaCorta(data.hasta)} · ${data.dias} día${data.dias === 1 ? '' : 's'}`;
+        let subt = `— ${data.origen_etiqueta || ''} · ${fmtFechaCorta(data.desde)} – ${fmtFechaCorta(data.hasta)} · ${data.dias} día${data.dias === 1 ? '' : 's'}`;
+        if (data.recortado_inicio) subt += ` · desde inicio de operación ${fmtFechaCorta(data.recortado_inicio)}`;
+        sub.textContent = subt;
 
-        if (!hay) {
-            aviso.textContent = 'Ningún cliente tiene programación de supervisiones en Umbrales KPI. Configúrela para ver programadas y porcentaje de cumplimiento.';
+        if (!data.hay_programacion) {
+            aviso.textContent = t.meta_general
+                ? `Ningún cliente tiene programación propia en Umbrales KPI: el Total se mide contra la meta general (${t.meta_general.meta} ${PERIODO_UNIDAD[t.meta_general.periodicidad] || ''}).`
+                : 'Ningún cliente tiene programación de supervisiones configurada en Umbrales KPI.';
             aviso.style.display = 'block';
         } else {
             aviso.style.display = 'none';
@@ -1258,31 +1278,35 @@
 
         body.innerHTML = '';
         if (!data.filas.length) {
-            body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem;">Sin supervisiones ni programación en el lapso.</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem;">Sin datos</td></tr>';
         }
         data.filas.forEach(f => {
             const tr = document.createElement('tr');
+            const nota = f.por_instalacion ? ' ' + tagHtml('sobre programación del cliente', 'Realizadas de la instalación filtrada; la programación no está definida por instalación') : '';
             tr.innerHTML = `
-                <td>${escHtml(f.cliente)}</td>
-                <td class="num">${n(f.programadas)}</td>
+                <td>${escHtml(f.cliente)}${nota}</td>
+                <td class="num">${celdaProgramadas(f)}</td>
                 <td class="num">${f.realizadas}</td>
                 <td class="num">${n(f.contadas)}</td>
-                <td><span class="cumpl-pct" style="color:${TONO_TEXTO[f.tono] || TONO_TEXTO.gris}">${puntoHtml(f.tono)}${pctTxt(f)}</span></td>`;
+                <td>${celdaCumplimiento(f)}</td>`;
             body.appendChild(tr);
         });
-        const t = data.total;
+        let etiquetaTotal = 'Total';
+        if (t.estado === 'meta_general' && t.meta_general) {
+            etiquetaTotal += ' ' + tagHtml(`meta general ${t.meta_general.meta} ${PERIODO_UNIDAD[t.meta_general.periodicidad] || ''}`, 'Meta general de Umbrales KPI repartida al lapso');
+        }
         foot.innerHTML = `<tr>
-            <td>Total</td>
-            <td class="num">${n(t.programadas)}</td>
-            <td class="num">${t.realizadas}</td>
+            <td>${etiquetaTotal}</td>
+            <td class="num">${celdaProgramadas(t)}</td>
+            <td class="num">${n(t.realizadas)}</td>
             <td class="num">${n(t.contadas)}</td>
-            <td><span class="cumpl-pct" style="color:${TONO_TEXTO[t.tono] || TONO_TEXTO.gris}">${puntoHtml(t.tono)}${pctTxt(t)}</span></td></tr>`;
+            <td>${celdaCumplimiento(t)}</td></tr>`;
         const u = data.umbrales || { verde_min: 90, amarillo_min: 70 };
         document.getElementById('cumplLeyenda').innerHTML =
             `<span>${puntoHtml('verde')}${u.verde_min} % o más</span>` +
             `<span>${puntoHtml('amarillo')}${u.amarillo_min} % – ${u.verde_min - 1} %</span>` +
             `<span>${puntoHtml('rojo')}menos de ${u.amarillo_min} %</span>` +
-            `<span style="color:#6b7280;">Las realizadas contadas no superan las programadas.</span>`;
+            `<span style="color:#6b7280;">Realizadas: instalaciones supervisadas por día, como el gráfico del Morning Briefing. Las contadas no superan las programadas. Prorrateado: meta repartida por día cuando el lapso no coincide con la periodicidad.</span>`;
     }
 
     async function loadCumplimiento(qs = '') {
@@ -1317,7 +1341,7 @@
         t._timer = setTimeout(() => t.style.display = 'none', 6000);
     }
 
-    // Lo que define la tabla: Período (o Año / Mes / Día) y Cliente. Instalación,
+    // Lo que define la tabla: Período (o Año / Mes / Día), Cliente e Instalación.
     // Puesto y Responsable no entran porque la programación es por cliente.
     function cumplimientoCuerpo() {
         const s = currentFiltersState || {};
@@ -1330,7 +1354,8 @@
             if (s.months && s.months.length) cuerpo.month = s.months.join(',');
             if (s.day)                       cuerpo.day   = String(s.day);
         }
-        if (s.cliente) cuerpo.cliente = s.cliente;
+        if (s.cliente)    cuerpo.cliente   = s.cliente;
+        if (s.propertyId) cuerpo.propiedad = s.propertyId;
         return cuerpo;
     }
 
