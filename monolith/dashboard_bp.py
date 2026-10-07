@@ -6006,16 +6006,18 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     filas_html = ''
     for f in datos['filas']:
         nombre = e(f['cliente']) + (etiqueta('sobre programación del cliente') if f.get('por_instalacion') else '')
+        en_curso_tag = etiqueta(f"en curso {f['en_curso']}") if f.get('en_curso') else ''
         filas_html += (
             f'<tr><td style="{td}">{nombre}</td>'
             f'<td style="{num}white-space:nowrap;">{celda_programadas(f)}</td>'
-            f'<td style="{num}white-space:nowrap;">{f["realizadas"]}{etiqueta(f"en curso {f["en_curso"]}") if f.get("en_curso") else ""}</td>'
+            f'<td style="{num}white-space:nowrap;">{f["realizadas"]}{en_curso_tag}</td>'
             f'<td style="{num}">{n_txt(f.get("contadas"))}</td>'
             f'<td style="{td}white-space:nowrap;">{celda_cumplimiento(f)}</td></tr>'
         )
     if not filas_html:
         filas_html = f'<tr><td colspan="5" style="{td}text-align:center;color:#64748b;">Sin datos</td></tr>'
     tb = td + 'font-weight:700;border-top:2px solid #cbd5e1;border-bottom:none;'
+    tot_en_curso_tag = etiqueta(f"en curso {tot['en_curso']}") if tot.get('en_curso') else ''
     total_nombre = 'Total del Coordinador' if coordinador else 'Total'
     if tot['estado'] == 'meta_general' and tot.get('meta_general'):
         mg = tot['meta_general']
@@ -6023,7 +6025,7 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     total_html = (
         f'<tr><td style="{tb}">{total_nombre}</td>'
         f'<td style="{tb}text-align:right;white-space:nowrap;">{celda_programadas(tot)}</td>'
-        f'<td style="{tb}text-align:right;white-space:nowrap;">{tot["realizadas"]}{etiqueta(f"en curso {tot["en_curso"]}") if tot.get("en_curso") else ""}</td>'
+        f'<td style="{tb}text-align:right;white-space:nowrap;">{tot["realizadas"]}{tot_en_curso_tag}</td>'
         f'<td style="{tb}text-align:right;">{n_txt(tot.get("contadas"))}</td>'
         f'<td style="{tb}white-space:nowrap;">{celda_cumplimiento(tot, negrita=True)}</td></tr>'
     )
