@@ -630,9 +630,26 @@ function _kpiIncColor(val) {
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
-function _kpiSupColor(comp, prog, thr) {
-    if (prog === 0) return { border: '#94a3b8', dot: 'dot-gray' };
-    const pct = comp / prog * 100;
+// Misma función de cálculo que la tabla y el PDF del Dashboard de Supervisión:
+// una supervisión por instalación y día, meta por días calendario, ventana cerrada
+// en ayer (hoy va aparte como "En curso") y tope por cliente.
+function _kpiSupSub(k) {
+    const prog = k.sup_programadas ?? 0;
+    const comp = k.sup_completadas ?? 0;
+    const real = k.sup_realizadas ?? comp;
+    const enCurso = k.sup_en_curso ?? 0;
+    if (prog > 0 && k.sup_pct !== null && k.sup_pct !== undefined) {
+        let sub = `de ${prog} programadas hasta ayer (${Math.round(k.sup_pct)}%) · hoy en curso: ${enCurso}`;
+        if (real > comp) sub += ` · ${real} realizadas, tope por cliente`;
+        return sub;
+    }
+    if (k.sup_sin_dia_cerrado) return `En curso hoy: ${enCurso} · sin días cerrados en la ventana`;
+    return '0 programadas';
+}
+
+function _kpiSupColor(comp, prog, thr, pctDado) {
+    if (prog === 0 || pctDado === null) return { border: '#94a3b8', dot: 'dot-gray' };
+    const pct = (pctDado !== undefined && pctDado !== null) ? pctDado : comp / prog * 100;
     const verdeMin    = thr?.supervision_verde_min    ?? 90;
     const amarilloMin = thr?.supervision_amarillo_min ?? 70;
     if (pct >= verdeMin)    return { border: '#22c55e', dot: 'dot-green' };
@@ -761,15 +778,17 @@ function renderKpis(k, thr) {
         },
         {
             id: 'kpiSup',
-            href: `/cgeo/operacion/?start_date=${today}&end_date=${today}`,
+            // Abre Operación con la ventana cerrada que mide la cifra; sin días
+            // cerrados, con hoy.
+            href: (k.sup_desde && k.sup_hasta_cerrado)
+                ? `/cgeo/operacion/?start_date=${k.sup_desde}&end_date=${k.sup_hasta_cerrado}`
+                : `/cgeo/operacion/?start_date=${today}&end_date=${today}`,
             icon: '👁️', iconBg: '#eff6ff',
-            val: k.sup_completadas ?? 0,
-            lbl: 'Supervisiones Hoy',
-            sub: k.sup_programadas > 0
-                ? `de ${k.sup_programadas} programadas (${Math.round((k.sup_completadas ?? 0) / k.sup_programadas * 100)}%)`
-                : '0 programadas',
+            val: (k.sup_programadas ?? 0) > 0 ? (k.sup_completadas ?? 0) : (k.sup_en_curso ?? 0),
+            lbl: 'Supervisiones',
+            sub: _kpiSupSub(k),
             action: 'Ver supervisiones →',
-            color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr),
+            color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr, k.sup_pct ?? null),
         },
         {
             id: 'kpiEq',
@@ -839,8 +858,10 @@ function renderKpis(k, thr) {
         </a>
     `).join('');
 
-    document.getElementById('supChipText').textContent =
-        `${k.sup_programadas ?? 0} supervisiones programadas hoy`;
+    document.getElementById('supChipText').textContent = (k.sup_programadas ?? 0) > 0
+        ? `${k.sup_programadas} supervisiones programadas hasta ayer · ${k.sup_en_curso ?? 0} en curso hoy`
+        : (k.sup_sin_dia_cerrado ? `Sin días cerrados en la ventana · ${k.sup_en_curso ?? 0} en curso hoy`
+                                 : '0 supervisiones programadas');
 }
 
 // ── Render Clientes en riesgo ─────────────────────────────────────────────────
@@ -1037,7 +1058,8 @@ function computeSemaforo(alertasData, kpis, thr) {
     const visitaVerdeMin    = thr.visita_verde_min    ?? 90;
     const visitaAmarilloMin = thr.visita_amarillo_min ?? 70;
 
-    const supPct  = supProg > 0 ? (supComp / supProg * 100) : 100;
+    const supPct  = (kpis.sup_pct !== null && kpis.sup_pct !== undefined) ? kpis.sup_pct
+                  : (supProg > 0 ? (supComp / supProg * 100) : 100);
     const eqNoPct = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
     const visitaPct = visitaProg > 0 ? (visitaComp / visitaProg * 100) : 100;
 

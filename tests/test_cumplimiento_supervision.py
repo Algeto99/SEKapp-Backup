@@ -6,9 +6,11 @@ tabla de cumplimiento por cliente con la MISMA lógica que el gráfico
 a los Coordinadores acotado al ámbito de cada uno. Reproduce el ejemplo del
 pedido: A 20/18, B 5/2, C 10/12 → total 35 / 32 / 30 contadas = 86 %.
 
-Realizadas se cuentan como el gráfico: instalaciones distintas supervisadas por
-día. Por eso la siembra reparte cada cliente en varias instalaciones y añade una
-supervisión repetida (misma instalación, mismo día) que NO debe sumar.
+Realizadas se cuentan como el gráfico: una por instalación y día. Por eso la siembra
+reparte cada cliente en varias instalaciones y añade una supervisión repetida (misma
+instalación, mismo día) que NO debe sumar. Desde la unificación validada por KANAN
+(2026-10-07) la tarjeta del Morning Briefing usa la misma función: ventana cerrada en
+ayer, hoy aparte como "En curso", meta mensual por días calendario y tope por cliente.
 
 Usa el arranque común de tests/sekapp_testing.py (Postgres desechable, esquema
 recreado desde sql/schema.sql). Correr con:
@@ -73,8 +75,17 @@ def setUpModule():
             sembrar_supervision(letra, 1 + i // 7, f"{dia.isoformat()} 08:00:00")
     # Repetida: Instalación A1 el lunes otra vez. Es un registro más, no una realizada más.
     sembrar_supervision('A', 1, f"{D['lunes'].isoformat()} 15:00:00")
-    # Una supervisión de esta semana, fuera de "semana anterior" (hoy a las 06:00).
+    # Una supervisión de hoy ("En curso"), fuera de "semana anterior".
     sembrar_supervision('A', 1, f"{hoy.isoformat()} 06:00:00")
+    # Días cerrados de la semana en curso (lunes → ayer, puede no haber ninguno): A1 y A2
+    # cada día, más una repetida en A1 que no debe sumar. Es lo que mide la tarjeta.
+    D['lunes_actual'] = hoy - timedelta(days=hoy.weekday())
+    D['dias_cerrados'] = (hoy - D['lunes_actual']).days
+    for i in range(D['dias_cerrados']):
+        dia = D['lunes_actual'] + timedelta(days=i)
+        sembrar_supervision('A', 1, f"{dia.isoformat()} 09:00:00")
+        sembrar_supervision('A', 2, f"{dia.isoformat()} 09:00:00")
+        sembrar_supervision('A', 1, f"{dia.isoformat()} 16:00:00")
 
     sql("INSERT INTO coordinador_ambito (user_id, customer_company_id, creado_por) VALUES (%s, %s, %s)",
         [D['coord'], D['cliA'], ADMIN])
@@ -111,6 +122,7 @@ class CumplimientoTests(unittest.TestCase):
         self.assertTrue(d['hay_programacion'])
         self.assertFalse(d['sin_datos'])
         self.assertIsNone(d['recortado_inicio'])
+        self.assertEqual((d['incluye_hoy'], d['hasta_cerrado']), (False, D['domingo'].isoformat()))
         # Orden de menor a mayor cumplimiento.
         self.assertEqual([f['cliente'] for f in d['filas']], ['Cliente B', 'Cliente A', 'Cliente C'])
         b, a, c = d['filas']
@@ -131,6 +143,20 @@ class CumplimientoTests(unittest.TestCase):
         d = self.tabla(self.admin)
         self.assertEqual(d['origen'], 'mes_actual')
         self.assertEqual((d['desde'], d['hasta']), (D['hoy'].replace(day=1).isoformat(), D['hoy'].isoformat()))
+        # El día en curso no entra al porcentaje: cierra en ayer y hoy va aparte.
+        ayer = D['hoy'] - timedelta(days=1)
+        self.assertTrue(d['incluye_hoy'])
+        self.assertEqual(d['hasta_cerrado'], ayer.isoformat() if D['hoy'].day > 1 else None)
+        self.assertEqual(d['dias'], D['hoy'].day - 1)
+        self.assertEqual(d['total']['en_curso'], 1, 'la supervisión de hoy')
+        if D['hoy'].day == 1:
+            self.assertEqual(d['total']['estado'], 'sin_dia_cerrado')
+            self.assertIsNone(d['total']['pct'])
+        # Sólo hoy: sin días cerrados, sin porcentaje, con lo de hoy en curso.
+        d = self.tabla(self.admin, f"?periodo=personalizado&desde={D['hoy']}&hasta={D['hoy']}")
+        self.assertEqual((d['dias'], d['hasta_cerrado'], d['total']['estado'], d['total']['pct'], d['total']['en_curso']),
+                         (0, None, 'sin_dia_cerrado', None, 1))
+        self.assertEqual(self.fila(d, 'Cliente A')['estado'], 'sin_dia_cerrado')
         lunes = D['lunes']
         d = self.tabla(self.admin, f"?year={lunes.year}&month={lunes.month}")
         self.assertEqual(d['origen'], 'anio_mes')
@@ -467,20 +493,28 @@ class CumplimientoTests(unittest.TestCase):
 
     def test_12_prorrateo_y_rangos(self):
         import dashboard_bp as dbp
-        from admin_bp import _DIAS_PERIODO
-        self.assertEqual(_DIAS_PERIODO, {'diario': 1, 'semanal': 7, 'mensual': 30}, 'misma base que el gráfico')
-        # Mensual con base 30, como el gráfico: 30 días exactos, 31 y 28 prorrateados.
-        self.assertEqual(dbp._programadas_en_lapso(10, 'mensual', 30), (10, False))
-        self.assertEqual(dbp._programadas_en_lapso(20, 'mensual', 31), (21, True))
-        self.assertEqual(dbp._programadas_en_lapso(10, 'mensual', 28), (9, True))
-        self.assertEqual(dbp._programadas_en_lapso(31, 'mensual', 5), (5, True))
-        # Semanal: 30 días → 21.4 → 21 prorrateado; 14 días → exacto.
-        self.assertEqual(dbp._programadas_en_lapso(5, 'semanal', 30), (21, True))
-        self.assertEqual(dbp._programadas_en_lapso(5, 'semanal', 14), (10, False))
-        # Diario: nunca se prorratea.
-        self.assertEqual(dbp._programadas_en_lapso(3, 'diario', 7), (21, False))
-        self.assertEqual(dbp._programadas_en_lapso(0, 'semanal', 7), (0, False))
-        self.assertEqual(dbp._programadas_en_lapso(5, 'semanal', 0), (0, False))
+        from datetime import date
+        f = dbp._programadas_en_lapso
+        # Mensual por días calendario: un mes completo da la meta exacta, tenga 28, 30 o 31 días.
+        self.assertEqual(f(10, 'mensual', date(2026, 2, 1), date(2026, 2, 28)), (10, False))
+        self.assertEqual(f(10, 'mensual', date(2026, 9, 1), date(2026, 9, 30)), (10, False))
+        self.assertEqual(f(20, 'mensual', date(2026, 10, 1), date(2026, 10, 31)), (20, False))
+        self.assertEqual(f(10, 'mensual', date(2026, 9, 1), date(2026, 10, 31)), (20, False), 'dos meses enteros')
+        self.assertEqual(f(31, 'mensual', date(2026, 10, 1), date(2026, 10, 5)), (5, True), 'mes en curso al día 5')
+        self.assertEqual(f(30, 'mensual', date(2026, 9, 16), date(2026, 10, 15)), (30, True), 'a caballo de dos meses')
+        # Semanal: 30 días → 21.4 → 21 prorrateado; dos semanas exactas no.
+        self.assertEqual(f(5, 'semanal', date(2026, 9, 1), date(2026, 9, 30)), (21, True))
+        self.assertEqual(f(5, 'semanal', date(2026, 9, 7), date(2026, 9, 20)), (10, False))
+        # Diario: la meta por cada día, nunca prorrateado. Sin meta o lapso invertido: nada.
+        self.assertEqual(f(3, 'diario', date(2026, 9, 1), date(2026, 9, 7)), (21, False))
+        self.assertEqual(f(0, 'semanal', date(2026, 9, 1), date(2026, 9, 7)), (0, False))
+        self.assertEqual(f(5, 'semanal', date(2026, 9, 7), date(2026, 9, 6)), (0, False))
+        # Cuota diaria del gráfico: mensual según los días del mes de ese día.
+        prog = {'programacion': [{'meta': 31, 'periodicidad': 'mensual'}, {'meta': 7, 'periodicidad': 'semanal'}]}
+        self.assertEqual(dbp.programadas_del_dia(prog, date(2026, 10, 15)), 2.0)
+        self.assertEqual(dbp.programadas_del_dia(prog, date(2026, 9, 15)), 2.0)     # 31/30 + 1 = 2.03 → 2.0
+        self.assertEqual(dbp.programadas_del_dia({'programacion': [], 'meta_global': {'meta': 25, 'periodicidad': 'diario'}},
+                                                 date(2026, 10, 15)), 25.0)
         with A.app.test_request_context():
             d, h = dbp._rango_periodo('semana_anterior')
             self.assertEqual((d.weekday(), h.weekday(), (h - d).days), (0, 6, 6))
@@ -528,6 +562,70 @@ class CumplimientoTests(unittest.TestCase):
         self.assertEqual(destinos, ['destino@pruebas.sekapp'])
         msg2, _ = capturados[1]
         self.assertEqual([p.get_content_type() for p in msg2.walk() if not p.is_multipart()], ['text/plain'])
+
+    def test_14_tarjeta_del_briefing_igual_que_la_tabla(self):
+        # Sección 5 validada por KANAN: una sola función para tarjeta, gráfico, tabla y PDF.
+        import dashboard_bp
+        hoy, lunes_actual, ayer = D['hoy'], D['lunes_actual'], D['hoy'] - timedelta(days=1)
+        n = D['dias_cerrados']
+        r = self.admin.get('/cgeo/api/morning-briefing-data')
+        self.assertEqual(r.status_code, 200, r.data[:300])
+        k = r.get_json()['kpis']
+        t = self.tabla(self.admin, f"?periodo=personalizado&desde={lunes_actual}&hasta={hoy}")['total']
+        # Misma ventana (lunes → hoy, cerrada en ayer): mismos números en tarjeta y tabla.
+        self.assertEqual((k['sup_programadas'], k['sup_completadas'], k['sup_realizadas'], k['sup_pct'], k['sup_en_curso']),
+                         (t['programadas'] or 0, t['contadas'] or 0, t['realizadas'], t['pct'], t['en_curso']))
+        self.assertEqual(k['sup_en_curso'], 1, 'la supervisión de hoy va aparte, "En curso"')
+        self.assertEqual(k['sup_hoy'], hoy.isoformat())
+        if n > 0:
+            # Días cerrados de esta semana: A1 y A2 cada día (la repetida en A1 no suma); B y C en cero.
+            prog = {letra: int(PROGRAMACION[letra] * n / 7 + 0.5) for letra in 'ABC'}
+            self.assertEqual(k['sup_hasta_cerrado'], ayer.isoformat())
+            self.assertEqual(k['sup_desde'], lunes_actual.isoformat())
+            self.assertFalse(k['sup_sin_dia_cerrado'])
+            self.assertEqual(k['sup_realizadas'], 2 * n)
+            self.assertEqual(k['sup_completadas'], min(2 * n, prog['A']), 'tope por cliente')
+            self.assertEqual(k['sup_programadas'], sum(prog.values()))
+            self.assertEqual(k['sup_pct'], int(k['sup_completadas'] / k['sup_programadas'] * 100 + 0.5))
+            por = {c['cliente']: c for c in k['sup_por_cliente']}
+            self.assertEqual((por['Cliente B']['realizadas'], por['Cliente B']['pct']), (0, 0), 'cero realizadas es 0 %, no "Sin datos"')
+        else:
+            # Lunes: la ventana semanal todavía no tiene ningún día cerrado → sin porcentaje.
+            self.assertTrue(k['sup_sin_dia_cerrado'])
+            self.assertIsNone(k['sup_pct'])
+            self.assertEqual((k['sup_programadas'], k['sup_completadas'], k['sup_hasta_cerrado']), (0, 0, None))
+        # Operación recibe la misma cifra que la tarjeta.
+        with A.app.test_request_context():
+            conn = dashboard_bp.get_db_connection()
+            cur = conn.cursor(cursor_factory=dashboard_bp.psycopg2.extras.DictCursor)
+            from admin_bp import calcular_supervisiones
+            s = calcular_supervisiones(cur)
+            conn.close()
+        self.assertEqual((s['programadas'], s['contadas'], s['realizadas'], s['pct'], s['en_curso']),
+                         (k['sup_programadas'], k['sup_completadas'], k['sup_realizadas'], k['sup_pct'], k['sup_en_curso']))
+        self.assertEqual(s['meta_total'], 35, 'la meta completa sigue disponible para Estatus de Cliente')
+        # La línea Programadas del gráfico: cuota diaria de los tres clientes semanales = 5.0.
+        tend = r.get_json()['tendencia_semana']
+        self.assertEqual(tend[-1]['fecha'], hoy.isoformat())
+        self.assertEqual(tend[-1]['programadas'], 5.0)
+        self.assertEqual(tend[-1]['completadas'], 1)
+
+    def test_15_los_tres_puntos_de_diferencia(self):
+        # 33 registros vs 30 contadas en la semana anterior: 1 por la supervisión repetida a la
+        # misma instalación el mismo día, 2 por el tope del Cliente C (12 realizadas, 10 programadas).
+        d = self.tabla(self.admin, '?periodo=semana_anterior')
+        registros = sql("SELECT COUNT(*) AS n FROM supervision_puesto WHERE fecha_hora::date BETWEEN %s AND %s",
+                        [D['lunes'], D['domingo']], uno=True)['n']
+        t = d['total']
+        self.assertEqual((registros, t['realizadas'], t['contadas']), (33, 32, 30))
+        self.assertEqual(registros - t['realizadas'], 1, 'una instalación-día repetida')
+        self.assertEqual(t['realizadas'] - t['contadas'], 2, 'tope del Cliente C')
+        c = self.fila(d, 'Cliente C')
+        self.assertEqual((c['realizadas'], c['programadas'], c['contadas'], c['pct']), (12, 10, 10, 100))
+        self.assertEqual(t['pct'], 86)
+        # Lapso cerrado en el pasado: sin día en curso.
+        self.assertEqual((d['incluye_hoy'], d['hasta_cerrado'], t['en_curso']), (False, D['domingo'].isoformat(), 0))
+
 
 
 if __name__ == '__main__':

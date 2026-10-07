@@ -2491,7 +2491,7 @@ def cgeo_api_semaforo_global():
         # como respaldo mientras ningún cliente tenga la suya.
         _sup = calcular_supervisiones(cur, cliente=cliente, propiedad=propiedad)
         sup_programadas = _sup['programadas']
-        sup_completadas = _sup['realizadas']
+        sup_completadas = _sup['contadas']      # realizadas con tope por cliente, ventana cerrada en ayer
         periodicidad = _sup['periodicidad'] or thresholds.get('supervision_periodicidad') or 'diario'
 
         # Equipos no operativos vs flota total
@@ -2527,6 +2527,10 @@ def cgeo_api_semaforo_global():
             "inc_abiertos": inc_abiertos,
             "sup_completadas": sup_completadas,
             "sup_programadas": sup_programadas,
+            "sup_realizadas": _sup['realizadas'],
+            "sup_en_curso": _sup['en_curso'],
+            "sup_pct": _sup['pct'],
+            "sup_hasta_cerrado": _sup['hasta_cerrado'],
             "sup_periodicidad": periodicidad,
             "eq_no_op": eq_no_op,
             "eq_total": eq_total,
@@ -2604,9 +2608,13 @@ def cgeo_api_morning_briefing_data():
 
         # ── Supervisiones: programación por cliente vs realizadas ────────────
         from admin_bp import calcular_supervisiones
+        from dashboard_bp import programadas_del_dia
         _sup = calcular_supervisiones(cur)
+        # Una sola función con la tabla y el PDF del Dashboard de Supervisión:
+        # instalaciones-día, meta por días calendario, ventana cerrada en ayer
+        # (hoy va en sup_en_curso) y tope por cliente (sup_completadas = contadas).
         sup_programadas = _sup['programadas']
-        sup_completadas = _sup['realizadas']
+        sup_completadas = _sup['contadas']
         sup_pendientes  = _sup['pendientes']
         sup_pct         = _sup['pct']
         periodicidad = _sup['periodicidad'] or thresholds.get('supervision_periodicidad') or 'diario'
@@ -2733,7 +2741,8 @@ def cgeo_api_morning_briefing_data():
         # Si fecha_inicio es posterior al inicio de la ventana de 7 días, recortamos
         trend_start = max(days7[0], fecha_inicio) if fecha_inicio else days7[0]
 
-        # Completadas por día (últimos 7 días, conteo de puestos únicos supervisados)
+        # Completadas por día: instalaciones distintas supervisadas, la misma cuenta
+        # que la tarjeta y la tabla de cumplimiento (una por instalación y día).
         cur.execute("""
             SELECT
                 fecha_hora::date AS dia,
@@ -2750,8 +2759,9 @@ def cgeo_api_morning_briefing_data():
                 "label": str(d.day) + " " + d.strftime("%b"),
                 "completadas": comp_by_day.get(d, 0) if (not fecha_inicio or d >= fecha_inicio) else None,
                 # No el total del período: con clientes semanales y mensuales
-                # mezclados, la línea diaria es la meta repartida por día.
-                "programadas": _sup['programadas_dia'] if (not fecha_inicio or d >= fecha_inicio) else None,
+                # mezclados, la línea diaria es la meta repartida por día; la
+                # mensual según los días calendario de ese mes.
+                "programadas": programadas_del_dia(_sup, d) if (not fecha_inicio or d >= fecha_inicio) else None,
             }
             for d in days7
         ]
@@ -2806,9 +2816,15 @@ def cgeo_api_morning_briefing_data():
                 "inc_criticos":    inc_criticos,
                 "inc_mas_24h":     inc_mas_24h,
                 "sup_completadas": sup_completadas,
+                "sup_realizadas":  _sup['realizadas'],
                 "sup_programadas": sup_programadas,
                 "sup_pendientes":   sup_pendientes,
                 "sup_pct":          sup_pct,
+                "sup_en_curso":     _sup['en_curso'],
+                "sup_desde":        _sup['desde'],
+                "sup_hasta_cerrado": _sup['hasta_cerrado'],
+                "sup_hoy":          _sup['hoy'],
+                "sup_sin_dia_cerrado": _sup['sin_dia_cerrado'],
                 "sup_origen":       _sup['origen'],
                 "sup_por_cliente":  _sup['por_cliente'],
                 "eq_total":        eq_total,
@@ -3333,19 +3349,25 @@ def _build_briefing_html(payload: dict) -> str:
     if inc_m24 > 0:
         inc_sub += f" · {inc_m24} >24h"
 
-    sup_c   = int(kpis.get('sup_completadas') or 0)
+    sup_c   = int(kpis.get('sup_completadas') or 0)     # contadas (tope por cliente), ventana cerrada en ayer
+    sup_r   = int(kpis.get('sup_realizadas') or sup_c)
     sup_p   = int(kpis.get('sup_programadas') or 0)
-    sup_pct = round(sup_c / sup_p * 100) if sup_p else 0
+    sup_e   = int(kpis.get('sup_en_curso') or 0)
+    sup_pct = kpis.get('sup_pct')
+    if sup_pct is None and sup_p:
+        sup_pct = round(sup_c / sup_p * 100)
     sup_verde_min    = float(thr.get('supervision_verde_min') if thr.get('supervision_verde_min') is not None else 90)
     sup_amarillo_min = float(thr.get('supervision_amarillo_min') if thr.get('supervision_amarillo_min') is not None else 70)
-    if sup_p > 0:
+    if sup_p > 0 and sup_pct is not None:
         sup_color = '#16a34a' if sup_pct >= sup_verde_min else ('#d97706' if sup_pct >= sup_amarillo_min else '#dc2626')
         sup_val_str = f"{sup_c}/{sup_p}"
-        sup_sub_str = f"{sup_pct}% completado"
+        sup_sub_str = f"{round(sup_pct)}% hasta ayer · hoy en curso: {sup_e}"
+        if sup_r > sup_c:
+            sup_sub_str += f" · {sup_r} realizadas, tope por cliente"
     else:
         sup_color = '#64748b'
-        sup_val_str = f"{sup_c}"
-        sup_sub_str = "0 programadas"
+        sup_val_str = f"{sup_e}"
+        sup_sub_str = "en curso hoy · sin días cerrados en la ventana" if kpis.get('sup_sin_dia_cerrado') else "0 programadas"
 
     eq_op   = int(kpis.get('eq_op') or 0)
     eq_tot  = int(kpis.get('eq_total') or 0)
@@ -3406,7 +3428,7 @@ def _build_briefing_html(payload: dict) -> str:
       <td class="kpi-sub">{inc_sub}</td>
     </tr>
     <tr>
-      <td class="kpi-name">Supervisiones del día</td>
+      <td class="kpi-name">Supervisiones</td>
       <td class="kpi-val" style="color:{sup_color}">{sup_val_str}</td>
       <td class="kpi-sub">{sup_sub_str}</td>
     </tr>

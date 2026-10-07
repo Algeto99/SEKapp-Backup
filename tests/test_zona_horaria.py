@@ -96,8 +96,12 @@ class ZonaHorariaTests(unittest.TestCase):
         r = self.admin.get('/cgeo/api/morning-briefing-data')
         self.assertEqual(r.status_code, 200, r.data[:300])
         d = r.get_json()
-        self.assertEqual(d['kpis']['sup_completadas'], 1, 'sólo la de hoy local (periodicidad diaria)')
-        self.assertEqual(d['kpis']['sup_programadas'], 5)
+        # Desde la unificación con la tabla (KANAN 2026-10-07) la ventana cierra en ayer y lo de
+        # hoy va aparte: con periodicidad diaria nunca hay día cerrado, así que la de hoy local
+        # aparece en "En curso" (y no la de ayer local a las 23:30, que es de otra ventana).
+        self.assertEqual(d['kpis']['sup_en_curso'], 1, 'sólo la de hoy local')
+        self.assertEqual((d['kpis']['sup_completadas'], d['kpis']['sup_programadas'], d['kpis']['sup_pct']), (0, 0, None))
+        self.assertTrue(d['kpis']['sup_sin_dia_cerrado'])
         tendencia = d['tendencia_semana']
         self.assertEqual(tendencia[-1]['fecha'], D['hoy_local'].isoformat(), 'el gráfico termina en el hoy de la operación')
         self.assertEqual(tendencia[-1]['completadas'], 1)

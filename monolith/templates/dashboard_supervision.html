@@ -1246,6 +1246,7 @@
     // Cumplimiento: porcentaje con su punto, o el estado cuando no hay porcentaje.
     function celdaCumplimiento(f) {
         if (f.estado === 'sin_programacion') return '<span class="cumpl-estado">Sin programación</span>';
+        if (f.estado === 'sin_dia_cerrado') return '<span class="cumpl-estado">Sin días cerrados</span>';
         if (f.estado === 'sin_datos' || f.pct === null || f.pct === undefined) return '<span class="cumpl-estado">Sin datos</span>';
         return `<span class="cumpl-pct" style="color:${TONO_TEXTO[f.tono] || TONO_TEXTO.gris}">${puntoHtml(f.tono)}${f.pct} %</span>`;
     }
@@ -1254,6 +1255,12 @@
         if (f.programadas === null || f.programadas === undefined) return '—';
         const tag = f.prorrateado ? ' ' + tagHtml('prorrateado', 'Meta repartida por día: el lapso no coincide con la periodicidad del cliente') : '';
         return `${f.programadas}${tag}`;
+    }
+
+    // Realizadas del lapso cerrado más, si el lapso incluye hoy, lo de hoy aparte.
+    function celdaRealizadas(f) {
+        const tag = f.en_curso ? ' ' + tagHtml(`en curso ${f.en_curso}`, 'Supervisiones de hoy: no entran al porcentaje hasta que el día cierre') : '';
+        return `${f.realizadas ?? '—'}${tag}`;
     }
 
     function renderCumplimiento(data) {
@@ -1267,6 +1274,10 @@
 
         let subt = `— ${data.origen_etiqueta || ''} · ${fmtFechaCorta(data.desde)} – ${fmtFechaCorta(data.hasta)} · ${data.dias} día${data.dias === 1 ? '' : 's'}`;
         if (data.recortado_inicio) subt += ` · desde inicio de operación ${fmtFechaCorta(data.recortado_inicio)}`;
+        if (data.incluye_hoy) {
+            subt += data.hasta_cerrado ? ` · cerrado hasta ${fmtFechaCorta(data.hasta_cerrado)}` : ' · sin días cerrados';
+            subt += ` · hoy en curso: ${t.en_curso ?? 0}`;
+        }
         sub.textContent = subt;
 
         if (!data.hay_programacion) {
@@ -1288,7 +1299,7 @@
             tr.innerHTML = `
                 <td>${escHtml(f.cliente)}${nota}</td>
                 <td class="num">${celdaProgramadas(f)}</td>
-                <td class="num">${f.realizadas}</td>
+                <td class="num">${celdaRealizadas(f)}</td>
                 <td class="num">${n(f.contadas)}</td>
                 <td>${celdaCumplimiento(f)}</td>`;
             body.appendChild(tr);
@@ -1300,7 +1311,7 @@
         foot.innerHTML = `<tr>
             <td>${etiquetaTotal}</td>
             <td class="num">${celdaProgramadas(t)}</td>
-            <td class="num">${n(t.realizadas)}</td>
+            <td class="num">${celdaRealizadas(t)}</td>
             <td class="num">${n(t.contadas)}</td>
             <td>${celdaCumplimiento(t)}</td></tr>`;
         const u = data.umbrales || { verde_min: 90, amarillo_min: 70 };
@@ -1308,7 +1319,7 @@
             `<span>${puntoHtml('verde')}${u.verde_min} % o más</span>` +
             `<span>${puntoHtml('amarillo')}${u.amarillo_min} % – ${u.verde_min - 1} %</span>` +
             `<span>${puntoHtml('rojo')}menos de ${u.amarillo_min} %</span>` +
-            `<span style="color:#6b7280;">Realizadas: instalaciones supervisadas por día, como el gráfico del Morning Briefing. Las contadas no superan las programadas. Prorrateado: meta repartida por día cuando el lapso no coincide con la periodicidad.</span>`;
+            `<span style="color:#6b7280;">Realizadas: una por instalación y día, como la tarjeta y el gráfico del Morning Briefing. Las contadas no superan las programadas. Prorrateado: meta repartida por día cuando el lapso no son semanas o meses completos. El día en curso no entra al porcentaje.</span>`;
     }
 
     async function loadCumplimiento(qs = '') {

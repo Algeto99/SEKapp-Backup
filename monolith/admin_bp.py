@@ -619,9 +619,9 @@ _THRESHOLD_TEXT_KEYS = ['fecha_inicio_operacion', 'supervision_periodicidad', 'v
 
 _PERIODICIDAD_VALUES = ('diario', 'semanal', 'mensual')
 # Días que cubre cada ventana, para repartir la meta por día: una meta semanal
-# no es un objetivo de cada día. Base fija (30 para mensual). La leen la gráfica
-# de 7 días del Morning Briefing (calcular_supervisiones) y la tabla de
-# cumplimiento del Dashboard de Supervisión, para que ambas coincidan.
+# no es un objetivo de cada día. La mensual NO usa esta tabla: se reparte por
+# los días calendario de cada mes (dashboard_bp._programadas_en_lapso y
+# programadas_del_dia), según lo validado por KANAN el 2026-10-07.
 _DIAS_PERIODO = {'diario': 1, 'semanal': 7, 'mensual': 30}
 
 _THRESHOLD_DEFAULTS = {
@@ -756,80 +756,20 @@ def get_supervision_programacion(cur):
 
 
 def calcular_supervisiones(cur, cliente=None, propiedad=None):
+    """Programadas / realizadas / % de supervisiones de la ventana vigente.
+
+    Desde la unificación validada por KANAN (2026-10-07) delega en
+    dashboard_bp.calcular_cumplimiento_vigente: UNA función para la tarjeta del
+    briefing, el gráfico de 7 días, la tabla del Dashboard de Supervisión, su PDF y
+    el correo a Coordinadores. Reglas: una supervisión por instalación y día, meta
+    mensual por días calendario, ventana cerrada en ayer con el día en curso aparte
+    (`en_curso`) y tope por cliente (`contadas`). Conserva las claves históricas
+    (programadas, realizadas, pendientes, pct, programadas_dia, origen,
+    periodicidad, por_cliente) y añade contadas, en_curso, hasta_cerrado,
+    sin_dia_cerrado, meta_total y programacion.
     """
-    Programadas / realizadas / % de cumplimiento de supervisiones.
-
-    La fuente es la programación por cliente: cada uno aporta su meta medida
-    sobre SU PROPIA ventana, porque un cliente semanal y uno mensual no se
-    pueden sumar sobre el mismo período. Mientras ningún cliente tenga
-    programación se usa la meta global, de modo que el KPI no cambia hasta que
-    el Administrador configure el primero.
-
-    `realizadas` cuenta registros de supervisión, no instalaciones distintas:
-    es lo que hace comparable "4 de 5 programadas".
-
-    Devuelve dict con programadas, realizadas, pendientes, pct y por_cliente.
-    """
-    from dashboard_bp import _add_scope_filters
-
-    def _contar(conds, params):
-        where = ("WHERE " + " AND ".join(conds)) if conds else ""
-        cur.execute(f"SELECT COUNT(*) AS n FROM supervision_puesto {where}", tuple(params))
-        r = cur.fetchone()
-        return int((r[0] if not isinstance(r, dict) else r.get('n')) or 0)
-
-    programacion = [p for p in get_supervision_programacion(cur) if (p['meta'] or 0) > 0]
-
-    # Filtro de pantalla: si se está viendo un cliente concreto, solo ese cuenta.
-    if cliente and str(cliente).isdigit():
-        programacion = [p for p in programacion if str(p['id']) == str(cliente)]
-
-    if not programacion:
-        # Camino heredado: meta única global. Se conserva intacto salvo el conteo,
-        # que pasa a ser de registros para alinearse con la programación por cliente.
-        t = get_thresholds()
-        meta = int(t.get('supervision_meta') or 0)
-        periodicidad = t.get('supervision_periodicidad') or 'diario'
-        conds, params = ["fecha_hora::date >= %s"], [_periodo_inicio_actual(periodicidad)]
-        _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad,
-                           col_puesto=None)
-        realizadas = _contar(conds, params)
-        pct = round(realizadas / meta * 100, 1) if meta else None
-        return {
-            'programadas': meta, 'realizadas': realizadas,
-            'pendientes': max(0, meta - realizadas), 'pct': pct,
-            'programadas_dia': round(meta / _DIAS_PERIODO.get(periodicidad, 1), 1),
-            'origen': 'global', 'periodicidad': periodicidad, 'por_cliente': [],
-        }
-
-    total_prog = total_real = 0
-    prog_dia = 0.0
-    por_cliente = []
-    for p in programacion:
-        inicio = _periodo_inicio_actual(p['periodicidad'])
-        conds, params = ["fecha_hora::date >= %s"], [inicio]
-        _add_scope_filters(conds, params, cliente=str(p['id']), propiedad=propiedad,
-                           col_puesto=None)
-        realizadas = _contar(conds, params)
-        meta = int(p['meta'] or 0)
-        total_prog += meta
-        total_real += realizadas
-        prog_dia   += meta / _DIAS_PERIODO.get(p['periodicidad'], 1)
-        por_cliente.append({
-            'cliente_id': p['id'], 'cliente': p['name'],
-            'periodicidad': p['periodicidad'], 'programadas': meta,
-            'realizadas': realizadas, 'pendientes': max(0, meta - realizadas),
-            'pct': round(realizadas / meta * 100, 1) if meta else None,
-            'desde': inicio.isoformat(),
-        })
-
-    return {
-        'programadas': total_prog, 'realizadas': total_real,
-        'pendientes': max(0, total_prog - total_real),
-        'pct': round(total_real / total_prog * 100, 1) if total_prog else None,
-        'programadas_dia': round(prog_dia, 1),
-        'origen': 'por_cliente', 'periodicidad': None, 'por_cliente': por_cliente,
-    }
+    from dashboard_bp import calcular_cumplimiento_vigente
+    return calcular_cumplimiento_vigente(cur, cliente=cliente, propiedad=propiedad)
 
 
 def get_estatus_pesos(thresholds=None):
