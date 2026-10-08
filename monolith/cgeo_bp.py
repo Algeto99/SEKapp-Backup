@@ -829,11 +829,19 @@ def cgeo_api_recursos_data():
             veh_conds.append(f"({veh_date})::date <= %s")
             veh_params.append(end_date)
         veh_where = _where(veh_conds)
+        # Identidad del vehículo: la placa recortada, y el id de la planilla
+        # cuando no se capturó placa. La usan el conteo de vehículos no aptos y
+        # el listado de abajo, así que tarjeta y listado cuentan lo mismo.
+        veh_elemento_sql = (
+            "COALESCE(NULLIF(TRIM(placa_vehiculo), ''), "
+            "'Vehículo #' || id_planilla_vehicular::text)"
+        )
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total,
                 SUM(CASE WHEN NOT ({_VEH_FAULT_EXPR}) THEN 1 ELSE 0 END) AS aptos,
-                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptos
+                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptos,
+                COUNT(DISTINCT CASE WHEN {_VEH_FAULT_EXPR} THEN {veh_elemento_sql} END) AS vehiculos_no_aptos
             FROM planilla_vehicular
             {veh_where}
         """, tuple(veh_params))
@@ -841,6 +849,12 @@ def cgeo_api_recursos_data():
         veh_total = int(veh_row.get("total") or 0)
         veh_aptos = int(veh_row.get("aptos") or 0)
         veh_no_aptos = int(veh_row.get("no_aptos") or 0)
+        # Vehículos distintos con alguna planilla no apta en el período. La
+        # tarjeta "Vehículos No Aptos" del Resumen Operativo cuenta placas, no
+        # planillas: el mismo vehículo chequeado a diario con la misma falla
+        # sumaba una unidad por día. `veh_no_aptos` sigue contando planillas
+        # para el porcentaje y el dónut, que miden inspecciones.
+        veh_unidades_no_aptas = int(veh_row.get("vehiculos_no_aptos") or 0)
         veh_mant = veh_total - veh_aptos - veh_no_aptos
         veh_pct = round(veh_aptos / veh_total * 100, 1) if veh_total else None
 
@@ -965,7 +979,7 @@ def cgeo_api_recursos_data():
             SELECT * FROM (
                 SELECT DISTINCT ON (elemento)
                     'Vehículo' AS tipo,
-                    COALESCE(NULLIF(TRIM(placa_vehiculo), ''), 'Vehículo #' || id_planilla_vehicular::text) AS elemento,
+                    {veh_elemento_sql} AS elemento,
                     cliente_instalacion AS cliente,
                     'No apto' AS estado,
                     NULL::date AS vencimiento,
@@ -1036,8 +1050,8 @@ def cgeo_api_recursos_data():
         acciones = []
         if cum_vencidas:
             acciones.append(f"Renovar {cum_vencidas} certificaciones vencidas.")
-        if veh_no_aptos:
-            acciones.append(f"Revisar {veh_no_aptos} vehículos no aptos.")
+        if veh_unidades_no_aptas:
+            acciones.append(f"Revisar {veh_unidades_no_aptas} vehículos no aptos.")
         if eq_no_op:
             acciones.append(f"Gestionar reparación de {eq_no_op} equipos fuera de servicio.")
         if cum_proximas:
@@ -1095,7 +1109,7 @@ def cgeo_api_recursos_data():
                 "total": total_alertas,
                 "certificaciones_vencidas": cum_vencidas,
                 "proximas_vencer": cum_proximas,
-                "vehiculos_no_aptos": veh_no_aptos,
+                "vehiculos_no_aptos": veh_unidades_no_aptas,
                 "equipos_no_op": eq_no_op,
                 "listado": alertas_listado[:20],
             },

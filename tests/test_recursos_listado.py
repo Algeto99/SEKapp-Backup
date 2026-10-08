@@ -4,8 +4,14 @@ Pedido del cliente (2026-10-07): el listado repetía la misma placa tantas veces
 como planillas no aptas tuviera, y los mismos radios "Fuera de servicio" tantas
 veces como reportes de Confiabilidad de Equipos hubiera. Cada elemento debe
 salir una sola vez, con un único registro (el más reciente), sin tocar los
-datos históricos ni los contadores de las tarjetas, que siguen contando
-registros y unidades.
+datos históricos.
+
+Segundo pedido (2026-10-08): la tarjeta "Vehículos No Aptos" marcaba 43 porque
+sumaba planillas no aptas, una por día por el mismo vehículo. Ahora cuenta
+vehículos distintos con alguna planilla no apta en el período, con la misma
+identidad (placa) que el listado. El porcentaje "Carros Aptos", el dónut y el
+Dashboard de Vehículos siguen midiendo inspecciones, y los equipos siguen
+contando unidades.
 
 Usa el arranque común de tests/sekapp_testing.py (Postgres desechable). Correr con:
     monolith/venv/bin/python tests/test_recursos_listado.py
@@ -65,10 +71,13 @@ class RecursosListadoTests(unittest.TestCase):
         cls.admin = A.app.test_client()
         assert login(cls.admin, ADMIN).status_code == 302
 
-    def _alertas(self):
+    def _json(self):
         r = self.admin.get('/cgeo/api/recursos-data')
         self.assertEqual(r.status_code, 200, r.data[:300])
-        return r.get_json()['alertas']
+        return r.get_json()
+
+    def _alertas(self):
+        return self._json()['alertas']
 
     def test_01_cada_placa_sale_una_sola_vez(self):
         vehiculos = [a for a in self._alertas()['listado'] if a['tipo'] == 'Vehículo']
@@ -92,11 +101,19 @@ class RecursosListadoTests(unittest.TestCase):
                          'una fila por instalación y tipo; las cámaras sanas no salen')
         self.assertTrue(all(a['estado'] == 'Fuera de servicio' for a in equipos))
 
-    def test_04_los_contadores_siguen_contando_registros(self):
-        a = self._alertas()
-        self.assertEqual(a['vehiculos_no_aptos'], 6, '3 + 2 + 1 planillas no aptas')
-        self.assertEqual(a['equipos_no_op'], 7, '3 + 2 + 2 radios en falla')
+    def test_04_la_tarjeta_cuenta_vehiculos_unicos(self):
+        d = self._json()
+        a = d['alertas']
+        self.assertEqual(a['vehiculos_no_aptos'], 3,
+                         'EC2470, ET9541 y ET9660 una vez cada uno, aunque sumen 6 planillas')
+        self.assertIn('Revisar 3 vehículos no aptos.', d['acciones'])
+        self.assertEqual(a['equipos_no_op'], 7, '3 + 2 + 2 radios en falla: unidades, como hasta ahora')
         self.assertEqual(a['total'], 5, 'el listado consolidado: 3 placas + 2 instalaciones')
+
+    def test_05_el_porcentaje_sigue_midiendo_planillas(self):
+        v = self._json()['vehiculos']
+        self.assertEqual((v['total'], v['aptos'], v['no_aptos']), (7, 1, 6),
+                         'el dónut y "Carros Aptos" miden inspecciones, no vehículos')
 
 
 if __name__ == '__main__':
