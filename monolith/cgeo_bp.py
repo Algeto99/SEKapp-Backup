@@ -953,18 +953,28 @@ def cgeo_api_recursos_data():
                 "dias_restantes": -int(r["dias_restantes"]) if r["dias_restantes"] is not None else None,
             })
 
-        # Vehículos no aptos
+        # Vehículos no aptos: una fila por placa, no por planilla. Cada
+        # pre-operacional con falla es un registro propio, así que la misma
+        # placa salía tantas veces como planillas no aptas tuviera en el
+        # período. Se conserva la planilla más reciente, con la misma clave
+        # (placa recortada) que usan la regla 6 del Briefing y el dashboard de
+        # Flota. Los registros no se tocan: la consolidación es sólo de la
+        # consulta.
         veh_conds2 = list(veh_conds) + [f"({_VEH_FAULT_EXPR})"]
         cur.execute(f"""
-            SELECT
-                'Vehículo' AS tipo,
-                COALESCE(NULLIF(TRIM(placa_vehiculo), ''), 'Vehículo #' || id_planilla_vehicular::text) AS elemento,
-                cliente_instalacion AS cliente,
-                'No apto' AS estado,
-                NULL::date AS vencimiento
-            FROM planilla_vehicular
-            {_where(veh_conds2)}
-            ORDER BY creado_en DESC
+            SELECT * FROM (
+                SELECT DISTINCT ON (elemento)
+                    'Vehículo' AS tipo,
+                    COALESCE(NULLIF(TRIM(placa_vehiculo), ''), 'Vehículo #' || id_planilla_vehicular::text) AS elemento,
+                    cliente_instalacion AS cliente,
+                    'No apto' AS estado,
+                    NULL::date AS vencimiento,
+                    {veh_date} AS fecha_ref
+                FROM planilla_vehicular
+                {_where(veh_conds2)}
+                ORDER BY elemento, {veh_date} DESC NULLS LAST, id_planilla_vehicular DESC
+            ) ultimo
+            ORDER BY fecha_ref DESC NULLS LAST
             LIMIT 10
         """, tuple(veh_params))
         for r in cur.fetchall():
@@ -977,24 +987,37 @@ def cgeo_api_recursos_data():
                 "dias_restantes": None,
             })
 
-        # Equipos no operativos (registros con equipos_operativos < total)
+        # Equipos no operativos: una fila por instalación y equipo, no por
+        # reporte. Cada reporte de Confiabilidad de Equipos con unidades en
+        # falla repetía "Radios" de la misma instalación. Se conserva el último
+        # reporte, con la misma clave (instalación + tipo) que la regla 18 del
+        # Briefing; el mismo tipo en otra instalación es otro elemento.
         eq_conds2 = list(eq_conds) + [
             f"({_EQ_FUNC_SQL}) < ({_EQ_TOTAL_SQL})",
             f"({_EQ_TOTAL_SQL}) > 0",
         ]
         eq_where2 = _where(eq_conds2)
+        eq_elemento_sql = (
+            "COALESCE(NULLIF(TRIM(elem->>'nombre_equipo'), ''), "
+            "NULLIF(TRIM(elem->>'tipo_equipo'), ''), 'Equipo')"
+        )
         cur.execute(f"""
-            SELECT
-                'Equipo' AS tipo,
-                COALESCE(NULLIF(TRIM(elem->>'nombre_equipo'), ''),
-                         NULLIF(TRIM(elem->>'tipo_equipo'), ''),
-                         'Equipo') AS elemento,
-                c.cliente_instalacion AS cliente,
-                'Fuera de servicio' AS estado
-            FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(c.inventario) AS elem
-            {eq_where2}
-            ORDER BY c.fecha DESC
+            SELECT * FROM (
+                SELECT DISTINCT ON (cliente_clave, elemento_clave)
+                    'Equipo' AS tipo,
+                    {eq_elemento_sql} AS elemento,
+                    c.cliente_instalacion AS cliente,
+                    'Fuera de servicio' AS estado,
+                    TRIM(COALESCE(c.cliente_instalacion, '')) AS cliente_clave,
+                    LOWER({eq_elemento_sql}) AS elemento_clave,
+                    c.fecha AS fecha_ref,
+                    c.id AS id_ref
+                FROM confiabilidad_equipos c,
+                     LATERAL jsonb_array_elements(c.inventario) AS elem
+                {eq_where2}
+                ORDER BY cliente_clave, elemento_clave, c.fecha DESC NULLS LAST, c.id DESC
+            ) ultimo
+            ORDER BY fecha_ref DESC NULLS LAST, id_ref DESC
             LIMIT 10
         """, tuple(eq_params))
         for r in cur.fetchall():
