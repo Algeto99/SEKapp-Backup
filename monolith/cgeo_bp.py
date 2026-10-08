@@ -3704,6 +3704,31 @@ def cgeo_morning_briefing_pdf():
         return jsonify({"error": "Error generando PDF"}), 500
 
 
+# Cliente y propiedad de un registro, por sus referencias: la del registro o, si
+# falta, la de su propiedad. `cliente_instalacion` guarda el nombre de la
+# instalación, porque el selector "Cliente / Instalación" de los formularios
+# lista instalaciones; el nombre del cliente sólo se obtiene por aquí.
+_CLIENTE_JOIN_SQL = """
+      LEFT JOIN propiedades p ON p.id_propiedad = t.id_propiedad
+      LEFT JOIN customer_companies cc ON cc.id = COALESCE(t.customer_company_id, p.customer_company_id)
+"""
+_CLIENTE_COLS_SQL = "t.cliente_instalacion, p.nombre AS propiedad_nombre, cc.name AS cliente_nombre"
+
+
+def _cliente_instalacion_texto(row):
+    """Texto "Cliente · Instalación" para el correo y la vista del hallazgo.
+
+    Con uno solo de los dos, ese. Si un registro viejo guardó el nombre del
+    cliente en el campo de instalación, no se repite. Sin instalación nombrada,
+    la propiedad asociada.
+    """
+    cliente = (row.get('cliente_nombre') or '').strip()
+    instalacion = (row.get('cliente_instalacion') or '').strip() or (row.get('propiedad_nombre') or '').strip()
+    if cliente and instalacion and cliente.lower() != instalacion.lower():
+        return f"{cliente} · {instalacion}"
+    return cliente or instalacion or '—'
+
+
 def _fetch_record_details(form_type: str, record_id: int) -> dict:
     """Return a dict of display fields for the given form_type record, or {} on failure."""
     conn = _get_conn()
@@ -3713,17 +3738,18 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             if form_type == 'reporte_incidente':
                 cur.execute(
-                    """
-                    SELECT cliente_instalacion  AS cliente,
-                           puesto_area_especifica AS ubicacion,
-                           fecha_hora,
-                           categoria,
-                           tipo_incidente        AS subtipo,
-                           descripcion_incidente AS descripcion,
-                           estado,
-                           responsable_asignado
-                      FROM reportes_incidentes
-                     WHERE id_reporte_incidente = %s
+                    f"""
+                    SELECT {_CLIENTE_COLS_SQL},
+                           t.puesto_area_especifica AS ubicacion,
+                           t.fecha_hora,
+                           t.categoria,
+                           t.tipo_incidente        AS subtipo,
+                           t.descripcion_incidente AS descripcion,
+                           t.estado,
+                           t.responsable_asignado
+                      FROM reportes_incidentes t
+                      {_CLIENTE_JOIN_SQL}
+                     WHERE t.id_reporte_incidente = %s
                     """,
                     (record_id,)
                 )
@@ -3733,7 +3759,7 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                 return {
                     'tipo_label': 'Incidente',
                     'consecutivo': f"#{record_id}",
-                    'cliente': row['cliente'] or '—',
+                    'cliente': _cliente_instalacion_texto(row),
                     'fecha_evento': row['fecha_hora'],
                     'categoria': row['categoria'] or '—',
                     'subtipo': row['subtipo'] or '',
@@ -3746,19 +3772,18 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
             elif form_type == 'supervision_puesto':
                 # "Cliente / Instalación" es la instalación del registro, no el
                 # supervisor que lo hizo: el correo de hallazgo asignado mostraba
-                # el nombre de la persona bajo esa etiqueta. Sin nombre de
-                # instalación, el de la propiedad asociada.
+                # el nombre de la persona bajo esa etiqueta.
                 cur.execute(
-                    """
-                    SELECT s.supervisor,
-                           s.nombre_guardia,
-                           s.fecha_hora,
-                           s.observaciones_novedades AS descripcion,
-                           s.submitted_by_email,
-                           COALESCE(NULLIF(TRIM(s.cliente_instalacion), ''), p.nombre) AS cliente
-                      FROM supervision_puesto s
-                      LEFT JOIN propiedades p ON p.id_propiedad = s.id_propiedad
-                     WHERE s.id_supervision = %s
+                    f"""
+                    SELECT {_CLIENTE_COLS_SQL},
+                           t.supervisor,
+                           t.nombre_guardia,
+                           t.fecha_hora,
+                           t.observaciones_novedades AS descripcion,
+                           t.submitted_by_email
+                      FROM supervision_puesto t
+                      {_CLIENTE_JOIN_SQL}
+                     WHERE t.id_supervision = %s
                     """,
                     (record_id,)
                 )
@@ -3768,7 +3793,7 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                 return {
                     'tipo_label': 'Supervisión de puesto',
                     'consecutivo': f"#{record_id}",
-                    'cliente': row['cliente'] or '—',
+                    'cliente': _cliente_instalacion_texto(row),
                     'fecha_evento': row['fecha_hora'],
                     'categoria': '—',
                     'subtipo': '',
@@ -3780,15 +3805,16 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
 
             elif form_type in ('visita', 'registro_y_acta_de_visita'):
                 cur.execute(
-                    """
-                    SELECT cliente_instalacion  AS cliente,
-                           puesto_area_especifica AS ubicacion,
-                           fecha_hora,
-                           motivo_visita         AS categoria,
-                           actividades_realizadas AS descripcion,
-                           visita_realizada_por
-                      FROM registro_y_acta_de_visita
-                     WHERE id_visita = %s
+                    f"""
+                    SELECT {_CLIENTE_COLS_SQL},
+                           t.puesto_area_especifica AS ubicacion,
+                           t.fecha_hora,
+                           t.motivo_visita         AS categoria,
+                           t.actividades_realizadas AS descripcion,
+                           t.visita_realizada_por
+                      FROM registro_y_acta_de_visita t
+                      {_CLIENTE_JOIN_SQL}
+                     WHERE t.id_visita = %s
                     """,
                     (record_id,)
                 )
@@ -3798,7 +3824,7 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                 return {
                     'tipo_label': 'Visita',
                     'consecutivo': f"#{record_id}",
-                    'cliente': row['cliente'] or '—',
+                    'cliente': _cliente_instalacion_texto(row),
                     'fecha_evento': row['fecha_hora'],
                     'categoria': row['categoria'] or '—',
                     'subtipo': '',
@@ -3810,13 +3836,14 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
 
             elif form_type in ('equipo', 'confiabilidad_equipos'):
                 cur.execute(
-                    """
-                    SELECT cliente_instalacion AS cliente,
-                           sitio              AS ubicacion,
-                           fecha,
-                           tecnico_mantenimiento
-                      FROM confiabilidad_equipos
-                     WHERE id = %s
+                    f"""
+                    SELECT {_CLIENTE_COLS_SQL},
+                           t.sitio              AS ubicacion,
+                           t.fecha,
+                           t.tecnico_mantenimiento
+                      FROM confiabilidad_equipos t
+                      {_CLIENTE_JOIN_SQL}
+                     WHERE t.id = %s
                     """,
                     (record_id,)
                 )
@@ -3826,7 +3853,7 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                 return {
                     'tipo_label': 'Equipo',
                     'consecutivo': f"#{record_id}",
-                    'cliente': row['cliente'] or '—',
+                    'cliente': _cliente_instalacion_texto(row),
                     'fecha_evento': row['fecha'],
                     'categoria': '—',
                     'subtipo': '',

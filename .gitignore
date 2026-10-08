@@ -1,3 +1,6 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+
+# Pruebas locales: nunca van al repo ni a la imagen (pedido de Roberto, 2026-10-08)
+tests/
