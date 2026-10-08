@@ -719,7 +719,12 @@ function renderData(d) {
     // registrado en vez de "Sin datos", que ocultaba información existente.
     const inventarioKpi = (inv, unidad) => {
         if (inv.pct != null) {
-            return { val: inv.pct + '%', sub: `${inv.operativos} de ${inv.total} operativos` };
+            // El % sale sólo de las unidades con estado capturado en el último
+            // reporte de Confiabilidad; se dice cuántas son frente al parque
+            // registrado en Bases de Datos para que no se lea como % de la flota.
+            const reg = inv.registrados ?? 0;
+            const captura = reg > 0 ? ` · estado capturado para ${inv.total} de ${reg} registradas` : '';
+            return { val: inv.pct + '%', sub: `${inv.operativos} de ${inv.total} operativos${captura}` };
         }
         if ((inv.registrados ?? 0) > 0) {
             return { val: inv.registrados,

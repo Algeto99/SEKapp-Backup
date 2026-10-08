@@ -395,15 +395,17 @@ def _eq_inventario_vigente(where, por_mes=False):
     cada mes, para la tendencia.
 
     Columnas: id, fecha, cliente_instalacion, tipo (minúsculas, '' si falta),
-    total, operativos.
+    etiqueta (el nombre tal como se capturó, para mostrar), total, operativos.
     """
     mes = "DATE_TRUNC('month', c.fecha), " if por_mes else ""
     return f"""
         FROM (
-            SELECT id, fecha, cliente_instalacion, tipo, total, operativos
+            SELECT id, fecha, cliente_instalacion, tipo, etiqueta, total, operativos
             FROM (
                 SELECT c.id, c.fecha, c.cliente_instalacion,
                        LOWER(TRIM(COALESCE(elem->>'tipo_equipo', ''))) AS tipo,
+                       COALESCE(NULLIF(TRIM(elem->>'nombre_equipo'), ''),
+                                NULLIF(TRIM(elem->>'tipo_equipo'), ''), 'Equipo') AS etiqueta,
                        {_EQ_TOTAL_SQL} AS total,
                        {_EQ_FUNC_SQL} AS operativos,
                        DENSE_RANK() OVER (
@@ -436,8 +438,39 @@ _VEH_FAULT_EXPR = " OR ".join(
 )
 
 
+def _flota_vigente(tabla, col_id, col_placa, fecha_sql, falla_sql, where, etiqueta='Vehículo'):
+    """FROM (...) flota: una fila por placa con su planilla más reciente dentro
+    de `where`, y si esa planilla la deja no apta.
+
+    Cada planilla pre-operacional es una foto del vehículo ese día. Contar
+    planillas aptas y no aptas medía inspecciones, no flota: la misma placa
+    chequeada a diario con la misma falla sumaba una unidad por día (43
+    planillas que eran muchos menos vehículos). Aquí la placa es la unidad y su
+    última planilla del período decide el estado; las anteriores quedan como
+    historial sin volver a contar. Es el mismo criterio que
+    _eq_inventario_vigente para equipos. Las planillas sin placa cuentan cada
+    una por separado, identificadas por su id.
+
+    Columnas: id, elemento, cliente_instalacion, fecha_ref, no_apto.
+    """
+    elemento = f"COALESCE(NULLIF(TRIM({col_placa}), ''), '{etiqueta} #' || {col_id}::text)"
+    return f"""
+        FROM (
+            SELECT DISTINCT ON (elemento)
+                {col_id} AS id,
+                {elemento} AS elemento,
+                cliente_instalacion,
+                {fecha_sql} AS fecha_ref,
+                ({falla_sql}) AS no_apto
+            FROM {tabla}
+            {where}
+            ORDER BY elemento, {fecha_sql} DESC NULLS LAST, {col_id} DESC
+        ) flota
+    """
+
+
 def _registrados_supervision(cur, tipo, cliente=None, propiedad=None,
-                             start_date=None, end_date=None):
+                             start_date=None, end_date=None, detalle=False):
     """Radios o armas registrados, contados como los cuenta Bases de Datos.
 
     `confiabilidad_equipos` es la única fuente del % operativo, porque es la
@@ -462,12 +495,12 @@ def _registrados_supervision(cur, tipo, cliente=None, propiedad=None,
 
     if tipo == 'armas':
         conds = ["LOWER(TRIM(COALESCE(porta_arma,''))) = 'si'"]
-        identifier = _bd_identifier_sql('serie_arma')
+        serial_col = 'serie_arma'
+        identifier = _bd_identifier_sql(serial_col)
     else:
         conds = ["TRIM(COALESCE(equipamiento_completo, '')) <> ''"]
-        identifier = (_bd_identifier_sql('radio_asignado_serial')
-                      if 'radio_asignado_serial' in cols
-                      else _bd_identifier_sql())
+        serial_col = 'radio_asignado_serial' if 'radio_asignado_serial' in cols else None
+        identifier = _bd_identifier_sql(serial_col) if serial_col else _bd_identifier_sql()
 
     params = []
     _add_cliente(conds, params, cliente, propiedad=propiedad)
@@ -479,15 +512,27 @@ def _registrados_supervision(cur, tipo, cliente=None, propiedad=None,
         conds.append("fecha_hora::date <= %s")
         params.append(end_date)
 
+    # Con `detalle`, separa las unidades con serial anotado de las supervisiones
+    # sin serial, que Bases de Datos lista (y aquí cuenta) una por una: así "140
+    # radios registrados" se lee como "23 seriales y 117 supervisiones sin
+    # serial", que es un problema de captura y no de parque.
+    unidad = f"COALESCE(company_id::TEXT, '-') || '|' || ({identifier})"
+    con_serial_sql = (f"COUNT(DISTINCT ({unidad})) FILTER (WHERE NULLIF(TRIM({serial_col}), '') IS NOT NULL)"
+                      if serial_col else "0")
     cur.execute(f"""
-        SELECT COUNT(DISTINCT (
-            COALESCE(company_id::TEXT, '-') || '|' || ({identifier})
-        )) AS n
+        SELECT COUNT(DISTINCT ({unidad})) AS n,
+               {con_serial_sql} AS con_serial
         FROM supervision_puesto
         {_where(conds)}
     """, tuple(params))
     r = cur.fetchone()
-    return int((r.get('n') if isinstance(r, dict) else r[0]) or 0)
+    if not isinstance(r, dict):
+        r = {'n': r[0], 'con_serial': r[1]}
+    n = int(r.get('n') or 0)
+    if not detalle:
+        return n
+    con_serial = int(r.get('con_serial') or 0)
+    return {"total": n, "con_serial": con_serial, "sin_serial": max(0, n - con_serial)}
 
 
 def _eq_tipo_kpi(eq_por_tipo, nombres, registrados=None):
@@ -503,6 +548,15 @@ def _eq_tipo_kpi(eq_por_tipo, nombres, registrados=None):
         if (fila.get("tipo") or "").strip().lower() in nombres:
             total += int(fila.get("total") or 0)
             operativos += int(fila.get("operativos") or 0)
+    # `registrados` llega como entero o como el detalle de
+    # _registrados_supervision(detalle=True).
+    if isinstance(registrados, dict):
+        reg_total = int(registrados.get("total") or 0)
+        reg_con_serial = int(registrados.get("con_serial") or 0)
+        reg_sin_serial = max(0, reg_total - reg_con_serial)
+    else:
+        reg_total = int(registrados or 0)
+        reg_con_serial = reg_sin_serial = None
     return {
         "pct": round(operativos / total * 100, 1) if total else None,
         "total": total,
@@ -515,9 +569,11 @@ def _eq_tipo_kpi(eq_por_tipo, nombres, registrados=None):
         # de Datos). `origen` dice qué puede afirmar la tarjeta: con inventario
         # capturado muestra el % operativo; sin él, cuántas unidades hay pero
         # sin estado; y sólo si tampoco hay registro, "Sin datos".
-        "registrados": int(registrados or 0),
+        "registrados": reg_total,
+        "registrados_con_serial": reg_con_serial,
+        "registrados_sin_serial": reg_sin_serial,
         "origen": ("confiabilidad" if total
-                   else "registro" if registrados
+                   else "registro" if reg_total
                    else None),
     }
 
@@ -872,32 +928,23 @@ def cgeo_api_recursos_data():
             veh_conds.append(f"({veh_date})::date <= %s")
             veh_params.append(end_date)
         veh_where = _where(veh_conds)
-        # Identidad del vehículo: la placa recortada, y el id de la planilla
-        # cuando no se capturó placa. La usan el conteo de vehículos no aptos y
-        # el listado de abajo, así que tarjeta y listado cuentan lo mismo.
-        veh_elemento_sql = (
-            "COALESCE(NULLIF(TRIM(placa_vehiculo), ''), "
-            "'Vehículo #' || id_planilla_vehicular::text)"
-        )
+        # Flota vigente: una fila por placa con su última planilla del período
+        # (ver _flota_vigente). Total = placas distintas; apta o no apta según
+        # esa última planilla. La misma vista alimenta el listado de abajo, así
+        # que tarjeta, porcentaje, dónut y listado cuentan lo mismo.
+        veh_flota = _flota_vigente('planilla_vehicular', 'id_planilla_vehicular', 'placa_vehiculo',
+                                   veh_date, _VEH_FAULT_EXPR, veh_where)
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN NOT ({_VEH_FAULT_EXPR}) THEN 1 ELSE 0 END) AS aptos,
-                SUM(CASE WHEN {_VEH_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptos,
-                COUNT(DISTINCT CASE WHEN {_VEH_FAULT_EXPR} THEN {veh_elemento_sql} END) AS vehiculos_no_aptos
-            FROM planilla_vehicular
-            {veh_where}
+                SUM(CASE WHEN no_apto THEN 0 ELSE 1 END) AS aptos,
+                SUM(CASE WHEN no_apto THEN 1 ELSE 0 END) AS no_aptos
+            {veh_flota}
         """, tuple(veh_params))
         veh_row = cur.fetchone() or {}
         veh_total = int(veh_row.get("total") or 0)
         veh_aptos = int(veh_row.get("aptos") or 0)
         veh_no_aptos = int(veh_row.get("no_aptos") or 0)
-        # Vehículos distintos con alguna planilla no apta en el período. La
-        # tarjeta "Vehículos No Aptos" del Resumen Operativo cuenta placas, no
-        # planillas: el mismo vehículo chequeado a diario con la misma falla
-        # sumaba una unidad por día. `veh_no_aptos` sigue contando planillas
-        # para el porcentaje y el dónut, que miden inspecciones.
-        veh_unidades_no_aptas = int(veh_row.get("vehiculos_no_aptos") or 0)
         veh_mant = veh_total - veh_aptos - veh_no_aptos
         veh_pct = round(veh_aptos / veh_total * 100, 1) if veh_total else None
 
@@ -915,13 +962,15 @@ def cgeo_api_recursos_data():
         if end_date:
             moto_conds.append(f"({moto_fecha})::date <= %s")
             moto_params.append(end_date)
+        # Por placa, igual que los carros (ver _flota_vigente).
+        moto_flota = _flota_vigente('planilla_motocicletas', 'id', 'placa_motocicleta',
+                                    moto_fecha, _MOTO_FAULT_EXPR, _where(moto_conds), etiqueta='Moto')
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN NOT ({_MOTO_FAULT_EXPR}) THEN 1 ELSE 0 END) AS aptas,
-                SUM(CASE WHEN {_MOTO_FAULT_EXPR} THEN 1 ELSE 0 END) AS no_aptas
-            FROM planilla_motocicletas
-            {_where(moto_conds)}
+                SUM(CASE WHEN no_apto THEN 0 ELSE 1 END) AS aptas,
+                SUM(CASE WHEN no_apto THEN 1 ELSE 0 END) AS no_aptas
+            {moto_flota}
         """, tuple(moto_params))
         moto_row = cur.fetchone() or {}
         moto_total = int(moto_row.get("total") or 0)
@@ -1010,27 +1059,19 @@ def cgeo_api_recursos_data():
                 "dias_restantes": -int(r["dias_restantes"]) if r["dias_restantes"] is not None else None,
             })
 
-        # Vehículos no aptos: una fila por placa, no por planilla. Cada
-        # pre-operacional con falla es un registro propio, así que la misma
-        # placa salía tantas veces como planillas no aptas tuviera en el
-        # período. Se conserva la planilla más reciente, con la misma clave
-        # (placa recortada) que usan la regla 6 del Briefing y el dashboard de
-        # Flota. Los registros no se tocan: la consolidación es sólo de la
-        # consulta.
-        veh_conds2 = list(veh_conds) + [f"({_VEH_FAULT_EXPR})"]
+        # Vehículos no aptos: una fila por placa, la que su última planilla del
+        # período deja no apta (misma vista que la tarjeta: _flota_vigente). Una
+        # placa que falló y luego pasó no sale; sus planillas quedan como historial.
         cur.execute(f"""
-            SELECT * FROM (
-                SELECT DISTINCT ON (elemento)
-                    'Vehículo' AS tipo,
-                    {veh_elemento_sql} AS elemento,
-                    cliente_instalacion AS cliente,
-                    'No apto' AS estado,
-                    NULL::date AS vencimiento,
-                    {veh_date} AS fecha_ref
-                FROM planilla_vehicular
-                {_where(veh_conds2)}
-                ORDER BY elemento, {veh_date} DESC NULLS LAST, id_planilla_vehicular DESC
-            ) ultimo
+            SELECT
+                'Vehículo' AS tipo,
+                elemento,
+                cliente_instalacion AS cliente,
+                'No apto' AS estado,
+                NULL::date AS vencimiento,
+                fecha_ref
+            {veh_flota}
+            WHERE no_apto
             ORDER BY fecha_ref DESC NULLS LAST
             LIMIT 10
         """, tuple(veh_params))
@@ -1044,36 +1085,21 @@ def cgeo_api_recursos_data():
                 "dias_restantes": None,
             })
 
-        # Equipos no operativos: una fila por instalación y equipo, no por
-        # reporte. Cada reporte de Confiabilidad de Equipos con unidades en
-        # falla repetía "Radios" de la misma instalación. Se conserva el último
-        # reporte, con la misma clave (instalación + tipo) que la regla 18 del
-        # Briefing; el mismo tipo en otra instalación es otro elemento.
-        eq_conds2 = list(eq_conds) + [
-            f"({_EQ_FUNC_SQL}) < ({_EQ_TOTAL_SQL})",
-            f"({_EQ_TOTAL_SQL}) > 0",
-        ]
-        eq_where2 = _where(eq_conds2)
-        eq_elemento_sql = (
-            "COALESCE(NULLIF(TRIM(elem->>'nombre_equipo'), ''), "
-            "NULLIF(TRIM(elem->>'tipo_equipo'), ''), 'Equipo')"
-        )
+        # Equipos no operativos: una fila por instalación y tipo cuyo último
+        # reporte del período registra unidades en falla (misma vista que la
+        # tarjeta: _eq_inventario_vigente). Un reporte anterior con falla ya
+        # superada no sale; queda como historial.
         cur.execute(f"""
-            SELECT * FROM (
-                SELECT DISTINCT ON (cliente_clave, elemento_clave)
-                    'Equipo' AS tipo,
-                    {eq_elemento_sql} AS elemento,
-                    c.cliente_instalacion AS cliente,
-                    'Fuera de servicio' AS estado,
-                    TRIM(COALESCE(c.cliente_instalacion, '')) AS cliente_clave,
-                    LOWER({eq_elemento_sql}) AS elemento_clave,
-                    c.fecha AS fecha_ref,
-                    c.id AS id_ref
-                FROM confiabilidad_equipos c,
-                     LATERAL jsonb_array_elements(c.inventario) AS elem
-                {eq_where2}
-                ORDER BY cliente_clave, elemento_clave, c.fecha DESC NULLS LAST, c.id DESC
-            ) ultimo
+            SELECT
+                'Equipo' AS tipo,
+                etiqueta AS elemento,
+                cliente_instalacion AS cliente,
+                'Fuera de servicio' AS estado,
+                MAX(fecha) AS fecha_ref,
+                MAX(id) AS id_ref
+            {eq_inv}
+            WHERE total > 0 AND operativos < total
+            GROUP BY cliente_instalacion, etiqueta
             ORDER BY fecha_ref DESC NULLS LAST, id_ref DESC
             LIMIT 10
         """, tuple(eq_params))
@@ -1093,8 +1119,8 @@ def cgeo_api_recursos_data():
         acciones = []
         if cum_vencidas:
             acciones.append(f"Renovar {cum_vencidas} certificaciones vencidas.")
-        if veh_unidades_no_aptas:
-            acciones.append(f"Revisar {veh_unidades_no_aptas} vehículos no aptos.")
+        if veh_no_aptos:
+            acciones.append(f"Revisar {veh_no_aptos} vehículos no aptos.")
         if eq_no_op:
             acciones.append(f"Gestionar reparación de {eq_no_op} equipos fuera de servicio.")
         if cum_proximas:
@@ -1117,11 +1143,11 @@ def cgeo_api_recursos_data():
             "radios": _eq_tipo_kpi(
                 eq_por_tipo, ('radios', 'radio'),
                 registrados=_registrados_supervision(
-                    cur, 'radios', cliente, propiedad, start_date, end_date)),
+                    cur, 'radios', cliente, propiedad, start_date, end_date, detalle=True)),
             "armas":  _eq_tipo_kpi(
                 eq_por_tipo, ('armas', 'arma'),
                 registrados=_registrados_supervision(
-                    cur, 'armas', cliente, propiedad, start_date, end_date)),
+                    cur, 'armas', cliente, propiedad, start_date, end_date, detalle=True)),
             # Carros y motos separados: antes "Carros Aptos" mostraba el total de
             # vehículos y "Motocicletas Aptas" no mostraba nada.
             "vehiculos_carros": {
@@ -1152,7 +1178,7 @@ def cgeo_api_recursos_data():
                 "total": total_alertas,
                 "certificaciones_vencidas": cum_vencidas,
                 "proximas_vencer": cum_proximas,
-                "vehiculos_no_aptos": veh_unidades_no_aptas,
+                "vehiculos_no_aptos": veh_no_aptos,
                 "equipos_no_op": eq_no_op,
                 "listado": alertas_listado[:20],
             },
@@ -2648,6 +2674,13 @@ def cgeo_api_morning_briefing_data():
     try:
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
+        # Alcance de la tarjeta "Equipos" (inventario, registrados y motos): el
+        # cliente/propiedad pedidos y, siempre, el ámbito del Coordinador en
+        # sesión (_add_scope). Antes la tarjeta era de toda la empresa aunque
+        # quien mirara sólo viera un cliente. El resto de la pantalla no cambia.
+        cliente = _filtro_efectivo("cliente")
+        propiedad = _filtro_efectivo("propiedad")
+
         # Fecha de inicio de operación configurada por el Administrador
         thresholds = get_thresholds()
         fecha_inicio_raw = thresholds.get('fecha_inicio_operacion')
@@ -2702,13 +2735,15 @@ def cgeo_api_morning_briefing_data():
         # Parque vigente: último reporte por instalación y tipo (ver
         # _eq_inventario_vigente). Sumar toda la historia de reportes hacía
         # crecer la tarjeta "Equipos" con cada reporte nuevo del mismo parque.
-        eq_inv = _eq_inventario_vigente('')
+        eq_conds, eq_params = [], []
+        _add_scope(eq_conds, eq_params, cliente=cliente, propiedad=propiedad, alias='c.')
+        eq_inv = _eq_inventario_vigente(_where(eq_conds))
         cur.execute(f"""
             SELECT
                 COALESCE(SUM(total), 0) AS total,
                 COALESCE(SUM(operativos), 0) AS operativos
             {eq_inv}
-        """)
+        """, tuple(eq_params))
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
         eq_op    = int(eq_row.get("operativos") or 0)
@@ -2723,7 +2758,7 @@ def cgeo_api_morning_briefing_data():
                 COALESCE(SUM(operativos), 0) AS operativos
             {eq_inv}
             GROUP BY tipo
-        """)
+        """, tuple(eq_params))
         eq_por_tipo = {
             r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
             for r in cur.fetchall() if r["tipo"]
@@ -2749,13 +2784,19 @@ def cgeo_api_morning_briefing_data():
         # briefing las derivaba de `eq_por_tipo`, así que rotulaba "0 motos
         # registradas" mientras Recursos mostraba la flota real sobre los mismos
         # días. Sin filtro de fechas, como el resto de KPIs de esta pantalla.
+        # Por placa: la última planilla de cada moto decide (ver _flota_vigente).
         from dashboard_bp import _MOTO_FAULT_EXPR
+        moto_conds, moto_params = [], []
+        _add_scope(moto_conds, moto_params, cliente=cliente, propiedad=propiedad)
+        moto_flota = _flota_vigente('planilla_motocicletas', 'id', 'placa_motocicleta',
+                                    "COALESCE(fecha_hora, creado_en)", _MOTO_FAULT_EXPR,
+                                    _where(moto_conds), etiqueta='Moto')
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN NOT ({_MOTO_FAULT_EXPR}) THEN 1 ELSE 0 END) AS aptas
-            FROM planilla_motocicletas
-        """)
+                SUM(CASE WHEN no_apto THEN 0 ELSE 1 END) AS aptas
+            {moto_flota}
+        """, tuple(moto_params))
         moto_row = cur.fetchone() or {}
         moto_total = int(moto_row.get("total") or 0)
         moto_aptas = int(moto_row.get("aptas") or 0)
@@ -2764,8 +2805,10 @@ def cgeo_api_morning_briefing_data():
         # El inventario de confiabilidad_equipos da el % operativo; supervision_puesto
         # da cuántas unidades hay realmente registradas. Sin filtros, igual que el
         # resto de indicadores de esta pantalla.
-        radios_registrados = _registrados_supervision(cur, 'radios')
-        armas_registrados  = _registrados_supervision(cur, 'armas')
+        radios_reg = _registrados_supervision(cur, 'radios', cliente, propiedad, detalle=True)
+        armas_reg  = _registrados_supervision(cur, 'armas', cliente, propiedad, detalle=True)
+        radios_registrados = radios_reg['total']
+        armas_registrados  = armas_reg['total']
 
         # ── Compromisos de visitas a clientes (vencidos / próximos a vencer) ──
         from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
@@ -2911,6 +2954,10 @@ def cgeo_api_morning_briefing_data():
                 "moto_aptas":      moto_aptas,
                 "radios_registrados": radios_registrados,
                 "armas_registrados":  armas_registrados,
+                "radios_registrados_con_serial": radios_reg['con_serial'],
+                "radios_registrados_sin_serial": radios_reg['sin_serial'],
+                "armas_registrados_con_serial":  armas_reg['con_serial'],
+                "armas_registrados_sin_serial":  armas_reg['sin_serial'],
                 "cert_proximas":   cert_proximas,
                 "cert_por_nivel":  cert_por_nivel,
                 "comp_vencidos":   comp_vencidos,

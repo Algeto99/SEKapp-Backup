@@ -736,6 +736,11 @@ function renderKpis(k, thr) {
     // el parque real; el inventario sólo dice cuántos de ellos funcionan.
     const radioReg = k.radios_registrados ?? 0;
     const armaReg  = k.armas_registrados  ?? 0;
+    // Desglose de los registrados: seriales distintos vs supervisiones donde no
+    // se anotó el serial (Bases de Datos las lista una por una). Así "140 radios"
+    // se lee como lo que es: pocos seriales y muchas supervisiones sin serial.
+    const radioRegSerial    = k.radios_registrados_con_serial;
+    const radioRegSinSerial = k.radios_registrados_sin_serial;
 
     // Cifra principal: unidades registradas, radios + armas. Si el parque no está
     // en Bases de Datos pero sí en el inventario, se usa el inventario. La primera
@@ -747,9 +752,13 @@ function renderKpis(k, thr) {
     const eqDetalle = [
         equiposTotal > 0
             ? `${plural(radiosParque, 'radio', 'radios')} y ${plural(armasParque, 'arma', 'armas')} registrados en Bases de Datos`
+              + (radioReg > 0 && radioRegSerial != null
+                  ? ` (radios: ${radioRegSerial} con serial, ${radioRegSinSerial} supervisiones sin serial)`
+                  : '')
             : 'Sin radios ni armas registrados en Bases de Datos',
         radioTotal > 0
             ? `Radios operativos: ${radioOp} de ${radioTotal}`
+              + (radioReg > 0 ? ` · estado capturado en Confiabilidad para ${radioTotal} de ${radioReg} registrados` : '')
             : 'Radios operativos: estado sin capturar en Confiabilidad de Equipos',
         `Armas registradas: ${armasParque}` + (armaTotal > 0 ? ` (${armaOp} de ${armaTotal} óptimas)` : ''),
         motoTotal > 0
