@@ -3744,15 +3744,21 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                 }
 
             elif form_type == 'supervision_puesto':
+                # "Cliente / Instalación" es la instalación del registro, no el
+                # supervisor que lo hizo: el correo de hallazgo asignado mostraba
+                # el nombre de la persona bajo esa etiqueta. Sin nombre de
+                # instalación, el de la propiedad asociada.
                 cur.execute(
                     """
-                    SELECT supervisor,
-                           nombre_guardia,
-                           fecha_hora,
-                           observaciones_novedades AS descripcion,
-                           submitted_by_email
-                      FROM supervision_puesto
-                     WHERE id_supervision = %s
+                    SELECT s.supervisor,
+                           s.nombre_guardia,
+                           s.fecha_hora,
+                           s.observaciones_novedades AS descripcion,
+                           s.submitted_by_email,
+                           COALESCE(NULLIF(TRIM(s.cliente_instalacion), ''), p.nombre) AS cliente
+                      FROM supervision_puesto s
+                      LEFT JOIN propiedades p ON p.id_propiedad = s.id_propiedad
+                     WHERE s.id_supervision = %s
                     """,
                     (record_id,)
                 )
@@ -3762,7 +3768,7 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                 return {
                     'tipo_label': 'Supervisión de puesto',
                     'consecutivo': f"#{record_id}",
-                    'cliente': row['supervisor'] or '—',
+                    'cliente': row['cliente'] or '—',
                     'fecha_evento': row['fecha_hora'],
                     'categoria': '—',
                     'subtipo': '',
