@@ -26,12 +26,16 @@
         .threshold-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.875rem; align-items:end; }
         .field { display:flex; flex-direction:column; gap:.3rem; }
         .field label { font-size:.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; }
-        .field input {
+        /* Todas las casillas de la página, estén o no dentro de .field: las de la
+           tabla por cliente no tenían estilo y heredaban texto claro sobre el
+           fondo blanco del navegador, así que no se veía lo escrito. */
+        .card input, .card select {
             background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1);
             border-radius:.375rem; color:#e2e8f0; padding:.5rem .75rem;
             font-size:.9rem; width:100%; transition:border-color .2s;
         }
-        .field input:focus { outline:none; border-color:#38bdf8; }
+        .card input:focus, .card select:focus { outline:none; border-color:#38bdf8; }
+        .card select option { background:#0f172a; color:#e2e8f0; }
         .field .unit { font-size:.7rem; color:#64748b; margin-top:.15rem; }
 
         .color-badge { display:inline-flex; align-items:center; gap:.35rem; font-size:.72rem; font-weight:600; padding:.2rem .6rem; border-radius:9999px; margin-bottom:.5rem; }
@@ -52,6 +56,23 @@
 
         .info-note { font-size:.78rem; color:#64748b; background:rgba(15,23,42,.5); border:1px solid rgba(255,255,255,.06); border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1.75rem; }
         .info-note svg { display:inline; width:14px; height:14px; vertical-align:middle; margin-right:.3rem; }
+
+        /* Modo claro (clase que activa el menú lateral), misma paleta que admin_panel.html */
+        body.light-mode { background:#f1f5f9; color:#1e293b; }
+        body.light-mode .page-header { border-bottom-color:#e2e8f0; }
+        body.light-mode .card { background:#ffffff; border-color:#e2e8f0; }
+        body.light-mode .card-title { color:#334155; }
+        body.light-mode .field label { color:#64748b; }
+        body.light-mode .field .unit { color:#64748b; }
+        body.light-mode .card input, body.light-mode .card select { background:#f8fafc; border-color:#cbd5e1; color:#1e293b; }
+        body.light-mode .card select option { background:#ffffff; color:#1e293b; }
+        body.light-mode .card td { color:#334155; }
+        body.light-mode .card tbody tr { border-top-color:#e2e8f0 !important; }
+        body.light-mode .section-divider { border-top-color:#e2e8f0; }
+        body.light-mode .info-note { background:#ffffff; border-color:#e2e8f0; color:#475569; }
+        body.light-mode .btn-ghost { background:#f1f5f9; color:#334155; border-color:#cbd5e1; }
+        body.light-mode .flash.success { background:#dcfce7; color:#166534; border-color:#86efac; }
+        body.light-mode .flash.error   { background:#fee2e2; color:#991b1b; border-color:#fca5a5; }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
 </head>
@@ -108,7 +129,7 @@
                         </span>
                         <label>Ventana de medición</label>
                         <select name="supervision_periodicidad" class="field-select"
-                                style="background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem; color:#e2e8f0; padding:.5rem .75rem; font-size:.9rem; width:100%;">
+                                style="padding:.5rem .75rem; font-size:.9rem;">
                             <option value="diario"  {{ 'selected' if thresholds.supervision_periodicidad == 'diario' }}>Diario</option>
                             <option value="semanal" {{ 'selected' if thresholds.supervision_periodicidad == 'semanal' }}>Semanal</option>
                             <option value="mensual" {{ 'selected' if thresholds.supervision_periodicidad == 'mensual' }}>Mensual</option>
@@ -155,7 +176,7 @@
                                 <td style="padding:.4rem .5rem;">{{ c.name }}</td>
                                 <td style="padding:.4rem .5rem;">
                                     <select name="sup_prog_periodicidad_{{ c.id }}" class="field-select"
-                                            style="background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem; color:#e2e8f0; padding:.35rem .5rem; font-size:.85rem; width:100%;">
+                                            style="padding:.35rem .5rem; font-size:.85rem;">
                                         <option value="diario"  {{ 'selected' if c.periodicidad == 'diario' }}>Diario</option>
                                         <option value="semanal" {{ 'selected' if c.periodicidad == 'semanal' }}>Semanal</option>
                                         <option value="mensual" {{ 'selected' if c.periodicidad == 'mensual' }}>Mensual</option>
@@ -238,7 +259,7 @@
                         </span>
                         <label>Ventana de medición</label>
                         <select name="visita_periodicidad" class="field-select"
-                                style="background:rgba(15,23,42,.8); border:1px solid rgba(255,255,255,.1); border-radius:.375rem; color:#e2e8f0; padding:.5rem .75rem; font-size:.9rem; width:100%;">
+                                style="padding:.5rem .75rem; font-size:.9rem;">
                             <option value="diario"  {{ 'selected' if thresholds.visita_periodicidad == 'diario' }}>Diario</option>
                             <option value="semanal" {{ 'selected' if thresholds.visita_periodicidad == 'semanal' }}>Semanal</option>
                             <option value="mensual" {{ 'selected' if thresholds.visita_periodicidad == 'mensual' }}>Mensual</option>
