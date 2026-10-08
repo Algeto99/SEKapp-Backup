@@ -4953,6 +4953,111 @@ def _backup_nombre_alcance(cur, cliente_id, propiedad_id):
     return cliente_nombre, propiedad_nombre
 
 
+_BACKUP_DATA_URI_RE = re.compile(r'^data:(image/[\w.+-]+);base64,', re.IGNORECASE)
+_BACKUP_EXT_POR_MIME = {
+    'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp',
+    'image/gif': 'gif', 'image/svg+xml': 'svg', 'image/bmp': 'bmp',
+}
+
+
+class _FlujoZip:
+    """Destino de escritura de zipfile sin `seek`: acumula lo escrito para
+    transmitirlo en trozos.
+
+    Sin `seek`, zipfile escribe descriptores de datos y nunca vuelve atrás, así
+    que el ZIP se puede enviar a medida que se genera en vez de armarlo entero
+    en memoria. Cloud Run limita a 32 MiB una respuesta enviada de una pieza
+    (con Content-Length); una respuesta por partes no tiene ese tope. Un backup
+    de 575 registros ya lo superaba ("Response size was too large") y el del
+    año completo además agotaba los 512 MiB de la instancia.
+    """
+
+    def __init__(self):
+        self._trozos = []
+        self._pos = 0
+
+    def write(self, datos):
+        self._trozos.append(bytes(datos))
+        self._pos += len(datos)
+        return len(datos)
+
+    def tell(self):
+        return self._pos
+
+    def flush(self):
+        pass
+
+    def drenar(self):
+        trozos, self._trozos = self._trozos, []
+        return b''.join(trozos)
+
+
+def _backup_extraer_imagenes(valor, carpeta, ruta, z, contador):
+    """Reemplaza, a cualquier profundidad, las imágenes embebidas (las firmas
+    en base64) por la ruta del archivo que se escribe en el ZIP.
+
+    Las firmas viven en la base como `data:image/...;base64,...` y viajan
+    dentro de cada registro, incluidas las de cada asistente en las listas de
+    capacitación. Escribirlas en el JSON y otra vez en el Excel duplicaba
+    decenas de KB por firma; como archivo van una sola vez, un 25 % más
+    livianas y abren con cualquier visor. Un valor que no se pueda decodificar
+    se deja tal cual. `ruta` identifica el valor (id, etiqueta, índice...).
+    """
+    if isinstance(valor, str):
+        m = _BACKUP_DATA_URI_RE.match(valor)
+        if not m:
+            return valor
+        try:
+            datos = base64.b64decode(valor[m.end():])
+        except ValueError:
+            return valor
+        contador[0] += 1
+        ext = _BACKUP_EXT_POR_MIME.get(m.group(1).lower(), 'bin')
+        nombre = re.sub(r'[^\w\-]+', '_', '_'.join(str(p) for p in ruta)).strip('_')
+        archivo = f'firmas/{carpeta}/{nombre}_{contador[0]}.{ext}'
+        z.writestr(archivo, datos)
+        return archivo
+    if isinstance(valor, list):
+        return [_backup_extraer_imagenes(v, carpeta, ruta + [i], z, contador)
+                for i, v in enumerate(valor)]
+    if isinstance(valor, dict):
+        return {k: _backup_extraer_imagenes(v, carpeta, ruta + [k], z, contador)
+                for k, v in valor.items()}
+    return valor
+
+
+def _registrar_backup(user_email, d_desde, d_hasta, cliente_id, cliente_nombre,
+                      propiedad_id, propiedad_nombre, total, nombre_zip):
+    """Deja constancia del backup sólo cuando el ZIP ya se transmitió completo.
+
+    Antes la fila se insertaba antes de enviar el archivo, así que "Último
+    backup hace 1 día" afirmaba respaldos que el navegador nunca recibió.
+    """
+    conn = get_db_connection()
+    if not conn:
+        app_logger.error("Backup %s transmitido pero sin registrar: DB no disponible", nombre_zip)
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO backups_realizados
+                (generado_por, periodo_desde, periodo_hasta, cliente_id, cliente_nombre,
+                 propiedad_id, propiedad_nombre, total_registros, formato, archivo)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'zip', %s)
+            """,
+            (user_email, d_desde, d_hasta, cliente_id, cliente_nombre,
+             propiedad_id, propiedad_nombre, total, nombre_zip)
+        )
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        conn.rollback()
+        app_logger.error(f"Backup {nombre_zip} transmitido pero sin registrar: {e}", exc_info=True)
+    finally:
+        conn.close()
+
+
 @viewer_bp.route('/api/backup', methods=['POST'])
 @jwt_required()
 def generar_backup():
@@ -4961,13 +5066,17 @@ def generar_backup():
     formularios, no lo que esté filtrado en pantalla.
 
     Devuelve un ZIP con dos vistas de lo mismo: un Excel multi-hoja para
-    consultar y un JSON con los campos crudos, que es el que sirve para
-    recuperar. Las URLs de GCS van sin firmar: una firma caduca y dejaría el
-    backup con enlaces muertos.
+    consultar y un JSON por formulario con los campos crudos, que es el que
+    sirve para recuperar. Las firmas van como imágenes en `firmas/` y el
+    registro guarda la ruta. El ZIP se transmite por partes a medida que se
+    genera, formulario por formulario (ver _FlujoZip): así no choca con el tope
+    de 32 MiB por respuesta de Cloud Run ni carga el año completo en memoria.
+    Las URLs de GCS van sin firmar: una firma caduca y dejaría el backup con
+    enlaces muertos.
     """
     import json as _json
     import zipfile
-    from io import BytesIO as _BytesIO
+    from flask import Response, stream_with_context
 
     payload      = request.get_json() or {}
     desde        = (payload.get('start_date') or '').strip()
@@ -4995,95 +5104,108 @@ def generar_backup():
     if propiedad_id:
         filters['property_id'] = str(propiedad_id)
 
-    conn = None
+    # Todo lo que pueda fallar con una respuesta normal se resuelve antes de
+    # empezar a transmitir: enviado el primer trozo ya no hay cómo devolver
+    # otro código.
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({"success": False, "message": "Base de datos no disponible."}), 500
     try:
-        # Sin límite práctico: un backup parcial no es un backup.
-        registros, total = fetch_reports(0, 1000000, filters=filters,
-                                         form_type='all', skip_signing=True)
-
-        por_tipo = {}
-        for r in registros:
-            por_tipo.setdefault(r.get('formType', 'desconocido'), []).append(r)
-
-        conn = get_db_connection()
-        if not conn:
-            return jsonify({"success": False, "message": "Base de datos no disponible."}), 500
         _ensure_backups_table(conn)
         cur = conn.cursor()
         cliente_nombre, propiedad_nombre = _backup_nombre_alcance(cur, cliente_id, propiedad_id)
-
-        alcance = cliente_nombre or 'Todos los clientes'
-        if propiedad_nombre:
-            alcance += f' - {propiedad_nombre}'
-        sello = datetime.now().strftime('%Y%m%d_%H%M%S')
-        base  = re.sub(r'[^\w\-]+', '_', f"backup_{alcance}_{desde}_{hasta}").strip('_')
-        nombre_zip = f"{base}_{sello}.zip"
-
-        manifiesto = {
-            'generado_en':   datetime.now().isoformat(),
-            'generado_por':  user_email,
-            'periodo':       {'desde': desde, 'hasta': hasta},
-            'alcance': {
-                'cliente_id': cliente_id, 'cliente': cliente_nombre or 'Todos',
-                'propiedad_id': propiedad_id, 'propiedad': propiedad_nombre or 'Todas',
-            },
-            'total_registros': len(registros),
-            'registros_por_formulario': {k: len(v) for k, v in sorted(por_tipo.items())},
-            'nota': ('Las URLs de evidencia apuntan a Google Cloud Storage sin firmar; '
-                     'requieren credenciales del proyecto para descargarse.'),
-        }
-
-        buffer = _BytesIO()
-        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as z:
-            z.writestr('manifiesto.json',
-                       _json.dumps(manifiesto, ensure_ascii=False, indent=2, default=str))
-            # Un JSON por formulario: recuperable y fácil de inspeccionar por partes.
-            for f_type, filas in sorted(por_tipo.items()):
-                z.writestr(f'datos/{f_type}.json',
-                           _json.dumps(filas, ensure_ascii=False, indent=2, default=str))
-            excel = _backup_excel_bytes(por_tipo)
-            if excel:
-                z.writestr(f'{base}.xlsx', excel)
-        buffer.seek(0)
-
-        cur.execute(
-            """
-            INSERT INTO backups_realizados
-                (generado_por, periodo_desde, periodo_hasta, cliente_id, cliente_nombre,
-                 propiedad_id, propiedad_nombre, total_registros, formato, archivo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'zip', %s)
-            """,
-            (user_email, d_desde, d_hasta, cliente_id, cliente_nombre,
-             propiedad_id, propiedad_nombre, len(registros), nombre_zip)
-        )
-        conn.commit()
         cur.close()
-
-        app_logger.info("Backup generado: %s (%d registros)", nombre_zip, len(registros))
-        return send_file(buffer, as_attachment=True, download_name=nombre_zip,
-                         mimetype='application/zip')
-
     except Exception as e:
-        if conn:
-            conn.rollback()
+        conn.rollback()
         app_logger.error(f"generar_backup error: {e}", exc_info=True)
         return jsonify({"success": False, "message": "Error interno al generar el backup."}), 500
     finally:
-        if conn:
-            conn.close()
+        conn.close()
+
+    alcance = cliente_nombre or 'Todos los clientes'
+    if propiedad_nombre:
+        alcance += f' - {propiedad_nombre}'
+    sello = datetime.now().strftime('%Y%m%d_%H%M%S')
+    base  = re.sub(r'[^\w\-]+', '_', f"backup_{alcance}_{desde}_{hasta}").strip('_')
+    nombre_zip = f"{base}_{sello}.zip"
+
+    def generar():
+        flujo = _FlujoZip()
+        por_formulario = {}
+        filas_excel = {}
+        contador = [0]
+        total = 0
+        try:
+            with zipfile.ZipFile(flujo, 'w', zipfile.ZIP_DEFLATED) as z:
+                # Un formulario a la vez: se consulta, sus firmas pasan al ZIP
+                # como archivos, se escribe su JSON y se transmite. En memoria
+                # queda sólo la versión sin imágenes, para el Excel del final.
+                for f_type in sorted(FORM_CONFIGS.keys()):
+                    registros, _ = fetch_reports(0, 1000000, filters=filters,
+                                                 form_type=f_type, skip_signing=True)
+                    if not registros:
+                        continue
+                    for r in registros:
+                        r['data'] = _backup_extraer_imagenes(
+                            r.get('data') or {}, f_type, [r.get('id')], z, contador)
+                    z.writestr(f'datos/{f_type}.json',
+                               _json.dumps(registros, ensure_ascii=False, indent=2, default=str))
+                    por_formulario[f_type] = len(registros)
+                    filas_excel[f_type] = registros
+                    total += len(registros)
+                    yield flujo.drenar()
+                excel = _backup_excel_bytes(filas_excel)
+                if excel:
+                    z.writestr(f'{base}.xlsx', excel)
+                    del excel
+                manifiesto = {
+                    'generado_en':   datetime.now().isoformat(),
+                    'generado_por':  user_email,
+                    'periodo':       {'desde': desde, 'hasta': hasta},
+                    'alcance': {
+                        'cliente_id': cliente_id, 'cliente': cliente_nombre or 'Todos',
+                        'propiedad_id': propiedad_id, 'propiedad': propiedad_nombre or 'Todas',
+                    },
+                    'total_registros': total,
+                    'registros_por_formulario': dict(sorted(por_formulario.items())),
+                    'firmas_extraidas': contador[0],
+                    'nota': ('Las firmas están en la carpeta firmas/ y cada registro guarda su ruta. '
+                             'Las URLs de evidencia apuntan a Google Cloud Storage sin firmar; '
+                             'requieren credenciales del proyecto para descargarse.'),
+                }
+                z.writestr('manifiesto.json',
+                           _json.dumps(manifiesto, ensure_ascii=False, indent=2, default=str))
+            yield flujo.drenar()
+        except Exception as e:
+            # Ya se está transmitiendo: no hay otro código que devolver. Se
+            # corta la descarga (el navegador recibe un ZIP truncado) y no se
+            # registra el backup, que es lo que lo deja visible como fallido.
+            app_logger.error(f"generar_backup error: {e}", exc_info=True)
+            return
+        _registrar_backup(user_email, d_desde, d_hasta, cliente_id, cliente_nombre,
+                          propiedad_id, propiedad_nombre, total, nombre_zip)
+        app_logger.info("Backup generado: %s (%d registros, %d firmas)", nombre_zip, total, contador[0])
+
+    resp = Response(stream_with_context(generar()), mimetype='application/zip')
+    resp.headers['Content-Disposition'] = f'attachment; filename="{nombre_zip}"'
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 def _backup_excel_bytes(por_tipo):
     """Hoja por formulario con las etiquetas de data_mapping. Vista legible del
-    mismo contenido que el JSON; si openpyxl falta, el ZIP igual lleva el JSON."""
+    mismo contenido que el JSON; si openpyxl falta, el ZIP igual lleva el JSON.
+    En modo de sólo escritura: openpyxl vuelca cada fila en vez de retener el
+    libro entero en objetos, que era buena parte de la memoria del backup."""
+    if not por_tipo:
+        return None
     try:
         from openpyxl import Workbook
     except ImportError:
         app_logger.warning("openpyxl no disponible: el backup sale solo con JSON")
         return None
 
-    wb = Workbook()
-    wb.remove(wb.active)
+    wb = Workbook(write_only=True)
     for f_type, filas in sorted(por_tipo.items()):
         config = FORM_CONFIGS.get(f_type)
         titulo = (config.get('sheet_title') or config.get('title_prefix', f_type))[:30] if config else f_type[:30]
@@ -5109,10 +5231,14 @@ def _backup_excel_bytes(por_tipo):
 
 
 def _excel_safe(v):
-    """openpyxl solo acepta escalares; listas y dicts van serializados."""
-    if v is None or isinstance(v, (str, int, float, bool)):
-        return '' if v is None else v
-    return str(v)
+    """openpyxl solo acepta escalares; listas y dicts van serializados. Una
+    celda de Excel admite 32.767 caracteres: lo que exceda se recorta."""
+    if v is None:
+        return ''
+    if isinstance(v, (int, float, bool)):
+        return v
+    s = v if isinstance(v, str) else str(v)
+    return s if len(s) <= 32767 else s[:32764] + '...'
 
 
 @viewer_bp.route('/api/backup/estado', methods=['GET'])
