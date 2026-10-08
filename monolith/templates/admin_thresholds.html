@@ -36,6 +36,16 @@
         }
         .card input:focus, .card select:focus { outline:none; border-color:#38bdf8; }
         .card select option { background:#0f172a; color:#e2e8f0; }
+
+        /* Tabla de programación por cliente. theme-toggle.js aplica a toda
+           .card "overflow-wrap:anywhere", y en un teléfono la columna del
+           cliente, sin ancho propio, quedaba de una letra por línea. El nombre
+           sólo parte en los espacios y la columna conserva un ancho mínimo;
+           si no cabe, la tabla se desplaza dentro de su contenedor. */
+        .card table th:first-child, .card table td:first-child {
+            overflow-wrap:normal; word-break:normal; min-width:10rem;
+        }
+        .card table th, .card table td { vertical-align:middle; }
         .field .unit { font-size:.7rem; color:#64748b; margin-top:.15rem; }
 
         .color-badge { display:inline-flex; align-items:center; gap:.35rem; font-size:.72rem; font-weight:600; padding:.2rem .6rem; border-radius:9999px; margin-bottom:.5rem; }
