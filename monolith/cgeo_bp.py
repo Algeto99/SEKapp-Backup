@@ -374,6 +374,49 @@ _EQ_FUNC_SQL = (
     "CASE WHEN elem->>'equipos_operativos' ~ '^[0-9]+$' "
     "THEN (elem->>'equipos_operativos')::int ELSE 0 END"
 )
+_EQ_INVENTARIO_SQL = (
+    "LATERAL jsonb_array_elements("
+    "CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END"
+    ") AS elem"
+)
+
+
+def _eq_inventario_vigente(where, por_mes=False):
+    """FROM (...) inv: filas de inventario del último reporte de Confiabilidad
+    de Equipos por instalación y tipo, dentro de `where` (condiciones sobre `c.`).
+
+    Cada reporte guarda una foto del parque de la instalación ("Radios: 3 en
+    total, 0 operativos"), no un incremento. Sumar todos los reportes del
+    período multiplica el parque por el número de reportes: dos reportes de
+    P.H. Los Olivos con 3 radios daban 6 radios. Aquí cuenta, por instalación y
+    tipo, sólo el reporte más reciente que menciona ese tipo, con todas sus
+    filas de ese tipo (la clave es el reporte, no la fila: DENSE_RANK). Es el
+    criterio de la regla 18 del Briefing. Con `por_mes`, el más reciente de
+    cada mes, para la tendencia.
+
+    Columnas: id, fecha, cliente_instalacion, tipo (minúsculas, '' si falta),
+    total, operativos.
+    """
+    mes = "DATE_TRUNC('month', c.fecha), " if por_mes else ""
+    return f"""
+        FROM (
+            SELECT id, fecha, cliente_instalacion, tipo, total, operativos
+            FROM (
+                SELECT c.id, c.fecha, c.cliente_instalacion,
+                       LOWER(TRIM(COALESCE(elem->>'tipo_equipo', ''))) AS tipo,
+                       {_EQ_TOTAL_SQL} AS total,
+                       {_EQ_FUNC_SQL} AS operativos,
+                       DENSE_RANK() OVER (
+                           PARTITION BY {mes}TRIM(COALESCE(c.cliente_instalacion, '')),
+                                        LOWER(TRIM(COALESCE(elem->>'tipo_equipo', '')))
+                           ORDER BY c.fecha DESC NULLS LAST, c.id DESC
+                       ) AS orden
+                FROM confiabilidad_equipos c, {_EQ_INVENTARIO_SQL}
+                {where}
+            ) filas
+            WHERE orden = 1
+        ) inv
+    """
 _VEH_FAULT_COLS = [
     "estado_rines", "juego_senales_carretera", "gato_hidraulico", "palanca_gato",
     "estado_asientos", "estado_tapetes_alfombras", "limpieza_carroceria",
@@ -768,16 +811,16 @@ def cgeo_api_recursos_data():
             eq_conds.append("c.fecha <= %s")
             eq_params.append(end_date)
         eq_where = _where(eq_conds)
-        eq_lateral = f"""
-            FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(c.inventario) AS elem
-            {eq_where}
-        """
+        # Parque vigente: último reporte por instalación y tipo dentro del
+        # período (ver _eq_inventario_vigente). Antes se sumaban todos los
+        # reportes del período y cada reporte volvía a contar el mismo parque.
+        eq_inv = _eq_inventario_vigente(eq_where)
+        eq_inv_mes = _eq_inventario_vigente(eq_where, por_mes=True)
         cur.execute(f"""
             SELECT
-                SUM({_EQ_TOTAL_SQL}) AS total,
-                SUM({_EQ_FUNC_SQL})  AS operativos
-            {eq_lateral}
+                SUM(total) AS total,
+                SUM(operativos) AS operativos
+            {eq_inv}
         """, tuple(eq_params))
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
@@ -788,12 +831,12 @@ def cgeo_api_recursos_data():
         # Tendencia mensual equipos (últimos 6 meses)
         cur.execute(f"""
             SELECT
-                TO_CHAR(DATE_TRUNC('month', c.fecha), 'YYYY-MM') AS label,
-                ROUND(SUM({_EQ_FUNC_SQL})::numeric
-                    / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
-            {eq_lateral}
-            GROUP BY DATE_TRUNC('month', c.fecha)
-            ORDER BY DATE_TRUNC('month', c.fecha)
+                TO_CHAR(DATE_TRUNC('month', fecha), 'YYYY-MM') AS label,
+                ROUND(SUM(operativos)::numeric
+                    / NULLIF(SUM(total), 0) * 100, 1) AS pct
+            {eq_inv_mes}
+            GROUP BY DATE_TRUNC('month', fecha)
+            ORDER BY DATE_TRUNC('month', fecha)
             LIMIT 8
         """, tuple(eq_params))
         eq_trend = [{"label": r["label"], "pct": float(r["pct"] or 0)} for r in cur.fetchall()]
@@ -801,11 +844,11 @@ def cgeo_api_recursos_data():
         # Distribución por tipo de equipo (radio vs arma vs otro) from inventario JSON
         cur.execute(f"""
             SELECT
-                LOWER(TRIM(elem->>'tipo_equipo')) AS tipo,
-                SUM({_EQ_TOTAL_SQL}) AS total,
-                SUM({_EQ_FUNC_SQL})  AS operativos
-            {eq_lateral}
-            GROUP BY LOWER(TRIM(elem->>'tipo_equipo'))
+                tipo,
+                SUM(total) AS total,
+                SUM(operativos) AS operativos
+            {eq_inv}
+            GROUP BY tipo
             ORDER BY total DESC
             LIMIT 10
         """, tuple(eq_params))
@@ -2531,17 +2574,15 @@ def cgeo_api_semaforo_global():
         sup_completadas = _sup['contadas']      # realizadas con tope por cliente, ventana cerrada en ayer
         periodicidad = _sup['periodicidad'] or thresholds.get('supervision_periodicidad') or 'diario'
 
-        # Equipos no operativos vs flota total
+        # Equipos no operativos vs flota total: último reporte por instalación
+        # y tipo (ver _eq_inventario_vigente), no la suma de todos los reportes.
         eq_conds, eq_params = _cp()
+        eq_inv = _eq_inventario_vigente(_where(eq_conds))
         cur.execute(f"""
             SELECT
-                COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
-                COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
-            FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(
-                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
-                 ) AS elem
-            {_where(eq_conds)}
+                COALESCE(SUM(total), 0) AS total,
+                COALESCE(SUM(operativos), 0) AS operativos
+            {eq_inv}
         """, tuple(eq_params))
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
@@ -2658,14 +2699,15 @@ def cgeo_api_morning_briefing_data():
         periodo_inicio = _periodo_inicio_actual(periodicidad)
 
         # ── Equipos no operativos ─────────────────────────────────────────────
+        # Parque vigente: último reporte por instalación y tipo (ver
+        # _eq_inventario_vigente). Sumar toda la historia de reportes hacía
+        # crecer la tarjeta "Equipos" con cada reporte nuevo del mismo parque.
+        eq_inv = _eq_inventario_vigente('')
         cur.execute(f"""
             SELECT
-                COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
-                COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
-            FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(
-                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
-                 ) AS elem
+                COALESCE(SUM(total), 0) AS total,
+                COALESCE(SUM(operativos), 0) AS operativos
+            {eq_inv}
         """)
         eq_row = cur.fetchone() or {}
         eq_total = int(eq_row.get("total") or 0)
@@ -2676,15 +2718,11 @@ def cgeo_api_morning_briefing_data():
         # ── Equipos por tipo (radios, armas, motos) ───────────────────────────
         cur.execute(f"""
             SELECT
-                LOWER(TRIM(elem->>'tipo_equipo')) AS tipo,
-                COALESCE(SUM({_EQ_TOTAL_SQL}), 0) AS total,
-                COALESCE(SUM({_EQ_FUNC_SQL}), 0)  AS operativos
-            FROM confiabilidad_equipos c,
-                 LATERAL jsonb_array_elements(
-                     CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
-                 ) AS elem
-            WHERE elem->>'tipo_equipo' IS NOT NULL
-            GROUP BY LOWER(TRIM(elem->>'tipo_equipo'))
+                tipo,
+                COALESCE(SUM(total), 0) AS total,
+                COALESCE(SUM(operativos), 0) AS operativos
+            {eq_inv}
+            GROUP BY tipo
         """)
         eq_por_tipo = {
             r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
