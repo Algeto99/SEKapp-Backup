@@ -46,6 +46,19 @@
         .flash-message {
             @apply p-3 mb-4 rounded-lg text-sm font-medium;
         }
+        /* Ojo para mostrar/ocultar la contraseña: vive dentro del campo, que es
+           blanco en ambos temas, por eso el color del ícono no depende del tema. */
+        .password-wrap { position: relative; }
+        .password-toggle {
+            position: absolute; top: 0; bottom: 0; right: 0;
+            display: flex; align-items: center;
+            padding: 0 0.75rem;
+            background: none; border: 0; cursor: pointer;
+            color: #6b7280;
+        }
+        .password-toggle:hover { color: #1f2937; }
+        .password-toggle:focus-visible { outline: 2px solid #3b82f6; outline-offset: -2px; border-radius: 0.5rem; }
+        .password-toggle svg { width: 1.25rem; height: 1.25rem; }
         .flash-success { @apply bg-green-500 text-white; }
         .flash-info { @apply bg-blue-500 text-white; }
         .flash-warning { @apply bg-yellow-500 text-gray-900; }
@@ -182,7 +195,18 @@
             </div>
             <div>
                 <label for="password" class="block text-sm font-medium mb-1">Contraseña:</label>
-                <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Tu contraseña" />
+                <div class="password-wrap">
+                    <input type="password" id="password" name="password" required class="tom-select-searchable w-full px-4 py-2 pr-12 border rounded-lg bg-white text-gray-900 dark:bg-gray-100 dark:text-gray-900" placeholder="Tu contraseña" />
+                    <button type="button" id="togglePassword" class="password-toggle" aria-label="Mostrar contraseña" title="Mostrar contraseña" aria-pressed="false">
+                        <svg id="iconoOjo" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <svg id="iconoOjoTachado" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true" style="display: none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <button type="submit" class="login-button w-full flex items-center justify-center py-4 px-8 text-lg font-medium rounded-lg transition-all duration-200 ease-in-out cursor-pointer shadow-xl hover:scale-105 bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">
               Entrar
@@ -243,6 +267,27 @@
                 setTimeout(liberar, 15000);
             });
             window.addEventListener('pageshow', liberar);
+        });
+    })();
+    // Ojo de la contraseña: oculta por defecto; cada toque alterna
+    // contraseña/texto para que el usuario verifique lo que digitó.
+    (function () {
+        var input = document.getElementById('password');
+        var btn = document.getElementById('togglePassword');
+        var ojo = document.getElementById('iconoOjo');
+        var ojoTachado = document.getElementById('iconoOjoTachado');
+        if (!input || !btn || !ojo || !ojoTachado) return;
+        btn.addEventListener('click', function () {
+            var mostrar = input.type === 'password';
+            input.type = mostrar ? 'text' : 'password';
+            ojo.style.display = mostrar ? 'none' : '';
+            ojoTachado.style.display = mostrar ? '' : 'none';
+            var texto = mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña';
+            btn.setAttribute('aria-label', texto);
+            btn.setAttribute('title', texto);
+            btn.setAttribute('aria-pressed', mostrar ? 'true' : 'false');
+            input.focus();
+            try { var fin = input.value.length; input.setSelectionRange(fin, fin); } catch (e) {}
         });
     })();
     (function () {
