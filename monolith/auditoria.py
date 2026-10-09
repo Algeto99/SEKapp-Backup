@@ -260,7 +260,6 @@ _reg('admin_bp.reset_password',        _e('Panel de Administración', 'admin', '
 _reg('admin_bp.thresholds',            _e('Umbrales KPI', 'consulta', 'Consulta de Umbrales KPI'))
 _reg('admin_bp.save_thresholds',       _e('Umbrales KPI', 'admin', 'Modificación de Umbrales KPI', form='*'), ('POST',))
 _reg('admin_bp.clientes',              _e('Clientes', 'consulta', 'Consulta de clientes'))
-_reg('admin_bp.crear_cliente',         _e('Clientes', 'admin', 'Creación de cliente', form=('name',)), ('POST',))
 _reg('admin_bp.toggle_cliente_active', _e('Clientes', 'admin', 'Activación o desactivación de cliente'), ('POST',))
 _reg('admin_bp.auditoria',             _e('Auditoría', 'consulta', 'Apertura de Auditoría', args=True))
 _reg('admin_bp.api_auditoria',         _e('Auditoría', 'consulta', 'Consulta del log de eventos', args=True))

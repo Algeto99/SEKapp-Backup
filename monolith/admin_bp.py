@@ -1095,10 +1095,11 @@ def get_thresholds():
 
 
 # ---------------------------------------------------------------------------
-# Clientes: alta y activar / desactivar
+# Clientes: activar / desactivar
 # ---------------------------------------------------------------------------
 #
-# No existía pantalla de clientes: se cargaban por SQL en el onboarding. Un
+# Los clientes se crean a mano (SQL del onboarding); aquí sólo se activan o
+# desactivan, por decisión de Roberto (2026-10-09). Un
 # cliente inactivo deja de contar en KPIs, alertas, Estatus de Cliente,
 # Cumplimiento y Reportes, y sale de los selectores (ver "Clientes inactivos" en
 # coordinador.py). Sus registros no se tocan: reactivarlo lo devuelve todo.
@@ -1159,49 +1160,6 @@ def clientes():
     finally:
         if conn:
             conn.close()
-
-
-@admin_bp.route('/clientes', methods=['POST'])
-@jwt_required()
-def crear_cliente():
-    if not _puede_administrar_clientes():
-        return redirect('/landing/')
-    nombre = (request.form.get('name') or '').strip()
-    if not nombre:
-        flash('Escriba el nombre del cliente.', 'error')
-        return redirect(url_for('admin_bp.clientes'))
-    conn = None
-    try:
-        conn = get_db_connection()
-        _ensure_clientes_is_active(conn)
-        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("SELECT id, COALESCE(is_active, TRUE) AS is_active FROM customer_companies "
-                    "WHERE LOWER(TRIM(name)) = LOWER(%s)", (nombre,))
-        existente = cur.fetchone()
-        if existente:
-            estado = 'activo' if existente['is_active'] else 'inactivo: puede reactivarlo desde la lista'
-            flash(f'Ya existe un cliente llamado "{nombre}" ({estado}).', 'error')
-            return redirect(url_for('admin_bp.clientes'))
-        cur.execute(
-            "INSERT INTO customer_companies (company_id, name, is_active) VALUES (%s, %s, TRUE) RETURNING id",
-            (_default_company_id(cur), nombre)
-        )
-        nuevo_id = cur.fetchone()['id']
-        conn.commit()
-        cur.close()
-        anotar(registro_id=nuevo_id, detalle={'cliente': nombre})
-        app_logger.info(f"Cliente creado por {get_jwt_identity()}: {nombre} (id {nuevo_id})")
-        flash(f'Cliente "{nombre}" creado y activo. Sus instalaciones se cargan por el onboarding; '
-              f'mientras tanto los formularios lo ofrecen con la instalación "NO APLICA".', 'success')
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        app_logger.error(f"Error creando cliente: {e}", exc_info=True)
-        flash('Error al crear el cliente. Intente nuevamente.', 'error')
-    finally:
-        if conn:
-            conn.close()
-    return redirect(url_for('admin_bp.clientes'))
 
 
 @admin_bp.route('/clientes/<int:cliente_id>/toggle-active', methods=['POST'])
