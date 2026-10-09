@@ -34,7 +34,16 @@ logging.basicConfig(
 app_logger = logging.getLogger(__name__)
 
 # --- Initialize Monolith Flask App ---
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
+# Cloud Run termina TLS en su frente y le pasa a gunicorn el esquema y el host
+# reales en X-Forwarded-Proto / X-Forwarded-Host; sin esto Flask se creía servido
+# por http y toda URL absoluta (QR del expediente, correos, redirecciones con
+# barra final) salía con http://, que en redes que bloquean el puerto 80 se queda
+# colgada (ERR_TIMED_OUT al escanear el QR, 2026-10-09). Sólo esquema y host: la
+# IP de origen la lee Auditoría por su cuenta y es la clave del limitador.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 # Flask ordena las claves del JSON alfabéticamente por defecto. Los registros se
 # arman siguiendo el `data_mapping` de cada formulario, que es el orden en que se
 # diligencian; ordenarlas alfabéticamente lo destruía y hacía que la vista previa
