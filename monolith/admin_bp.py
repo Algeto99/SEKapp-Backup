@@ -13,7 +13,8 @@ import psycopg2.extras
 
 from db import get_db_connection
 from auditoria import (TIPOS_EVENTO, FORMULARIOS, ESTADOS, modulos as auditoria_modulos,
-                       acciones as auditoria_acciones, leer_filtros, consultar_eventos, iterar_eventos)
+                       acciones as auditoria_acciones, leer_filtros, consultar_eventos, iterar_eventos,
+                       anotar)
 from coordinador import (asegurar_esquema as asegurar_coordinador, rol_disponible as rol_coordinador_disponible,
                          cargar_ambito)
 
@@ -747,11 +748,12 @@ def get_supervision_programacion(cur):
                    COALESCE(sp.meta, 0)                 AS meta
             FROM customer_companies cc
             LEFT JOIN supervision_programacion sp ON sp.customer_company_id = cc.id
+            WHERE COALESCE(cc.is_active, TRUE)
             ORDER BY cc.name
         """)
     else:
         cur.execute("SELECT id, name, 'semanal' AS periodicidad, 0 AS meta "
-                    "FROM customer_companies ORDER BY name")
+                    "FROM customer_companies WHERE COALESCE(is_active, TRUE) ORDER BY name")
     return [dict(r) for r in cur.fetchall()]
 
 
@@ -1090,6 +1092,156 @@ def get_thresholds():
     finally:
         if conn:
             conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Clientes: alta y activar / desactivar
+# ---------------------------------------------------------------------------
+#
+# No existía pantalla de clientes: se cargaban por SQL en el onboarding. Un
+# cliente inactivo deja de contar en KPIs, alertas, Estatus de Cliente,
+# Cumplimiento y Reportes, y sale de los selectores (ver "Clientes inactivos" en
+# coordinador.py). Sus registros no se tocan: reactivarlo lo devuelve todo.
+# Lo administra el Administrador (mismo acceso que Umbrales KPI).
+
+_clientes_columna_lista = False
+
+
+def _ensure_clientes_is_active(conn):
+    """`customer_companies.is_active` viene en el esquema y en el onboarding; esto
+    cubre una base anterior. Una vez por proceso."""
+    global _clientes_columna_lista
+    if _clientes_columna_lista:
+        return
+    cur = conn.cursor()
+    cur.execute("ALTER TABLE customer_companies ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE")
+    conn.commit()
+    cur.close()
+    _clientes_columna_lista = True
+
+
+def _puede_administrar_clientes():
+    claims = get_jwt()
+    return bool(claims.get('is_admin', False)) or _is_super_admin()
+
+
+@admin_bp.route('/clientes', methods=['GET'])
+@jwt_required()
+def clientes():
+    if not _puede_administrar_clientes():
+        return redirect('/landing/')
+    conn = None
+    try:
+        conn = get_db_connection()
+        _ensure_clientes_is_active(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("""
+            SELECT cc.id, cc.name, COALESCE(cc.is_active, TRUE) AS is_active,
+                   (SELECT COUNT(*) FROM propiedades p
+                     WHERE p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE)) AS instalaciones
+              FROM customer_companies cc
+             ORDER BY COALESCE(cc.is_active, TRUE) DESC, LOWER(cc.name)
+        """)
+        lista = [dict(r) for r in cur.fetchall()]
+        cur.close()
+        claims = get_jwt()
+        return render_template(
+            'admin_clientes.html',
+            clientes=lista,
+            activos=sum(1 for c in lista if c['is_active']),
+            inactivos=sum(1 for c in lista if not c['is_active']),
+            jwt_csrf_token=request.cookies.get('csrf_access_token', ''),
+            user_name=claims.get('name', get_jwt_identity()),
+            is_admin=True,
+        )
+    except Exception as e:
+        return _error_page(e, 'Clientes')
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/clientes', methods=['POST'])
+@jwt_required()
+def crear_cliente():
+    if not _puede_administrar_clientes():
+        return redirect('/landing/')
+    nombre = (request.form.get('name') or '').strip()
+    if not nombre:
+        flash('Escriba el nombre del cliente.', 'error')
+        return redirect(url_for('admin_bp.clientes'))
+    conn = None
+    try:
+        conn = get_db_connection()
+        _ensure_clientes_is_active(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT id, COALESCE(is_active, TRUE) AS is_active FROM customer_companies "
+                    "WHERE LOWER(TRIM(name)) = LOWER(%s)", (nombre,))
+        existente = cur.fetchone()
+        if existente:
+            estado = 'activo' if existente['is_active'] else 'inactivo: puede reactivarlo desde la lista'
+            flash(f'Ya existe un cliente llamado "{nombre}" ({estado}).', 'error')
+            return redirect(url_for('admin_bp.clientes'))
+        cur.execute(
+            "INSERT INTO customer_companies (company_id, name, is_active) VALUES (%s, %s, TRUE) RETURNING id",
+            (_default_company_id(cur), nombre)
+        )
+        nuevo_id = cur.fetchone()['id']
+        conn.commit()
+        cur.close()
+        anotar(registro_id=nuevo_id, detalle={'cliente': nombre})
+        app_logger.info(f"Cliente creado por {get_jwt_identity()}: {nombre} (id {nuevo_id})")
+        flash(f'Cliente "{nombre}" creado y activo. Sus instalaciones se cargan por el onboarding; '
+              f'mientras tanto los formularios lo ofrecen con la instalación "NO APLICA".', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error creando cliente: {e}", exc_info=True)
+        flash('Error al crear el cliente. Intente nuevamente.', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.clientes'))
+
+
+@admin_bp.route('/clientes/<int:cliente_id>/toggle-active', methods=['POST'])
+@jwt_required()
+def toggle_cliente_active(cliente_id):
+    if not _puede_administrar_clientes():
+        return redirect('/landing/')
+    conn = None
+    try:
+        conn = get_db_connection()
+        _ensure_clientes_is_active(conn)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT name, COALESCE(is_active, TRUE) AS is_active FROM customer_companies WHERE id = %s",
+                    (cliente_id,))
+        cliente = cur.fetchone()
+        if not cliente:
+            flash('Cliente no encontrado.', 'error')
+            return redirect(url_for('admin_bp.clientes'))
+        nombre = cliente['name']
+        nuevo = not cliente['is_active']
+        cur.execute("UPDATE customer_companies SET is_active = %s WHERE id = %s", (nuevo, cliente_id))
+        conn.commit()
+        cur.close()
+        anotar(registro_id=cliente_id, detalle={'cliente': nombre, 'is_active': nuevo})
+        accion = 'reactivado' if nuevo else 'desactivado'
+        app_logger.info(f"Cliente {nombre} {accion} por {get_jwt_identity()}")
+        if nuevo:
+            flash(f'Cliente "{nombre}" reactivado: vuelve a los selectores, KPIs y reportes.', 'success')
+        else:
+            flash(f'Cliente "{nombre}" desactivado: deja de contar en KPIs, alertas y reportes y sale '
+                  f'de los selectores. Sus registros se conservan.', 'success')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        app_logger.error(f"Error cambiando estado del cliente {cliente_id}: {e}", exc_info=True)
+        flash('Error al cambiar el estado del cliente. Intente nuevamente.', 'error')
+    finally:
+        if conn:
+            conn.close()
+    return redirect(url_for('admin_bp.clientes'))
 
 
 @admin_bp.route('/thresholds', methods=['GET'])

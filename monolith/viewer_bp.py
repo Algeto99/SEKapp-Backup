@@ -28,7 +28,7 @@ from google.oauth2 import service_account
 
 from markupsafe import escape
 from db import get_db_connection
-from coordinador import es_coordinador, fuera_de_ambito, registro_en_ambito
+from coordinador import es_coordinador, fuera_de_ambito, registro_en_ambito, excluir_clientes_inactivos
 
 # PDF generation imports
 try:
@@ -2203,6 +2203,16 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     where_conditions.append("LOWER(t.puesto_area_especifica) LIKE LOWER(%s)")
                     query_params.append(f"%{filters['location']}%")
 
+            # Sin filtro de cliente ni instalación, los clientes inactivos quedan
+            # fuera del listado. Con filtro lo decide _add_scope_filters: elegir un
+            # inactivo a propósito (grupo "Inactivos" del selector) muestra su historia.
+            if not (filters and (filters.get('cliente') or filters.get('property_id') or filters.get('property'))):
+                excluir_clientes_inactivos(
+                    where_conditions, query_params, prefix='t.',
+                    col_inst=None if config['table'] == 'log_de_patrullas' else 'cliente_instalacion',
+                    col_cust='customer_company_id',
+                )
+
             where_clause = ""
             if where_conditions:
                 where_clause = "WHERE " + " AND ".join(where_conditions)
@@ -2797,6 +2807,7 @@ def get_properties():
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE p.nombre IS NOT NULL
                   AND COALESCE(p.activa, TRUE) = TRUE
+                  AND COALESCE(cc.is_active, TRUE)
                   -- Sin el OR, la condición sobre cc convierte el LEFT JOIN en
                   -- INNER y desaparecen las instalaciones aún sin cliente.
                   AND (cc.company_id = %s OR p.customer_company_id IS NULL)
@@ -2811,6 +2822,7 @@ def get_properties():
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE p.nombre IS NOT NULL
                   AND COALESCE(p.activa, TRUE) = TRUE
+                  AND COALESCE(cc.is_active, TRUE)
                 ORDER BY p.nombre
             """
             cur.execute(query)
@@ -2835,11 +2847,22 @@ def get_properties():
             if cid is not None and cnombre:
                 clientes[cid] = cnombre
 
+        # Clientes inactivos, aparte: Reportes los ofrece en su propio grupo para
+        # consultar su historia a propósito; en todo lo demás no existen.
+        inact_sql = "SELECT id, name FROM customer_companies WHERE is_active IS FALSE"
+        inact_params = ()
+        if company_id is not None:
+            inact_sql += " AND company_id = %s"
+            inact_params = (company_id,)
+        cur.execute(inact_sql + " ORDER BY name", inact_params)
+        clientes_inactivos = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall() if r["name"]]
+
         app_logger.info(f"Retrieved {len(properties)} properties, {len(clientes)} clientes")
         return jsonify({
             "properties": properties,
             "clientes": [{"id": k, "name": v} for k, v in
                          sorted(clientes.items(), key=lambda kv: kv[1].lower())],
+            "clientes_inactivos": clientes_inactivos,
         }), 200
         
     except psycopg2.Error as e:

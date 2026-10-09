@@ -1708,6 +1708,19 @@
                     option.textContent = c.name;
                     clienteSelect.appendChild(option);
                 });
+                // Clientes inactivos en su propio grupo: no cuentan en nada, pero
+                // su historia sigue consultable eligiéndolos a propósito.
+                if ((data.clientes_inactivos || []).length) {
+                    const grupo = document.createElement('optgroup');
+                    grupo.label = 'Inactivos';
+                    data.clientes_inactivos.forEach(c => {
+                        const option = document.createElement('option');
+                        option.value = c.id;
+                        option.textContent = c.name;
+                        grupo.appendChild(option);
+                    });
+                    clienteSelect.appendChild(grupo);
+                }
 
                 fillPropertyOptions();
 

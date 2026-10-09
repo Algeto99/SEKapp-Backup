@@ -885,6 +885,7 @@ def api_form_properties():
             FROM propiedades p
             LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
             WHERE COALESCE(p.activa, TRUE) = TRUE
+              AND COALESCE(cc.is_active, TRUE)
             ORDER BY cliente, p.nombre
         """)
         rows = cur.fetchall()
@@ -917,10 +918,13 @@ def api_form_properties():
         company_id = _get_user_company_id(cur, get_jwt_identity())
         cid_cond = "WHERE company_id = %s" if company_id is not None else ""
         cid_params = (company_id,) if company_id is not None else ()
+        # Un cliente inactivo no se ofrece en los formularios.
+        act_cond = ("AND" if cid_cond else "WHERE") + " COALESCE(is_active, TRUE)"
         cur.execute(f"""
             SELECT id, name
             FROM customer_companies
             {cid_cond}
+            {act_cond}
             ORDER BY name
         """, cid_params)
         clientes = [{'id': r['id'], 'name': r['name']} for r in cur.fetchall() if r['name']]

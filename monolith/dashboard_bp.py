@@ -25,7 +25,8 @@ from db import get_db_connection
 from auditoria import anotar
 from admin_bp import hoy_operacion, ahora_operacion, sql_hoy
 from coordinador import (condicion_ambito, es_coordinador, fuera_de_ambito, ambito_activo,
-                         cargar_ambito, rol_disponible as rol_coordinador_disponible)
+                         cargar_ambito, rol_disponible as rol_coordinador_disponible,
+                         excluir_clientes_inactivos)
 from email_utils import send_email
 from gcs_utils import resolve_upload_bucket
 from normalizacion import (clave_identificador, normalizar_nombre,
@@ -161,6 +162,10 @@ def _add_scope_filters(conds, params, cliente=None, propiedad=None, puesto=None,
     # Coordinador: su ámbito se suma siempre, haya o no filtro de cliente. Usa
     # las mismas columnas que el filtro, así que aplica en las mismas tablas.
     condicion_ambito(conds, params, col_prop=c_prop, col_inst=c_inst, col_cust=c_cust)
+    # Clientes inactivos: fuera de todo, salvo que el usuario haya elegido ese
+    # cliente a propósito (Reportes los ofrece aparte para ver su historia).
+    excluir_clientes_inactivos(conds, params, col_prop=c_prop, col_inst=c_inst, col_cust=c_cust,
+                               cliente=cliente, propiedad=propiedad)
 
 
 def _scope_name_exprs(table):
@@ -275,6 +280,7 @@ def get_properties(user_email=None):
                 FROM propiedades p
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE COALESCE(p.activa, TRUE) = TRUE
+                  AND COALESCE(cc.is_active, TRUE)
                   AND (cc.company_id = %s OR p.customer_company_id IS NULL)
                 ORDER BY cliente, p.nombre;
             """
@@ -285,6 +291,7 @@ def get_properties(user_email=None):
                 FROM propiedades p
                 LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
                 WHERE COALESCE(p.activa, TRUE) = TRUE
+                  AND COALESCE(cc.is_active, TRUE)
                 ORDER BY cliente, p.nombre;
             """
             cur.execute(query)
@@ -1922,10 +1929,12 @@ def api_gestion_filtros():
         # un cliente sin registros todavia nunca aparecia y si se colaba texto libre.
         # Mismo contrato que /dashboard/api/properties: [{id, name}] + properties,
         # que es lo que permite encadenar Cliente / Empresa -> Propiedad / Instalacion.
+        act_cond = ("AND" if cid_cond else "WHERE") + " COALESCE(is_active, TRUE)"
         cur.execute(f"""
             SELECT id, name
             FROM customer_companies
             {cid_cond}
+            {act_cond}
             ORDER BY name
         """, [company_id] if company_id is not None else [])
         clientes = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall() if r["name"]]
@@ -3319,6 +3328,7 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
                    AND COALESCE(pu.activo, TRUE)) AS puestos
         FROM customer_companies cc
         LEFT JOIN propiedades p ON p.customer_company_id = cc.id
+        WHERE COALESCE(cc.is_active, TRUE)
         ORDER BY cc.name, p.nombre
     """)
     clientes = {}
@@ -7340,8 +7350,9 @@ def api_visitas_data():
         else:
             cur.execute("""
                 SELECT COUNT(*)
-                FROM propiedades
-                WHERE activa = TRUE
+                FROM propiedades p
+                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+                WHERE p.activa = TRUE AND COALESCE(cc.is_active, TRUE)
             """)
             total_clientes_base = int(cur.fetchone()[0] or 0)
             if total_clientes_base == 0:
@@ -8928,10 +8939,12 @@ def api_properties():
             company_id = _get_user_company_id(cur, user_email)
             cid_cond = "WHERE company_id = %s" if company_id is not None else ""
             cid_params = (company_id,) if company_id is not None else ()
+            act_cond = ("AND" if cid_cond else "WHERE") + " COALESCE(is_active, TRUE)"
             cur.execute(f"""
                 SELECT id, name
                 FROM customer_companies
                 {cid_cond}
+                {act_cond}
                 ORDER BY name
             """, cid_params)
             clientes = [{"id": r["id"], "name": r["name"]} for r in cur.fetchall() if r["name"]]

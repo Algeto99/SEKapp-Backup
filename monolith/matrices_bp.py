@@ -14,7 +14,8 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from db import get_db_connection
-from coordinador import coordinador_o_admin, es_coordinador, ambito_activo, condicion_ambito
+from coordinador import (coordinador_o_admin, es_coordinador, ambito_activo, condicion_ambito,
+                         excluir_clientes_inactivos)
 from admin_bp import hoy_operacion, sql_hoy
 
 matrices_bp = Blueprint("matrices_bp", __name__)
@@ -131,7 +132,9 @@ def matrices_api_stats():
         # Coordinador: los contadores del hub también se acotan a su ámbito.
         amb_conds, amb_params = [], []
         condicion_ambito(amb_conds, amb_params, col_cust='customer_company_id')
-        amb_cond = f"AND {amb_conds[0]}" if amb_conds else ""
+        # Clientes inactivos: tampoco cuentan en el hub.
+        excluir_clientes_inactivos(amb_conds, amb_params, col_cust='customer_company_id')
+        amb_cond = " ".join(f"AND {c}" for c in amb_conds)
         date_end = month_end + timedelta(days=1)
 
         stats = {}

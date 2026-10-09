@@ -33,7 +33,8 @@ from db import get_db_connection
 from auditoria import anotar
 from admin_bp import hoy_operacion, sql_hoy, sql_ahora, tz_operacion, format_local_datetime
 from coordinador import (ambito_activo, condicion_ambito, registro_en_ambito, es_coordinador,
-                         coordinador_o_admin, acotar_filtros, fuera_de_ambito)
+                         coordinador_o_admin, acotar_filtros, fuera_de_ambito,
+                         excluir_clientes_inactivos, clientes_inactivos, condicion_cliente_inactivo)
 from email_utils import send_email
 
 cgeo_bp = Blueprint("cgeo_bp", __name__)
@@ -312,6 +313,10 @@ def _add_scope(conds, params, cliente=None, propiedad=None, alias='', col_inst='
                 params.append(str(cliente).strip())
             conds.append("(" + " OR ".join(piezas) + ")")
     condicion_ambito(conds, params, col_prop='id_propiedad', col_inst=col_inst, prefix=alias)
+    # Clientes inactivos: fuera de alertas, semáforo y KPIs del briefing.
+    excluir_clientes_inactivos(conds, params, col_prop='id_propiedad', col_inst=col_inst,
+                               col_cust='customer_company_id', prefix=alias,
+                               cliente=cliente, propiedad=propiedad)
 
 
 # ── Nombres de cliente que no son nombres ───────────────────────────────────
@@ -725,7 +730,7 @@ def cgeo_api_filtros():
             SELECT p.id_propiedad AS id, p.nombre AS name, p.customer_company_id, COALESCE(cc.name, '') AS cliente
             FROM propiedades p
             LEFT JOIN customer_companies cc ON p.customer_company_id = cc.id
-            WHERE p.activa = TRUE OR p.activa IS NULL
+            WHERE (p.activa = TRUE OR p.activa IS NULL) AND COALESCE(cc.is_active, TRUE)
         """
         prop_params = []
         if company_id is not None:
@@ -748,7 +753,7 @@ def cgeo_api_filtros():
         cli_query = """
             SELECT DISTINCT cc.id, cc.name
             FROM customer_companies cc
-            WHERE 1=1
+            WHERE COALESCE(cc.is_active, TRUE)
         """
         cli_params = []
         if company_id is not None:
@@ -799,6 +804,7 @@ def cgeo_api_filtros():
                 LEFT JOIN propiedades p ON t.id_propiedad = p.id_propiedad
                 LEFT JOIN customer_companies cc ON p.customer_company_id = cc.id
                 WHERE TRIM(COALESCE(t.{columna},'')) <> ''
+                  AND COALESCE(cc.is_active, TRUE)
             """
             if company_id is not None:
                 pieza += " AND cc.company_id = %s"
@@ -1339,6 +1345,29 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
             "  WHERE alc.form_type = a.form_type AND alc.record_id = a.record_id)"
         )
         params.extend(alcance_params)
+
+    # Hallazgos de clientes inactivos: ocultos y sin contar (ni como pendientes ni
+    # como vencidos en el semáforo). La fila de asignación no se toca: al reactivar
+    # el cliente vuelven. Se cruza contra el registro de origen, que es quien
+    # conoce al cliente, igual que el alcance de arriba.
+    inactivos = clientes_inactivos()
+    if inactivos:
+        piezas, ina_params = [], []
+        for ft, (tabla, id_col) in _ASIG_ORIGEN.items():
+            sql_ina, p_ina = condicion_cliente_inactivo(
+                inactivos, col_prop='id_propiedad', col_cust='customer_company_id',
+                col_inst=None if tabla == 'log_de_patrullas' else 'cliente_instalacion')
+            if not sql_ina:
+                continue
+            piezas.append(f"SELECT %s AS form_type, {id_col} AS record_id FROM {tabla} WHERE {sql_ina}")
+            ina_params.append(ft)
+            ina_params.extend(p_ina)
+        if piezas:
+            conds.append(
+                "NOT EXISTS (SELECT 1 FROM (" + " UNION ALL ".join(piezas) + ") ina"
+                "  WHERE ina.form_type = a.form_type AND ina.record_id = a.record_id)"
+            )
+            params.extend(ina_params)
 
     cur.execute(f"""
         SELECT

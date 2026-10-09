@@ -306,6 +306,115 @@ def fuera_de_ambito(form_type, record_id, conn=None):
     return jsonify({"error": "El registro está fuera de su ámbito de responsabilidad"}), 403
 
 
+# --- Clientes inactivos ----------------------------------------------------------
+#
+# Un cliente desactivado desde /admin/clientes deja de contar en KPIs, alertas,
+# Estatus de Cliente, Cumplimiento y Reportes, y sale de los selectores, sin borrar
+# ni reescribir nada: la exclusión se suma a las consultas en los mismos puntos por
+# los que ya entra el ámbito del Coordinador (_add_scope_filters en dashboard_bp,
+# _add_scope en cgeo_bp), con las tres formas en que un registro nombra a su
+# cliente. Reactivarlo lo devuelve todo tal cual.
+
+def cargar_clientes_inactivos(conn):
+    """ids de los clientes inactivos, ids de sus instalaciones y, para las filas
+    antiguas que sólo guardan texto, los nombres en minúsculas de unos y otras.
+    None cuando no hay ninguno: entonces no se agrega condición alguna."""
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id, LOWER(TRIM(name)) FROM customer_companies WHERE is_active IS FALSE")
+        filas = [tuple(f) for f in cur.fetchall()]
+        if not filas:
+            return None
+        clientes = [int(f[0]) for f in filas]
+        nombres = {f[1] for f in filas if f[1]}
+        cur.execute("SELECT id_propiedad, LOWER(TRIM(nombre)) FROM propiedades "
+                    "WHERE customer_company_id = ANY(%s)", (clientes,))
+        props = [tuple(f) for f in cur.fetchall()]
+    finally:
+        cur.close()
+    nombres.update(f[1] for f in props if f[1])
+    return {'clientes': clientes,
+            'propiedades': [int(f[0]) for f in props],
+            'nombres': sorted(nombres)}
+
+
+def clientes_inactivos():
+    """Clientes inactivos, cargados una sola vez por petición (como el ámbito).
+    None fuera de una petición, si la base no responde o si no hay ninguno."""
+    if not has_request_context():
+        return None
+    if '_clientes_inactivos' in g:
+        return g._clientes_inactivos
+    g._clientes_inactivos = None
+    conn = get_db_connection()
+    if conn:
+        try:
+            g._clientes_inactivos = cargar_clientes_inactivos(conn)
+        except Exception as e:
+            app_logger.error(f"No se pudo cargar la lista de clientes inactivos: {e}", exc_info=True)
+        finally:
+            conn.close()
+    return g._clientes_inactivos
+
+
+def condicion_cliente_inactivo(inactivos, col_prop='id_propiedad', col_inst='cliente_instalacion',
+                               col_cust=None, prefix=''):
+    """(sql, params) que es verdadero cuando el registro pertenece a un cliente
+    inactivo, o (None, []) si con esas columnas no hay cómo saberlo. Pasar None
+    en una columna la omite (log_de_patrullas no tiene cliente_instalacion)."""
+    partes, params = [], []
+    if col_cust and inactivos['clientes']:
+        partes.append(f"{prefix}{col_cust} = ANY(%s)")
+        params.append(list(inactivos['clientes']))
+    if col_prop and inactivos['propiedades']:
+        partes.append(f"{prefix}{col_prop} = ANY(%s)")
+        params.append(list(inactivos['propiedades']))
+    if col_inst and inactivos['nombres']:
+        # Por texto sólo cuando el registro no trae ninguna clave: una instalación
+        # homónima de un cliente activo no debe esconderse por el nombre.
+        sin_fk = [f"{prefix}{c} IS NULL" for c in (col_cust, col_prop) if c]
+        texto = f"LOWER(TRIM({prefix}{col_inst})) = ANY(%s)"
+        partes.append("(" + " AND ".join(sin_fk + [texto]) + ")")
+        params.append(list(inactivos['nombres']))
+    if not partes:
+        return None, []
+    # COALESCE: con una clave NULL el OR daría NULL y el NOT de afuera escondería la fila.
+    return "COALESCE((" + " OR ".join(partes) + "), FALSE)", params
+
+
+def _elegido_a_proposito(inactivos, cliente, propiedad):
+    """True si el filtro apunta justamente a un cliente (o instalación) inactivo:
+    Reportes los ofrece en su propio grupo para consultar su historia."""
+    c = str(cliente).strip() if cliente is not None else ''
+    if c and c.lower() not in ('todos', 'todas'):
+        if c.isdigit():
+            return int(c) in inactivos['clientes']
+        return c.lower() in inactivos['nombres']
+    p = str(propiedad).strip() if propiedad is not None else ''
+    if p and p.lower() not in ('todos', 'todas'):
+        if p.isdigit():
+            return int(p) in inactivos['propiedades']
+        return p.lower() in inactivos['nombres']
+    return False
+
+
+def excluir_clientes_inactivos(conds, params, col_prop='id_propiedad', col_inst='cliente_instalacion',
+                               col_cust=None, prefix='', cliente=None, propiedad=None):
+    """Agrega a conds/params "el registro NO es de un cliente inactivo". Sin
+    clientes inactivos no agrega nada. Si el filtro de cliente o instalación es
+    uno de los inactivos, tampoco: ahí el usuario quiere ver su historia."""
+    inactivos = clientes_inactivos()
+    if not inactivos:
+        return
+    if _elegido_a_proposito(inactivos, cliente, propiedad):
+        return
+    sql, p = condicion_cliente_inactivo(inactivos, col_prop=col_prop, col_inst=col_inst,
+                                        col_cust=col_cust, prefix=prefix)
+    if sql:
+        conds.append("NOT " + sql)
+        params.extend(p)
+
+
 def _entero(valor):
     try:
         return int(str(valor).strip())

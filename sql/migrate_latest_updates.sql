@@ -253,3 +253,9 @@ LEFT JOIN LATERAL jsonb_array_elements(
         ELSE '[]'::jsonb 
     END
 ) AS elem ON TRUE;
+
+-- 12. Clientes activos / inactivos (página /admin/clientes, 2026-10-08)
+-- La columna está en schema.sql y en el onboarding desde el inicio; esto cubre una
+-- base creada antes de ese esquema. NULL cuenta como activo (la app lee
+-- COALESCE(is_active, TRUE)), así que no hace falta rellenar valores.
+ALTER TABLE customer_companies ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;

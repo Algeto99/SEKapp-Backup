@@ -506,6 +506,7 @@ def api_clientes():
             FROM propiedades p
             LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
             WHERE COALESCE(p.activa, TRUE) = TRUE
+              AND COALESCE(cc.is_active, TRUE)
               AND NULLIF(TRIM(p.nombre), '') IS NOT NULL
             ORDER BY cliente, p.nombre
         """, (SIN_CLIENTE_LABEL,))
