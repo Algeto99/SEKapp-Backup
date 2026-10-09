@@ -1707,6 +1707,16 @@
                 const data = await res.json();
                 if (!res.ok || !data.success) throw new Error(data.error || 'Error al asignar.');
                 hideAsignarOverlay();
+                if (data.ya_asignado) {
+                    // La misma asignación ya estaba pendiente: el servidor no creó
+                    // otra fila ni mandó otro correo, y aquí se dice para que el
+                    // usuario no insista creyendo que no se guardó.
+                    showToast('drv-info-toast',
+                        'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#78350f;color:#fde68a;border:1px solid #f59e0b;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);',
+                        `Este hallazgo ya estaba asignado a ${data.responsable}${data.asignado_desde ? ` desde el ${data.asignado_desde}` : ''}. No se envió un nuevo correo.`
+                    );
+                    return;
+                }
                 showToast('drv-success-toast',
                     'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#14532d;color:#86efac;border:1px solid #22c55e;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);',
                     `Hallazgo asignado a ${data.responsable} correctamente.`

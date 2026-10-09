@@ -31,7 +31,7 @@ except OSError:
 
 from db import get_db_connection
 from auditoria import anotar
-from admin_bp import hoy_operacion, sql_hoy, sql_ahora
+from admin_bp import hoy_operacion, sql_hoy, sql_ahora, tz_operacion, format_local_datetime
 from coordinador import (ambito_activo, condicion_ambito, registro_en_ambito, es_coordinador,
                          coordinador_o_admin, acotar_filtros, fuera_de_ambito)
 from email_utils import send_email
@@ -4253,6 +4253,41 @@ def usuarios_asignables():
         conn.close()
 
 
+def _asignacion_abierta(cur, form_type, record_id, hallazgo_ref, correo):
+    """La asignación idéntica que sigue pendiente, o None.
+
+    Idéntica = mismo hallazgo y mismo responsable. El hallazgo es el registro más
+    `hallazgo_ref` (en una visita cada compromiso es un hallazgo distinto); en un
+    incidente el hallazgo es el incidente mismo, venga de la alerta del Morning
+    Briefing (ref r2_N) o del dashboard (sin ref). El responsable se compara por
+    correo en minúsculas, esté guardado como usuario registrado o como externo.
+
+    Existe porque la regla 2 sigue mostrando el incidente en rojo después de
+    asignarlo (sólo se apaga al cerrarlo) y el usuario volvía a asignar: cada
+    repetición insertaba otra fila y mandaba otro correo (Incidente #3, cinco
+    correos al mismo responsable entre el 5 y el 6 de octubre de 2026).
+    """
+    cur.execute(
+        """
+        SELECT a.id, a.creado_en, a.fecha_limite
+          FROM asignaciones_hallazgo a
+          LEFT JOIN users u ON u.id = a.asignado_a
+         WHERE a.form_type = %s
+           AND a.record_id = %s
+           AND LOWER(TRIM(COALESCE(a.estado, ''))) NOT IN %s
+           AND (a.form_type = 'reporte_incidente'
+                OR a.hallazgo_ref IS NOT DISTINCT FROM %s)
+           AND LOWER(TRIM(COALESCE(u.email, a.asignado_email, ''))) = %s
+         ORDER BY a.creado_en ASC
+         LIMIT 1
+        """,
+        (form_type, record_id, _ASIG_ESTADOS_CERRADOS, hallazgo_ref,
+         (correo or '').strip().lower())
+    )
+    fila = cur.fetchone()
+    return dict(fila) if fila else None
+
+
 @cgeo_bp.route('/api/asignar-hallazgo', methods=['POST'])
 @jwt_required()
 def asignar_hallazgo():
@@ -4308,6 +4343,28 @@ def asignar_hallazgo():
                 assignee = {'name': asignado_email_ext, 'email': asignado_email_ext}
                 db_asignado_a     = None
                 db_asignado_email = asignado_email_ext
+
+            # La misma asignación repetida (mismo hallazgo, mismo responsable, aún
+            # pendiente) no crea otra fila ni manda otro correo: se responde con
+            # la que ya existe y el cliente se lo dice al usuario.
+            previa = _asignacion_abierta(cur, form_type, record_id, hallazgo_ref, assignee['email'])
+            if previa:
+                anotar(detalle={'asignacion_id': previa['id'], 'repetida': True,
+                                'asignado_nombre': assignee['name']})
+                try:
+                    desde = format_local_datetime(previa['creado_en'], tz=tz_operacion(),
+                                                  include_time=False, assume_utc=True)
+                except Exception:
+                    desde = _format_fecha(previa['creado_en'])
+                return jsonify({
+                    "success": True,
+                    "ya_asignado": True,
+                    "assignment_id": previa['id'],
+                    "estado": "Asignado",
+                    "responsable": assignee['name'],
+                    "responsable_email": assignee['email'],
+                    "asignado_desde": desde,
+                })
 
             # Insert assignment record
             cur.execute(
