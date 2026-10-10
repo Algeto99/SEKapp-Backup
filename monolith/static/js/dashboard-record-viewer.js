@@ -607,6 +607,9 @@
             .drv-5q-sat.pos { color: #4ade80; }
             body.light-mode .drv-5q-sat.neg { color: #b91c1c; }
             body.light-mode .drv-5q-sat.pos { color: #15803d; }
+            /* Inspección de puesto "con oportunidades de mejora": ámbar. */
+            .drv-5q-sat.warn { color: #fcd34d; }
+            body.light-mode .drv-5q-sat.warn { color: #92400e; }
             details.drv-detail-section > summary {
                 cursor: pointer;
                 user-select: none;
@@ -1003,9 +1006,62 @@
             .map(([k]) => k.toLowerCase());
     }
 
+    // Etiquetas con las que viewer_bp entrega los cinco criterios de la
+    // Inspección de Puesto (su data_mapping de supervision_puesto).
+    const SUP_CRITERIOS = ['Asistencia y Puntualidad', 'Presentación y Uniforme',
+                           'Estado y Limpieza del Puesto', 'Equipamiento Completo',
+                           'Estado de Bitácora y Registros'];
+
     // Frase de QUÉ construida con los datos reales del registro, para los tipos
-    // cuyos campos sueltos no explican por sí solos qué pasó.
+    // cuyos campos sueltos no explican por sí solos qué pasó. Una entrada puede
+    // devolver además `hallazgo` {ref, titulo, detalle}: la identidad que toma
+    // "Asignar hallazgo" cuando el registro se abrió sin contexto de alerta.
     const QUE_RESUMEN = {
+        // El QUÉ de una supervisión es el resultado de la Inspección de Puesto.
+        // "Resultado de Inspección" lo inyecta viewer_bp (_calc_supervision_resultado:
+        // "15 / 25 · Crítico — Acción inmediata"), que es la fuente de verdad de
+        // los umbrales; aquí sólo se presenta. Ajuste KANAN (2026-10-09): cuando
+        // la evaluación fue deficiente el QUÉ lo dice de entrada, porque el
+        // registro se abre desde la alerta y el motivo no estaba a la vista.
+        supervision_puesto: (raw) => {
+            const m = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+)\s*·\s*([^—]+?)\s*(?:—\s*(.+))?$/
+                .exec(String(raw['Resultado de Inspección'] || ''));
+            if (!m) return '';
+            const score = m[1], max = m[2], nivel = m[3].trim();
+            const critico = /cr[ií]tico/i.test(nivel);
+            const seguimiento = !critico && /seguimiento/i.test(nivel);
+            // Criterios con nota 1 o 2, para que el motivo sea concreto.
+            const bajos = SUP_CRITERIOS
+                .map(lbl => [lbl, parseFloat(raw[lbl])])
+                .filter(([, v]) => !isNaN(v) && v <= 2)
+                .map(([lbl, v]) => `${lbl} (${v})`);
+            let titular, clase;
+            if (critico) {
+                titular = `Alerta por evaluación deficiente del puesto — ${score} / ${max} · Requiere acción inmediata`;
+                clase = 'neg';
+            } else if (seguimiento) {
+                titular = `Evaluación del puesto con oportunidades de mejora — ${score} / ${max} · Seguimiento requerido`;
+                clase = 'warn';
+            } else {
+                titular = `Inspección de puesto: ${score} / ${max} · ${nivel}`;
+                clase = 'pos';
+            }
+            const detalle = bajos.length ? `Criterios deficientes: ${bajos.join(', ')}` : '';
+            const out = {
+                html: `<span class="drv-5q-sat ${clase}">${escapeHtml(titular)}</span>`
+                    + (detalle ? escapeHtml(detalle) : ''),
+            };
+            if (critico || seguimiento) {
+                out.hallazgo = {
+                    ref: 'eval',
+                    titulo: critico
+                        ? `Evaluación deficiente del puesto (${score} / ${max})`
+                        : `Evaluación del puesto con oportunidades de mejora (${score} / ${max})`,
+                    detalle: titular + (detalle ? `. ${detalle}.` : '.'),
+                };
+            }
+            return out;
+        },
         // El QUÉ de una encuesta es su resultado, no su número de formulario.
         // `Clasificación` y `Calificación Global` los inyecta viewer_bp con
         // _calc_encuesta_satisfaccion, que es la fuente de verdad de la escala y
@@ -1465,6 +1521,20 @@
                     return;
                 }
                 _currentRecord = data;
+                // Sin contexto de alerta (tabla del Dashboard de Supervisión, matriz
+                // de alertas, Reportes), el hallazgo toma la identidad del propio
+                // resultado del registro: así "Asignar hallazgo" y su correo dicen
+                // por qué, y no sólo "Supervisión #N".
+                if (!_hallazgoCtx.ref) {
+                    const resumen = QUE_RESUMEN[cfg.formType] ? QUE_RESUMEN[cfg.formType](data.data || data) : '';
+                    if (resumen && resumen.hallazgo) {
+                        _hallazgoCtx = {
+                            ref:     `${resumen.hallazgo.ref}_${id}`,
+                            titulo:  resumen.hallazgo.titulo,
+                            detalle: _hallazgoCtx.detalle || resumen.hallazgo.detalle,
+                        };
+                    }
+                }
                 contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType, motivo);
                 contentEl.style.display = 'block';
                 actionBar.style.display = 'flex';
