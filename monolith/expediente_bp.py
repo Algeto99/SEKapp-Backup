@@ -33,7 +33,15 @@ expediente_bp = Blueprint('expediente', __name__)
 # --- Constants ---
 QR_SALT           = 'sekapp-evidence-qr-v1'
 EXPEDIENTE_QR_SALT = 'sekapp-expediente-qr-v1'
-GEOFENCE_RADIUS_M = 100
+# Radio de la geocerca. Era 100 m; KANAN pidió 1 km el 2026-10-09 ("validar la
+# ubicación dentro del rango de 1 km; fuera de esa área, alerta de fuera de
+# geocerca"). ÚNICA fuente: el rojo/verde del feed del Expediente, el KPI
+# "en geocerca", los visores públicos, los círculos de los mapas y la marca
+# `fuera_geocerca` que guardan los formularios (forms_bp) leen de aquí.
+# Dentro = a esta distancia o menos; fuera = más allá.
+GEOFENCE_RADIUS_M = 1000
+GEOFENCE_RADIUS_LABEL = (f'{GEOFENCE_RADIUS_M / 1000:g} km' if GEOFENCE_RADIUS_M >= 1000
+                         else f'{GEOFENCE_RADIUS_M} m')
 CRITICAL_SEVERITIES = {'CRITICO', 'CRÍTICO', 'ALTO'}
 OPEN_INCIDENT_STATUSES = {'ABIERTO', 'EN PROCESO', 'EN_PROCESO', 'PENDIENTE', 'REPORTADO'}
 
@@ -474,6 +482,8 @@ def expediente_index():
     user_name, is_admin = _get_user_info(user_email)
     initial_cliente = request.args.get('cliente', '')
     return render_template('expediente_instalacion.html',
+                           geofence_radius_m=GEOFENCE_RADIUS_M,
+                           geofence_radius_label=GEOFENCE_RADIUS_LABEL,
                            current_user=user_email,
                            user_name=user_name,
                            is_admin=is_admin,
@@ -887,7 +897,7 @@ def api_kpi():
                            POWER(SIN(RADIANS(latitude  - {prop_lat}) / 2), 2) +
                            COS(RADIANS(latitude)) * COS(RADIANS({prop_lat})) *
                            POWER(SIN(RADIANS(longitude - {prop_lng}) / 2), 2)
-                         ))) <= 100
+                         ))) <= {GEOFENCE_RADIUS_M}
                     THEN 1 ELSE 0
                 END) AS en_geocerca"""
         else:
@@ -1360,6 +1370,8 @@ def public_expediente_viewer(token):
                          'CERTIFICACION': 'Certificaciones'}
 
         return render_template('expediente_public_combined.html',
+                               geofence_radius_m=GEOFENCE_RADIUS_M,
+                               geofence_radius_label=GEOFENCE_RADIUS_LABEL,
                                cliente=cliente,
                                cliente_empresa=cliente_empresa,
                                days=days,
@@ -1450,6 +1462,8 @@ def public_evidence_viewer(hash_token):
         foto_urls = _parse_and_sign_foto_urls(record.get('foto_evidencia_url'))
 
         return render_template('expediente_public_viewer.html',
+                               geofence_radius_m=GEOFENCE_RADIUS_M,
+                               geofence_radius_label=GEOFENCE_RADIUS_LABEL,
                                record=record,
                                distance_m=distance_m,
                                geofence_status=geofence_status,

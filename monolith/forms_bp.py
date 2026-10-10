@@ -81,7 +81,11 @@ def _filter_existing_columns(cur, table_name, data):
 # la ubicación que los formularios ya capturan. No pide nada al usuario.
 #
 # El registro se guarda igual: la marca es informativa, para seguimiento.
-_GEOCERCA_LIMITE_M = 1000          # "a 1 km o más fuera del rango permitido"
+#
+# El radio es el del Expediente (expediente_bp.GEOFENCE_RADIUS_M, 1 km desde el
+# 2026-10-09): una sola fuente para la marca al guardar, el rojo/verde del feed y
+# los mapas. Antes aquí vivía un límite propio de 1 km mientras el Expediente
+# seguía en 100 m, y los dos no coincidían.
 _GEOCERCA_TABLAS_LISTAS = set()
 
 
@@ -113,7 +117,7 @@ def _marcar_geocerca(cur, tabla, form_data):
     if lat is None or lng is None:
         return
     try:
-        from expediente_bp import haversine_m, _resolve_geofence_center
+        from expediente_bp import haversine_m, _resolve_geofence_center, GEOFENCE_RADIUS_M
         # _resolve_geofence_center lee las filas por nombre de columna, y los
         # handlers de formularios usan cursor de tuplas: hace falta uno propio.
         with cur.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as gc:
@@ -127,7 +131,7 @@ def _marcar_geocerca(cur, tabla, form_data):
         distancia = round(haversine_m(lat, lng, centro_lat, centro_lng))
         _ensure_geocerca_cols(cur, tabla)
         form_data['distancia_geocerca_m'] = distancia
-        form_data['fuera_geocerca'] = distancia >= _GEOCERCA_LIMITE_M
+        form_data['fuera_geocerca'] = distancia > GEOFENCE_RADIUS_M
     except Exception as e:
         # Nunca debe impedir que se guarde el formulario: la marca es accesoria.
         app_logger.warning(f"No se pudo evaluar la geocerca para {tabla}: {e}")

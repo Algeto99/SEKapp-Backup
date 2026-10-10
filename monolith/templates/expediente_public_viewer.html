@@ -131,7 +131,7 @@
       <div>
         <div class="status-text text-verde">Supervisión verificada</div>
         <div class="status-sub">
-          Registrado a {{ distance_m }}m del puesto · dentro del rango de 100m
+          Registrado a {{ distance_m }}m del puesto · dentro del rango de {{ geofence_radius_label }}
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@
       <div>
         <div class="status-text text-rojo">Alerta de presencia</div>
         <div class="status-sub">
-          Registrado a {{ distance_m }}m del puesto · fuera del rango de 100m
+          Registrado a {{ distance_m }}m del puesto · fuera del rango de {{ geofence_radius_label }}
         </div>
       </div>
     </div>
@@ -291,9 +291,11 @@
      .addTo(map)
      .bindPopup('<b>Puesto objetivo</b>');
 
-    // 100m geofence circle
-    L.circle([propLat, propLng], {
-      radius: 100,
+    // Círculo de la geocerca (radio del servidor). El encuadre incluye el
+    // círculo completo y el registro: con 1 km, encuadrar sólo los dos puntos
+    // dejaba el borde de la geocerca fuera de la vista.
+    const geocerca = L.circle([propLat, propLng], {
+      radius: {{ geofence_radius_m }},
       color: '#7c3aed',
       weight: 1.5,
       fillColor: '#7c3aed',
@@ -301,7 +303,7 @@
       dashArray: '5 5'
     }).addTo(map);
 
-    map.fitBounds([[lat, lng], [propLat, propLng]], { padding: [40, 40] });
+    map.fitBounds(geocerca.getBounds().extend([lat, lng]), { padding: [40, 40] });
   } else {
     map.setView([lat, lng], 17);
   }

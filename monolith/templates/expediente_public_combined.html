@@ -237,7 +237,7 @@
     {% if gps_source != 'none' %}
     <span style="color:#34d399;">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-      Geocerca activa (100m)
+      Geocerca activa ({{ geofence_radius_label }})
     </span>
     {% endif %}
   </div>
@@ -452,6 +452,9 @@
   const EVENTS   = {{ events | tojson }};
   const PROP_LAT = {{ prop_lat | tojson }};
   const PROP_LNG = {{ prop_lng | tojson }};
+  // Radio de la geocerca, el mismo con el que el servidor pintó rojo/verde.
+  const GEOFENCE_RADIUS_M     = {{ geofence_radius_m | tojson }};
+  const GEOFENCE_RADIUS_LABEL = {{ geofence_radius_label | tojson }};
 
   let detailMap = null;
 
@@ -482,11 +485,13 @@
       });
       L.marker([PROP_LAT, PROP_LNG], { icon: propIcon }).addTo(detailMap)
        .bindPopup('<b>Puesto objetivo</b>');
-      L.circle([PROP_LAT, PROP_LNG], {
-        radius: 100, color: '#7c3aed', weight: 1.5,
+      const geocerca = L.circle([PROP_LAT, PROP_LNG], {
+        radius: GEOFENCE_RADIUS_M, color: '#7c3aed', weight: 1.5,
         fillColor: '#7c3aed', fillOpacity: 0.06, dashArray: '5 5'
       }).addTo(detailMap);
-      detailMap.fitBounds([[lat, lng], [PROP_LAT, PROP_LNG]], { padding: [40, 40] });
+      // Encuadre con el círculo completo: con 1 km, los dos puntos solos dejaban
+      // el borde de la geocerca fuera de la vista.
+      detailMap.fitBounds(geocerca.getBounds().extend([lat, lng]), { padding: [40, 40] });
     } else {
       detailMap.setView([lat, lng], 17);
     }
@@ -562,11 +567,11 @@
   function buildBanner(e) {
     if (e.module === 'SUPERVISION') {
       if (e.status === 'GREEN') {
-        const dist = e.distance_m != null ? `Registrado a ${e.distance_m}m del puesto · dentro del rango de 100m` : 'Dentro del rango de geocerca';
+        const dist = e.distance_m != null ? `Registrado a ${e.distance_m}m del puesto · dentro del rango de ${GEOFENCE_RADIUS_LABEL}` : 'Dentro del rango de geocerca';
         return `<div class="sheet-banner banner-verde"><div class="s-dot sdot-verde"></div><div><div class="s-banner-text stext-verde">Supervisión verificada</div><div class="s-banner-sub">${esc(dist)}</div></div></div>`;
       }
       if (e.status === 'RED') {
-        const dist = e.distance_m != null ? `Registrado a ${e.distance_m}m del puesto · fuera del rango de 100m` : 'Fuera del rango de geocerca';
+        const dist = e.distance_m != null ? `Registrado a ${e.distance_m}m del puesto · fuera del rango de ${GEOFENCE_RADIUS_LABEL}` : 'Fuera del rango de geocerca';
         return `<div class="sheet-banner banner-rojo"><div class="s-dot sdot-rojo"></div><div><div class="s-banner-text stext-rojo">Alerta de presencia</div><div class="s-banner-sub">${esc(dist)}</div></div></div>`;
       }
       if (e.latitude != null && e.longitude != null) {
@@ -708,10 +713,10 @@
       L.circleMarker([PROP_LAT, PROP_LNG], {
         radius: 5, color: '#fff', weight: 2, fillColor: '#7c3aed', fillOpacity: 1
       }).addTo(m);
-      L.circle([PROP_LAT, PROP_LNG], {
-        radius: 100, color: '#7c3aed', weight: 1, fillColor: '#7c3aed', fillOpacity: 0.07, dashArray: '4 4'
+      const geocerca = L.circle([PROP_LAT, PROP_LNG], {
+        radius: GEOFENCE_RADIUS_M, color: '#7c3aed', weight: 1, fillColor: '#7c3aed', fillOpacity: 0.07, dashArray: '4 4'
       }).addTo(m);
-      m.fitBounds([[lat, lng], [PROP_LAT, PROP_LNG]], { padding: [16, 16] });
+      m.fitBounds(geocerca.getBounds().extend([lat, lng]), { padding: [16, 16] });
     } else {
       m.setView([lat, lng], 16);
     }

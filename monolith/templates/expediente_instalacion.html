@@ -283,6 +283,8 @@
 
 <script>
   const INITIAL_CLIENTE = {{ initial_cliente | tojson }};
+  // Radio de la geocerca, el mismo del servidor (expediente_bp.GEOFENCE_RADIUS_M).
+  const GEOFENCE_RADIUS_LABEL = {{ geofence_radius_label | tojson }};
 
   let currentCliente = null;      // property name — the module's historical key
   let currentPropId  = null;      // id_propiedad — what actually anchors the queries
@@ -445,9 +447,9 @@
       // GPS badge
       const gpsBadge = document.getElementById('gpsBadge');
       if (gpsSource === 'manual') {
-        gpsBadge.innerHTML = '<span style="color:#34d399;">&#9679; Geocerca activa &middot; coordenadas manuales (100m)</span>';
+        gpsBadge.innerHTML = '<span style="color:#34d399;">&#9679; Geocerca activa &middot; coordenadas manuales (' + GEOFENCE_RADIUS_LABEL + ')</span>';
       } else if (gpsSource === 'auto') {
-        gpsBadge.innerHTML = '<span style="color:#34d399;">&#9679; Geocerca activa &middot; derivada del historial (100m)</span>';
+        gpsBadge.innerHTML = '<span style="color:#34d399;">&#9679; Geocerca activa &middot; derivada del historial (' + GEOFENCE_RADIUS_LABEL + ')</span>';
       } else {
         gpsBadge.innerHTML = '<span style="color:#f59e0b;">&#9651; Sin geocerca &mdash; se activa tras 3 supervisiones con GPS</span>';
       }
