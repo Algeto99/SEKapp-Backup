@@ -165,6 +165,7 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .legend-item{display:flex;align-items:center;gap:.375rem;font-size:.75rem;color:#64748b;font-weight:500}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .chart-box{height:200px;position:relative}
+.chart-foot{font-size:.72rem;color:#64748b;margin-top:.5rem;line-height:1.4}
 
 /* ── Modal Semáforo ──────────────────────────────────────────────────────── */
 .sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
@@ -554,16 +555,17 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         <!-- ══ SECCIÓN 5: TENDENCIA ══ -->
         <div class="chart-card" id="tendenciaCard">
             <div class="chart-header">
-                <div class="chart-title">Supervisiones — últimos 7 días</div>
+                <div class="chart-title" id="tendenciaTitulo">Supervisiones por día</div>
                 <div class="chart-legend">
-                    <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Completadas</div>
-                    <div class="legend-item"><div class="legend-dot" style="background:#cbd5e1"></div>Programadas</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Realizadas (sin tope)</div>
+                    <div class="legend-item"><div class="legend-dot" style="background:#cbd5e1"></div><span id="tendenciaProgLbl">Programadas por día</span></div>
                 </div>
             </div>
             <div class="chart-box">
                 <div class="skeleton" id="chartSkeleton" style="width:100%;height:200px;border-radius:.5rem"></div>
                 <canvas id="chartTendencia" style="display:none"></canvas>
             </div>
+            <div class="chart-foot" id="tendenciaNota"></div>
         </div>
 
     </div><!-- /content -->
@@ -630,21 +632,42 @@ function _kpiIncColor(val) {
     return { border: '#ef4444', dot: 'dot-red' };
 }
 
-// Misma función de cálculo que la tabla y el PDF del Dashboard de Supervisión:
-// una supervisión por instalación y día, meta por días calendario, ventana cerrada
-// en ayer (hoy va aparte como "En curso") y tope por cliente.
+// Misma función de cálculo que la tabla y el PDF del Dashboard de Supervisión
+// (Fase 1, 2026-10-09): últimos 7 días cerrados para todos los clientes, una
+// supervisión por instalación y día, meta repartida por día y tope por cliente.
+// Línea 1: programadas, período y porcentaje. Línea 2: ayer y hoy (En curso).
+const SUP_AYUDA = 'Últimos 7 días cerrados, sin hoy. Cuenta una supervisión por instalación y día. '
+    + 'Cada cliente cuenta hasta lo que tiene programado (tope): el exceso de uno no compensa el '
+    + 'faltante de otro. Hoy se muestra aparte como En curso.';
 function _kpiSupSub(k) {
     const prog = k.sup_programadas ?? 0;
     const comp = k.sup_completadas ?? 0;
     const real = k.sup_realizadas ?? comp;
     const enCurso = k.sup_en_curso ?? 0;
+    const ayer = k.sup_ayer ?? 0;
+    const lbl = k.sup_periodo_label ? ` · ${k.sup_periodo_label}` : '';
+    const linea2 = `Ayer: ${ayer} realizadas · Hoy: ${enCurso} (En curso)`;
     if (prog > 0 && k.sup_pct !== null && k.sup_pct !== undefined) {
-        let sub = `de ${prog} programadas hasta ayer (${Math.round(k.sup_pct)}%) · hoy en curso: ${enCurso}`;
-        if (real > comp) sub += ` · ${real} realizadas, tope por cliente`;
-        return sub;
+        let l1 = `de ${prog} programadas${lbl} · ${Math.round(k.sup_pct)}%`;
+        if (real > comp) l1 += ` · ${real} realizadas, tope por cliente`;
+        return `${l1}<br>${linea2}`;
     }
-    if (k.sup_sin_dia_cerrado) return `En curso hoy: ${enCurso} · sin días cerrados en la ventana`;
-    return '0 programadas';
+    if (k.sup_sin_dia_cerrado) return `Sin días cerrados en la ventana<br>${linea2}`;
+    return `0 programadas<br>${linea2}`;
+}
+function _fmtCuota(c) {
+    const n = Number(c);
+    if (isNaN(n)) return '';
+    return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
+// Nota al pie del gráfico: la suma de la ventana con los números de la tarjeta.
+function _notaTendencia(k) {
+    const prog = k.sup_programadas ?? 0, real = k.sup_realizadas ?? 0, comp = k.sup_completadas ?? 0;
+    const dias = k.sup_dias ?? 7, cuota = Number(k.sup_programadas_dia);
+    if (!(prog > 0)) return k.sup_sin_dia_cerrado ? 'Sin días cerrados en la ventana.' : 'Sin supervisiones programadas en estos días.';
+    const exacta = !isNaN(cuota) && cuota > 0 && Math.round(cuota * dias) === prog;
+    const suma = exacta ? `${_fmtCuota(cuota)} × ${dias} = ${prog} programadas` : `≈ ${_fmtCuota(cuota)} por día · ${prog} programadas`;
+    return `La tarjeta suma estos ${dias} días: ${suma}. Se realizaron ${real}; cuentan ${comp} porque cada cliente cuenta hasta lo prometido.`;
 }
 
 function _kpiSupColor(comp, prog, thr, pctDado) {
@@ -796,6 +819,7 @@ function renderKpis(k, thr) {
             val: (k.sup_programadas ?? 0) > 0 ? (k.sup_completadas ?? 0) : (k.sup_en_curso ?? 0),
             lbl: 'Supervisiones',
             sub: _kpiSupSub(k),
+            help: SUP_AYUDA,
             action: 'Ver supervisiones →',
             color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr, k.sup_pct ?? null),
         },
@@ -855,7 +879,7 @@ function renderKpis(k, thr) {
 
     const grid = document.getElementById('kpiGrid');
     grid.innerHTML = kpiDefs.map(d => `
-        <a href="${d.href}" class="kpi-card" style="border-top-color:${d.color.border}">
+        <a href="${d.href}" class="kpi-card" style="border-top-color:${d.color.border}"${d.help ? ` title="${d.help}"` : ''}>
             <div class="kpi-card-header">
                 <div class="kpi-icon-wrap" style="background:${d.iconBg}">${d.icon}</div>
                 <div class="kpi-status-dot ${d.color.dot}"></div>
@@ -868,7 +892,7 @@ function renderKpis(k, thr) {
     `).join('');
 
     document.getElementById('supChipText').textContent = (k.sup_programadas ?? 0) > 0
-        ? `${k.sup_programadas} supervisiones programadas hasta ayer · ${k.sup_en_curso ?? 0} en curso hoy`
+        ? `${k.sup_programadas} supervisiones programadas · ${k.sup_periodo_label || 'últimos 7 días'} · ${k.sup_en_curso ?? 0} en curso hoy`
         : (k.sup_sin_dia_cerrado ? `Sin días cerrados en la ventana · ${k.sup_en_curso ?? 0} en curso hoy`
                                  : '0 supervisiones programadas');
 }
@@ -1539,8 +1563,18 @@ function renderAlertas(alertas) {
 
 // ── Tendencia chart ───────────────────────────────────────────────────────────
 
-function renderTendencia(tendencia) {
+function renderTendencia(tendencia, kpis) {
     document.getElementById('chartSkeleton').style.display = 'none';
+    // Título con las fechas, cuota diaria en la leyenda y nota con la suma de la
+    // tarjeta: sólo etiquetas; las series no cambian.
+    const k = kpis || {};
+    const tit = document.getElementById('tendenciaTitulo');
+    if (tit) tit.textContent = 'Supervisiones por día' + (k.sup_periodo_label ? ` · ${k.sup_periodo_label}` : '');
+    const progLbl = document.getElementById('tendenciaProgLbl');
+    if (progLbl) progLbl.textContent = (k.sup_programadas_dia !== null && k.sup_programadas_dia !== undefined && kpis)
+        ? `Programadas por día: ${_fmtCuota(k.sup_programadas_dia)}` : 'Programadas por día';
+    const nota = document.getElementById('tendenciaNota');
+    if (nota) nota.textContent = kpis ? _notaTendencia(k) : '';
     const canvas = document.getElementById('chartTendencia');
     canvas.style.display = '';
 
@@ -1556,7 +1590,7 @@ function renderTendencia(tendencia) {
             labels: tendencia.map(d => d.label),
             datasets: [
                 {
-                    label: 'Completadas',
+                    label: 'Realizadas (sin tope)',
                     data: tendencia.map(d => d.completadas),
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59,130,246,.1)',
@@ -1567,7 +1601,7 @@ function renderTendencia(tendencia) {
                     fill: true,
                 },
                 {
-                    label: 'Programadas',
+                    label: 'Programadas por día',
                     data: tendencia.map(d => d.programadas),
                     borderColor: '#cbd5e1',
                     borderWidth: 2,
@@ -1618,7 +1652,7 @@ async function loadAll(silent = false) {
         renderClientesEnRiesgo(briefing.clientes_en_riesgo);
         renderSemaforo(_alertasData, _kpis);
         renderAlertas(_alertasData);
-        renderTendencia(_tendencia);
+        renderTendencia(_tendencia, _kpis);
 
     } catch (err) {
         console.error('loadAll error:', err);

@@ -131,6 +131,41 @@
                     Supervisiones Completadas
                 </div>
 
+                {% if meta_calculada is not none %}
+                {# Con al menos un cliente programado la meta general se calcula y no se
+                   edita (Fase 1, 2026-10-09). Los campos van deshabilitados: no viajan en
+                   el formulario y lo guardado se conserva. #}
+                <div class="threshold-grid" style="margin-bottom:1rem;">
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Periodicidad
+                        </span>
+                        <label>Ventana de medición</label>
+                        <select class="field-select" disabled style="padding:.5rem .75rem; font-size:.9rem; opacity:.7;">
+                            <option selected>Diario</option>
+                        </select>
+                        <span class="unit">calculada: suma de la programación por cliente</span>
+                    </div>
+                    <div class="field">
+                        <span class="color-badge badge-blue">
+                            <svg width="8" height="8" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4"/></svg>
+                            Meta de supervisiones
+                        </span>
+                        <label>Cantidad programada por día</label>
+                        <input type="number" disabled style="opacity:.7;"
+                               value="{{ (meta_calculada | int) if meta_calculada == (meta_calculada | int) else meta_calculada }}">
+                        <span class="unit">suma de las cuotas diarias de los clientes programados</span>
+                    </div>
+                </div>
+                <p style="font-size:.78rem;color:#94a3b8;margin:-.25rem 0 1rem;">
+                    Meta general calculada: hay clientes con programación propia, así que la meta general es
+                    la suma de sus cuotas diarias y no se edita aquí. Para cambiarla, ajuste la programación
+                    por cliente de abajo. El valor guardado anteriormente ({{ thresholds.supervision_meta | int }}
+                    {{ 'por día' if thresholds.supervision_periodicidad == 'diario' else ('por semana' if thresholds.supervision_periodicidad == 'semanal' else 'por mes') }})
+                    se conserva y vuelve a aplicar si ningún cliente queda programado.
+                </p>
+                {% else %}
                 <div class="threshold-grid" style="margin-bottom:1rem;">
                     <div class="field">
                         <span class="color-badge badge-blue">
@@ -157,6 +192,7 @@
                         <span class="unit">supervisiones esperadas en el período</span>
                     </div>
                 </div>
+                {% endif %}
 
                 <hr class="section-divider">
 
@@ -164,9 +200,10 @@
                     Programación por Cliente / Empresa
                 </div>
                 <p style="font-size:.78rem;color:#94a3b8;margin:0 0 .9rem;">
-                    Cada cliente se mide sobre su propia ventana. Con al menos un cliente
-                    programado, las supervisiones programadas pasan a ser la suma de lo
-                    configurado aquí y la meta general de arriba deja de aplicar.
+                    La tarjeta del Morning Briefing mide a todos los clientes en los últimos 7 días
+                    cerrados, repartiendo cada meta por día (diario × 7, semanal = su meta, mensual
+                    según los días del mes) y con tope por cliente. Con al menos un cliente programado,
+                    la meta general de arriba pasa a ser la suma de las cuotas diarias y deja de editarse.
                     Meta 0 = sin programación propia.
                 </p>
 

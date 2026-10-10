@@ -9,7 +9,7 @@ Each sub-module exposes an Informe Ejecutivo and a Resumen Operativo tab.
 import base64
 import logging
 import os
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from html import escape
 from functools import wraps
 from io import BytesIO
@@ -2664,6 +2664,8 @@ def cgeo_api_semaforo_global():
             "sup_en_curso": _sup['en_curso'],
             "sup_pct": _sup['pct'],
             "sup_hasta_cerrado": _sup['hasta_cerrado'],
+            "sup_ayer": _sup.get('ayer', 0),
+            "sup_periodo_label": _sup.get('periodo_label', ''),
             "sup_periodicidad": periodicidad,
             "eq_no_op": eq_no_op,
             "eq_total": eq_total,
@@ -2882,9 +2884,11 @@ def cgeo_api_morning_briefing_data():
         """, v_period_params + [visita_periodo_inicio])
         visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
 
-        # ── Tendencia supervisiones — últimos 7 días ──────────────────────────
+        # ── Tendencia supervisiones — últimos 7 días CERRADOS ─────────────────
+        # Ajuste KANAN Fase 1 (2026-10-09): la misma ventana que la tarjeta
+        # (ayer hacia atrás); hoy sólo aparece en la tarjeta como "En curso".
         today = hoy_operacion()
-        days7 = [today - timedelta(days=i) for i in range(6, -1, -1)]
+        days7 = [today - timedelta(days=i) for i in range(7, 0, -1)]
         # Si fecha_inicio es posterior al inicio de la ventana de 7 días, recortamos
         trend_start = max(days7[0], fecha_inicio) if fecha_inicio else days7[0]
 
@@ -2895,9 +2899,9 @@ def cgeo_api_morning_briefing_data():
                 fecha_hora::date AS dia,
                 COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
             FROM supervision_puesto
-            WHERE fecha_hora::date >= %s
+            WHERE fecha_hora::date >= %s AND fecha_hora::date <= %s
             GROUP BY fecha_hora::date
-        """, (trend_start,))
+        """, (trend_start, days7[-1]))
         comp_by_day = {r["dia"]: int(r["completadas"]) for r in cur.fetchall()}
 
         tendencia = [
@@ -2973,6 +2977,12 @@ def cgeo_api_morning_briefing_data():
                 "sup_hoy":          _sup['hoy'],
                 "sup_sin_dia_cerrado": _sup['sin_dia_cerrado'],
                 "sup_origen":       _sup['origen'],
+                # Fase 1: ayer y hoy aparte, período de la ventana y cuota diaria
+                # (la etiqueta "Programadas por día" y la nota del gráfico).
+                "sup_ayer":           _sup.get('ayer', 0),
+                "sup_dias":           _sup.get('dias', 7),
+                "sup_periodo_label":  _sup.get('periodo_label', ''),
+                "sup_programadas_dia": _sup.get('programadas_dia', 0),
                 "sup_por_cliente":  _sup['por_cliente'],
                 "eq_total":        eq_total,
                 "eq_op":           eq_op,
@@ -3477,7 +3487,9 @@ def _build_briefing_html(payload: dict) -> str:
     cliente    = payload.get('cliente') or 'Todos los clientes'
     from admin_bp import get_operation_timezone, format_local_datetime
     tz         = get_operation_timezone()
-    generated  = format_local_datetime(datetime.now(), tz=tz, time_sep=" ")
+    # Instante real (UTC) convertido a la zona de Umbrales KPI. `datetime.now()`
+    # ingenuo era la hora del contenedor (UTC) y se imprimía sin convertir.
+    generated  = format_local_datetime(datetime.now(timezone.utc), tz=tz, time_sep=" ")
 
     nivel      = semaforo.get('nivel') or 'verde'
     condiciones = semaforo.get('condiciones') or []
@@ -3509,16 +3521,35 @@ def _build_briefing_html(payload: dict) -> str:
         sup_pct = round(sup_c / sup_p * 100)
     sup_verde_min    = float(thr.get('supervision_verde_min') if thr.get('supervision_verde_min') is not None else 90)
     sup_amarillo_min = float(thr.get('supervision_amarillo_min') if thr.get('supervision_amarillo_min') is not None else 70)
+    # Fase 1 (2026-10-09): mismas líneas que la tarjeta del briefing.
+    sup_ayer = int(kpis.get('sup_ayer') or 0)
+    sup_lbl  = kpis.get('sup_periodo_label') or 'últimos 7 días'
+    sup_dias = int(kpis.get('sup_dias') or 7)
+    sup_linea2 = f"Ayer: {sup_ayer} realizadas · Hoy: {sup_e} (En curso)"
     if sup_p > 0 and sup_pct is not None:
         sup_color = '#16a34a' if sup_pct >= sup_verde_min else ('#d97706' if sup_pct >= sup_amarillo_min else '#dc2626')
-        sup_val_str = f"{sup_c}/{sup_p}"
-        sup_sub_str = f"{round(sup_pct)}% hasta ayer · hoy en curso: {sup_e}"
+        sup_val_str = f"{sup_c}"
+        sup_sub_str = f"de {sup_p} programadas · {sup_lbl} · {round(sup_pct)}%"
         if sup_r > sup_c:
             sup_sub_str += f" · {sup_r} realizadas, tope por cliente"
+        sup_sub_str += f"<br>{sup_linea2}"
     else:
         sup_color = '#64748b'
         sup_val_str = f"{sup_e}"
-        sup_sub_str = "en curso hoy · sin días cerrados en la ventana" if kpis.get('sup_sin_dia_cerrado') else "0 programadas"
+        sup_sub_str = ("Sin días cerrados en la ventana" if kpis.get('sup_sin_dia_cerrado') else "0 programadas") + f"<br>{sup_linea2}"
+    # Nota del gráfico: la suma de la ventana con los números reales de la tarjeta.
+    try:
+        sup_cuota = float(kpis.get('sup_programadas_dia') or 0)
+    except (TypeError, ValueError):
+        sup_cuota = 0.0
+    sup_cuota_txt = f"{sup_cuota:g}"
+    if sup_p > 0:
+        suma = (f"{sup_cuota_txt} × {sup_dias} = {sup_p} programadas" if sup_cuota and round(sup_cuota * sup_dias) == sup_p
+                else f"≈ {sup_cuota_txt} por día · {sup_p} programadas")
+        sup_nota = (f"La tarjeta suma estos {sup_dias} días: {suma}. Se realizaron {sup_r}; "
+                    f"cuentan {sup_c} porque cada cliente cuenta hasta lo prometido.")
+    else:
+        sup_nota = "Sin supervisiones programadas en estos días."
 
     eq_op   = int(kpis.get('eq_op') or 0)
     eq_tot  = int(kpis.get('eq_total') or 0)
@@ -3633,8 +3664,9 @@ def _build_briefing_html(payload: dict) -> str:
     chart_section = ''
     if chart_img and isinstance(chart_img, str) and chart_img.startswith('data:image'):
         chart_section = f'''
-        <div class="section-title">Tendencia — Últimos 7 días</div>
+        <div class="section-title">Supervisiones por día · {sup_lbl}</div>
         <img src="{chart_img}" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0" alt="Tendencia">
+        <p style="font-size:.72rem;color:#64748b;margin:.4rem 0 0">{sup_nota}</p>
         '''
     elif tendencia and isinstance(tendencia, dict) and tendencia.get('labels'):
         labels = tendencia.get('labels') or []
@@ -3647,7 +3679,7 @@ def _build_briefing_html(payload: dict) -> str:
             for i, l in enumerate(labels)
         )
         chart_section = f'''
-        <div class="section-title">Tendencia — Últimos 7 días</div>
+        <div class="section-title">Supervisiones por día · {sup_lbl}</div>
         <table style="width:100%;border-collapse:collapse">
           <tr>
             <th style="text-align:left;padding:.3rem .5rem;font-size:.78rem;color:#94a3b8;border-bottom:1px solid #e2e8f0">Fecha</th>

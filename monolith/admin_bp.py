@@ -1239,6 +1239,18 @@ def thresholds():
         except Exception as pe:
             app_logger.warning(f"No se pudo leer la programación de supervisiones: {pe}")
             programacion = []
+        # Meta general calculada (ajuste KANAN Fase 1, 2026-10-09): con al menos un
+        # cliente programado es la suma de las cuotas diarias y no se edita. Los
+        # campos deshabilitados no viajan en el formulario, así que lo guardado en
+        # kpi_thresholds se conserva y vuelve a aplicar si nadie queda programado.
+        meta_calculada = None
+        con_meta = [p for p in programacion if int(p.get('meta') or 0) > 0]
+        if con_meta:
+            try:
+                from dashboard_bp import programadas_del_dia
+                meta_calculada = programadas_del_dia({'programacion': con_meta, 'meta_global': None}, hoy_operacion())
+            except Exception as me:
+                app_logger.warning(f"No se pudo calcular la meta general: {me}")
 
         from flask import request as _req
         jwt_csrf = _req.cookies.get('csrf_access_token', '')
@@ -1246,6 +1258,7 @@ def thresholds():
             'admin_thresholds.html',
             thresholds=t,
             supervision_programacion=programacion,
+            meta_calculada=meta_calculada,
             jwt_csrf_token=jwt_csrf,
             user_name=claims.get('name', get_jwt_identity()),
             is_admin=True,
