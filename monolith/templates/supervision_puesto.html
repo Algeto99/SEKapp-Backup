@@ -386,10 +386,13 @@
                 </div>
 
                 <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inspección de Puesto</h3>
+                {# Los cinco campos son obligatorios (ajuste KANAN 2026-10-09): un "Seleccione..."
+                   se guardaba como NULL y hundía el puntaje sobre 25 sin que hubiera una falla real.
+                   El servidor lo vuelve a verificar al guardar y al editar. #}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium mb-1">Asistencia y puntualidad</label>
-                        <select name="asistencia_puntualidad" class="form-select">
+                        <select name="asistencia_puntualidad" class="form-select" required>
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -400,7 +403,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
-                        <select name="presentacion_uniforme" class="form-select">
+                        <select name="presentacion_uniforme" class="form-select" required>
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -434,7 +437,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Estado y limpieza del puesto</label>
-                        <select name="estado_limpieza_puesto" class="form-select">
+                        <select name="estado_limpieza_puesto" class="form-select" required>
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -445,7 +448,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Equipamiento (radio, etc.)</label>
-                        <select name="equipamiento_completo" class="form-select">
+                        <select name="equipamiento_completo" class="form-select" required>
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -456,7 +459,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Estado de bitácora y registros</label>
-                        <select name="estado_bitacora" class="form-select">
+                        <select name="estado_bitacora" class="form-select" required>
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -881,14 +884,14 @@
                         </div>
                     </div>
 
-                    <!-- Inspección -->
+                    <!-- Inspección: los cinco campos son obligatorios (ajuste KANAN 2026-10-09) -->
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Inspección de Puesto</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         ${generateSelectField(index, 'asistencia_puntualidad', 'Asistencia y puntualidad')}
                         
                         <div>
                             <label class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
-                            <select name="supervisions[${index}][presentacion_uniforme]" class="form-select presentacion_uniforme-select" data-index="${index}">
+                            <select name="supervisions[${index}][presentacion_uniforme]" class="form-select presentacion_uniforme-select" data-index="${index}" required>
                                 <option value="">Seleccione...</option>
                                 <option value="1">1 — Muy deficiente (incumplimiento grave)</option>
                                 <option value="2">2 — Deficiente (requiere corrección)</option>
@@ -965,7 +968,7 @@
                 return `
                     <div>
                         <label class="block text-sm font-medium mb-1">${label}</label>
-                        <select name="supervisions[${index}][${name}]" class="form-select ${name}-select" data-index="${index}">
+                        <select name="supervisions[${index}][${name}]" class="form-select ${name}-select" data-index="${index}" required>
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente (incumplimiento grave)</option>
                             <option value="2">2 — Deficiente (requiere corrección)</option>

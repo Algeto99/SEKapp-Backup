@@ -1661,6 +1661,34 @@ def supervision_puesto_form():
         **get_service_urls()
     )
 
+# ── Inspección de Puesto: los cinco campos son obligatorios ──────────────────
+# Ajuste KANAN (2026-10-09): un "Seleccione..." se guardaba como NULL y el
+# puntaje de la supervisión (suma de los cinco, sobre 25) salía bajo por un
+# registro incompleto, no por una falla real. El formulario los marca
+# `required`; esto cubre lo que no pasa por el navegador (cola offline,
+# reintentos) y la edición, que además no guardaba cuatro de los cinco.
+_INSPECCION_PUESTO = (
+    ('asistencia_puntualidad', 'Asistencia y puntualidad'),
+    ('presentacion_uniforme',  'Presentación y Uniforme'),
+    ('estado_limpieza_puesto', 'Estado y limpieza del puesto'),
+    ('equipamiento_completo',  'Equipamiento (radio, etc.)'),
+    ('estado_bitacora',        'Estado de bitácora y registros'),
+)
+_INSPECCION_VALORES = {'1', '2', '3', '4', '5'}
+
+
+def _faltantes_inspeccion(datos):
+    """Etiquetas de los campos de Inspección de Puesto sin una nota de 1 a 5."""
+    return [etiqueta for campo, etiqueta in _INSPECCION_PUESTO
+            if str(datos.get(campo) or '').strip() not in _INSPECCION_VALORES]
+
+
+def _error_inspeccion(faltantes, puesto=None):
+    donde = f' del puesto "{puesto}"' if puesto else ''
+    return _return_form_error(
+        f'Complete la Inspección de Puesto{donde}: falta calificar {", ".join(faltantes)}.', 400)
+
+
 @forms_bp.route('/submit_supervision_puesto', methods=['GET', 'POST'])
 @jwt_required()
 @dedup_form_submission
@@ -1753,6 +1781,18 @@ def submit_supervision_puesto():
                         existing = supervisions_map[index].get('foto_evidencia_url')
                         combined = f"{existing}\n" + "\n".join(uploaded_urls) if existing else "\n".join(uploaded_urls)
                         supervisions_map[index]['foto_evidencia_url'] = combined
+
+        # Inspección de Puesto completa en cada bloque, antes de insertar nada:
+        # o entran todos los puestos del envío o ninguno. Un bloque vacío también
+        # se rechaza: el bucle de abajo le mezcla los datos globales y lo guardaba
+        # como una fila sin inspección.
+        for index in sorted(supervisions_map):
+            sup_data = supervisions_map[index]
+            faltantes = _faltantes_inspeccion(sup_data)
+            if faltantes:
+                puesto = (sup_data.get('detalles_puestos') or sup_data.get('puesto_area_especifica')
+                          or f'#{index + 1}')
+                return _error_inspeccion(faltantes, puesto)
 
         # 4. Process and Insert Each Supervision
         # La geocerca se evalúa una sola vez: todas las filas del envío comparten
@@ -1915,12 +1955,21 @@ def submit_supervision_puesto_editar(id):
             'marca_radio': request.form.get('marca_radio'),
             'tipo_radio': request.form.get('tipo_radio'),
             'fecha_ultimo_mtto_radio': request.form.get('fecha_ultimo_mtto_radio') or None,
+            # Los cinco de Inspección de Puesto. Antes sólo viajaba presentacion_uniforme:
+            # el formulario de edición mostraba los otros cuatro pero no los guardaba.
+            'asistencia_puntualidad': request.form.get('asistencia_puntualidad'),
             'presentacion_uniforme': request.form.get('presentacion_uniforme'),
+            'estado_limpieza_puesto': request.form.get('estado_limpieza_puesto'),
+            'equipamiento_completo': request.form.get('equipamiento_completo'),
+            'estado_bitacora': request.form.get('estado_bitacora'),
             'problemas_uniforme': ', '.join(request.form.getlist('problemas_uniforme[]')),
             'observaciones_novedades': request.form.get('observaciones_novedades'),
             'firma_supervisor': request.form.get('firma_supervisor'),
             'firma_guardia': request.form.get('firma_guardia'),
         }
+        faltantes = _faltantes_inspeccion(form_data)
+        if faltantes:
+            return _error_inspeccion(faltantes)
         foto_urls = []
         for file in request.files.getlist('foto_evidencia'):
             if file and file.filename:
