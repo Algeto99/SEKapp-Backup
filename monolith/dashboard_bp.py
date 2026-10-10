@@ -5640,35 +5640,56 @@ def _tono_cumplimiento(pct, verde_min, amarillo_min):
     return 'rojo'
 
 
-def _realizadas_instalacion_dia(cur, conds, params):
-    """Instalaciones distintas supervisadas por día, sumadas en el lapso.
+def _realizadas_por_dia(cur, conds, params):
+    """{fecha: formularios} de supervisión en el lapso.
 
-    Una supervisión por Propiedad / Instalación por día: varios puestos o varias
-    visitas a la misma instalación el mismo día cuentan una, y las filas sin
-    instalación no cuentan. Es la misma cuenta que la línea Completadas del gráfico
-    de 7 días (COUNT(DISTINCT TRIM(cliente_instalacion)) por fecha).
+    Fase 2 del ajuste del KPI (KANAN, 2026-10-09): CADA FORMULARIO cuenta como una
+    visita. Sustituye a "una por instalación y día": tres visitas a la misma
+    instalación en distintos horarios cuentan tres. Es la misma cuenta que la serie
+    "Realizadas (sin tope)" del gráfico del briefing (COUNT(*) por fecha). El tope
+    lo pone después `_contadas_con_tope`, y por eso se devuelve por día.
     """
-    where = " AND ".join(conds + ["cliente_instalacion IS NOT NULL"])
+    where = " AND ".join(conds)
     cur.execute(f"""
-        SELECT COUNT(*) AS n FROM (
-            SELECT DISTINCT fecha_hora::date AS dia, TRIM(cliente_instalacion) AS inst
-            FROM supervision_puesto
-            WHERE {where}
-        ) d
+        SELECT fecha_hora::date AS dia, COUNT(*) AS n
+        FROM supervision_puesto
+        WHERE {where}
+        GROUP BY fecha_hora::date
     """, params)
-    fila = cur.fetchone()
-    return int((fila['n'] if hasattr(fila, 'keys') else fila[0]) or 0)
+    out = {}
+    for fila in cur.fetchall():
+        dia = fila['dia'] if hasattr(fila, 'keys') else fila[0]
+        n = fila['n'] if hasattr(fila, 'keys') else fila[1]
+        out[dia] = int(n or 0)
+    return out
+
+
+def _contadas_con_tope(por_dia, periodicidad, meta, programadas):
+    """Realizadas que cuentan frente a las programadas (Fase 2, 2026-10-09).
+
+    Diario: tope POR DÍA —de cada día cuentan como máximo `meta` formularios—,
+    así el exceso de un día no compensa el faltante de otro (meta 1, tres visitas
+    el lunes y ninguna el martes: 1 de 2). Semanal y mensual: tope por cliente
+    sobre el lapso (no más de las programadas). Nunca supera las programadas.
+    """
+    programadas = int(programadas or 0)
+    if programadas <= 0:
+        return 0
+    if periodicidad == 'diario':
+        tope = max(0, int(meta or 0))
+        return min(sum(min(n, tope) for n in por_dia.values()), programadas)
+    return min(sum(por_dia.values()), programadas)
 
 
 _AMBITO_COLS = dict(col_prop='id_propiedad', col_inst='cliente_instalacion', col_cust='customer_company_id')
 
 
-def _conteo_cliente(cur, cliente, desde, hasta, prop_str=None, ambito=None):
-    """Instalaciones-día de un cliente (id, nombre o None = todos) en [desde, hasta].
+def _conteo_cliente_por_dia(cur, cliente, desde, hasta, prop_str=None, ambito=None):
+    """{fecha: formularios} de un cliente (id, nombre o None = todos) en [desde, hasta].
     Pasa por `_add_scope_filters`, el mismo cruce por id, instalación y nombre antiguo
     del filtro Cliente, que además aplica solo el ámbito de la sesión."""
     if desde is None or hasta is None or hasta < desde:
-        return 0
+        return {}
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=str(cliente) if cliente is not None else None,
                        propiedad=prop_str, col_puesto=None)
@@ -5676,7 +5697,12 @@ def _conteo_cliente(cur, cliente, desde, hasta, prop_str=None, ambito=None):
     _gestion_add_hasta(conds, params, "fecha_hora", hasta.isoformat())
     if ambito is not None:
         condicion_ambito(conds, params, ambito=ambito, **_AMBITO_COLS)
-    return _realizadas_instalacion_dia(cur, conds, params)
+    return _realizadas_por_dia(cur, conds, params)
+
+
+def _conteo_cliente(cur, cliente, desde, hasta, prop_str=None, ambito=None):
+    """Formularios de un cliente (id, nombre o None = todos) en [desde, hasta], sin tope."""
+    return sum(_conteo_cliente_por_dia(cur, cliente, desde, hasta, prop_str, ambito).values())
 
 
 def _filtrar_programacion(cur, programacion, cliente, propiedad):
@@ -5709,11 +5735,13 @@ def _cumplimiento_programacion(cur, desde, hasta, cliente=None, propiedad=None, 
 
     Misma lógica que la tarjeta del Morning Briefing (`calcular_cumplimiento_vigente`)
     y que el gráfico de 7 días, sin inventar otra:
-    - Realizadas: instalaciones-día (`_realizadas_instalacion_dia`).
+    - Realizadas: cada formulario cuenta como una visita (`_realizadas_por_dia`;
+      Fase 2, 2026-10-09). Antes era una por instalación y día.
     - Programadas: meta repartida por día (`_programadas_en_lapso`). Si ningún cliente
       tiene meta propia rige la meta general de Umbrales KPI, sólo en el Total.
-    - Contadas = min(realizadas, programadas): el exceso de un cliente no compensa el
-      incumplimiento de otro; el Total sale de las sumas, no de promedios.
+    - Contadas (`_contadas_con_tope`): el exceso de un cliente no compensa el
+      incumplimiento de otro, y en los clientes diarios el exceso de un día no
+      compensa el faltante de otro (tope por día); el Total sale de las sumas.
     - El día en curso no entra al porcentaje: el lapso cierra en ayer (`hasta_cerrado`)
       y lo de hoy se informa aparte en `en_curso`. Sin ningún día cerrado no hay
       porcentaje (`sin_dia_cerrado`).
@@ -5776,7 +5804,8 @@ def _cumplimiento_programacion(cur, desde, hasta, cliente=None, propiedad=None, 
     por_instalacion = bool(prop_str)
     filas = []
     for p in programacion:
-        realizadas = _conteo_cliente(cur, p['id'], desde, hasta_cerrado, prop_str, ambito) if dias > 0 else 0
+        por_dia = _conteo_cliente_por_dia(cur, p['id'], desde, hasta_cerrado, prop_str, ambito) if dias > 0 else {}
+        realizadas = sum(por_dia.values())
         en_curso = _conteo_cliente(cur, p['id'], hoy, hoy, prop_str, ambito) if incluye_hoy else 0
         meta = int(p.get('meta') or 0)
         periodicidad = p.get('periodicidad') or 'semanal'
@@ -5791,7 +5820,7 @@ def _cumplimiento_programacion(cur, desde, hasta, cliente=None, propiedad=None, 
         else:
             programadas, prorrateado = (_programadas_en_lapso(meta, periodicidad, desde, hasta_cerrado)
                                         if dias > 0 else (0, False))
-            contadas = min(realizadas, programadas)
+            contadas = _contadas_con_tope(por_dia, periodicidad, meta, programadas)
             pct = int(contadas / programadas * 100 + 0.5) if programadas else None
             if dias <= 0:
                 estado, pct, tono = 'sin_dia_cerrado', None, 'gris'
@@ -5815,13 +5844,16 @@ def _cumplimiento_programacion(cur, desde, hasta, cliente=None, propiedad=None, 
              'estado': 'ok', 'meta_general': None}
     if not hay_programacion and not cliente_filtro and ambito_lista is None:
         # Nadie tiene meta propia: rige la meta general de Umbrales KPI, como en la
-        # tarjeta. Las filas quedan "Sin programación" y el Total mide todas las
-        # instalaciones-día contra la meta general repartida al lapso.
+        # tarjeta. Las filas quedan "Sin programación" y el Total mide todos los
+        # formularios contra la meta general repartida al lapso (tope por día si
+        # la meta general es diaria).
         programadas, prorrateado = (_programadas_en_lapso(meta_global, periodicidad_global, desde, hasta_cerrado)
                                     if dias > 0 else (0, False))
-        realizadas = _conteo_cliente(cur, None, desde, hasta_cerrado, prop_str) if dias > 0 else 0
+        por_dia_total = _conteo_cliente_por_dia(cur, None, desde, hasta_cerrado, prop_str) if dias > 0 else {}
+        realizadas = sum(por_dia_total.values())
         total.update({'programadas': programadas, 'realizadas': realizadas,
-                      'contadas': min(realizadas, programadas), 'prorrateado': prorrateado,
+                      'contadas': _contadas_con_tope(por_dia_total, periodicidad_global, meta_global, programadas),
+                      'prorrateado': prorrateado,
                       'en_curso': _conteo_cliente(cur, None, hoy, hoy, prop_str) if incluye_hoy else 0,
                       'estado': 'meta_general' if (programadas or dias <= 0) else 'sin_programacion',
                       'meta_general': {'meta': meta_global, 'periodicidad': periodicidad_global}})
@@ -5879,9 +5911,9 @@ def calcular_cumplimiento_vigente(cur, cliente=None, propiedad=None):
     Ajuste KANAN Fase 1 (2026-10-09): la ventana es [hoy − 7, ayer] para TODOS
     los clientes —diarios, semanales y mensuales—, nunca incluye hoy y no cambia.
     El cálculo es la misma función de la tabla (`_cumplimiento_programacion`) con
-    ese rango: una supervisión por instalación y día, programadas repartidas por
-    día (diario × 7, semanal = su meta, mensual = meta × 7 / días del mes), tope
-    por cliente (contadas = mín.) y total por sumas. Hoy (`en_curso`) y ayer
+    ese rango: cada formulario cuenta como una visita (Fase 2), programadas
+    repartidas por día (diario × 7, semanal = su meta, mensual = meta × 7 / días
+    del mes), tope por cliente y por día en los diarios, y total por sumas. Hoy (`en_curso`) y ayer
     (`ayer`) se informan aparte, sin tope. Sin clientes programados rige la meta
     general de Umbrales KPI en el total, como en la tabla; con un cliente filtrado
     sin programación propia ya no se aplica la meta general (antes sí): una sola
@@ -5978,7 +6010,9 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     """
     from admin_bp import get_operation_timezone, format_local_datetime
     tz = get_operation_timezone()
-    generado = format_local_datetime(datetime.now(), tz=tz, time_sep=" a las ")
+    # Instante real convertido a la zona de la operación: `datetime.now()` ingenuo
+    # era la hora del contenedor (UTC) impresa sin convertir.
+    generado = format_local_datetime(datetime.now(timezone.utc), tz=tz, time_sep=" a las ")
     e = _html_escape
     d = date.fromisoformat(datos['desde']) if datos.get('desde') else None
     h = date.fromisoformat(datos['hasta']) if datos.get('hasta') else None
@@ -6124,9 +6158,10 @@ def _cumplimiento_html(datos, filtros_txt='Todos los clientes', destinatario=Non
     {aviso}
     <p style="margin:12px 0 0;font-size:11px;color:#64748b;">
       {punto('verde')}{verde} % o más &nbsp; {punto('amarillo')}{amarillo} % – {verde - 1} % &nbsp; {punto('rojo')}menos de {amarillo} %.
-      Realizadas: una por instalación y día, como la tarjeta y el gráfico del Morning Briefing. Las realizadas contadas no
-      superan las programadas: el exceso de un cliente no compensa el incumplimiento de otro. Prorrateado: meta repartida
-      por día cuando el lapso no son semanas o meses completos. El día en curso no entra al porcentaje.
+      Realizadas: cada formulario cuenta como una visita, como la tarjeta y el gráfico del Morning Briefing. Las realizadas
+      contadas no superan las programadas: el exceso de un cliente no compensa el incumplimiento de otro, y en los clientes
+      diarios el exceso de un día no compensa el faltante de otro. Prorrateado: meta repartida por día cuando el lapso no son
+      semanas o meses completos. El día en curso no entra al porcentaje.
     </p>
   </td></tr>
   <tr><td style="background:#f8fafc;padding:10px 20px;font-size:10px;color:#94a3b8;border-top:1px solid #e2e8f0;">

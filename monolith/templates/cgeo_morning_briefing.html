@@ -633,12 +633,14 @@ function _kpiIncColor(val) {
 }
 
 // Misma función de cálculo que la tabla y el PDF del Dashboard de Supervisión
-// (Fase 1, 2026-10-09): últimos 7 días cerrados para todos los clientes, una
-// supervisión por instalación y día, meta repartida por día y tope por cliente.
+// (Fases 1 y 2, 2026-10-09): últimos 7 días cerrados para todos los clientes, cada
+// formulario cuenta como una visita, meta repartida por día y tope por cliente
+// (por día en los diarios).
 // Línea 1: programadas, período y porcentaje. Línea 2: ayer y hoy (En curso).
-const SUP_AYUDA = 'Últimos 7 días cerrados, sin hoy. Cuenta una supervisión por instalación y día. '
+const SUP_AYUDA = 'Últimos 7 días cerrados, sin hoy. Cada formulario cuenta como una visita. '
     + 'Cada cliente cuenta hasta lo que tiene programado (tope): el exceso de uno no compensa el '
-    + 'faltante de otro. Hoy se muestra aparte como En curso.';
+    + 'faltante de otro, y en los clientes diarios el exceso de un día no compensa el faltante de otro. '
+    + 'Hoy se muestra aparte como En curso.';
 function _kpiSupSub(k) {
     const prog = k.sup_programadas ?? 0;
     const comp = k.sup_completadas ?? 0;

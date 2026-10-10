@@ -2753,7 +2753,7 @@ def cgeo_api_morning_briefing_data():
         from dashboard_bp import programadas_del_dia
         _sup = calcular_supervisiones(cur)
         # Una sola función con la tabla y el PDF del Dashboard de Supervisión:
-        # instalaciones-día, meta por días calendario, ventana cerrada en ayer
+        # cada formulario cuenta, meta repartida por día, ventana cerrada en ayer
         # (hoy va en sup_en_curso) y tope por cliente (sup_completadas = contadas).
         sup_programadas = _sup['programadas']
         sup_completadas = _sup['contadas']
@@ -2892,12 +2892,12 @@ def cgeo_api_morning_briefing_data():
         # Si fecha_inicio es posterior al inicio de la ventana de 7 días, recortamos
         trend_start = max(days7[0], fecha_inicio) if fecha_inicio else days7[0]
 
-        # Completadas por día: instalaciones distintas supervisadas, la misma cuenta
-        # que la tarjeta y la tabla de cumplimiento (una por instalación y día).
+        # Realizadas por día: cada formulario cuenta como una visita (Fase 2,
+        # 2026-10-09), la misma cuenta que la tarjeta y la tabla, sin tope.
         cur.execute("""
             SELECT
                 fecha_hora::date AS dia,
-                COUNT(DISTINCT TRIM(cliente_instalacion)) AS completadas
+                COUNT(*) AS completadas
             FROM supervision_puesto
             WHERE fecha_hora::date >= %s AND fecha_hora::date <= %s
             GROUP BY fecha_hora::date

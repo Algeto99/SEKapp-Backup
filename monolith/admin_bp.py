@@ -763,7 +763,7 @@ def calcular_supervisiones(cur, cliente=None, propiedad=None):
     Desde la unificación validada por KANAN (2026-10-07) delega en
     dashboard_bp.calcular_cumplimiento_vigente: UNA función para la tarjeta del
     briefing, el gráfico de 7 días, la tabla del Dashboard de Supervisión, su PDF y
-    el correo a Coordinadores. Reglas: una supervisión por instalación y día, meta
+    el correo a Coordinadores. Reglas: cada formulario cuenta como una visita (Fase 2), meta
     mensual por días calendario, ventana cerrada en ayer con el día en curso aparte
     (`en_curso`) y tope por cliente (`contadas`). Conserva las claves históricas
     (programadas, realizadas, pendientes, pct, programadas_dia, origen,
