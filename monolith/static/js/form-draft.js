@@ -23,12 +23,26 @@
  *    propio input y lleva al usuario al último campo que estaba editando.
  *  · Los combos que llenan sus opciones desde la red después de cargar
  *    (cliente / instalación, puesto, placa) se reintentan cuando aparecen.
- *  · El borrador se borra al enviar (si la validación dejó salir el envío), al
- *    reiniciar el formulario, al descartarlo desde el aviso, o a las 48 horas.
+ *  · Cada borrador lleva un identificador único (el `client_submission_id` que
+ *    siembra form-submit-lock.js): se repone al restaurar, así un reintento o un
+ *    doble toque llegan al servidor con el mismo token y no generan duplicados.
+ *  · La ubicación capturada al diligenciar se conserva: al retomar el borrador
+ *    manda sobre la captura nueva, que sería la de donde esté el teléfono ahora.
+ *  · Al enviar NO se borra: se marca como "enviando" y se elimina sólo cuando
+ *    llega la página de éxito (el servidor ya lo recibió) o cuando la cola
+ *    offline del service worker lo tomó. Si el teléfono muere a mitad de la
+ *    subida, el borrador sigue ahí para reenviarlo.
+ *  · Al abrir SEKapp (inicio o Formularios) con borradores pendientes, muestra un
+ *    único aviso «Tienes una supervisión sin enviar» con el botón Continuar.
+ *  · Si el teléfono no puede guardar (sin espacio, almacenamiento bloqueado),
+ *    avisa claramente en vez de fallar en silencio.
+ *  · El borrador se borra al confirmar el envío, al reiniciar el formulario, al
+ *    descartarlo desde el aviso, o a los 30 días como tope de seguridad.
  *
- * Se carga desde _sidebar.html, que incluyen los once formularios de campo, y
- * sólo actúa sobre formularios POST cuyo action va a /forms/submit_*. No
- * requiere cambios en las plantillas ni en los widgets de foto.
+ * Se carga desde _sidebar.html (los once formularios de campo), desde
+ * landing.html y success.html, y sólo actúa sobre formularios POST cuyo action
+ * va a /forms/submit_*. No requiere cambios en las plantillas ni en los widgets
+ * de foto.
  */
 (function () {
     'use strict';
@@ -38,20 +52,35 @@
 
     var PREFIJO = 'secapp:borrador:';
     var FORMATO = 1;
-    var VIGENCIA_MS = 48 * 60 * 60 * 1000;
+    // Se conserva hasta que se envíe; el tope sólo evita que un borrador
+    // abandonado viva para siempre.
+    var VIGENCIA_MS = 30 * 24 * 60 * 60 * 1000;
     var ESPERA_GUARDADO_MS = 400;
+    // Un envío marcado hace menos de esto puede seguir viajando: no se recuerda
+    // ni se borra todavía.
+    var EN_VUELO_MS = 90 * 1000;
+    var ESPERA_COLA_MS = 3000;
     var ESPERA_REINTENTOS_MS = 25000;
     var DB_NOMBRE = 'secapp-borradores';
     var DB_VERSION = 1;
     var ALMACEN = 'archivos';
     var CLAVE_SESION_CAPACITACION = 'capacitacion_session_token';
+    // Clave del borrador que acaba de salir: la página de éxito la lee y lo borra.
+    var MARCA_ENVIO = 'secapp:borrador-enviando';
+    // Cola offline del service worker: misma base, versión y almacén que sw.js y
+    // offline-sync.js. Sólo se lee; subir la versión rompería la cola.
+    var COLA_DB = 'secapp-offline';
+    var COLA_VERSION = 1;
+    var COLA_ALMACEN = 'pending_submissions';
+    // Páginas donde se recuerda lo pendiente y página que confirma un envío.
+    var RUTAS_INICIO = { '/landing': 1, '/forms/select': 1 };
+    var RUTA_EXITO = '/forms/success';
 
-    // Deben venir frescos en cada carga: el token CSRF del formulario, el token de
-    // idempotencia que siembra form-submit-lock.js y la ubicación.
-    var EXCLUIDOS = {
-        csrf_token: 1, client_submission_id: 1,
-        latitude: 1, longitude: 1, location_accuracy: 1, submitter_timezone: 1
-    };
+    // Deben venir frescos en cada carga: el token CSRF y la zona horaria. El
+    // token de idempotencia se maneja aparte (es el identificador del borrador).
+    var EXCLUIDOS = { csrf_token: 1, client_submission_id: 1, submitter_timezone: 1 };
+    // La ubicación se guarda con los demás campos; al restaurar, la guardada manda.
+    var UBICACION = { latitude: 1, longitude: 1, location_accuracy: 1 };
     var TIPOS_IGNORADOS = { file: 1, password: 1, submit: 1, button: 1, reset: 1, image: 1 };
 
     // Un borrador por usuario, página y formulario: la ruta ya distingue el alta
@@ -563,6 +592,7 @@
             }
             escritura.catch(function (e) {
                 delete estado.huellas[entrada.clave];
+                if (huella) avisarSinEspacio();
                 console.warn('[form-draft] No se pudo guardar el adjunto:', e);
             });
         });
@@ -625,13 +655,251 @@
     function escribirBorrador(clave, borrador) {
         try {
             localStorage.setItem(clave, JSON.stringify(borrador));
+            return true;
         } catch (e) {
+            // El usuario tiene que enterarse: lo que no cabe no se resguarda.
+            avisarSinEspacio();
             // Sin cupo: mejor conservar los campos que nada.
             try {
                 borrador.firmas = {};
                 localStorage.setItem(clave, JSON.stringify(borrador));
             } catch (e2) { /* sin almacenamiento */ }
+            return false;
         }
+    }
+
+    // ── Identificador del borrador ───────────────────────────────────────────
+    // Es el client_submission_id que form-submit-lock.js siembra al cargar: el
+    // input es la copia viva y el borrador lo refleja en cada guardado. Al
+    // restaurar se repone en el input, así el reenvío lleva el mismo token y el
+    // servidor lo reconoce como repetido en vez de guardar otro registro.
+    function inputToken(form, crear) {
+        var input = form.querySelector('input[name="client_submission_id"]');
+        if (!input && crear) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'client_submission_id';
+            form.appendChild(input);
+        }
+        return input;
+    }
+
+    function generarToken() {
+        return 'sub_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+    }
+
+    function tokenDe(estado) {
+        var input = inputToken(estado.form, false);
+        var actual = input && input.value ? String(input.value) : '';
+        if (actual) { estado.token = actual; return actual; }
+        if (!estado.token) estado.token = generarToken();
+        if (input) input.value = estado.token;
+        return estado.token;
+    }
+
+    function reponerToken(estado) {
+        if (!estado.token) return;
+        var input = inputToken(estado.form, true);
+        if (input.value !== estado.token) input.value = estado.token;
+    }
+
+    // ── Ubicación ────────────────────────────────────────────────────────────
+    function ubicacionDe(campos) {
+        var lat = campos['n:latitude#1'], lon = campos['n:longitude#1'];
+        if (lat == null || lon == null || String(lat) === '' || String(lon) === '') return null;
+        var u = {};
+        Object.keys(UBICACION).forEach(function (n) {
+            var v = campos['n:' + n + '#1'];
+            u[n] = v == null ? '' : String(v);
+        });
+        return u;
+    }
+
+    // La captura nueva de la plantilla puede llegar después de la restauración y
+    // pisar lo guardado; se vuelve a imponer antes de que el navegador recoja
+    // los datos del envío.
+    function aplicarUbicacion(estado) {
+        if (!estado.ubicacion) return;
+        Object.keys(UBICACION).forEach(function (n) {
+            var el = estado.form.querySelector('input[name="' + n + '"]');
+            if (el && el.value !== estado.ubicacion[n]) el.value = estado.ubicacion[n];
+        });
+    }
+
+    // ── Envío en curso y confirmación ────────────────────────────────────────
+    function borrarPorClave(clave) {
+        try { localStorage.removeItem(clave); } catch (e) { /* nada que borrar */ }
+        borrarArchivosDeBorrador(clave).catch(function () { /* sin IndexedDB */ });
+    }
+
+    // Anota en el borrador guardado con qué token salió y cuándo, sin volver a
+    // recoger los campos (a esta altura la plantilla ya serializó las firmas en
+    // los inputs ocultos). Deja la clave para que la página de éxito lo borre.
+    function marcarEnvio(estado) {
+        var borrador = leerBorrador(estado.clave);
+        if (!borrador) return;
+        borrador.token = estado.envio.token;
+        borrador.envio = estado.envio;
+        escribirBorrador(estado.clave, borrador);
+        try { sessionStorage.setItem(MARCA_ENVIO, estado.clave); } catch (e) { /* sin sessionStorage */ }
+    }
+
+    // Página de éxito: el servidor ya guardó el envío, el borrador sobra.
+    function confirmarEnvio() {
+        var clave = null;
+        try {
+            clave = sessionStorage.getItem(MARCA_ENVIO);
+            if (clave) sessionStorage.removeItem(MARCA_ENVIO);
+        } catch (e) { /* sin sessionStorage */ }
+        if (clave) borrarPorClave(clave);
+    }
+
+    // Tokens de los envíos que la cola offline guardó (el service worker los
+    // encola cuando la red falla). Resuelve siempre, con {} si no se pudo leer.
+    function tokensEnCola() {
+        return new Promise(function (resolve) {
+            var listo = false;
+            function fin(tokens) { if (!listo) { listo = true; resolve(tokens || {}); } }
+            setTimeout(function () { fin({}); }, ESPERA_COLA_MS);
+            try {
+                if (!window.indexedDB) { fin({}); return; }
+                var req = window.indexedDB.open(COLA_DB, COLA_VERSION);
+                req.onupgradeneeded = function (ev) {
+                    // Misma forma que sw.js, por si la base aún no existía.
+                    var db = ev.target.result;
+                    if (!db.objectStoreNames.contains(COLA_ALMACEN)) {
+                        var st = db.createObjectStore(COLA_ALMACEN, { keyPath: 'id', autoIncrement: true });
+                        st.createIndex('timestamp', 'timestamp');
+                    }
+                };
+                req.onsuccess = function (ev) {
+                    var db = ev.target.result;
+                    try {
+                        var pedido = db.transaction(COLA_ALMACEN, 'readonly').objectStore(COLA_ALMACEN).getAll();
+                        pedido.onsuccess = function () {
+                            var tokens = {};
+                            (pedido.result || []).forEach(function (item) {
+                                (item.entries || []).forEach(function (par) {
+                                    if (par && par[0] === 'client_submission_id' && par[1]) tokens[String(par[1])] = true;
+                                });
+                            });
+                            db.close();
+                            fin(tokens);
+                        };
+                        pedido.onerror = function () { db.close(); fin({}); };
+                    } catch (e) { db.close(); fin({}); }
+                };
+                req.onerror = function () { fin({}); };
+                req.onblocked = function () { fin({}); };
+            } catch (e) { fin({}); }
+        });
+    }
+
+    // ── Recordatorio al abrir SEKapp ─────────────────────────────────────────
+    var NOMBRES = {
+        supervision_puesto: 'una supervisión',
+        reporte_incidente: 'un reporte de incidente',
+        medicion_experiencia_cliente: 'una encuesta a cliente',
+        informe_novedades_disciplinario: 'un reporte disciplinario',
+        log_de_patrullas: 'un log de patrullas',
+        registro_de_capacitaciones: 'una capacitación',
+        registro_y_acta_de_visita: 'un acta de visita',
+        planilla_vehicular: 'una planilla vehicular',
+        planilla_motocicletas: 'una planilla de motocicletas',
+        checklist_cumplimiento: 'un checklist de cumplimiento',
+        confiabilidad_equipos: 'un reporte de confiabilidad de equipos'
+    };
+
+    function nombreDeRuta(ruta) {
+        var m = /^\/forms\/([a-z_]+)/.exec(ruta || '');
+        return (m && NOMBRES[m[1]]) || 'un formulario';
+    }
+
+    function borradoresDelUsuario() {
+        var prefijo = PREFIJO + USUARIO + ':';
+        var lista = [];
+        try {
+            for (var i = 0; i < localStorage.length; i++) {
+                var k = localStorage.key(i);
+                if (!k || k.indexOf(prefijo) !== 0) continue;
+                var b = leerBorrador(k);
+                if (!b) continue;
+                var resto = k.slice(prefijo.length);
+                var h = resto.lastIndexOf('#');
+                lista.push({ clave: k, ruta: h === -1 ? resto : resto.slice(0, h), borrador: b });
+            }
+        } catch (e) { /* sin localStorage */ }
+        return lista;
+    }
+
+    function recordar() {
+        var lista = borradoresDelUsuario();
+        if (!lista.length) return;
+        var conEnvio = lista.some(function (p) { return p.borrador.envio && p.borrador.envio.token; });
+        (conEnvio ? tokensEnCola() : Promise.resolve({})).then(function (tokens) {
+            var pendientes = [];
+            lista.forEach(function (p) {
+                var envio = p.borrador.envio;
+                if (envio) {
+                    // La cola offline ya lo tiene: ella lo manda y el borrador sobra.
+                    if (envio.token && tokens[envio.token]) { borrarPorClave(p.clave); return; }
+                    if (Date.now() - (envio.momento || 0) < EN_VUELO_MS) return;
+                }
+                pendientes.push(p);
+            });
+            if (!pendientes.length) return;
+            pendientes.sort(function (a, b) { return (b.borrador.guardado || 0) - (a.borrador.guardado || 0); });
+            mostrarRecordatorio(pendientes);
+        });
+    }
+
+    function mostrarRecordatorio(pendientes) {
+        inyectarEstilos();
+        var aviso = document.createElement('div');
+        aviso.className = 'secapp-borrador-aviso secapp-borrador-recordatorio';
+        aviso.setAttribute('role', 'status');
+        aviso.setAttribute('aria-live', 'polite');
+        var texto = document.createElement('span');
+        texto.textContent = pendientes.length === 1
+            ? 'Tienes ' + nombreDeRuta(pendientes[0].ruta) + ' sin enviar'
+            : 'Tienes ' + pendientes.length + ' formularios sin enviar';
+        var continuar = document.createElement('button');
+        continuar.type = 'button';
+        continuar.className = 'secapp-borrador-continuar';
+        continuar.textContent = 'Continuar';
+        var cerrar = document.createElement('button');
+        cerrar.type = 'button';
+        cerrar.className = 'secapp-borrador-cerrar';
+        cerrar.setAttribute('aria-label', 'Cerrar');
+        cerrar.textContent = '×';
+        aviso.appendChild(texto);
+        aviso.appendChild(continuar);
+        aviso.appendChild(cerrar);
+        document.body.appendChild(aviso);
+        continuar.addEventListener('click', function () { location.href = pendientes[0].ruta; });
+        cerrar.addEventListener('click', function () { aviso.remove(); });
+    }
+
+    // ── Sin espacio ──────────────────────────────────────────────────────────
+    var avisoEspacioMostrado = false;
+
+    function avisarSinEspacio() {
+        if (avisoEspacioMostrado || !document.body) return;
+        avisoEspacioMostrado = true;
+        inyectarEstilos();
+        var aviso = document.createElement('div');
+        aviso.className = 'secapp-borrador-aviso secapp-borrador-alerta';
+        aviso.setAttribute('role', 'alert');
+        var texto = document.createElement('span');
+        texto.textContent = '⚠️ No hay espacio en el teléfono para resguardar este formulario. ' +
+            'Libera espacio o envíalo ahora para no perder lo diligenciado.';
+        var cerrar = document.createElement('button');
+        cerrar.type = 'button';
+        cerrar.textContent = 'Entendido';
+        aviso.appendChild(texto);
+        aviso.appendChild(cerrar);
+        document.body.appendChild(aviso);
+        cerrar.addEventListener('click', function () { aviso.remove(); });
     }
 
     function guardarAhora(estado) {
@@ -641,11 +909,18 @@
         var campos = {};
         controlesDe(form).forEach(function (c) {
             if (TIPOS_IGNORADOS[c.tipo]) return;
-            campos[c.clave] = leerValor(c.el, c.tipo);
+            var valor = leerValor(c.el, c.tipo);
+            // Las firmas que la plantilla serializa a imagen en inputs ocultos al
+            // enviar no caben ni hacen falta: se guardan como trazos.
+            if (typeof valor === 'string' && valor.indexOf('data:') === 0) return;
+            if (estado.ubicacion && UBICACION[c.el.name]) valor = estado.ubicacion[c.el.name];
+            campos[c.clave] = valor;
         });
         var borrador = {
             formato: FORMATO,
             guardado: Date.now(),
+            token: tokenDe(estado),
+            envio: estado.envio || null,
             ultimoCampo: claveDeElemento(estado, estado.ultimoEl),
             campos: campos,
             firmas: capturarFirmas(form),
@@ -813,13 +1088,33 @@
     function restaurar(estado) {
         var borrador = leerBorrador(estado.clave);
         if (!borrador) return;
+        if (borrador.envio && borrador.envio.token) {
+            // Salió y no llegó a la página de éxito. Si la cola offline lo
+            // tomó, ella lo manda y el borrador sobra; si no, se repone para
+            // reenviarlo con el mismo token.
+            tokensEnCola().then(function (tokens) {
+                if (tokens[borrador.envio.token]) { borrarPorClave(estado.clave); return; }
+                reponer(estado, borrador);
+            });
+            return;
+        }
+        reponer(estado, borrador);
+    }
+
+    function reponer(estado, borrador) {
         var pendientes = {};
+        estado.token = borrador.token || null;
+        estado.envio = borrador.envio || null;
         estado.restaurando = true;
         try {
+            try { reponerToken(estado); }
+            catch (e) { console.warn('[form-draft] No se pudo reponer el identificador:', e); }
             try { reconstruirBloques(estado.form, borrador.bloques); }
             catch (e) { console.warn('[form-draft] No se pudieron rehacer los bloques:', e); }
             try { pendientes = aplicarCampos(estado, borrador.campos || {}); }
             catch (e) { console.warn('[form-draft] No se pudieron reponer los campos:', e); }
+            try { estado.ubicacion = ubicacionDe(borrador.campos || {}); }
+            catch (e) { estado.ubicacion = null; }
             try { reponerFirmas(estado.form, borrador.firmas); }
             catch (e) { console.warn('[form-draft] No se pudieron reponer las firmas:', e); }
         } finally {
@@ -845,7 +1140,14 @@
         '  transition:opacity .4s ease;}',
         '.secapp-borrador-aviso button{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;',
         '  border-radius:6px;padding:.3rem .7rem;font-size:.8rem;font-weight:700;cursor:pointer;}',
-        '.secapp-borrador-foco{outline:2px solid #60a5fa !important;outline-offset:3px;border-radius:6px;}'
+        '.secapp-borrador-foco{outline:2px solid #60a5fa !important;outline-offset:3px;border-radius:6px;}',
+        '.secapp-borrador-recordatorio{padding:.85rem 1.1rem;font-size:.95rem;font-weight:700;}',
+        '.secapp-borrador-recordatorio .secapp-borrador-continuar{background:#2563eb;border-color:#60a5fa;',
+        '  padding:.45rem 1rem;font-size:.85rem;}',
+        '.secapp-borrador-recordatorio .secapp-borrador-cerrar{border:none;font-size:1.2rem;line-height:1;',
+        '  padding:.1rem .35rem;opacity:.8;}',
+        '.secapp-borrador-alerta{background:#7f1d1d;border-color:rgba(248,113,113,.6);color:#fee2e2;',
+        '  max-width:min(520px,92vw);line-height:1.4;}'
     ].join('\n');
 
     function inyectarEstilos() {
@@ -938,6 +1240,17 @@
         if (estado.sucio && !estado.restaurando) programar(estado);
     }
 
+    // Fase de captura: antes de que la plantilla serialice las firmas y de que
+    // el navegador recoja los datos. Guarda lo que quedó pendiente y vuelve a
+    // imponer la ubicación con la que se diligenció.
+    function alEnviarCaptura(ev) {
+        var form = ev.target;
+        var estado = form && form.tagName === 'FORM' ? estadoDe(form) : null;
+        if (!estado) return;
+        if (estado.temporizador) guardarAhora(estado);
+        aplicarUbicacion(estado);
+    }
+
     function alEnviar(ev) {
         var form = ev.target;
         var estado = form && form.tagName === 'FORM' ? estadoDe(form) : null;
@@ -949,9 +1262,13 @@
         // el candado lo consuma porque este script se carga primero.
         if (!valido || form._secappAbort) return;
         if (estado.temporizador) { clearTimeout(estado.temporizador); estado.temporizador = null; }
+        // No se borra todavía: lo borra la página de éxito cuando el servidor
+        // confirmó, o el recordatorio si la cola offline lo tomó. Si el teléfono
+        // muere a mitad de la subida, sigue aquí para reenviarlo.
+        estado.envio = { token: tokenDe(estado), momento: Date.now() };
         estado.enviado = true;
         estado.sucio = false;
-        borrarBorrador(estado);
+        marcarEnvio(estado);
     }
 
     function alReiniciar(ev) {
@@ -981,6 +1298,7 @@
     document.addEventListener('change', alEditar, true);
     document.addEventListener('click', alPulsar, true);
     document.addEventListener('keydown', alPulsar, true);
+    document.addEventListener('submit', alEnviarCaptura, true);
     document.addEventListener('submit', alEnviar, false);
     document.addEventListener('reset', alReiniciar, false);
 
@@ -998,10 +1316,20 @@
                 huellas: {},
                 temporizador: null,
                 ultimoEl: null,
-                vigilados: null
+                vigilados: null,
+                token: null,
+                envio: null,
+                ubicacion: null
             });
         });
-        if (!formularios.length) return;
+        if (!formularios.length) {
+            // Sin formulario de campo: la página de éxito confirma el envío que
+            // acaba de llegar; el inicio y Formularios recuerdan lo pendiente.
+            var ruta = location.pathname.replace(/\/+$/, '') || '/';
+            if (ruta === RUTA_EXITO) confirmarEnvio();
+            else if (RUTAS_INICIO[ruta]) recordar();
+            return;
+        }
 
         // Después de todos los DOMContentLoaded: las plantillas ya crearon su
         // primer bloque, sus pads y sus valores por defecto.
@@ -1023,6 +1351,7 @@
     window.SecAppFormDraft = {
         clave: function (form) { var e = estadoDe(form); return e ? e.clave : null; },
         guardar: function (form) { var e = estadoDe(form); if (e) { e.sucio = true; guardarAhora(e); } },
-        borrar: function (form) { var e = estadoDe(form); if (e) borrarBorrador(e); }
+        borrar: function (form) { var e = estadoDe(form); if (e) borrarBorrador(e); },
+        pendientes: borradoresDelUsuario
     };
 })();

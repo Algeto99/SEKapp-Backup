@@ -353,7 +353,12 @@ _DEDUP_CACHE = {}
 _DEDUP_LOCK = threading.Lock()
 _DEDUP_TTL = 45.0           # segundos que una clave sigue vigente en memoria
 _DEDUP_WAIT = 10.0          # espera máxima a que termine el envío en curso
-_DEDUP_DB_TTL_MINUTES = 10  # ventana de la clave en base de datos
+# Ventana de la clave en base de datos. Son 48 horas y no minutos porque el
+# borrador local conserva su client_submission_id hasta que llega la página de
+# éxito: si el teléfono se apagó justo después de que el servidor guardó, el
+# reenvío del día siguiente trae el mismo token y debe reconocerse como
+# repetido en vez de crear otro registro.
+_DEDUP_DB_TTL_MINUTES = 48 * 60
 _DEDUP_TABLE_READY = False
 
 

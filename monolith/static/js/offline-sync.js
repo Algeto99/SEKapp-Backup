@@ -292,6 +292,71 @@
         return { properties: [] };
     }
 
+    // ── Borrador local del envío que acaba de salir ───────────────────────────
+    // form-draft.js conserva cada formulario en localStorage (y sus fotos en la
+    // base `secapp-borradores`) hasta que el servidor lo confirma, y lo marca con
+    // el client_submission_id con que salió. Cuando es esta cola la que lo
+    // entrega, ese borrador sobra: si quedara, el recordatorio de inicio lo
+    // mostraría como pendiente aunque ya está guardado.
+    const DRAFT_PREFIX = 'secapp:borrador:';
+    const DRAFT_DB_NAME = 'secapp-borradores';
+    const DRAFT_DB_VERSION = 1;
+    const DRAFT_STORE = 'archivos';
+
+    function forgetDraftFiles(draftKey) {
+        return new Promise(resolve => {
+            let done = false;
+            const finish = () => { if (!done) { done = true; resolve(); } };
+            setTimeout(finish, 3000);
+            try {
+                const req = indexedDB.open(DRAFT_DB_NAME, DRAFT_DB_VERSION);
+                req.onupgradeneeded = e => {
+                    // Misma forma que form-draft.js, por si la base aún no existía.
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(DRAFT_STORE)) {
+                        db.createObjectStore(DRAFT_STORE, { keyPath: 'id' }).createIndex('borrador', 'borrador', { unique: false });
+                    }
+                };
+                req.onsuccess = e => {
+                    const db = e.target.result;
+                    try {
+                        const tx = db.transaction(DRAFT_STORE, 'readwrite');
+                        const cursorReq = tx.objectStore(DRAFT_STORE).index('borrador').openCursor(IDBKeyRange.only(draftKey));
+                        cursorReq.onsuccess = () => {
+                            const cursor = cursorReq.result;
+                            if (!cursor) return;
+                            cursor.delete();
+                            cursor.continue();
+                        };
+                        tx.oncomplete = () => { db.close(); finish(); };
+                        tx.onerror = () => { db.close(); finish(); };
+                        tx.onabort = () => { db.close(); finish(); };
+                    } catch { db.close(); finish(); }
+                };
+                req.onerror = finish;
+                req.onblocked = finish;
+            } catch { finish(); }
+        });
+    }
+
+    async function forgetDraftForToken(token) {
+        if (!token) return;
+        const keys = [];
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith(DRAFT_PREFIX)) continue;
+                let draft = null;
+                try { draft = JSON.parse(localStorage.getItem(key) || 'null'); } catch { draft = null; }
+                if (draft && String(draft.token || '') === String(token)) keys.push(key);
+            }
+            keys.forEach(key => localStorage.removeItem(key));
+        } catch {
+            // Sin localStorage no hay borrador que olvidar.
+        }
+        for (const key of keys) await forgetDraftFiles(key);
+    }
+
     async function updateItem(id, data) {
         const db = await openDB();
         const storeKey = normalizeStoreKey(id);
@@ -338,6 +403,8 @@
             throw new Error('session_expired');
         }
 
+        const submissionToken = (resolved.entries.find(([k]) => k === 'client_submission_id') || [])[1];
+
         // Check for the direct JSON success response from replay-aware endpoints
         if (res.ok && res.status === 200) {
             const ct = res.headers.get('content-type') || '';
@@ -346,6 +413,7 @@
                 try { body = await res.json(); } catch { body = null; }
                 if (body && body.success) {
                     await removeItem(resolved.id);
+                    await forgetDraftForToken(submissionToken);
                     return true;
                 }
             }
@@ -353,6 +421,7 @@
 
         if (res.ok && res.status !== 202 && !landed.includes('/error')) {
             await removeItem(resolved.id);
+            await forgetDraftForToken(submissionToken);
             return true;
         }
 
@@ -878,15 +947,36 @@
         if (modal && modal.classList.contains('open')) renderQueueManager();
     }
 
-    // When back online, prompt the user to review pending forms instead of auto-syncing.
+    // Al volver la conexión, lo que quedó en cola sale solo. El aviso de revisar
+    // queda únicamente para lo que todavía necesita al usuario: una instalación
+    // escrita sin conexión que no se resolvió, o un adjunto de antes de que la
+    // cola guardara archivos.
     let reviewPromptShown = false;
+    let lastAutoSyncAt = 0;
+    // Entre reintentos automáticos de un envío que falla (foco, pestaña visible):
+    // evita una ráfaga de avisos sin impedir el reintento.
+    const AUTO_SYNC_RETRY_MS = 60000;
+
+    function needsUser(item) {
+        const needsProperty = (item.entries || []).some(([k]) => k === 'property_entered_offline');
+        const legacyMissingFiles = item.hasFiles && (item.fileEntries || []).length === 0;
+        return needsProperty || legacyMissingFiles;
+    }
 
     async function maybeSyncPending() {
         if (!navigator.onLine || syncInFlight) return;
-        const count = await countPending().catch(() => 0);
+        const pending = await getPending().catch(() => []);
+        const count = pending.length;
         if (count === 0) return;
 
         updateBanner(count, false);
+
+        if (pending.every(item => !needsUser(item))) {
+            if (Date.now() - lastAutoSyncAt < AUTO_SYNC_RETRY_MS) return;
+            lastAutoSyncAt = Date.now();
+            await syncAll();
+            return;
+        }
 
         // Only show the review prompt once per online session to avoid repeated interruptions.
         if (reviewPromptShown) return;
@@ -994,7 +1084,7 @@
 
         // Sync automatically when coming back online, and when mobile browsers
         // resume a page after the connection changed in the background.
-        window.addEventListener('online', scheduleAutoSync);
+        window.addEventListener('online', () => { lastAutoSyncAt = 0; scheduleAutoSync(); });
         window.addEventListener('focus', scheduleAutoSync);
         window.addEventListener('pageshow', scheduleAutoSync);
         document.addEventListener('visibilitychange', () => {
@@ -1007,6 +1097,7 @@
         // Offline indicator in banner — reset review prompt so it re-appears next time online
         window.addEventListener('offline', async () => {
             reviewPromptShown = false;
+            lastAutoSyncAt = 0;
             const count = await countPending().catch(() => 0);
             if (count > 0) updateBanner(count, false);
         });

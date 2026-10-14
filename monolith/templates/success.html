@@ -129,7 +129,9 @@
         </div>
     </div>
 
-    
+    <!-- Llegar aquí es la confirmación de que el servidor recibió el envío: el
+         borrador local que acaba de salir se borra (form-draft.js). -->
+    <script src="{{ url_for('static', filename='js/form-draft.js') }}" data-usuario="{{ (name or '') | e }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 </html>
