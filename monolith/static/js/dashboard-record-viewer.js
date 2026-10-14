@@ -1489,6 +1489,7 @@
         }
 
         async function openRecord(id, ctx) {
+            claimModal();
             currentRecordId = id;
             _currentRecord  = null;
             // Contexto opcional de quien abre: hoy, el motivo de la alerta del
@@ -1656,14 +1657,6 @@
             });
         }
 
-        modal.querySelector('.drv-modal-close').onclick = closeRecord;
-        modal.querySelector('.drv-btn-close').onclick = closeRecord;
-        modal.querySelector('.drv-btn-pdf').onclick = () => exportRecord('pdf');
-        modal.querySelector('.drv-btn-excel').onclick = () => exportRecord('excel');
-        modal.querySelector('.drv-btn-email').onclick = showEmailPrompt;
-        modal.querySelector('.drv-email-cancel').onclick = hideEmailPrompt;
-        modal.querySelector('.drv-email-send').onclick = sendEmail;
-
         const btnAsignar      = modal.querySelector('.drv-btn-asignar');
         const btnVisita       = modal.querySelector('.drv-btn-visita');
         const asignarOverlay  = modal.querySelector('.drv-asignar-overlay');
@@ -1682,11 +1675,11 @@
         const EXT_SENTINEL = '__external__';
         let _usuariosCached = null;
 
-        asignarSelect.addEventListener('change', () => {
+        function toggleExternalEmail() {
             const isExt = asignarSelect.value === EXT_SENTINEL;
             asignarExtWrap.style.display = isExt ? 'block' : 'none';
             if (isExt) asignarExtEmail.focus();
-        });
+        }
 
         async function showAsignarOverlay() {
             asignarMsg.textContent = '';
@@ -1799,8 +1792,7 @@
             }
         }
 
-        btnAsignar.onclick = showAsignarOverlay;
-        btnVisita.onclick = () => {
+        function agendarVisita() {
             const raw = _currentRecord && (_currentRecord.data || _currentRecord);
             const idPropiedad = raw && (raw['ID Propiedad'] || raw['id_propiedad'] || '');
             const titulo      = raw && (raw['Título de Incidencia'] || '');
@@ -1813,12 +1805,36 @@
             params.set('motivo', 'Seguimiento de servicio');
             params.set('temas', temas);
             window.location = `/forms/registro_y_acta_de_visita?${params}`;
-        };
-        modal.querySelector('.drv-asignar-cancel').onclick = hideAsignarOverlay;
-        modal.querySelector('.drv-btn-asignar-confirm').onclick = submitAsignacion;
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) closeRecord();
-        });
+        }
+
+        // El modal es uno solo por página (ensureModal lo reutiliza) y lo comparten
+        // todas las instancias del visor. Los botones se cablean con handlers de
+        // UNA instancia, así que deben apuntar a la que tiene el registro abierto:
+        // se recablean al crear el visor y en cada openRecord. Antes se cableaban
+        // una sola vez y la última instancia creada se quedaba con todos los
+        // botones; en páginas con varios tipos de formulario (Morning Briefing,
+        // Matriz de alertas, Gestión) Descargar PDF / Excel, Enviar por correo y
+        // Asignar hallazgo actuaban sobre otro visor: con su registro nulo no
+        // pasaba nada, y con uno abierto antes se exportaba el registro equivocado.
+        function claimModal() {
+            modal.querySelector('.drv-modal-close').onclick = closeRecord;
+            modal.querySelector('.drv-btn-close').onclick = closeRecord;
+            modal.querySelector('.drv-btn-pdf').onclick = () => exportRecord('pdf');
+            modal.querySelector('.drv-btn-excel').onclick = () => exportRecord('excel');
+            modal.querySelector('.drv-btn-email').onclick = showEmailPrompt;
+            modal.querySelector('.drv-email-cancel').onclick = hideEmailPrompt;
+            modal.querySelector('.drv-email-send').onclick = sendEmail;
+            asignarSelect.onchange = toggleExternalEmail;
+            btnAsignar.onclick = showAsignarOverlay;
+            btnVisita.onclick = agendarVisita;
+            modal.querySelector('.drv-asignar-cancel').onclick = hideAsignarOverlay;
+            modal.querySelector('.drv-btn-asignar-confirm').onclick = submitAsignacion;
+            // onclick y no addEventListener: así no se acumula un cierre por instancia.
+            modal.onclick = (event) => {
+                if (event.target === modal) closeRecord();
+            };
+        }
+        claimModal();
 
         return {
             openRecord,
