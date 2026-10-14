@@ -1694,6 +1694,19 @@ def _error_inspeccion(faltantes, puesto=None):
         f'Complete la Inspección de Puesto{donde}: falta calificar {", ".join(faltantes)}.', 400)
 
 
+# Campos del arma: con "Porta arma en el puesto" = No se guardan en NULL, en el
+# alta y en la edición (KANAN, 2026-10-14). La edición descarta los vacíos antes
+# del UPDATE (_filter_existing_columns), así que borrar los campos en el
+# formulario nunca los borraba en la base y la supervisión seguía mostrando el
+# arma del registro anterior. porta_arma y licencia_portar_arma se conservan.
+_CAMPOS_ARMA = ('tipo_arma', 'serie_arma', 'matricula_arma', 'cantidad_municion',
+                'fecha_vencimiento_permiso_porte', 'fecha_ultimo_mtto_arma')
+
+
+def _sin_arma(datos):
+    return str(datos.get('porta_arma') or '').strip().lower() == 'no'
+
+
 @forms_bp.route('/submit_supervision_puesto', methods=['GET', 'POST'])
 @jwt_required()
 @dedup_form_submission
@@ -1809,7 +1822,10 @@ def submit_supervision_puesto():
         for index, sup_data in supervisions_map.items():
             # Merge Global
             row_data = {**global_data, **sup_data}
-            
+            if _sin_arma(row_data):
+                for campo in _CAMPOS_ARMA:
+                    row_data.pop(campo, None)
+
             # Map fields to DB columns (ensure names match what DB expects)
             # Based on reading, DB columns likely match the form names we used:
             # puesto_area_especifica, rol_aplicador, horario_servicio, tipo_servicio
@@ -1995,6 +2011,11 @@ def submit_supervision_puesto_editar(id):
         _marcar_geocerca(cur, 'supervision_puesto', form_data)
         valid_form_data = _filter_existing_columns(cur, 'supervision_puesto', form_data)
         valid_form_data = {k: v for k, v in valid_form_data.items() if v is not None and v != ''}
+        if _sin_arma(form_data):
+            # Después del filtro de vacíos: así el UPDATE sí escribe NULL y el
+            # historial de edición registra el valor que se borró.
+            for campo in _CAMPOS_ARMA:
+                valid_form_data[campo] = None
 
         _record_edicion_historial(
             cur, 'supervision_puesto', id, user_email, motivo, motivo_detalle,
