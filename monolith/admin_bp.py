@@ -944,6 +944,14 @@ def sql_hoy():
     return f"(NOW() AT TIME ZONE '{_tz_sql()}')::date"
 
 
+def sql_fecha_local(columna):
+    """Expresión SQL del día local de un instante (`creado_en`, `created_at`).
+    Para filtrar por rango de días: `sql_fecha_local('t.creado_en') >= %s`.
+    Comparar el TIMESTAMPTZ directo con una fecha corre el día en UTC y deja
+    fuera todo el día "hasta" (>= 00:00 y <= 00:00 del mismo día = vacío)."""
+    return f"({columna} AT TIME ZONE '{_tz_sql()}')::date"
+
+
 def format_local_datetime(val, tz=None, include_time=True, time_sep=" a las ", use_12h=True, assume_utc=False,
                           wall_clock=False):
     """

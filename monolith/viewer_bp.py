@@ -2169,14 +2169,25 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     search_term = f"%{filters['submitted_by']}%"
                     query_params.extend([search_term, search_term])
 
-                # Date range filters
-                if filters.get('start_date'):
-                    where_conditions.append(f"t.{config['date_col']} >= %s")
-                    query_params.append(filters['start_date'])
-
-                if filters.get('end_date'):
-                    where_conditions.append(f"t.{config['date_col']} <= %s")
-                    query_params.append(filters['end_date'])
+                # Date range filters: por día de la operación e inclusivo en los
+                # dos extremos, para que "desde" = "hasta" sea un solo día entero.
+                # Antes se comparaba el TIMESTAMPTZ con la fecha suelta: el "hasta"
+                # quedaba en 00:00 (un solo día devolvía vacío) y los días se
+                # cortaban en UTC (desde las 7 p. m. de Panamá ya era "mañana").
+                # creado_en / created_at son instantes y se llevan a la zona de
+                # Umbrales KPI, la misma con la que se muestra "Enviado el"; una
+                # columna DATE o de reloj de pared (`fecha`) sólo se castea.
+                if filters.get('start_date') or filters.get('end_date'):
+                    from admin_bp import sql_fecha_local
+                    columna = f"t.{config['date_col']}"
+                    dia = (sql_fecha_local(columna) if config['date_col'] in ('creado_en', 'created_at')
+                           else f"{columna}::date")
+                    if filters.get('start_date'):
+                        where_conditions.append(f"{dia} >= %s")
+                        query_params.append(filters['start_date'])
+                    if filters.get('end_date'):
+                        where_conditions.append(f"{dia} <= %s")
+                        query_params.append(filters['end_date'])
 
                 # Cliente / Empresa y Propiedad / Instalación, para TODOS los tipos.
                 # Antes esto estaba dentro de `if f_type == 'reporte_incidente'`, de
