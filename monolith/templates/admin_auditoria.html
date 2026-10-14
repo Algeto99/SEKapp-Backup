@@ -40,8 +40,20 @@
         td { padding:.55rem .6rem; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top; }
         tr.evento { cursor:pointer; }
         tr.evento:hover td { background:rgba(255,255,255,.03); }
-        tr.detalle td { background:rgba(15,23,42,.6); padding:.75rem 1rem; }
-        pre.detalle-json { font-size:.72rem; white-space:pre-wrap; word-break:break-word; color:#cbd5e1; margin:0; font-family:ui-monospace,Menlo,monospace; }
+        tr.detalle td { background:rgba(15,23,42,.6); padding:.85rem 1rem 1rem; white-space:normal; }
+        /* La tabla mide 1100 px y se desplaza en horizontal; el detalle se queda
+           pegado al borde visible con el ancho del contenedor (lo fija el JS). */
+        tr.detalle td > * { position:sticky; left:1rem; box-sizing:border-box; }
+        /* Detalle legible: etiqueta arriba, valor abajo; los grupos ocupan todo el ancho. */
+        .detalle-lista { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.6rem 1.5rem; margin:0; font-size:.8rem; }
+        .detalle-item { min-width:0; }
+        .detalle-item dt { font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:#94a3b8; margin-bottom:.15rem; }
+        .detalle-item dd { margin:0; color:#e2e8f0; word-break:break-word; line-height:1.4; }
+        .detalle-item dd > div + div { margin-top:.2rem; }
+        .detalle-grupo { grid-column:1 / -1; }
+        .detalle-grupo > dd { padding:.6rem .8rem; border:1px solid rgba(255,255,255,.07); border-radius:.5rem; background:rgba(255,255,255,.03); }
+        .detalle-sub { grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:.45rem 1.25rem; }
+        .detalle-vacio { font-size:.8rem; color:#64748b; }
         .nowrap { white-space:nowrap; }
         .muted { color:#64748b; }
         .link { color:#60a5fa; cursor:pointer; text-decoration:underline dotted; }
@@ -66,7 +78,9 @@
         body.light-mode td { border-color:#f1f5f9; color:#0f172a; }
         body.light-mode tr.evento:hover td { background:#f8fafc; }
         body.light-mode tr.detalle td { background:#f8fafc; }
-        body.light-mode pre.detalle-json { color:#334155; }
+        body.light-mode .detalle-item dt { color:#64748b; }
+        body.light-mode .detalle-item dd { color:#0f172a; }
+        body.light-mode .detalle-grupo > dd { border-color:#e2e8f0; background:#fff; }
         body.light-mode .tabla-wrap { border-color:#e2e8f0; }
         body.light-mode .btn-ghost { background:#fff; color:#334155; border-color:#cbd5e1; }
         body.light-mode .resumen, body.light-mode .paginacion { color:#64748b; }
@@ -284,20 +298,225 @@
             + '<td>' + esc(e.accion) + origen + '</td>'
             + '<td>' + esc(e.formulario_etiqueta || '—') + '</td>'
             + '<td class="nowrap">' + registro + '</td>'
-            + '<td><span class="' + claseEstado(e.estado) + '">' + esc(e.estado) + '</span>' + (e.http_status ? ' <span class="muted">' + esc(e.http_status) + '</span>' : '') + '</td>'
+            + '<td><span class="' + claseEstado(e.estado) + '">' + esc(e.estado) + '</span></td>'
             + '<td>' + esc(e.dispositivo || '—') + '</td>'
             + '<td class="nowrap">' + esc(e.ip || '—') + '</td>'
             + '</tr>';
     }
 
-    function filaDetalle(e) {
+    // ── Detalle legible ───────────────────────────────────────────────────
+    // El detalle se guarda tal cual lo anota cada handler (claves técnicas, JSON) y
+    // así sale en el Excel; en pantalla se traduce. Toda clave que pueda llegar
+    // está en ETIQUETAS; una desconocida se humaniza (guiones bajos a espacios).
+    var FORMULARIOS = {{ formularios | tojson }};
+    var TIPOS = {{ tipos | tojson }};
+    var ETIQUETAS = {
+        // Grupos
+        filtros: 'Filtros aplicados', periodo: 'Período', alcance: 'Alcance del enlace',
+        destinatarios: 'Destinatarios', registros: 'Registros creados',
+        // Formularios y registros
+        formulario: 'Formulario', form_type: 'Formulario', formType: 'Formulario', module: 'Módulo',
+        modulo_filtro: 'Módulo', module_key: 'Módulo de licencia', record_id: 'Registro',
+        registro_id: 'N.º de registro', report_id: 'Registro', report_ids: 'Reportes seleccionados',
+        reports: 'Reportes seleccionados', ids_only: 'Sólo identificadores',
+        // Edición y cambios de estado
+        motivo: 'Motivo', motivo_detalle: 'Detalle del motivo', estado_anterior: 'Estado anterior',
+        estado_nuevo: 'Estado nuevo', accion_seguimiento: 'Acción de seguimiento',
+        accion_tomada: 'Acción tomada', con_evidencia: 'Con evidencia', bloque_idx: 'Bloque',
+        // Hallazgos
+        asignacion_id: 'N.º de asignación', asignado_a: 'Asignado a (id de usuario)',
+        asignado_email: 'Correo del asignado', asignado_nombre: 'Asignado a', fecha_limite: 'Fecha límite',
+        hallazgo_ref: 'Referencia del hallazgo', hallazgo_titulo: 'Hallazgo', nota: 'Nota',
+        repetida: 'Asignación repetida',
+        // Acceso y usuarios
+        email: 'Correo', name: 'Nombre', nombre: 'Nombre', cargo: 'Cargo', numero_empleado: 'N.º de empleado',
+        is_admin: 'Administrador', is_active: 'Activo', es_admin: 'Administrador', es_coordinador: 'Coordinador',
+        confirmo_sesion_activa: 'Confirmó cerrar la otra sesión', otras_sesiones: 'Otras sesiones activas',
+        cambio_de_clave_pendiente: 'Cambio de contraseña pendiente', company_id: 'Empresa (id)',
+        force_password_change: 'Forzar cambio de contraseña', clientes: 'Clientes', propiedades: 'Instalaciones',
+        // Listados, dashboards y filtros
+        limit: 'Por página', offset: 'Desde el registro', pagina: 'Página', por_pagina: 'Por página',
+        usuario: 'Usuario', modulo: 'Módulo', tipo: 'Tipo de evento', estado: 'Estado', accion: 'Acción',
+        q: 'Texto buscado', search: 'Texto buscado', tz: 'Zona horaria', desde: 'Desde', hasta: 'Hasta',
+        start_date: 'Desde', end_date: 'Hasta', date_from: 'Desde', date_to: 'Hasta', year: 'Año',
+        month: 'Mes', day: 'Día', dias: 'Días', days: 'Días', cliente: 'Cliente',
+        customer_company_id: 'Cliente (id)', propiedad: 'Instalación', property: 'Instalación',
+        property_id: 'Instalación (id)', id_propiedad: 'Instalación (id)', propiedad_id: 'Instalación (id)',
+        instalacion: 'Instalación', location: 'Ubicación', puesto: 'Puesto', turno: 'Turno',
+        responsable: 'Responsable', nombre_usuario: 'Usuario', submitted_by: 'Enviado por',
+        empleado_num: 'N.º de empleado', nivel: 'Nivel', supervisor: 'Supervisor', tab: 'Pestaña',
+        texto: 'Resumen', clave: 'Período', etiqueta: 'Período', recortado_inicio: 'Inicio recortado',
+        // Descargas y correos
+        recipient_email: 'Destinatario', to_email: 'Destinatario', coordinadores: 'Coordinadores',
+        enviados: 'Enviados', omitidos: 'Omitidos', mensaje: 'Mensaje',
+        // Umbrales KPI
+        zona_horaria: 'Zona horaria', fecha_inicio_operacion: 'Inicio de operación',
+        supervision_meta: 'Meta de supervisiones', supervision_periodicidad: 'Periodicidad de supervisiones',
+        visita_meta: 'Meta de visitas', visita_periodicidad: 'Periodicidad de visitas',
+        dias_sin_supervision_alerta: 'Días sin supervisión para alertar', horas_incidente_escalar: 'Horas para escalar incidente',
+        dias_compromiso_vencer: 'Días para vencer compromiso', dias_certificacion_vencer: 'Días para vencer certificación',
+        dias_disciplina_reciente: 'Días de disciplina reciente', dias_backup_frecuencia: 'Frecuencia de backup (días)',
+        dias_mtto_arma: 'Días de mantenimiento de arma', dias_mtto_radio: 'Días de mantenimiento de radio',
+        dias_mtto_aviso: 'Días de aviso de mantenimiento', dias_permiso_porte_aviso: 'Aviso de permiso de porte (días)',
+        dias_permiso_porte_prioridad: 'Prioridad de permiso de porte (días)'
+    };
+    var VALORES = {
+        nivel: {excelente: 'Excelente', seguimiento: 'Seguimiento', critico: 'Crítico'},
+        periodo: {semana_anterior: 'Semana anterior', mes_actual: 'Mes actual', mes_anterior: 'Mes anterior',
+                  personalizado: 'Personalizado', anio_mes: 'Según Año / Mes'},
+        estado: {enviado: 'Enviado', fallido: 'Fallido', omitido: 'Omitido'},
+        tipo: TIPOS
+    };
+    // Valores en minúscula que se leen mejor con mayúscula inicial (pestañas,
+    // periodicidades, motivos de rechazo).
+    var CLAVES_CAPITALIZAR = {tab: 1, motivo: 1, supervision_periodicidad: 1, visita_periodicidad: 1, nivel: 1, turno: 1};
+    // Un cliente o instalación que llega como número es un id, no un nombre.
+    var CLAVES_ID_O_NOMBRE = {cliente: 1, propiedad: 1, instalacion: 1, usuario: 1};
+    var CLAVES_FORMULARIO = {formulario: 1, form_type: 1, formType: 1, module: 1, modulo_filtro: 1, module_key: 1};
+    var CLAVES_ID = {registros: 1, report_ids: 1, record_id: 1, registro_id: 1, report_id: 1, asignacion_id: 1, id: 1};
+    var ORDEN = Object.keys(ETIQUETAS);
+
+    function etiqueta(clave) {
+        if (ETIQUETAS[clave]) return ETIQUETAS[clave];
+        var t = String(clave).replace(/_/g, ' ').trim();
+        return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+
+    function ordenar(claves) {
+        return claves.slice().sort(function (a, b) {
+            var ia = ORDEN.indexOf(a), ib = ORDEN.indexOf(b);
+            if (ia === -1 && ib === -1) return a < b ? -1 : a > b ? 1 : 0;
+            if (ia === -1) return 1;
+            if (ib === -1) return -1;
+            return ia - ib;
+        });
+    }
+
+    function fechaLegible(s) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(s);
+        if (!m || s.length > 32) return null;
+        return m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] + ':' + m[5] : '');
+    }
+
+    function escalar(clave, v) {
+        if (v === true) return 'Sí';
+        if (v === false) return 'No';
+        if (v === null || v === undefined || v === '') return null;
+        var s = String(v);
+        if (s === 'true' || s === 'on') return 'Sí';
+        if (s === 'false' || s === 'off') return 'No';
+        if (CLAVES_FORMULARIO[clave] && FORMULARIOS[s]) return FORMULARIOS[s];
+        if (VALORES[clave] && VALORES[clave][s]) return VALORES[clave][s];
+        var f = fechaLegible(s);
+        if (f) return f;
+        if (CLAVES_ID[clave] && /^\d+$/.test(s)) return '#' + s;
+        if (CLAVES_CAPITALIZAR[clave] && /^[a-záéíóúñ]/.test(s)) return s.charAt(0).toUpperCase() + s.slice(1);
+        return s;
+    }
+
+    function esObjeto(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
+
+    // Una línea por persona, reporte o elemento de una lista de objetos.
+    function lineaObjeto(clave, o) {
+        if (!esObjeto(o)) return escalar(clave, o) || '—';
+        if (o.nombre !== undefined || o.email !== undefined) {
+            var partes = [o.nombre, o.email, escalar('estado', o.estado)].filter(Boolean);
+            if (o.motivo) partes.push(o.motivo);
+            if (!partes.length && o.id !== undefined) partes.push('#' + o.id);
+            return partes.join(' · ');
+        }
+        if (o.id !== undefined && (o.formType || o.form_type)) {
+            return '#' + o.id + ' · ' + escalar('form_type', o.formType || o.form_type);
+        }
+        return Object.keys(o).map(function (k) {
+            var t = Array.isArray(o[k]) ? o[k].map(function (x) { return lineaObjeto(k, x); }).join(', ') : escalar(k, o[k]);
+            return t === null ? null : etiqueta(k) + ': ' + t;
+        }).filter(Boolean).join(' · ');
+    }
+
+    // Período: "Mes actual · del 01/10/2026 al 12/10/2026".
+    function textoPeriodo(p) {
+        if (!esObjeto(p)) return escalar('periodo', p);
         var partes = [];
-        if (e.metodo_ruta) partes.push('Ruta: ' + e.metodo_ruta);
-        if (e.sesion_jti) partes.push('Sesión: ' + e.sesion_jti);
-        var json = e.detalle ? JSON.stringify(e.detalle, null, 2) : 'Sin detalle adicional.';
-        return '<tr class="detalle" data-para="' + e.id + '" hidden><td colspan="12">'
-            + '<div class="muted" style="margin-bottom:.4rem;">' + esc(partes.join(' · ')) + '</div>'
-            + '<pre class="detalle-json">' + esc(json) + '</pre></td></tr>';
+        var nombre = p.etiqueta || escalar('periodo', p.clave);
+        if (nombre) partes.push(nombre);
+        var d = fechaLegible(String(p.desde || '')), h = fechaLegible(String(p.hasta || ''));
+        if (d && h) partes.push('del ' + d + ' al ' + h);
+        else if (d) partes.push('desde el ' + d);
+        else if (h) partes.push('hasta el ' + h);
+        if (p.recortado_inicio) {
+            var r = fechaLegible(String(p.recortado_inicio));
+            partes.push(r ? 'inicio recortado al ' + r : 'inicio recortado');
+        }
+        return partes.join(' · ') || null;
+    }
+
+    // Filtros de listados: limit/offset y pagina/por_pagina se leen como página.
+    function filtrosLegibles(f) {
+        var copia = {};
+        Object.keys(f).forEach(function (k) { copia[k] = f[k]; });
+        var porPag = parseInt(copia.limit || copia.por_pagina, 10);
+        var pag = copia.pagina !== undefined ? parseInt(copia.pagina, 10)
+            : (copia.offset !== undefined && porPag ? Math.floor(parseInt(copia.offset, 10) / porPag) + 1 : null);
+        if (porPag || pag) {
+            copia.pagina = (pag ? 'Página ' + pag : '') + (pag && porPag ? ' · ' : '') + (porPag ? porPag + ' por página' : '');
+            delete copia.limit; delete copia.offset; delete copia.por_pagina;
+        }
+        return copia;
+    }
+
+    // Lista de pares etiqueta/valor; los grupos (objetos) van como sublista.
+    function listaDetalle(obj, nivel) {
+        var html = '';
+        ordenar(Object.keys(obj)).forEach(function (k) {
+            var v = obj[k];
+            if (v === null || v === undefined || v === '') return;
+            var cuerpo = null, grupo = false;
+            if (k === 'periodo') {
+                cuerpo = esc(textoPeriodo(v));
+            } else if (esObjeto(v)) {
+                if (v.nombre !== undefined && Object.keys(v).length <= 3) {
+                    cuerpo = esc(v.nombre || (v.id !== undefined ? '#' + v.id : '—'));
+                } else if (nivel < 3 && Object.keys(v).length) {
+                    var sub = listaDetalle(k === 'filtros' ? filtrosLegibles(v) : v, nivel + 1);
+                    if (!sub) return;
+                    cuerpo = '<dl class="detalle-lista detalle-sub">' + sub + '</dl>';
+                    grupo = true;
+                } else {
+                    cuerpo = esc(lineaObjeto(k, v));
+                }
+            } else if (Array.isArray(v)) {
+                if (!v.length) return;
+                var hayObjetos = v.some(esObjeto);
+                if (hayObjetos) {
+                    cuerpo = v.map(function (x) { return '<div>' + esc(lineaObjeto(k, x)) + '</div>'; }).join('');
+                    grupo = v.length > 2;
+                } else {
+                    cuerpo = esc(v.map(function (x) { var t = escalar(k, x); return t === null ? '—' : t; }).join(', '));
+                }
+            } else if (k === 'pagina' && typeof v === 'string' && v.indexOf('Página') === 0) {
+                cuerpo = esc(v);
+            } else {
+                var t = escalar(k, v);
+                if (t === null) return;
+                cuerpo = esc(t);
+            }
+            if (cuerpo === null || cuerpo === '') return;
+            var titulo = etiqueta(k);
+            if (CLAVES_ID_O_NOMBRE[k] && /^\d+$/.test(String(v))) titulo += ' (id)';
+            html += '<div class="detalle-item' + (grupo ? ' detalle-grupo' : '') + '"><dt>' + esc(titulo) + '</dt><dd>' + cuerpo + '</dd></div>';
+        });
+        return html;
+    }
+
+    function filaDetalle(e) {
+        var cuerpo = '';
+        if (esObjeto(e.detalle)) cuerpo = listaDetalle(e.detalle, 1);
+        else if (e.detalle !== null && e.detalle !== undefined && e.detalle !== '') cuerpo = '<div class="detalle-item"><dt>Detalle</dt><dd>' + esc(String(e.detalle)) + '</dd></div>';
+        var contenido = cuerpo
+            ? '<dl class="detalle-lista">' + cuerpo + '</dl>'
+            : '<div class="detalle-vacio">Este evento no tiene información adicional.</div>';
+        return '<tr class="detalle" data-para="' + e.id + '" hidden><td colspan="12">' + contenido + '</td></tr>';
     }
 
     function cargar() {
@@ -360,7 +579,18 @@
         var tr = ev.target.closest('tr.evento');
         if (!tr) return;
         var det = cuerpo.querySelector('tr.detalle[data-para="' + tr.dataset.id + '"]');
-        if (det) det.hidden = !det.hidden;
+        if (det) { det.hidden = !det.hidden; if (!det.hidden) ajustarDetalle(det); }
+    });
+
+    // El detalle no debe exigir desplazamiento horizontal: su ancho es el del
+    // área visible de la tabla, no el de las doce columnas.
+    var tablaWrap = document.querySelector('.tabla-wrap');
+    function ajustarDetalle(det) {
+        var caja = det.querySelector('td > *');
+        if (caja && tablaWrap) caja.style.maxWidth = Math.max(tablaWrap.clientWidth - 32, 220) + 'px';
+    }
+    window.addEventListener('resize', function () {
+        cuerpo.querySelectorAll('tr.detalle:not([hidden])').forEach(ajustarDetalle);
     });
 
     cargar();
