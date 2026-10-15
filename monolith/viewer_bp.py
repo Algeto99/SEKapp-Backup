@@ -2367,7 +2367,7 @@ def fetch_reports(offset, limit, filters=None, form_type='all', skip_signing=Fal
                     "formType": f_type,
                     "editado": bool(row_dict.get('editado')),
                     "editado_por": row_dict.get('editado_por') or '',
-                    "editado_en": editado_en_val.strftime('%Y-%m-%d %H:%M') if hasattr(editado_en_val, 'strftime') else '',
+                    "editado_en": (_fmt_local(editado_en_val, tz=_tz_op, time_sep=" ", assume_utc=True) if editado_en_val else ''),
                 }
                 all_reports.append(report)
 
@@ -2578,7 +2578,7 @@ def fetch_reports_by_ids(report_ids, form_type='reporte_incidente', skip_signing
                 "formType": form_type,
                 "editado": bool(row_dict.get('editado')),
                 "editado_por": row_dict.get('editado_por') or '',
-                "editado_en": editado_en_val.strftime('%Y-%m-%d %H:%M') if hasattr(editado_en_val, 'strftime') else '',
+                "editado_en": (_fmt_local(editado_en_val, tz=_tz_op, time_sep=" ", assume_utc=True) if editado_en_val else ''),
             }
             reports.append(forms_data)
 

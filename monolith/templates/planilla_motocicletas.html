@@ -1486,7 +1486,7 @@
                             fijarUltimo(null, `Primer pre-operacional registrado para ${p}.`);
                         } else {
                             fijarUltimo(Number(d.ultimo), d.fecha
-                                ? `Registrado el ${new Date(d.fecha).toLocaleDateString('es')}.`
+                                ? `Registrado el ${window.FormatoFecha ? window.FormatoFecha.fecha(d.fecha) : new Date(d.fecha).toLocaleDateString('es')}.`
                                 : '');
                         }
                     } catch (_) {

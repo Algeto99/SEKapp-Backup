@@ -2246,7 +2246,7 @@
                 const alcance = d.ultimo.cliente_nombre || 'Todos los clientes';
                 box.textContent = `Último backup hace ${d.dias} día${d.dias !== 1 ? 's' : ''}`
                     + ` — ${alcance}, ${d.ultimo.total_registros} registros`
-                    + ` (${new Date(d.ultimo.generado_en).toLocaleDateString('es')}).`;
+                    + ` (${window.FormatoFecha ? window.FormatoFecha.fecha(d.ultimo.generado_en) : new Date(d.ultimo.generado_en).toLocaleDateString('es')}).`;
                 box.style.background = '#ecfdf5'; box.style.color = '#065f46';
             } catch (_) {
                 box.textContent = 'No se pudo consultar el último backup.';

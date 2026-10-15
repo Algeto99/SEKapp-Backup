@@ -504,7 +504,7 @@
             if (f.motivo && detail.motivo_visita !== f.motivo) return false;
             if (f.estado && detail.estado !== f.estado) return false;
             if (f.periodLabel) {
-                const monthKey = (detail.fecha_visita || '').slice(0, 7);
+                const monthKey = (detail.fecha_sort || '').slice(0, 7);
                 const monthLabel = monthKey ? monthLabelFromKey(monthKey).toLowerCase() : '';
                 const target = String(f.periodLabel).toLowerCase();
                 if (target !== monthLabel && target !== monthKey.toLowerCase()) return false;
@@ -548,8 +548,8 @@
         if (filtered) {
             const cumplidos = detalles.filter(d => d.estado === 'cumplido');
             const diasArr = cumplidos.map(d => {
-                if (!d.fecha_cumplimiento || !d.fecha_visita) return null;
-                const diff = (new Date(d.fecha_cumplimiento) - new Date(d.fecha_visita)) / 86400000;
+                if (!d.fecha_cumplimiento_sort || !d.fecha_sort) return null;
+                const diff = (new Date(d.fecha_cumplimiento_sort) - new Date(d.fecha_sort)) / 86400000;
                 return isNaN(diff) ? null : diff;
             }).filter(v => v !== null);
             const avgDias = diasArr.length ? diasArr.reduce((a,b)=>a+b,0)/diasArr.length : null;

@@ -1356,7 +1356,7 @@
                 <div class="detail-grid">
                     <div class="detail-field"><label>ID</label><p>${d.id || currentRecordId}</p></div>
                     <div class="detail-field"><label>Enviado por</label><p>${d.submittedBy || '—'}</p></div>
-                    <div class="detail-field"><label>Fecha de envío</label><p>${d.dateSubmitted || '—'}</p></div>
+                    <div class="detail-field"><label>Fecha de envío</label><p>${d.dateSubmittedLocal || d.dateSubmitted || '—'}</p></div>
                     <div class="detail-field"><label>Formulario</label><p>${d.title || 'Reporte de Incidente'}</p></div>
                 </div>
             </div>`;

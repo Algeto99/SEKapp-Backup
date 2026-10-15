@@ -378,6 +378,8 @@ class DashboardFilters {
     // 'YYYY-MM-DD' → '5 oct 2026' sin pasar por Date (new Date('2026-10-05') es
     // UTC y en UTC-5 retrocedería un día).
     _fechaCorta(iso) {
+        // DD/MM/AAAA como toda la app (formato-fecha.js); el '5 oct 2026' queda de respaldo.
+        if (window.FormatoFecha) return window.FormatoFecha.fecha(iso) || iso;
         const [y, m, d] = String(iso).split('-').map(Number);
         return (d && m && y) ? `${d} ${this._MONTH_SHORT[m - 1].toLowerCase()} ${y}` : iso;
     }

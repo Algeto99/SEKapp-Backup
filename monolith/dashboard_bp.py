@@ -23,7 +23,7 @@ from google.cloud import storage as gcs_storage
 
 from db import get_db_connection
 from auditoria import anotar
-from admin_bp import hoy_operacion, ahora_operacion, sql_hoy
+from admin_bp import hoy_operacion, ahora_operacion, sql_hoy, tz_operacion, format_local_datetime
 from coordinador import (condicion_ambito, es_coordinador, fuera_de_ambito, ambito_activo,
                          cargar_ambito, rol_disponible as rol_coordinador_disponible,
                          excluir_clientes_inactivos)
@@ -239,6 +239,34 @@ def _build_incident_select():
             {INCIDENT_SUPERVISOR_EXPR} AS supervisor_name,
             ri.estado AS estado_reporte
     """
+
+
+# ── Fechas en pantalla: un solo formato en toda la app (KANAN, 2026-10-14) ──────
+# DD/MM/AAAA y, con hora, "DD/MM/AAAA hh:mm a. m.": el mismo texto que Reportes, el
+# PDF y el Excel (`format_local_datetime`). Antes las tablas de los dashboards
+# mandaban '%Y-%m-%d %H:%M'. Las vistas que ordenan o agrupan por mes en el
+# navegador reciben además una clave ISO (`fecha_sort`), que no se muestra.
+def _fecha_pantalla(val, hora=True, vacio='—'):
+    """Fecha que escribió el usuario en el formulario (`fecha_hora`, `fecha_limite`…):
+    reloj de pared, sin convertir de zona (ver `wall_clock` en format_local_datetime)."""
+    if val is None:
+        return vacio
+    texto = format_local_datetime(val, tz=tz_operacion(), include_time=hora,
+                                  time_sep=" ", wall_clock=True)
+    return texto or vacio
+
+
+def _instante_pantalla(val, vacio=''):
+    """Instantes reales (`creado_en`, `editado_en`): de UTC a la zona de la operación."""
+    if val is None:
+        return vacio
+    texto = format_local_datetime(val, tz=tz_operacion(), time_sep=" ", assume_utc=True)
+    return texto or vacio
+
+
+def _fecha_iso(val):
+    """Clave ISO para ordenar y agrupar en el navegador; no se muestra."""
+    return val.strftime('%Y-%m-%dT%H:%M:%S') if hasattr(val, 'strftime') else ''
 
 
 def _serialize_incident_report_row(row):
@@ -4101,8 +4129,7 @@ def api_satisfaccion_detalles():
         detalles = []
         for r in rows:
             fh = r['fecha_hora']
-            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
-            if fh_str == 'None': fh_str = '—'
+            fh_str = _fecha_pantalla(fh)
 
             calc = r['calificacion_global_nps']
             calc_str = str(calc) if calc is not None and str(calc).strip() != '' else '—'
@@ -4130,6 +4157,7 @@ def api_satisfaccion_detalles():
             detalles.append({
                 'id': r['id'] if r['id'] else 0,
                 'fecha_hora': fh_str,
+                'fecha_sort': _fecha_iso(fh),
                 'cliente': r['cliente_instalacion'] if r['cliente_instalacion'] else '—',
                 'encuestado': r['encuestado'] if 'encuestado' in r and r['encuestado'] else '—',
                 'recomendaria': r['recomendaria_servicio'] if r['recomendaria_servicio'] else '—',
@@ -4501,8 +4529,7 @@ def api_incidentes_detalles():
         detalles = []
         for r in rows:
             fh = r['fecha_hora']
-            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
-            if fh_str == 'None': fh_str = '—'
+            fh_str = _fecha_pantalla(fh)
             r_dict = dict(r)
             editado_en = r_dict.get('editado_en')
             detalles.append({
@@ -4521,7 +4548,7 @@ def api_incidentes_detalles():
                 'evidencia_url':   r_dict.get('evidencia_seguimiento_url') or '',
                 'editado':         bool(r_dict.get('editado')),
                 'editado_por':     r_dict.get('editado_por') or '',
-                'editado_en':      editado_en.strftime('%Y-%m-%d %H:%M') if hasattr(editado_en, 'strftime') else '',
+                'editado_en':      _instante_pantalla(editado_en),
             })
         return jsonify({'detalles': detalles})
     except Exception as e:
@@ -4634,7 +4661,7 @@ def api_incidentes_historial(id_reporte):
         rows = cur.fetchall()
 
         historial = [{
-            'fecha_hora':     r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            'fecha_hora':     _fecha_pantalla(r['fecha_hora']),
             'usuario_email':  r['usuario_email'],
             'campo':          r['campo'],
             'valor_anterior': r['valor_anterior'] or '',
@@ -4967,8 +4994,7 @@ def api_disciplina_detalles():
         detalles = []
         for r in rows:
             fh = r['fecha_hora']
-            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
-            if fh_str == 'None': fh_str = '—'
+            fh_str = _fecha_pantalla(fh)
             detalles.append({
                 'id':           r['id_informe'] or 0,
                 'fecha_hora':   fh_str,
@@ -5446,8 +5472,7 @@ def api_supervision_detalles():
         detalles = []
         for r in rows:
             fh = r['fecha_hora']
-            fh_str = fh.strftime('%Y-%m-%d %H:%M') if hasattr(fh, 'strftime') else str(fh)
-            if fh_str == 'None': fh_str = '—'
+            fh_str = _fecha_pantalla(fh)
             score = float(r['total_score']) if r['total_score'] else 0
             detalles.append({
                 'id':          r['id_supervision'] or 0,
@@ -6796,7 +6821,7 @@ def api_cumplimiento_detalles():
         """, base_params)
         detalles = [{
             'id':              r['id'],
-            'fecha_hora':      r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            'fecha_hora':      _fecha_pantalla(r['fecha_hora']),
             'cliente':         r['cliente_instalacion'] or '—',
             'auditor':         r['nombre_auditor'] or '—',
             'num_doc':         r['agente_numero_documento'] or '—',
@@ -7121,7 +7146,8 @@ def api_capacitacion_detalles():
                 asistentes = []
             detalles.append({
                 'id':            r['id_capacitacion'],
-                'fecha':         r['fecha_evento'].strftime('%Y-%m-%d %H:%M') if r['fecha_evento'] else '—',
+                'fecha':         _fecha_pantalla(r['fecha_evento']),
+                'fecha_sort':    _fecha_iso(r['fecha_evento']),
                 'cliente':       r['cliente_instalacion'] or '—',
                 'area':          r['puesto_area_especifica'] or '—',
                 'responsable':   r['nombre_responsable'] or '—',
@@ -7319,19 +7345,20 @@ def _visita_parse_compromisos(rows):
                 'id_visita': row['id_visita'],
                 'bloque_idx': idx,
                 'cliente': row['cliente_instalacion'] or 'Sin cliente',
-                'fecha_visita': row['fecha_evento'].strftime('%Y-%m-%d %H:%M') if row['fecha_evento'] else '—',
+                'fecha_visita': _fecha_pantalla(row['fecha_evento']),
                 'fecha_sort': row['fecha_evento'].strftime('%Y-%m-%dT%H:%M:%S') if row['fecha_evento'] else '',
                 'motivo_visita': row['motivo_visita'] or 'Sin motivo',
                 'tema': tema or 'Sin tema registrado',
                 'acuerdo': acuerdo or 'Sin acuerdo detallado',
                 'responsable': responsable,
-                'fecha_cumplimiento': fecha_limite.isoformat() if fecha_limite else '—',
+                'fecha_cumplimiento': _fecha_pantalla(fecha_limite, hora=False),
+                'fecha_cumplimiento_sort': fecha_limite.isoformat() if fecha_limite else '',
                 'estado': estado,
                 'accion_tomada': accion_tomada,
                 'evidencia_url': evidencia_url,
                 'editado': bool(row.get('editado')),
                 'editado_por': row.get('editado_por') or '',
-                'editado_en': row['editado_en'].strftime('%Y-%m-%d %H:%M') if row.get('editado_en') else '',
+                'editado_en': _instante_pantalla(row.get('editado_en')),
             })
     return compromisos
 
@@ -7714,7 +7741,7 @@ def api_visitas_historial(id_visita):
         rows = cur.fetchall()
 
         historial = [{
-            'fecha_hora':     r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+            'fecha_hora':     _fecha_pantalla(r['fecha_hora']),
             'usuario_email':  r['usuario_email'],
             'campo':          r['campo'],
             'valor_anterior': r['valor_anterior'] or '',
@@ -9439,7 +9466,7 @@ def api_bases_de_datos_armas():
                 'fecha_vencimiento_matricula':   _fmt_date(r['fecha_vencimiento_permiso_porte']),
                 'fecha_ultimo_mantenimiento':    _fmt_date(r['fecha_ultimo_mtto_arma']),
                 'cantidad_municion':             str(r['cantidad_municion']) if r['cantidad_municion'] is not None else '—',
-                'fecha_hora':                    r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+                'fecha_hora':                    _fecha_pantalla(r['fecha_hora']),
             })
         return jsonify({'rows': rows, 'total': len(rows)})
     except Exception as e:
@@ -9537,7 +9564,7 @@ def api_bases_de_datos_radios():
                 'fecha_ultimo_mantenimiento': _fmt_date(r['fecha_ultimo_mtto_radio']),
                 'equipamiento':           estado,
                 'supervisor':             r['supervisor']        or '—',
-                'fecha_hora':             r['fecha_hora'].strftime('%Y-%m-%d %H:%M') if r['fecha_hora'] else '—',
+                'fecha_hora':             _fecha_pantalla(r['fecha_hora']),
             })
         return jsonify({'rows': rows, 'total': len(rows)})
     except Exception as e:
@@ -9689,7 +9716,7 @@ def api_bases_de_datos_personal():
                         'capacitacion': t['nombre_capacitacion']  or '—',
                         'objetivo':     t['objetivo_capacitacion'] or '—',
                         'nivel':        t['nivel_comprension']     or '—',
-                        'fecha':        t['fecha_hora'].strftime('%Y-%m-%d') if t['fecha_hora'] else '—',
+                        'fecha':        _fecha_pantalla(t['fecha_hora'], hora=False),
                         'responsable':  t['nombre_responsable']    or '—',
                     })
 
@@ -9699,7 +9726,7 @@ def api_bases_de_datos_personal():
                 'nombre_guardia':       emp['nombre_guardia']     or '—',
                 'documento_guardia':    emp['documento_guardia'],
                 'cliente':              emp['cliente']             or '—',
-                'ultima_supervision':   emp['ultima_supervision'].strftime('%Y-%m-%d') if emp['ultima_supervision'] else '—',
+                'ultima_supervision':   _fecha_pantalla(emp['ultima_supervision'], hora=False),
                 'tiempo_en_puesto':     emp['tiempo_en_puesto']   or '—',
                 'avg_score':            avg_score,
                 'nivel_desempeno':      _sup_score_label(avg_score),

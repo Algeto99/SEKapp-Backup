@@ -393,7 +393,7 @@ function filterCapacitacionDetalles(filters = {}) {
         }
         if (filters.periodLabel) {
             const target = String(filters.periodLabel || '').trim().toLowerCase();
-            const monthKey = (detail.fecha || '').slice(0, 7);
+            const monthKey = (detail.fecha_sort || '').slice(0, 7);
             const monthLabel = monthKey ? monthLabelFromKey(monthKey).toLowerCase() : '';
             if (target !== monthLabel && target !== monthKey.toLowerCase()) return false;
         }

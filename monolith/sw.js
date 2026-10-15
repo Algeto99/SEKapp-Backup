@@ -253,6 +253,7 @@ function buildOfflineSavedHTML(formType, hasFiles) {
     ${fileWarning}
     <a class="btn" href="/forms/select">← Volver al Inicio</a>
   </div>
+  <script src="/static/js/formato-fecha.js"></script>
   <script src="/static/js/offline-sync.js"></script>
 </body>
 </html>`;

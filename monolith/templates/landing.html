@@ -345,6 +345,7 @@ document.addEventListener('DOMContentLoaded', updateUI);
 <!-- Cola offline: lo que quedó guardado sin conexión sale solo también desde el
      inicio, no sólo desde Formularios. Borrador automático: recuerda los
      formularios sin enviar con «Tienes una supervisión sin enviar · Continuar». -->
+<script src="{{ url_for('static', filename='js/formato-fecha.js') }}"></script>
 <script src="{{ url_for('static', filename='js/offline-sync.js') }}"></script>
 <script src="{{ url_for('static', filename='js/form-draft.js') }}" data-usuario="{{ (user_name or '') | e }}"></script>
 <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

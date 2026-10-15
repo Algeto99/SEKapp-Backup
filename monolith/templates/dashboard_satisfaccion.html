@@ -542,7 +542,7 @@
         if (!details.length) return { labels: [], criteria: [] };
         const periodMap = {};
         details.forEach(d => {
-            const period = d.fecha_hora && d.fecha_hora.length >= 7 ? d.fecha_hora.slice(0, 7) : 'sin_fecha';
+            const period = d.fecha_sort && d.fecha_sort.length >= 7 ? d.fecha_sort.slice(0, 7) : 'sin_fecha';
             if (!periodMap[period]) periodMap[period] = [];
             periodMap[period].push(d);
         });

@@ -1225,6 +1225,7 @@
     // y en UTC-5 retrocedería un día.
     function fmtFechaCorta(iso) {
         if (!iso) return '—';
+        if (window.FormatoFecha) return window.FormatoFecha.fecha(iso) || '—';
         const [y, m, d] = iso.split('-').map(Number);
         return `${d} ${MESES_CORTOS[m - 1]} ${y}`;
     }

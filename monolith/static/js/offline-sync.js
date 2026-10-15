@@ -693,6 +693,11 @@
 
     function formatQueuedAt(timestamp) {
         if (!timestamp) return 'Fecha no disponible';
+        // Mismo formato que el resto de la app (formato-fecha.js); si no cargó, el de antes.
+        if (window.FormatoFecha) {
+            const t = window.FormatoFecha.fechaHora(timestamp);
+            if (t) return t;
+        }
         try {
             return new Date(timestamp).toLocaleString('es-CO', {
                 dateStyle: 'medium',

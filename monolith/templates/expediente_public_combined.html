@@ -505,6 +505,7 @@
     if (!iso) return '—';
     const d = new Date(iso);
     if (isNaN(d)) return iso;
+    if (window.FormatoFecha) return window.FormatoFecha.fechaHora(d);
     return d.toLocaleDateString('es-GT', { day:'2-digit', month:'short', year:'numeric' })
            + ' ' + d.toLocaleTimeString('es-GT', { hour:'2-digit', minute:'2-digit' });
   }
@@ -751,6 +752,7 @@
   }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 </script>
+  <script src="{{ url_for('static', filename='js/formato-fecha.js') }}"></script>
   <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
 </body>
 </html>

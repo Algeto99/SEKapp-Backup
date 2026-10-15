@@ -895,7 +895,8 @@ function renderData(d) {
 
     // Last update
     document.getElementById('lastUpdate').textContent = d.ultima_actualizacion
-        ? new Date(d.ultima_actualizacion).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' })
+        ? (window.FormatoFecha ? window.FormatoFecha.fecha(d.ultima_actualizacion)
+                       : new Date(d.ultima_actualizacion).toLocaleDateString('es', { year: 'numeric', month: 'long', day: 'numeric' }))
         : '—';
 }
 
@@ -1025,8 +1026,10 @@ async function exportPDF() {
     const start       = document.getElementById('filtStart')?.value || '';
     const end         = document.getElementById('filtEnd')?.value   || '';
     const isEjec      = tab === 'ejecutivo';
-    const dateStr     = new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
-    const periodo     = (start && end) ? `${start} — ${end}` : (start || end || 'Sin filtro de fechas');
+    const fmtF        = v => (v && window.FormatoFecha) ? window.FormatoFecha.fecha(v) : v;
+    const dateStr     = window.FormatoFecha ? window.FormatoFecha.fechaHora(new Date())
+                      : new Date().toLocaleString('es-CO', { dateStyle: 'long', timeStyle: 'short' });
+    const periodo     = (start && end) ? `${fmtF(start)} — ${fmtF(end)}` : (fmtF(start) || fmtF(end) || 'Sin filtro de fechas');
     const userName    = document.getElementById('print-usuario')?.textContent || '';
 
     // Snapshot every live chart canvas → data URL before building the layout

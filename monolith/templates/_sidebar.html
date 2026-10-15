@@ -411,6 +411,8 @@ function snwToggleForms() {
     }
 })();
 </script>
+<!-- Un solo formato de fecha en pantalla (DD/MM/AAAA, como Reportes y el PDF). -->
+<script src="{{ url_for('static', filename='js/formato-fecha.js') }}"></script>
 <script src="{{ url_for('static', filename='js/form-validation-feedback.js') }}"></script>
 <!-- Borrador automático: conserva campos, firmas y fotos si el navegador recarga el
      formulario tras una llamada o un cambio de app. Va antes del candado de envío
