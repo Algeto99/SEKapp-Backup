@@ -108,6 +108,14 @@
     .tap-hint   { font-size: .68rem; color: #94a3b8; margin-top: .35rem; display: flex; align-items: center; gap: .25rem; }
 
     .empty-state { text-align: center; padding: 3rem 1rem; color: #94a3b8; }
+    .card-map .leaflet-control-attribution { font-size: 9px; padding: 0 3px; line-height: 1.3; }
+
+    /* ── Feed por lotes (ver «Ver más» en el script) ── */
+    .tl-item.tl-oculto { display: none; }
+    .ver-mas-wrap { text-align: center; padding: .5rem 1rem 1.5rem; }
+    .ver-mas { background: #1e293b; color: #fff; border: 0; border-radius: .5rem; padding: .6rem 1.2rem;
+               font: inherit; font-weight: 600; font-size: .85rem; cursor: pointer; }
+    .ver-mas-nota { font-size: .72rem; color: #94a3b8; margin-top: .4rem; }
 
     /* ── Bottom sheet overlay ── */
     .sheet-overlay {
@@ -356,6 +364,8 @@
 {% endif %}
 
 <!-- Timeline -->
+{# Feed por lotes: los primeros LOTE_FEED visibles, el resto oculto hasta «Ver más». #}
+{% set LOTE_FEED = 30 %}
 <div class="content">
   {% if events %}
   <div class="timeline">
@@ -363,7 +373,7 @@
       {% set idx = loop.index0 %}
       {% set dot_cls  = 'dot-green'     if e.status == 'GREEN' else ('dot-red'   if e.status == 'RED' else 'dot-grey') %}
       {% set card_cls = 'tl-card-green' if e.status == 'GREEN' else ('tl-card-red' if e.status == 'RED' else 'tl-card-grey') %}
-    <div class="tl-item">
+    <div class="tl-item{% if idx >= LOTE_FEED %} tl-oculto{% endif %}">
       <div class="tl-dot {{ dot_cls }}"></div>
       <div class="tl-card {{ card_cls }}" onclick="openDetail({{ idx }})">
         <div class="tl-top">
@@ -410,7 +420,7 @@
           {% endif %}
           {% if e.foto_list %}
             <div style="display:inline-flex;align-items:center;gap:6px;margin-top:.35rem;">
-              <img src="{{ e.foto_list[0] }}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,0,0,.1);" alt="Foto" loading="lazy">
+              <img src="{{ e.foto_list[0] }}{{ '?w=160' if e.foto_list[0].startswith('/expediente/media/') else '' }}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,0,0,.1);" alt="Foto" loading="lazy">
               <span style="color:#64748b;font-size:.75rem;">📷 {{ e.foto_list | length }} foto{{ 's' if e.foto_list | length > 1 else '' }}</span>
             </div>
           {% endif %}
@@ -428,6 +438,12 @@
     </div>
     {% endfor %}
   </div>
+  {% if events | length > LOTE_FEED %}
+  <div class="ver-mas-wrap" id="verMasWrap">
+    <button type="button" class="ver-mas" id="verMas" onclick="verMas()">Ver más</button>
+    <div class="ver-mas-nota" id="verMasNota"></div>
+  </div>
+  {% endif %}
   {% else %}
   <div class="empty-state">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:44px;height:44px;margin:0 auto .75rem;opacity:.35;display:block;">
@@ -455,6 +471,8 @@
   // Radio de la geocerca, el mismo con el que el servidor pintó rojo/verde.
   const GEOFENCE_RADIUS_M     = {{ geofence_radius_m | tojson }};
   const GEOFENCE_RADIUS_LABEL = {{ geofence_radius_label | tojson }};
+  // Atribución que exige la política de uso de los mosaicos de OpenStreetMap.
+  const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
   let detailMap = null;
 
@@ -468,7 +486,8 @@
     }
 
     detailMap = L.map(document.getElementById('detailMap'), { zoomControl: true, attributionControl: false });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(detailMap);
+    L.control.attribution({ prefix: false }).addTo(detailMap);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM_ATTR }).addTo(detailMap);
 
     const color = status === 'GREEN' ? '#22c55e' : status === 'RED' ? '#ef4444' : '#94a3b8';
     const supIcon = L.divIcon({
@@ -491,13 +510,20 @@
       }).addTo(detailMap);
       // Encuadre con el círculo completo: con 1 km, los dos puntos solos dejaban
       // el borde de la geocerca fuera de la vista.
-      detailMap.fitBounds(geocerca.getBounds().extend([lat, lng]), { padding: [40, 40] });
+      // Límites calculados sin el mapa: circle.getBounds() exige que el mapa ya tenga
+      // vista y aquí todavía no la tiene: lanzaba TypeError y el mapa quedaba gris.
+      detailMap.fitBounds(L.latLng(PROP_LAT, PROP_LNG).toBounds(GEOFENCE_RADIUS_M * 2).extend([lat, lng]), { padding: [40, 40] });
     } else {
       detailMap.setView([lat, lng], 17);
     }
 
     // invalidateSize after the browser has painted the container
     setTimeout(() => { if (detailMap) detailMap.invalidateSize(); }, 80);
+  }
+
+  // Foto reducida del proxy (public_media_stream): 160 tarjeta · 800 grilla · 1600 ampliada.
+  function variante(url, w) {
+    return (typeof url === 'string' && url.startsWith('/expediente/media/')) ? `${url}?w=${w}` : url;
   }
 
   // ── Detail sheet builder ───────────────────────────────────────────────────
@@ -656,7 +682,7 @@
     if (e.foto_list && e.foto_list.length) {
       html += `<div class="photos-label">Evidencia fotográfica (${e.foto_list.length})</div><div class="photos-grid">`;
       e.foto_list.forEach(url => {
-        html += `<img class="ev-photo" src="${esc(url)}" alt="foto" loading="lazy" onclick="openLightbox('${esc(url)}')">`;
+        html += `<img class="ev-photo" src="${esc(variante(url, 800))}" alt="foto" loading="lazy" onclick="openLightbox('${esc(variante(url, 1600))}')">`;
       });
       html += `</div>`;
     }
@@ -703,7 +729,8 @@
       doubleClickZoom: false, touchZoom: false, keyboard: false,
       attributionControl: false
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(m);
+    L.control.attribution({ prefix: false }).addTo(m);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: OSM_ATTR }).addTo(m);
 
     const color = status === 'GREEN' ? '#22c55e' : status === 'RED' ? '#ef4444' : '#f59e0b';
     L.circleMarker([lat, lng], {
@@ -717,7 +744,8 @@
       const geocerca = L.circle([PROP_LAT, PROP_LNG], {
         radius: GEOFENCE_RADIUS_M, color: '#7c3aed', weight: 1, fillColor: '#7c3aed', fillOpacity: 0.07, dashArray: '4 4'
       }).addTo(m);
-      m.fitBounds(geocerca.getBounds().extend([lat, lng]), { padding: [16, 16] });
+      // Sin circle.getBounds(): ver renderMap.
+      m.fitBounds(L.latLng(PROP_LAT, PROP_LNG).toBounds(GEOFENCE_RADIUS_M * 2).extend([lat, lng]), { padding: [16, 16] });
     } else {
       m.setView([lat, lng], 16);
     }
@@ -740,6 +768,29 @@
     // Fallback: init all immediately
     document.querySelectorAll('.card-map').forEach(initCardMap);
   }
+
+  // ── Feed por lotes ─────────────────────────────────────────────────────────
+  // Con períodos largos el feed trae cientos de eventos, cada uno con miniatura y
+  // mini-mapa. Todos van en el HTML (los contadores y el detalle los necesitan), pero
+  // sólo los primeros LOTE_FEED se muestran; los demás quedan ocultos y sin cargar
+  // —loading="lazy" y el IntersectionObserver no actúan sobre lo oculto— hasta
+  // tocar «Ver más».
+  const LOTE_FEED = {{ LOTE_FEED }};
+  function actualizarVerMas() {
+    const wrap = document.getElementById('verMasWrap');
+    if (!wrap) return;
+    const total   = document.querySelectorAll('.tl-item').length;
+    const ocultos = document.querySelectorAll('.tl-item.tl-oculto').length;
+    if (!ocultos) { wrap.style.display = 'none'; return; }
+    document.getElementById('verMas').textContent = `Ver ${Math.min(LOTE_FEED, ocultos)} más`;
+    document.getElementById('verMasNota').textContent = `Mostrando ${total - ocultos} de ${total} eventos`;
+  }
+  function verMas() {
+    const ocultos = document.querySelectorAll('.tl-item.tl-oculto');
+    for (let i = 0; i < ocultos.length && i < LOTE_FEED; i++) ocultos[i].classList.remove('tl-oculto');
+    actualizarVerMas();
+  }
+  actualizarVerMas();
 
   // ── Lightbox ───────────────────────────────────────────────────────────────
   function openLightbox(url) {

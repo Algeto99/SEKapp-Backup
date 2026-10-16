@@ -478,16 +478,27 @@
     function acceptCapturedPhoto() {
         if (!canvasEl || !activeCard) return;
 
+        const fotoKey = activeCard.dataset.foto || 'foto';
+        const fileName = `${fotoKey}_${Date.now()}.jpg`;
+        // Reducida en el celular (foto-comprimir.js): el fotograma viene a la
+        // resolución completa del video. Sin el script, el camino de antes.
+        if (window.FotoComprimir && typeof window.FotoComprimir.desdeCanvas === 'function') {
+            window.FotoComprimir.desdeCanvas(canvasEl, fileName).then((file) => {
+                applyFileToCard(activeCard, file);
+                closeCameraModal();
+            }).catch(() => aceptarSinComprimir(fileName));
+            return;
+        }
+        aceptarSinComprimir(fileName);
+    }
+
+    function aceptarSinComprimir(fileName) {
         canvasEl.toBlob((blob) => {
             if (!blob) {
                 alert('Error al generar la imagen capturada.');
                 return;
             }
-
-            const fotoKey = activeCard.dataset.foto || 'foto';
-            const fileName = `${fotoKey}_${Date.now()}.jpg`;
             const file = new File([blob], fileName, { type: 'image/jpeg' });
-
             applyFileToCard(activeCard, file);
             closeCameraModal();
         }, 'image/jpeg', 0.88);

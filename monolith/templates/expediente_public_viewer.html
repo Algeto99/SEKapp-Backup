@@ -218,8 +218,9 @@
       <div class="photos-label">Evidencia fotográfica</div>
       <div class="photos-grid">
         {% for url in foto_urls %}
-        <img class="ev-photo" src="{{ url }}" alt="Foto {{ loop.index }}"
-             onclick="openLightbox('{{ url }}')" loading="lazy">
+        {# Foto reducida del proxy (public_media_stream): 800 grilla · 1600 ampliada. #}
+        <img class="ev-photo" src="{{ url }}{{ '?w=800' if url.startswith('/expediente/media/') else '' }}" alt="Foto {{ loop.index }}"
+             onclick="openLightbox('{{ url }}{{ '?w=1600' if url.startswith('/expediente/media/') else '' }}')" loading="lazy">
         {% endfor %}
       </div>
     </div>
@@ -258,9 +259,11 @@
   {% endif %}
 
   const map = L.map('map', { zoomControl: true, attributionControl: false });
+  // Atribución que exige la política de uso de los mosaicos de OpenStreetMap.
+  L.control.attribution({ prefix: false }).addTo(map);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '© OpenStreetMap contributors'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
   }).addTo(map);
 
   // Supervision pin
@@ -303,7 +306,9 @@
       dashArray: '5 5'
     }).addTo(map);
 
-    map.fitBounds(geocerca.getBounds().extend([lat, lng]), { padding: [40, 40] });
+    // Límites calculados sin el mapa: circle.getBounds() exige que el mapa ya tenga
+    // vista y aquí todavía no la tiene: lanzaba TypeError y el mapa quedaba gris.
+    map.fitBounds(L.latLng(propLat, propLng).toBounds({{ geofence_radius_m }} * 2).extend([lat, lng]), { padding: [40, 40] });
   } else {
     map.setView([lat, lng], 17);
   }

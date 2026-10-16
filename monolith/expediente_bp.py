@@ -22,7 +22,7 @@ except ImportError:
 from db import get_db_connection
 from auditoria import anotar
 from email_utils import send_email
-from gcs_utils import (get_public_media_url,
+from gcs_utils import (get_public_media_url, build_media_token,
                        verify_media_token, _get_storage_client)
 from admin_bp import format_local_datetime, get_operation_timezone, hoy_operacion, sql_hoy, sql_ahora
 
@@ -284,8 +284,27 @@ def _compute_status(event, prop_lat, prop_lng):
     return 'GREEN'
 
 
-def _parse_and_sign_foto_urls(raw_fotos):
-    """Parses raw photo DB field and returns a list of signed GCS URLs."""
+def _url_proxy_media(gcs_url, secret_key=None):
+    """Enlace al proxy /expediente/media para los visores públicos (KANAN, 2026-10-15).
+
+    `get_public_media_url` intenta primero una URL firmada V4 y, en Cloud Run, cada
+    firma es una llamada HTTP a IAM (signBlob) hecha al renderizar la página: con
+    ~90 eventos eran más de cien llamadas antes de mandar el HTML. El token HMAC se
+    calcula en local, no vence (el navegador puede cachear la foto) y admite `?w=`
+    para servir la foto reducida (ver `public_media_stream`). Lo que no es de GCS
+    vuelve tal cual, como antes.
+    """
+    clean = gcs_url.split('?')[0].strip()
+    if 'storage.googleapis.com' not in clean and not clean.startswith('gs://'):
+        return clean
+    return f"/expediente/media/{build_media_token(clean, secret_key=secret_key)}"
+
+
+def _parse_and_sign_foto_urls(raw_fotos, proxy=False):
+    """Parses raw photo DB field and returns a list of public URLs.
+
+    `proxy=True` (visores públicos): enlaces al proxy HMAC en vez de URLs firmadas V4,
+    ver `_url_proxy_media`."""
     if not raw_fotos:
         return []
 
@@ -325,7 +344,8 @@ def _parse_and_sign_foto_urls(raw_fotos):
         if u:
             clean_u = u.strip('\'"')
             if clean_u:
-                signed = get_public_media_url(clean_u, secret_key=secret_key)
+                signed = (_url_proxy_media(clean_u, secret_key) if proxy
+                          else get_public_media_url(clean_u, secret_key=secret_key))
                 if signed:
                     signed_urls.append(signed)
     return signed_urls
@@ -403,7 +423,7 @@ def _clean_field_text(val):
     return s
 
 
-def _serialize_event(row, prop_lat, prop_lng, tz=None):
+def _serialize_event(row, prop_lat, prop_lng, tz=None, proxy=False):
     e = dict(row)
     e.setdefault('distance_m', None)
     # Status must be computed on the raw date/datetime objects, before they
@@ -432,7 +452,7 @@ def _serialize_event(row, prop_lat, prop_lng, tz=None):
 
     # Parse and sign photo URLs for the event
     raw_foto = e.get('foto_url')
-    foto_list = _parse_and_sign_foto_urls(raw_foto)
+    foto_list = _parse_and_sign_foto_urls(raw_foto, proxy=proxy)
     e['foto_list'] = foto_list
     e['foto_url'] = foto_list[0] if foto_list else None
 
@@ -1334,7 +1354,7 @@ def public_expediente_viewer(token):
         cur.execute(query, (*bp(), *bp(), *bp(), *bp(), prop_id, cliente, days_int))
         rows = cur.fetchall()
         _tz_op = get_operation_timezone()
-        events = [_serialize_event(dict(r), prop_lat, prop_lng, tz=_tz_op) for r in rows]
+        events = [_serialize_event(dict(r), prop_lat, prop_lng, tz=_tz_op, proxy=True) for r in rows]
 
         if module_filter != 'ALL':
             events = [e for e in events if e['module'] == module_filter]
@@ -1459,7 +1479,7 @@ def public_evidence_viewer(hash_token):
         # el resto de las vistas, para que el registro tenga una sola hora.
         timestamp_str = format_local_datetime(ts, time_sep=" ") if ts else 'N/D'
 
-        foto_urls = _parse_and_sign_foto_urls(record.get('foto_evidencia_url'))
+        foto_urls = _parse_and_sign_foto_urls(record.get('foto_evidencia_url'), proxy=True)
 
         return render_template('expediente_public_viewer.html',
                                geofence_radius_m=GEOFENCE_RADIUS_M,
@@ -1477,9 +1497,67 @@ def public_evidence_viewer(hash_token):
         if conn: conn.close()
 
 
+# ── Fotos reducidas para los visores públicos (KANAN, 2026-10-15) ───────────────
+# Las fotos se guardan tal como salen del celular (varios MB) y el Expediente por QR
+# las mostraba enteras hasta en la miniatura de 44 px de cada tarjeta. `?w=` (lista
+# blanca) sirve una variante JPEG de ese ancho: la primera vez se reduce con Pillow y
+# se guarda en el bucket bajo derivados/w{ancho}/…; las siguientes se sirve directo.
+# Sin Pillow, con un formato que no abre o con un PDF, sale el original como antes.
+_MEDIA_ANCHOS = (160, 800, 1600)          # tarjeta · grilla de evidencia · foto ampliada
+_MEDIA_CALIDAD_JPEG = 80
+_MEDIA_PREFIJO_DERIVADOS = 'derivados'
+_MEDIA_CACHE_SEGUNDOS = 86400
+
+
+def _ancho_solicitado(valor):
+    """Ancho de `?w=` si está en la lista blanca; None en cualquier otro caso."""
+    try:
+        ancho = int(str(valor or '').strip())
+    except (TypeError, ValueError):
+        return None
+    return ancho if ancho in _MEDIA_ANCHOS else None
+
+
+def _reducir_imagen(datos, ancho):
+    """Bytes JPEG de `ancho` px como máximo, con la proporción y la orientación EXIF
+    conservadas. None si Pillow falta o los bytes no son una imagen que sepa abrir."""
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        return None
+    try:
+        img = Image.open(BytesIO(datos))
+        # draft: en JPEG decodifica ya reducido (1/2, 1/4, 1/8); un original de 12 MP
+        # para una miniatura de 160 px no necesita decodificarse entero.
+        try:
+            img.draft('RGB', (ancho * 2, ancho * 2))
+        except Exception:
+            pass
+        img = ImageOps.exif_transpose(img)
+        if img.mode not in ('RGB', 'L'):
+            img = img.convert('RGB')
+        if img.width > ancho:
+            alto = max(1, round(img.height * ancho / img.width))
+            img = img.resize((ancho, alto), Image.LANCZOS)
+        buf = BytesIO()
+        img.save(buf, format='JPEG', quality=_MEDIA_CALIDAD_JPEG, optimize=True, progressive=True)
+        return buf.getvalue()
+    except Exception as e:
+        app_logger.warning(f"_reducir_imagen: no se pudo reducir a {ancho}px, se sirve el original: {e}")
+        return None
+
+
+def _respuesta_media(datos, content_type):
+    # max_age pone Cache-Control: public, max-age=N; el token no vence, así que el
+    # navegador reutiliza la foto entre consultas del mismo expediente.
+    return send_file(BytesIO(datos), mimetype=content_type, max_age=_MEDIA_CACHE_SEGUNDOS)
+
+
 @expediente_bp.route('/expediente/media/<string:token>')
 def public_media_stream(token):
-    """Streams a GCS media file verified via HMAC signature token without requiring user login."""
+    """Streams a GCS media file verified via HMAC signature token without requiring user login.
+
+    Con `?w=160|800|1600` sirve la variante reducida (ver `_reducir_imagen`)."""
     try:
         secret_key = None
         try:
@@ -1510,13 +1588,31 @@ def public_media_stream(token):
             return 'Servicio de almacenamiento no disponible.', 503
 
         bucket = client.bucket(bucket_name)
+        ancho = _ancho_solicitado(request.args.get('w'))
+        derivado = None
+        if ancho:
+            derivado = bucket.blob(f"{_MEDIA_PREFIJO_DERIVADOS}/w{ancho}/{blob_name}.jpg")
+            try:
+                return _respuesta_media(derivado.download_as_bytes(), 'image/jpeg')
+            except Exception:
+                pass  # todavía no existe: se genera abajo a partir del original
+
         blob = bucket.blob(blob_name)
         if not blob.exists():
             return 'Archivo no encontrado.', 404
 
         content_type = blob.content_type or 'image/jpeg'
         data = blob.download_as_bytes()
-        return send_file(BytesIO(data), mimetype=content_type, max_age=86400)
+        if derivado is not None and content_type.startswith('image/'):
+            reducido = _reducir_imagen(data, ancho)
+            if reducido:
+                try:
+                    derivado.cache_control = 'public, max-age=31536000'
+                    derivado.upload_from_string(reducido, content_type='image/jpeg')
+                except Exception as e:
+                    app_logger.warning(f"public_media_stream: no se pudo guardar la variante w{ancho}: {e}")
+                return _respuesta_media(reducido, 'image/jpeg')
+        return _respuesta_media(data, content_type)
     except Exception as e:
         app_logger.error(f"public_media_stream error: {e}", exc_info=True)
         return 'Error al cargar imagen.', 500
