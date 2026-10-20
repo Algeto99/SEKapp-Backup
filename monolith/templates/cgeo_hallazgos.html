@@ -45,8 +45,14 @@
                 {% endif %}
             </div>
             <div class="hz-meta">
+                {# En una visita programada el record_id es la instalación, no un consecutivo. #}
+                {% if h.form_type == 'visita_programada' %}
+                {{ h.etiqueta }}
+                · {% if h.fecha_limite %}para el {{ h.fecha_limite.strftime('%d/%m/%Y') }}{% else %}sin fecha{% endif %}
+                {% else %}
                 {{ h.etiqueta }} #{{ h.record_id }}
                 · {% if h.fecha_limite %}vence el {{ h.fecha_limite.strftime('%d/%m/%Y') }}{% else %}sin fecha límite{% endif %}
+                {% endif %}
             </div>
         </a>
         {% else %}
@@ -68,7 +74,7 @@
                 <span class="hz-pill" style="background:#14532d;color:#86efac;">✓ {{ h.estado }}</span>
             </div>
             <div class="hz-meta">
-                {{ h.etiqueta }} #{{ h.record_id }}
+                {{ h.etiqueta }}{% if h.form_type != 'visita_programada' %} #{{ h.record_id }}{% endif %}
                 {%- if h.cerrado_en %} · gestionado el {{ h.cerrado_en.strftime('%d/%m/%Y') }}{% endif %}
                 {%- if h.cerrado_por %} por {{ h.cerrado_por }}{% endif %}
             </div>

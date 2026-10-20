@@ -2880,9 +2880,12 @@ def submit_registro_de_capacitaciones_editar(id):
 def registro_y_acta_de_visita_form():
     user_name, is_admin = get_user_info_from_jwt()
     ctx = {
-        'pre_propiedad': request.args.get('id_propiedad', ''),
-        'pre_motivo':    request.args.get('motivo', ''),
-        'pre_temas':     request.args.get('temas', ''),
+        'pre_propiedad':  request.args.get('id_propiedad', ''),
+        'pre_motivo':     request.args.get('motivo', ''),
+        'pre_temas':      request.args.get('temas', ''),
+        # Visita programada desde la que se abre el acta (vista del hallazgo):
+        # al enviarla, _cerrar_visita_programada la deja gestionada.
+        'pre_asignacion': request.args.get('asignacion', ''),
     }
     return render_template(
         'acta_visita_cliente.html',
@@ -2964,6 +2967,67 @@ def _parse_visit_form_data(request, user_email):
     }
 
 
+def _cerrar_visita_programada(conn, asignacion_id, user_email, id_visita):
+    """Cierra la visita programada desde la que se abrió el acta.
+
+    La visita se agenda desde la Tendencia Operacional como una asignación
+    (form_type 'visita_programada', cgeo_bp) y el enlace "Registrar acta de
+    visita" de la vista del hallazgo trae su id en `asignacion`. Guardada el
+    acta, la visita deja de estar pendiente sin que el responsable tenga que
+    marcarla a mano. Sólo cierra visitas abiertas, y sólo si quien envía es el
+    responsable o un Administrador. Va en su propia transacción, después del
+    commit del acta: cualquier fallo se registra y el acta no se ve afectada.
+    """
+    try:
+        aid = int(str(asignacion_id or '').strip())
+    except ValueError:
+        return
+    try:
+        es_admin = bool((get_jwt() or {}).get('is_admin', False))
+    except Exception:
+        es_admin = False
+    correo = (user_email or '').strip().lower()
+    nota = f'Acta de visita #{id_visita} registrada'
+    cur = None
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
+        if not (cur.fetchone() or [None])[0]:
+            return
+        cur.execute(
+            """
+            UPDATE asignaciones_hallazgo a
+               SET estado      = 'Gestionado',
+                   cerrado_en  = NOW(),
+                   cerrado_por = %s,
+                   nota        = CASE
+                                   WHEN COALESCE(NULLIF(TRIM(a.nota), ''), '') = '' THEN %s
+                                   ELSE a.nota || E'\n— Al gestionar: ' || %s
+                                 END
+             WHERE a.id = %s
+               AND a.form_type = 'visita_programada'
+               AND LOWER(TRIM(COALESCE(a.estado, ''))) NOT IN
+                   ('gestionado', 'cerrado', 'closed', 'resuelto', 'resolved', 'anulado')
+               AND (%s
+                    OR LOWER(TRIM(COALESCE(a.asignado_email, ''))) = %s
+                    OR EXISTS (SELECT 1 FROM users u
+                                WHERE u.id = a.asignado_a
+                                  AND LOWER(TRIM(COALESCE(u.email, ''))) = %s))
+            """,
+            (user_email, nota, nota, aid, es_admin, correo, correo),
+        )
+        cerradas = cur.rowcount
+        conn.commit()
+        if cerradas:
+            anotar(detalle={'visita_programada_cerrada': aid})
+    except Exception as e:
+        conn.rollback()
+        app_logger.warning(f"No se pudo cerrar la visita programada {aid} desde el acta {id_visita}: {e}")
+    finally:
+        if cur:
+            cur.close()
+
+
 @forms_bp.route('/submit_registro_y_acta_de_visita', methods=['GET', 'POST'])
 @jwt_required()
 @dedup_form_submission
@@ -2994,9 +3058,14 @@ def submit_registro_y_acta_de_visita():
 
         cur.execute(sql, list(form_data.values()))
         cur.execute("SELECT lastval()")
-        anotar_registro(cur.fetchone()[0])
+        id_visita = cur.fetchone()[0]
+        anotar_registro(id_visita)
         conn.commit()
         cur.close()
+
+        # Acta abierta desde una visita programada (Hallazgos Asignados): con el
+        # acta ya guardada, la visita queda gestionada.
+        _cerrar_visita_programada(conn, request.form.get('asignacion_id'), user_email, id_visita)
 
         return _form_success_response()
 

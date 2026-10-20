@@ -171,6 +171,8 @@
             <input type="hidden" name="longitude" id="longitude">
             <input type="hidden" name="location_accuracy" id="location_accuracy">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
+            {# Visita programada que origina esta acta (?asignacion=): al enviar, queda gestionada. #}
+            <input type="hidden" name="asignacion_id" id="asignacion_id" value="{{ pre_asignacion | default('') }}">
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">1. Datos Generales de la Visita</h2>

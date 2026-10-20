@@ -13,7 +13,7 @@ from datetime import date, timedelta, datetime, timezone
 from html import escape
 from functools import wraps
 from io import BytesIO
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import psycopg2
 from psycopg2 import extras
@@ -1221,7 +1221,15 @@ _ASIG_ORIGEN = {
     'planilla_motocicletas':          ('planilla_motocicletas',           'id'),
     'checklist_cumplimiento':         ('checklist_cumplimiento',          'id'),
     'confiabilidad_equipos':          ('confiabilidad_equipos',           'id'),
+    # Visita programada desde la Tendencia Operacional (cgeo_operacion.html): no
+    # nace de un formulario; record_id es la instalación a visitar, fecha_limite
+    # la fecha de la visita y hallazgo_detalle la situación que la motivó.
+    'visita_programada':              ('propiedades',                     'id_propiedad'),
 }
+
+# Orígenes sin columna cliente_instalacion: el alcance, el ámbito del Coordinador
+# y los clientes inactivos se cruzan sólo por id_propiedad / customer_company_id.
+_ASIG_SIN_INSTALACION = ('log_de_patrullas', 'propiedades')
 
 # Etiqueta legible por tipo de origen, para el texto de la alerta.
 _ASIG_ETIQUETA = {
@@ -1236,6 +1244,7 @@ _ASIG_ETIQUETA = {
     'planilla_motocicletas':          'Pre-operacional de motocicleta',
     'checklist_cumplimiento':         'Cumplimiento',
     'confiabilidad_equipos':          'Confiabilidad de equipos',
+    'visita_programada':              'Visita programada',
 }
 
 _ASIG_ESTADOS_CERRADOS = ('gestionado', 'cerrado', 'closed', 'resuelto', 'resolved', 'anulado')
@@ -1252,6 +1261,7 @@ _ASIG_RUTA = {
     'planilla_motocicletas':          '/dashboard/motocicletas/',
     'checklist_cumplimiento':         '/dashboard/cumplimiento/',
     'confiabilidad_equipos':          '/dashboard/equipos/',
+    'visita_programada':              '/forms/registro_y_acta_de_visita',
 }
 
 # Páginas de Administrador desde las que se llega a la vista del hallazgo y a las
@@ -1336,7 +1346,7 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
         for ft, (tabla, id_col) in _ASIG_ORIGEN.items():
             sc, sp = [], []
             _add_scope(sc, sp, cliente=cliente, propiedad=propiedad,
-                       col_inst=None if tabla == 'log_de_patrullas' else 'cliente_instalacion')
+                       col_inst=None if tabla in _ASIG_SIN_INSTALACION else 'cliente_instalacion')
             piezas.append(f"SELECT %s AS form_type, {id_col} AS record_id FROM {tabla} {_where(sc)}")
             alcance_params.append(ft)
             alcance_params.extend(sp)
@@ -1356,7 +1366,7 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
         for ft, (tabla, id_col) in _ASIG_ORIGEN.items():
             sql_ina, p_ina = condicion_cliente_inactivo(
                 inactivos, col_prop='id_propiedad', col_cust='customer_company_id',
-                col_inst=None if tabla == 'log_de_patrullas' else 'cliente_instalacion')
+                col_inst=None if tabla in _ASIG_SIN_INSTALACION else 'cliente_instalacion')
             if not sql_ina:
                 continue
             piezas.append(f"SELECT %s AS form_type, {id_col} AS record_id FROM {tabla} WHERE {sql_ina}")
@@ -1392,13 +1402,24 @@ def _asignaciones_pendientes(cur, cliente=None, propiedad=None):
         # Con el hallazgo identificado la fila lo nombra; si la asignación es
         # anterior al cambio sólo se conoce el registro, y se mantiene el texto viejo.
         titulo = (r['hallazgo_titulo'] or '').strip()
-        sujeto = f'{titulo} — {etiqueta} #{r["record_id"]}' if titulo else f'{etiqueta} #{r["record_id"]}'
-        if vencida:
-            texto = f'{sujeto} asignado a {resp} — vencido el {r["fecha_limite"]:%d/%m/%Y}'
-        elif r['fecha_limite']:
-            texto = f'{sujeto} asignado a {resp} — vence el {r["fecha_limite"]:%d/%m/%Y}'
+        if ft == 'visita_programada':
+            # record_id es la instalación, no un consecutivo, y la fecha límite
+            # es la de la visita: vencida = pasó el día sin acta registrada.
+            sujeto = titulo or etiqueta
+            if vencida:
+                texto = f'{sujeto} a cargo de {resp} — vencida el {r["fecha_limite"]:%d/%m/%Y} sin acta registrada'
+            elif r['fecha_limite']:
+                texto = f'{sujeto} a cargo de {resp} — programada para el {r["fecha_limite"]:%d/%m/%Y}'
+            else:
+                texto = f'{sujeto} a cargo de {resp} — sin fecha'
         else:
-            texto = f'{sujeto} asignado a {resp} — sin fecha límite'
+            sujeto = f'{titulo} — {etiqueta} #{r["record_id"]}' if titulo else f'{etiqueta} #{r["record_id"]}'
+            if vencida:
+                texto = f'{sujeto} asignado a {resp} — vencido el {r["fecha_limite"]:%d/%m/%Y}'
+            elif r['fecha_limite']:
+                texto = f'{sujeto} asignado a {resp} — vence el {r["fecha_limite"]:%d/%m/%Y}'
+            else:
+                texto = f'{sujeto} asignado a {resp} — sin fecha límite'
 
         ts = r['fecha_limite'] or r['creado_en']
         pendientes.append({
@@ -3895,6 +3916,38 @@ def _fetch_record_details(form_type: str, record_id: int) -> dict:
                     'url_path': f"/dashboard/visitas/?id={record_id}",
                 }
 
+            elif form_type == 'visita_programada':
+                # record_id es la instalación a visitar: no hay registro de origen.
+                # El "consecutivo" es el nombre de la instalación, para que la
+                # vista y el correo no muestren un #id que no significa nada.
+                cur.execute(
+                    """
+                    SELECT p.nombre AS propiedad_nombre,
+                           cc.name  AS cliente_nombre,
+                           NULL     AS cliente_instalacion
+                      FROM propiedades p
+                      LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+                     WHERE p.id_propiedad = %s
+                    """,
+                    (record_id,)
+                )
+                row = cur.fetchone()
+                if not row:
+                    return {}
+                return {
+                    'tipo_label': 'Visita programada',
+                    'consecutivo': row['propiedad_nombre'] or f"#{record_id}",
+                    'instalacion': row['propiedad_nombre'] or '—',
+                    'cliente': _cliente_instalacion_texto(row),
+                    'fecha_evento': None,
+                    'categoria': '—',
+                    'subtipo': '',
+                    'descripcion': '—',
+                    'ubicacion': '—',
+                    'estado': '—',
+                    'url_path': f"/forms/registro_y_acta_de_visita?id_propiedad={record_id}",
+                }
+
             elif form_type in ('equipo', 'confiabilidad_equipos'):
                 cur.execute(
                     f"""
@@ -3957,12 +4010,19 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
                                     hallazgo_titulo=None, hallazgo_detalle=None):
     """Build and send the enriched assignment notification email."""
     details = _fetch_record_details(form_type, record_id)
+    # Una visita programada no es un hallazgo: el correo habla de la visita, su
+    # fecha y la situación que la motiva, sin consecutivo ni "fecha límite".
+    es_visita = form_type == 'visita_programada'
 
     tipo_label  = details.get('tipo_label', form_type.replace('_', ' ').title())
     consecutivo = details.get('consecutivo', f"#{record_id}")
-    subject = f"[SEKApp] Hallazgo asignado – {tipo_label} {consecutivo}"
-    if details.get('categoria') and details['categoria'] != '—':
-        subject += f" – {details['categoria']}"
+    if es_visita:
+        lugar = details.get('cliente') if details.get('cliente') not in (None, '', '—') else consecutivo
+        subject = f"[SEKApp] Visita programada – {lugar} – {_format_fecha(fecha_limite) if fecha_limite else 'sin fecha'}"
+    else:
+        subject = f"[SEKApp] Hallazgo asignado – {tipo_label} {consecutivo}"
+        if details.get('categoria') and details['categoria'] != '—':
+            subject += f" – {details['categoria']}"
 
     # Resolve assigner display name
     try:
@@ -4008,27 +4068,45 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
             f'</tr>'
         )
 
-    rows = ''.join([
-        row('Qué', hallazgo_titulo),
-        row('Cómo', hallazgo_detalle),
-        row('Tipo de registro', tipo_label),
-        row('Consecutivo', consecutivo),
-        row('Cliente / Instalación', details.get('cliente', '—')),
-        row('Fecha del evento', fecha_evento_str),
-        row('Categoría', details.get('categoria', '')),
-        row('Descripción', details.get('descripcion', '')),
-        row('Ubicación', details.get('ubicacion', '')),
-        row('Estado actual', details.get('estado', '')),
-        row('Responsable asignado', assignee['name']),
-        row('Fecha límite', fecha_limite_str),
-        row('Asignado por', assigner_name),
-    ])
+    if es_visita:
+        rows = ''.join([
+            row('Visita', hallazgo_titulo),
+            row('Situación identificada', hallazgo_detalle),
+            row('Cliente / Instalación', details.get('cliente', '—')),
+            row('Fecha de la visita', fecha_limite_str),
+            row('Responsable', assignee['name']),
+            row('Programada por', assigner_name),
+        ])
+        encabezado = 'Notificación de visita programada'
+        intro      = 'Se te ha programado una visita a cliente:'
+        boton      = 'Ver visita programada'
+        nota_label = 'Observaciones de quien programa:'
+    else:
+        rows = ''.join([
+            row('Qué', hallazgo_titulo),
+            row('Cómo', hallazgo_detalle),
+            row('Tipo de registro', tipo_label),
+            row('Consecutivo', consecutivo),
+            row('Cliente / Instalación', details.get('cliente', '—')),
+            row('Fecha del evento', fecha_evento_str),
+            row('Categoría', details.get('categoria', '')),
+            row('Descripción', details.get('descripcion', '')),
+            row('Ubicación', details.get('ubicacion', '')),
+            row('Estado actual', details.get('estado', '')),
+            row('Responsable asignado', assignee['name']),
+            row('Fecha límite', fecha_limite_str),
+            row('Asignado por', assigner_name),
+        ])
+        encabezado = 'Notificación de hallazgo asignado'
+        intro      = 'Se te ha asignado un hallazgo que requiere seguimiento:'
+        boton      = 'Ver hallazgo'
+        nota_label = 'Observaciones del asignador:'
 
     note_block = ''
     if nota:
         note_block = (
             f'<p style="margin:16px 0 4px;font-weight:600;font-size:13px;color:#374151;">'
-            f'Observaciones del asignador:</p>'
+            f'{nota_label}</p>'
             f'<p style="margin:0;padding:10px 14px;background:#f9fafb;border-left:3px solid #d1d5db;'
             f'font-size:13px;color:#374151;">{escape(nota)}</p>'
         )
@@ -4037,7 +4115,7 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;">
       <div style="background:#1e3a5f;padding:20px 24px;border-radius:6px 6px 0 0;">
         <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">SEKApp</p>
-        <p style="margin:4px 0 0;font-size:13px;color:#93c5fd;">Notificación de hallazgo asignado</p>
+        <p style="margin:4px 0 0;font-size:13px;color:#93c5fd;">{encabezado}</p>
       </div>
       <div style="background:#ffffff;padding:24px;border:1px solid #e5e7eb;border-top:none;
                   border-radius:0 0 6px 6px;">
@@ -4045,7 +4123,7 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
           Hola <strong>{escape(assignee['name'])}</strong>,
         </p>
         <p style="margin:0 0 20px;font-size:14px;color:#374151;">
-          Se te ha asignado un hallazgo que requiere seguimiento:
+          {intro}
         </p>
         <table style="border-collapse:collapse;width:100%;margin-bottom:16px;">
           {rows}
@@ -4055,7 +4133,7 @@ def _send_hallazgo_assignment_email(*, assignee, asignado_por, form_type, record
           <a href="{record_url}"
              style="display:inline-block;padding:11px 28px;background:#1e3a5f;color:#ffffff;
                     text-decoration:none;border-radius:5px;font-size:14px;font-weight:600;">
-            Ver hallazgo
+            {boton}
           </a>
         </div>
         <p style="margin:24px 0 0;font-size:11px;color:#9ca3af;text-align:center;">
@@ -4265,8 +4343,26 @@ def ver_hallazgo(asignacion_id):
                        and asignacion['fecha_limite'] < hoy_operacion())
         volver_href, volver_texto = _volver_de_hallazgo()
 
+        # Visita programada: el responsable la realiza registrando el Acta de
+        # Visita, que abre prellenada con la instalación, el motivo (va al final
+        # del título, "… — Motivo") y la situación identificada como temas.
+        # `asignacion` permite que el envío del acta cierre la visita (forms_bp).
+        es_visita = asignacion.get('form_type') == 'visita_programada'
+        acta_url = None
+        if es_visita and not cerrado:
+            titulo = asignacion.get('hallazgo_titulo') or ''
+            motivo = titulo.rsplit(' — ', 1)[1].strip() if ' — ' in titulo else ''
+            acta_url = '/forms/registro_y_acta_de_visita?' + urlencode({
+                'id_propiedad': asignacion.get('record_id') or '',
+                'motivo':       motivo,
+                'temas':        asignacion.get('hallazgo_detalle') or '',
+                'asignacion':   asignacion_id,
+            })
+
         return render_template(
             'cgeo_hallazgo.html',
+            es_visita=es_visita,
+            acta_url=acta_url,
             asignacion=asignacion,
             detalles=detalles,
             asignador=asignador,
@@ -4377,6 +4473,11 @@ def asignar_hallazgo():
     if asignado_email_ext and not _EMAIL_RE.match(asignado_email_ext):
         return jsonify({"error": "El correo externo no tiene un formato válido"}), 400
 
+    # Una visita programada se agenda para una fecha y una instalación concretas.
+    es_visita = form_type == 'visita_programada'
+    if es_visita and not fecha_limite:
+        return jsonify({"error": "Indique la fecha de la visita"}), 400
+
     asignado_por = get_jwt_identity()
     conn = _get_conn()
     if not conn:
@@ -4389,6 +4490,15 @@ def asignar_hallazgo():
                 return rechazo
         with conn.cursor(cursor_factory=extras.RealDictCursor) as cur:
             company_id = _get_user_company_id(cur, asignado_por)
+
+            if es_visita:
+                try:
+                    record_id = int(record_id)
+                except (TypeError, ValueError):
+                    return jsonify({"error": "Instalación inválida"}), 400
+                cur.execute("SELECT 1 FROM propiedades WHERE id_propiedad = %s", (record_id,))
+                if not cur.fetchone():
+                    return jsonify({"error": "Instalación no encontrada"}), 404
 
             if asignado_a:
                 # Registered user path

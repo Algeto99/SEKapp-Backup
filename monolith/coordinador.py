@@ -56,6 +56,9 @@ ORIGEN = {
     'planilla_motocicletas':           ('planilla_motocicletas',           'id',                    True),
     'checklist_cumplimiento':          ('checklist_cumplimiento',          'id',                    True),
     'confiabilidad_equipos':           ('confiabilidad_equipos',           'id',                    True),
+    # Visita programada desde la Tendencia Operacional (cgeo_bp): record_id es
+    # la instalación a visitar; se resuelve por id y por cliente, sin texto.
+    'visita_programada':               ('propiedades',                     'id_propiedad',          False),
 }
 
 DDL = """

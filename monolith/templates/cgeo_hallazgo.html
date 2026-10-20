@@ -10,7 +10,7 @@
 #}
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hallazgo asignado · SEKapp</title>
+<title>{{ 'Visita programada' if es_visita else 'Hallazgo asignado' }} · SEKapp</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
     body { background:#0f172a; color:#e2e8f0; font-family:Roboto,system-ui,sans-serif; }
@@ -30,7 +30,7 @@
     <a href="{{ volver_href or '/cgeo/hallazgos' }}" class="text-sm text-slate-400 hover:text-slate-200">← {{ volver_texto or 'Volver a Hallazgos Asignados' }}</a>
 
     <div class="flex items-center gap-3 mt-4 mb-6">
-        <h1 class="text-2xl font-bold text-white">Hallazgo asignado</h1>
+        <h1 class="text-2xl font-bold text-white">{{ 'Visita programada' if es_visita else 'Hallazgo asignado' }}</h1>
         {% if cerrado %}
             <span class="hz-pill" style="background:#14532d;color:#86efac;">✓ Gestionado</span>
         {% elif vencida %}
@@ -40,16 +40,18 @@
         {% endif %}
     </div>
 
+    {# Una visita programada (desde la Tendencia Operacional) usa la misma fila:
+       el "qué" es la visita y el "cómo" la situación que la motivó. #}
     <!-- El hallazgo: qué y cómo -->
     <div class="hz-card p-5 mb-4">
-        <div class="hz-label">📋 Qué</div>
+        <div class="hz-label">{{ '📅 Visita' if es_visita else '📋 Qué' }}</div>
         <div class="hz-value">
             {{ asignacion.hallazgo_titulo or (etiqueta ~ ' #' ~ asignacion.record_id) }}
         </div>
 
         {% if asignacion.hallazgo_detalle %}
-        <div class="hz-label mt-5">🔧 Cómo</div>
-        <div class="hz-value">{{ asignacion.hallazgo_detalle }}</div>
+        <div class="hz-label mt-5">{{ '📈 Situación identificada' if es_visita else '🔧 Cómo' }}</div>
+        <div class="hz-value" style="white-space:pre-line;">{{ asignacion.hallazgo_detalle }}</div>
         {% endif %}
 
         {% if not asignacion.hallazgo_ref %}
@@ -63,17 +65,21 @@
     <!-- Instrucción de quien asignó -->
     {% if asignacion.nota %}
     <div class="hz-card p-5 mb-4" style="border-left:3px solid #f59e0b;">
-        <div class="hz-label">Observaciones del asignador</div>
+        <div class="hz-label">{{ 'Observaciones de quien programa' if es_visita else 'Observaciones del asignador' }}</div>
         <div class="hz-value">{{ asignacion.nota }}</div>
     </div>
     {% endif %}
 
     <!-- Contexto mínimo para ubicarlo -->
     <div class="hz-card p-5 mb-4">
-        <div class="hz-label mb-2">Dónde se originó</div>
+        <div class="hz-label mb-2">{{ 'Datos de la visita' if es_visita else 'Dónde se originó' }}</div>
         <table>
             <tr><td class="hz-meta-k">Tipo de registro</td><td class="hz-meta-v">{{ etiqueta }}</td></tr>
+            {% if es_visita %}
+            <tr><td class="hz-meta-k">Instalación</td><td class="hz-meta-v">{{ detalles.instalacion or asignacion.record_id }}</td></tr>
+            {% else %}
             <tr><td class="hz-meta-k">Consecutivo</td><td class="hz-meta-v">#{{ asignacion.record_id }}</td></tr>
+            {% endif %}
             {% if detalles.cliente and detalles.cliente != '—' %}
             <tr><td class="hz-meta-k">Cliente / Instalación</td><td class="hz-meta-v">{{ detalles.cliente }}</td></tr>
             {% endif %}
@@ -81,8 +87,8 @@
             <tr><td class="hz-meta-k">Puesto / Área</td><td class="hz-meta-v">{{ detalles.ubicacion }}</td></tr>
             {% endif %}
             <tr><td class="hz-meta-k">Responsable asignado</td><td class="hz-meta-v">{{ responsable }}</td></tr>
-            <tr><td class="hz-meta-k">Asignado por</td><td class="hz-meta-v">{{ asignador }}</td></tr>
-            <tr><td class="hz-meta-k">Fecha límite</td>
+            <tr><td class="hz-meta-k">{{ 'Programada por' if es_visita else 'Asignado por' }}</td><td class="hz-meta-v">{{ asignador }}</td></tr>
+            <tr><td class="hz-meta-k">{{ 'Fecha de la visita' if es_visita else 'Fecha límite' }}</td>
                 <td class="hz-meta-v">{{ asignacion.fecha_limite.strftime('%d/%m/%Y') if asignacion.fecha_limite else '—' }}</td></tr>
             {% if cerrado %}
             <tr><td class="hz-meta-k">Gestionado por</td><td class="hz-meta-v">{{ asignacion.cerrado_por or '—' }}</td></tr>
@@ -90,10 +96,26 @@
         </table>
     </div>
 
+    {# Visita programada: se realiza registrando el Acta de Visita, que abre
+       prellenada y al enviarse cierra esta visita sola (forms_bp). #}
+    {% if acta_url %}
+    <div class="hz-card p-5 mb-4" style="border-left:3px solid #7c3aed;">
+        <div class="hz-label">Realizar la visita</div>
+        <p class="text-sm text-slate-300 mt-2">
+            El Acta de Visita abre con la instalación, el motivo y la situación identificada
+            ya cargados. Al enviarla, esta visita queda gestionada.
+        </p>
+        <a href="{{ acta_url }}"
+           class="mt-3 block w-full text-center rounded-lg bg-violet-600 hover:bg-violet-500 px-4 py-2.5 font-semibold text-white">
+            📝 Registrar acta de visita
+        </a>
+    </div>
+    {% endif %}
+
     {# Acciones del receptor: gestionar y cerrar. La acción de asignar no va aquí. #}
     {% if not cerrado %}
     <div class="hz-card p-5">
-        <label class="hz-label" for="notaCierre">Qué se hizo (opcional)</label>
+        <label class="hz-label" for="notaCierre">{{ 'Si la visita no se realizará o se atendió de otra forma, indíquelo (opcional)' if es_visita else 'Qué se hizo (opcional)' }}</label>
         <textarea id="notaCierre" rows="3"
                   class="w-full mt-2 rounded-lg bg-slate-900 border border-slate-700 p-3 text-sm text-slate-100"
                   placeholder="Describa la gestión realizada..."></textarea>
