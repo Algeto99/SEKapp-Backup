@@ -242,6 +242,12 @@
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
       {{ module_label }}
     </span>
+    {% if geo_label %}
+    {# El QR se generó con filtro de geocerca: sólo se listan esos eventos. #}
+    <span style="color:{{ '#059669' if geo_filter == 'IN' else '#dc2626' }};font-weight:600;">
+      ● {{ geo_label }}
+    </span>
+    {% endif %}
     {% if gps_source != 'none' %}
     <span style="color:#34d399;">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -449,7 +455,13 @@
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:44px;height:44px;margin:0 auto .75rem;opacity:.35;display:block;">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
     </svg>
+    {% if geo_filter == 'IN' %}
+    <p>No hay supervisiones dentro de la geocerca en este período</p>
+    {% elif geo_filter == 'OUT' %}
+    <p>No hay supervisiones fuera de la geocerca en este período</p>
+    {% else %}
     <p>No hay eventos registrados en este período</p>
+    {% endif %}
   </div>
   {% endif %}
 </div>

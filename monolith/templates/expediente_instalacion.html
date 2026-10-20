@@ -17,7 +17,7 @@
     body.light-mode { background-color:#f1f5f9; color:#0f172a; }
     body.light-mode h1, body.light-mode h2, body.light-mode h3, body.light-mode h4 { color:#0f172a; }
     body.light-mode .theme-toggle { background:rgba(0,0,0,0.06); color:#334155; border-color:rgba(0,0,0,0.12); }
-    body.light-mode .property-bar, body.light-mode .kpi-card, body.light-mode .tl-card, body.light-mode .filter-btn, body.light-mode .range-chip { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 8px rgba(0,0,0,.04); }
+    body.light-mode .property-bar, body.light-mode .kpi-card, body.light-mode .tl-card, body.light-mode .filter-btn, body.light-mode .geo-btn, body.light-mode .range-chip { background-color:#fff; border-color:rgba(0,0,0,0.07); box-shadow:0 2px 8px rgba(0,0,0,.04); }
     body.light-mode .tl-card { background:#fff; }
     body.light-mode .kpi-val, body.light-mode .tl-summary { color:#334155; }
     body.light-mode .kpi-label, body.light-mode .tl-ts, body.light-mode .tl-meta { color:#64748b; }
@@ -55,9 +55,14 @@
 
     /* Filter bar */
     .filter-bar { display:flex; gap:.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
-    .filter-btn { background:rgba(45,55,72,.6); border:1px solid rgba(255,255,255,.1); color:#9ca3af; border-radius:2rem; padding:.35rem .9rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
-    .filter-btn.active { background:rgba(124,58,237,.3); border-color:#a78bfa; color:#a78bfa; font-weight:600; }
-    .filter-btn:hover:not(.active) { border-color:rgba(255,255,255,.25); color:#e2e8f0; }
+    .filter-btn, .geo-btn { background:rgba(45,55,72,.6); border:1px solid rgba(255,255,255,.1); color:#9ca3af; border-radius:2rem; padding:.35rem .9rem; font-size:.8rem; cursor:pointer; transition:all .2s; }
+    .filter-btn.active, .geo-btn.active { background:rgba(124,58,237,.3); border-color:#a78bfa; color:#a78bfa; font-weight:600; }
+    .filter-btn:hover:not(.active), .geo-btn:hover:not(.active) { border-color:rgba(255,255,255,.25); color:#e2e8f0; }
+    /* Filtro de geocerca (dentro/fuera), en la misma barra que los módulos */
+    .geo-sep { width:1px; align-self:stretch; background:rgba(255,255,255,.14); margin:0 .25rem; }
+    .geo-label { font-size:.68rem; color:#9ca3af; text-transform:uppercase; letter-spacing:.06em; align-self:center; }
+    .geo-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; }
+    body.light-mode .geo-sep { background:rgba(0,0,0,.12); }
 
     /* Timeline */
     .timeline { position:relative; }
@@ -163,6 +168,7 @@
 <div id="qrModal">
   <div class="qr-box">
     <h3 id="qrModalTitle">QR del Expediente</h3>
+    <p id="qrModalScope" style="font-size:.75rem;color:#9ca3af;margin:-.5rem 0 .75rem;"></p>
     <img id="qrImg" src="" alt="QR Code">
     <p id="qrPublicUrl" style="font-size:.7rem;color:#9ca3af;word-break:break-all;margin-top:.75rem;"></p>
     <div class="qr-actions">
@@ -255,6 +261,12 @@
       <button class="filter-btn" data-filter="CONFIABILIDAD" id="btnConfiabilidad">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#a78bfa;margin-right:4px;"></span>Confiabilidad
       </button>
+      {# Filtro de geocerca (KANAN 2026-10-19): dentro = verde, fuera = rojo. Viaja en el QR. #}
+      <span class="geo-sep" aria-hidden="true"></span>
+      <span class="geo-label">Geocerca</span>
+      <button class="geo-btn active" data-geo="ALL">Todas</button>
+      <button class="geo-btn" data-geo="IN"><span class="geo-dot" style="background:#34d399;"></span>Dentro</button>
+      <button class="geo-btn" data-geo="OUT"><span class="geo-dot" style="background:#f87171;"></span>Fuera</button>
     </div>
       <div style="display:flex;align-items:center;gap:.75rem;">
         <div id="eventCount" style="font-size:.8rem;color:#9ca3af;"></div>
@@ -292,7 +304,12 @@
   let allProperties  = [];        // full catalogue, grouped client-side
   let currentDays = 30;
   let currentFilter = 'ALL';
+  let currentGeo = 'ALL';         // ALL | IN | OUT — filtro de geocerca, viaja en el QR
   let allEvents = [];
+  const MODULE_LABELS = { ALL: 'Todos los módulos', SUPERVISION: 'Supervisiones', INCIDENTE: 'Incidentes',
+                          ACUERDO: 'Acuerdos', ENCUESTA: 'Encuestas', CERTIFICACION: 'Certificaciones',
+                          CONFIABILIDAD: 'Confiabilidad' };
+  const GEO_LABELS = { ALL: 'Dentro y fuera de la geocerca', IN: 'Dentro de la geocerca', OUT: 'Fuera de la geocerca' };
   let propHasGps = false;
   let currentQrUrl   = '';
   let currentQrToken = '';
@@ -530,24 +547,41 @@
     const wrap = document.getElementById('timelineWrap');
     const countEl = document.getElementById('eventCount');
 
-    const filtered = currentFilter === 'ALL'
-      ? allEvents
-      : allEvents.filter(e => e.module === currentFilter);
+    const filtered = allEvents.filter(pasaFiltros);
 
     countEl.textContent = `${filtered.length} evento${filtered.length !== 1 ? 's' : ''}`;
 
     if (!filtered.length) {
+      let vacio = 'No hay eventos en este período';
+      if (currentGeo !== 'ALL') {
+        vacio = !propHasGps
+          ? 'Esta instalación no tiene geocerca activa: no hay eventos dentro ni fuera'
+          : `No hay supervisiones ${currentGeo === 'IN' ? 'dentro' : 'fuera'} de la geocerca en este período`;
+      }
       wrap.innerHTML = `
         <div class="state-placeholder">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;margin:0 auto 1rem;opacity:.35;">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
           </svg>
-          <p>No hay eventos en este período</p>
+          <p>${vacio}</p>
         </div>`;
       return;
     }
 
     wrap.innerHTML = '<div class="timeline">' + filtered.map(e => eventCard(e)).join('') + '</div>';
+  }
+
+  // Filtro de geocerca: el verde/rojo de la tarjeta, que sólo existe en
+  // supervisiones con GPS y geocerca activa. Mismo criterio que el servidor
+  // aplica al QR (_aplicar_filtro_geocerca en expediente_bp): los demás módulos
+  // no tienen ubicación y no entran en "dentro" ni en "fuera".
+  function pasaGeocerca(e) {
+    if (currentGeo === 'ALL') return true;
+    if (e.distance_m === null || e.distance_m === undefined) return false;
+    return currentGeo === 'IN' ? e.status === 'GREEN' : e.status === 'RED';
+  }
+  function pasaFiltros(e) {
+    return (currentFilter === 'ALL' || e.module === currentFilter) && pasaGeocerca(e);
   }
 
   function moduleBadge(module) {
@@ -740,10 +774,13 @@
     urlEl.textContent = 'Generando…';
     currentQrUrl   = '';
     currentQrToken = '';
+    // El QR comparte exactamente lo que se está viendo: módulo, geocerca y período.
+    document.getElementById('qrModalScope').textContent =
+      `Últimos ${currentDays} días · ${MODULE_LABELS[currentFilter] || currentFilter} · ${GEO_LABELS[currentGeo] || ''}`;
     modal.classList.add('open');
 
     try {
-      const res  = await fetch(`/expediente/api/qr-expediente-url?${propQuery()}&days=${currentDays}&module=${currentFilter}`);
+      const res  = await fetch(`/expediente/api/qr-expediente-url?${propQuery()}&days=${currentDays}&module=${currentFilter}&geo=${currentGeo}`);
       const data = await res.json();
       if (res.ok && data.token) {
         currentQrUrl   = data.url;
@@ -847,6 +884,14 @@
   });
 
   document.getElementById('filterBar').addEventListener('click', function(e) {
+    const geo = e.target.closest('.geo-btn');
+    if (geo) {
+      document.querySelectorAll('.geo-btn').forEach(b => b.classList.remove('active'));
+      geo.classList.add('active');
+      currentGeo = geo.dataset.geo;
+      if (currentFilter !== 'CONFIABILIDAD') renderTimeline();
+      return;
+    }
     const btn = e.target.closest('.filter-btn');
     if (!btn) return;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));

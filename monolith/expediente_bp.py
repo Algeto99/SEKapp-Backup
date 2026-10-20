@@ -474,13 +474,49 @@ def _decode_qr_token(token):
         return None
 
 
-def _make_expediente_token(cliente, days, module_filter, company_id, prop_id=None):
+MODULE_LABELS = {'ALL': 'Todos los módulos', 'SUPERVISION': 'Supervisiones',
+                 'INCIDENTE': 'Incidentes', 'ACUERDO': 'Acuerdos',
+                 'ENCUESTA': 'Encuestas a cliente',
+                 'CERTIFICACION': 'Certificaciones'}
+
+# Filtro de geocerca del Expediente (KANAN 2026-10-19): el mismo verde/rojo que
+# pinta cada tarjeta, llevado al QR. Sólo las supervisiones tienen GPS, así que
+# "dentro" y "fuera" muestran únicamente supervisiones con geocerca evaluada.
+GEO_FILTERS = ('ALL', 'IN', 'OUT')
+GEO_LABELS = {'IN': 'Dentro de la geocerca', 'OUT': 'Fuera de la geocerca'}
+
+
+def _geo_filter_arg(value):
+    v = (value or 'ALL').strip().upper()
+    return v if v in GEO_FILTERS else 'ALL'
+
+
+def _aplicar_filtro_geocerca(events, geo_filter):
+    """Deja sólo los eventos dentro (verde) o fuera (rojo) de la geocerca.
+
+    Se decide por el `status` que _compute_status calculó con la distancia exacta,
+    no por la distancia redondeada, para coincidir con el color de la tarjeta. Un
+    evento sin distancia (sin GPS, sin geocerca activa o de un módulo sin
+    ubicación) no entra en ninguno de los dos.
+    """
+    if geo_filter == 'IN':
+        return [e for e in events if e.get('distance_m') is not None and e.get('status') == 'GREEN']
+    if geo_filter == 'OUT':
+        return [e for e in events if e.get('distance_m') is not None and e.get('status') == 'RED']
+    return events
+
+
+def _make_expediente_token(cliente, days, module_filter, company_id, prop_id=None, geo_filter='ALL'):
     s = URLSafeSerializer(current_app.config['SECRET_KEY'], salt=EXPEDIENTE_QR_SALT)
     # 'p' is optional: tokens minted before it existed decode without it and fall
     # back to matching by name alone, exactly as they did before.
     payload = {'c': cliente, 'd': int(days), 'm': module_filter, 'cid': int(company_id or 0)}
     if prop_id is not None:
         payload['p'] = int(prop_id)
+    # 'g' también es opcional: los QR impresos antes del filtro decodifican sin
+    # ella y muestran todo, como siempre.
+    if geo_filter and geo_filter != 'ALL':
+        payload['g'] = geo_filter
     return s.dumps(payload)
 
 
@@ -1095,6 +1131,7 @@ def api_qr_expediente_url():
     cliente = (request.args.get('cliente') or '').strip()
     prop_id = _prop_id_arg(request.args.get('id_propiedad'))
     module_filter = (request.args.get('module') or 'ALL').strip().upper()
+    geo_filter = _geo_filter_arg(request.args.get('geo'))
     try:
         days = max(1, min(int(request.args.get('days', 30)), 365))
     except (ValueError, TypeError):
@@ -1111,7 +1148,7 @@ def api_qr_expediente_url():
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
         company_id = _get_user_company_id(cur, user_email)
 
-        token = _make_expediente_token(cliente, days, module_filter, company_id, prop_id)
+        token = _make_expediente_token(cliente, days, module_filter, company_id, prop_id, geo_filter)
         public_url = request.host_url.rstrip('/') + f'/vexp/{token}'
         return jsonify({'url': public_url, 'token': token})
     except Exception as e:
@@ -1160,6 +1197,14 @@ def api_qr_expediente_email():
 
     public_url = request.host_url.rstrip('/') + f'/vexp/{token}'
     nombre_instalacion = cliente or payload.get('cliente', 'la instalación')
+    # Lo que el QR deja ver: módulo y geocerca, si se acotó alguno.
+    filtros = []
+    modulo = (payload.get('m') or 'ALL')
+    if modulo != 'ALL':
+        filtros.append(MODULE_LABELS.get(modulo, modulo))
+    geo = _geo_filter_arg(payload.get('g'))
+    if geo != 'ALL':
+        filtros.append(GEO_LABELS[geo])
 
     # Resolve sender display name
     try:
@@ -1178,6 +1223,10 @@ def api_qr_expediente_email():
 
     from html import escape as _esc
     subject = f"[SEKApp] Expediente de instalación – {nombre_instalacion}"
+    filtro_html = ''
+    if filtros:
+        filtro_html = (f'<p style="margin:0 0 8px;font-size:13px;color:#374151;">'
+                       f'Filtro aplicado: <strong>{_esc(" · ".join(filtros))}</strong></p>')
     html_body = f"""
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#111827;">
       <div style="background:#1e3a5f;padding:20px 24px;border-radius:6px 6px 0 0;">
@@ -1190,6 +1239,7 @@ def api_qr_expediente_email():
           <strong>{_esc(sender_name)}</strong> te ha compartido el expediente de instalación de
           <strong>{_esc(nombre_instalacion)}</strong>.
         </p>
+        {filtro_html}
         <p style="margin:0 0 8px;font-size:13px;color:#374151;">
           Accede al expediente completo con el siguiente enlace o escaneando el código QR:
         </p>
@@ -1233,10 +1283,12 @@ def public_expediente_viewer(token):
     prop_id       = payload.get('p')
     days          = payload.get('d', 30)
     module_filter = payload.get('m', 'ALL')
+    geo_filter    = _geo_filter_arg(payload.get('g'))
     company_id    = payload.get('cid') or None
     if company_id == 0:
         company_id = None
-    anotar(detalle={'cliente': cliente, 'propiedad_id': prop_id, 'dias': days, 'modulo_filtro': module_filter})
+    anotar(detalle={'cliente': cliente, 'propiedad_id': prop_id, 'dias': days,
+                    'modulo_filtro': module_filter, 'geocerca_filtro': geo_filter})
 
     conn = cur = None
     try:
@@ -1358,6 +1410,9 @@ def public_expediente_viewer(token):
 
         if module_filter != 'ALL':
             events = [e for e in events if e['module'] == module_filter]
+        # Dentro/fuera de la geocerca: el QR enseña sólo lo que coincide con el
+        # filtro con el que se generó, con la información y evidencias completas.
+        events = _aplicar_filtro_geocerca(events, geo_filter)
 
         # Sanitize for JSON embedding
         for e in events:
@@ -1384,11 +1439,6 @@ def public_expediente_viewer(token):
         except Exception as eq_err:
             app_logger.warning(f"Could not fetch equipos for public viewer: {eq_err}")
 
-        MODULE_LABELS = {'ALL': 'Todos los módulos', 'SUPERVISION': 'Supervisiones',
-                         'INCIDENTE': 'Incidentes', 'ACUERDO': 'Acuerdos',
-                         'ENCUESTA': 'Encuestas a cliente',
-                         'CERTIFICACION': 'Certificaciones'}
-
         return render_template('expediente_public_combined.html',
                                geofence_radius_m=GEOFENCE_RADIUS_M,
                                geofence_radius_label=GEOFENCE_RADIUS_LABEL,
@@ -1396,6 +1446,8 @@ def public_expediente_viewer(token):
                                cliente_empresa=cliente_empresa,
                                days=days,
                                module_label=MODULE_LABELS.get(module_filter, module_filter),
+                               geo_filter=geo_filter,
+                               geo_label=GEO_LABELS.get(geo_filter, ''),
                                events=events,
                                stats=stats,
                                gps_source=gps_source,
