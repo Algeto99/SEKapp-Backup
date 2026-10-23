@@ -740,11 +740,14 @@
         document.getElementById('kpiTotalVal').textContent = k.total ?? '—';
         renderChange('kpiTotalChange', k.pct_change_total, false);
 
+        // Las alertas cuentan agentes (cada uno con su última supervisión), así
+        // que el porcentaje es sobre los puestos supervisados, no sobre inspecciones.
+        const puestosTxt = `de ${k.agentes ?? '—'} puesto${k.agentes === 1 ? '' : 's'}`;
         document.getElementById('kpiCriticoVal').textContent    = k.cnt_critico ?? '—';
-        document.getElementById('kpiCriticoPct').textContent    = k.pct_critico != null ? `${k.pct_critico}% del total` : '— del total';
+        document.getElementById('kpiCriticoPct').textContent    = k.pct_critico != null ? `${k.pct_critico}% ${puestosTxt}` : '— del total';
 
         document.getElementById('kpiSeguimientoVal').textContent = k.cnt_seguimiento ?? '—';
-        document.getElementById('kpiSeguimientoPct').textContent = k.pct_seguimiento != null ? `${k.pct_seguimiento}% del total` : '— del total';
+        document.getElementById('kpiSeguimientoPct').textContent = k.pct_seguimiento != null ? `${k.pct_seguimiento}% ${puestosTxt}` : '— del total';
     }
 
     // ── Alert banners ─────────────────────────────────────────────────────
@@ -757,10 +760,10 @@
             const items = criticos.map(p => {
                 const lbl = p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia;
                 const empAttr = p.emp_key !== 'Sin ID' ? `data-emp="${p.emp_key}"` : '';
-                return `<span class="alert-badge-critico" ${empAttr} data-lbl="${lbl.replace(/"/g,'&quot;')}" title="Ver reportes de ${lbl.replace(/"/g,'&quot;')}">&#9888; ${lbl} — ${p.avg_score} pts</span>`;
+                return `<span class="alert-badge-critico" ${empAttr} data-lbl="${lbl.replace(/"/g,'&quot;')}" title="Ver reportes de ${lbl.replace(/"/g,'&quot;')}">&#9888; ${lbl} — ${p.score} pts · ${p.fecha}</span>`;
             }).join(' ');
             document.getElementById('alertCriticoBody').innerHTML =
-                `Los siguientes puestos tienen puntaje ≤ 15 y requieren acción inmediata: ${items}`;
+                `Los siguientes puestos tienen puntaje ≤ 15 en su última supervisión y requieren acción inmediata: ${items}`;
         } else {
             bc.style.display = 'none';
         }
@@ -770,10 +773,10 @@
             const items = seguimientoList.map(p => {
                 const lbl = p.emp_key !== 'Sin ID' ? `#${p.emp_key}` : p.guardia;
                 const empAttr = p.emp_key !== 'Sin ID' ? `data-emp="${p.emp_key}"` : '';
-                return `<span class="alert-badge-seguimiento" ${empAttr} data-lbl="${lbl.replace(/"/g,'&quot;')}" title="Ver reportes de ${lbl.replace(/"/g,'&quot;')}">${lbl} — ${p.avg_score} pts</span>`;
+                return `<span class="alert-badge-seguimiento" ${empAttr} data-lbl="${lbl.replace(/"/g,'&quot;')}" title="Ver reportes de ${lbl.replace(/"/g,'&quot;')}">${lbl} — ${p.score} pts · ${p.fecha}</span>`;
             }).join(' ');
             document.getElementById('alertSeguimientoBody').innerHTML =
-                `Los siguientes puestos están entre 16 y 20 puntos: ${items}`;
+                `Los siguientes puestos están entre 16 y 20 puntos en su última supervisión: ${items}`;
         } else {
             bs.style.display = 'none';
         }

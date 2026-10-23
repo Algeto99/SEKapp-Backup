@@ -5041,6 +5041,45 @@ def _sup_score_color(score):
     if score >= 16:    return '#eab308'
     return '#ef4444'
 
+# Clave del agente ("puesto" en este dashboard): número de empleado y, si no se
+# anotó, nombre del guardia. Es la misma del gráfico "Resultado por Puesto" y
+# del clic en los badges de alerta (`empleado_num`), así todas las vistas
+# hablan del mismo agente.
+_SUP_EMP_KEY = "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID')"
+
+
+def _sup_ultima_por_agente(where, score_expr):
+    """FROM (...) ultima: una fila por agente con su última supervisión dentro de `where`.
+
+    Pedido de KANAN (2026-10-23): las alertas del Dashboard de Supervisión
+    (tarjetas Críticos / Seguimiento, banners y su modal) repetían al mismo
+    agente por cada supervisión del período. Aquí el agente es la unidad y su
+    última supervisión —por fecha_hora, la hora en que se abrió el formulario—
+    decide en qué nivel queda; las anteriores quedan como historial sin volver
+    a contar. Es el mismo criterio que cgeo_bp._flota_vigente para la flota y
+    _eq_inventario_vigente para equipos.
+
+    Columnas: id_supervision, fecha_hora, cliente, supervisor, numero_empleado,
+    nombre_guardia, rol_aplicador, emp_key, total_score.
+    """
+    return f"""
+        FROM (
+            SELECT DISTINCT ON (emp_key)
+                id_supervision,
+                fecha_hora,
+                cliente_instalacion AS cliente,
+                supervisor,
+                numero_empleado,
+                nombre_guardia,
+                rol_aplicador,
+                {_SUP_EMP_KEY} AS emp_key,
+                ({score_expr}) AS total_score
+            FROM supervision_puesto
+            {where}
+            ORDER BY emp_key, fecha_hora DESC NULLS LAST, id_supervision DESC
+        ) ultima
+    """
+
 def _sup_where(cliente, year, month, day, responsable=None, nombre_usuario=None, company_id=None, propiedad=None, puesto=None, desde=None, hasta=None):
     # `company_id` se acepta por compatibilidad pero ya no filtra: cada ambiente
     # sirve a una sola empresa de seguridad, así que la condición no distinguía
@@ -5213,6 +5252,11 @@ def api_supervision_data():
             f"AVG({_safe(f)}) AS avg_{f}" for f, _ in _SUP_CRITERIA
         )
 
+        # Las alertas parten del período SIN la condición de nivel del gráfico de
+        # distribución: el nivel se decide después, sobre la última supervisión
+        # de cada agente, igual que en /detalles.
+        where_alertas = where
+
         # Apply nivel filter if requested — wrap base where with score condition
         if nivel in ('excelente', 'seguimiento', 'critico'):
             nivel_cond = {
@@ -5242,9 +5286,39 @@ def api_supervision_data():
 
         total          = int(row['total'])         if row['total']     else 0
         avg_score      = float(row['avg_score'])   if row['avg_score'] else None
-        cnt_excelente  = int(row['cnt_excelente'])  if row['cnt_excelente']  else 0
-        cnt_seguimiento= int(row['cnt_seguimiento'])if row['cnt_seguimiento'] else 0
-        cnt_critico    = int(row['cnt_critico'])    if row['cnt_critico']     else 0
+        # Distribución por nivel: cada inspección cuenta (es el reparto de los
+        # resultados del período, no una alerta).
+        dist_excelente  = int(row['cnt_excelente'])  if row['cnt_excelente']  else 0
+        dist_seguimiento= int(row['cnt_seguimiento'])if row['cnt_seguimiento'] else 0
+        dist_critico    = int(row['cnt_critico'])    if row['cnt_critico']     else 0
+
+        # ── Alertas: un agente, su última supervisión ─────────────────────
+        # Pedido de KANAN (2026-10-23): el mismo agente salía una vez por cada
+        # supervisión del período. Se cuenta una fila por agente con la
+        # calificación de su última supervisión; con el filtro de nivel del
+        # gráfico de distribución sólo cuentan los agentes que quedan en ese nivel.
+        ultima_from = _sup_ultima_por_agente(where_alertas, score_expr)
+        nivel_ultima = {
+            'excelente':   "total_score >= 21",
+            'seguimiento': "total_score BETWEEN 16 AND 20",
+            'critico':     "total_score > 0 AND total_score <= 15",
+        }.get(nivel)
+        where_ultima = f"WHERE {nivel_ultima}" if nivel_ultima else ""
+        cur.execute(f"""
+            SELECT
+                COUNT(*)                                                       AS agentes,
+                SUM(CASE WHEN total_score >= 21 THEN 1 ELSE 0 END)             AS cnt_excelente,
+                SUM(CASE WHEN total_score BETWEEN 16 AND 20 THEN 1 ELSE 0 END) AS cnt_seguimiento,
+                SUM(CASE WHEN total_score > 0 AND total_score <= 15
+                         THEN 1 ELSE 0 END)                                    AS cnt_critico
+            {ultima_from}
+            {where_ultima}
+        """, params)
+        ult = cur.fetchone()
+        agentes        = int(ult['agentes'])         if ult['agentes']         else 0
+        cnt_excelente  = int(ult['cnt_excelente'])   if ult['cnt_excelente']   else 0
+        cnt_seguimiento= int(ult['cnt_seguimiento']) if ult['cnt_seguimiento'] else 0
+        cnt_critico    = int(ult['cnt_critico'])     if ult['cnt_critico']     else 0
 
         # ── Previous period ───────────────────────────────────────────────
         avg_score_prev, total_prev = None, 0
@@ -5263,9 +5337,11 @@ def api_supervision_data():
             if curr is None or prev_val is None or prev_val == 0: return None
             return round((curr - prev_val) / prev_val * 100, 1)
 
-        pct_critico    = round(cnt_critico     / total * 100, 1) if total else 0
-        pct_seguimiento= round(cnt_seguimiento / total * 100, 1) if total else 0
-        pct_excelente  = round(cnt_excelente   / total * 100, 1) if total else 0
+        # Porcentajes sobre los agentes supervisados en el período, no sobre
+        # las inspecciones: cada agente cuenta una vez.
+        pct_critico    = round(cnt_critico     / agentes * 100, 1) if agentes else 0
+        pct_seguimiento= round(cnt_seguimiento / agentes * 100, 1) if agentes else 0
+        pct_excelente  = round(cnt_excelente   / agentes * 100, 1) if agentes else 0
 
         # ── Per-criterion averages (for criteria bar chart) ───────────────
         criteria = []
@@ -5285,7 +5361,7 @@ def api_supervision_data():
         # ── Result per puesto (by numero_empleado) ────────────────────────
         cur.execute(f"""
             SELECT
-                COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') AS emp_key,
+                {_SUP_EMP_KEY} AS emp_key,
                 MAX(nombre_guardia)                                                    AS guardia,
                 COUNT(*)                                                               AS cnt,
                 ROUND(AVG({score_expr})::NUMERIC, 1)                                  AS avg_score
@@ -5308,9 +5384,30 @@ def api_supervision_data():
                 'alerta':   s is not None and s <= 15,
             })
 
-        # ── Critical puestos for alert banner ─────────────────────────────
-        criticos   = [p for p in puestos if p['alerta']]
-        seguimiento= [p for p in puestos if p['avg_score'] is not None and 16 <= p['avg_score'] <= 20]
+        # ── Banners de alerta: cada agente una vez, con su última supervisión ─
+        conds_banner = ["total_score > 0", "total_score <= 20"]
+        if nivel_ultima:
+            conds_banner.append(nivel_ultima)
+        where_banner = "WHERE " + " AND ".join(conds_banner)
+        cur.execute(f"""
+            SELECT emp_key, nombre_guardia, id_supervision, fecha_hora, total_score
+            {ultima_from}
+            {where_banner}
+            ORDER BY total_score ASC, fecha_hora DESC NULLS LAST, id_supervision DESC
+        """, params)
+        criticos, seguimiento = [], []
+        for r in cur.fetchall():
+            s = float(r['total_score'])
+            item = {
+                'emp_key': r['emp_key'],
+                'guardia': r['nombre_guardia'] or '—',
+                'id':      r['id_supervision'] or 0,
+                'fecha':   _fecha_pantalla(r['fecha_hora'], hora=False),
+                'score':   s,
+                'color':   _sup_score_color(s),
+                'label':   _sup_score_label(s),
+            }
+            (criticos if s <= 15 else seguimiento).append(item)
 
         # ── Trend by period ───────────────────────────────────────────────
         if month and year:
@@ -5374,11 +5471,12 @@ def api_supervision_data():
                 'pct_seguimiento':      pct_seguimiento,
                 'cnt_excelente':        cnt_excelente,
                 'pct_excelente':        pct_excelente,
+                'agentes':              agentes,
             },
             'distribution': {
-                'excelente':   cnt_excelente,
-                'seguimiento': cnt_seguimiento,
-                'critico':     cnt_critico,
+                'excelente':   dist_excelente,
+                'seguimiento': dist_seguimiento,
+                'critico':     dist_critico,
             },
             'criteria':   criteria,
             'puestos':    puestos,
@@ -5433,7 +5531,7 @@ def api_supervision_detalles():
             desde, hasta = p_desde.isoformat(), p_hasta.isoformat()
         where, params = _sup_where(cliente, year, month, day, responsable=responsable, nombre_usuario=nombre_usuario, company_id=company_id, propiedad=propiedad, puesto=puesto, desde=desde, hasta=hasta)
         if empleado_num:
-            where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(numero_empleado),''), nombre_guardia, 'Sin ID') = %s"
+            where = (where + " AND " if where else "WHERE ") + _SUP_EMP_KEY + " = %s"
             params = list(params) + [empleado_num]
         if turno_filter:
             where = (where + " AND " if where else "WHERE ") + "rol_aplicador = %s"
@@ -5452,21 +5550,35 @@ def api_supervision_detalles():
 
         score_expr = " + ".join(f"COALESCE(({_safe(f)}),0)" for f, _ in _SUP_CRITERIA)
 
-        cur.execute(f"""
-            SELECT
-                id_supervision,
-                fecha_hora,
-                cliente_instalacion AS cliente,
-                supervisor,
-                numero_empleado,
-                nombre_guardia,
-                rol_aplicador,
-                ({score_expr})                AS total_score
-            FROM supervision_puesto
-            {where}
-            ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
-            LIMIT 500
-        """, params)
+        if nivel in ('critico', 'seguimiento', 'excelente'):
+            # Alertas por nivel (tarjetas Críticos / Seguimiento): una fila por
+            # agente con su última supervisión del período; el nivel se decide
+            # abajo con esa calificación (pedido de KANAN 2026-10-23). Sin nivel
+            # (badge de un agente) se sigue listando todo su historial.
+            ultima_from = _sup_ultima_por_agente(where, score_expr)
+            cur.execute(f"""
+                SELECT id_supervision, fecha_hora, cliente, supervisor,
+                       numero_empleado, nombre_guardia, rol_aplicador, total_score
+                {ultima_from}
+                ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
+                LIMIT 500
+            """, params)
+        else:
+            cur.execute(f"""
+                SELECT
+                    id_supervision,
+                    fecha_hora,
+                    cliente_instalacion AS cliente,
+                    supervisor,
+                    numero_empleado,
+                    nombre_guardia,
+                    rol_aplicador,
+                    ({score_expr})                AS total_score
+                FROM supervision_puesto
+                {where}
+                ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
+                LIMIT 500
+            """, params)
         rows = cur.fetchall()
 
         detalles = []
@@ -5487,7 +5599,8 @@ def api_supervision_detalles():
                 'score_color': _sup_score_color(score),
             })
         if nivel == 'critico':
-            detalles = [d for d in detalles if d['score'] <= 15]
+            # Igual que la tarjeta: sin criterios capturados (puntaje 0) no es crítico.
+            detalles = [d for d in detalles if 0 < d['score'] <= 15]
         elif nivel == 'seguimiento':
             detalles = [d for d in detalles if 16 <= d['score'] <= 20]
         elif nivel == 'excelente':
