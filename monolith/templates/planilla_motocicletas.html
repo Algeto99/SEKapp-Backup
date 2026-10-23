@@ -910,7 +910,7 @@
                         {% if edit_mode %}
                         <!-- En edición el Administrador corrige a mano un error de digitación del
                              pre-operacional anterior. El valor se guarda en esta planilla. -->
-                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0">
+                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" inputmode="numeric">
                         {% else %}
                         <input type="text" id="km_anterior_display" class="form-input" readonly tabindex="-1"
                             value="—" style="opacity:.75;cursor:default;">
@@ -924,7 +924,7 @@
                         <label for="kilometraje_motocicleta" class="form-label">Kilometraje actual <span
                                 class="text-red-400">*</span></label>
                         <input type="number" name="kilometraje_motocicleta" id="kilometraje_motocicleta"
-                            class="form-input" min="0" required>
+                            class="form-input" min="0" required max="9999999" inputmode="numeric">
                         <p class="text-xs text-red-400 mt-1 hidden" id="km_error"></p>
                     </div>
                     <div>
@@ -1399,6 +1399,15 @@
                 const error      = document.getElementById('km_error');
                 if (!placa || !actual) return;
 
+                // Un odómetro real cabe en 7 dígitos (9.999.999 km); más que eso, o
+                // decimales, es un error de digitación. El 22/10/2026 llegó
+                // "11270909101": la columna es INTEGER y Postgres lo rechazó con el
+                // SQL a la vista del usuario. Se frena aquí, antes de enviar, con un
+                // mensaje claro; el servidor aplica la misma regla
+                // (_validate_kilometraje en forms_bp.py).
+                const KM_RE  = /^\d{1,7}$/;
+                const KM_MSG = 'El kilometraje no es válido. Revise el número.';
+
                 const record      = (window.EDIT_MODE && window.EDIT_RECORD) || null;
                 const placaRecord = record ? String(record.placa_motocicleta || '').trim().toUpperCase() : '';
                 const kmGuardado  = (record && record.kilometraje_anterior !== null
@@ -1414,6 +1423,15 @@
                 function recalcular() {
                     const v = actual.value.trim();
                     const km = v === '' ? null : Number(v);
+
+                    if (v !== '' && !KM_RE.test(v)) {
+                        actual.setCustomValidity(KM_MSG);
+                        error.textContent = KM_MSG;
+                        error.classList.remove('hidden');
+                        recDisplay.value = '—';
+                        recHidden.value  = '';
+                        return;
+                    }
 
                     // Sin registro anterior no hay recorrido que calcular.
                     if (ultimoKm === null || km === null || Number.isNaN(km)) {
@@ -1500,9 +1518,19 @@
                 actual.addEventListener('input', recalcular);
                 // Corrección manual del antecedente (sólo posible en edición, donde el
                 // campo es visible): el recorrido se recalcula al instante.
+                let hintValido = null;
                 antHidden.addEventListener('input', () => {
                     const v = antHidden.value.trim();
-                    const km = v === '' ? null : Number(v);
+                    // Misma regla de dígitos que el kilometraje actual.
+                    const malo = v !== '' && !KM_RE.test(v);
+                    antHidden.setCustomValidity(malo ? KM_MSG : '');
+                    if (antHint) {
+                        if (malo && hintValido === null) hintValido = antHint.textContent;
+                        if (malo) antHint.textContent = KM_MSG;
+                        else if (hintValido !== null) { antHint.textContent = hintValido; hintValido = null; }
+                        antHint.classList.toggle('text-red-400', malo);
+                    }
+                    const km = (malo || v === '') ? null : Number(v);
                     ultimoKm = (km === null || Number.isNaN(km)) ? null : km;
                     recalcular();
                 });

@@ -12,6 +12,7 @@ from functools import wraps
 import zoneinfo
 
 import psycopg2
+import psycopg2.errors
 import psycopg2.extras
 from flask import Blueprint, current_app, render_template, request, redirect, flash, jsonify, url_for, send_from_directory
 from flask_jwt_extended import get_jwt_identity, jwt_required, unset_jwt_cookies, get_jwt
@@ -758,6 +759,39 @@ def _validate_not_future(date_val_str, field_label="Fecha", tz_str=None, toleran
             return f"El campo '{field_label}' no puede ser posterior a la fecha actual."
 
     return None
+
+
+# Kilometraje de las planillas pre-operacionales: entero de hasta 7 dígitos
+# (9.999.999 km). Las columnas kilometraje_* son INTEGER; el 22/10/2026 llegó
+# "11270909101", Postgres respondió "out of range for type integer" y el usuario
+# vio el SQL. El formulario aplica la misma regla antes de enviar (control de
+# kilometraje de planilla_vehicular.html y planilla_motocicletas.html); esta es
+# la red para páginas viejas en caché y reenvíos de la cola offline.
+KM_MAX_DIGITOS = 7
+KM_MENSAJE_INVALIDO = 'El kilometraje no es válido. Revise el número.'
+_KM_RE = re.compile(r'^\d{1,%d}$' % KM_MAX_DIGITOS)
+
+
+def _validate_kilometraje(*valores):
+    """None si todos los kilometrajes son válidos (vacío cuenta como válido);
+    si no, el mensaje para el usuario."""
+    for v in valores:
+        s = '' if v is None else str(v).strip()
+        if s and not _KM_RE.match(s):
+            return KM_MENSAJE_INVALIDO
+    return None
+
+
+def _error_planilla(exc, mensaje):
+    """Respuesta de error de una planilla sin texto técnico ni SQL a la vista.
+
+    El detalle ya quedó en el log. Si Postgres rechazó un entero fuera de rango
+    (las únicas columnas INTEGER que digita el usuario son los kilometrajes), el
+    usuario recibe el mensaje del kilometraje en vez del de la base.
+    """
+    if isinstance(exc, psycopg2.errors.NumericValueOutOfRange):
+        return _return_form_error(KM_MENSAJE_INVALIDO, 400)
+    return _return_form_error(mensaje, 500)
 
 
 def _return_form_error(message, status=400):
@@ -2722,7 +2756,7 @@ def submit_registro_de_capacitaciones():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting capacitacion: {e}", exc_info=True)
-        return _form_error_response(f'Error al guardar la capacitación: {str(e)}', status=500)
+        return _form_error_response('No se pudo guardar la capacitación. Revise los datos e intente de nuevo.', status=500)
     finally:
         if conn:
             conn.close()
@@ -2757,7 +2791,7 @@ def registro_de_capacitaciones_editar_form(id):
         )
     except Exception as e:
         app_logger.error(f"Error loading capacitacion {id} for edit: {e}", exc_info=True)
-        return _form_error_response(f'Error al cargar la capacitación para edición: {str(e)}', status=500)
+        return _form_error_response('No se pudo cargar la capacitación para edición. Intente de nuevo.', status=500)
     finally:
         if conn:
             conn.close()
@@ -2869,7 +2903,7 @@ def submit_registro_de_capacitaciones_editar(id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing capacitacion {id}: {e}", exc_info=True)
-        return _form_error_response(f'Error al editar la capacitación: {str(e)}', status=500)
+        return _form_error_response('No se pudo editar la capacitación. Revise los datos e intente de nuevo.', status=500)
     finally:
         if conn:
             conn.close()
@@ -3210,6 +3244,11 @@ def submit_planilla_vehicular():
             date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
         if date_err:
             return _return_form_error(date_err, 400)
+        km_err = _validate_kilometraje(request.form.get('kilometraje_vehiculo'),
+                                       request.form.get('kilometraje_anterior'),
+                                       request.form.get('kilometraje_recorrido'))
+        if km_err:
+            return _return_form_error(km_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -3295,7 +3334,7 @@ def submit_planilla_vehicular():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla vehicular: {e}", exc_info=True)
-        return render_template('error.html', message=f"Error al guardar la Planilla de Chequeo Pre-Operacional Vehicular: {e}", error=str(e)), 500
+        return _error_planilla(e, 'No se pudo guardar la Planilla de Chequeo Pre-Operacional Vehicular. Revise los datos e intente de nuevo.')
     finally:
         if conn:
             conn.close()
@@ -3355,6 +3394,11 @@ def submit_planilla_vehicular_editar(id):
             date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
         if date_err:
             return _return_form_error(date_err, 400)
+        km_err = _validate_kilometraje(request.form.get('kilometraje_vehiculo'),
+                                       request.form.get('kilometraje_anterior'),
+                                       request.form.get('kilometraje_recorrido'))
+        if km_err:
+            return _return_form_error(km_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -3454,7 +3498,7 @@ def submit_planilla_vehicular_editar(id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing planilla vehicular {id}: {e}", exc_info=True)
-        return render_template('error.html', error='Error interno del servidor. Por favor intente nuevamente.'), 500
+        return _error_planilla(e, 'No se pudo editar la Planilla de Chequeo Pre-Operacional Vehicular. Revise los datos e intente de nuevo.')
     finally:
         if conn:
             conn.close()
@@ -3488,6 +3532,11 @@ def submit_planilla_motocicletas():
             date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
         if date_err:
             return _return_form_error(date_err, 400)
+        km_err = _validate_kilometraje(request.form.get('kilometraje_motocicleta'),
+                                       request.form.get('kilometraje_anterior'),
+                                       request.form.get('kilometraje_recorrido'))
+        if km_err:
+            return _return_form_error(km_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -3555,7 +3604,7 @@ def submit_planilla_motocicletas():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting planilla motocicletas: {e}", exc_info=True)
-        return render_template('error.html', message=f"Error al guardar la Planilla de Chequeo Pre-Operacional de Motocicletas: {e}", error=str(e)), 500
+        return _error_planilla(e, 'No se pudo guardar la Planilla de Chequeo Pre-Operacional de Motocicletas. Revise los datos e intente de nuevo.')
     finally:
         if conn:
             conn.close()
@@ -3615,6 +3664,11 @@ def submit_planilla_motocicletas_editar(id):
             date_err = _validate_not_future(request.form.get('fecha_ultimo_mantenimiento'), 'Fecha de Último Mantenimiento', tz)
         if date_err:
             return _return_form_error(date_err, 400)
+        km_err = _validate_kilometraje(request.form.get('kilometraje_motocicleta'),
+                                       request.form.get('kilometraje_anterior'),
+                                       request.form.get('kilometraje_recorrido'))
+        if km_err:
+            return _return_form_error(km_err, 400)
 
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -3690,7 +3744,7 @@ def submit_planilla_motocicletas_editar(id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing planilla motocicletas {id}: {e}", exc_info=True)
-        return render_template('error.html', message=f"Error al editar la Planilla de Chequeo Pre-Operacional de Motocicletas: {e}", error=str(e)), 500
+        return _error_planilla(e, 'No se pudo editar la Planilla de Chequeo Pre-Operacional de Motocicletas. Revise los datos e intente de nuevo.')
     finally:
         if conn:
             conn.close()
@@ -3826,7 +3880,7 @@ def submit_checklist_cumplimiento():
         if conn:
             conn.rollback()
         app_logger.error(f"Error submitting updated checklist_cumplimiento: {e}", exc_info=True)
-        return _form_error_response(f'Error al guardar el checklist: {str(e)}', status=500)
+        return _form_error_response('No se pudo guardar el checklist. Revise los datos e intente de nuevo.', status=500)
     finally:
         if conn:
             conn.close()
@@ -3863,7 +3917,7 @@ def checklist_cumplimiento_editar_form(id):
         )
     except Exception as e:
         app_logger.error(f"Error loading checklist_cumplimiento {id} for edit: {e}", exc_info=True)
-        return _form_error_response(f'Error al cargar el checklist para edición: {str(e)}', status=500)
+        return _form_error_response('No se pudo cargar el checklist para edición. Intente de nuevo.', status=500)
     finally:
         if conn:
             conn.close()
@@ -3970,7 +4024,7 @@ def submit_checklist_cumplimiento_editar(id):
         if conn:
             conn.rollback()
         app_logger.error(f"Error editing checklist_cumplimiento {id}: {e}", exc_info=True)
-        return _form_error_response(f'Error al editar el checklist: {str(e)}', status=500)
+        return _form_error_response('No se pudo editar el checklist. Revise los datos e intente de nuevo.', status=500)
     finally:
         if conn:
             conn.close()
