@@ -371,27 +371,7 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
 .nav-item-logout{color:#f87171!important;border-left-color:transparent}
 .nav-item-logout:hover{color:#fca5a5!important;background:rgba(239,68,68,0.1)!important}
 .nav-item-logout svg{color:#f87171}
-/* ── Agendar visita (modal sobre la Tendencia Operacional) ── */
-.ag-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:none;align-items:center;justify-content:center;padding:1rem}
-.ag-backdrop.active{display:flex}
-.ag-box{background:#fff;border-radius:1rem;padding:1.5rem;max-width:560px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 25px 60px rgba(0,0,0,.3);color:#0f172a}
-.ag-title{font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a}
-.ag-sub{font-size:.78rem;color:#64748b;margin:.15rem 0 1rem}
-.ag-ctx{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:.6rem;padding:.75rem .9rem;font-size:.78rem;color:#4c1d95;line-height:1.5;margin-bottom:1rem;white-space:pre-line}
-.ag-ctx strong{display:block;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:#6d28d9;margin-bottom:.25rem}
-.ag-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
-.ag-field{display:flex;flex-direction:column;gap:.3rem;min-width:0}
-.ag-field.full{grid-column:1 / -1}
-.ag-label{font-size:.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em}
-/* Tres clases para ganarle a body:not(.light-mode) .filter-select: la caja es blanca en ambos temas, como la del QR. */
-.ag-backdrop .ag-box .filter-select,.ag-backdrop .ag-box .date-input,.ag-backdrop .ag-box textarea,.ag-backdrop .ag-box input[type=email]{width:100%;background:#fff;border:1px solid #e2e8f0;color:#334155;border-radius:.5rem;font-size:.8125rem;padding:0 .75rem;height:36px;box-sizing:border-box;font-family:inherit}
-.ag-backdrop .ag-box textarea{height:auto;min-height:72px;padding:.5rem .75rem;resize:vertical}
-.ag-msg{font-size:.78rem;min-height:1.1rem;margin-top:.75rem}
-.ag-actions{display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;flex-wrap:wrap}
-.ag-toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);display:none}
-.ag-toast.ok{background:#14532d;color:#86efac;border:1px solid #22c55e}
-.ag-toast.warn{background:#78350f;color:#fde68a;border:1px solid #f59e0b}
-@media (max-width:640px){.ag-grid{grid-template-columns:1fr}}
+/* El modal de "Agendar visita" (.ag-*) trae sus estilos en static/js/agendar-visita.js. */
 </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/forms.css') }}">
@@ -714,51 +694,9 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
 
 {% if not public_mode %}
 {# Agendar visita desde la Tendencia Operacional: programa la visita como una
-   asignación (igual que "Asignar hallazgo") sin salir de la pantalla. #}
-<div class="ag-backdrop" id="agendarModal" onclick="if (event.target === this) cerrarAgendarVisita()">
-    <div class="ag-box" role="dialog" aria-labelledby="agTitulo">
-        <div class="ag-title" id="agTitulo">📅 Agendar visita</div>
-        <div class="ag-sub">La visita queda programada, se notifica por correo al responsable y aparece como pendiente en Hallazgos Asignados y en las alertas.</div>
-        <div class="ag-ctx"><strong>Situación identificada</strong><span id="agContexto"></span></div>
-        <div class="ag-grid">
-            <div class="ag-field full">
-                <label class="ag-label" for="agPropiedad">Propiedad / Instalación</label>
-                <select id="agPropiedad" class="filter-select"></select>
-            </div>
-            <div class="ag-field full">
-                <label class="ag-label" for="agResponsable">Responsable</label>
-                <select id="agResponsable" class="filter-select" onchange="_agToggleExterno()">
-                    <option value="">Cargando usuarios…</option>
-                </select>
-                <input type="email" id="agExtEmail" placeholder="correo@externo.com" autocomplete="off" style="display:none;margin-top:.3rem">
-            </div>
-            <div class="ag-field">
-                <label class="ag-label" for="agFecha">Fecha de la visita</label>
-                <input type="date" id="agFecha" class="date-input allow-future" data-allow-future="true">
-            </div>
-            <div class="ag-field">
-                <label class="ag-label" for="agMotivo">Motivo</label>
-                {# Las mismas opciones del Acta de Visita (acta_visita_cliente.html). #}
-                <select id="agMotivo" class="filter-select">
-                    <option>Seguimiento de servicio</option>
-                    <option>Auditoría de seguridad</option>
-                    <option>Atención de quejas o reclamos</option>
-                    <option>Presentación de propuesta</option>
-                    <option>Reunión de coordinación</option>
-                </select>
-            </div>
-            <div class="ag-field full">
-                <label class="ag-label" for="agNota">Nota para el responsable (opcional)</label>
-                <textarea id="agNota" rows="3" placeholder="Instrucciones o contexto adicional…"></textarea>
-            </div>
-        </div>
-        <div class="ag-msg" id="agMsg"></div>
-        <div class="ag-actions">
-            <button type="button" class="btn-apply" style="background:#64748b" onclick="cerrarAgendarVisita()">Cancelar</button>
-            <button type="button" class="btn-apply" id="agConfirmar" style="background:#7c3aed" onclick="confirmarAgendarVisita()">Programar visita</button>
-        </div>
-    </div>
-</div>
+   asignación (igual que "Asignar hallazgo") sin salir de la pantalla. El modal
+   es el compartido con el visor de registros de los dashboards. #}
+<script src="{{ url_for('static', filename='js/agendar-visita.js') }}"></script>
 {% endif %}
 
 <div class="loading-overlay hidden" id="loadingOverlay">
@@ -1533,28 +1471,11 @@ async function loadData() {
 // la instalación, fecha_limite = fecha de la visita): responsable, correo,
 // bandeja de Hallazgos Asignados y alerta pendiente/vencida. El acta se
 // registra después, desde la vista de la visita, ya prellenada.
+// El modal, la carga de responsables, la validación y el POST viven en
+// static/js/agendar-visita.js, compartido con el visor de registros de los
+// dashboards (KANAN, 2026-10-26); aquí queda sólo lo propio de esta pantalla:
+// qué instalaciones ofrecer, la situación identificada y refrescar las alertas.
 let _ultimoOperacion = null;      // última respuesta de /api/operacion-data
-let _agUsuarios = null;           // usuarios asignables, cargados una vez
-const AG_EXTERNO = '__external__';
-
-function _agCsrf() {
-    const row = document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrf_access_token='));
-    return row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '';
-}
-
-function _agEsc(v) {
-    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function _agToast(texto, ok) {
-    let t = document.getElementById('agToast');
-    if (!t) { t = document.createElement('div'); t.id = 'agToast'; document.body.appendChild(t); }
-    t.className = 'ag-toast ' + (ok ? 'ok' : 'warn');
-    t.textContent = texto;
-    t.style.display = 'block';
-    clearTimeout(t._timer);
-    t._timer = setTimeout(() => { t.style.display = 'none'; }, 7000);
-}
 
 // La situación identificada: lo que la gráfica y las tarjetas mostraban al
 // programar. Viaja como detalle de la asignación, va en el correo, en la vista
@@ -1596,119 +1517,16 @@ function _agInstalaciones() {
         || String(p.cliente).trim().toLowerCase() === String(cli).trim().toLowerCase());
 }
 
-async function agendarVisitaDesdeInstalacion() {
-    const modal = document.getElementById('agendarModal');
-    if (PUBLIC_MODE || !modal) return;
-    const cli = document.getElementById('filtCliente')?.value || '';
-    const candidatas = _agInstalaciones();
-    const propSel = document.getElementById('agPropiedad');
-    propSel.innerHTML = '<option value="">— Seleccionar instalación —</option>' + candidatas.map(p =>
-        `<option value="${_agEsc(p.id)}">${_agEsc(p.name)}${(!cli && p.cliente) ? ` (${_agEsc(p.cliente)})` : ''}</option>`).join('');
-    const propFiltro = document.getElementById('filtPropiedad')?.value || '';
-    if (propFiltro && candidatas.some(p => String(p.id) === String(propFiltro))) propSel.value = String(propFiltro);
-    else if (candidatas.length === 1) propSel.value = String(candidatas[0].id);
-    else propSel.value = '';
-
-    const fecha = document.getElementById('agFecha');
-    fecha.value = '';
-    const hoy = new Date();
-    fecha.min = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
-    document.getElementById('agMotivo').value = 'Seguimiento de servicio';
-    document.getElementById('agNota').value = '';
-    document.getElementById('agExtEmail').value = '';
-    document.getElementById('agExtEmail').style.display = 'none';
-    document.getElementById('agMsg').textContent = '';
-    document.getElementById('agContexto').textContent = _agContexto();
-    modal.classList.add('active');
-
-    const resp = document.getElementById('agResponsable');
-    if (!_agUsuarios) {
-        resp.innerHTML = '<option value="">Cargando usuarios…</option>';
-        try {
-            const r = await fetch('/cgeo/api/usuarios-asignables', { credentials: 'include' });
-            _agUsuarios = (await r.json()).usuarios || [];
-        } catch (_) { _agUsuarios = []; }
-    }
-    resp.innerHTML = '<option value="">— Seleccionar responsable —</option>'
-        + _agUsuarios.map(u => `<option value="${_agEsc(u.id)}">${_agEsc(u.name)} (${_agEsc(u.email)})</option>`).join('')
-        + `<option value="${AG_EXTERNO}">✉ Ingresar correo externo…</option>`;
-}
-
-function _agToggleExterno() {
-    const ext = document.getElementById('agExtEmail');
-    const esExt = document.getElementById('agResponsable').value === AG_EXTERNO;
-    ext.style.display = esExt ? '' : 'none';
-    if (esExt) ext.focus();
-}
-
-function cerrarAgendarVisita() {
-    document.getElementById('agendarModal')?.classList.remove('active');
-}
-
-async function confirmarAgendarVisita() {
-    const msg = document.getElementById('agMsg');
-    const falla = texto => { msg.style.color = '#dc2626'; msg.textContent = texto; };
-    const propId  = document.getElementById('agPropiedad').value;
-    const prop    = allProperties.find(p => String(p.id) === String(propId));
-    const respVal = document.getElementById('agResponsable').value;
-    const esExt   = respVal === AG_EXTERNO;
-    const ext     = document.getElementById('agExtEmail').value.trim();
-    const fecha   = document.getElementById('agFecha').value;
-    const motivo  = document.getElementById('agMotivo').value;
-    const nota    = document.getElementById('agNota').value.trim();
-    if (!prop)    return falla('Seleccione la instalación a visitar.');
-    if (!respVal) return falla('Seleccione un responsable.');
-    if (esExt && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ext)) return falla('Ingrese un correo válido para el responsable externo.');
-    if (!fecha)   return falla('Indique la fecha de la visita.');
-    if (!motivo)  return falla('Seleccione el motivo de la visita.');
-
-    // Mismo contrato que "Asignar hallazgo": el hallazgo es la visita. El ref
-    // lleva instalación y fecha, así que repetir la misma visita al mismo
-    // responsable no crea otra fila ni manda otro correo (ya_asignado). El
-    // motivo cierra el título ("… — Motivo") y de ahí lo lee la vista para
-    // prellenar el acta.
-    const cliente = (prop.cliente || '').trim();
-    const lugar = (cliente && cliente.toLowerCase() !== String(prop.name).trim().toLowerCase())
-        ? `${cliente} · ${prop.name}` : prop.name;
-    const payload = {
-        form_type:        'visita_programada',
-        record_id:        Number(prop.id),
-        fecha_limite:     fecha,
-        nota:             nota || null,
-        hallazgo_ref:     `visita_${prop.id}_${fecha}`,
-        hallazgo_titulo:  `Visita programada: ${lugar} — ${motivo}`,
-        hallazgo_detalle: _agContexto(),
-    };
-    if (esExt) payload.asignado_email = ext; else payload.asignado_a = parseInt(respVal, 10);
-
-    const btn = document.getElementById('agConfirmar');
-    btn.disabled = true;
-    msg.style.color = '#64748b';
-    msg.textContent = 'Programando…';
-    try {
-        const r = await fetch('/cgeo/api/asignar-hallazgo', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _agCsrf() },
-            body: JSON.stringify(payload),
-        });
-        const data = await r.json();
-        if (!r.ok || !data.success) throw new Error(data.error || 'No se pudo programar la visita.');
-        cerrarAgendarVisita();
-        const fechaTxt = window.FormatoFecha ? window.FormatoFecha.fecha(fecha) : fecha;
-        if (data.ya_asignado) {
-            _agToast(`Esta visita ya estaba programada con ${data.responsable} para el ${fechaTxt}`
-                + `${data.asignado_desde ? ` (desde el ${data.asignado_desde})` : ''}. No se envió un nuevo correo.`, false);
-        } else {
-            _agToast(`Visita a ${lugar} programada para el ${fechaTxt} con ${data.responsable}. Se le notificó por correo.`, true);
-        }
+function agendarVisitaDesdeInstalacion() {
+    // En modo público (QR) no hay sesión ni acciones que escriban.
+    if (PUBLIC_MODE || !window.AgendarVisita) return;
+    window.AgendarVisita.abrir({
+        instalaciones: _agInstalaciones(),
+        propiedadId:   document.getElementById('filtPropiedad')?.value || '',
+        contexto:      _agContexto(),
         // Entra como pendiente en el panel de alertas de esta misma pantalla.
-        evaluateAlerts();
-    } catch (err) {
-        falla(err.message);
-    } finally {
-        btn.disabled = false;
-    }
+        onProgramada:  () => evaluateAlerts(),
+    });
 }
 
 function _updateAgendarBtn() {

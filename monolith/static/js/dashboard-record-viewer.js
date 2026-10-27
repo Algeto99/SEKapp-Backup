@@ -1792,19 +1792,53 @@
             }
         }
 
+        // La situación identificada que viaja con la visita (correo, vista del
+        // hallazgo y temas del acta): lo que el visor muestra en las 5 preguntas,
+        // en texto plano, más el motivo por el que se abrió el registro.
+        function _contextoVisita() {
+            const d = _currentRecord || {};
+            const raw = d.data || d;
+            const qmap = FIVE_Q_MAP[cfg.formType] || {};
+            const texto = v => {
+                if (isBlankValue(v) || typeof v === 'object') return '';
+                const s = String(v).trim();
+                if (isImageSource(s) || isStoredFile(s) || looksLikeJson(s)) return '';
+                return s.length > 500 ? s.slice(0, 500) + '…' : s;
+            };
+            const lineas = [`${d.title || `Registro #${currentRecordId}`} · Enviado por ${d.submittedBy || '—'}`
+                + ` · ${d.dateSubmittedLocal || d.dateSubmitted || '—'}`];
+            if (_hallazgoCtx && (_hallazgoCtx.titulo || _hallazgoCtx.detalle)) {
+                lineas.push([_hallazgoCtx.titulo, _hallazgoCtx.detalle].filter(Boolean).join(': '));
+            }
+            for (const [key, meta] of Object.entries(FIVE_Q_LABELS)) {
+                const vals = (qmap[key] || []).map(l => texto(raw[l])).filter(Boolean);
+                if (vals.length) lineas.push(`${meta.title}: ${vals.join(' · ')}`);
+            }
+            return lineas.join('\n');
+        }
+
+        // Abre el agendamiento compartido (static/js/agendar-visita.js) sobre el
+        // registro: la visita queda programada como asignación, con correo y
+        // alerta, sin salir de la pantalla; igual que en Operación e Incidentes.
+        // Antes navegaba al Acta de Visita a crear un registro nuevo, y además
+        // sin instalación: el detalle no trae el id de la propiedad (viewer_bp
+        // lo oculta), sólo su nombre, y por eso se preselecciona por nombre y
+        // cliente.
         function agendarVisita() {
-            const raw = _currentRecord && (_currentRecord.data || _currentRecord);
-            const idPropiedad = raw && (raw['ID Propiedad'] || raw['id_propiedad'] || '');
-            const titulo      = raw && (raw['Título de Incidencia'] || '');
-            const categoria   = raw && (raw['Categoría'] || '');
-            const descripcion = raw && (raw['Descripción del Incidente'] || '');
-            const partes = [titulo, categoria, descripcion].filter(Boolean);
-            const temas  = 'Hallazgos del período:\n- ' + (partes.length ? partes.join('\n- ') : `Registro #${currentRecordId}`);
-            const params = new URLSearchParams();
-            if (idPropiedad) params.set('id_propiedad', idPropiedad);
-            params.set('motivo', 'Seguimiento de servicio');
-            params.set('temas', temas);
-            window.location = `/forms/registro_y_acta_de_visita?${params}`;
+            if (!window.AgendarVisita) {
+                console.error('dashboard-record-viewer: falta static/js/agendar-visita.js en esta página.');
+                showToast('drv-error-toast',
+                    'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444;border-radius:10px;padding:.75rem 1.25rem;font-size:.8125rem;font-family:Roboto,sans-serif;z-index:9999;max-width:90vw;box-shadow:0 8px 24px rgba(0,0,0,.4);',
+                    'No se pudo abrir el agendamiento de visitas.'
+                );
+                return;
+            }
+            const raw = (_currentRecord && (_currentRecord.data || _currentRecord)) || {};
+            window.AgendarVisita.abrir({
+                propiedadNombre: raw['Propiedad / Instalación'] || raw['Propiedad'] || raw['Sitio / Ubicación'] || '',
+                clienteNombre:   raw['Cliente / Empresa'] || raw['Cliente'] || '',
+                contexto:        _contextoVisita(),
+            });
         }
 
         // El modal es uno solo por página (ensureModal lo reutiliza) y lo comparten
