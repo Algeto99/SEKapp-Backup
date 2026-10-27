@@ -2189,7 +2189,9 @@ def api_gestion_data():
             ELSE NULL
         END"""
         def _sup_expr(col):
-            return sup_safe % (col, col, col, col, col, col)
+            # Siete %s en sup_safe (dos en la rama numérica): con seis argumentos
+            # el % lanzaba "not enough arguments" y Gestión respondía 500.
+            return sup_safe % ((col,) * sup_safe.count('%s'))
         sup_score_expr = " + ".join(f"COALESCE(({_sup_expr(f)}),0)" for f, _ in _SUP_CRITERIA)
         sup_conds, sup_params = [], []
         _add_scope_filters(sup_conds, sup_params, cliente=cliente, propiedad=propiedad)
@@ -4349,6 +4351,31 @@ def api_incidentes_clientes():
         if conn: conn.close()
 
 
+class _Savepoint:
+    """Consulta de "mejor esfuerzo" dentro de una transacción.
+
+    Un `except Exception: pass` no basta con psycopg2: la consulta fallida deja
+    la conexión en "current transaction is aborted" y la SIGUIENTE consulta del
+    endpoint responde 500. Así cayeron /cgeo/api/alertas y /operacion-data en
+    producción el 2026-10-27 (eventos_auditoria no tiene `creado_en`; en dev no
+    se notó porque sin esa tabla la consulta ni corre). Con el SAVEPOINT el fallo
+    se deshace y la transacción sigue viva.
+    """
+    def __init__(self, cur, nombre):
+        self.cur, self.nombre = cur, nombre
+
+    def __enter__(self):
+        self.cur.execute(f"SAVEPOINT {self.nombre}")
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is None:
+            self.cur.execute(f"RELEASE SAVEPOINT {self.nombre}")
+        else:
+            self.cur.execute(f"ROLLBACK TO SAVEPOINT {self.nombre}")
+        return False
+
+
 def _incidentes_metricas_atencion(cur, where_sql=None, params=None, rows=None):
     """Calcula las métricas de tiempo de atención de incidentes (Pestaña 2, §4):
     - Mediana en horas sobre los N incidentes atendidos en el período
@@ -4373,18 +4400,19 @@ def _incidentes_metricas_atencion(cur, where_sql=None, params=None, rows=None):
         if not cur or where_sql is None:
             return vacio
         try:
-            cur.execute(f"""
-                SELECT
-                    id_reporte_incidente,
-                    fecha_hora,
-                    creado_en,
-                    estado,
-                    tiempo_resolucion_min,
-                    editado_en
-                FROM reportes_incidentes
-                {where_sql}
-            """, params)
-            rows = cur.fetchall() or []
+            with _Savepoint(cur, 'met_inc_rows'):
+                cur.execute(f"""
+                    SELECT
+                        id_reporte_incidente,
+                        fecha_hora,
+                        creado_en,
+                        estado,
+                        tiempo_resolucion_min,
+                        editado_en
+                    FROM reportes_incidentes
+                    {where_sql}
+                """, params)
+                rows = cur.fetchall() or []
         except Exception:
             return vacio
 
@@ -4399,46 +4427,48 @@ def _incidentes_metricas_atencion(cur, where_sql=None, params=None, rows=None):
     primeras_gestiones = {}
     if ids_inc:
         try:
-            cur.execute("SELECT to_regclass('eventos_auditoria')")
-            r_reg = cur.fetchone()
-            existe_aud = (r_reg.get('to_regclass') if isinstance(r_reg, dict) else (r_reg[0] if r_reg else None))
-            if existe_aud:
-                cur.execute("""
-                    SELECT registro_id, MIN(creado_en) AS primera_gestion
-                    FROM eventos_auditoria
-                    WHERE formulario IN ('reporte_incidente', 'reportes_incidentes')
-                      AND tipo_evento = 'estado'
-                      AND registro_id = ANY(%s)
-                      AND LOWER(TRIM(COALESCE(detalle->>'estado_nuevo', ''))) NOT IN ('', 'reportado', 'abierto', 'pendiente')
-                    GROUP BY registro_id
-                """, (ids_inc,))
-                for r in (cur.fetchall() or []):
-                    rid = r['registro_id'] if isinstance(r, dict) else r[0]
-                    ts = r['primera_gestion'] if isinstance(r, dict) else r[1]
-                    if rid is not None and ts is not None:
-                        primeras_gestiones[int(rid)] = ts
+            with _Savepoint(cur, 'met_inc_aud'):
+                cur.execute("SELECT to_regclass('eventos_auditoria')")
+                r_reg = cur.fetchone()
+                existe_aud = (r_reg.get('to_regclass') if isinstance(r_reg, dict) else (r_reg[0] if r_reg else None))
+                if existe_aud:
+                    cur.execute("""
+                        SELECT registro_id, MIN(fecha_hora) AS primera_gestion  -- eventos_auditoria marca con fecha_hora, no creado_en
+                        FROM eventos_auditoria
+                        WHERE formulario IN ('reporte_incidente', 'reportes_incidentes')
+                          AND tipo_evento = 'estado'
+                          AND registro_id = ANY(%s)
+                          AND LOWER(TRIM(COALESCE(detalle->>'estado_nuevo', ''))) NOT IN ('', 'reportado', 'abierto', 'pendiente')
+                        GROUP BY registro_id
+                    """, (ids_inc,))
+                    for r in (cur.fetchall() or []):
+                        rid = r['registro_id'] if isinstance(r, dict) else r[0]
+                        ts = r['primera_gestion'] if isinstance(r, dict) else r[1]
+                        if rid is not None and ts is not None:
+                            primeras_gestiones[int(rid)] = ts
         except Exception:
             pass
         try:
-            cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
-            r_reg = cur.fetchone()
-            existe_asig = (r_reg.get('to_regclass') if isinstance(r_reg, dict) else (r_reg[0] if r_reg else None))
-            if existe_asig:
-                cur.execute("""
-                    SELECT record_id, MIN(cerrado_en) AS primera_gestion
-                    FROM asignaciones_hallazgo
-                    WHERE form_type = 'reporte_incidente'
-                      AND record_id = ANY(%s)
-                      AND cerrado_en IS NOT NULL
-                    GROUP BY record_id
-                """, (ids_inc,))
-                for r in (cur.fetchall() or []):
-                    rid = r['record_id'] if isinstance(r, dict) else r[0]
-                    ts = r['primera_gestion'] if isinstance(r, dict) else r[1]
-                    if rid is not None and ts is not None:
-                        rid_i = int(rid)
-                        if rid_i not in primeras_gestiones or ts < primeras_gestiones[rid_i]:
-                            primeras_gestiones[rid_i] = ts
+            with _Savepoint(cur, 'met_inc_asig'):
+                cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
+                r_reg = cur.fetchone()
+                existe_asig = (r_reg.get('to_regclass') if isinstance(r_reg, dict) else (r_reg[0] if r_reg else None))
+                if existe_asig:
+                    cur.execute("""
+                        SELECT record_id, MIN(cerrado_en) AS primera_gestion
+                        FROM asignaciones_hallazgo
+                        WHERE form_type = 'reporte_incidente'
+                          AND record_id = ANY(%s)
+                          AND cerrado_en IS NOT NULL
+                        GROUP BY record_id
+                    """, (ids_inc,))
+                    for r in (cur.fetchall() or []):
+                        rid = r['record_id'] if isinstance(r, dict) else r[0]
+                        ts = r['primera_gestion'] if isinstance(r, dict) else r[1]
+                        if rid is not None and ts is not None:
+                            rid_i = int(rid)
+                            if rid_i not in primeras_gestiones or ts < primeras_gestiones[rid_i]:
+                                primeras_gestiones[rid_i] = ts
         except Exception:
             pass
 
@@ -7634,55 +7664,57 @@ def _visita_cierres_historicos(cur, ids_visita):
         return {}
     cierres = {}
     try:
-        cur.execute("SELECT to_regclass('eventos_auditoria')")
-        row_reg = cur.fetchone()
-        existe = (row_reg.get('to_regclass') if isinstance(row_reg, dict) else (row_reg[0] if row_reg else None))
-        if existe:
-            cur.execute("""
-                SELECT registro_id,
-                       (detalle->>'bloque_idx')::int AS bloque_idx,
-                       MAX(creado_en) AS cerrado_en
-                FROM eventos_auditoria
-                WHERE formulario = 'registro_y_acta_de_visita'
-                  AND tipo_evento = 'estado'
-                  AND registro_id = ANY(%s)
-                  AND LOWER(COALESCE(detalle->>'estado_nuevo', '')) IN ('cumplido', 'cerrado', 'completado')
-                  AND (detalle->>'bloque_idx') ~ '^[0-9]+$'
-                GROUP BY registro_id, (detalle->>'bloque_idx')::int
-            """, (list(ids_visita),))
-            for r in (cur.fetchall() or []):
-                vid = r['registro_id'] if isinstance(r, dict) else r[0]
-                bidx = r['bloque_idx'] if isinstance(r, dict) else r[1]
-                ts = r['cerrado_en'] if isinstance(r, dict) else r[2]
-                if ts is not None and vid is not None and bidx is not None:
-                    d = ts.astimezone(tz_operacion()).date() if getattr(ts, 'tzinfo', None) else (ts.date() if hasattr(ts, 'date') else None)
-                    if d:
-                        cierres[(int(vid), int(bidx))] = d
+        with _Savepoint(cur, 'vis_cierres_aud'):
+            cur.execute("SELECT to_regclass('eventos_auditoria')")
+            row_reg = cur.fetchone()
+            existe = (row_reg.get('to_regclass') if isinstance(row_reg, dict) else (row_reg[0] if row_reg else None))
+            if existe:
+                cur.execute("""
+                    SELECT registro_id,
+                           (detalle->>'bloque_idx')::int AS bloque_idx,
+                           MAX(fecha_hora) AS cerrado_en  -- eventos_auditoria marca con fecha_hora, no creado_en
+                    FROM eventos_auditoria
+                    WHERE formulario = 'registro_y_acta_de_visita'
+                      AND tipo_evento = 'estado'
+                      AND registro_id = ANY(%s)
+                      AND LOWER(COALESCE(detalle->>'estado_nuevo', '')) IN ('cumplido', 'cerrado', 'completado')
+                      AND (detalle->>'bloque_idx') ~ '^[0-9]+$'
+                    GROUP BY registro_id, (detalle->>'bloque_idx')::int
+                """, (list(ids_visita),))
+                for r in (cur.fetchall() or []):
+                    vid = r['registro_id'] if isinstance(r, dict) else r[0]
+                    bidx = r['bloque_idx'] if isinstance(r, dict) else r[1]
+                    ts = r['cerrado_en'] if isinstance(r, dict) else r[2]
+                    if ts is not None and vid is not None and bidx is not None:
+                        d = ts.astimezone(tz_operacion()).date() if getattr(ts, 'tzinfo', None) else (ts.date() if hasattr(ts, 'date') else None)
+                        if d:
+                            cierres[(int(vid), int(bidx))] = d
     except Exception:
         pass
     try:
-        cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
-        row_reg = cur.fetchone()
-        existe = (row_reg.get('to_regclass') if isinstance(row_reg, dict) else (row_reg[0] if row_reg else None))
-        if existe:
-            cur.execute("""
-                SELECT record_id, hallazgo_ref, MAX(cerrado_en) AS cerrado_en
-                FROM asignaciones_hallazgo
-                WHERE form_type = 'registro_y_acta_de_visita'
-                  AND record_id = ANY(%s)
-                  AND cerrado_en IS NOT NULL
-                GROUP BY record_id, hallazgo_ref
-            """, (list(ids_visita),))
-            for r in (cur.fetchall() or []):
-                vid = r['record_id'] if isinstance(r, dict) else r[0]
-                href = (r['hallazgo_ref'] if isinstance(r, dict) else r[1]) or ''
-                ts = r['cerrado_en'] if isinstance(r, dict) else r[2]
-                parts = str(href).split('_')
-                if len(parts) >= 3 and parts[-1].isdigit() and ts is not None:
-                    bidx = int(parts[-1])
-                    d = ts.date() if hasattr(ts, 'date') else None
-                    if d and (int(vid), bidx) not in cierres:
-                        cierres[(int(vid), bidx)] = d
+        with _Savepoint(cur, 'vis_cierres_asig'):
+            cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
+            row_reg = cur.fetchone()
+            existe = (row_reg.get('to_regclass') if isinstance(row_reg, dict) else (row_reg[0] if row_reg else None))
+            if existe:
+                cur.execute("""
+                    SELECT record_id, hallazgo_ref, MAX(cerrado_en) AS cerrado_en
+                    FROM asignaciones_hallazgo
+                    WHERE form_type = 'registro_y_acta_de_visita'
+                      AND record_id = ANY(%s)
+                      AND cerrado_en IS NOT NULL
+                    GROUP BY record_id, hallazgo_ref
+                """, (list(ids_visita),))
+                for r in (cur.fetchall() or []):
+                    vid = r['record_id'] if isinstance(r, dict) else r[0]
+                    href = (r['hallazgo_ref'] if isinstance(r, dict) else r[1]) or ''
+                    ts = r['cerrado_en'] if isinstance(r, dict) else r[2]
+                    parts = str(href).split('_')
+                    if len(parts) >= 3 and parts[-1].isdigit() and ts is not None:
+                        bidx = int(parts[-1])
+                        d = ts.date() if hasattr(ts, 'date') else None
+                        if d and (int(vid), bidx) not in cierres:
+                            cierres[(int(vid), bidx)] = d
     except Exception:
         pass
     return cierres

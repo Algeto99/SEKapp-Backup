@@ -2033,7 +2033,7 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 2: Incidente abierto > 24 h (sin atención = rojo; en gestión = seguimiento/prioritaria) ──
-        from dashboard_bp import _incidentes_metricas_atencion
+        from dashboard_bp import _incidentes_metricas_atencion, _Savepoint
         r2_conds, r2_params = _cp()
         r2_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
@@ -2506,42 +2506,43 @@ def cgeo_api_alertas():
             # con respaldo a supervision_puesto si el catálogo está vacío.
             clientes_catalogo = []
             try:
-                cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
-                cc_params = []
-                if company_id is not None:
-                    cc_conds.append("cc.company_id = %s")
-                    cc_params.append(company_id)
-                if cliente:
-                    if str(cliente).isdigit():
-                        cc_conds.append("cc.id = %s")
-                        cc_params.append(int(cliente))
-                    else:
-                        cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
-                        cc_params.append(str(cliente))
-                if propiedad and str(propiedad).isdigit():
-                    cc_conds.append(
-                        "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id = %s)"
-                    )
-                    cc_params.append(int(propiedad))
-                cur.execute(f"""
-                    SELECT cc.id, TRIM(cc.name) AS nombre,
-                           ARRAY_REMOVE(ARRAY_AGG(TRIM(p.name)), NULL) AS instalaciones
-                    FROM customer_companies cc
-                    LEFT JOIN propiedades p
-                      ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
-                    WHERE {' AND '.join(cc_conds)}
-                    GROUP BY cc.id, TRIM(cc.name)
-                    ORDER BY LOWER(TRIM(cc.name))
-                """, tuple(cc_params))
-                for r_cc in (cur.fetchall() or []):
-                    c_nom = (r_cc.get('nombre') or '').strip()
-                    if not c_nom:
-                        continue
-                    aliases = {c_nom.lower()}
-                    for inst in (r_cc.get('instalaciones') or []):
-                        if inst and str(inst).strip():
-                            aliases.add(str(inst).strip().lower())
-                    clientes_catalogo.append((c_nom, aliases))
+                with _Savepoint(cur, 'alertas_catalogo'):
+                    cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
+                    cc_params = []
+                    if company_id is not None:
+                        cc_conds.append("cc.company_id = %s")
+                        cc_params.append(company_id)
+                    if cliente:
+                        if str(cliente).isdigit():
+                            cc_conds.append("cc.id = %s")
+                            cc_params.append(int(cliente))
+                        else:
+                            cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
+                            cc_params.append(str(cliente))
+                    if propiedad and str(propiedad).isdigit():
+                        cc_conds.append(
+                            "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id_propiedad = %s)"
+                        )
+                        cc_params.append(int(propiedad))
+                    cur.execute(f"""
+                        SELECT cc.id, TRIM(cc.name) AS nombre,
+                               ARRAY_REMOVE(ARRAY_AGG(TRIM(p.nombre)), NULL) AS instalaciones
+                        FROM customer_companies cc
+                        LEFT JOIN propiedades p
+                          ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
+                        WHERE {' AND '.join(cc_conds)}
+                        GROUP BY cc.id, TRIM(cc.name)
+                        ORDER BY LOWER(TRIM(cc.name))
+                    """, tuple(cc_params))
+                    for r_cc in (cur.fetchall() or []):
+                        c_nom = (r_cc.get('nombre') or '').strip()
+                        if not c_nom:
+                            continue
+                        aliases = {c_nom.lower()}
+                        for inst in (r_cc.get('instalaciones') or []):
+                            if inst and str(inst).strip():
+                                aliases.add(str(inst).strip().lower())
+                        clientes_catalogo.append((c_nom, aliases))
             except Exception:
                 clientes_catalogo = []
 
