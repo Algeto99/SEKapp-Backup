@@ -420,7 +420,7 @@
             </div>
 
             <!-- KPI 3: Puestos críticos -->
-            <div class="card clickable-card" onclick="openDetailsModal({nivel:'critico'}, 'Puestos Críticos — Calificación ≤15 pts')" title="Ver puestos con calificación crítica">
+            <div class="card clickable-card" onclick="openDetailsModal({nivel:'critico'}, 'Puestos Críticos — Calificación ≤15 pts')" title="Ver puestos cuya última supervisión fue crítica">
                 <div class="card-title">Puestos Críticos (&le;15 pts)</div>
                 <div class="kpi-value" id="kpiCriticoVal" style="color:#f87171;">—</div>
                 <div class="kpi-label" id="kpiCriticoPct">— del total</div>
@@ -428,10 +428,11 @@
                     <span class="tl-dot" style="background:#ef4444;"></span>
                     <span style="font-size:0.8rem; color:#94a3b8;">Requiere acción inmediata</span>
                 </div>
+                <div class="kpi-compare">Según la última supervisión de cada puesto</div>
             </div>
 
             <!-- KPI 4: Puestos en seguimiento -->
-            <div class="card clickable-card" onclick="openDetailsModal({nivel:'seguimiento'}, 'En Seguimiento — Calificación 16–20 pts')" title="Ver puestos en seguimiento">
+            <div class="card clickable-card" onclick="openDetailsModal({nivel:'seguimiento'}, 'En Seguimiento — Calificación 16–20 pts')" title="Ver puestos cuya última supervisión quedó en seguimiento">
                 <div class="card-title">En Seguimiento (16–20 pts)</div>
                 <div class="kpi-value" id="kpiSeguimientoVal" style="color:var(--amber-text);">—</div>
                 <div class="kpi-label" id="kpiSeguimientoPct">— del total</div>
@@ -439,6 +440,7 @@
                     <span class="tl-dot" style="background:var(--amber-dot);"></span>
                     <span style="font-size:0.8rem; color:#94a3b8;">Con oportunidades de mejora</span>
                 </div>
+                <div class="kpi-compare">Según la última supervisión de cada puesto</div>
             </div>
 
         </div>
@@ -476,9 +478,13 @@
 
             <!-- Distribution bar + reference table — interactive filter -->
             <div class="card" style="position:relative;">
-                <div class="card-title" style="display:flex;align-items:center;gap:0.5rem;">
+                <div class="card-title" style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
                     Distribución por Nivel de Desempeño
                     <span id="distFilterBadge" style="display:none;background:#374151;border:1px solid #4b5563;border-radius:999px;padding:0.15rem 0.6rem;font-size:0.7rem;font-weight:600;color:#94a3b8;cursor:pointer;" title="Clic para limpiar filtro">— filtrado ✕</span>
+                    {# Aquí cada inspección cuenta; las tarjetas de alerta cuentan puestos
+                       por su última supervisión. Se dice en pantalla porque KANAN
+                       (2026-10-26) leyó 3 y 59 como la misma cifra. #}
+                    <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:0.72rem;">Todas las inspecciones del período · cada formulario cuenta</span>
                 </div>
                 <div class="chart-wrap" style="min-height:180px;">
                     <canvas id="distChart" class="chart-canvas"></canvas>
@@ -592,6 +598,7 @@
                 <button class="modal-close" onclick="document.getElementById('detailsModal').classList.remove('active')">×</button>
             </div>
             <div class="modal-body">
+                <div id="detailsSubtitle" class="kpi-compare" style="display:none;margin:0 0 0.75rem;"></div>
                 <div id="detailsLoading" style="display:none;text-align:center;color:#94a3b8;padding:2rem;">Cargando registros...</div>
                 <div class="modal-table-wrapper">
                     <table class="modal-table">
@@ -899,7 +906,7 @@
                                 const pct = total ? ((v / total) * 100).toFixed(1) : 0;
                                 const nivelKey = NIVEL_KEYS_FILTER[ctx.dataIndex];
                                 const action = activeNivelFilter === nivelKey ? 'clic para quitar filtro' : 'clic para filtrar dashboard';
-                                return ` ${v} ${v !== 1 ? 'inspecciones' : 'inspección'} (${pct}%) — ${action}`;
+                                return ` ${v} ${v !== 1 ? 'inspecciones' : 'inspección'} · ${pct}% de las inspecciones — ${action}`;
                             }
                         }
                     },
@@ -1180,7 +1187,17 @@
         const tBody   = document.getElementById('detailsTableBody');
         const loading = document.getElementById('detailsLoading');
         const titleEl = modal.querySelector('.modal-title');
-        if (title && titleEl) titleEl.textContent = title;
+        // Sin título propio vuelve al general: antes se quedaba el de la última
+        // tarjeta abierta ("Puestos Críticos…" sobre la lista de Total Inspecciones).
+        if (titleEl) titleEl.textContent = title || 'Registros de Supervisión';
+        // Desde las tarjetas de alerta (nivel) la lista trae un puesto por fila, con
+        // su última supervisión del período; desde Total y los badges, todas las
+        // supervisiones. Se dice para que el conteo no se lea como inspecciones.
+        const subEl = document.getElementById('detailsSubtitle');
+        if (subEl) {
+            subEl.textContent = extraFilters.nivel ? 'Un puesto por fila, con su última supervisión del período' : '';
+            subEl.style.display = extraFilters.nivel ? 'block' : 'none';
+        }
         modal.classList.add('active');
         tBody.innerHTML = '';
         loading.style.display = 'block';
