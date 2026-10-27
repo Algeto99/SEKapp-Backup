@@ -5534,7 +5534,10 @@ def api_supervision_detalles():
             where = (where + " AND " if where else "WHERE ") + _SUP_EMP_KEY + " = %s"
             params = list(params) + [empleado_num]
         if turno_filter:
-            where = (where + " AND " if where else "WHERE ") + "rol_aplicador = %s"
+            # La misma clave con la que /data agrupa la tendencia por turno, para
+            # que el clic en un punto de esa serie liste exactamente lo que el
+            # punto promedia: sin fallar por espacios y con 'Sin rol' incluido.
+            where = (where + " AND " if where else "WHERE ") + "COALESCE(NULLIF(TRIM(rol_aplicador),''), 'Sin rol') = %s"
             params = list(params) + [turno_filter]
 
         def _safe(col):
