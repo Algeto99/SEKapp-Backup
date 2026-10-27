@@ -289,24 +289,21 @@ async function loadStats() {
             document.getElementById('opSat').textContent = d.satisfaccion && d.satisfaccion.pct != null ? d.satisfaccion.pct + '%' : '—';
             document.getElementById('opInc').textContent = d.incidentes ? d.incidentes.criticos_abiertos : '—';
             
-            // Compromisos pendientes
-            let compVencidos = 0;
-            if (d.compromisos_pendientes) {
-                compVencidos = d.compromisos_pendientes.filter(c => c.dias_retraso > 0).length;
-            } else if (d.alertas && typeof d.alertas.compromisos_vencidos !== 'undefined') {
-                 // Dependiendo del API, puede que no devuelva la lista exacta en el payload principal para hub
-                 // Usaremos la longitud de abiertos o asumiremos 0 si no lo mandan.
-            }
+            // Compromisos abiertos (pendientes en plazo + vencidos)
+            const compAbiertos = d.visitas
+                ? (d.visitas.pendientes || 0) + (d.visitas.vencidos || 0)
+                : (d.compromisos_pendientes ? d.compromisos_pendientes.length : null);
+            const compVencidos = d.visitas
+                ? (d.visitas.vencidos || 0)
+                : (d.compromisos_pendientes ? d.compromisos_pendientes.filter(c => c.dias_retraso > 0).length : 0);
 
-            // The API doesn't return compromisos_pendientes directly sometimes.
-            // Wait, operacion-data DOES return it? Actually, checking cgeo_bp.py:
-            // The JSON does NOT return compromisos_pendientes, wait.
-            // Let's set it to '-' or a safe value.
-            
-            document.getElementById('opVis').textContent = 'Ver Detalle';
+            document.getElementById('opVis').textContent = compAbiertos !== null ? compAbiertos : '—';
 
             if (d.incidentes && d.incidentes.criticos_abiertos > 0) {
                 globalAlerts.push(`${d.incidentes.criticos_abiertos} incidente(s) crítico(s) abierto(s)`);
+            }
+            if (compVencidos > 0) {
+                globalAlerts.push(`${compVencidos} compromiso(s) vencido(s)`);
             }
         }
     } catch(e) {

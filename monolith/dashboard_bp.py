@@ -4349,7 +4349,7 @@ def api_incidentes_clientes():
         if conn: conn.close()
 
 
-def _incidentes_metricas_atencion(cur, where_sql, params):
+def _incidentes_metricas_atencion(cur, where_sql=None, params=None, rows=None):
     """Calcula las métricas de tiempo de atención de incidentes (Pestaña 2, §4):
     - Mediana en horas sobre los N incidentes atendidos en el período
     - Percentil 80 en horas
@@ -4360,32 +4360,42 @@ def _incidentes_metricas_atencion(cur, where_sql, params):
         'mediana_horas': None,
         'p80_horas': None,
         'abiertos_sin_atender': 0,
+        'sin_atender_mas_24h': 0,
+        'sin_atender_ids': [],
         'mas_antiguo_horas': None,
         'mas_antiguo_dias': None,
     }
-    if not cur or where_sql is None:
-        return vacio
+    if isinstance(where_sql, list) and rows is None:
+        rows = where_sql
+        where_sql = None
 
-    try:
-        cur.execute(f"""
-            SELECT
-                id_reporte_incidente,
-                fecha_hora,
-                creado_en,
-                estado,
-                tiempo_resolucion_min,
-                editado_en
-            FROM reportes_incidentes
-            {where_sql}
-        """, params)
-        rows = cur.fetchall() or []
-    except Exception:
-        return vacio
+    if rows is None:
+        if not cur or where_sql is None:
+            return vacio
+        try:
+            cur.execute(f"""
+                SELECT
+                    id_reporte_incidente,
+                    fecha_hora,
+                    creado_en,
+                    estado,
+                    tiempo_resolucion_min,
+                    editado_en
+                FROM reportes_incidentes
+                {where_sql}
+            """, params)
+            rows = cur.fetchall() or []
+        except Exception:
+            return vacio
 
     if not rows:
         return vacio
 
-    ids_inc = [int(r['id_reporte_incidente']) for r in rows if r.get('id_reporte_incidente') is not None]
+    ids_inc = [
+        int(r['id_reporte_incidente'] if r.get('id_reporte_incidente') is not None else r['id'])
+        for r in rows
+        if r.get('id_reporte_incidente') is not None or r.get('id') is not None
+    ]
     primeras_gestiones = {}
     if ids_inc:
         try:
@@ -4446,11 +4456,14 @@ def _incidentes_metricas_atencion(cur, where_sql, params):
 
     atendidos_horas = []
     abiertos_sin_atender = 0
+    sin_atender_mas_24h = 0
+    sin_atender_ids = []
     max_antiguedad_horas = None
 
     estados_abiertos = ('', 'reportado', 'abierto', 'pendiente')
     for r in rows:
-        rid = int(r['id_reporte_incidente']) if r.get('id_reporte_incidente') is not None else None
+        raw_rid = r.get('id_reporte_incidente') if r.get('id_reporte_incidente') is not None else r.get('id')
+        rid = int(raw_rid) if raw_rid is not None else None
         est = str(r.get('estado') or 'Reportado').strip().lower()
         t_min = r.get('tiempo_resolucion_min')
         fh_rep = _a_local_naive(r.get('fecha_hora'), reloj_pared=True) or _a_local_naive(r.get('creado_en'), reloj_pared=False)
@@ -4474,8 +4487,12 @@ def _incidentes_metricas_atencion(cur, where_sql, params):
             atendidos_horas.append(horas)
         elif est in estados_abiertos:
             abiertos_sin_atender += 1
+            if rid is not None:
+                sin_atender_ids.append(rid)
             if fh_rep is not None:
                 ant_h = max(0.0, (ahora_local - fh_rep).total_seconds() / 3600.0)
+                if ant_h > 24.0:
+                    sin_atender_mas_24h += 1
                 if max_antiguedad_horas is None or ant_h > max_antiguedad_horas:
                     max_antiguedad_horas = ant_h
 
@@ -4504,6 +4521,8 @@ def _incidentes_metricas_atencion(cur, where_sql, params):
         'mediana_horas': mediana_horas,
         'p80_horas': p80_horas,
         'abiertos_sin_atender': abiertos_sin_atender,
+        'sin_atender_mas_24h': sin_atender_mas_24h,
+        'sin_atender_ids': sin_atender_ids,
         'mas_antiguo_horas': mas_antiguo_h,
         'mas_antiguo_dias': mas_antiguo_d,
     }
@@ -7789,7 +7808,7 @@ def _visita_parse_compromisos(rows, cierres_hist=None):
                     except Exception:
                         fecha_limite = None
 
-            tema = temas[idx] if idx < len(temas) else (temas[0] if temas else 'Sin tema registrado')
+            tema = temas[idx] if idx < len(temas) else (temas[0] if temas else '')
             if not acuerdo and not tema and not fecha_limite and not responsable_item:
                 continue
 

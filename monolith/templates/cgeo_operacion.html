@@ -84,6 +84,17 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .alert-req-dot{width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;margin-top:.25rem}
 .alert-req-title{font-size:.9375rem;font-weight:700;color:#b91c1c}
 .alert-req-text{font-size:.8125rem;color:#7f1d1d;margin-top:.125rem}
+.alert-req.alert-req-ok{background:#f0fdf4;border-color:#bbf7d0}
+.alert-req.alert-req-ok .alert-req-dot{background:#22c55e}
+.alert-req.alert-req-ok .alert-req-title{color:#15803d}
+.alert-req.alert-req-ok .alert-req-text{color:#166534}
+.alert-req.alert-req-warn{background:#fffbeb;border-color:#fde68a}
+.alert-req.alert-req-warn .alert-req-dot{background:#f59e0b}
+.alert-req.alert-req-warn .alert-req-title{color:#92400e}
+.alert-req.alert-req-warn .alert-req-text{color:#78350f}
+.kpi-card[data-href],.pend-cat-card[data-href]{cursor:pointer;transition:transform .15s,box-shadow .15s}
+.kpi-card[data-href]:hover,.pend-cat-card[data-href]:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.08)}
+.tbl tbody tr[data-href]{cursor:pointer}
 
 .alert-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}
 .alert-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1rem 1.125rem}
@@ -178,6 +189,7 @@ canvas{outline:none}
 .alerta-dot-rojo{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.15)}
 .alerta-dot-amarillo{background:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
 .alerta-dot-naranja{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,.15)}
+.alerta-dot-verde{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
 .alerta-texto{flex:1;font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
 .alerta-ts{font-size:.7rem;color:#94a3b8;white-space:nowrap;flex-shrink:0}
 .alerta-btn{flex-shrink:0;padding:.3rem .75rem;font-size:.75rem;font-weight:600;border-radius:.4rem;border:none;cursor:pointer;white-space:nowrap;transition:all .15s;text-decoration:none;display:inline-block}
@@ -187,6 +199,9 @@ canvas{outline:none}
 .alerta-btn-amarillo:hover{background:#fef3c7}
 .alerta-btn-naranja{background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}
 .alerta-btn-naranja:hover{background:#ffedd5}
+.alerta-btn-verde{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0}
+.alerta-btn-verde:hover{background:#dcfce7}
+.alerta-estado-badge{display:inline-flex;align-items:center;gap:.25rem;flex-shrink:0;font-size:.68rem;font-weight:600;padding:.15rem .45rem;border-radius:999px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;white-space:nowrap}
 /* Tono naranja = alerta Prioritaria: entre la crítica (rojo) y la de atención (amarillo). */
 .alerta-prioridad-badge{flex-shrink:0;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:.15rem .45rem;border-radius:999px;background:rgba(234,88,12,.12);color:#c2410c;border:1px solid rgba(234,88,12,.35);white-space:nowrap}
 .alertas-ver-mas{display:flex;justify-content:center;padding:.625rem 0;border-top:1px solid #f1f5f9}
@@ -367,7 +382,18 @@ body:not(.light-mode) .badge-count-naranja{background:rgba(234,88,12,.15);color:
 body:not(.light-mode) .alertas-ver-mas{border-top-color:#334155}
 body:not(.light-mode) .btn-ver-mas:hover{background:rgba(59,130,246,.1)}
 body:not(.light-mode) .status-estable{background:#052e16;color:#4ade80;border-color:#166534}
+body:not(.light-mode) .status-alerta{background:#1c1508;color:#fbbf24;border-color:#78350f}
 body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-color:#7f1d1d}
+body:not(.light-mode) .alert-req{background:#1c0505;border-color:#7f1d1d}
+body:not(.light-mode) .alert-req-title{color:#f87171}
+body:not(.light-mode) .alert-req-text{color:#fca5a5}
+body:not(.light-mode) .alert-req.alert-req-ok{background:#052e16;border-color:#166534}
+body:not(.light-mode) .alert-req.alert-req-ok .alert-req-title{color:#4ade80}
+body:not(.light-mode) .alert-req.alert-req-ok .alert-req-text{color:#86efac}
+body:not(.light-mode) .alert-req.alert-req-warn{background:#1c1508;border-color:#78350f}
+body:not(.light-mode) .alert-req.alert-req-warn .alert-req-title{color:#fbbf24}
+body:not(.light-mode) .alert-req.alert-req-warn .alert-req-text{color:#fde68a}
+body:not(.light-mode) .alerta-estado-badge{background:#334155;color:#cbd5e1;border-color:#475569}
 .nav-item-logout{color:#f87171!important;border-left-color:transparent}
 .nav-item-logout:hover{color:#fca5a5!important;background:rgba(239,68,68,0.1)!important}
 .nav-item-logout svg{color:#f87171}
@@ -504,36 +530,37 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
         <!-- ══════════════ INFORME EJECUTIVO ══════════════ -->
         <div id="tab-ejecutivo">
             <div class="kpi-grid">
-                <div class="kpi-card kpi-border-green">
+                <div class="kpi-card kpi-border-green" id="kpiSatCard"{% if not public_mode %} data-href="/dashboard/satisfaccion/" onclick="navigateOperacion('/dashboard/satisfaccion/')" title="Abrir dashboard de Satisfacción"{% endif %}>
                     <span class="kpi-icon">⭐</span>
                     <div class="kpi-val" id="kpiSat">—</div>
                     <div class="kpi-lbl">Satisfacción del Cliente</div>
                     <div class="kpi-sub" id="kpiSatSub" style="color:#64748b;font-weight:400;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-red" id="kpiIncCard">
+                <div class="kpi-card kpi-border-red" id="kpiIncCard"{% if not public_mode %} data-href="/dashboard/incidentes/" onclick="navigateOperacion('/dashboard/incidentes/')" title="Abrir dashboard de Incidentes"{% endif %}>
                     <span class="kpi-icon">⚠️</span>
                     <div class="kpi-val" id="kpiInc">—</div>
                     <div class="kpi-lbl">Incidentes Abiertos</div>
                     <div id="kpiIncMas24h" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiIncSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-blue" id="kpiSupCard">
+                <div class="kpi-card kpi-border-blue" id="kpiSupCard"{% if not public_mode %} data-href="/dashboard/supervision/" onclick="navigateOperacion('/dashboard/supervision/')" title="Abrir dashboard de Supervisión"{% endif %}>
                     <span class="kpi-icon">👁️</span>
                     <div class="kpi-val" id="kpiSup">—</div>
                     <div class="kpi-lbl">Supervisiones Completadas Hoy</div>
                     <div id="kpiSupDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiSupSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-indigo">
+                <div class="kpi-card kpi-border-indigo" id="kpiCapCard"{% if not public_mode %} data-href="/dashboard/capacitacion/" onclick="navigateOperacion('/dashboard/capacitacion/')" title="Abrir dashboard de Capacitación"{% endif %}>
                     <span class="kpi-icon">🎓</span>
                     <div class="kpi-val" id="kpiCap">—</div>
                     <div class="kpi-lbl">Capacitaciones Realizadas</div>
                     <div class="kpi-sub" id="kpiCapSub" style="color:#6366f1;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-orange">
+                <div class="kpi-card kpi-border-orange" id="kpiVisCard"{% if not public_mode %} data-href="/dashboard/visitas/" onclick="navigateOperacion('/dashboard/visitas/')" title="Abrir dashboard de Visitas a Clientes"{% endif %}>
                     <span class="kpi-icon">🏢</span>
                     <div class="kpi-val" id="kpiVis">—</div>
                     <div class="kpi-lbl">Visitas a Clientes</div>
+                    <div id="kpiVisDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiVisSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
             </div>
@@ -621,10 +648,10 @@ body:not(.light-mode) .status-critico{background:#1c0505;color:#f87171;border-co
                 </div>
             </div>
 
-            <div class="alert-req">
-                <div class="alert-req-dot"></div>
+            <div class="alert-req" id="alertReqBox">
+                <div class="alert-req-dot" id="alertReqDot"></div>
                 <div>
-                    <div class="alert-req-title">Atención Requerida</div>
+                    <div class="alert-req-title" id="alertReqTitle">Atención Requerida</div>
                     <div class="alert-req-text" id="alertBannerText">Cargando...</div>
                 </div>
             </div>
@@ -1165,85 +1192,157 @@ function estadoBadge(est) {
     if (!est) return '<span class="badge badge-gray">—</span>';
     const s = est.toLowerCase();
     if (s.includes('vencid') || s.includes('expirad')) return `<span class="badge badge-red">${est}</span>`;
+    if (s.includes('proceso') || s.includes('gesti') || s.includes('asignad')) return `<span class="badge badge-yellow">${est}</span>`;
     if (s.includes('pendiente') || s.includes('pend')) return `<span class="badge badge-orange">${est}</span>`;
-    if (s.includes('abierto') || s.includes('open')) return `<span class="badge badge-red">${est}</span>`;
-    if (s.includes('cerrado') || s.includes('resolv')) return `<span class="badge badge-green">${est}</span>`;
+    if (s.includes('abierto') || s.includes('reportad') || s.includes('open')) return `<span class="badge badge-red">${est}</span>`;
+    if (s.includes('cerrado') || s.includes('resolv') || s.includes('en plazo') || s.includes('cumplid')) return `<span class="badge badge-green">${est}</span>`;
     return `<span class="badge badge-gray">${est}</span>`;
+}
+
+function navigateOperacion(url) {
+    if (PUBLIC_MODE || !url) return;
+    window.location.href = url;
 }
 
 function novColor(c) {
     return { red: 'nv-red', orange: 'nv-orange', yellow: 'nv-yellow', green: 'nv-green', blue: 'nv-blue' }[c] || 'nv-blue';
 }
 
-function renderData(d) {
-    _ultimoOperacion = d;   // contexto de "Agendar visita"
-    // Status banner
-    const sat = d.satisfaccion.pct;
-    const inc = d.incidentes.total;
+function syncStatusBanner() {
     const banner = document.getElementById('statusBanner');
     const dot = document.getElementById('statusDot');
     const txt = document.getElementById('statusText');
-    if (d.incidentes.criticos_abiertos > 0) {
+    if (!banner || !dot || !txt) return;
+
+    if (_sgKpis) {
+        const { nivel, condiciones } = computeSemaforo(_alertasData, _sgKpis);
+        const activas = condiciones.filter(c => c.nivel === nivel);
+        const primera = activas.length ? activas[0].texto : '';
+        if (nivel === 'rojo') {
+            banner.className = 'status-banner status-critico';
+            dot.style.background = '#ef4444';
+            txt.textContent = primera ? `Alerta Crítica — ${primera}` : 'Alerta Crítica — Atención inmediata requerida';
+        } else if (nivel === 'amarillo') {
+            banner.className = 'status-banner status-alerta';
+            dot.style.background = '#f59e0b';
+            txt.textContent = primera ? `Atención Requerida — ${primera}` : 'Atención Requerida — Elementos en seguimiento';
+        } else {
+            banner.className = 'status-banner status-estable';
+            dot.style.background = '#22c55e';
+            txt.textContent = 'Estado General de la Operación — Bajo Control';
+        }
+        return;
+    }
+
+    const d = _ultimoOperacion;
+    if (!d) return;
+    if ((d.incidentes?.criticos_abiertos || 0) > 0 || (d.incidentes?.mas_24h || 0) > 0) {
         banner.className = 'status-banner status-critico';
         dot.style.background = '#ef4444';
-        txt.textContent = 'Atención Requerida — Hay incidentes críticos abiertos';
+        txt.textContent = (d.incidentes?.criticos_abiertos || 0) > 0
+            ? 'Alerta Crítica — Hay incidentes críticos abiertos'
+            : 'Alerta Crítica — Incidentes >24h sin atención';
+    } else if ((d.incidentes?.abiertos_total || 0) > 0 || (d.visitas?.vencidos || 0) > 0) {
+        banner.className = 'status-banner status-alerta';
+        dot.style.background = '#f59e0b';
+        txt.textContent = 'Atención Requerida — Elementos abiertos en gestión';
     } else {
         banner.className = 'status-banner status-estable';
         dot.style.background = '#22c55e';
-        txt.textContent = 'Estado General de la Operación — Operación Estable';
+        txt.textContent = 'Estado General de la Operación — Bajo Control';
     }
+}
+
+function renderData(d) {
+    _ultimoOperacion = d;   // contexto de "Agendar visita"
+    syncStatusBanner();
 
     // KPIs
+    const sat = d.satisfaccion.pct;
+    const inc = d.incidentes.total;
     const inc_d = d.incidentes;
 
     document.getElementById('kpiSat').textContent = sat !== null ? sat + '%' : '—';
+    const avgNps = d.satisfaccion.avg_nps != null ? `Nota media: ${d.satisfaccion.avg_nps}/5 · ` : '';
     document.getElementById('kpiSatSub').textContent = d.satisfaccion.total
-        ? `Encuestas: ${d.satisfaccion.total} | Recomiendan: ${d.satisfaccion.recomienda}`
-        : '';
+        ? `${avgNps}Encuestas: ${d.satisfaccion.total} · Recomiendan: ${d.satisfaccion.recomienda}`
+        : 'Sin encuestas en el período';
 
-    // KPI: Incidentes Abiertos con contexto de 24h
+    // KPI: Incidentes Abiertos con contexto de 24h (sin atención vs en gestión)
     const abiertosTotal = inc_d.abiertos_total ?? inc_d.abiertos?.length ?? 0;
     const mas24h = inc_d.mas_24h ?? 0;
+    const enGestionAbiertos = inc_d.abiertos_en_gestion ?? Math.max(abiertosTotal - (inc_d.abiertos_sin_atender ?? mas24h), 0);
+    const critAbiertos = inc_d.criticos_abiertos ?? 0;
     document.getElementById('kpiInc').textContent = abiertosTotal;
-    const incKpiColor = abiertosTotal === 0 ? '#22c55e' : abiertosTotal <= 2 ? '#d97706' : '#dc2626';
+    const incKpiColor = abiertosTotal === 0
+        ? '#22c55e'
+        : (critAbiertos > 0 || mas24h > 0 ? '#dc2626' : '#d97706');
     document.getElementById('kpiIncCard').style.borderTopColor = incKpiColor;
-    document.getElementById('kpiIncMas24h').innerHTML =
-        `<span style="color:${mas24h > 0 ? '#dc2626' : '#64748b'}">${mas24h} llevan más de 24h sin gestión</span>`;
-    const incTotal = inc || 1;
+    const medTxt = inc_d.mediana_atencion_h != null ? ` · Mediana 1.ª atención: ${inc_d.mediana_atencion_h}h` : '';
+    if (abiertosTotal === 0) {
+        document.getElementById('kpiIncMas24h').innerHTML =
+            `<span style="color:#16a34a">Sin incidentes abiertos${medTxt}</span>`;
+    } else if (mas24h > 0) {
+        document.getElementById('kpiIncMas24h').innerHTML =
+            `<span style="color:#dc2626">${mas24h} sin primera atención &gt;24h${enGestionAbiertos > 0 ? ` · ${enGestionAbiertos} en gestión` : ''}${medTxt}</span>`;
+    } else {
+        document.getElementById('kpiIncMas24h').innerHTML =
+            `<span style="color:#64748b">Todos atendidos o ≤24h (${enGestionAbiertos} en gestión)${medTxt}</span>`;
+    }
     document.getElementById('kpiIncSub').innerHTML = [
-        { label: 'Bajo',    val: inc_d.bajos,    color: '#16a34a' },
-        { label: 'Medio',   val: inc_d.medios,   color: '#d97706' },
-        { label: 'Alto',    val: inc_d.altos,    color: '#ea580c' },
-        { label: 'Crítico', val: inc_d.criticos, color: '#dc2626' },
-    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round((s.val||0)/incTotal*100)}%</span>`).join('');
+        { label: 'Crítico', val: inc_d.criticos_abiertos ?? 0, color: '#dc2626' },
+        { label: 'Alto',    val: inc_d.altos_abiertos ?? 0,    color: '#ea580c' },
+        { label: 'Medio',   val: inc_d.medios_abiertos ?? 0,   color: '#d97706' },
+        { label: 'Bajo',    val: inc_d.bajos_abiertos ?? 0,    color: '#16a34a' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('')
+    + `<span style="font-size:.7rem;font-weight:600;color:#64748b;background:#f1f5f9;padding:.1rem .4rem;border-radius:.3rem">Del período: ${inc || 0}</span>`;
 
-    // KPI: Supervisiones Completadas Hoy con contexto del período
+    // KPI: Supervisiones Completadas Hoy con contexto del programa semanal/mensual y del período
     const supHoy = d.supervisiones.hoy ?? 0;
     const supPeriodo = d.supervisiones.total ?? 0;
+    const supProg = d.supervisiones.programadas ?? 0;
+    const supCompVent = d.supervisiones.completadas_ventana ?? 0;
+    const supPctProg = d.supervisiones.pct_cumplimiento;
     document.getElementById('kpiSup').textContent = supHoy;
-    const supKpiColor = supHoy >= 1 ? '#22c55e' : supPeriodo > 0 ? '#d97706' : '#dc2626';
+    let supKpiColor = '#22c55e';
+    if (supProg > 0 && supPctProg != null) {
+        supKpiColor = supPctProg >= 90 ? '#22c55e' : (supPctProg >= 70 ? '#d97706' : '#dc2626');
+    } else {
+        supKpiColor = supHoy >= 1 ? '#22c55e' : (supPeriodo > 0 ? '#3b82f6' : '#d97706');
+    }
     document.getElementById('kpiSupCard').style.borderTopColor = supKpiColor;
-    document.getElementById('kpiSupDenom').textContent = `Del período: ${supPeriodo} en total`;
+    document.getElementById('kpiSupDenom').textContent = (supProg > 0 && supPctProg != null)
+        ? `Cumplimiento: ${supCompVent}/${supProg} (${supPctProg}%) · Período: ${supPeriodo}`
+        : `Del período: ${supPeriodo} en total`;
     const supTotal = supPeriodo || 1;
     document.getElementById('kpiSupSub').innerHTML = [
-        { label: 'Excelente',    val: d.supervisiones.excelente,   color: '#16a34a' },
-        { label: 'Seguimiento',  val: d.supervisiones.seguimiento,  color: '#d97706' },
-        { label: 'Crítico',      val: d.supervisiones.critico,      color: '#dc2626' },
-    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round((s.val||0)/supTotal*100)}%</span>`).join('');
+        { label: 'Excelente',    val: d.supervisiones.excelente || 0,   color: '#16a34a' },
+        { label: 'Seguimiento',  val: d.supervisiones.seguimiento || 0, color: '#d97706' },
+        { label: 'Crítico',      val: d.supervisiones.critico || 0,     color: '#dc2626' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val} (${supPeriodo ? Math.round((s.val||0)/supTotal*100) : 0}%)</span>`).join('');
 
     document.getElementById('kpiCap').textContent = d.capacitaciones.total ?? '—';
-    document.getElementById('kpiCapSub').textContent = d.capacitaciones.asistentes
-        ? `Personal capacitado: ${d.capacitaciones.asistentes} personas`
-        : '';
+    document.getElementById('kpiCapSub').textContent = d.capacitaciones.total
+        ? `Personal capacitado: ${d.capacitaciones.asistentes || 0} personas`
+        : 'Sin capacitaciones en el período';
 
     const vis = d.visitas || {};
     document.getElementById('kpiVis').textContent = vis.total ?? '—';
-    const visTotal = vis.total || 1;
+    const visDenomEl = document.getElementById('kpiVisDenom');
+    if (visDenomEl) {
+        if ((vis.comp_evaluados || 0) > 0 && vis.comp_pct_en_plazo != null) {
+            visDenomEl.textContent = `Compromisos en plazo: ${vis.comp_en_plazo || 0} de ${vis.comp_evaluados} (${Math.round(vis.comp_pct_en_plazo)}%)`;
+        } else if ((vis.comp_total || 0) > 0) {
+            visDenomEl.textContent = `${vis.comp_total} compromiso(s) registrado(s)`;
+        } else {
+            visDenomEl.textContent = 'Sin compromisos vencidos ni cerrados aún';
+        }
+    }
     document.getElementById('kpiVisSub').innerHTML = [
-        { label: 'Cumplido',   val: vis.cumplidos,  color: '#16a34a' },
-        { label: 'Pendiente',  val: vis.pendientes, color: '#d97706' },
-        { label: 'Vencido',    val: vis.vencidos,   color: '#dc2626' },
-    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${Math.round((s.val||0)/visTotal*100)}%</span>`).join('');
+        { label: 'En plazo',   val: vis.comp_en_plazo ?? vis.cumplidos ?? 0, color: '#16a34a' },
+        { label: 'Pendientes', val: vis.pendientes ?? 0,                     color: '#d97706' },
+        { label: 'Vencidos',   val: vis.vencidos ?? 0,                       color: '#dc2626' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
 
     // Tendencia operacional (multi-line)
     const t = d.tendencia;
@@ -1265,11 +1364,14 @@ function renderData(d) {
     // Donut "Gestión de Incidentes" — capacidad de respuesta (complementa la severidad)
     const gesAbiertos = inc_d.abiertos_total || 0;
     const gesMas24    = inc_d.mas_24h || 0;
-    const gesLabels = ['Cerrados', 'Abiertos ≤24h', 'Abiertos >24h sin gestión'];
+    const gesLabels = ['Cerrados', 'En gestión / ≤24h', 'Sin atención >24h'];
     const gesData   = [Math.max(sevTotal - gesAbiertos, 0), Math.max(gesAbiertos - gesMas24, 0), gesMas24];
     const gesColors = ['#22c55e', '#f59e0b', '#ef4444'];
     buildDonutCenter('chartIncGestion', gesLabels, gesData, gesColors, 'Total');
-    document.getElementById('incGestionLegend').innerHTML = legendHtml(gesLabels, gesData, gesColors, sevTotal);
+    const medLegend = inc_d.mediana_atencion_h != null
+        ? `<div style="margin-top:.5rem;padding-top:.5rem;border-top:1px solid #e2e8f0;font-size:.75rem;color:#64748b">Mediana 1.ª atención: <strong>${inc_d.mediana_atencion_h} h</strong> · P80: <strong>${inc_d.p80_atencion_h ?? '—'} h</strong></div>`
+        : '';
+    document.getElementById('incGestionLegend').innerHTML = legendHtml(gesLabels, gesData, gesColors, sevTotal) + medLegend;
 
     // Ranking clientes
     const rk = d.ranking_satisfaccion;
@@ -1294,28 +1396,44 @@ function renderData(d) {
 
     // ── RESUMEN OPERATIVO ────────────────────────────────────────────────────
     const compVenc = d.compromisos_pendientes.filter(c => c.dias_retraso > 0).length;
-    const visPend  = (d.visitas && d.visitas.pendientes) ? d.visitas.pendientes : d.compromisos_pendientes.filter(c => c.dias_retraso <= 0).length;
+    const visPend  = (d.visitas && d.visitas.pendientes != null) ? d.visitas.pendientes : d.compromisos_pendientes.filter(c => c.dias_retraso <= 0).length;
     const supCrit  = d.supervisiones.critico || 0;
     const discTotal = d.disciplina.total || 0;
-    const totalPend = (inc_d.criticos_abiertos || 0) + supCrit + visPend + compVenc
-                    + (d.satisfaccion.insatisfechos || 0) + discTotal;
+    const insatCount = d.satisfaccion.insatisfechos || 0;
+    const sinAtencion24 = inc_d.mas_24h || 0;
+    const urgentPend = (inc_d.criticos_abiertos || 0) + sinAtencion24 + compVenc + insatCount;
+    const totalPend  = urgentPend + supCrit + visPend;
 
-    document.getElementById('alertBannerText').textContent =
-        `Existen ${totalPend} elementos que requieren gestión inmediata.`;
+    const alertBox   = document.getElementById('alertReqBox');
+    const alertTitle = document.getElementById('alertReqTitle');
+    const alertText  = document.getElementById('alertBannerText');
+    if (urgentPend > 0) {
+        if (alertBox) alertBox.className = 'alert-req';
+        if (alertTitle) alertTitle.textContent = 'Atención Requerida';
+        if (alertText) alertText.textContent = `Existen ${urgentPend} elemento(s) urgente(s) que requieren gestión inmediata (${totalPend} en total por gestionar).`;
+    } else if (totalPend > 0) {
+        if (alertBox) alertBox.className = 'alert-req alert-req-warn';
+        if (alertTitle) alertTitle.textContent = 'Seguimiento Operativo';
+        if (alertText) alertText.textContent = `Sin elementos críticos ni vencidos. Hay ${totalPend} elemento(s) en seguimiento dentro de plazo.`;
+    } else {
+        if (alertBox) alertBox.className = 'alert-req alert-req-ok';
+        if (alertTitle) alertTitle.textContent = 'Operación al Día';
+        if (alertText) alertText.textContent = 'No existen elementos críticos ni vencidos pendientes de gestión inmediata.';
+    }
 
     // Indicadores por categoría — fila única con 8 ítems
     const pendItems = [
-        { icon: '⚠️', label: 'Incidentes Críticos',       val: inc_d.criticos_abiertos || 0,       sub: 'Abiertos',            color: '#ef4444' },
-        { icon: '👁️', label: 'Supervisiones Críticas',    val: supCrit,                             sub: 'Requieren atención',   color: '#ef4444' },
-        { icon: '🏢', label: 'Visitas Pendientes',         val: visPend,                             sub: 'Sin cerrar',           color: '#f97316' },
-        { icon: '📅', label: 'Compromisos Vencidos',       val: compVenc,                            sub: 'Con retraso',          color: '#ef4444' },
-        { icon: '😞', label: 'Clientes Insatisfechos',     val: d.satisfaccion.insatisfechos || 0,   sub: 'Requieren seguimiento', color: '#d97706' },
-        { icon: '📝', label: 'Reportes Disciplinarios',    val: discTotal,                           sub: 'Abiertos',             color: '#6366f1' },
-        { icon: '🎓', label: 'Cap. Pendientes',            val: d.capacitaciones.total === 0 ? 1 : 0, sub: 'Sin programar',      color: '#94a3b8' },
-        { icon: '📊', label: 'Total por Gestionar',        val: totalPend,                           sub: 'Elementos pendientes', color: '#2563eb' },
+        { icon: '⚠️', label: 'Incidentes Críticos',    val: inc_d.criticos_abiertos || 0, sub: 'Abiertos',               color: '#ef4444', href: '/dashboard/incidentes/' },
+        { icon: '⏳', label: 'Sin Atención >24h',      val: sinAtencion24,                sub: 'Incidentes abiertos',    color: '#ef4444', href: '/dashboard/incidentes/' },
+        { icon: '👁️', label: 'Supervisiones Críticas', val: supCrit,                      sub: 'En el período',          color: '#ef4444', href: '/dashboard/supervision/' },
+        { icon: '📅', label: 'Compromisos Vencidos',    val: compVenc,                     sub: 'Con retraso',            color: '#ef4444', href: '/dashboard/visitas/' },
+        { icon: '🏢', label: 'Compromisos en Plazo',    val: visPend,                      sub: 'Abiertos en plazo',      color: '#f97316', href: '/dashboard/visitas/' },
+        { icon: '😞', label: 'Clientes Insatisfechos',  val: insatCount,                   sub: 'Nota < 3.0 / 5',         color: '#d97706', href: '/dashboard/satisfaccion/' },
+        { icon: '📝', label: 'Reportes Disciplinarios', val: discTotal,                    sub: 'Registrados en período', color: '#6366f1', href: '/dashboard/disciplina/' },
+        { icon: '📊', label: 'Total por Gestionar',     val: totalPend,                    sub: 'Elementos pendientes',   color: '#2563eb', href: '/dashboard/incidentes/' },
     ];
     document.getElementById('pendCat').innerHTML = pendItems.map(p => `
-        <div class="pend-cat-card">
+        <div class="pend-cat-card"${!PUBLIC_MODE && p.href ? ` data-href="${p.href}" onclick="navigateOperacion('${p.href}')"` : ''}>
             <span class="pend-cat-icon">${p.icon}</span>
             <div class="pend-cat-val" style="color:${p.color}">${p.val}</div>
             <div class="pend-cat-lbl">${p.label}</div>
@@ -1328,15 +1446,18 @@ function renderData(d) {
     if (!abiertos.length) {
         incTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem">No hay incidentes abiertos.</td></tr>';
     } else {
-        incTbody.innerHTML = abiertos.map(r => `
-            <tr>
+        incTbody.innerHTML = abiertos.map(r => {
+            const href = !PUBLIC_MODE && r.id ? `/dashboard/incidentes/?id=${r.id}` : '';
+            return `
+            <tr${href ? ` data-href="${href}" onclick="navigateOperacion('${href}')" title="Ver incidente #${r.id}"` : ''}>
                 <td>${r.fecha || '—'}</td>
                 <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.incidente}">${r.incidente}</td>
                 <td>${r.cliente || '—'}</td>
                 <td>${severityBadge(r.severidad)}</td>
                 <td>${estadoBadge(r.estado)}</td>
                 <td class="${r.dias_abierto > 7 ? 'dias-neg' : 'dias-pos'}">${r.dias_abierto}</td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
     }
 
     // Compromisos table
@@ -1345,14 +1466,17 @@ function renderData(d) {
     if (!comp.length) {
         compTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem">No hay compromisos pendientes.</td></tr>';
     } else {
-        compTbody.innerHTML = comp.map(r => `
-            <tr>
+        compTbody.innerHTML = comp.map(r => {
+            const href = !PUBLIC_MODE && r.id_visita ? `/dashboard/visitas/?id=${r.id_visita}` : '';
+            return `
+            <tr${href ? ` data-href="${href}" onclick="navigateOperacion('${href}')" title="Ver acta de visita #${r.id_visita}"` : ''}>
                 <td>${r.fecha || '—'}</td>
-                <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.compromiso}</td>
+                <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.compromiso}">${r.compromiso}</td>
                 <td>${r.cliente || '—'}</td>
                 <td>${estadoBadge(r.estado)}</td>
                 <td class="${r.dias_retraso > 0 ? 'dias-neg' : 'dias-pos'}">${r.dias_retraso > 0 ? r.dias_retraso : '—'}</td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
     }
 
     // Acciones
@@ -1770,6 +1894,12 @@ function _relTime(isoStr) {
     return `hace ${Math.floor(h / 24)}d`;
 }
 
+function _escHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function renderAlertasList(alertas) {
     const lista = document.getElementById('alertasList');
     const verMas = document.getElementById('alertasVerMas');
@@ -1777,31 +1907,37 @@ function renderAlertasList(alertas) {
 
     loading.style.display = 'none';
 
-    if (!alertas.length) {
+    const activas = (alertas || []).filter(a => a.color_semaforo !== 'verde');
+
+    if (!activas.length) {
         lista.innerHTML = '<div class="alertas-empty">✓ Sin alertas activas — operación en orden</div>';
         verMas.classList.add('hidden');
         return;
     }
 
-    const visibles = _alertasVerTodas ? alertas : alertas.slice(0, ALERTAS_VISIBLES_MAX);
-    const ocultas  = alertas.length - ALERTAS_VISIBLES_MAX;
+    const visibles = _alertasVerTodas ? activas : activas.slice(0, ALERTAS_VISIBLES_MAX);
+    const ocultas  = activas.length - ALERTAS_VISIBLES_MAX;
 
     lista.innerHTML = visibles.map(a => {
-        // Tres tonos: rojo (crítica), naranja (Prioritaria) y amarillo (atención).
         const color      = a.color_semaforo === 'rojo' ? 'rojo'
-                         : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo';
+                         : a.color_semaforo === 'naranja' ? 'naranja'
+                         : a.color_semaforo === 'verde' ? 'verde' : 'amarillo';
         const dotClass   = `alerta-dot-${color}`;
         const btnClass   = `alerta-btn-${color}`;
-        const icon       = color === 'rojo' ? '🔴' : color === 'naranja' ? '🟠' : '🟡';
-        const titulo     = color === 'rojo' ? 'Crítico' : color === 'naranja' ? 'Prioritaria' : 'Atención';
+        const icon       = color === 'rojo' ? '🔴' : color === 'verde' ? '🟢' : color === 'naranja' ? '🟠' : '🟡';
+        const titulo     = color === 'rojo' ? 'Crítico' : color === 'verde' ? 'Al día' : color === 'naranja' ? 'Prioritaria' : 'Atención';
         const prioridad  = color === 'naranja' ? '<span class="alerta-prioridad-badge">Prioritaria</span>' : '';
-        return `<div class="alerta-item" data-id="${a.id}">
+        const estadoBadge = (a.estado && a.estado !== 'Abierto')
+            ? `<span class="alerta-estado-badge">${_escHtml(a.estado)}${a.responsable_asignado ? ` · ${_escHtml(a.responsable_asignado)}` : ''}</span>`
+            : '';
+        return `<div class="alerta-item" data-id="${_escHtml(a.id)}" title="${_escHtml(a.motivo || a.texto)}">
             <span class="alerta-dot ${dotClass}" title="${titulo}"></span>
             <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
-            <span class="alerta-texto">${a.texto}</span>
+            <span class="alerta-texto">${_escHtml(a.texto)}</span>
             ${prioridad}
+            ${estadoBadge}
             <span class="alerta-ts">${_relTime(a.timestamp)}</span>
-            ${PUBLIC_MODE ? '' : `<a href="${a.ruta_navegacion}" class="alerta-btn ${btnClass}">${a.accion} →</a>`}
+            ${PUBLIC_MODE ? '' : `<a href="${_escHtml(a.ruta_navegacion)}" class="alerta-btn ${btnClass}">${_escHtml(a.accion)} →</a>`}
         </div>`;
     }).join('');
 
@@ -1809,7 +1945,7 @@ function renderAlertasList(alertas) {
         document.getElementById('verMasLabel').textContent =
             `Ver ${ocultas} alerta${ocultas !== 1 ? 's' : ''} más`;
         verMas.classList.remove('hidden');
-    } else if (_alertasVerTodas) {
+    } else if (_alertasVerTodas && activas.length > ALERTAS_VISIBLES_MAX) {
         document.getElementById('verMasLabel').textContent = 'Ver menos';
         verMas.classList.remove('hidden');
     } else {
@@ -1819,7 +1955,8 @@ function renderAlertasList(alertas) {
 
 function _updateBadges(data) {
     const badges = document.getElementById('alertasBadges');
-    if (!data || data.total === 0) {
+    const activasCount = (data?.rojas || 0) + (data?.naranjas || 0) + (data?.amarillas || 0);
+    if (!data || activasCount === 0) {
         badges.innerHTML = '<span class="badge-count-ok">✓ Sin alertas</span>';
         return;
     }
@@ -1847,7 +1984,7 @@ async function evaluateAlerts() {
         if (!alertasResp.ok) throw new Error(`HTTP ${alertasResp.status}`);
         const data = await alertasResp.json();
 
-        _alertasData = data.alertas || [];
+        _alertasData = (data.alertas || []).filter(a => a.color_semaforo !== 'verde');
         _updateBadges(data);
         renderAlertasList(_alertasData);
         renderSemaforoGlobal(_alertasData, _sgKpis);
@@ -1869,46 +2006,82 @@ function _startAlertasAutoRefresh() {
 
 let _sgKpis = null;  // datos de /api/semaforo-global
 
+function _eqTipoSem(porTipo, ...claves) {
+    for (const k of claves) {
+        if (porTipo?.[k]) return porTipo[k];
+    }
+    return null;
+}
+
 function computeSemaforo(alertasData, kpis) {
-    const rojas    = alertasData.filter(a => a.color_semaforo === 'rojo').length;
-    const amarillas = alertasData.filter(a => a.color_semaforo === 'amarillo').length;
+    const thr = kpis?.thresholds || {};
+    const rojas     = (alertasData || []).filter(a => a.color_semaforo === 'rojo').length;
+    const naranjas  = (alertasData || []).filter(a => a.color_semaforo === 'naranja').length;
+    const amarillas = (alertasData || []).filter(a => a.color_semaforo === 'amarillo').length;
 
     const incAb   = kpis.inc_abiertos    ?? 0;
     const supComp = kpis.sup_completadas ?? 0;
     const supProg = kpis.sup_programadas ?? 0;
-    const eqNoOp  = kpis.eq_no_op        ?? 0;
-    const eqTotal = kpis.eq_total        ?? 0;
-    const certProx = kpis.cert_proximas  ?? 0;
+    const tienePorTipo = kpis.eq_por_tipo && typeof kpis.eq_por_tipo === 'object';
+    const radioSem = tienePorTipo ? _eqTipoSem(kpis.eq_por_tipo, 'radio', 'radios') : null;
+    const eqTotal = tienePorTipo ? (radioSem?.total ?? 0) : (kpis.eq_total ?? 0);
+    const eqNoOp  = tienePorTipo
+        ? Math.max(0, eqTotal - (radioSem?.operativos ?? 0))
+        : (kpis.eq_no_op ?? 0);
+    const certProx      = kpis.cert_proximas  ?? 0;
+    const compVencidos  = kpis.comp_vencidos   ?? 0;
+    const compPorVencer = kpis.comp_por_vencer ?? 0;
+    const visitaComp      = kpis.visita_completadas ?? 0;
+    const visitaProg      = kpis.visita_programadas ?? 0;
+    const visitaEsperadas = kpis.visita_esperadas_hoy ?? visitaProg;
 
-    const supPct   = supProg > 0 ? (supComp / supProg * 100) : 100;
-    const eqNoPct  = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
+    const supVerdeMin    = thr.supervision_verde_min    ?? 90;
+    const supAmarilloMin = thr.supervision_amarillo_min ?? 70;
+    const eqVerdeMax     = thr.eq_verde_max             ?? 5;
+    const eqAmarilloMax  = thr.eq_amarillo_max          ?? 15;
+    const visitaVerdeMin = thr.visita_verde_min         ?? 90;
+
+    const supPct  = (kpis.sup_pct !== null && kpis.sup_pct !== undefined) ? kpis.sup_pct
+                  : (supProg > 0 ? (supComp / supProg * 100) : 100);
+    const eqNoPct = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
+    const visitaPct = (kpis.visita_pct !== null && kpis.visita_pct !== undefined)
+                    ? kpis.visita_pct
+                    : (visitaEsperadas > 0 ? (visitaComp / visitaEsperadas * 100) : 100);
 
     const condiciones = [];
 
     // ── ROJO ─────────────────────────────────────────────────────────────────
     if (rojas >= 1)
         condiciones.push({ nivel: 'rojo', texto: `${rojas} alerta${rojas !== 1 ? 's' : ''} crítica${rojas !== 1 ? 's' : ''} activa${rojas !== 1 ? 's' : ''}` });
-    if (supProg > 0 && supPct < 70)
-        condiciones.push({ nivel: 'rojo', texto: `Supervisiones completadas: ${supComp} de ${supProg} (${Math.round(supPct)}% < 70%)` });
+    if (supProg > 0 && supPct < supAmarilloMin)
+        condiciones.push({ nivel: 'rojo', texto: `Supervisiones: ${supComp} de ${supProg} completadas (${Math.round(supPct)}% < ${supAmarilloMin}%)` });
     if (incAb >= 3)
         condiciones.push({ nivel: 'rojo', texto: `${incAb} incidentes abiertos (umbral ≥ 3)` });
-    if (eqTotal > 0 && eqNoPct > 15)
-        condiciones.push({ nivel: 'rojo', texto: `${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota > 15%)` });
+    if (eqTotal > 0 && eqNoPct > eqAmarilloMax)
+        condiciones.push({ nivel: 'rojo', texto: `${eqNoOp} equipo${eqNoOp !== 1 ? 's' : ''} no operativo${eqNoOp !== 1 ? 's' : ''} (${Math.round(eqNoPct)}% > ${eqAmarilloMax}%)` });
+    if (compVencidos >= 1)
+        condiciones.push({ nivel: 'rojo', texto: `${compVencidos} compromiso${compVencidos !== 1 ? 's' : ''} de visita vencido${compVencidos !== 1 ? 's' : ''}` });
 
     const esRojo = condiciones.some(c => c.nivel === 'rojo');
 
     // ── AMARILLO ─────────────────────────────────────────────────────────────
     if (!esRojo) {
+        if (naranjas >= 1)
+            condiciones.push({ nivel: 'amarillo', texto: `${naranjas} alerta${naranjas !== 1 ? 's' : ''} prioritaria${naranjas !== 1 ? 's' : ''}` });
         if (amarillas >= 1)
             condiciones.push({ nivel: 'amarillo', texto: `${amarillas} alerta${amarillas !== 1 ? 's' : ''} en seguimiento` });
-        if (supProg > 0 && supPct >= 70 && supPct < 90)
-            condiciones.push({ nivel: 'amarillo', texto: `Supervisiones completadas: ${Math.round(supPct)}% (entre 70% y 89%)` });
+        if (supProg > 0 && supPct >= supAmarilloMin && supPct < supVerdeMin)
+            condiciones.push({ nivel: 'amarillo', texto: `Supervisiones: ${Math.round(supPct)}% completadas (entre ${supAmarilloMin}% y ${supVerdeMin - 1}%)` });
         if (incAb === 1 || incAb === 2)
             condiciones.push({ nivel: 'amarillo', texto: `${incAb} incidente${incAb !== 1 ? 's' : ''} abierto${incAb !== 1 ? 's' : ''}` });
-        if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
-            condiciones.push({ nivel: 'amarillo', texto: `${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota, entre 5% y 15%)` });
+        if (eqTotal > 0 && eqNoPct > eqVerdeMax && eqNoPct <= eqAmarilloMax)
+            condiciones.push({ nivel: 'amarillo', texto: `${eqNoOp} equipo${eqNoOp !== 1 ? 's' : ''} no operativo${eqNoOp !== 1 ? 's' : ''} (${Math.round(eqNoPct)}% entre ${eqVerdeMax}% y ${eqAmarilloMax}%)` });
         if (certProx >= 1)
             condiciones.push({ nivel: 'amarillo', texto: `${certProx} ${certProx !== 1 ? 'certificaciones' : 'certificación'} por vencer en 30 días` });
+        if (compPorVencer >= 1)
+            condiciones.push({ nivel: 'amarillo', texto: `${compPorVencer} compromiso${compPorVencer !== 1 ? 's' : ''} de visita próximo${compPorVencer !== 1 ? 's' : ''} a vencer` });
+        if (visitaProg > 0 && visitaEsperadas > 0 && visitaPct < visitaVerdeMin)
+            condiciones.push({ nivel: 'amarillo', texto: `Visitas a clientes: ${visitaComp} de ${visitaEsperadas} esperadas a ayer (meta: ${visitaProg})` });
     }
 
     const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');
@@ -1919,7 +2092,8 @@ function computeSemaforo(alertasData, kpis) {
 
 function renderSemaforoGlobal(alertasData, kpis) {
     if (!kpis) return;
-    const { nivel, condiciones } = computeSemaforo(alertasData, kpis);
+    const activas = (alertasData || []).filter(a => a.color_semaforo !== 'verde');
+    const { nivel, condiciones } = computeSemaforo(activas, kpis);
 
     const el = document.getElementById('semaforoGlobal');
     el.className = `semaforo-global sg-${nivel}`;
@@ -1931,7 +2105,7 @@ function renderSemaforoGlobal(alertasData, kpis) {
     const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
     document.getElementById('sgEstado').textContent = textos[nivel];
 
-    const total = alertasData.length;
+    const total = activas.length;
     const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
     document.getElementById('sgMeta').textContent =
         `${total} alerta${total !== 1 ? 's' : ''} activa${total !== 1 ? 's' : ''} — última actualización ${ts}`;
@@ -1940,6 +2114,8 @@ function renderSemaforoGlobal(alertasData, kpis) {
         ? 'Toca para ver el detalle de condiciones evaluadas'
         : `${condiciones.filter(c => c.nivel === nivel).length} ${condiciones.filter(c => c.nivel === nivel).length !== 1 ? 'condiciones' : 'condición'} activando este estado — toca para ver`;
     document.getElementById('sgHint').textContent = hint;
+
+    syncStatusBanner();
 }
 
 function abrirDetalleSemaforo() {

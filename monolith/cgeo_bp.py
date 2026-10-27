@@ -2032,7 +2032,8 @@ def cgeo_api_alertas():
                 "horas": round(h, 1),
             })
 
-        # ── REGLA 2: Incidente abierto sin gestión > 24 h ────────────────────
+        # ── REGLA 2: Incidente abierto > 24 h (sin atención = rojo; en gestión = seguimiento/prioritaria) ──
+        from dashboard_bp import _incidentes_metricas_atencion
         r2_conds, r2_params = _cp()
         r2_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
@@ -2041,35 +2042,64 @@ def cgeo_api_alertas():
         cur.execute(f"""
             SELECT
                 id_reporte_incidente AS id,
+                id_reporte_incidente,
                 COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
                 EXTRACT(EPOCH FROM ({sql_ahora()} - COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en))) / 3600 AS horas,
                 COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) AS ts,
+                fecha_hora,
+                creado_en,
                 COALESCE(NULLIF(TRIM(estado),''), 'Abierto') AS estado,
+                nivel_severidad,
+                tiempo_resolucion_min,
+                editado_en,
                 NULLIF(TRIM(COALESCE(responsable_asignado,'')), '') AS responsable_asignado
             FROM reportes_incidentes
             {_where(r2_conds)}
             ORDER BY COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en) ASC
-            LIMIT 5
+            LIMIT 10
         """, tuple(r2_params))
-        for r in cur.fetchall():
-            h = float(r["horas"] or 0)
+        r2_rows = [dict(r) for r in (cur.fetchall() or [])]
+        r2_met = _incidentes_metricas_atencion(cur, r2_rows) if r2_rows else {"sin_atender_ids": []}
+        r2_sin_atender_ids = set(r2_met.get("sin_atender_ids") or [])
+        for r in r2_rows[:5]:
+            h = float(r.get("horas") or 0)
             _resp = r.get("responsable_asignado")
+            _est_l = str(r.get("estado") or "").strip().lower()
+            _sev_l = str(r.get("nivel_severidad") or "").strip().lower()
+            _en_gestion = (
+                int(r["id"]) not in r2_sin_atender_ids
+                or _est_l in ("en proceso", "en_proceso", "en gestión", "en gestion", "asignado", "atendido")
+            )
+            if not _en_gestion:
+                _color_r2 = "rojo"
+                _texto_r2 = f"Incidente #{r['id']} sin atención hace {int(h)}h — {r['tipo']}"
+                _motivo_r2 = (
+                    f'Incidente sin primera atención. "{r["tipo"]}" lleva {int(h)} h abierto en estado '
+                    f'"{r["estado"]}" (umbral: 24 h)'
+                    + (f', asignado a {_resp} (sin primera gestión registrada).' if _resp else ', sin responsable asignado ni gestión registrada.')
+                )
+            else:
+                _color_r2 = "naranja" if _sev_l in ("crítico", "critico") else "amarillo"
+                _texto_r2 = f"Incidente #{r['id']} en gestión hace {int(h)}h — {r['tipo']}"
+                _motivo_r2 = (
+                    f'Incidente en gestión pendiente de cierre. "{r["tipo"]}" lleva {int(h)} h abierto en estado '
+                    f'"{r["estado"]}"'
+                    + (f', asignado a {_resp}.' if _resp else '.')
+                )
             alertas.append({
-                "motivo": (f'Incidente sin gestión. "{r["tipo"]}" lleva {int(h)} h abierto en estado '
-                           f'"{r["estado"]}" (umbral: 24 h)'
-                           + (f', asignado a {_resp}.' if _resp else ', sin responsable asignado.')),
+                "motivo": _motivo_r2,
                 "id": f"r2_{r['id']}",
                 "regla": 2,
-                "texto": f"Incidente #{r['id']} abierto hace {int(h)}h — {r['tipo']}",
+                "texto": _texto_r2,
                 "accion": "Ver incidente",
                 "ruta_navegacion": f"/dashboard/incidentes/?id={r['id']}",
                 "record_id": r["id"],
                 "form_type": "reporte_incidente",
-                "color_semaforo": "rojo",
-                "timestamp": r["ts"].isoformat() if r["ts"] else None,
+                "color_semaforo": _color_r2,
+                "timestamp": r["ts"].isoformat() if r.get("ts") and hasattr(r["ts"], "isoformat") else None,
                 "horas": round(h, 1),
                 "estado": r["estado"],
-                "responsable_asignado": r["responsable_asignado"],
+                "responsable_asignado": _resp,
             })
 
         # ── REGLA 3: Aviso preventivo al cierre de ayer (sin duplicar Regla 1 ni castigar hoy "En curso") ──
@@ -2377,7 +2407,10 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 9/10: Compromisos de visitas a clientes (vencidos / próximos) ──
-        from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
+        from dashboard_bp import (
+            _visita_date_expr, _visita_conds, _visita_where,
+            _visita_parse_compromisos, _visita_cierres_historicos,
+        )
         dias_compromiso_vencer = int(alertas_thresholds.get('dias_compromiso_vencer') or 5)
 
         company_id = _get_user_company_id(cur, get_jwt_identity())
@@ -2397,7 +2430,10 @@ def cgeo_api_alertas():
             ORDER BY {v_date_expr} DESC
             LIMIT 200
         """, v_params)
-        compromisos = _visita_parse_compromisos(cur.fetchall())
+        vis_r9_rows = cur.fetchall() or []
+        ids_vis_r9 = [r['id_visita'] for r in vis_r9_rows if r.get('id_visita') is not None]
+        cierres_r9 = _visita_cierres_historicos(cur, ids_vis_r9)
+        compromisos = _visita_parse_compromisos(vis_r9_rows, cierres_hist=cierres_r9)
 
         today = hoy_operacion()
         for c in compromisos:
@@ -2413,16 +2449,19 @@ def cgeo_api_alertas():
                     # compromiso concreto y no la visita entera.
                     "hallazgo_titulo": c['acuerdo'],
                     "accion": "Gestionar compromiso",
-                    "ruta_navegacion": "/dashboard/visitas/",
+                    "ruta_navegacion": f"/dashboard/visitas/?id={c['id_visita']}",
                     "record_id": c['id_visita'],
                     "form_type": "registro_y_acta_de_visita",
                     "color_semaforo": "rojo",
-                    "timestamp": c['fecha_cumplimiento'] if c['fecha_cumplimiento'] != '—' else c['fecha_sort'],
+                    "timestamp": c.get('fecha_cumplimiento_sort') or (c['fecha_cumplimiento'] if c['fecha_cumplimiento'] != '—' else c['fecha_sort']),
                     "horas": None,
                 })
-            elif c['estado'] == 'pendiente' and c['fecha_cumplimiento'] != '—':
+            elif c['estado'] == 'pendiente':
+                fc_iso = (c.get('fecha_cumplimiento_sort') or c.get('fecha_cumplimiento') or '').strip()
+                if not fc_iso or fc_iso == '—':
+                    continue
                 try:
-                    fecha_limite = date.fromisoformat(c['fecha_cumplimiento'])
+                    fecha_limite = date.fromisoformat(fc_iso[:10])
                 except ValueError:
                     continue
                 dias_restantes = (fecha_limite - today).days
@@ -2438,11 +2477,11 @@ def cgeo_api_alertas():
                         "texto": f"Compromiso próximo a vencer en \"{c['cliente']}\": {c['acuerdo']} (resp. {c['responsable']}, en {dias_restantes} día{'s' if dias_restantes != 1 else ''})",
                         "hallazgo_titulo": c['acuerdo'],
                         "accion": "Gestionar compromiso",
-                        "ruta_navegacion": "/dashboard/visitas/",
+                        "ruta_navegacion": f"/dashboard/visitas/?id={c['id_visita']}",
                         "record_id": c['id_visita'],
                         "form_type": "registro_y_acta_de_visita",
                         "color_semaforo": "amarillo",
-                        "timestamp": c['fecha_cumplimiento'],
+                        "timestamp": fc_iso[:10],
                         "horas": dias_restantes * 24,
                     })
 
@@ -2463,15 +2502,62 @@ def cgeo_api_alertas():
                 pass
 
         if visita_meta_alerta > 0 and periodo_visita_maduro:
-            r11_conds, r11_params = _cp("id_propiedad")
-            r11_conds_hist = r11_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '30 days'",
-                                          _cliente_real_sql()]
-            cur.execute(f"""
-                SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
-                FROM supervision_puesto
-                {_where(r11_conds_hist)}
-            """, tuple(r11_params))
-            clientes_activos = [r['cliente'] for r in cur.fetchall() if r['cliente']]
+            # Catálogo de clientes activos (customer_companies + sus instalaciones en propiedades),
+            # con respaldo a supervision_puesto si el catálogo está vacío.
+            clientes_catalogo = []
+            try:
+                cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
+                cc_params = []
+                if company_id is not None:
+                    cc_conds.append("cc.company_id = %s")
+                    cc_params.append(company_id)
+                if cliente:
+                    if str(cliente).isdigit():
+                        cc_conds.append("cc.id = %s")
+                        cc_params.append(int(cliente))
+                    else:
+                        cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
+                        cc_params.append(str(cliente))
+                if propiedad and str(propiedad).isdigit():
+                    cc_conds.append(
+                        "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id = %s)"
+                    )
+                    cc_params.append(int(propiedad))
+                cur.execute(f"""
+                    SELECT cc.id, TRIM(cc.name) AS nombre,
+                           ARRAY_REMOVE(ARRAY_AGG(TRIM(p.name)), NULL) AS instalaciones
+                    FROM customer_companies cc
+                    LEFT JOIN propiedades p
+                      ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
+                    WHERE {' AND '.join(cc_conds)}
+                    GROUP BY cc.id, TRIM(cc.name)
+                    ORDER BY LOWER(TRIM(cc.name))
+                """, tuple(cc_params))
+                for r_cc in (cur.fetchall() or []):
+                    c_nom = (r_cc.get('nombre') or '').strip()
+                    if not c_nom:
+                        continue
+                    aliases = {c_nom.lower()}
+                    for inst in (r_cc.get('instalaciones') or []):
+                        if inst and str(inst).strip():
+                            aliases.add(str(inst).strip().lower())
+                    clientes_catalogo.append((c_nom, aliases))
+            except Exception:
+                clientes_catalogo = []
+
+            if not clientes_catalogo:
+                r11_conds, r11_params = _cp("id_propiedad")
+                r11_conds_hist = r11_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '30 days'",
+                                              _cliente_real_sql()]
+                cur.execute(f"""
+                    SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
+                    FROM supervision_puesto
+                    {_where(r11_conds_hist)}
+                """, tuple(r11_params))
+                for r_sp in (cur.fetchall() or []):
+                    c_nom = (r_sp.get('cliente') or '').strip()
+                    if c_nom:
+                        clientes_catalogo.append((c_nom, {c_nom.lower()}))
 
             v11_conds, v11_params = _visita_conds(cliente, None, None, None,
                                                   company_id=company_id, propiedad=propiedad)
@@ -2481,9 +2567,16 @@ def cgeo_api_alertas():
                 FROM registro_y_acta_de_visita
                 {_visita_where(v11_conds_full)}
             """, v11_params + [visita_ventana_inicio])
-            clientes_con_visita = {r['cliente'] for r in cur.fetchall() if r['cliente']}
+            visitados_norm = {
+                str(r['cliente']).strip().lower()
+                for r in (cur.fetchall() or [])
+                if r.get('cliente') and str(r['cliente']).strip()
+            }
 
-            sin_visita = [c for c in clientes_activos if c not in clientes_con_visita][:5]
+            sin_visita = [
+                c_nom for (c_nom, aliases) in clientes_catalogo
+                if not (aliases & visitados_norm)
+            ][:5]
             for cli in sin_visita:
                 alertas.append({
                     "id": f"r11_{cli}",
@@ -2694,7 +2787,7 @@ def cgeo_api_alertas():
 
         return jsonify({
             "alertas": alertas,
-            "total": len(alertas),
+            "total": sum(1 for a in alertas if a.get("color_semaforo") != "verde"),
             "rojas": sum(1 for a in alertas if a["color_semaforo"] == "rojo"),
             "naranjas": sum(1 for a in alertas if a["color_semaforo"] == "naranja"),
             "amarillas": sum(1 for a in alertas if a["color_semaforo"] == "amarillo"),
@@ -2743,11 +2836,22 @@ def cgeo_api_semaforo_global():
             _add_scope(conds, params, cliente=cliente, propiedad=propiedad)
             return conds, params
 
-        # Incidentes abiertos
+        from admin_bp import get_thresholds, _periodo_inicio_actual, calcular_supervisiones
+        thresholds = get_thresholds()
+        fecha_inicio_raw = thresholds.get('fecha_inicio_operacion')
+        try:
+            fecha_inicio = date.fromisoformat(str(fecha_inicio_raw)[:10]) if fecha_inicio_raw else None
+        except (ValueError, TypeError):
+            fecha_inicio = None
+
+        # Incidentes abiertos (respetando fecha_inicio_operacion igual que Morning Briefing)
         inc_conds, inc_params = _cp()
         inc_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')"
         ]
+        if fecha_inicio:
+            inc_conds.append("COALESCE(fecha_hora::date, creado_en::date) >= %s")
+            inc_params.append(fecha_inicio)
         cur.execute(f"""
             SELECT COUNT(*) AS total FROM reportes_incidentes {_where(inc_conds)}
         """, tuple(inc_params))
@@ -2755,8 +2859,6 @@ def cgeo_api_semaforo_global():
 
         # Supervisiones: meta configurada por el Administrador vs completadas en el
         # período vigente (día/semana/mes según la periodicidad configurada)
-        from admin_bp import get_thresholds, _periodo_inicio_actual, calcular_supervisiones
-        thresholds = get_thresholds()
         # La programación por cliente es la fuente; la meta global solo sobrevive
         # como respaldo mientras ningún cliente tenga la suya.
         _sup = calcular_supervisiones(cur, cliente=cliente, propiedad=propiedad)
@@ -2766,7 +2868,8 @@ def cgeo_api_semaforo_global():
 
         # Equipos no operativos vs flota total: último reporte por instalación
         # y tipo (ver _eq_inventario_vigente), no la suma de todos los reportes.
-        eq_conds, eq_params = _cp()
+        eq_conds, eq_params = [], []
+        _add_scope(eq_conds, eq_params, cliente=cliente, propiedad=propiedad, alias='c.')
         eq_inv = _eq_inventario_vigente(_where(eq_conds))
         cur.execute(f"""
             SELECT
@@ -2779,6 +2882,23 @@ def cgeo_api_semaforo_global():
         eq_op    = int(eq_row.get("operativos") or 0)
         eq_no_op = max(0, eq_total - eq_op)
 
+        eq_por_tipo = {}
+        try:
+            cur.execute(f"""
+                SELECT
+                    tipo,
+                    COALESCE(SUM(total), 0) AS total,
+                    COALESCE(SUM(operativos), 0) AS operativos
+                {eq_inv}
+                GROUP BY tipo
+            """, tuple(eq_params))
+            eq_por_tipo = {
+                r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
+                for r in (cur.fetchall() or []) if r.get("tipo")
+            }
+        except Exception:
+            eq_por_tipo = {}
+
         # Certificaciones próximas a vencer (≤ 30 días)
         cert_conds, cert_params = _cp()
         cert_conds += [
@@ -2790,6 +2910,78 @@ def cgeo_api_semaforo_global():
             SELECT COUNT(*) AS total FROM checklist_cumplimiento {_where(cert_conds)}
         """, tuple(cert_params))
         cert_proximas = int((cur.fetchone() or {}).get("total") or 0)
+
+        # Compromisos de visitas a clientes y meta de visitas
+        comp_vencidos = 0
+        comp_por_vencer = 0
+        visita_completadas = 0
+        visita_meta = int(thresholds.get('visita_meta') or 0)
+        visita_periodicidad = thresholds.get('visita_periodicidad') or 'mensual'
+        visita_esperadas_hoy = 0
+        visita_pct = None
+        dias_compromiso_vencer = int(thresholds.get('dias_compromiso_vencer') or 5)
+        try:
+            from dashboard_bp import (
+                _visita_date_expr, _visita_conds, _visita_where,
+                _visita_parse_compromisos, _visita_cierres_historicos, _programadas_en_lapso,
+            )
+            today = hoy_operacion()
+            company_id = _get_user_company_id(cur, get_jwt_identity())
+            v_date_expr = _visita_date_expr()
+            v_conds, v_params = _visita_conds(cliente, None, None, None,
+                                              company_id=company_id, propiedad=propiedad)
+            v_conds_full = v_conds + [f"{v_date_expr} >= {sql_ahora()} - INTERVAL '180 days'"]
+            cur.execute(f"""
+                SELECT
+                    id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
+                    temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+                    nombre_visitante, compromisos_estados, editado, editado_por, editado_en
+                FROM registro_y_acta_de_visita
+                {_visita_where(v_conds_full)}
+                ORDER BY {v_date_expr} DESC
+                LIMIT 200
+            """, v_params)
+            v_rows = cur.fetchall() or []
+            v_ids = [r['id_visita'] for r in v_rows if r.get('id_visita') is not None]
+            cierres_sg = _visita_cierres_historicos(cur, v_ids)
+            compromisos_sg = _visita_parse_compromisos(v_rows, cierres_hist=cierres_sg)
+            comp_vencidos = sum(1 for c in compromisos_sg if c['estado'] == 'vencido')
+            for c in compromisos_sg:
+                if c['estado'] == 'pendiente':
+                    fc_iso = (c.get('fecha_cumplimiento_sort') or c.get('fecha_cumplimiento') or '').strip()
+                    if not fc_iso or fc_iso == '—':
+                        continue
+                    try:
+                        dias_restantes = (date.fromisoformat(fc_iso[:10]) - today).days
+                    except ValueError:
+                        continue
+                    if 0 <= dias_restantes <= dias_compromiso_vencer:
+                        comp_por_vencer += 1
+
+            visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
+            v_period_conds_full = v_conds + [f"{v_date_expr}::date >= %s"]
+            cur.execute(f"""
+                SELECT COUNT(DISTINCT id_visita) AS total
+                FROM registro_y_acta_de_visita
+                {_visita_where(v_period_conds_full)}
+            """, v_params + [visita_periodo_inicio])
+            visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
+            ayer_visita = today - timedelta(days=1)
+            visita_ini_ef = max(visita_periodo_inicio, fecha_inicio) if fecha_inicio else visita_periodo_inicio
+            if visita_meta > 0 and ayer_visita >= visita_ini_ef:
+                visita_esperadas_hoy, _ = _programadas_en_lapso(
+                    visita_meta, visita_periodicidad, visita_ini_ef, ayer_visita
+                )
+            if visita_meta <= 0:
+                visita_pct = None
+            elif visita_completadas >= visita_meta:
+                visita_pct = 100.0
+            elif visita_esperadas_hoy <= 0:
+                visita_pct = 100.0 if visita_completadas > 0 else None
+            else:
+                visita_pct = round(min(100.0, visita_completadas / visita_esperadas_hoy * 100), 1)
+        except Exception:
+            pass
 
         return jsonify({
             "inc_abiertos": inc_abiertos,
@@ -2804,12 +2996,29 @@ def cgeo_api_semaforo_global():
             "sup_periodicidad": periodicidad,
             "eq_no_op": eq_no_op,
             "eq_total": eq_total,
+            "eq_por_tipo": eq_por_tipo,
             "cert_proximas": cert_proximas,
+            "comp_vencidos": comp_vencidos,
+            "comp_por_vencer": comp_por_vencer,
+            "visita_completadas": visita_completadas,
+            "visita_programadas": visita_meta,
+            "visita_esperadas_hoy": visita_esperadas_hoy,
+            "visita_pct": visita_pct,
+            "visita_periodicidad": visita_periodicidad,
             "thresholds": {
+                "eq_verde_max":    float(thresholds.get('equipos_verde_max', 5)),
+                "eq_amarillo_max": float(thresholds.get('equipos_amarillo_max', 15)),
                 "supervision_verde_min":    float(thresholds.get('supervision_verde_min', 90)),
                 "supervision_amarillo_min": float(thresholds.get('supervision_amarillo_min', 70)),
                 "supervision_amarillo_max": float(thresholds.get('supervision_amarillo_max', 89)),
                 "supervision_rojo_max":     float(thresholds.get('supervision_rojo_max', 70)),
+                "dias_compromiso_vencer":   dias_compromiso_vencer,
+                "visita_verde_min":    float(thresholds.get('visita_verde_min', 90)),
+                "visita_amarillo_min": float(thresholds.get('visita_amarillo_min', 70)),
+                "visita_amarillo_max": float(thresholds.get('visita_amarillo_max', 89)),
+                "visita_rojo_max":     float(thresholds.get('visita_rojo_max', 70)),
+                "visita_meta":         visita_meta,
+                "visita_periodicidad": visita_periodicidad,
             },
         })
 
@@ -2998,9 +3207,12 @@ def cgeo_api_morning_briefing_data():
         comp_vencidos = sum(1 for c in compromisos if c['estado'] == 'vencido')
         comp_por_vencer = 0
         for c in compromisos:
-            if c['estado'] == 'pendiente' and c['fecha_cumplimiento'] != '—':
+            if c['estado'] == 'pendiente':
+                fc_iso = (c.get('fecha_cumplimiento_sort') or c.get('fecha_cumplimiento') or '').strip()
+                if not fc_iso or fc_iso == '—':
+                    continue
                 try:
-                    dias_restantes = (_date.fromisoformat(c['fecha_cumplimiento']) - today).days
+                    dias_restantes = (_date.fromisoformat(fc_iso[:10]) - today).days
                 except ValueError:
                     continue
                 if 0 <= dias_restantes <= dias_compromiso_vencer:
@@ -3254,6 +3466,12 @@ def cgeo_api_operacion_data():
                 params.append(end_date)
 
         # ── Incidentes ────────────────────────────────────────────────────────
+        from dashboard_bp import (
+            _incidentes_metricas_atencion,
+            _visita_date_expr,
+            _visita_parse_compromisos,
+            _visita_cierres_historicos,
+        )
         inc_conds, inc_params = [], []
         _add_cliente(inc_conds, inc_params, cliente, propiedad=propiedad)
         _date_conds("fecha_hora", inc_conds, inc_params)
@@ -3276,12 +3494,17 @@ def cgeo_api_operacion_data():
         inc_medios  = int(inc_row.get("medios") or 0)
         inc_bajos   = int(inc_row.get("bajos") or 0)
 
+        # Métricas reales de primera atención (Pestaña 2, §4)
+        met_inc = _incidentes_metricas_atencion(cur, inc_where, tuple(inc_params))
+        sin_atender_set = set(met_inc.get("sin_atender_ids") or [])
+
         # Incidentes abiertos (resumen operativo)
         inc_ab_conds = list(inc_conds) + [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')"
         ]
         cur.execute(f"""
             SELECT
+                id_reporte_incidente AS id,
                 CAST(COALESCE(fecha_hora, creado_en) AS date) AS fecha,
                 COALESCE(NULLIF(TRIM(descripcion_incidente),''), tipo_incidente, 'Incidente') AS incidente,
                 cliente_instalacion AS cliente,
@@ -3295,28 +3518,37 @@ def cgeo_api_operacion_data():
         """, tuple(inc_params))
         inc_abiertos = [
             {
+                "id": r.get("id"),
                 "fecha": r["fecha"].isoformat() if r["fecha"] else None,
                 "incidente": r["incidente"],
                 "cliente": r["cliente"],
                 "severidad": r["severidad"],
                 "estado": r["estado"],
                 "dias_abierto": int(r["dias_abierto"]) if r["dias_abierto"] is not None else 0,
+                "sin_atender": (int(r["id"]) in sin_atender_set) if r.get("id") is not None else False,
             }
             for r in cur.fetchall()
         ]
-        inc_criticos_abiertos = sum(1 for i in inc_abiertos if i["severidad"] and "crít" in i["severidad"].lower())
 
-        # Total de abiertos sin límite (para KPI contextual)
+        # Total de abiertos y desglose por severidad sin límite (para KPI contextual)
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total_abiertos,
-                SUM(CASE WHEN ({sql_hoy()} - CAST(COALESCE(fecha_hora, creado_en) AS date)) > 0 THEN 1 ELSE 0 END) AS mas_24h
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad,''))) IN ('crítico','critico') THEN 1 ELSE 0 END) AS criticos_abiertos,
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad,''))) = 'alto' THEN 1 ELSE 0 END) AS altos_abiertos,
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad,''))) IN ('medio','moderado') THEN 1 ELSE 0 END) AS medios_abiertos,
+                SUM(CASE WHEN LOWER(TRIM(COALESCE(nivel_severidad,''))) = 'bajo' THEN 1 ELSE 0 END) AS bajos_abiertos
             FROM reportes_incidentes
             {_where(inc_ab_conds)}
         """, tuple(inc_params))
         inc_ab_row = cur.fetchone() or {}
         inc_abiertos_total = int(inc_ab_row.get("total_abiertos") or 0)
-        inc_mas_24h = int(inc_ab_row.get("mas_24h") or 0)
+        inc_criticos_abiertos = int(inc_ab_row.get("criticos_abiertos") or 0)
+        inc_altos_abiertos = int(inc_ab_row.get("altos_abiertos") or 0)
+        inc_medios_abiertos = int(inc_ab_row.get("medios_abiertos") or 0)
+        inc_bajos_abiertos = int(inc_ab_row.get("bajos_abiertos") or 0)
+        inc_sin_atender = int(met_inc.get("abiertos_sin_atender") or 0)
+        inc_mas_24h = int(met_inc.get("sin_atender_mas_24h") or 0)
 
         # Tendencia mensual de incidentes. El filtro de Supervisor ya viene en
         # inc_conds: antes se añadía sólo aquí, y por eso era el único elemento de
@@ -3346,7 +3578,8 @@ def cgeo_api_operacion_data():
             SELECT
                 AVG({_SAT_SCORE_5_SQL}) AS avg_nps,
                 COUNT(*) AS total,
-                SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT,'')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda
+                SUM(CASE WHEN LOWER(COALESCE(recomendaria_servicio::TEXT,'')) IN ('sí','si','yes','s') THEN 1 ELSE 0 END) AS recomienda,
+                SUM(CASE WHEN ({_SAT_SCORE_5_SQL}) < 3.0 THEN 1 ELSE 0 END) AS insatisfechos
             FROM medicion_experiencia_cliente
             {sat_where}
         """, tuple(sat_params))
@@ -3355,7 +3588,7 @@ def cgeo_api_operacion_data():
         sat_total = int(sat_row.get("total") or 0)
         sat_rec = int(sat_row.get("recomienda") or 0)
         sat_pct = round(min(sat_avg / 5 * 100, 100), 1) if sat_avg else None
-        sat_insatisfechos = max(sat_total - sat_rec, 0)
+        sat_insatisfechos = int(sat_row.get("insatisfechos") or 0)
 
         # Ranking clientes por satisfacción
         cur.execute(f"""
@@ -3425,12 +3658,18 @@ def cgeo_api_operacion_data():
         """, tuple(sup_params))
         sup_trend = {r["label"]: int(r["total"]) for r in cur.fetchall()}
 
-        # Supervisiones completadas hoy
+        # Supervisiones completadas hoy y contexto de programación (días cerrados)
         sup_hoy_conds = list(sup_conds) + [f"fecha_hora::date = {sql_hoy()}"]
         cur.execute(f"""
             SELECT COUNT(*) AS hoy FROM supervision_puesto {_where(sup_hoy_conds)}
         """, tuple(sup_params))
         sup_hoy = int((cur.fetchone() or {}).get("hoy") or 0)
+        sup_prog_info = {}
+        try:
+            from admin_bp import calcular_supervisiones
+            sup_prog_info = calcular_supervisiones(cur, cliente=cliente, propiedad=propiedad) or {}
+        except Exception:
+            sup_prog_info = {}
 
         # ── Capacitaciones ────────────────────────────────────────────────────
         cap_date = _capac_date()
@@ -3478,59 +3717,69 @@ def cgeo_api_operacion_data():
         disc_row = cur.fetchone() or {}
         disc_total = int(disc_row.get("total") or 0)
 
-        # ── Compromisos / visitas (resumen operativo) ─────────────────────────
+        # ── Compromisos / visitas (resumen operativo e informe ejecutivo) ─────
+        v_date_expr = _visita_date_expr()
         vis_conds, vis_params = [], []
         _add_cliente(vis_conds, vis_params, cliente, propiedad=propiedad)
-        _date_conds("fecha_hora", vis_conds, vis_params)
+        _date_conds(v_date_expr, vis_conds, vis_params)
         _add_supervisor("nombre_visitante", vis_conds, vis_params)
         vis_where = _where(vis_conds)
         compromisos_pend = []
         vis_total = vis_cumplidos = vis_pendientes = vis_vencidos = 0
+        comp_en_plazo = comp_fuera_plazo = comp_evaluados = 0
+        comp_pct_en_plazo = None
+        comp_total_acuerdos = 0
         try:
-            # Aggregate counts for visitas KPI card
             cur.execute(f"""
                 SELECT
-                    COUNT(*) AS total,
-                    SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,'')))
-                        IN ('cumplido','completado','cumplida','completada') THEN 1 ELSE 0 END) AS cumplidos,
-                    SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,'')))
-                        IN ('vencido','vencida','expirado','expirada') THEN 1 ELSE 0 END) AS vencidos,
-                    SUM(CASE WHEN LOWER(TRIM(COALESCE(estado,'')))
-                        NOT IN ('cumplido','completado','cumplida','completada',
-                                'vencido','vencida','expirado','expirada') THEN 1 ELSE 0 END) AS pendientes
+                    id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
+                    temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+                    nombre_visitante, compromisos_estados, editado, editado_por, editado_en
                 FROM registro_y_acta_de_visita
                 {vis_where}
+                ORDER BY {v_date_expr} DESC NULLS LAST, id_visita DESC
             """, tuple(vis_params))
-            vis_row = cur.fetchone() or {}
-            vis_total      = int(vis_row.get("total")      or 0)
-            vis_cumplidos  = int(vis_row.get("cumplidos")  or 0)
-            vis_vencidos   = int(vis_row.get("vencidos")   or 0)
-            vis_pendientes = int(vis_row.get("pendientes") or 0)
+            vis_rows = cur.fetchall() or []
+            vis_total = len(vis_rows)
+            ids_vis = [r['id_visita'] for r in vis_rows if r.get('id_visita') is not None]
+            cierres_hist = _visita_cierres_historicos(cur, ids_vis)
+            acuerdos = _visita_parse_compromisos(vis_rows, cierres_hist=cierres_hist)
+            comp_total_acuerdos = len(acuerdos)
+            comp_en_plazo = sum(1 for c in acuerdos if c.get('evaluado') and c.get('en_plazo'))
+            comp_fuera_plazo = sum(1 for c in acuerdos if c.get('evaluado') and not c.get('en_plazo') and c.get('estado') == 'cumplido')
+            vis_vencidos = sum(1 for c in acuerdos if c.get('estado') == 'vencido')
+            vis_pendientes = sum(1 for c in acuerdos if c.get('estado') == 'pendiente')
+            vis_cumplidos = comp_en_plazo
+            comp_evaluados = comp_en_plazo + comp_fuera_plazo + vis_vencidos
+            comp_pct_en_plazo = round(comp_en_plazo / comp_evaluados * 100, 1) if comp_evaluados > 0 else None
 
-            cur.execute(f"""
-                SELECT
-                    CAST(COALESCE(fecha_hora, creado_en) AS date) AS fecha_compromiso,
-                    COALESCE(NULLIF(TRIM(motivo_visita),''), 'Visita') AS compromiso,
-                    cliente_instalacion AS cliente,
-                    COALESCE(estado, 'Pendiente') AS estado,
-                    ({sql_hoy()} - CAST(COALESCE(fecha_hora, creado_en) AS date)) AS dias_retraso
-                FROM registro_y_acta_de_visita
-                {vis_where}
-                ORDER BY COALESCE(fecha_hora, creado_en) DESC
-                LIMIT 10
-            """, tuple(vis_params))
-            compromisos_pend = [
-                {
-                    "fecha": r["fecha_compromiso"].isoformat() if r["fecha_compromiso"] else None,
-                    "compromiso": r["compromiso"],
-                    "cliente": r["cliente"],
-                    "estado": r["estado"],
-                    "dias_retraso": int(r["dias_retraso"]) if r["dias_retraso"] is not None else 0,
-                }
-                for r in cur.fetchall()
-            ]
-        except Exception:
-            pass
+            hoy_op = hoy_operacion()
+            abiertos_comp = []
+            for c in acuerdos:
+                if c.get('estado') not in ('vencido', 'pendiente'):
+                    continue
+                fc_sort = (c.get('fecha_cumplimiento_sort') or '').strip()
+                dias_retraso = 0
+                if fc_sort:
+                    try:
+                        fl = date.fromisoformat(fc_sort[:10])
+                        dias_retraso = (hoy_op - fl).days
+                    except ValueError:
+                        dias_retraso = 0
+                abiertos_comp.append({
+                    "id_visita": c.get("id_visita"),
+                    "bloque_idx": c.get("bloque_idx"),
+                    "fecha": c.get("fecha_cumplimiento") if c.get("fecha_cumplimiento") != "—" else c.get("fecha_sort"),
+                    "compromiso": c.get("acuerdo") or c.get("tema") or "Compromiso",
+                    "responsable": c.get("responsable") or "Por definir",
+                    "cliente": c.get("cliente") or "—",
+                    "estado": "Vencido" if c.get("estado") == "vencido" else "En plazo",
+                    "dias_retraso": dias_retraso,
+                })
+            abiertos_comp.sort(key=lambda x: (-x["dias_retraso"], x.get("fecha") or ""))
+            compromisos_pend = abiertos_comp[:20]
+        except Exception as vis_err:
+            app_logger.warning(f"cgeo_api_operacion_data: visitas/compromisos error: {vis_err}")
 
         # ── Unified trend labels ──────────────────────────────────────────────
         all_labels = sorted(set(list(inc_trend) + list(sat_trend) + list(sup_trend) + list(cap_trend)))
@@ -3538,29 +3787,28 @@ def cgeo_api_operacion_data():
         # ── Acciones recomendadas (resumen operativo) ─────────────────────────
         acciones = []
         if inc_criticos_abiertos:
-            acciones.append(f"Cerrar {inc_criticos_abiertos} incidentes críticos abiertos.")
-        if len(compromisos_pend):
-            acciones.append(f"Gestionar {len(compromisos_pend)} compromisos pendientes.")
+            acciones.append(f"Atender o cerrar {inc_criticos_abiertos} incidente{'s' if inc_criticos_abiertos != 1 else ''} crítico{'s' if inc_criticos_abiertos != 1 else ''} abierto{'s' if inc_criticos_abiertos != 1 else ''}.")
+        if inc_mas_24h:
+            acciones.append(f"Dar primera atención a {inc_mas_24h} incidente{'s' if inc_mas_24h != 1 else ''} abierto{'s' if inc_mas_24h != 1 else ''} con más de 24 h sin gestión.")
+        if vis_vencidos:
+            acciones.append(f"Gestionar {vis_vencidos} compromiso{'s' if vis_vencidos != 1 else ''} de visita vencido{'s' if vis_vencidos != 1 else ''}.")
+        elif vis_pendientes:
+            acciones.append(f"Dar seguimiento a {vis_pendientes} compromiso{'s' if vis_pendientes != 1 else ''} de visita en plazo.")
         if sat_insatisfechos:
-            acciones.append(f"Dar seguimiento a {sat_insatisfechos} clientes insatisfechos.")
-        if cap_total == 0:
-            acciones.append("Programar capacitaciones para el período seleccionado.")
-        if disc_total:
-            acciones.append(f"Dar cierre a {disc_total} reportes disciplinarios.")
+            acciones.append(f"Dar seguimiento a {sat_insatisfechos} encuesta{'s' if sat_insatisfechos != 1 else ''} con satisfacción baja (< 3.0/5).")
 
         # ── Novedades destacadas ──────────────────────────────────────────────
         novedades = []
-        if inc_criticos:
-            novedades.append({"label": "Incidentes críticos abiertos", "value": inc_criticos, "color": "red"})
+        if inc_criticos_abiertos:
+            novedades.append({"label": "Incidentes críticos abiertos", "value": inc_criticos_abiertos, "color": "red"})
+        if inc_mas_24h:
+            novedades.append({"label": "Incidentes abiertos >24h sin atención", "value": inc_mas_24h, "color": "orange"})
         if sat_insatisfechos:
-            novedades.append({"label": "Clientes insatisfechos", "value": sat_insatisfechos, "color": "red"})
-        if len(compromisos_pend):
-            vencidos = sum(1 for c in compromisos_pend if c["dias_retraso"] > 0)
-            pend = sum(1 for c in compromisos_pend if c["dias_retraso"] <= 0)
-            if vencidos:
-                novedades.append({"label": "Compromisos vencidos", "value": vencidos, "color": "red"})
-            if pend:
-                novedades.append({"label": "Compromisos pendientes", "value": pend, "color": "yellow"})
+            novedades.append({"label": "Encuestas con satisfacción baja (<3.0)", "value": sat_insatisfechos, "color": "red"})
+        if vis_vencidos:
+            novedades.append({"label": "Compromisos vencidos", "value": vis_vencidos, "color": "red"})
+        if vis_pendientes:
+            novedades.append({"label": "Compromisos en plazo", "value": vis_pendientes, "color": "yellow"})
         if cap_total:
             novedades.append({"label": "Capacitaciones realizadas", "value": cap_total, "color": "green"})
 
@@ -3572,9 +3820,16 @@ def cgeo_api_operacion_data():
                 "medios": inc_medios,
                 "bajos": inc_bajos,
                 "criticos_abiertos": inc_criticos_abiertos,
+                "altos_abiertos": inc_altos_abiertos,
+                "medios_abiertos": inc_medios_abiertos,
+                "bajos_abiertos": inc_bajos_abiertos,
                 "abiertos": inc_abiertos,
                 "abiertos_total": inc_abiertos_total,
+                "abiertos_sin_atender": inc_sin_atender,
+                "abiertos_en_gestion": max(0, inc_abiertos_total - inc_sin_atender),
                 "mas_24h": inc_mas_24h,
+                "mediana_atencion_h": met_inc.get("mediana_horas"),
+                "p80_atencion_h": met_inc.get("p80_horas"),
             },
             "satisfaccion": {
                 "pct": sat_pct,
@@ -3589,6 +3844,12 @@ def cgeo_api_operacion_data():
                 "excelente": sup_excelente,
                 "seguimiento": sup_seguimiento,
                 "critico": sup_critico,
+                "programadas": int(sup_prog_info.get("programadas") or 0),
+                "completadas_ventana": int(sup_prog_info.get("contadas") or 0),
+                "realizadas_ventana": int(sup_prog_info.get("realizadas") or 0),
+                "pct_cumplimiento": sup_prog_info.get("pct"),
+                "ayer": int(sup_prog_info.get("ayer") or 0),
+                "periodo_label": sup_prog_info.get("periodo_label") or "",
             },
             "capacitaciones": {
                 "total": cap_total,
@@ -3600,8 +3861,13 @@ def cgeo_api_operacion_data():
             "visitas": {
                 "total": vis_total,
                 "cumplidos": vis_cumplidos,
+                "cumplidos_fuera_plazo": comp_fuera_plazo,
                 "pendientes": vis_pendientes,
                 "vencidos": vis_vencidos,
+                "comp_en_plazo": comp_en_plazo,
+                "comp_evaluados": comp_evaluados,
+                "comp_pct_en_plazo": comp_pct_en_plazo,
+                "comp_total": comp_total_acuerdos,
             },
             "ranking_satisfaccion": ranking,
             "novedades": novedades,
