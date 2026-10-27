@@ -1919,12 +1919,73 @@ def cgeo_api_alertas():
             _add_scope(conds, params, cliente=cliente, propiedad=propiedad)
             return conds, params
 
-        # ── REGLA 1: Puesto sin supervisión > 48 h ────────────────────────────
+        from admin_bp import get_thresholds, _periodo_inicio_actual, get_supervision_programacion
+        alertas_thresholds = get_thresholds()
+
+        # Programación de supervisiones por cliente/instalación: alinea las
+        # Reglas 1 y 3 con la tarjeta de Supervisiones (el día de hoy está "en
+        # curso" y los clientes semanales/mensuales se evalúan con su ventana).
+        _prog_por_cliente = {}
+        _prop_a_cliente = {}
+        _nombre_a_cliente = {}
+        try:
+            for _p in (get_supervision_programacion(cur) or []):
+                if _p.get('id') is not None:
+                    _prog_por_cliente[int(_p['id'])] = _p
+                    if _p.get('name'):
+                        _nombre_a_cliente[str(_p['name']).strip().lower()] = int(_p['id'])
+            cur.execute("""
+                SELECT p.id_propiedad, LOWER(TRIM(p.nombre)) AS prop_nombre,
+                       p.customer_company_id, LOWER(TRIM(cc.name)) AS cli_nombre
+                FROM propiedades p
+                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
+            """)
+            for _row in (cur.fetchall() or []):
+                _cid = _row.get('customer_company_id')
+                if _cid is not None:
+                    if _row.get('id_propiedad') is not None:
+                        _prop_a_cliente[int(_row['id_propiedad'])] = int(_cid)
+                    if _row.get('prop_nombre'):
+                        _nombre_a_cliente[_row['prop_nombre']] = int(_cid)
+                    if _row.get('cli_nombre'):
+                        _nombre_a_cliente[_row['cli_nombre']] = int(_cid)
+        except Exception:
+            pass
+
+        _sup_meta_global = int(alertas_thresholds.get('supervision_meta') or 0)
+        _sup_per_global = alertas_thresholds.get('supervision_periodicidad') or 'diario'
+
+        def _periodicidad_puesto(puesto_nombre, prop_id=None):
+            cid = None
+            if prop_id is not None:
+                try:
+                    cid = _prop_a_cliente.get(int(prop_id))
+                except (ValueError, TypeError):
+                    cid = None
+            if cid is None and puesto_nombre:
+                cid = _nombre_a_cliente.get(str(puesto_nombre).strip().lower())
+            if cid is not None and cid in _prog_por_cliente:
+                p = _prog_por_cliente[cid]
+                if int(p.get('meta') or 0) > 0:
+                    return p.get('periodicidad') or 'semanal'
+                if _sup_meta_global > 0:
+                    return _sup_per_global
+                return 'sin_programacion'
+            return _sup_per_global
+
+        _UMBRAL_R1_HORAS = {
+            'diario': (48.0, '48 h'),
+            'semanal': (168.0, '7 días'),
+            'mensual': (720.0, '30 días'),
+        }
+
+        # ── REGLA 1: Puesto con atraso crítico de supervisión (> umbral según periodicidad) ──
         r1_conds, r1_params = _cp("id_propiedad")
         r1_conds.append(_cliente_real_sql())
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
+                MAX(id_propiedad) AS prop_id,
                 MAX(fecha_hora) AS ultima_sup,
                 EXTRACT(EPOCH FROM ({sql_ahora()} - MAX(fecha_hora))) / 3600 AS horas,
                 MAX(id_supervision) AS last_id
@@ -1933,21 +1994,34 @@ def cgeo_api_alertas():
             GROUP BY TRIM(cliente_instalacion)
             HAVING MAX(fecha_hora) < {sql_ahora()} - INTERVAL '48 hours'
             ORDER BY MAX(fecha_hora) ASC
-            LIMIT 5
+            LIMIT 25
         """, tuple(r1_params))
+        puestos_r1 = set()
+        r1_count = 0
         for r in cur.fetchall():
+            puesto = r.get("puesto") or ""
+            per_puesto = _periodicidad_puesto(puesto, r.get("prop_id"))
+            if per_puesto == 'sin_programacion':
+                continue
+            umbral_h, umbral_label = _UMBRAL_R1_HORAS.get(per_puesto, (48.0, '48 h'))
             h = float(r["horas"] or 0)
+            if h < umbral_h:
+                continue
+            puestos_r1.add(puesto)
+            if r1_count >= 5:
+                continue
+            r1_count += 1
             dias = round(h / 24, 1)
-            texto = (f'"{r["puesto"]}" sin supervisión hace {int(h)}h'
+            texto = (f'"{puesto}" sin supervisión hace {int(h)}h'
                      if h < 48 else
-                     f'"{r["puesto"]}" sin supervisión hace {dias} días')
+                     f'"{puesto}" sin supervisión hace {dias} días')
             ultima_txt = r["ultima_sup"].strftime('%d/%m/%Y %H:%M') if r["ultima_sup"] else 'sin registro previo'
             alertas.append({
-                "id": f"r1_{r['puesto']}",
+                "id": f"r1_{puesto}",
                 "regla": 1,
                 "texto": texto,
-                "motivo": (f'Supervisión pendiente. La instalación "{r["puesto"]}" lleva {dias} días '
-                           f'sin registrar una supervisión (umbral: 48 h). '
+                "motivo": (f'Supervisión pendiente. La instalación "{puesto}" lleva {dias} días '
+                           f'sin registrar una supervisión (umbral {per_puesto}: {umbral_label}). '
                            f'Última supervisión: {ultima_txt}.'),
                 "accion": "Ver última supervisión",
                 "ruta_navegacion": f"/dashboard/supervision/?id={r['last_id']}",
@@ -1998,16 +2072,20 @@ def cgeo_api_alertas():
                 "responsable_asignado": r["responsable_asignado"],
             })
 
-        # ── REGLA 3: Cliente con historial reciente pero sin supervisión hoy ──
-        # Proxy: clientes supervisados en los últimos 7 días pero NO hoy.
+        # ── REGLA 3: Aviso preventivo al cierre de ayer (sin duplicar Regla 1 ni castigar hoy "En curso") ──
+        # El día de hoy está en curso (igual que en la tarjeta de Supervisiones), por lo que un puesto
+        # supervisado ayer está al día. Solo alerta de forma preventiva (amarillo) cuando un puesto de
+        # supervisión diaria cerró ayer sin supervisión y aún no supera las 48 h críticas de la Regla 1.
         r3_conds, r3_params = _cp("id_propiedad")
         r3_conds.append(_cliente_real_sql())
         r3_conds_hist = r3_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '7 days'"]
-        r3_conds_hoy  = r3_conds + [f"fecha_hora::date = {sql_hoy()}"]
+        r3_conds_reciente = r3_conds + [f"fecha_hora::date >= {sql_hoy()} - INTERVAL '1 day'"]
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
+                MAX(id_propiedad) AS prop_id,
                 MAX(fecha_hora) AS ultima_sup,
+                EXTRACT(EPOCH FROM ({sql_ahora()} - MAX(fecha_hora))) / 3600 AS horas,
                 MAX(id_supervision) AS last_id
             FROM supervision_puesto
             {_where(r3_conds_hist)}
@@ -2015,29 +2093,39 @@ def cgeo_api_alertas():
             HAVING TRIM(cliente_instalacion) NOT IN (
                 SELECT TRIM(cliente_instalacion)
                 FROM supervision_puesto
-                {_where(r3_conds_hoy)}
+                {_where(r3_conds_reciente)}
             )
             ORDER BY MAX(fecha_hora) ASC
-            LIMIT 5
+            LIMIT 25
         """, tuple(r3_params + r3_params))
+        r3_count = 0
         for r in cur.fetchall():
             puesto = r['puesto'] or ''
+            if puesto in puestos_r1:
+                continue
+            if _periodicidad_puesto(puesto, r.get('prop_id')) != 'diario':
+                continue
+            h_r3 = float(r.get("horas") or 0)
+            if h_r3 >= 48.0:
+                continue
+            if r3_count >= 5:
+                break
+            r3_count += 1
             ultima_txt = r["ultima_sup"].strftime('%d/%m/%Y %H:%M') if r["ultima_sup"] else '—'
             alertas.append({
                 "id": f"r3_{puesto}",
                 "regla": 3,
-                "texto": f"Puesto \"{puesto}\" sin supervisión registrada hoy",
-                "motivo": (f'Supervisión no realizada hoy. "{puesto}" tiene actividad en los últimos '
-                           f'7 días pero no registra ninguna supervisión con fecha de hoy. '
-                           f'La última fue el {ultima_txt}.'),
+                "texto": f"Puesto \"{puesto}\" sin supervisión al cierre de ayer",
+                "motivo": (f'Aviso preventivo de supervisión. "{puesto}" tiene programación diaria y actividad '
+                           f'en los últimos 7 días, pero cerró el día de ayer sin supervisión registrada '
+                           f'(el día de hoy sigue en curso). La última fue el {ultima_txt}.'),
                 "accion": "Ver última supervisión",
-                # Antes apuntaba al dashboard: hay un registro concreto que abrir.
                 "ruta_navegacion": f"/dashboard/supervision/?id={r['last_id']}",
                 "record_id": r["last_id"],
                 "form_type": "supervision_puesto",
-                "color_semaforo": "rojo",
+                "color_semaforo": "amarillo",
                 "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
-                "horas": None,
+                "horas": round(h_r3, 1) if h_r3 else None,
             })
 
         # ── REGLA 4: Certificación próxima a vencer (≤ 30 días) ──────────────
@@ -2289,9 +2377,7 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 9/10: Compromisos de visitas a clientes (vencidos / próximos) ──
-        from admin_bp import get_thresholds, _periodo_inicio_actual
         from dashboard_bp import _visita_date_expr, _visita_conds, _visita_where, _visita_parse_compromisos
-        alertas_thresholds = get_thresholds()
         dias_compromiso_vencer = int(alertas_thresholds.get('dias_compromiso_vencer') or 5)
 
         company_id = _get_user_company_id(cur, get_jwt_identity())
@@ -2360,48 +2446,61 @@ def cgeo_api_alertas():
                         "horas": dias_restantes * 24,
                     })
 
-        # ── REGLA 11: Cliente activo sin visita en el período configurado ────
+        # ── REGLA 11: Cliente activo sin visita en la ventana móvil del período ────
+        visita_meta_alerta = int(alertas_thresholds.get('visita_meta') or 0)
         visita_periodicidad = alertas_thresholds.get('visita_periodicidad') or 'mensual'
         visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
+        dias_ventana_visita = 30 if visita_periodicidad == 'mensual' else (7 if visita_periodicidad == 'semanal' else 1)
+        visita_ventana_inicio = min(visita_periodo_inicio, today - timedelta(days=dias_ventana_visita))
+        inicio_op_raw = alertas_thresholds.get('fecha_inicio_operacion')
+        periodo_visita_maduro = True
+        if inicio_op_raw:
+            try:
+                inicio_op_date = date.fromisoformat(str(inicio_op_raw)[:10])
+                if (today - inicio_op_date).days < max(1, dias_ventana_visita // 2):
+                    periodo_visita_maduro = False
+            except ValueError:
+                pass
 
-        r11_conds, r11_params = _cp("id_propiedad")
-        r11_conds_hist = r11_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '30 days'",
-                                      _cliente_real_sql()]
-        cur.execute(f"""
-            SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
-            FROM supervision_puesto
-            {_where(r11_conds_hist)}
-        """, tuple(r11_params))
-        clientes_activos = [r['cliente'] for r in cur.fetchall() if r['cliente']]
+        if visita_meta_alerta > 0 and periodo_visita_maduro:
+            r11_conds, r11_params = _cp("id_propiedad")
+            r11_conds_hist = r11_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '30 days'",
+                                          _cliente_real_sql()]
+            cur.execute(f"""
+                SELECT DISTINCT TRIM(cliente_instalacion) AS cliente
+                FROM supervision_puesto
+                {_where(r11_conds_hist)}
+            """, tuple(r11_params))
+            clientes_activos = [r['cliente'] for r in cur.fetchall() if r['cliente']]
 
-        v11_conds, v11_params = _visita_conds(cliente, None, None, None,
-                                              company_id=company_id, propiedad=propiedad)
-        v11_conds_full = v11_conds + [f"{v_date_expr}::date >= %s"]
-        cur.execute(f"""
-            SELECT DISTINCT cliente_instalacion AS cliente
-            FROM registro_y_acta_de_visita
-            {_visita_where(v11_conds_full)}
-        """, v11_params + [visita_periodo_inicio])
-        clientes_con_visita = {r['cliente'] for r in cur.fetchall() if r['cliente']}
+            v11_conds, v11_params = _visita_conds(cliente, None, None, None,
+                                                  company_id=company_id, propiedad=propiedad)
+            v11_conds_full = v11_conds + [f"{v_date_expr}::date >= %s"]
+            cur.execute(f"""
+                SELECT DISTINCT cliente_instalacion AS cliente
+                FROM registro_y_acta_de_visita
+                {_visita_where(v11_conds_full)}
+            """, v11_params + [visita_ventana_inicio])
+            clientes_con_visita = {r['cliente'] for r in cur.fetchall() if r['cliente']}
 
-        sin_visita = [c for c in clientes_activos if c not in clientes_con_visita][:5]
-        for cli in sin_visita:
-            alertas.append({
-                "id": f"r11_{cli}",
-                "regla": 11,
-                "texto": f"Cliente \"{cli}\" sin visita registrada en el período ({visita_periodicidad})",
-                "motivo": (f'Visita a cliente pendiente. "{cli}" tiene operación activa pero no registra '
-                           f'ninguna visita en el período vigente ({visita_periodicidad}, desde el '
-                           f'{visita_periodo_inicio:%d/%m/%Y}).'),
-                "accion": "Registrar visita",
-                # No hay registro que abrir: la visita todavía no existe. La acción
-                # lleva al formulario que la crea, con el cliente ya seleccionado,
-                # en vez de dejar al Administrador en el dashboard.
-                "ruta_navegacion": f"/forms/registro_y_acta_de_visita?cliente={_quote(cli)}",
-                "color_semaforo": "amarillo",
-                "timestamp": today.isoformat(),
-                "horas": None,
-            })
+            sin_visita = [c for c in clientes_activos if c not in clientes_con_visita][:5]
+            for cli in sin_visita:
+                alertas.append({
+                    "id": f"r11_{cli}",
+                    "regla": 11,
+                    "texto": f"Cliente \"{cli}\" sin visita en los últimos {dias_ventana_visita} días ({visita_periodicidad})",
+                    "motivo": (f'Visita a cliente pendiente. "{cli}" tiene operación activa pero no registra '
+                               f'ninguna visita en los últimos {dias_ventana_visita} días (periodicidad '
+                               f'{visita_periodicidad}, desde el {visita_ventana_inicio:%d/%m/%Y}).'),
+                    "accion": "Registrar visita",
+                    # No hay registro que abrir: la visita todavía no existe. La acción
+                    # lleva al formulario que la crea, con el cliente ya seleccionado,
+                    # en vez de dejar al Administrador en el dashboard.
+                    "ruta_navegacion": f"/forms/registro_y_acta_de_visita?cliente={_quote(cli)}",
+                    "color_semaforo": "amarillo",
+                    "timestamp": today.isoformat(),
+                    "horas": None,
+                })
 
         # ── REGLA 13: estado del Backup de Información ───────────────────────
         # Permanente: siempre informa, aunque esté al día. A diferencia del resto,
@@ -2566,8 +2665,22 @@ def cgeo_api_alertas():
                 app_logger.warning(f"cgeo_api_alertas: alertas de seguridad omitidas: {seg_err}")
 
         # ── Ordenar: ROJO, luego NARANJA (Prioritaria), luego AMARILLO; ──────
-        # dentro de cada color por timestamp ascendente (más antiguo = más urgente).
-        prioridad = {"rojo": 0, "naranja": 1, "amarillo": 2}
+        # dentro de cada color se prioriza primero por criticidad operativa de la
+        # regla (para que incidentes abiertos, seguridad, faltas graves o clientes
+        # en riesgo no queden ocultos detrás de alertas rutinarias antiguas en el
+        # Top 5 del Morning Briefing) y luego por timestamp ascendente.
+        prioridad = {"rojo": 0, "naranja": 1, "amarillo": 2, "verde": 3}
+
+        def _prioridad_operativa(a):
+            regla = a.get("regla")
+            if regla in (2, 15) or a.get("seguridad") or a.get("asignacion"):
+                return 0
+            if regla in (19, 17, 14):
+                return 1
+            if regla in (1, 3, 5, 18, 8):
+                return 2
+            return 3
+
         # Coordinador: el backup y la seguridad de acceso no son de su ámbito.
         if ambito is not None:
             alertas = [a for a in alertas
@@ -2575,6 +2688,7 @@ def cgeo_api_alertas():
 
         alertas.sort(key=lambda a: (
             prioridad.get(a["color_semaforo"], 9),
+            _prioridad_operativa(a),
             a["timestamp"] or "9999",
         ))
 
@@ -2893,6 +3007,7 @@ def cgeo_api_morning_briefing_data():
                     comp_por_vencer += 1
 
         # ── Visitas a clientes: meta configurada vs completadas en el período ──
+        from dashboard_bp import _programadas_en_lapso
         visita_meta = int(thresholds.get('visita_meta') or 0)
         visita_periodicidad = thresholds.get('visita_periodicidad') or 'mensual'
         visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
@@ -2904,6 +3019,22 @@ def cgeo_api_morning_briefing_data():
             {_visita_where(v_period_conds_full)}
         """, v_period_params + [visita_periodo_inicio])
         visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
+        ayer_visita = today - timedelta(days=1)
+        visita_ini_ef = max(visita_periodo_inicio, fecha_inicio) if fecha_inicio else visita_periodo_inicio
+        if visita_meta > 0 and ayer_visita >= visita_ini_ef:
+            visita_esperadas_hoy, _ = _programadas_en_lapso(
+                visita_meta, visita_periodicidad, visita_ini_ef, ayer_visita
+            )
+        else:
+            visita_esperadas_hoy = 0
+        if visita_meta <= 0:
+            visita_pct = None
+        elif visita_completadas >= visita_meta:
+            visita_pct = 100.0
+        elif visita_esperadas_hoy <= 0:
+            visita_pct = 100.0 if visita_completadas > 0 else None
+        else:
+            visita_pct = round(min(100.0, visita_completadas / visita_esperadas_hoy * 100), 1)
 
         # ── Tendencia supervisiones — últimos 7 días CERRADOS ─────────────────
         # Ajuste KANAN Fase 1 (2026-10-09): la misma ventana que la tarjeta
@@ -2964,6 +3095,8 @@ def cgeo_api_morning_briefing_data():
                 'nombre': c['nombre'],
                 'instalaciones': c['instalaciones'],
                 'ejes_con_datos': c['ejes_con_datos'],
+                'nota': c.get('nota'),
+                'estado_cobertura': c.get('estado_cobertura'),
             } for c in sin_calificar]
             for c in calificados:
                 nota = c.get('nota')
@@ -3024,6 +3157,9 @@ def cgeo_api_morning_briefing_data():
                 "comp_por_vencer": comp_por_vencer,
                 "visita_completadas": visita_completadas,
                 "visita_programadas": visita_meta,
+                "visita_esperadas_hoy": visita_esperadas_hoy,
+                "visita_pct": visita_pct,
+                "visita_periodicidad": visita_periodicidad,
             },
             "clientes_en_riesgo": {
                 "total": len(clientes_en_riesgo),

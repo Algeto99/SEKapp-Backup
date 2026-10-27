@@ -2720,6 +2720,22 @@ _ESTATUS_SEV_ALTA = "('alto', 'critico', 'crítico')"
 # cero — se ven en el desglose, pero no mueven la nota del cliente.
 _ESTATUS_SIN_INST = '__sin_instalacion__'
 
+# Cobertura mínima de ejes con información (R1):
+# - 3 o 4 ejes: Calificado (nota, estado, ranking y semáforo)
+# - 2 ejes:     Preliminar (nota en gris con su base; sin Crítico/Óptimo; fuera del ranking)
+# - 0 o 1 eje:  Sin calificar (sin nota)
+_ESTATUS_MIN_CALIFICADO = 3
+_ESTATUS_MIN_PRELIMINAR = 2
+
+
+def _estatus_estado_cobertura(ejes_con_datos, peso_calificado=1):
+    """Clasifica el estado del cliente según cuántos ejes tienen información (R1)."""
+    if not peso_calificado or ejes_con_datos < _ESTATUS_MIN_PRELIMINAR:
+        return 'sin_calificar'
+    if ejes_con_datos < _ESTATUS_MIN_CALIFICADO:
+        return 'preliminar'
+    return 'calificado'
+
 
 def _estatus_pct(parte, total):
     """Porcentaje 0-100 con una decimal, o None si no hay denominador."""
@@ -2899,14 +2915,19 @@ def _estatus_perdidas(componentes):
     """Puntos que cada componente le resta a su eje, sobre una escala de 100.
 
     Solo entran los que tienen dato y están por debajo del 100%: un componente
-    sin información no está bajando nada, simplemente no se midió.
+    sin información no está bajando nada, simplemente no se midió, y su peso se
+    redistribuye entre los subcomponentes con dato (igual que en _estatus_promedio).
     """
+    peso_activo = sum(peso for _, valor, peso, _, _ in componentes if valor is not None and peso > 0)
+    if peso_activo <= 0:
+        return []
     salida = []
     for etiqueta, valor, peso, texto, route in componentes:
-        if valor is None or valor >= 100:
+        if valor is None or valor >= 100 or peso <= 0:
             continue
+        peso_ef = peso / peso_activo * 100
         salida.append({'etiqueta': etiqueta, 'texto': f"{_estatus_num(valor)}%",
-                       'puntos': round((100 - valor) * peso / 100, 1),
+                       'puntos': round((100 - valor) * peso_ef / 100, 1),
                        'contexto': texto, 'route': route})
     return salida
 
@@ -2997,9 +3018,9 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
         score_ev = max(0.0, 100.0 - descuento)
     else:
         # Sin registros no hay información que valorar: la ausencia de
-        # incidentes no equivale a una calificación perfecta.
+        # incidentes no equivale a una calificación perfecta (R1).
         score_ev = None
-        det_inc = 'Sin incidentes registrados en el período'
+        det_inc = 'Sin incidentes en el período'
     perdidas_inc = []
     if datos['inc_total']:
         # El descuento ya está desglosado por severidad: cada tramo se reporta
@@ -3020,17 +3041,21 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
                           f" sobre el umbral de {umbral_horas:g} h"),
                 'puntos': 10.0, 'route': '/dashboard/incidentes/'})
     ejes['eventos'] = {'score': score_ev, 'detalle': det_inc,
+                       'sin_incidentes': not bool(datos['inc_total']),
                        'componentes': [], 'perdidas': perdidas_inc}
 
     salida = []
     for key, nombre, fuentes in _ESTATUS_EJES_META:
         e = ejes[key]
-        salida.append({
+        item = {
             'key': key, 'nombre': nombre, 'fuentes': fuentes,
             'score': e['score'], 'detalle': e['detalle'],
             'componentes': e['componentes'], 'peso': pesos.get(key, 0),
             'perdidas': e.get('perdidas', []),
-        })
+        }
+        if 'sin_incidentes' in e:
+            item['sin_incidentes'] = e['sin_incidentes']
+        salida.append(item)
     return salida
 
 
@@ -3275,27 +3300,42 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
         })
 
     # ── Desglose del cliente: cada eje ponderado por puestos ─────────────
+    total_inc_cliente = sum(int((inc.get(i['id']) or {}).get('total') or 0)
+                            for i in unidades if i['peso'] > 0)
     salida_ejes = []
     for key, nombre, fuentes in _ESTATUS_EJES_META:
         pares = acumulado[key]
         score = (round(sum(v * p for v, p in pares) / sum(p for _, p in pares), 1)
                  if pares else None)
         con = [i for i in detalle_instalaciones if i['ejes'].get(key) is not None]
-        salida_ejes.append({
+        sin_inc = (key == 'eventos' and total_inc_cliente == 0)
+        eje_item = {
             'key': key, 'nombre': nombre, 'fuentes': fuentes,
             'score': score, 'peso': pesos.get(key, 0),
             'componentes': [],
             'detalle': (f"Promedio ponderado de {len(con)} instalación(es)"
-                        if score is not None else 'Sin información en el período'),
-        })
+                        if score is not None
+                        else ('Sin incidentes en el período' if sin_inc
+                              else 'Sin información en el período')),
+        }
+        if key == 'eventos':
+            eje_item['sin_incidentes'] = sin_inc
+        salida_ejes.append(eje_item)
     ejes_con_datos = sum(1 for e in salida_ejes if e['score'] is not None)
-    suficiente = ejes_con_datos >= 2 and peso_calificado > 0
+    estado_cobertura = _estatus_estado_cobertura(ejes_con_datos, peso_calificado)
+    calificado = (estado_cobertura == 'calificado')
+    preliminar = (estado_cobertura == 'preliminar')
+    suficiente = estado_cobertura in ('calificado', 'preliminar')
     peso_ejes = sum(e['peso'] for e in salida_ejes if e['score'] is not None) if suficiente else 0
     for e in salida_ejes:
         e['peso_efectivo'] = (round(e['peso'] / peso_ejes * 100, 1)
                               if (e['score'] is not None and peso_ejes > 0) else 0)
 
     score = round(aporte_total / peso_calificado, 1) if suficiente else None
+    faltan_ejes = max(0, _ESTATUS_MIN_CALIFICADO - ejes_con_datos) if not calificado else 0
+    ejes_faltantes = ([e['nombre'] for e in salida_ejes
+                       if e['score'] is None and not e.get('sin_incidentes')]
+                      if not calificado else [])
 
     # ── ¿Qué está bajando la calificación? ───────────────────────────────────
     # El impacto se expresa en puntos de la nota final: pérdida dentro del eje,
@@ -3313,6 +3353,11 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
 
     return {
         'score': score,
+        'estado_cobertura': estado_cobertura,
+        'calificado': calificado,
+        'preliminar': preliminar,
+        'faltan_ejes': faltan_ejes,
+        'ejes_faltantes': ejes_faltantes,
         'hallazgos': hallazgos,
         'suficiente': suficiente,
         'ejes_con_datos': ejes_con_datos,
@@ -3381,11 +3426,11 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
 
     def _prog_de(cid):
         """(meta, periodicidad) del cliente, con el mismo respaldo global que
-        calcular_supervisiones: la meta única sobrevive hasta que alguien
-        configure la primera programación por cliente."""
+        calcular_supervisiones(cur, cliente=cid): si el cliente tiene meta > 0
+        en su programación propia se usa esa; si no, aplica la meta general (V4)."""
         p = programacion.get(cid)
-        if hay_programacion:
-            return int((p or {}).get('meta') or 0), ((p or {}).get('periodicidad') or 'semanal')
+        if p and int(p.get('meta') or 0) > 0:
+            return int(p['meta']), (p.get('periodicidad') or 'semanal')
         return meta_global, periodicidad_global
 
     # ── Los mismos insumos, sin filtro de cliente ───────────────────────────
@@ -3539,13 +3584,18 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
                 aporte += nota * inst['peso']
                 peso_calificado += inst['peso']
 
+        estado = _estatus_estado_cobertura(len(ejes_con_datos), peso_calificado)
         fila = {'id': c['id'], 'nombre': c['nombre'],
                 'instalaciones': len(c['instalaciones']),
                 'puestos': peso_calificado,
-                'ejes_con_datos': len(ejes_con_datos)}
-        if peso_calificado and len(ejes_con_datos) >= 2:
+                'ejes_con_datos': len(ejes_con_datos),
+                'estado_cobertura': estado}
+        if estado == 'calificado':
             fila['nota'] = round(aporte / peso_calificado, 1)
             calificados.append(fila)
+        elif estado == 'preliminar':
+            fila['nota'] = round(aporte / peso_calificado, 1)
+            sin_calificar.append(fila)
         else:
             fila['nota'] = None
             sin_calificar.append(fila)
@@ -3557,9 +3607,9 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
     for idx, fila in enumerate(calificados):
         fila['posicion'] = total - idx
         fila['total'] = total
-    # Los que están más cerca de poder calificarse, primero: con dos ejes se
-    # califica, así que el orden por cobertura dice dónde falta menos trabajo
-    # para que el cliente entre al ranking. El nombre solo desempata.
+    # Los que están más cerca de poder calificarse, primero: con 3 ejes se
+    # califica (y con 2 ejes es Preliminar), así que el orden por cobertura dice
+    # dónde falta menos trabajo para que el cliente entre al ranking.
     sin_calificar.sort(key=lambda x: (-x['ejes_con_datos'], x['nombre']))
     return calificados, sin_calificar
 
@@ -3642,13 +3692,15 @@ def api_gestion_estatus():
                     f"Sin información suficiente en {comparacion['periodo_anterior']} para comparar.")
 
         # Posición del cliente entre todos: mismo cálculo del listado, para que
-        # la nota tenga una referencia y no se lea en el vacío.
+        # la nota tenga una referencia y no se lea en el vacío. Solo aplica si
+        # el cliente está Calificado (R1: Preliminar y Sin calificar quedan fuera).
         calificados, _sin = _estatus_ranking(
             cur, year=year, month=month, day=day, desde=desde,
             company_id=company_id, thresholds=thresholds, pesos=pesos,
             responsable=responsable, nombre_usuario=nombre_usuario)
-        fila = next((f for f in calificados
-                     if str(f['id']) == str(cliente) or f['nombre'] == str(cliente)), None)
+        fila = (next((f for f in calificados
+                      if str(f['id']) == str(cliente) or f['nombre'] == str(cliente)), None)
+                if actual.get('calificado') else None)
 
         respuesta = dict(actual)
         respuesta['modo'] = 'cliente'

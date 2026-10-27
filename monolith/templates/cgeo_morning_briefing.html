@@ -705,14 +705,36 @@ function _kpiCompColor(vencidos, porVencer) {
     return { border: '#22c55e', dot: 'dot-green' };
 }
 
-function _kpiVisitaColor(comp, prog, thr) {
+function _kpiVisitaColor(comp, prog, thr, visitaPct, visitaEsperadas) {
     if (prog === 0) return { border: '#94a3b8', dot: 'dot-gray' };
-    const pct = comp / prog * 100;
+    const esperadas = visitaEsperadas ?? prog;
+    if ((visitaPct === null || visitaPct === undefined) && esperadas === 0) {
+        return { border: '#22c55e', dot: 'dot-green' };
+    }
+    const pct = (visitaPct !== null && visitaPct !== undefined)
+        ? visitaPct
+        : (esperadas > 0 ? (comp / esperadas * 100) : 100);
     const verdeMin    = thr?.visita_verde_min    ?? 90;
     const amarilloMin = thr?.visita_amarillo_min ?? 70;
     if (pct >= verdeMin)    return { border: '#22c55e', dot: 'dot-green' };
     if (pct >= amarilloMin) return { border: '#f59e0b', dot: 'dot-orange' };
     return { border: '#ef4444', dot: 'dot-red' };
+}
+
+function _kpiVisitaSub(k) {
+    const comp = k.visita_completadas ?? 0;
+    const prog = k.visita_programadas ?? 0;
+    if (prog <= 0) return '0 programadas';
+    const esperadas = k.visita_esperadas_hoy;
+    if (esperadas !== undefined && esperadas !== null) {
+        if (esperadas === 0 && comp < prog) {
+            return `de ${prog} programadas · en curso`;
+        }
+        if (esperadas > 0 && esperadas < prog) {
+            return `de ${prog} programadas (${esperadas} esperadas a ayer)`;
+        }
+    }
+    return `de ${prog} programadas (${Math.round(comp / prog * 100)}%)`;
 }
 
 // ── Render KPI cards ──────────────────────────────────────────────────────────
@@ -872,11 +894,15 @@ function renderKpis(k, thr) {
             icon: '🚗', iconBg: '#eff6ff',
             val: k.visita_completadas ?? 0,
             lbl: 'Visitas a Clientes',
-            sub: k.visita_programadas > 0
-                ? `de ${k.visita_programadas} programadas (${Math.round((k.visita_completadas ?? 0) / k.visita_programadas * 100)}%)`
-                : '0 programadas',
+            sub: _kpiVisitaSub(k),
             action: 'Ver visitas →',
-            color: _kpiVisitaColor(k.visita_completadas ?? 0, k.visita_programadas ?? 0, thr),
+            color: _kpiVisitaColor(
+                k.visita_completadas ?? 0,
+                k.visita_programadas ?? 0,
+                thr,
+                k.visita_pct,
+                k.visita_esperadas_hoy
+            ),
         },
     ];
 
@@ -936,8 +962,12 @@ function _crItemHtml(c) {
 
 function _crSinItemHtml(c) {
     const ejes = c.ejes_con_datos ?? 0;
-    // Se califica con 2 de 4 ejes; en cero no hay ni por dónde empezar.
+    const esPrelim = c.estado_cobertura === 'preliminar' || (ejes === 2 && c.nota != null);
+    // Se califica con 3 de 4 ejes; con 2 ejes es Preliminar y en cero no hay ni por dónde empezar.
     const ejesCls = ejes === 0 ? 'cr-ejes cr-ejes-cero' : 'cr-ejes';
+    const etiqueta = esPrelim && c.nota != null
+        ? `Preliminar (${Math.round(c.nota)}) · ${ejes} de 4 ejes`
+        : `${ejes} de 4 ejes`;
     return `
         <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
            class="cr-item cr-item-sin" title="Ver Estatus de ${_esc(c.nombre)}">
@@ -946,7 +976,7 @@ function _crSinItemHtml(c) {
                 <span class="cr-item-name">${_esc(c.nombre)}</span>
             </div>
             <div class="cr-item-score-wrap">
-                <span class="${ejesCls}">${ejes} de 4 ejes</span>
+                <span class="${ejesCls}">${etiqueta}</span>
                 <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
             </div>
         </a>
@@ -1010,12 +1040,16 @@ function renderClientesEnRiesgo(data) {
     // ESTADO 2 — Hay clientes calificados y ninguno bajo el umbral: verde, con
     // la cobertura a la vista para que el verde se lea con su alcance.
     if (!total || !top.length) {
+        const hayDetalle = _crSinCalificar.length > 0;
         card.classList.add('cr-card-ok');
-        card.disabled = true;
-        card.title = `Ningún cliente por debajo del umbral de Estatus de Cliente · ${coberturaTxt}`;
+        card.disabled = !hayDetalle;
+        card.title = hayDetalle
+            ? `Ver clientes en estado Preliminar o sin calificar · ${coberturaTxt}`
+            : `Ningún cliente por debajo del umbral de Estatus de Cliente · ${coberturaTxt}`;
         icono.textContent = '✅';
         titulo.innerHTML = 'Clientes en riesgo: <strong>0</strong>';
-        verTodos.hidden = true;
+        verTodos.hidden = !hayDetalle;
+        verTodos.textContent = 'Ver detalle →';
         resumen.innerHTML = '<span class="cr-vacio">Sin clientes por debajo del umbral</span>'
                           + '<span class="cr-sep">·</span>'
                           + `<span class="cr-sin-nota">${coberturaTxt}</span>`;
@@ -1048,7 +1082,7 @@ function abrirClientesEnRiesgo() {
         ? `⚪ Clientes sin calificar: ${_crSinCalificar.length}`
         : `⚠️ Clientes en riesgo: ${_crClientes.length}`;
     const subtitulo = sinRiesgo
-        ? 'Sin información suficiente para calificar en el período — de mayor a menor cobertura de ejes. Se califica con 2 de 4 ejes con datos'
+        ? 'Sin información suficiente para calificar en el período — de mayor a menor cobertura de ejes. Se califica con 3 de 4 ejes con datos (con 2 ejes el estado es Preliminar)'
         : 'Por debajo del umbral de Estatus de Cliente, de menor a mayor calificación — toca uno para ver su detalle';
     const filas = sinRiesgo
         ? _crSinCalificar.map(_crSinItemHtml).join('')
@@ -1081,23 +1115,35 @@ function computeSemaforo(alertasData, kpis, thr) {
     const incAb   = kpis.inc_abiertos    ?? 0;
     const supComp = kpis.sup_completadas ?? 0;
     const supProg = kpis.sup_programadas ?? 0;
-    const eqNoOp  = kpis.eq_no_op        ?? 0;
-    const eqTotal = kpis.eq_total        ?? 0;
+    // Misma base que la tarjeta "Equipos": si viene el desglose por tipo, el
+    // semáforo evalúa el inventario de radios (sin mezclar cámaras o alarmas) y
+    // usa los umbrales configurables eq_verde_max / eq_amarillo_max.
+    const tienePorTipo = kpis.eq_por_tipo && typeof kpis.eq_por_tipo === 'object';
+    const radioSem = tienePorTipo ? _eqTipo(kpis.eq_por_tipo, 'radio', 'radios') : null;
+    const eqTotal = tienePorTipo ? (radioSem?.total ?? 0) : (kpis.eq_total ?? 0);
+    const eqNoOp  = tienePorTipo
+        ? Math.max(0, eqTotal - (radioSem?.operativos ?? 0))
+        : (kpis.eq_no_op ?? 0);
     const certProx = kpis.cert_proximas  ?? 0;
     const compVencidos  = kpis.comp_vencidos   ?? 0;
     const compPorVencer = kpis.comp_por_vencer ?? 0;
     const visitaComp = kpis.visita_completadas ?? 0;
     const visitaProg = kpis.visita_programadas ?? 0;
+    const visitaEsperadas = kpis.visita_esperadas_hoy ?? visitaProg;
 
     const supVerdeMin    = thr.supervision_verde_min    ?? 90;
     const supAmarilloMin = thr.supervision_amarillo_min ?? 70;
+    const eqVerdeMax     = thr.eq_verde_max             ?? 5;
+    const eqAmarilloMax  = thr.eq_amarillo_max          ?? 15;
     const visitaVerdeMin    = thr.visita_verde_min    ?? 90;
     const visitaAmarilloMin = thr.visita_amarillo_min ?? 70;
 
     const supPct  = (kpis.sup_pct !== null && kpis.sup_pct !== undefined) ? kpis.sup_pct
                   : (supProg > 0 ? (supComp / supProg * 100) : 100);
     const eqNoPct = eqTotal > 0 ? (eqNoOp / eqTotal * 100) : 0;
-    const visitaPct = visitaProg > 0 ? (visitaComp / visitaProg * 100) : 100;
+    const visitaPct = (kpis.visita_pct !== null && kpis.visita_pct !== undefined)
+                    ? kpis.visita_pct
+                    : (visitaEsperadas > 0 ? (visitaComp / visitaEsperadas * 100) : 100);
 
     const condiciones = [];
 
@@ -1107,12 +1153,10 @@ function computeSemaforo(alertasData, kpis, thr) {
         condiciones.push({ nivel:'rojo', texto:`Supervisiones: ${supComp} de ${supProg} completadas (${Math.round(supPct)}% < ${supAmarilloMin}%)` });
     if (incAb >= 3)
         condiciones.push({ nivel:'rojo', texto:`${incAb} incidentes abiertos (umbral ≥ 3)` });
-    if (eqTotal > 0 && eqNoPct > 15)
-        condiciones.push({ nivel:'rojo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% de la flota > 15%)` });
+    if (eqTotal > 0 && eqNoPct > eqAmarilloMax)
+        condiciones.push({ nivel:'rojo', texto:`${eqNoOp} equipo${eqNoOp!==1?'s':''} no operativo${eqNoOp!==1?'s':''} (${Math.round(eqNoPct)}% > ${eqAmarilloMax}%)` });
     if (compVencidos >= 1)
         condiciones.push({ nivel:'rojo', texto:`${compVencidos} compromiso${compVencidos!==1?'s':''} de visita vencido${compVencidos!==1?'s':''}` });
-    if (visitaProg > 0 && visitaPct < visitaAmarilloMin)
-        condiciones.push({ nivel:'rojo', texto:`Visitas a clientes: ${visitaComp} de ${visitaProg} completadas (${Math.round(visitaPct)}% < ${visitaAmarilloMin}%)` });
 
     const esRojo = condiciones.some(c => c.nivel === 'rojo');
 
@@ -1127,14 +1171,14 @@ function computeSemaforo(alertasData, kpis, thr) {
             condiciones.push({ nivel:'amarillo', texto:`Supervisiones: ${Math.round(supPct)}% completadas (entre ${supAmarilloMin}% y ${supVerdeMin - 1}%)` });
         if (incAb === 1 || incAb === 2)
             condiciones.push({ nivel:'amarillo', texto:`${incAb} incidente${incAb!==1?'s':''} abierto${incAb!==1?'s':''}` });
-        if (eqTotal > 0 && eqNoPct >= 5 && eqNoPct <= 15)
-            condiciones.push({ nivel:'amarillo', texto:`${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% entre 5% y 15%)` });
+        if (eqTotal > 0 && eqNoPct > eqVerdeMax && eqNoPct <= eqAmarilloMax)
+            condiciones.push({ nivel:'amarillo', texto:`${eqNoOp} equipo${eqNoOp!==1?'s':''} no operativo${eqNoOp!==1?'s':''} (${Math.round(eqNoPct)}% entre ${eqVerdeMax}% y ${eqAmarilloMax}%)` });
         if (certProx >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${certProx} ${certProx!==1?'certificaciones':'certificación'} por vencer en 30 días` });
         if (compPorVencer >= 1)
             condiciones.push({ nivel:'amarillo', texto:`${compPorVencer} compromiso${compPorVencer!==1?'s':''} de visita próximo${compPorVencer!==1?'s':''} a vencer` });
-        if (visitaProg > 0 && visitaPct >= visitaAmarilloMin && visitaPct < visitaVerdeMin)
-            condiciones.push({ nivel:'amarillo', texto:`Visitas a clientes: ${Math.round(visitaPct)}% completadas (entre ${visitaAmarilloMin}% y ${visitaVerdeMin - 1}%)` });
+        if (visitaProg > 0 && visitaEsperadas > 0 && visitaPct < visitaVerdeMin)
+            condiciones.push({ nivel:'amarillo', texto:`Visitas a clientes: ${visitaComp} de ${visitaEsperadas} esperadas a ayer (meta: ${visitaProg})` });
     }
 
     const esAmarillo = !esRojo && condiciones.some(c => c.nivel === 'amarillo');

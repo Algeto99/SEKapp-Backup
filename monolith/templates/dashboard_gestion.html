@@ -1426,10 +1426,14 @@
             const supScore = clamp(sup?.kpi?.avg_score != null ? (sup.kpi.avg_score / 25) * 100 : null);
 
             const cum = results.cumplimiento;
-            const cumScore = clamp(cum?.kpi?.pct_cumple ?? null);
+            const cumTieneDatos = (cum?.kpi?.total || 0) > 0;
+            const cumScore = cumTieneDatos ? clamp(cum?.kpi?.pct_cumple ?? null) : null;
 
             const cap = results.capacitacion;
-            const capScore = clamp(cap?.kpi?.promedio_asistentes != null ? cap.kpi.promedio_asistentes * 5 : null);
+            const capTieneDatos = (cap?.kpi?.total_capacitaciones || 0) > 0;
+            const capScore = (capTieneDatos && cap?.kpi?.promedio_asistentes != null)
+                ? clamp(cap.kpi.promedio_asistentes * 5)
+                : null;
 
             const disc = results.disciplina;
             const discScore = clamp(disc ? 100 - ((disc.kpi?.pct_reincidencia || 0) * 1.1) - ((disc.kpi?.criticos || 0) * 8) : null);
@@ -1438,10 +1442,12 @@
             const visScore = clamp(vis && vis.kpi?.total_visitas ? 55 + ((vis.kpi?.promedio_visitas || 0) * 15) : null);
 
             const veh = results.vehiculos;
-            const vehScore = clamp(veh?.kpi?.pct_aptas ?? null);
+            const vehTieneDatos = (veh?.kpi?.total || 0) > 0;
+            const vehScore = vehTieneDatos ? clamp(veh?.kpi?.pct_aptas ?? null) : null;
 
             const moto = results.motocicletas;
-            const motoScore = clamp(moto?.kpi?.pct_aptas ?? null);
+            const motoTieneDatos = (moto?.kpi?.total || 0) > 0;
+            const motoScore = motoTieneDatos ? clamp(moto?.kpi?.pct_aptas ?? null) : null;
 
             // Compromisos no consulta nada nuevo: son los acuerdos de las actas de
             // visita, que /api/visitas/data ya devuelve clasificados por estado.
@@ -1502,7 +1508,7 @@
                     route: ENDPOINTS.cumplimiento.route,
                     score: cumScore,
                     status: statusFromScore(cumScore),
-                    primaryValue: cum?.kpi?.pct_cumple != null ? `${cum.kpi.pct_cumple}%` : '—',
+                    primaryValue: cumScore != null ? `${cum.kpi.pct_cumple}%` : '—',
                     primaryLabel: 'de verificaciones que cumplen la norma',
                     secondaryValue: cum?.kpi?.cnt_vencidos ?? 0,
                     secondaryLabel: 'certificados vencidos'
@@ -1514,7 +1520,7 @@
                     route: ENDPOINTS.capacitacion.route,
                     score: capScore,
                     status: statusFromScore(capScore),
-                    primaryValue: cap?.kpi?.total_capacitaciones ?? 0,
+                    primaryValue: capTieneDatos ? (cap?.kpi?.total_capacitaciones ?? 0) : '—',
                     primaryLabel: 'sesiones impartidas en el periodo',
                     secondaryValue: cap?.kpi?.total_asistentes ?? 0,
                     secondaryLabel: 'asistentes en total'
@@ -1562,7 +1568,7 @@
                     route: ENDPOINTS.vehiculos.route,
                     score: vehScore,
                     status: statusFromScore(vehScore),
-                    primaryValue: veh?.kpi?.pct_aptas != null ? `${veh.kpi.pct_aptas}%` : '—',
+                    primaryValue: vehScore != null ? `${veh.kpi.pct_aptas}%` : '—',
                     primaryLabel: 'de inspecciones sin fallas',
                     secondaryValue: veh?.kpi?.total_fallas ?? 0,
                     secondaryLabel: 'fallas detectadas'
@@ -1574,7 +1580,7 @@
                     route: ENDPOINTS.motocicletas.route,
                     score: motoScore,
                     status: statusFromScore(motoScore),
-                    primaryValue: moto?.kpi?.pct_aptas != null ? `${moto.kpi.pct_aptas}%` : '—',
+                    primaryValue: motoScore != null ? `${moto.kpi.pct_aptas}%` : '—',
                     primaryLabel: 'de inspecciones sin fallas',
                     secondaryValue: moto?.kpi?.total_fallas ?? 0,
                     secondaryLabel: 'fallas detectadas'
@@ -1659,8 +1665,10 @@
 
             const filas = estatus.ranking || [];
             const sinCal = estatus.sin_calificar || [];
-            estatusRankingMeta.textContent = filas.length
+            const preliminares = sinCal.filter(c => c.estado_cobertura === 'preliminar' || (c.ejes_con_datos === 2 && c.nota != null));
+            estatusRankingMeta.textContent = (filas.length || preliminares.length)
                 ? `${filas.length} cliente(s) calificado(s), de peor a mejor`
+                  + (preliminares.length ? ` · ${preliminares.length} preliminar(es)` : '')
                   + (sinCal.length ? ` · ${sinCal.length} sin información suficiente` : '')
                 : 'Ningún cliente tiene información suficiente para calificar en el período.';
 
@@ -1683,12 +1691,18 @@
                 estatusSinCalWrap.style.display = '';
                 estatusSinCal.innerHTML = `
                     <tr><th>Cliente</th><th>Instalaciones</th><th>Ejes con datos</th></tr>
-                    ${sinCal.map(c => `
+                    ${sinCal.map(c => {
+                        const esPrelim = c.estado_cobertura === 'preliminar' || (c.ejes_con_datos === 2 && c.nota != null);
+                        const labelEjes = esPrelim
+                            ? `Preliminar (${Math.round(c.nota)}) · ${c.ejes_con_datos} de 4`
+                            : `Sin calificar · ${c.ejes_con_datos} de 4`;
+                        return `
                         <tr data-cliente="${c.id}" title="Ver el estatus de ${c.nombre}">
                             <td>${c.nombre}</td>
                             <td>${c.instalaciones}</td>
-                            <td class="inst-sin">${c.ejes_con_datos} de 4</td>
-                        </tr>`).join('')}`;
+                            <td class="inst-sin">${labelEjes}</td>
+                        </tr>`;
+                    }).join('')}`;
             } else {
                 estatusSinCalTitulo.style.display = 'none';
                 estatusSinCalWrap.style.display = 'none';
@@ -1783,7 +1797,7 @@
                     <th>Cobertura</th><th>Nota</th>
                 </tr>`;
             const cuerpo = filas.map(f => {
-                const st = statusFromScore(f.nota);
+                const st = f.ejes_con_datos >= 3 ? statusFromScore(f.nota) : { color: colors.slate };
                 return `
                     <tr>
                         <td>${f.nombre}${f.peso === 0 ? ' <span class="inst-sin">(no pondera)</span>' : ''}</td>
@@ -1813,18 +1827,28 @@
 
             const ejes = estatus.ejes;
             const score = estatus.score;
-            const status = statusFromScore(score);
             const conDatos = ejes.filter(e => e.score !== null);
             const sinDatos = ejes.filter(e => e.score === null);
             const total = estatus.total_ejes || ejes.length;
             const nota = score != null ? Math.round(score) : null;
+            const esCalificado = estatus.estado_cobertura
+                ? estatus.estado_cobertura === 'calificado'
+                : (estatus.calificado != null ? Boolean(estatus.calificado) : conDatos.length >= 3);
+            const esPreliminar = estatus.estado_cobertura
+                ? estatus.estado_cobertura === 'preliminar'
+                : (estatus.preliminar != null ? Boolean(estatus.preliminar) : (!esCalificado && conDatos.length === 2));
+            const status = esCalificado
+                ? statusFromScore(score)
+                : (esPreliminar
+                    ? { label: 'Preliminar', tone: 'slate', color: colors.slate }
+                    : { label: 'Sin calificar', tone: 'slate', color: colors.slate });
 
             estatusHero.style.setProperty('--estatus-color', status.color);
             estatusDatoCliente.textContent = nombreClienteSeleccionado() || '—';
             estatusDatoCalificacion.textContent = nota != null ? `${nota} / 100` : '—';
             estatusDatoEstado.textContent = status.label;
             estatusDatoCobertura.textContent = `${conDatos.length} de ${total} ejes`;
-            estatusDatoPosicion.textContent = (estatus.posicion && estatus.total_calificados)
+            estatusDatoPosicion.textContent = (esCalificado && estatus.posicion && estatus.total_calificados)
                 ? `${estatus.posicion} de ${estatus.total_calificados} clientes`
                 : '—';
 
@@ -1833,15 +1857,28 @@
             estatusHeroBadge.textContent = status.label;
             estatusHeroBar.style.width = `${nota || 0}%`;
 
+            const nFaltan = estatus.faltan_ejes != null
+                ? estatus.faltan_ejes
+                : Math.max(0, 3 - conDatos.length);
+            const elegibles = Array.isArray(estatus.ejes_faltantes)
+                ? estatus.ejes_faltantes
+                : sinDatos.filter(e => !e.sin_incidentes).map(e => e.nombre);
+            const lineaParaCalificar = (!esCalificado && nFaltan > 0)
+                ? ` Para calificar ${nFaltan === 1 ? 'falta 1 eje más' : `faltan ${nFaltan} ejes más`}`
+                  + (elegibles.length ? `, a elegir entre: ${elegibles.join(', ')}` : '') + '.'
+                : '';
+
             if (!estatus.suficiente) {
                 estatusHeroMeta.textContent =
                     'Información insuficiente para calificar a este cliente.'
                     + ` Solo ${conDatos.length} de ${total} ejes`
-                    + `${conDatos.length === 1 ? ' tiene' : ' tienen'} registros en el período.`;
+                    + `${conDatos.length === 1 ? ' tiene' : ' tienen'} registros en el período.`
+                    + lineaParaCalificar;
             } else if (sinDatos.length) {
                 estatusHeroMeta.textContent =
                     `Sin información en ${sinDatos.map(e => e.nombre).join(', ')}`
-                    + ' · su peso se repartió entre los ejes restantes.';
+                    + ' · su peso se repartió entre los ejes restantes.'
+                    + lineaParaCalificar;
             } else {
                 estatusHeroMeta.textContent = 'Pesos definidos en Umbrales KPI.';
             }
@@ -2264,6 +2301,10 @@
             const distribution = { green: 0, yellow: 0, orange: 0, red: 0, slate: 0 };
             cards.forEach(card => { distribution[card.status.tone] += 1; });
 
+            const bGreen = bandas.find(b => b.tone === 'green')?.min ?? 90;
+            const bYellow = bandas.find(b => b.tone === 'yellow')?.min ?? 75;
+            const bOrange = bandas.find(b => b.tone === 'orange')?.min ?? 60;
+
             distributionChart = new Chart(document.getElementById('distributionChart'), {
                 type: 'doughnut',
                 data: {
@@ -2282,10 +2323,10 @@
                             callbacks: {
                                 label: function(ctx) {
                                     const descriptions = {
-                                        'Operativo': 'Score ≥ 85 — Indicadores dentro de parámetros normales',
-                                        'Requiere Seguimiento': 'Score 70–84 — Indicadores con desviaciones menores, monitorear',
-                                        'Atención Requerida': 'Score 55–69 — Indicadores fuera de objetivo, acción recomendada',
-                                        'Crítico': 'Score < 55 — Indicadores críticos, intervención inmediata',
+                                        'Operativo': `Score ≥ ${bGreen} — Indicadores dentro de parámetros normales`,
+                                        'Requiere Seguimiento': `Score ${bYellow}–${bGreen - 1} — Indicadores con desviaciones menores, monitorear`,
+                                        'Atención Requerida': `Score ${bOrange}–${bYellow - 1} — Indicadores fuera de objetivo, acción recomendada`,
+                                        'Crítico': `Score < ${bOrange} — Indicadores críticos, intervención inmediata`,
                                         'Sin Información': 'Sin datos suficientes para calcular el estado del módulo'
                                     };
                                     const label = ctx.label;
