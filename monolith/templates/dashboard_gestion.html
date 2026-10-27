@@ -1450,13 +1450,18 @@
             const motoScore = motoTieneDatos ? clamp(moto?.kpi?.pct_aptas ?? null) : null;
 
             // Compromisos no consulta nada nuevo: son los acuerdos de las actas de
-            // visita, que /api/visitas/data ya devuelve clasificados por estado.
-            // Misma definición que el eje Atención al cliente: cumplidos sobre los
-            // que ya se pueden juzgar, dejando fuera los pendientes con plazo vigente.
+            // visita, que /api/visitas/data ya devuelve evaluados en plazo (N de M).
+            // Misma definición que el eje Atención al cliente: cerrados en plazo sobre
+            // los que ya se pueden juzgar, dejando fuera los pendientes con plazo vigente.
             const compEstados = vis?.estado_compromisos || null;
-            const compCumplidos = compEstados ? (compEstados.cumplido || 0) : 0;
-            const compVencidos = compEstados ? (compEstados.vencido || 0) : 0;
-            const compEvaluables = compCumplidos + compVencidos;
+            const compEnPlazoKpi = vis?.kpi?.comp_en_plazo;
+            const compEvaluadosKpi = vis?.kpi?.comp_evaluados;
+            const compCumplidos = compEnPlazoKpi != null
+                ? compEnPlazoKpi
+                : (compEstados ? (compEstados.cumplido_en_plazo ?? compEstados.cumplido ?? 0) : 0);
+            const compEvaluables = compEvaluadosKpi != null
+                ? compEvaluadosKpi
+                : (compCumplidos + (compEstados ? ((compEstados.vencido || 0) + (compEstados.cumplido_fuera_plazo || 0)) : 0));
             const compScore = compEvaluables
                 ? clamp(+((compCumplidos / compEvaluables) * 100).toFixed(1))
                 : null;
@@ -1546,8 +1551,12 @@
                     status: statusFromScore(visScore),
                     primaryValue: vis?.kpi?.total_visitas ?? 0,
                     primaryLabel: 'visitas realizadas en el periodo',
-                    secondaryValue: vis?.kpi?.clientes_visitados ?? 0,
-                    secondaryLabel: 'clientes distintos visitados'
+                    secondaryValue: (vis?.kpi?.total_clientes_activos || 0) > 0
+                        ? `${vis.kpi.clientes_sin_visita ?? 0} de ${vis.kpi.total_clientes_activos} (${Number(vis.kpi.pct_sin_visita || 0).toFixed(1).replace(/\.0$/, '')}%)`
+                        : (vis?.kpi?.clientes_visitados ?? 0),
+                    secondaryLabel: (vis?.kpi?.total_clientes_activos || 0) > 0
+                        ? 'clientes activos sin visita'
+                        : 'clientes distintos visitados'
                 },
                 {
                     key: 'compromisos',
@@ -1556,10 +1565,10 @@
                     route: ENDPOINTS.visitas.route,
                     score: compScore,
                     status: statusFromScore(compScore),
-                    primaryValue: compScore != null ? `${compScore}%` : '—',
-                    primaryLabel: 'de compromisos cumplidos a tiempo',
-                    secondaryValue: compEvaluables ? `${compCumplidos}/${compEvaluables}` : '—',
-                    secondaryLabel: 'cumplidos de los evaluados'
+                    primaryValue: compScore != null ? `${compScore}%` : 'Sin información',
+                    primaryLabel: 'de compromisos cerrados en plazo',
+                    secondaryValue: compEvaluables ? `${compCumplidos} de ${compEvaluables} (${compScore}%)` : 'Sin información',
+                    secondaryLabel: 'compromisos cerrados en plazo'
                 },
                 {
                     key: 'vehiculos',

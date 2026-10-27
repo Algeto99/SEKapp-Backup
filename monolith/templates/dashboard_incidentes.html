@@ -485,13 +485,14 @@
                 <div class="kpi-compare">vs período anterior</div>
             </div>
 
-            <!-- KPI 5: Tiempo Promedio de Resolución -->
+            <!-- KPI 5: Tiempo de Atención (sin meta ni semáforo) -->
             <div class="card">
-                <div class="card-title">Tiempo Promedio Resolución</div>
-                <div class="kpi-value" id="kpiResolucionVal" style="color:#60a5fa">—</div>
-                <div class="kpi-label">minutos promedio</div>
+                <div class="card-title">Tiempo de Atención</div>
+                <div class="kpi-value" id="kpiResolucionVal" style="color:#e2e8f0;font-size:1.5rem;">—</div>
+                <div class="kpi-label" id="kpiResolucionLabel">sobre 0 incidentes atendidos</div>
+                <div class="kpi-compare" id="kpiResolucionP80" style="margin-top:0.2rem;color:#cbd5e1;">P80: —</div>
                 <div id="kpiResolucionChange"></div>
-                <div class="kpi-compare">vs período anterior</div>
+                <div class="kpi-compare" id="kpiResolucionAbiertos" style="margin-top:0.25rem;">Abiertos sin atender: 0</div>
             </div>
         </div>
 
@@ -738,16 +739,16 @@
         el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
     }
 
-    function renderChangeResolucion(containerId, pct) {
+    function renderChangeResolucion(containerId, pct, diffHoras, prevHoras) {
         const el = document.getElementById(containerId);
         if (!el) return;
         if (pct === null || pct === undefined) {
-            el.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">N/A</span>';
+            el.innerHTML = '<span class="kpi-change flat" style="background:transparent; color:#94a3b8; border: 1px solid #475569;">Tendencia: sin período previo comparable</span>';
             return;
         }
-        const dir   = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
         const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '—';
-        el.innerHTML = `<span class="kpi-change ${dir}">${arrow} ${Math.abs(pct)}%</span>`;
+        const prevTxt = (prevHoras !== null && prevHoras !== undefined) ? ` (prev: ${prevHoras} h)` : '';
+        el.innerHTML = `<span class="kpi-change flat" style="background:rgba(148,163,184,0.12); color:#cbd5e1; border: 1px solid rgba(148,163,184,0.3);">${arrow} ${Math.abs(pct)}% vs mediana anterior${prevTxt}</span>`;
     }
 
     function renderKPI(data) {
@@ -780,10 +781,33 @@
             renderChange('kpiBajoChange', k.pct_change_bajo);
         }
 
-        // Resolución
+        // Tiempo de Atención (Mediana, P80, Tendencia y Abiertos sin atender, sin meta ni semáforo)
         const resEl = document.getElementById('kpiResolucionVal');
-        resEl.textContent = (k.avg_resolucion !== null && k.avg_resolucion !== undefined) ? k.avg_resolucion + ' min' : '—';
-        renderChangeResolucion('kpiResolucionChange', k.pct_change_resolucion);
+        const resLbl = document.getElementById('kpiResolucionLabel');
+        const resP80 = document.getElementById('kpiResolucionP80');
+        const resAbiertos = document.getElementById('kpiResolucionAbiertos');
+        const nAtendidos = Number(k.atendidos_count || 0);
+        if (nAtendidos > 0 && k.mediana_atencion_horas !== null && k.mediana_atencion_horas !== undefined) {
+            resEl.textContent = `${k.mediana_atencion_horas} h (mediana)`;
+            if (resLbl) resLbl.textContent = `sobre ${nAtendidos} incidente(s) atendido(s)`;
+            if (resP80) resP80.textContent = `Percentil 80: ${k.p80_atencion_horas ?? k.mediana_atencion_horas} h`;
+        } else {
+            resEl.textContent = 'Sin información';
+            if (resLbl) resLbl.textContent = 'sobre 0 incidentes atendidos';
+            if (resP80) resP80.textContent = 'Percentil 80: Sin información';
+        }
+        renderChangeResolucion('kpiResolucionChange', k.pct_change_mediana, k.diff_mediana_horas, k.mediana_prev_horas);
+        if (resAbiertos) {
+            const nAb = Number(k.abiertos_sin_atender || 0);
+            if (nAb > 0) {
+                const antTxt = (k.mas_antiguo_horas !== null && k.mas_antiguo_horas !== undefined)
+                    ? (k.mas_antiguo_horas >= 48 ? `${k.mas_antiguo_dias} días` : `${k.mas_antiguo_horas} h`)
+                    : '—';
+                resAbiertos.textContent = `Abiertos sin atender: ${nAb} caso(s) · más antiguo: ${antTxt}`;
+            } else {
+                resAbiertos.textContent = 'Abiertos sin atender: 0 casos';
+            }
+        }
     }
 
     // ── Drilldown (cross-chart filter) ────────────────────────────────────

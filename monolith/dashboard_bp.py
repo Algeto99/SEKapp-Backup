@@ -2963,7 +2963,7 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
     det_vis = ('sin meta de visitas' if not datos['vis_meta']
                else 'sin visitas registradas en la ventana' if pct_vis is None
                else f"{datos['vis_hechas']} de {_estatus_num(datos['vis_meta'])} visitas")
-    det_comp = ((f"{datos['comp_cumplidos']} de {evaluables} compromisos a tiempo"
+    det_comp = ((f"{datos['comp_cumplidos']} de {evaluables} compromisos cerrados en plazo"
                  + (f", {datos['comp_pendientes']} aún en plazo" if datos['comp_pendientes'] else ''))
                 if evaluables else 'sin compromisos evaluables')
     ejes['atencion'] = {
@@ -3004,17 +3004,15 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
     }
 
     # 3.4 Eventos y respuesta
-    excede = datos['inc_avg_min'] is not None and datos['inc_avg_min'] > umbral_horas * 60
+    # Pestaña 2 (§4): El tiempo de atención es informativo (sin semáforo ni meta)
+    # y no entra al puntaje del Estatus de Cliente; solo descuentan las severidades.
     if datos['inc_total']:
         descuento = (15 * datos['inc_alta'] + 7 * datos['inc_media']
-                     + 3 * datos['inc_baja'] + (10 if excede else 0))
+                     + 3 * datos['inc_baja'])
         sin_sev = max(0, datos['inc_total'] - datos['inc_alta'] - datos['inc_media'] - datos['inc_baja'])
         det_inc = (f"{datos['inc_alta']} alta(s), {datos['inc_media']} media(s), {datos['inc_baja']} baja(s)"
                    + (f", {sin_sev} sin severidad" if sin_sev else '')
                    + f" · −{descuento} puntos")
-        if excede:
-            det_inc += (f" · atención promedio {round(datos['inc_avg_min'] / 60, 1)} h"
-                        f" sobre el umbral de {umbral_horas:g} h")
         score_ev = max(0.0, 100.0 - descuento)
     else:
         # Sin registros no hay información que valorar: la ausencia de
@@ -3034,12 +3032,6 @@ def _estatus_ejes_de(datos, pesos, umbral_horas):
                     'texto': (f"{n} incidente{'s' if n != 1 else ''}"
                               f" de severidad {etiqueta}"),
                     'puntos': float(n * puntos), 'route': '/dashboard/incidentes/'})
-        if excede:
-            perdidas_inc.append({
-                'etiqueta': 'Tiempo de atención',
-                'texto': (f"promedio {round(datos['inc_avg_min'] / 60, 1)} h,"
-                          f" sobre el umbral de {umbral_horas:g} h"),
-                'puntos': 10.0, 'route': '/dashboard/incidentes/'})
     ejes['eventos'] = {'score': score_ev, 'detalle': det_inc,
                        'sin_incidentes': not bool(datos['inc_total']),
                        'componentes': [], 'perdidas': perdidas_inc}
@@ -3195,10 +3187,12 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     """, inc_params)
 
     # Compromisos: las filas se agrupan en Python porque el estado de cada
-    # acuerdo lo resuelve _visita_parse_compromisos, no el SQL.
+    # acuerdo lo resuelve _visita_parse_compromisos, no el SQL. El período se
+    # filtra por la fecha límite del compromiso (Pestaña 2, §3).
     c_conds, c_params = _visita_conds(cliente, year, month, day,
                                       company_id=company_id, propiedad=propiedad, desde=desde,
-                                      responsable=responsable, nombre_usuario=nombre_usuario)
+                                      responsable=responsable, nombre_usuario=nombre_usuario,
+                                      filtrar_fecha=False)
     cur.execute(f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
@@ -3212,13 +3206,16 @@ def _estatus_calcular(cur, *, cliente, propiedad, year, month, day, desde, compa
     for r in cur.fetchall():
         clave = r.get('prop_id')
         filas_por_inst.setdefault(clave if clave is not None else _ESTATUS_SIN_INST, []).append(r)
+    ids_vis = [r['id_visita'] for fs in filas_por_inst.values() for r in fs if r.get('id_visita') is not None]
+    cierres_hist = _visita_cierres_historicos(cur, ids_vis)
     comp = {}
     for clave, filas in filas_por_inst.items():
-        acuerdos = _visita_parse_compromisos(filas)
+        acuerdos_todos = _visita_parse_compromisos(filas, cierres_hist=cierres_hist)
+        acuerdos = [c for c in acuerdos_todos if _compromiso_en_periodo(c, year, month, day)]
         comp[clave] = {
-            'cumplidos':  sum(1 for c in acuerdos if c['estado'] == 'cumplido'),
-            'vencidos':   sum(1 for c in acuerdos if c['estado'] == 'vencido'),
-            'pendientes': sum(1 for c in acuerdos if c['estado'] == 'pendiente'),
+            'cumplidos':  sum(1 for c in acuerdos if c.get('evaluado') and c.get('en_plazo')),
+            'vencidos':   sum(1 for c in acuerdos if c.get('evaluado') and not c.get('en_plazo')),
+            'pendientes': sum(1 for c in acuerdos if not c.get('evaluado')),
         }
 
     # ── Una nota por instalación ─────────────────────────────────────────
@@ -3521,7 +3518,8 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
     """, inc_params)
 
     c_conds, c_params = _visita_conds(None, year, month, day, company_id=company_id,
-                                      desde=desde, responsable=responsable, nombre_usuario=nombre_usuario)
+                                      desde=desde, responsable=responsable, nombre_usuario=nombre_usuario,
+                                      filtrar_fecha=False)
     cur.execute(f"""
         SELECT {_estatus_prop_expr()} AS prop_id,
                id_visita, cliente_instalacion, {v_date} AS fecha_evento, motivo_visita,
@@ -3535,12 +3533,15 @@ def _estatus_ranking(cur, *, year=None, month=None, day=None, desde=None, compan
     for r in cur.fetchall():
         clave = r.get('prop_id')
         filas.setdefault(clave if clave is not None else _ESTATUS_SIN_INST, []).append(r)
+    ids_vis = [r['id_visita'] for fs in filas.values() for r in fs if r.get('id_visita') is not None]
+    cierres_hist = _visita_cierres_historicos(cur, ids_vis)
     comp = {}
     for clave, fs in filas.items():
-        acuerdos = _visita_parse_compromisos(fs)
-        comp[clave] = {'cumplidos':  sum(1 for c in acuerdos if c['estado'] == 'cumplido'),
-                       'vencidos':   sum(1 for c in acuerdos if c['estado'] == 'vencido'),
-                       'pendientes': sum(1 for c in acuerdos if c['estado'] == 'pendiente')}
+        acuerdos_todos = _visita_parse_compromisos(fs, cierres_hist=cierres_hist)
+        acuerdos = [c for c in acuerdos_todos if _compromiso_en_periodo(c, year, month, day)]
+        comp[clave] = {'cumplidos':  sum(1 for c in acuerdos if c.get('evaluado') and c.get('en_plazo')),
+                       'vencidos':   sum(1 for c in acuerdos if c.get('evaluado') and not c.get('en_plazo')),
+                       'pendientes': sum(1 for c in acuerdos if not c.get('evaluado'))}
 
     # ── Una nota por cliente ────────────────────────────────────────────────
     calificados, sin_calificar = [], []
@@ -4348,6 +4349,166 @@ def api_incidentes_clientes():
         if conn: conn.close()
 
 
+def _incidentes_metricas_atencion(cur, where_sql, params):
+    """Calcula las métricas de tiempo de atención de incidentes (Pestaña 2, §4):
+    - Mediana en horas sobre los N incidentes atendidos en el período
+    - Percentil 80 en horas
+    - Cantidad de incidentes abiertos sin atender y antigüedad del más viejo (en horas y días)
+    """
+    vacio = {
+        'atendidos_count': 0,
+        'mediana_horas': None,
+        'p80_horas': None,
+        'abiertos_sin_atender': 0,
+        'mas_antiguo_horas': None,
+        'mas_antiguo_dias': None,
+    }
+    if not cur or where_sql is None:
+        return vacio
+
+    try:
+        cur.execute(f"""
+            SELECT
+                id_reporte_incidente,
+                fecha_hora,
+                creado_en,
+                estado,
+                tiempo_resolucion_min,
+                editado_en
+            FROM reportes_incidentes
+            {where_sql}
+        """, params)
+        rows = cur.fetchall() or []
+    except Exception:
+        return vacio
+
+    if not rows:
+        return vacio
+
+    ids_inc = [int(r['id_reporte_incidente']) for r in rows if r.get('id_reporte_incidente') is not None]
+    primeras_gestiones = {}
+    if ids_inc:
+        try:
+            cur.execute("SELECT to_regclass('eventos_auditoria')")
+            r_reg = cur.fetchone()
+            existe_aud = (r_reg.get('to_regclass') if isinstance(r_reg, dict) else (r_reg[0] if r_reg else None))
+            if existe_aud:
+                cur.execute("""
+                    SELECT registro_id, MIN(creado_en) AS primera_gestion
+                    FROM eventos_auditoria
+                    WHERE formulario IN ('reporte_incidente', 'reportes_incidentes')
+                      AND tipo_evento = 'estado'
+                      AND registro_id = ANY(%s)
+                      AND LOWER(TRIM(COALESCE(detalle->>'estado_nuevo', ''))) NOT IN ('', 'reportado', 'abierto', 'pendiente')
+                    GROUP BY registro_id
+                """, (ids_inc,))
+                for r in (cur.fetchall() or []):
+                    rid = r['registro_id'] if isinstance(r, dict) else r[0]
+                    ts = r['primera_gestion'] if isinstance(r, dict) else r[1]
+                    if rid is not None and ts is not None:
+                        primeras_gestiones[int(rid)] = ts
+        except Exception:
+            pass
+        try:
+            cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
+            r_reg = cur.fetchone()
+            existe_asig = (r_reg.get('to_regclass') if isinstance(r_reg, dict) else (r_reg[0] if r_reg else None))
+            if existe_asig:
+                cur.execute("""
+                    SELECT record_id, MIN(cerrado_en) AS primera_gestion
+                    FROM asignaciones_hallazgo
+                    WHERE form_type = 'reporte_incidente'
+                      AND record_id = ANY(%s)
+                      AND cerrado_en IS NOT NULL
+                    GROUP BY record_id
+                """, (ids_inc,))
+                for r in (cur.fetchall() or []):
+                    rid = r['record_id'] if isinstance(r, dict) else r[0]
+                    ts = r['primera_gestion'] if isinstance(r, dict) else r[1]
+                    if rid is not None and ts is not None:
+                        rid_i = int(rid)
+                        if rid_i not in primeras_gestiones or ts < primeras_gestiones[rid_i]:
+                            primeras_gestiones[rid_i] = ts
+        except Exception:
+            pass
+
+    tz = tz_operacion()
+    ahora_local = ahora_operacion().replace(tzinfo=None)
+
+    def _a_local_naive(dt, reloj_pared=False):
+        if dt is None or not hasattr(dt, 'year'):
+            return None
+        if getattr(dt, 'tzinfo', None) is not None:
+            return dt.astimezone(tz).replace(tzinfo=None)
+        if reloj_pared:
+            return dt
+        return dt.replace(tzinfo=timezone.utc).astimezone(tz).replace(tzinfo=None)
+
+    atendidos_horas = []
+    abiertos_sin_atender = 0
+    max_antiguedad_horas = None
+
+    estados_abiertos = ('', 'reportado', 'abierto', 'pendiente')
+    for r in rows:
+        rid = int(r['id_reporte_incidente']) if r.get('id_reporte_incidente') is not None else None
+        est = str(r.get('estado') or 'Reportado').strip().lower()
+        t_min = r.get('tiempo_resolucion_min')
+        fh_rep = _a_local_naive(r.get('fecha_hora'), reloj_pared=True) or _a_local_naive(r.get('creado_en'), reloj_pared=False)
+        ts_gest = _a_local_naive(primeras_gestiones.get(rid), reloj_pared=False) if rid is not None else None
+        if ts_gest is None and est not in estados_abiertos and r.get('editado_en') is not None:
+            ts_gest = _a_local_naive(r.get('editado_en'), reloj_pared=False)
+
+        horas = None
+        if t_min is not None:
+            try:
+                if float(t_min) > 0:
+                    horas = float(t_min) / 60.0
+            except (TypeError, ValueError):
+                horas = None
+        if horas is None and ts_gest is not None and fh_rep is not None:
+            diff_h = (ts_gest - fh_rep).total_seconds() / 3600.0
+            if diff_h >= 0:
+                horas = diff_h
+
+        if horas is not None:
+            atendidos_horas.append(horas)
+        elif est in estados_abiertos:
+            abiertos_sin_atender += 1
+            if fh_rep is not None:
+                ant_h = max(0.0, (ahora_local - fh_rep).total_seconds() / 3600.0)
+                if max_antiguedad_horas is None or ant_h > max_antiguedad_horas:
+                    max_antiguedad_horas = ant_h
+
+    atendidos_horas.sort()
+    n_at = len(atendidos_horas)
+    if n_at > 0:
+        mid = n_at // 2
+        if n_at % 2 == 1:
+            mediana_h = atendidos_horas[mid]
+        else:
+            mediana_h = (atendidos_horas[mid - 1] + atendidos_horas[mid]) / 2.0
+        idx80 = 0.8 * (n_at - 1)
+        lo80 = int(idx80)
+        hi80 = min(lo80 + 1, n_at - 1)
+        p80_h = atendidos_horas[lo80] + (idx80 - lo80) * (atendidos_horas[hi80] - atendidos_horas[lo80])
+        mediana_horas = round(mediana_h, 1)
+        p80_horas = round(p80_h, 1)
+    else:
+        mediana_horas = None
+        p80_horas = None
+
+    mas_antiguo_h = round(max_antiguedad_horas, 1) if max_antiguedad_horas is not None else None
+    mas_antiguo_d = round(max_antiguedad_horas / 24.0, 1) if max_antiguedad_horas is not None else None
+    return {
+        'atendidos_count': n_at,
+        'mediana_horas': mediana_horas,
+        'p80_horas': p80_horas,
+        'abiertos_sin_atender': abiertos_sin_atender,
+        'mas_antiguo_horas': mas_antiguo_h,
+        'mas_antiguo_dias': mas_antiguo_d,
+    }
+
+
 @dashboard_bp.route('/api/incidentes/data')
 @jwt_required()
 def api_incidentes_data():
@@ -4467,6 +4628,20 @@ def api_incidentes_data():
         """, params)
         trend_rows = cur.fetchall()
 
+        atencion_curr = _incidentes_metricas_atencion(cur, where, params)
+        atencion_prev = (
+            _incidentes_metricas_atencion(cur, where_prev, params_prev)
+            if where_prev is not None
+            else {'mediana_horas': None, 'atendidos_count': 0}
+        )
+        mediana_curr = atencion_curr['mediana_horas']
+        mediana_prev = atencion_prev.get('mediana_horas')
+        diff_mediana = (
+            round(mediana_curr - mediana_prev, 1)
+            if (mediana_curr is not None and mediana_prev is not None)
+            else None
+        )
+
         return jsonify({
             'kpi': {
                 'total':                 total,
@@ -4482,6 +4657,15 @@ def api_incidentes_data():
                 'pct_change_bajo':       pct_change(pct_bajo, pct_bajo_prev),
                 'avg_resolucion':        round(avg_resolucion, 0) if avg_resolucion is not None else None,
                 'pct_change_resolucion': pct_change(avg_resolucion, avg_resolucion_prev),
+                'atendidos_count':       atencion_curr['atendidos_count'],
+                'mediana_atencion_horas': mediana_curr,
+                'p80_atencion_horas':    atencion_curr['p80_horas'],
+                'mediana_prev_horas':    mediana_prev,
+                'diff_mediana_horas':    diff_mediana,
+                'pct_change_mediana':    pct_change(mediana_curr, mediana_prev),
+                'abiertos_sin_atender':  atencion_curr['abiertos_sin_atender'],
+                'mas_antiguo_horas':     atencion_curr['mas_antiguo_horas'],
+                'mas_antiguo_dias':      atencion_curr['mas_antiguo_dias'],
             },
             'severidad': {
                 'bajo':   int(row['sev_bajo'])   if row['sev_bajo']   else 0,
@@ -4664,6 +4848,21 @@ def api_incidentes_update_estado(id_reporte):
                 "UPDATE reportes_incidentes SET estado=%s, accion_seguimiento=%s WHERE id_reporte_incidente=%s",
                 (nuevo_estado, accion_seguimiento, id_reporte)
             )
+        # Regla Pestaña 2 (§4): al registrar primera gestión (estado distinto de Reportado/Abierto),
+        # calcular automáticamente tiempo_resolucion_min desde fecha_hora/creado_en si aún estaba vacío.
+        if nuevo_estado.strip().lower() not in ('', 'reportado', 'abierto', 'pendiente'):
+            try:
+                cur.execute("""
+                    UPDATE reportes_incidentes
+                       SET tiempo_resolucion_min = GREATEST(
+                           1,
+                           ROUND(EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora::timestamptz, creado_en))) / 60.0)::int
+                       )
+                     WHERE id_reporte_incidente = %s
+                       AND (tiempo_resolucion_min IS NULL OR tiempo_resolucion_min <= 0)
+                """, (id_reporte,))
+            except Exception:
+                pass
         conn.commit()
         return jsonify({'ok': True, 'estado': nuevo_estado, 'evidencia_url': evidencia_url})
     except Exception as e:
@@ -7340,11 +7539,12 @@ def api_capacitacion_detalles():
 def _visita_date_expr():
     return "COALESCE(fecha_hora, creado_en::timestamp)"
 
-def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None, responsable=None, nombre_usuario=None):
+def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None, desde=None, responsable=None, nombre_usuario=None, filtrar_fecha=True):
     conds, params = [], []
     date_expr = _visita_date_expr()
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad)
-    _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
+    if filtrar_fecha:
+        _gestion_add_multi_date_filter(conds, params, f"({date_expr})::TEXT", year, month, day)
     _gestion_add_desde(conds, params, date_expr, desde)
     if responsable:
         conds.append("TRIM(rol_aplicador) = %s")
@@ -7365,6 +7565,108 @@ def _visita_conds(cliente, year, month, day, company_id=None, propiedad=None, de
         )""")
         params.extend([company_id, company_id])
     return conds, params
+
+def _compromiso_en_periodo(comp, years=None, months=None, days=None):
+    """Regla del documento (Pestaña 2, §3):
+    'El caso se asigna al período de su fecha límite (compromisos)'.
+    Si el compromiso no tiene fecha límite, cae a la fecha del acuerdo (fecha_sort).
+    """
+    def _to_ints(val):
+        if isinstance(val, (int, float)):
+            return [int(val)]
+        if isinstance(val, str):
+            return [int(x) for x in _parse_multi(val) if x.lstrip('-').isdigit()]
+        if val is None:
+            return []
+        result = []
+        for x in val:
+            try:
+                result.append(int(x))
+            except (TypeError, ValueError):
+                pass
+        return result
+
+    y_list = _to_ints(years)
+    if not y_list:
+        return True
+    m_list = _to_ints(months)
+    d_list = _to_ints(days)
+    prefixes = []
+    for y in y_list:
+        if m_list:
+            for m in m_list:
+                if d_list:
+                    for d in d_list:
+                        prefixes.append(f"{y}-{m:02d}-{d:02d}")
+                else:
+                    prefixes.append(f"{y}-{m:02d}")
+        else:
+            prefixes.append(f"{y}")
+    fecha_ref = (comp.get('fecha_cumplimiento_sort') or (comp.get('fecha_sort') or '')[:10]).strip()
+    if not fecha_ref:
+        return False
+    return any(fecha_ref.startswith(p) for p in prefixes)
+
+def _visita_cierres_historicos(cur, ids_visita):
+    """Reconstruye fecha_cierre (date) por (id_visita, bloque_idx) desde
+    eventos_auditoria y asignaciones_hallazgo para compromisos cerrados antes
+    de que compromisos_estados guardara fecha_cierre directamente."""
+    if not cur or not ids_visita:
+        return {}
+    cierres = {}
+    try:
+        cur.execute("SELECT to_regclass('eventos_auditoria')")
+        row_reg = cur.fetchone()
+        existe = (row_reg.get('to_regclass') if isinstance(row_reg, dict) else (row_reg[0] if row_reg else None))
+        if existe:
+            cur.execute("""
+                SELECT registro_id,
+                       (detalle->>'bloque_idx')::int AS bloque_idx,
+                       MAX(creado_en) AS cerrado_en
+                FROM eventos_auditoria
+                WHERE formulario = 'registro_y_acta_de_visita'
+                  AND tipo_evento = 'estado'
+                  AND registro_id = ANY(%s)
+                  AND LOWER(COALESCE(detalle->>'estado_nuevo', '')) IN ('cumplido', 'cerrado', 'completado')
+                  AND (detalle->>'bloque_idx') ~ '^[0-9]+$'
+                GROUP BY registro_id, (detalle->>'bloque_idx')::int
+            """, (list(ids_visita),))
+            for r in (cur.fetchall() or []):
+                vid = r['registro_id'] if isinstance(r, dict) else r[0]
+                bidx = r['bloque_idx'] if isinstance(r, dict) else r[1]
+                ts = r['cerrado_en'] if isinstance(r, dict) else r[2]
+                if ts is not None and vid is not None and bidx is not None:
+                    d = ts.astimezone(tz_operacion()).date() if getattr(ts, 'tzinfo', None) else (ts.date() if hasattr(ts, 'date') else None)
+                    if d:
+                        cierres[(int(vid), int(bidx))] = d
+    except Exception:
+        pass
+    try:
+        cur.execute("SELECT to_regclass('asignaciones_hallazgo')")
+        row_reg = cur.fetchone()
+        existe = (row_reg.get('to_regclass') if isinstance(row_reg, dict) else (row_reg[0] if row_reg else None))
+        if existe:
+            cur.execute("""
+                SELECT record_id, hallazgo_ref, MAX(cerrado_en) AS cerrado_en
+                FROM asignaciones_hallazgo
+                WHERE form_type = 'registro_y_acta_de_visita'
+                  AND record_id = ANY(%s)
+                  AND cerrado_en IS NOT NULL
+                GROUP BY record_id, hallazgo_ref
+            """, (list(ids_visita),))
+            for r in (cur.fetchall() or []):
+                vid = r['record_id'] if isinstance(r, dict) else r[0]
+                href = (r['hallazgo_ref'] if isinstance(r, dict) else r[1]) or ''
+                ts = r['cerrado_en'] if isinstance(r, dict) else r[2]
+                parts = str(href).split('_')
+                if len(parts) >= 3 and parts[-1].isdigit() and ts is not None:
+                    bidx = int(parts[-1])
+                    d = ts.date() if hasattr(ts, 'date') else None
+                    if d and (int(vid), bidx) not in cierres:
+                        cierres[(int(vid), bidx)] = d
+    except Exception:
+        pass
+    return cierres
 
 def _visita_where(conds):
     return ('WHERE ' + ' AND '.join(conds)) if conds else ''
@@ -7424,8 +7726,11 @@ def _visita_status(acuerdo_text, fecha_limite):
         return 'vencido'
     return 'pendiente'
 
-def _visita_parse_compromisos(rows):
+def _visita_parse_compromisos(rows, cierres_hist=None):
     import json as _json
+    from datetime import date as _date
+    hoy = hoy_operacion()
+    cierres_map = cierres_hist or {}
     compromisos = []
     for row in rows:
         acuerdos = _visita_split_blocks(row.get('acuerdos_compromisos'))
@@ -7434,7 +7739,9 @@ def _visita_parse_compromisos(rows):
 
         estados_override = {}
         raw_estados = row.get('compromisos_estados')
-        if raw_estados:
+        if isinstance(raw_estados, dict):
+            estados_override = raw_estados
+        elif raw_estados:
             try:
                 estados_override = _json.loads(raw_estados)
             except Exception:
@@ -7471,7 +7778,16 @@ def _visita_parse_compromisos(rows):
                 except Exception:
                     fecha_limite = None
             if not fecha_limite and row.get('fecha_cumplimiento'):
-                fecha_limite = row['fecha_cumplimiento']
+                fc_row = row['fecha_cumplimiento']
+                if isinstance(fc_row, datetime):
+                    fecha_limite = fc_row.date()
+                elif isinstance(fc_row, _date):
+                    fecha_limite = fc_row
+                elif isinstance(fc_row, str) and fc_row.strip():
+                    try:
+                        fecha_limite = datetime.fromisoformat(fc_row.strip()[:10]).date()
+                    except Exception:
+                        fecha_limite = None
 
             tema = temas[idx] if idx < len(temas) else (temas[0] if temas else 'Sin tema registrado')
             if not acuerdo and not tema and not fecha_limite and not responsable_item:
@@ -7488,26 +7804,59 @@ def _visita_parse_compromisos(rows):
                 estado_from_form = ''
 
             override_val = estados_override.get(str(idx))
+            raw_fcierre = ''
             if isinstance(override_val, dict):
                 raw_st = (override_val.get('estado') or estado_from_form or _visita_status(acuerdo, fecha_limite)).lower().strip()
                 accion_tomada = override_val.get('accion_tomada') or ''
                 evidencia_url = override_val.get('evidencia_url') or ''
+                raw_fcierre = (override_val.get('fecha_cierre') or '').strip()
             else:
                 raw_st = (override_val or estado_from_form or _visita_status(acuerdo, fecha_limite)).lower().strip()
                 accion_tomada = ''
                 evidencia_url = ''
+            if not raw_fcierre and responsable_item:
+                raw_fcierre = str(responsable_item.get('fecha_cierre') or '').strip()
 
-            if raw_st in ('cerrado', 'cumplido', 'completado', 'finalizado', 'ejecutado'):
+            fecha_cierre = None
+            if raw_fcierre:
+                try:
+                    fecha_cierre = datetime.fromisoformat(raw_fcierre[:19]).date()
+                except Exception:
+                    try:
+                        fecha_cierre = _date.fromisoformat(raw_fcierre[:10])
+                    except Exception:
+                        fecha_cierre = None
+            if fecha_cierre is None and row.get('id_visita') is not None:
+                hist_fc = cierres_map.get((int(row['id_visita']), idx))
+                if isinstance(hist_fc, datetime):
+                    fecha_cierre = hist_fc.date()
+                elif isinstance(hist_fc, _date):
+                    fecha_cierre = hist_fc
+
+            # Regla única de plazos para compromisos (Pestaña 2, §3):
+            # - El estado 'vencido' no se elige manualmente: para compromisos abiertos se calcula por fecha_limite < hoy.
+            # - Un compromiso cerrado tarde deja de aparecer como pendiente en alertas operativas (estado == 'cumplido'),
+            #   pero en el indicador queda contado como fuera de plazo (evaluado = True, en_plazo = False).
+            esta_cerrado = raw_st in ('cerrado', 'cumplido', 'completado', 'finalizado', 'ejecutado')
+            if esta_cerrado:
                 estado = 'cumplido'
-            elif raw_st == 'vencido':
-                estado = 'vencido'
-            elif raw_st == 'pendiente':
-                if fecha_limite and fecha_limite < hoy_operacion():
+                evaluado = True
+                if fecha_limite and fecha_cierre:
+                    en_plazo = (fecha_cierre <= fecha_limite)
+                    cerrado_fuera_plazo = (fecha_cierre > fecha_limite)
+                else:
+                    en_plazo = True
+                    cerrado_fuera_plazo = False
+            else:
+                cerrado_fuera_plazo = False
+                if fecha_limite and fecha_limite < hoy:
                     estado = 'vencido'
+                    evaluado = True
+                    en_plazo = False
                 else:
                     estado = 'pendiente'
-            else:
-                estado = _visita_status(acuerdo, fecha_limite)
+                    evaluado = False
+                    en_plazo = False
 
             compromisos.append({
                 'id_visita': row['id_visita'],
@@ -7521,7 +7870,12 @@ def _visita_parse_compromisos(rows):
                 'responsable': responsable,
                 'fecha_cumplimiento': _fecha_pantalla(fecha_limite, hora=False),
                 'fecha_cumplimiento_sort': fecha_limite.isoformat() if fecha_limite else '',
+                'fecha_cierre': _fecha_pantalla(fecha_cierre, hora=False) if fecha_cierre else '—',
+                'fecha_cierre_sort': fecha_cierre.isoformat() if fecha_cierre else '',
                 'estado': estado,
+                'evaluado': evaluado,
+                'en_plazo': en_plazo,
+                'cerrado_fuera_plazo': cerrado_fuera_plazo,
                 'accion_tomada': accion_tomada,
                 'evidencia_url': evidencia_url,
                 'editado': bool(row.get('editado')),
@@ -7590,10 +7944,14 @@ def api_visitas_data():
         base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
         where = _visita_where(base_conds)
 
+        expr_cliente_vis, _ = _scope_name_exprs('registro_y_acta_de_visita')
         cur.execute(f"""
             SELECT
                 COUNT(*) AS total_visitas,
-                COUNT(DISTINCT NULLIF(TRIM(cliente_instalacion), '')) AS clientes_visitados
+                COUNT(DISTINCT COALESCE(
+                    NULLIF(TRIM({expr_cliente_vis}), ''),
+                    NULLIF(TRIM(cliente_instalacion), '')
+                )) AS clientes_visitados
             FROM registro_y_acta_de_visita
             {where}
         """, base_params)
@@ -7602,26 +7960,43 @@ def api_visitas_data():
         clientes_visitados = int(kpi_row['clientes_visitados']) if kpi_row and kpi_row['clientes_visitados'] else 0
         promedio_visitas = round(total_visitas / clientes_visitados, 1) if clientes_visitados else 0
 
+        # Regla Pestaña 2 (§2.3): unificar el denominador sobre los clientes activos
+        # (customer_companies con is_active) en vez de instalaciones o nombres históricos,
+        # y mostrar siempre "N de M (X%)".
         total_clientes_base = 0
-        if cliente:
+        if cliente or propiedad:
             total_clientes_base = 1
+            clientes_visitados_base = 1 if total_visitas > 0 else 0
         else:
-            cur.execute("""
-                SELECT COUNT(*)
-                FROM propiedades p
-                LEFT JOIN customer_companies cc ON cc.id = p.customer_company_id
-                WHERE p.activa = TRUE AND COALESCE(cc.is_active, TRUE)
-            """)
-            total_clientes_base = int(cur.fetchone()[0] or 0)
-            if total_clientes_base == 0:
-                cur.execute("""
-                    SELECT COUNT(DISTINCT NULLIF(TRIM(cliente_instalacion), ''))
+            cc_conds = ["COALESCE(cc.is_active, TRUE)"]
+            cc_params = []
+            if company_id is not None:
+                cc_conds.append("cc.company_id = %s")
+                cc_params.append(company_id)
+            condicion_ambito(cc_conds, cc_params, col_cust='cc.id')
+            cur.execute(f"""
+                SELECT COUNT(*) AS n
+                FROM customer_companies cc
+                WHERE {' AND '.join(cc_conds)}
+            """, cc_params)
+            row_cc = cur.fetchone()
+            total_clientes_base = int((row_cc['n'] if isinstance(row_cc, dict) else row_cc[0]) or 0) if row_cc else 0
+            if total_clientes_base > 0:
+                cur.execute(f"""
+                    SELECT COUNT(DISTINCT ({expr_cliente_vis})) AS visitados_activos
                     FROM registro_y_acta_de_visita
-                """)
-                total_clientes_base = int(cur.fetchone()[0] or 0)
+                    {where}
+                """, base_params)
+                row_va = cur.fetchone()
+                visitados_activos = int(
+                    (row_va['visitados_activos'] if isinstance(row_va, dict) else row_va[0]) or 0
+                ) if row_va else 0
+                clientes_visitados_base = visitados_activos if visitados_activos > 0 else min(clientes_visitados, total_clientes_base)
+            else:
+                clientes_visitados_base = 0
 
-        clientes_sin_visita = max(total_clientes_base - clientes_visitados, 0)
-        pct_sin_visita = round((clientes_sin_visita / total_clientes_base) * 100, 1) if total_clientes_base else 0
+        clientes_sin_visita = max(total_clientes_base - clientes_visitados_base, 0)
+        pct_sin_visita = round((clientes_sin_visita / total_clientes_base) * 100, 1) if total_clientes_base > 0 else None
 
         freq_conds = base_conds + ["cliente_instalacion IS NOT NULL", "cliente_instalacion <> ''"]
         cur.execute(f"""
@@ -7672,6 +8047,12 @@ def api_visitas_data():
             'visitas': int(r['visitas']),
         } for r in cur.fetchall()]
 
+        # Regla Pestaña 2 (§3): "El caso se asigna al período de su fecha límite (compromisos)".
+        comp_conds, comp_params = _visita_conds(
+            cliente, year, month, day,
+            company_id=company_id, propiedad=propiedad, desde=desde, filtrar_fecha=False
+        )
+        comp_conds = comp_conds + [f'{date_expr} IS NOT NULL']
         cur.execute(f"""
             SELECT
                 id_visita,
@@ -7688,26 +8069,48 @@ def api_visitas_data():
                 editado_por,
                 editado_en
             FROM registro_y_acta_de_visita
-            {_visita_where(trend_conds)}
+            {_visita_where(comp_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
-        """, base_params)
-        compromisos = _visita_parse_compromisos(cur.fetchall())
+        """, comp_params)
+        rows_comp = cur.fetchall()
+        ids_vis = [r['id_visita'] for r in rows_comp if r.get('id_visita') is not None]
+        cierres_hist = _visita_cierres_historicos(cur, ids_vis)
+        compromisos_todos = _visita_parse_compromisos(rows_comp, cierres_hist=cierres_hist)
+        compromisos = [c for c in compromisos_todos if _compromiso_en_periodo(c, year, month, day)]
 
         estado_counts = {'cumplido': 0, 'pendiente': 0, 'vencido': 0}
         resolucion_dias = []
+        comp_evaluados = 0
+        comp_en_plazo = 0
+        comp_cerrados_tarde = 0
+        comp_pendientes_en_plazo = 0
         for item in compromisos:
             estado_counts[item['estado']] = estado_counts.get(item['estado'], 0) + 1
+            if item.get('evaluado'):
+                comp_evaluados += 1
+                if item.get('en_plazo'):
+                    comp_en_plazo += 1
+                if item.get('cerrado_fuera_plazo'):
+                    comp_cerrados_tarde += 1
+            else:
+                comp_pendientes_en_plazo += 1
             if item['estado'] == 'cumplido' and item['fecha_cumplimiento'] != '—' and item['fecha_sort']:
                 try:
                     from datetime import date as _date
                     f_creacion = datetime.fromisoformat(item['fecha_sort']).date()
-                    f_cierre = _date.fromisoformat(item['fecha_cumplimiento'])
-                    dias = (f_cierre - f_creacion).days
+                    f_cierre_ref = (
+                        _date.fromisoformat(item['fecha_cierre_sort'])
+                        if item.get('fecha_cierre_sort')
+                        else _date.fromisoformat(item['fecha_cumplimiento_sort'])
+                    )
+                    dias = (f_cierre_ref - f_creacion).days
                     if dias >= 0:
                         resolucion_dias.append(dias)
                 except Exception:
                     pass
         avg_dias_resolucion = round(sum(resolucion_dias) / len(resolucion_dias), 1) if resolucion_dias else None
+        pct_en_plazo = round((comp_en_plazo / comp_evaluados) * 100, 1) if comp_evaluados > 0 else None
+        comp_fuera_plazo = comp_evaluados - comp_en_plazo
 
         return jsonify({
             'kpi': {
@@ -7716,6 +8119,13 @@ def api_visitas_data():
                 'promedio_visitas': promedio_visitas,
                 'pct_sin_visita': pct_sin_visita,
                 'clientes_sin_visita': clientes_sin_visita,
+                'total_clientes_activos': total_clientes_base,
+                'comp_en_plazo': comp_en_plazo,
+                'comp_evaluados': comp_evaluados,
+                'pct_en_plazo': pct_en_plazo,
+                'comp_fuera_plazo': comp_fuera_plazo,
+                'comp_cerrados_tarde': comp_cerrados_tarde,
+                'comp_pendientes_en_plazo': comp_pendientes_en_plazo,
                 'avg_dias_resolucion': avg_dias_resolucion,
                 'resolucion_muestra': len(resolucion_dias),
             },
@@ -7751,7 +8161,10 @@ def api_visitas_detalles():
         company_id = _get_user_company_id(cur, get_jwt_identity())
         date_expr = _visita_date_expr()
         desde = _gestion_desde_arg()
-        base_conds, base_params = _visita_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
+        base_conds, base_params = _visita_conds(
+            cliente, year, month, day,
+            company_id=company_id, propiedad=propiedad, desde=desde, filtrar_fecha=False
+        )
         trend_conds = base_conds + [f'{date_expr} IS NOT NULL']
 
         cur.execute(f"""
@@ -7773,7 +8186,11 @@ def api_visitas_detalles():
             {_visita_where(trend_conds)}
             ORDER BY {date_expr} DESC NULLS LAST, id_visita DESC
         """, base_params)
-        compromisos = _visita_parse_compromisos(cur.fetchall())
+        rows_comp = cur.fetchall()
+        ids_vis = [r['id_visita'] for r in rows_comp if r.get('id_visita') is not None]
+        cierres_hist = _visita_cierres_historicos(cur, ids_vis)
+        compromisos_todos = _visita_parse_compromisos(rows_comp, cierres_hist=cierres_hist)
+        compromisos = [c for c in compromisos_todos if _compromiso_en_periodo(c, year, month, day)]
         compromisos.sort(key=lambda item: (item['fecha_sort'], item['cliente']), reverse=True)
         return jsonify({'detalles': compromisos})
     except Exception as e:
@@ -7840,28 +8257,43 @@ def api_visitas_update_estado(id_visita):
             except Exception:
                 pass
 
-        # Preserve existing evidencia_url if no new file uploaded
+        # Preserve existing evidencia_url and fecha_cierre if already closed
         existing = estados.get(str(bloque_idx))
         existing_evidencia = ''
+        existing_fecha_cierre = ''
         if isinstance(existing, dict):
             existing_evidencia = existing.get('evidencia_url') or ''
+            existing_fecha_cierre = (existing.get('fecha_cierre') or '').strip()
+
+        fecha_cierre_val = ''
+        if nuevo_estado == 'cumplido':
+            fecha_cierre_val = existing_fecha_cierre or hoy_operacion().isoformat()
 
         anotar(detalle={'bloque_idx': bloque_idx,
                         'estado_anterior': existing.get('estado') if isinstance(existing, dict) else None,
                         'estado_nuevo': nuevo_estado, 'accion_tomada': accion_tomada,
+                        'fecha_cierre': fecha_cierre_val or None,
                         'con_evidencia': bool(evidencia_url)})
-        estados[str(bloque_idx)] = {
+        nuevo_bloque = {
             'estado': nuevo_estado,
             'accion_tomada': accion_tomada,
             'evidencia_url': evidencia_url or existing_evidencia,
         }
+        if fecha_cierre_val:
+            nuevo_bloque['fecha_cierre'] = fecha_cierre_val
+        estados[str(bloque_idx)] = nuevo_bloque
 
         cur.execute(
             "UPDATE registro_y_acta_de_visita SET compromisos_estados = %s WHERE id_visita = %s",
             (_json.dumps(estados), id_visita)
         )
         conn.commit()
-        return jsonify({'ok': True, 'estado': nuevo_estado, 'evidencia_url': evidencia_url or existing_evidencia})
+        return jsonify({
+            'ok': True,
+            'estado': nuevo_estado,
+            'fecha_cierre': fecha_cierre_val or None,
+            'evidencia_url': evidencia_url or existing_evidencia,
+        })
     except Exception as e:
         if conn:
             conn.rollback()

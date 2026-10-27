@@ -175,14 +175,14 @@
             </div>
             <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({}), '% Sin Visita — Todos los compromisos del período')" title="Ver compromisos del período">
                 <div class="card-title">% Sin Visita</div>
-                <div class="kpi-value" id="kpiSinVisita" style="color:#ef4444;">—</div>
-                <div class="kpi-label">Clientes sin visita en el período</div>
+                <div class="kpi-value" id="kpiSinVisita" style="color:#ef4444;font-size:1.45rem;">—</div>
+                <div class="kpi-label">Clientes activos sin visita en el período</div>
                 <div class="kpi-sub" id="kpiSinVisitaSub">—</div>
             </div>
-            <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({estado:'cumplido'}), '⏱ Resolución — Compromisos cumplidos')" title="Ver compromisos cumplidos">
-                <div class="card-title">⏱ Resolución de Compromisos</div>
-                <div class="kpi-value" id="kpiResolucion" style="color:#a78bfa;">—</div>
-                <div class="kpi-label">Tiempo promedio de resolución</div>
+            <div class="card clickable-card" onclick="openDetailListModal(filterVisitasDetalles({evaluado:true}), 'Cerrados en Plazo — Compromisos evaluados')" title="Ver compromisos evaluados del período">
+                <div class="card-title">Cerrados en Plazo</div>
+                <div class="kpi-value" id="kpiResolucion" style="color:#e5e7eb;font-size:1.45rem;">—</div>
+                <div class="kpi-label">Compromisos cumplidos dentro de su fecha límite</div>
                 <div class="kpi-sub" id="kpiResolucionSub">—</div>
             </div>
         </div>
@@ -280,15 +280,35 @@
         document.getElementById('kpiTotalVisitas').textContent = (kpi.total_visitas || 0).toLocaleString('es');
         document.getElementById('kpiClientes').textContent = (kpi.clientes_visitados || 0).toLocaleString('es');
         document.getElementById('kpiPromedio').textContent = Number(kpi.promedio_visitas || 0).toFixed(1);
-        document.getElementById('kpiSinVisita').textContent = `${Number(kpi.pct_sin_visita || 0).toFixed(1)}%`;
-        document.getElementById('kpiSinVisitaSub').textContent = `${kpi.clientes_sin_visita || 0} cliente(s) sin visita`;
-        if (kpi.avg_dias_resolucion !== null && kpi.avg_dias_resolucion !== undefined) {
-            const dias = Number(kpi.avg_dias_resolucion);
-            document.getElementById('kpiResolucion').textContent = dias < 1 ? `${Math.round(dias * 24)}h` : `${dias.toFixed(1)} días`;
-            document.getElementById('kpiResolucionSub').textContent = `Basado en ${kpi.resolucion_muestra || 0} compromiso(s) cumplido(s)`;
+        const totalActivos = Number(kpi.total_clientes_activos || 0);
+        const sinVisita = Number(kpi.clientes_sin_visita || 0);
+        if (totalActivos > 0) {
+            const pctSinTxt = kpi.pct_sin_visita !== null && kpi.pct_sin_visita !== undefined
+                ? Number(kpi.pct_sin_visita).toFixed(1).replace(/\.0$/, '')
+                : Math.round((sinVisita / totalActivos) * 100);
+            document.getElementById('kpiSinVisita').textContent = `${sinVisita} de ${totalActivos} (${pctSinTxt}%)`;
+            document.getElementById('kpiSinVisitaSub').textContent = `${kpi.clientes_visitados || 0} de ${totalActivos} cliente(s) activo(s) visitado(s)`;
         } else {
-            document.getElementById('kpiResolucion').textContent = 'N/D';
-            document.getElementById('kpiResolucionSub').textContent = 'Sin compromisos cumplidos';
+            document.getElementById('kpiSinVisita').textContent = 'Sin información';
+            document.getElementById('kpiSinVisitaSub').textContent = 'Sin clientes activos en el alcance';
+        }
+        const evaluados = Number(kpi.comp_evaluados || 0);
+        const enPlazo = Number(kpi.comp_en_plazo || 0);
+        const pendEnPlazo = Number(kpi.comp_pendientes_en_plazo || 0);
+        if (evaluados > 0) {
+            const pctTxt = kpi.pct_en_plazo !== null && kpi.pct_en_plazo !== undefined
+                ? Number(kpi.pct_en_plazo).toFixed(1).replace(/\.0$/, '')
+                : Math.round((enPlazo / evaluados) * 100);
+            document.getElementById('kpiResolucion').textContent = `${enPlazo} de ${evaluados} (${pctTxt}%)`;
+            const fueraPlazo = Math.max(evaluados - enPlazo, 0);
+            const partes = [`${fueraPlazo} fuera de plazo`];
+            if (pendEnPlazo > 0) partes.push(`${pendEnPlazo} pendiente(s) dentro de plazo`);
+            document.getElementById('kpiResolucionSub').textContent = partes.join(' · ');
+        } else {
+            document.getElementById('kpiResolucion').textContent = 'Sin información';
+            document.getElementById('kpiResolucionSub').textContent = pendEnPlazo > 0
+                ? `${pendEnPlazo} compromiso(s) pendiente(s) dentro de plazo`
+                : 'Sin compromisos evaluados en el período';
         }
     }
 
@@ -504,6 +524,7 @@
             if (f.cliente && detail.cliente !== f.cliente) return false;
             if (f.motivo && detail.motivo_visita !== f.motivo) return false;
             if (f.estado && detail.estado !== f.estado) return false;
+            if (f.evaluado && !detail.evaluado) return false;
             if (f.periodLabel) {
                 const monthKey = (detail.fecha_sort || '').slice(0, 7);
                 const monthLabel = monthKey ? monthLabelFromKey(monthKey).toLowerCase() : '';
@@ -547,21 +568,20 @@
         const totalVisitas = detalles.length;
         // Use raw KPI for unfiltered state, derive for filtered
         if (filtered) {
-            const cumplidos = detalles.filter(d => d.estado === 'cumplido');
-            const diasArr = cumplidos.map(d => {
-                if (!d.fecha_cumplimiento_sort || !d.fecha_sort) return null;
-                const diff = (new Date(d.fecha_cumplimiento_sort) - new Date(d.fecha_sort)) / 86400000;
-                return isNaN(diff) ? null : diff;
-            }).filter(v => v !== null);
-            const avgDias = diasArr.length ? diasArr.reduce((a,b)=>a+b,0)/diasArr.length : null;
+            const evaluados = detalles.filter(d => d.evaluado);
+            const enPlazo = evaluados.filter(d => d.en_plazo);
+            const pendEnPlazo = detalles.filter(d => !d.evaluado);
             renderKPI({
                 total_visitas: totalVisitas,
                 clientes_visitados: clienteSet.size,
                 promedio_visitas: clienteSet.size ? (totalVisitas / clienteSet.size) : 0,
                 pct_sin_visita: 0,
                 clientes_sin_visita: 0,
-                avg_dias_resolucion: avgDias,
-                resolucion_muestra: cumplidos.length,
+                comp_en_plazo: enPlazo.length,
+                comp_evaluados: evaluados.length,
+                pct_en_plazo: evaluados.length ? ((enPlazo.length / evaluados.length) * 100) : null,
+                comp_fuera_plazo: evaluados.length - enPlazo.length,
+                comp_pendientes_en_plazo: pendEnPlazo.length,
             });
         } else {
             renderKPI(data.kpi || {});
@@ -631,7 +651,10 @@
         } else {
             tbody.innerHTML = rows.map((r, i) => {
                 const statusClass = r.estado === 'cumplido' ? 'status-cumplido' : r.estado === 'vencido' ? 'status-vencido' : 'status-pendiente';
-                const statusLabel = r.estado === 'cumplido' ? 'Cumplido' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
+                const statusLabel = r.estado === 'cumplido'
+                    ? (r.cerrado_fuera_plazo ? 'Cumplido (fuera de plazo)' : 'Cumplido')
+                    : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
+                const cierreTitle = (r.fecha_cierre && r.fecha_cierre !== '—') ? ` title="Cerrado el ${r.fecha_cierre}"` : '';
                 return `
                     <tr class="clickable-row" data-row-idx="${i}" title="Clic para gestionar compromiso">
                         <td>${r.cliente || '—'}</td>
@@ -640,7 +663,7 @@
                         <td style="min-width:280px;">${r.acuerdo || '—'}</td>
                         <td>${formatResponsable(r.responsable)}</td>
                         <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
-                        <td><span class="status-pill ${statusClass}">${statusLabel}</span>${editedBadge(r)}</td>
+                        <td><span class="status-pill ${statusClass}"${cierreTitle}>${statusLabel}</span>${editedBadge(r)}</td>
                         <td><button type="button" class="drv-action-btn" style="pointer-events:none;">Gestionar ↗</button></td>
                     </tr>
                 `;
@@ -671,7 +694,10 @@
 
         tbody.innerHTML = sorted.map((r, i) => {
             const statusClass = r.estado === 'cumplido' ? 'status-cumplido' : r.estado === 'vencido' ? 'status-vencido' : 'status-pendiente';
-            const statusLabel = r.estado === 'cumplido' ? 'Cumplido' : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
+            const statusLabel = r.estado === 'cumplido'
+                ? (r.cerrado_fuera_plazo ? 'Cumplido (fuera de plazo)' : 'Cumplido')
+                : r.estado === 'vencido' ? 'Vencido' : 'Pendiente';
+            const cierreTitle = (r.fecha_cierre && r.fecha_cierre !== '—') ? ` title="Cerrado el ${r.fecha_cierre}"` : '';
             const editHint = r.estado !== 'cumplido'
                 ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:12px;height:12px;opacity:.55;margin-left:.3rem;vertical-align:middle;"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>`
                 : '';
@@ -682,7 +708,7 @@
                 <td style="min-width:280px;">${r.acuerdo || '—'}</td>
                 <td>${formatResponsable(r.responsable)}</td>
                 <td style="white-space:nowrap;">${r.fecha_cumplimiento || '—'}</td>
-                <td><span class="status-pill ${statusClass}">${statusLabel}${editHint}</span>${editedBadge(r)}</td>
+                <td><span class="status-pill ${statusClass}"${cierreTitle}>${statusLabel}${editHint}</span>${editedBadge(r)}</td>
                 <td>${recordViewer.actionButtonHtml(r.id_visita)}</td>
             </tr>`;
         }).join('');
@@ -917,9 +943,8 @@
                         <div style="flex:1; min-width:140px;">
                             <span style="color:#94a3b8; font-size:0.75rem; font-weight:bold; text-transform:uppercase;">Nuevo estado:</span>
                             <select id="inlineEstadoSelect" class="modal-select" style="margin-top:0.25rem;">
-                                <option value="pendiente" ${r.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                                <option value="pendiente" ${r.estado !== 'cumplido' ? 'selected' : ''}>Pendiente</option>
                                 <option value="cumplido" ${r.estado === 'cumplido' ? 'selected' : ''}>Cumplido</option>
-                                <option value="vencido" ${r.estado === 'vencido' ? 'selected' : ''}>Vencido</option>
                             </select>
                         </div>
                         <button class="btn-save" id="inlineSaveBtn" style="white-space:nowrap; align-self:flex-end;">Actualizar Estado</button>

@@ -4813,6 +4813,19 @@ def gestionar_asignacion(asignacion_id):
                 (get_jwt_identity(), nota, nota, nota, asignacion_id, _ASIG_ESTADOS_CERRADOS)
             )
             row = cur.fetchone()
+            if row and row.get('form_type') == 'reporte_incidente' and row.get('record_id') is not None:
+                try:
+                    cur.execute("""
+                        UPDATE reportes_incidentes
+                           SET tiempo_resolucion_min = GREATEST(
+                               1,
+                               ROUND(EXTRACT(EPOCH FROM (NOW() - COALESCE(fecha_hora::timestamptz, creado_en))) / 60.0)::int
+                           )
+                         WHERE id_reporte_incidente = %s
+                           AND (tiempo_resolucion_min IS NULL OR tiempo_resolucion_min <= 0)
+                    """, (int(row['record_id']),))
+                except Exception:
+                    pass
         if not row:
             # No existe, o ya estaba cerrada: en ambos casos no queda pendiente.
             return jsonify({"error": "Asignación no encontrada o ya gestionada"}), 404
