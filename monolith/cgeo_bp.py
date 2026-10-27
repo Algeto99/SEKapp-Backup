@@ -2033,7 +2033,7 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 2: Incidente abierto > 24 h (sin atención = rojo; en gestión = seguimiento/prioritaria) ──
-        from dashboard_bp import _incidentes_metricas_atencion
+        from dashboard_bp import _incidentes_metricas_atencion, _Savepoint
         r2_conds, r2_params = _cp()
         r2_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
@@ -2506,42 +2506,43 @@ def cgeo_api_alertas():
             # con respaldo a supervision_puesto si el catálogo está vacío.
             clientes_catalogo = []
             try:
-                cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
-                cc_params = []
-                if company_id is not None:
-                    cc_conds.append("cc.company_id = %s")
-                    cc_params.append(company_id)
-                if cliente:
-                    if str(cliente).isdigit():
-                        cc_conds.append("cc.id = %s")
-                        cc_params.append(int(cliente))
-                    else:
-                        cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
-                        cc_params.append(str(cliente))
-                if propiedad and str(propiedad).isdigit():
-                    cc_conds.append(
-                        "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id = %s)"
-                    )
-                    cc_params.append(int(propiedad))
-                cur.execute(f"""
-                    SELECT cc.id, TRIM(cc.name) AS nombre,
-                           ARRAY_REMOVE(ARRAY_AGG(TRIM(p.name)), NULL) AS instalaciones
-                    FROM customer_companies cc
-                    LEFT JOIN propiedades p
-                      ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
-                    WHERE {' AND '.join(cc_conds)}
-                    GROUP BY cc.id, TRIM(cc.name)
-                    ORDER BY LOWER(TRIM(cc.name))
-                """, tuple(cc_params))
-                for r_cc in (cur.fetchall() or []):
-                    c_nom = (r_cc.get('nombre') or '').strip()
-                    if not c_nom:
-                        continue
-                    aliases = {c_nom.lower()}
-                    for inst in (r_cc.get('instalaciones') or []):
-                        if inst and str(inst).strip():
-                            aliases.add(str(inst).strip().lower())
-                    clientes_catalogo.append((c_nom, aliases))
+                with _Savepoint(cur, 'alertas_catalogo'):
+                    cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
+                    cc_params = []
+                    if company_id is not None:
+                        cc_conds.append("cc.company_id = %s")
+                        cc_params.append(company_id)
+                    if cliente:
+                        if str(cliente).isdigit():
+                            cc_conds.append("cc.id = %s")
+                            cc_params.append(int(cliente))
+                        else:
+                            cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
+                            cc_params.append(str(cliente))
+                    if propiedad and str(propiedad).isdigit():
+                        cc_conds.append(
+                            "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id_propiedad = %s)"
+                        )
+                        cc_params.append(int(propiedad))
+                    cur.execute(f"""
+                        SELECT cc.id, TRIM(cc.name) AS nombre,
+                               ARRAY_REMOVE(ARRAY_AGG(TRIM(p.nombre)), NULL) AS instalaciones
+                        FROM customer_companies cc
+                        LEFT JOIN propiedades p
+                          ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
+                        WHERE {' AND '.join(cc_conds)}
+                        GROUP BY cc.id, TRIM(cc.name)
+                        ORDER BY LOWER(TRIM(cc.name))
+                    """, tuple(cc_params))
+                    for r_cc in (cur.fetchall() or []):
+                        c_nom = (r_cc.get('nombre') or '').strip()
+                        if not c_nom:
+                            continue
+                        aliases = {c_nom.lower()}
+                        for inst in (r_cc.get('instalaciones') or []):
+                            if inst and str(inst).strip():
+                                aliases.add(str(inst).strip().lower())
+                        clientes_catalogo.append((c_nom, aliases))
             except Exception:
                 clientes_catalogo = []
 
@@ -2599,130 +2600,132 @@ def cgeo_api_alertas():
         # Permanente: siempre informa, aunque esté al día. A diferencia del resto,
         # no nace de un registro operativo sino de la ausencia de un respaldo.
         try:
-            dias_backup = int(alertas_thresholds.get('dias_backup_frecuencia') or 7)
-            cur.execute("SELECT to_regclass('backups_realizados') AS t")
-            if (cur.fetchone() or {}).get('t'):
-                cur.execute("""
-                    SELECT generado_en, cliente_nombre, total_registros,
-                           EXTRACT(DAY FROM (NOW() - generado_en))::int AS dias
-                    FROM backups_realizados
-                    ORDER BY generado_en DESC
-                    LIMIT 1
-                """)
-                ub = cur.fetchone()
-            else:
-                ub = None
-
-            # Mismo criterio que app.py para el nombre de la empresa: la del
-            # usuario, o la única que exista si no la tiene asignada.
-            cur.execute("""
-                SELECT name FROM companies
-                 WHERE id = COALESCE(
-                     (SELECT company_id FROM users WHERE email = %s),
-                     (SELECT MIN(id) FROM companies))
-            """, (get_jwt_identity(),))
-            _emp = cur.fetchone()
-            empresa = (_emp['name'] if _emp and _emp.get('name') else 'La empresa')
-            if not ub:
-                alertas.append({
-                    "id": "r13_backup",
-                    "regla": 13,
-                    "backup": True,
-                    "texto": "Nunca se ha realizado un Backup de Información",
-                    "motivo": (f'Backup pendiente. {empresa} no registra ningún Backup de Información '
-                               f'en SEKapp. La política vigente es respaldar cada {dias_backup} días.'),
-                    "accion": "Realizar Backup",
-                    "ruta_navegacion": "/viewer/?backup=1",
-                    "color_semaforo": "rojo",
-                    "timestamp": None,
-                    "horas": None,
-                })
-            else:
-                d = int(ub['dias'] or 0)
-                fecha_ub = ub['generado_en'].strftime('%d/%m/%Y')
-                if d >= dias_backup:
-                    estado, color = 'Backup pendiente', 'rojo'
-                    frase = (f'{empresa} lleva {d} día{"s" if d != 1 else ""} sin realizar Backup de '
-                             f'su información registrada en SEKapp (política: cada {dias_backup} días). '
-                             f'Dirígete a Reportes y realiza el Backup.')
-                elif d >= dias_backup - 1:
-                    estado, color = 'Backup próximo a vencer', 'amarillo'
-                    frase = (f'El último Backup fue realizado hace {d} día{"s" if d != 1 else ""} '
-                             f'({fecha_ub}). Realice un nuevo Backup próximamente.')
+            with _Savepoint(cur, 'r13_backup'):
+                dias_backup = int(alertas_thresholds.get('dias_backup_frecuencia') or 7)
+                cur.execute("SELECT to_regclass('backups_realizados') AS t")
+                if (cur.fetchone() or {}).get('t'):
+                    cur.execute("""
+                        SELECT generado_en, cliente_nombre, total_registros,
+                               EXTRACT(DAY FROM (NOW() - generado_en))::int AS dias
+                        FROM backups_realizados
+                        ORDER BY generado_en DESC
+                        LIMIT 1
+                    """)
+                    ub = cur.fetchone()
                 else:
-                    estado, color = 'Backup al día', 'verde'
-                    frase = f'Último Backup realizado hace {d} día{"s" if d != 1 else ""} ({fecha_ub}).'
+                    ub = None
 
-                alertas.append({
-                    "id": "r13_backup",
-                    "regla": 13,
-                    "backup": True,
-                    "texto": f'{estado}: último backup hace {d} día{"s" if d != 1 else ""}',
-                    "motivo": f'{estado}. {frase}',
-                    "accion": "Realizar Backup",
-                    "ruta_navegacion": "/viewer/?backup=1",
-                    "color_semaforo": color,
-                    "timestamp": ub['generado_en'].isoformat(),
-                    "horas": d * 24,
-                })
+                # Mismo criterio que app.py para el nombre de la empresa: la del
+                # usuario, o la única que exista si no la tiene asignada.
+                cur.execute("""
+                    SELECT name FROM companies
+                     WHERE id = COALESCE(
+                         (SELECT company_id FROM users WHERE email = %s),
+                         (SELECT MIN(id) FROM companies))
+                """, (get_jwt_identity(),))
+                _emp = cur.fetchone()
+                empresa = (_emp['name'] if _emp and _emp.get('name') else 'La empresa')
+                if not ub:
+                    alertas.append({
+                        "id": "r13_backup",
+                        "regla": 13,
+                        "backup": True,
+                        "texto": "Nunca se ha realizado un Backup de Información",
+                        "motivo": (f'Backup pendiente. {empresa} no registra ningún Backup de Información '
+                                   f'en SEKapp. La política vigente es respaldar cada {dias_backup} días.'),
+                        "accion": "Realizar Backup",
+                        "ruta_navegacion": "/viewer/?backup=1",
+                        "color_semaforo": "rojo",
+                        "timestamp": None,
+                        "horas": None,
+                    })
+                else:
+                    d = int(ub['dias'] or 0)
+                    fecha_ub = ub['generado_en'].strftime('%d/%m/%Y')
+                    if d >= dias_backup:
+                        estado, color = 'Backup pendiente', 'rojo'
+                        frase = (f'{empresa} lleva {d} día{"s" if d != 1 else ""} sin realizar Backup de '
+                                 f'su información registrada en SEKapp (política: cada {dias_backup} días). '
+                                 f'Dirígete a Reportes y realiza el Backup.')
+                    elif d >= dias_backup - 1:
+                        estado, color = 'Backup próximo a vencer', 'amarillo'
+                        frase = (f'El último Backup fue realizado hace {d} día{"s" if d != 1 else ""} '
+                                 f'({fecha_ub}). Realice un nuevo Backup próximamente.')
+                    else:
+                        estado, color = 'Backup al día', 'verde'
+                        frase = f'Último Backup realizado hace {d} día{"s" if d != 1 else ""} ({fecha_ub}).'
+
+                    alertas.append({
+                        "id": "r13_backup",
+                        "regla": 13,
+                        "backup": True,
+                        "texto": f'{estado}: último backup hace {d} día{"s" if d != 1 else ""}',
+                        "motivo": f'{estado}. {frase}',
+                        "accion": "Realizar Backup",
+                        "ruta_navegacion": "/viewer/?backup=1",
+                        "color_semaforo": color,
+                        "timestamp": ub['generado_en'].isoformat(),
+                        "horas": d * 24,
+                    })
         except Exception as bk_err:
             app_logger.warning(f"cgeo_api_alertas: estado de backup omitido: {bk_err}")
 
         # ── REGLA 14: Clientes en riesgo (Estatus de Cliente) ────────────────
         try:
-            from admin_bp import get_estatus_pesos
-            from dashboard_bp import _estatus_ranking
-            pesos_estatus = get_estatus_pesos(alertas_thresholds)
-            limite_observacion = float(alertas_thresholds.get('estatus_banda_observacion', 75))
-            limite_seguimiento = float(alertas_thresholds.get('estatus_banda_seguimiento', 60))
-            company_id = _get_user_company_id(cur, get_jwt_identity())
-            calificados_alertas, _ = _estatus_ranking(
-                cur, year=None, month=None, day=None, desde=alertas_thresholds.get('fecha_inicio_operacion'),
-                company_id=company_id, thresholds=alertas_thresholds, pesos=pesos_estatus
-            )
-            en_riesgo = []
-            for c in calificados_alertas:
-                nota = c.get('nota')
-                cid = c.get('id')
-                cnombre = c.get('nombre')
-                if cliente and str(cliente) != str(cid) and str(cliente) != str(cnombre):
-                    continue
-                if nota is not None and nota < limite_observacion:
-                    en_riesgo.append(c)
-            # Un solo renglón, no uno por cliente: el briefing muestra las 5
-            # primeras alertas, así que una alerta por cliente en riesgo tapa
-            # incidentes y supervisiones con una lista que ya vive en Gestión.
-            if en_riesgo:
-                # `_estatus_ranking` devuelve los calificados de peor a mejor,
-                # así que los primeros son los que hay que mirar hoy.
-                peores = en_riesgo[:3]
-                resumen = ' · '.join(f"{c['nombre']} {c['nota']:g}" for c in peores)
-                n_riesgo = len(en_riesgo)
-                hay_critico = any(c['nota'] < limite_seguimiento for c in en_riesgo)
-                alertas.append({
-                    "id": "r14",
-                    "regla": 14,
-                    "motivo": (f"{n_riesgo} cliente{'s' if n_riesgo != 1 else ''} por debajo de "
-                               f'{limite_observacion:g}/100 en Estatus de Cliente. '
-                               f'De menor calificación: {resumen}.'),
-                    "texto": (f'Cliente en riesgo: {resumen}' if n_riesgo == 1
-                              else f'Clientes en riesgo: {n_riesgo} · {resumen}'),
-                    "accion": "Ver listado",
-                    "ruta_navegacion": "/dashboard/gestion/",
-                    "record_id": None,
-                    "form_type": "estatus_cliente",
-                    "color_semaforo": 'rojo' if hay_critico else 'amarillo',
-                    "timestamp": hoy_operacion().isoformat(),
-                    "horas": None,
-                })
+            with _Savepoint(cur, 'r14_estatus'):
+                from admin_bp import get_estatus_pesos
+                from dashboard_bp import _estatus_ranking
+                pesos_estatus = get_estatus_pesos(alertas_thresholds)
+                limite_observacion = float(alertas_thresholds.get('estatus_banda_observacion', 75))
+                limite_seguimiento = float(alertas_thresholds.get('estatus_banda_seguimiento', 60))
+                company_id = _get_user_company_id(cur, get_jwt_identity())
+                calificados_alertas, _ = _estatus_ranking(
+                    cur, year=None, month=None, day=None, desde=alertas_thresholds.get('fecha_inicio_operacion'),
+                    company_id=company_id, thresholds=alertas_thresholds, pesos=pesos_estatus
+                )
+                en_riesgo = []
+                for c in calificados_alertas:
+                    nota = c.get('nota')
+                    cid = c.get('id')
+                    cnombre = c.get('nombre')
+                    if cliente and str(cliente) != str(cid) and str(cliente) != str(cnombre):
+                        continue
+                    if nota is not None and nota < limite_observacion:
+                        en_riesgo.append(c)
+                # Un solo renglón, no uno por cliente: el briefing muestra las 5
+                # primeras alertas, así que una alerta por cliente en riesgo tapa
+                # incidentes y supervisiones con una lista que ya vive en Gestión.
+                if en_riesgo:
+                    # `_estatus_ranking` devuelve los calificados de peor a mejor,
+                    # así que los primeros son los que hay que mirar hoy.
+                    peores = en_riesgo[:3]
+                    resumen = ' · '.join(f"{c['nombre']} {c['nota']:g}" for c in peores)
+                    n_riesgo = len(en_riesgo)
+                    hay_critico = any(c['nota'] < limite_seguimiento for c in en_riesgo)
+                    alertas.append({
+                        "id": "r14",
+                        "regla": 14,
+                        "motivo": (f"{n_riesgo} cliente{'s' if n_riesgo != 1 else ''} por debajo de "
+                                   f'{limite_observacion:g}/100 en Estatus de Cliente. '
+                                   f'De menor calificación: {resumen}.'),
+                        "texto": (f'Cliente en riesgo: {resumen}' if n_riesgo == 1
+                                  else f'Clientes en riesgo: {n_riesgo} · {resumen}'),
+                        "accion": "Ver listado",
+                        "ruta_navegacion": "/dashboard/gestion/",
+                        "record_id": None,
+                        "form_type": "estatus_cliente",
+                        "color_semaforo": 'rojo' if hay_critico else 'amarillo',
+                        "timestamp": hoy_operacion().isoformat(),
+                        "horas": None,
+                    })
         except Exception as r14_err:
             app_logger.warning(f"cgeo_api_alertas: regla 14 clientes en riesgo omitida: {r14_err}")
 
         # ── REGLAS 16-19: mantenimiento, permisos, equipos con falla y disciplina ──
-        # Cada regla va protegida por separado y con rollback: el endpoint es de
+        # Cada regla va protegida por separado con savepoints: el endpoint es de
         # solo lectura y una regla con error no debe dejar abortada la
-        # transacción para las que siguen (misma razón que la regla 15). La
-        # disciplinaria lleva nombres de empleados: se omite en modo público.
+        # transacción para las que siguen. La disciplinaria lleva nombres de
+        # empleados: se omite en modo público.
         _publico = _alcance_publico() is not None
         for _num, _regla_fn in ((16, _alertas_mantenimiento_equipos),
                                 (17, _alertas_permiso_porte),
@@ -2731,9 +2734,9 @@ def cgeo_api_alertas():
             if _num == 19 and _publico:
                 continue
             try:
-                alertas.extend(_regla_fn(cur, alertas_thresholds, cliente=cliente, propiedad=propiedad))
+                with _Savepoint(cur, f'regla_{_num}'):
+                    alertas.extend(_regla_fn(cur, alertas_thresholds, cliente=cliente, propiedad=propiedad))
             except Exception as regla_err:
-                conn.rollback()
                 app_logger.warning(f"cgeo_api_alertas: regla {_num} omitida: {regla_err}")
 
         # ── Asignaciones pendientes de cualquier origen ───────────────────────
@@ -2741,7 +2744,8 @@ def cgeo_api_alertas():
         # Van aparte de las 8 reglas: nacen de una acción explícita del
         # Administrador, no de una condición evaluada sobre las tablas.
         try:
-            alertas.extend(_asignaciones_pendientes(cur, cliente=cliente, propiedad=propiedad))
+            with _Savepoint(cur, 'asig_pendientes'):
+                alertas.extend(_asignaciones_pendientes(cur, cliente=cliente, propiedad=propiedad))
         except Exception as asig_err:
             # Una asignación ilegible no puede dejar sin alertas al briefing.
             app_logger.warning(f"cgeo_api_alertas: asignaciones pendientes omitidas: {asig_err}")
@@ -2753,7 +2757,8 @@ def cgeo_api_alertas():
         # correos de usuarios de la empresa.
         if _alcance_publico() is None:
             try:
-                alertas.extend(_alertas_seguridad_pendientes(cur))
+                with _Savepoint(cur, 'alertas_seguridad'):
+                    alertas.extend(_alertas_seguridad_pendientes(cur))
             except Exception as seg_err:
                 app_logger.warning(f"cgeo_api_alertas: alertas de seguridad omitidas: {seg_err}")
 
@@ -2885,37 +2890,38 @@ def cgeo_api_semaforo_global():
         eq_por_tipo = {}
         eq_detalles = []
         try:
-            cur.execute(f"""
-                SELECT
-                    tipo,
-                    COALESCE(SUM(total), 0) AS total,
-                    COALESCE(SUM(operativos), 0) AS operativos
-                {eq_inv}
-                GROUP BY tipo
-            """, tuple(eq_params))
-            eq_por_tipo = {
-                r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
-                for r in (cur.fetchall() or []) if r.get("tipo")
-            }
-            cur.execute(f"""
-                SELECT id, cliente_instalacion, fecha, tipo, etiqueta, total, operativos,
-                       (total - operativos) AS con_falla
-                {eq_inv}
-                WHERE total > 0 AND operativos < total
-                ORDER BY fecha DESC NULLS LAST, id DESC
-                LIMIT 10
-            """, tuple(eq_params))
-            for r in (cur.fetchall() or []):
-                eq_detalles.append({
-                    "id": r["id"],
-                    "instalacion": r["cliente_instalacion"] or "—",
-                    "fecha": r["fecha"].isoformat() if r.get("fecha") else None,
-                    "tipo": r["tipo"] or "equipo",
-                    "etiqueta": r["etiqueta"] or "Equipo",
-                    "total": int(r["total"] or 0),
-                    "operativos": int(r["operativos"] or 0),
-                    "con_falla": int(r["con_falla"] or 0),
-                })
+            with _Savepoint(cur, 'eq_detalles'):
+                cur.execute(f"""
+                    SELECT
+                        tipo,
+                        COALESCE(SUM(total), 0) AS total,
+                        COALESCE(SUM(operativos), 0) AS operativos
+                    {eq_inv}
+                    GROUP BY tipo
+                """, tuple(eq_params))
+                eq_por_tipo = {
+                    r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
+                    for r in (cur.fetchall() or []) if r.get("tipo")
+                }
+                cur.execute(f"""
+                    SELECT id, cliente_instalacion, fecha, tipo, etiqueta, total, operativos,
+                           (total - operativos) AS con_falla
+                    {eq_inv}
+                    WHERE total > 0 AND operativos < total
+                    ORDER BY fecha DESC NULLS LAST, id DESC
+                    LIMIT 10
+                """, tuple(eq_params))
+                for r in (cur.fetchall() or []):
+                    eq_detalles.append({
+                        "id": r["id"],
+                        "instalacion": r["cliente_instalacion"] or "—",
+                        "fecha": r["fecha"].isoformat() if r.get("fecha") else None,
+                        "tipo": r["tipo"] or "equipo",
+                        "etiqueta": r["etiqueta"] or "Equipo",
+                        "total": int(r["total"] or 0),
+                        "operativos": int(r["operativos"] or 0),
+                        "con_falla": int(r["con_falla"] or 0),
+                    })
         except Exception:
             eq_por_tipo = {}
             eq_detalles = []

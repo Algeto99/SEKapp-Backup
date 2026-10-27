@@ -1685,21 +1685,28 @@ async function loadAll(silent = false) {
             fetch('/cgeo/api/alertas',               { headers: { Accept: 'application/json' } }),
         ]);
 
-        const [briefing, alertasData] = await Promise.all([
-            briefingResp.ok ? briefingResp.json() : Promise.reject(briefingResp.status),
-            alertasResp.ok  ? alertasResp.json()  : Promise.reject(alertasResp.status),
-        ]);
+        if (briefingResp.ok) {
+            const briefing = await briefingResp.json();
+            _kpis        = briefing.kpis;
+            _tendencia   = briefing.tendencia_semana || [];
+            _thresholds  = briefing.thresholds || {};
+            renderKpis(_kpis, briefing.thresholds);
+            renderClientesEnRiesgo(briefing.clientes_en_riesgo);
+            renderTendencia(_tendencia, _kpis);
+        } else {
+            console.warn('morning-briefing-data error status:', briefingResp.status);
+        }
 
-        _kpis        = briefing.kpis;
-        _alertasData = alertasData.alertas || [];
-        _tendencia   = briefing.tendencia_semana || [];
-        _thresholds  = briefing.thresholds || {};
-
-        renderKpis(_kpis, briefing.thresholds);
-        renderClientesEnRiesgo(briefing.clientes_en_riesgo);
-        renderSemaforo(_alertasData, _kpis);
-        renderAlertas(_alertasData);
-        renderTendencia(_tendencia, _kpis);
+        if (alertasResp.ok) {
+            const alertasData = await alertasResp.json();
+            _alertasData = alertasData.alertas || [];
+            renderSemaforo(_alertasData, _kpis);
+            renderAlertas(_alertasData);
+        } else {
+            console.warn('alertas error status:', alertasResp.status);
+            renderSemaforo([], _kpis);
+            renderAlertas([]);
+        }
 
     } catch (err) {
         console.error('loadAll error:', err);
