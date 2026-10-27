@@ -241,13 +241,28 @@ canvas{outline:none}
 /* Modal detalle semáforo */
 .sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
 .sg-modal{background:#fff;border-radius:1rem;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
-.sg-modal-title{font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
+.sg-modal-wide{max-width:680px}
+.sg-modal-title{font-size:1.0625rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
 .sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
 .sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
 .sg-cond-item:last-child{border-bottom:none}
 .sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
 .sg-cond-text{font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
 .sg-cond-ok{color:#64748b;font-weight:400}
+.sg-detail-section{margin-top:1.25rem}
+.sg-detail-section:first-of-type{margin-top:0}
+.sg-detail-heading{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
+.sg-detail-list{border:1px solid #f1f5f9;border-radius:.6rem;overflow:hidden}
+.sg-detail-empty{font-size:.78rem;color:#64748b;padding:.5rem 0}
+.sg-asignados{border:1px solid #fcd34d;background:rgba(251,191,36,.07);border-radius:.75rem;padding:.875rem;margin-bottom:1.25rem}
+.sg-asignados .sg-detail-heading{color:#b45309;margin-bottom:.55rem}
+.sg-asignados .sg-detail-list{border-color:#fde68a;background:#fff}
+.sg-asig-row{display:flex;align-items:stretch;gap:0;border-bottom:1px solid #f1f5f9}
+.sg-asig-row:last-child{border-bottom:none}
+.sg-asig-row > .alerta-item{flex:1;min-width:0}
+.btn-gestionar{flex-shrink:0;border:none;border-left:1px solid #f1f5f9;background:transparent;color:#15803d;font-family:inherit;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:0 .7rem;cursor:pointer;white-space:nowrap}
+.btn-gestionar:hover{background:rgba(22,163,74,.1)}
+.btn-gestionar:disabled{opacity:.5;cursor:default}
 /* ── fin semáforo global ─────────────────────────────────────────────────── */
 
 .content-footer{padding:1rem 1.75rem;border-top:1px solid #e2e8f0;background:#fff;font-size:.75rem;color:#94a3b8;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
@@ -335,6 +350,13 @@ body:not(.light-mode) .sg-modal-title{color:#f1f5f9}
 body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
 body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
 body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
+body:not(.light-mode) .sg-asignados{border-color:#78350f;background:rgba(120,53,15,.25)}
+body:not(.light-mode) .sg-asignados .sg-detail-heading{color:#fcd34d}
+body:not(.light-mode) .sg-asignados .sg-detail-list{border-color:#78350f;background:#1e293b}
+body:not(.light-mode) .sg-asig-row{border-bottom-color:#334155}
+body:not(.light-mode) .btn-gestionar{border-left-color:#334155;color:#4ade80}
+body:not(.light-mode) .sg-detail-list{border-color:#334155}
+body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
 
 /* ── User menu ───────────────────────────────────────────────────────────── */
 .user-menu-wrap{position:relative;flex-shrink:0}
@@ -720,9 +742,8 @@ body:not(.light-mode) .alerta-estado-badge{background:#334155;color:#cbd5e1;bord
 </div>
 
 {% if not public_mode %}
-{# Agendar visita desde la Tendencia Operacional: programa la visita como una
-   asignación (igual que "Asignar hallazgo") sin salir de la pantalla. El modal
-   es el compartido con el visor de registros de los dashboards. #}
+{# Visor de registros y asignación de hallazgos compartidos #}
+<script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
 <script src="{{ url_for('static', filename='js/agendar-visita.js') }}"></script>
 {% endif %}
 
@@ -2051,14 +2072,32 @@ function computeSemaforo(alertasData, kpis) {
     const condiciones = [];
 
     // ── ROJO ─────────────────────────────────────────────────────────────────
-    if (rojas >= 1)
-        condiciones.push({ nivel: 'rojo', texto: `${rojas} alerta${rojas !== 1 ? 's' : ''} crítica${rojas !== 1 ? 's' : ''} activa${rojas !== 1 ? 's' : ''}` });
+    if (rojas >= 1) {
+        const causas = [];
+        const r2 = (alertasData || []).filter(a => a.regla === 2 && a.color_semaforo === 'rojo').length;
+        const r1 = (alertasData || []).filter(a => a.regla === 1 && a.color_semaforo === 'rojo').length;
+        const r9 = (alertasData || []).filter(a => a.regla === 9 && a.color_semaforo === 'rojo').length;
+        const asig = (alertasData || []).filter(a => a.asignacion && a.color_semaforo === 'rojo').length;
+        const r17 = (alertasData || []).filter(a => a.regla === 17 && a.color_semaforo === 'rojo').length;
+        const r15 = (alertasData || []).filter(a => a.regla === 15 && a.color_semaforo === 'rojo').length;
+        if (r2) causas.push(`${r2} incidente${r2 > 1 ? 's' : ''} sin atención >24h`);
+        if (r1) causas.push(`${r1} puesto${r1 > 1 ? 's' : ''} sin supervisión >48h`);
+        if (r9) causas.push(`${r9} compromiso${r9 > 1 ? 's' : ''} vencido${r9 > 1 ? 's' : ''}`);
+        if (asig) causas.push(`${asig} asignación${asig > 1 ? 'es' : ''} vencida${asig > 1 ? 's' : ''}`);
+        if (r17) causas.push(`${r17} permiso de porte vencido`);
+        if (r15) causas.push(`${r15} sesión simultánea`);
+        const detalleCausa = causas.length ? ` (${causas.slice(0, 3).join(', ')})` : '';
+        condiciones.push({ nivel: 'rojo', texto: `${rojas} alerta${rojas !== 1 ? 's' : ''} crítica${rojas !== 1 ? 's' : ''} activa${rojas !== 1 ? 's' : ''}${detalleCausa}` });
+    }
     if (supProg > 0 && supPct < supAmarilloMin)
         condiciones.push({ nivel: 'rojo', texto: `Supervisiones: ${supComp} de ${supProg} completadas (${Math.round(supPct)}% < ${supAmarilloMin}%)` });
     if (incAb >= 3)
         condiciones.push({ nivel: 'rojo', texto: `${incAb} incidentes abiertos (umbral ≥ 3)` });
-    if (eqTotal > 0 && eqNoPct > eqAmarilloMax)
-        condiciones.push({ nivel: 'rojo', texto: `${eqNoOp} equipo${eqNoOp !== 1 ? 's' : ''} no operativo${eqNoOp !== 1 ? 's' : ''} (${Math.round(eqNoPct)}% > ${eqAmarilloMax}%)` });
+    if (eqTotal > 0 && eqNoPct > eqAmarilloMax) {
+        if (eqNoOp > 3 || eqTotal > 15) {
+            condiciones.push({ nivel: 'rojo', texto: `${eqNoOp} equipos no operativos (${Math.round(eqNoPct)}% > ${eqAmarilloMax}%)` });
+        }
+    }
     if (compVencidos >= 1)
         condiciones.push({ nivel: 'rojo', texto: `${compVencidos} compromiso${compVencidos !== 1 ? 's' : ''} de visita vencido${compVencidos !== 1 ? 's' : ''}` });
 
@@ -2074,8 +2113,8 @@ function computeSemaforo(alertasData, kpis) {
             condiciones.push({ nivel: 'amarillo', texto: `Supervisiones: ${Math.round(supPct)}% completadas (entre ${supAmarilloMin}% y ${supVerdeMin - 1}%)` });
         if (incAb === 1 || incAb === 2)
             condiciones.push({ nivel: 'amarillo', texto: `${incAb} incidente${incAb !== 1 ? 's' : ''} abierto${incAb !== 1 ? 's' : ''}` });
-        if (eqTotal > 0 && eqNoPct > eqVerdeMax && eqNoPct <= eqAmarilloMax)
-            condiciones.push({ nivel: 'amarillo', texto: `${eqNoOp} equipo${eqNoOp !== 1 ? 's' : ''} no operativo${eqNoOp !== 1 ? 's' : ''} (${Math.round(eqNoPct)}% entre ${eqVerdeMax}% y ${eqAmarilloMax}%)` });
+        if (eqTotal > 0 && ((eqNoPct > eqVerdeMax && eqNoPct <= eqAmarilloMax) || (eqNoPct > eqAmarilloMax && eqNoOp <= 3 && eqTotal <= 15)))
+            condiciones.push({ nivel: 'amarillo', texto: `${eqNoOp} equipo${eqNoOp !== 1 ? 's' : ''} no operativo${eqNoOp !== 1 ? 's' : ''} (${Math.round(eqNoPct)}% del inventario capturado)` });
         if (certProx >= 1)
             condiciones.push({ nivel: 'amarillo', texto: `${certProx} ${certProx !== 1 ? 'certificaciones' : 'certificación'} por vencer en 30 días` });
         if (compPorVencer >= 1)
@@ -2112,10 +2151,83 @@ function renderSemaforoGlobal(alertasData, kpis) {
 
     const hint = nivel === 'verde'
         ? 'Toca para ver el detalle de condiciones evaluadas'
-        : `${condiciones.filter(c => c.nivel === nivel).length} ${condiciones.filter(c => c.nivel === nivel).length !== 1 ? 'condiciones' : 'condición'} activando este estado — toca para ver`;
+        : `${condiciones.filter(c => c.nivel === nivel).length} ${condiciones.filter(c => c.nivel === nivel).length !== 1 ? 'condiciones' : 'condición'} activando este estado — toca para ver y gestionar`;
     document.getElementById('sgHint').textContent = hint;
 
     syncStatusBanner();
+}
+
+// ── Visor de registros y asignaciones para el Semáforo ──────────────────────
+const _alertViewers = {};
+function _getAlertViewer(formType) {
+    if (typeof createDashboardRecordViewer === 'undefined') return null;
+    if (!_alertViewers[formType]) {
+        const titles = {
+            'reporte_incidente':          'Reporte de Incidente',
+            'supervision_puesto':         'Detalle de Supervisión',
+            'checklist_cumplimiento':     'Detalle de Cumplimiento',
+            'medicion_experiencia_cliente': 'Detalle de Encuesta de Satisfacción',
+            'registro_y_acta_de_visita':   'Detalle de Visita y Compromisos',
+            'confiabilidad_equipos':       'Detalle de Confiabilidad de Equipos',
+            'informe_novedades_disciplinario': 'Detalle de Informe Disciplinario',
+            'planilla_vehicular':          'Detalle de Pre-operacional de Vehículo',
+            'planilla_motocicletas':       'Detalle de Pre-operacional de Motocicleta',
+        };
+        _alertViewers[formType] = createDashboardRecordViewer({
+            formType,
+            recordTitle: titles[formType] || 'Detalle del Registro',
+        });
+    }
+    return _alertViewers[formType];
+}
+
+function abrirAlertaSemaforo(a, event) {
+    if (event) event.preventDefault();
+    if (!a || PUBLIC_MODE) return;
+    if (a.record_id && a.form_type) {
+        const viewer = _getAlertViewer(a.form_type);
+        if (viewer) {
+            viewer.openRecord(a.record_id, {
+                motivo: a.motivo || a.texto,
+                hallazgoRef: a.id || '',
+                hallazgoTitulo: a.hallazgo_titulo || a.texto || ''
+            });
+            return;
+        }
+    }
+    if (a.ruta_navegacion) {
+        window.location.href = a.ruta_navegacion;
+    }
+}
+
+function _csrfToken() {
+    const row = document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrf_access_token='));
+    return row ? decodeURIComponent(row.substring('csrf_access_token='.length)) : '';
+}
+
+async function gestionarAsignacion(asignacionId, btn) {
+    if (!confirm('¿Marcar este hallazgo como gestionado? Dejará de aparecer como pendiente, pero queda registrado en su trazabilidad.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    try {
+        const res = await fetch(`/cgeo/api/asignaciones/${asignacionId}/gestionar`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken() },
+            body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'No se pudo gestionar.');
+        _alertasData = _alertasData.filter(a => a.asignacion_id !== asignacionId);
+        const fila = document.querySelector(`.sg-asig-row[data-asignacion="${asignacionId}"]`);
+        if (fila) fila.remove();
+        evaluateAlerts();
+    } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '✓ Gestionar';
+        alert(err.message);
+    }
 }
 
 function abrirDetalleSemaforo() {
@@ -2124,23 +2236,104 @@ function abrirDetalleSemaforo() {
 
     const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
     const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
-
     const colores = { rojo: '#ef4444', amarillo: '#f59e0b', verde: '#22c55e' };
+
+    // 1. Resumen de condiciones
     const condHtml = condiciones.length
         ? condiciones.map(c =>
             `<div class="sg-cond-item">
                 <div class="sg-cond-dot" style="background:${colores[c.nivel]}"></div>
-                <span class="sg-cond-text">${c.texto}</span>
+                <span class="sg-cond-text">${_escHtml(c.texto)}</span>
             </div>`).join('')
         : `<div class="sg-cond-item"><div class="sg-cond-dot" style="background:#22c55e"></div><span class="sg-cond-text sg-cond-ok">Ninguna condición de alerta activa — operación en orden</span></div>`;
+
+    // 2. Hallazgos Asignados
+    const asignados = (_alertasData || []).filter(a => a.asignacion);
+    const asignadosHtml = asignados.length ? `
+        <div class="sg-asignados">
+            <div class="sg-detail-heading">📌 HALLAZGOS ASIGNADOS (${asignados.length} pendientes)</div>
+            <div class="sg-detail-list">
+                ${asignados.map(a => `
+                    <div class="sg-asig-row" data-asignacion="${a.asignacion_id}">
+                        <div class="alerta-item" style="flex:1;cursor:pointer" onclick="abrirAlertaSemaforo(${JSON.stringify(a).replace(/"/g, '&quot;')}, event)">
+                            <div class="alerta-dot alerta-dot-${a.color_semaforo || 'amarillo'}"></div>
+                            <span class="alerta-texto">${_escHtml(a.texto)}</span>
+                            <span class="alerta-btn alerta-btn-${a.color_semaforo || 'amarillo'}">Ver detalle →</span>
+                        </div>
+                        <button class="btn-gestionar" onclick="gestionarAsignacion(${a.asignacion_id}, this)">✓ Gestionar</button>
+                    </div>`).join('')}
+            </div>
+        </div>` : '';
+
+    // 3. Equipos con novedad o fuera de servicio
+    const eqDetalles = _sgKpis.eq_detalles || [];
+    const eqSectionHtml = eqDetalles.length ? `
+        <div class="sg-detail-section">
+            <div class="sg-detail-heading">🧰 EQUIPOS CON FALLA O FUERA DE SERVICIO (${eqDetalles.length})</div>
+            <div class="sg-detail-list">
+                ${eqDetalles.map(eq => `
+                    <div class="alerta-item" style="padding:.65rem .875rem">
+                        <div class="alerta-dot alerta-dot-naranja"></div>
+                        <span style="font-size:.875rem">📻</span>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
+                            <div style="font-size:.72rem;color:#64748b">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
+                        </div>
+                        ${PUBLIC_MODE ? '' : `<button onclick="_getAlertViewer('confiabilidad_equipos')?.openRecord(${eq.id}, { motivo: 'Reparación de equipo: ${_escHtml(eq.etiqueta)} en ${_escHtml(eq.instalacion)}' })" class="alerta-btn alerta-btn-naranja">Asignar reparación →</button>`}
+                    </div>`).join('')}
+            </div>
+        </div>` : '';
+
+    // 4. Clientes con déficit de supervisiones
+    const supClientes = (_sgKpis.sup_por_cliente || []).filter(c => (c.programadas || 0) > (c.contadas || 0));
+    const supSectionHtml = (supClientes.length && (_sgKpis.sup_programadas || 0) > 0) ? `
+        <div class="sg-detail-section">
+            <div class="sg-detail-heading">👁️ CLIENTES CON MAYOR DÉFICIT DE SUPERVISIONES (${supClientes.length})</div>
+            <div class="sg-detail-list">
+                ${supClientes.slice(0, 4).map(c => {
+                    const deficit = (c.programadas || 0) - (c.contadas || 0);
+                    return `
+                    <div class="alerta-item" style="padding:.65rem .875rem">
+                        <div class="alerta-dot alerta-dot-rojo"></div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(c.cliente)}</div>
+                            <div style="font-size:.72rem;color:#64748b">${c.contadas || 0} de ${c.programadas || 0} completadas (${c.pct || 0}%) · Déficit: ${deficit} supervisión${deficit !== 1 ? 'es' : ''}</div>
+                        </div>
+                        ${PUBLIC_MODE ? '' : `<a href="/dashboard/supervision/?cliente=${_quote(c.cliente)}" class="alerta-btn alerta-btn-rojo">Ver supervisiones →</a>`}
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>` : '';
+
+    // 5. Alertas Activas Accionables
+    const alertasActivas = (_alertasData || []).filter(a => !a.asignacion && a.color_semaforo !== 'verde');
+    const alertasSectionHtml = alertasActivas.length ? `
+        <div class="sg-detail-section">
+            <div class="sg-detail-heading">🚨 ALERTAS OPERACIONALES ACTIVAS (${alertasActivas.length}) — TOCA PARA ABRIR Y ASIGNAR</div>
+            <div class="sg-detail-list">
+                ${alertasActivas.slice(0, 8).map(a => `
+                    <div class="alerta-item" style="cursor:pointer" onclick="abrirAlertaSemaforo(${JSON.stringify(a).replace(/"/g, '&quot;')}, event)">
+                        <div class="alerta-dot alerta-dot-${a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo'}"></div>
+                        <span class="alerta-texto" style="font-size:.8125rem">${_escHtml(a.texto)}</span>
+                        ${a.estado && a.estado !== 'Abierto' ? `<span class="alerta-estado-badge">${_escHtml(a.estado)}</span>` : ''}
+                        ${PUBLIC_MODE ? '' : `<span class="alerta-btn alerta-btn-${a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo'}">${_escHtml(a.accion || 'Ver')} →</span>`}
+                    </div>`).join('')}
+            </div>
+        </div>` : '';
 
     const modal = document.createElement('div');
     modal.className = 'sg-modal-overlay';
     modal.innerHTML = `
-        <div class="sg-modal">
-            <div class="sg-modal-title">Estado: ${textos[nivel]}</div>
-            <div class="sg-modal-sub">Condiciones evaluadas al ${ts}</div>
-            ${condHtml}
+        <div class="sg-modal sg-modal-wide">
+            <div class="sg-modal-title">Estado General: ${textos[nivel]}</div>
+            <div class="sg-modal-sub">Diagnóstico evaluado al ${ts} — Selecciona cualquier novedad para abrirla y asignarla</div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem">
+                ${condHtml}
+            </div>
+            ${asignadosHtml}
+            ${eqSectionHtml}
+            ${supSectionHtml}
+            ${alertasSectionHtml}
             <button onclick="this.closest('.sg-modal-overlay').remove()"
                 style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
                 Cerrar

@@ -1646,7 +1646,7 @@ def _alertas_mantenimiento_equipos(cur, thresholds, cliente=None, propiedad=None
                 "ruta_navegacion": f"/dashboard/supervision/?id={r['id_supervision']}",
                 "record_id": r['id_supervision'],
                 "form_type": "supervision_puesto",
-                "color_semaforo": "rojo" if vencido else "amarillo",
+                "color_semaforo": "naranja" if (vencido and dias < -90) else "amarillo",
                 "timestamp": proximo.isoformat(),
                 "horas": dias * 24,
                 "equipo": etiqueta,
@@ -1783,7 +1783,7 @@ def _alertas_equipos_con_falla(cur, thresholds, cliente=None, propiedad=None):
                   f'(estado: {estado})' + (', ' + ' y '.join(pendientes) if pendientes else '') + '.'
                   + novedad + tecnico)
         pct_falla = (con_falla / total * 100) if total else 0
-        color = 'rojo' if total and pct_falla >= rojo_min else 'amarillo'
+        color = 'rojo' if (total and con_falla > 3 and pct_falla >= rojo_min) else ('naranja' if con_falla > 0 else 'amarillo')
         out.append({
             "id": f"r18_{unidad}_{cli or 'sin_instalacion'}",
             "regla": 18,
@@ -2033,7 +2033,7 @@ def cgeo_api_alertas():
             })
 
         # ── REGLA 2: Incidente abierto > 24 h (sin atención = rojo; en gestión = seguimiento/prioritaria) ──
-        from dashboard_bp import _incidentes_metricas_atencion, _Savepoint
+        from dashboard_bp import _incidentes_metricas_atencion
         r2_conds, r2_params = _cp()
         r2_conds += [
             "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')",
@@ -2506,43 +2506,42 @@ def cgeo_api_alertas():
             # con respaldo a supervision_puesto si el catálogo está vacío.
             clientes_catalogo = []
             try:
-                with _Savepoint(cur, 'alertas_catalogo'):
-                    cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
-                    cc_params = []
-                    if company_id is not None:
-                        cc_conds.append("cc.company_id = %s")
-                        cc_params.append(company_id)
-                    if cliente:
-                        if str(cliente).isdigit():
-                            cc_conds.append("cc.id = %s")
-                            cc_params.append(int(cliente))
-                        else:
-                            cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
-                            cc_params.append(str(cliente))
-                    if propiedad and str(propiedad).isdigit():
-                        cc_conds.append(
-                            "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id_propiedad = %s)"
-                        )
-                        cc_params.append(int(propiedad))
-                    cur.execute(f"""
-                        SELECT cc.id, TRIM(cc.name) AS nombre,
-                               ARRAY_REMOVE(ARRAY_AGG(TRIM(p.nombre)), NULL) AS instalaciones
-                        FROM customer_companies cc
-                        LEFT JOIN propiedades p
-                          ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
-                        WHERE {' AND '.join(cc_conds)}
-                        GROUP BY cc.id, TRIM(cc.name)
-                        ORDER BY LOWER(TRIM(cc.name))
-                    """, tuple(cc_params))
-                    for r_cc in (cur.fetchall() or []):
-                        c_nom = (r_cc.get('nombre') or '').strip()
-                        if not c_nom:
-                            continue
-                        aliases = {c_nom.lower()}
-                        for inst in (r_cc.get('instalaciones') or []):
-                            if inst and str(inst).strip():
-                                aliases.add(str(inst).strip().lower())
-                        clientes_catalogo.append((c_nom, aliases))
+                cc_conds = ["COALESCE(cc.is_active, TRUE) = TRUE"]
+                cc_params = []
+                if company_id is not None:
+                    cc_conds.append("cc.company_id = %s")
+                    cc_params.append(company_id)
+                if cliente:
+                    if str(cliente).isdigit():
+                        cc_conds.append("cc.id = %s")
+                        cc_params.append(int(cliente))
+                    else:
+                        cc_conds.append("LOWER(TRIM(cc.name)) = LOWER(TRIM(%s))")
+                        cc_params.append(str(cliente))
+                if propiedad and str(propiedad).isdigit():
+                    cc_conds.append(
+                        "EXISTS (SELECT 1 FROM propiedades p2 WHERE p2.customer_company_id = cc.id AND p2.id = %s)"
+                    )
+                    cc_params.append(int(propiedad))
+                cur.execute(f"""
+                    SELECT cc.id, TRIM(cc.name) AS nombre,
+                           ARRAY_REMOVE(ARRAY_AGG(TRIM(p.name)), NULL) AS instalaciones
+                    FROM customer_companies cc
+                    LEFT JOIN propiedades p
+                      ON p.customer_company_id = cc.id AND COALESCE(p.activa, TRUE) = TRUE
+                    WHERE {' AND '.join(cc_conds)}
+                    GROUP BY cc.id, TRIM(cc.name)
+                    ORDER BY LOWER(TRIM(cc.name))
+                """, tuple(cc_params))
+                for r_cc in (cur.fetchall() or []):
+                    c_nom = (r_cc.get('nombre') or '').strip()
+                    if not c_nom:
+                        continue
+                    aliases = {c_nom.lower()}
+                    for inst in (r_cc.get('instalaciones') or []):
+                        if inst and str(inst).strip():
+                            aliases.add(str(inst).strip().lower())
+                    clientes_catalogo.append((c_nom, aliases))
             except Exception:
                 clientes_catalogo = []
 
@@ -2884,6 +2883,7 @@ def cgeo_api_semaforo_global():
         eq_no_op = max(0, eq_total - eq_op)
 
         eq_por_tipo = {}
+        eq_detalles = []
         try:
             cur.execute(f"""
                 SELECT
@@ -2897,8 +2897,28 @@ def cgeo_api_semaforo_global():
                 r["tipo"]: {"total": int(r["total"] or 0), "operativos": int(r["operativos"] or 0)}
                 for r in (cur.fetchall() or []) if r.get("tipo")
             }
+            cur.execute(f"""
+                SELECT id, cliente_instalacion, fecha, tipo, etiqueta, total, operativos,
+                       (total - operativos) AS con_falla
+                {eq_inv}
+                WHERE total > 0 AND operativos < total
+                ORDER BY fecha DESC NULLS LAST, id DESC
+                LIMIT 10
+            """, tuple(eq_params))
+            for r in (cur.fetchall() or []):
+                eq_detalles.append({
+                    "id": r["id"],
+                    "instalacion": r["cliente_instalacion"] or "—",
+                    "fecha": r["fecha"].isoformat() if r.get("fecha") else None,
+                    "tipo": r["tipo"] or "equipo",
+                    "etiqueta": r["etiqueta"] or "Equipo",
+                    "total": int(r["total"] or 0),
+                    "operativos": int(r["operativos"] or 0),
+                    "con_falla": int(r["con_falla"] or 0),
+                })
         except Exception:
             eq_por_tipo = {}
+            eq_detalles = []
 
         # Certificaciones próximas a vencer (≤ 30 días)
         cert_conds, cert_params = _cp()
@@ -2995,9 +3015,11 @@ def cgeo_api_semaforo_global():
             "sup_ayer": _sup.get('ayer', 0),
             "sup_periodo_label": _sup.get('periodo_label', ''),
             "sup_periodicidad": periodicidad,
+            "sup_por_cliente": _sup.get('filas') or _sup.get('por_cliente') or [],
             "eq_no_op": eq_no_op,
             "eq_total": eq_total,
             "eq_por_tipo": eq_por_tipo,
+            "eq_detalles": eq_detalles,
             "cert_proximas": cert_proximas,
             "comp_vencidos": comp_vencidos,
             "comp_por_vencer": comp_por_vencer,
