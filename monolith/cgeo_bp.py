@@ -2876,16 +2876,25 @@ def cgeo_api_semaforo_global():
         eq_conds, eq_params = [], []
         _add_scope(eq_conds, eq_params, cliente=cliente, propiedad=propiedad, alias='c.')
         eq_inv = _eq_inventario_vigente(_where(eq_conds))
-        cur.execute(f"""
-            SELECT
-                COALESCE(SUM(total), 0) AS total,
-                COALESCE(SUM(operativos), 0) AS operativos
-            {eq_inv}
-        """, tuple(eq_params))
-        eq_row = cur.fetchone() or {}
-        eq_total = int(eq_row.get("total") or 0)
-        eq_op    = int(eq_row.get("operativos") or 0)
-        eq_no_op = max(0, eq_total - eq_op)
+        eq_total = 0
+        eq_op = 0
+        eq_no_op = 0
+        try:
+            with _Savepoint(cur, 'eq_inventario'):
+                cur.execute(f"""
+                    SELECT
+                        COALESCE(SUM(total), 0) AS total,
+                        COALESCE(SUM(operativos), 0) AS operativos
+                    {eq_inv}
+                """, tuple(eq_params))
+                eq_row = cur.fetchone() or {}
+                eq_total = int(eq_row.get("total") or 0)
+                eq_op    = int(eq_row.get("operativos") or 0)
+                eq_no_op = max(0, eq_total - eq_op)
+        except Exception:
+            eq_total = 0
+            eq_op = 0
+            eq_no_op = 0
 
         eq_por_tipo = {}
         eq_detalles = []
@@ -2933,10 +2942,15 @@ def cgeo_api_semaforo_global():
             f"vigencia_hasta >= {sql_hoy()}",
             f"vigencia_hasta <= {sql_hoy()} + INTERVAL '30 days'",
         ]
-        cur.execute(f"""
-            SELECT COUNT(*) AS total FROM checklist_cumplimiento {_where(cert_conds)}
-        """, tuple(cert_params))
-        cert_proximas = int((cur.fetchone() or {}).get("total") or 0)
+        cert_proximas = 0
+        try:
+            with _Savepoint(cur, 'cert_proximas'):
+                cur.execute(f"""
+                    SELECT COUNT(*) AS total FROM checklist_cumplimiento {_where(cert_conds)}
+                """, tuple(cert_params))
+                cert_proximas = int((cur.fetchone() or {}).get("total") or 0)
+        except Exception:
+            cert_proximas = 0
 
         # Compromisos de visitas a clientes y meta de visitas
         comp_vencidos = 0
@@ -2948,65 +2962,66 @@ def cgeo_api_semaforo_global():
         visita_pct = None
         dias_compromiso_vencer = int(thresholds.get('dias_compromiso_vencer') or 5)
         try:
-            from dashboard_bp import (
-                _visita_date_expr, _visita_conds, _visita_where,
-                _visita_parse_compromisos, _visita_cierres_historicos, _programadas_en_lapso,
-            )
-            today = hoy_operacion()
-            company_id = _get_user_company_id(cur, get_jwt_identity())
-            v_date_expr = _visita_date_expr()
-            v_conds, v_params = _visita_conds(cliente, None, None, None,
-                                              company_id=company_id, propiedad=propiedad)
-            v_conds_full = v_conds + [f"{v_date_expr} >= {sql_ahora()} - INTERVAL '180 days'"]
-            cur.execute(f"""
-                SELECT
-                    id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
-                    temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
-                    nombre_visitante, compromisos_estados, editado, editado_por, editado_en
-                FROM registro_y_acta_de_visita
-                {_visita_where(v_conds_full)}
-                ORDER BY {v_date_expr} DESC
-                LIMIT 200
-            """, v_params)
-            v_rows = cur.fetchall() or []
-            v_ids = [r['id_visita'] for r in v_rows if r.get('id_visita') is not None]
-            cierres_sg = _visita_cierres_historicos(cur, v_ids)
-            compromisos_sg = _visita_parse_compromisos(v_rows, cierres_hist=cierres_sg)
-            comp_vencidos = sum(1 for c in compromisos_sg if c['estado'] == 'vencido')
-            for c in compromisos_sg:
-                if c['estado'] == 'pendiente':
-                    fc_iso = (c.get('fecha_cumplimiento_sort') or c.get('fecha_cumplimiento') or '').strip()
-                    if not fc_iso or fc_iso == '—':
-                        continue
-                    try:
-                        dias_restantes = (date.fromisoformat(fc_iso[:10]) - today).days
-                    except ValueError:
-                        continue
-                    if 0 <= dias_restantes <= dias_compromiso_vencer:
-                        comp_por_vencer += 1
-
-            visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
-            v_period_conds_full = v_conds + [f"{v_date_expr}::date >= %s"]
-            cur.execute(f"""
-                SELECT COUNT(DISTINCT id_visita) AS total
-                FROM registro_y_acta_de_visita
-                {_visita_where(v_period_conds_full)}
-            """, v_params + [visita_periodo_inicio])
-            visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
-            ayer_visita = today - timedelta(days=1)
-            visita_ini_ef = max(visita_periodo_inicio, fecha_inicio) if fecha_inicio else visita_periodo_inicio
-            if visita_meta > 0 and ayer_visita >= visita_ini_ef:
-                visita_esperadas_hoy, _ = _programadas_en_lapso(
-                    visita_meta, visita_periodicidad, visita_ini_ef, ayer_visita
+            with _Savepoint(cur, 'visitas_compromisos'):
+                from dashboard_bp import (
+                    _visita_date_expr, _visita_conds, _visita_where,
+                    _visita_parse_compromisos, _visita_cierres_historicos, _programadas_en_lapso,
                 )
-            if visita_meta <= 0:
-                visita_pct = None
-            elif visita_completadas >= visita_meta:
-                visita_pct = 100.0
-            elif visita_esperadas_hoy <= 0:
-                visita_pct = 100.0 if visita_completadas > 0 else None
-            else:
-                visita_pct = round(min(100.0, visita_completadas / visita_esperadas_hoy * 100), 1)
+                today = hoy_operacion()
+                company_id = _get_user_company_id(cur, get_jwt_identity())
+                v_date_expr = _visita_date_expr()
+                v_conds, v_params = _visita_conds(cliente, None, None, None,
+                                                  company_id=company_id, propiedad=propiedad)
+                v_conds_full = v_conds + [f"{v_date_expr} >= {sql_ahora()} - INTERVAL '180 days'"]
+                cur.execute(f"""
+                    SELECT
+                        id_visita, cliente_instalacion, {v_date_expr} AS fecha_evento, motivo_visita,
+                        temas_tratados, acuerdos_compromisos, nombre_responsable, fecha_cumplimiento,
+                        nombre_visitante, compromisos_estados, editado, editado_por, editado_en
+                    FROM registro_y_acta_de_visita
+                    {_visita_where(v_conds_full)}
+                    ORDER BY {v_date_expr} DESC
+                    LIMIT 200
+                """, v_params)
+                v_rows = cur.fetchall() or []
+                v_ids = [r['id_visita'] for r in v_rows if r.get('id_visita') is not None]
+                cierres_sg = _visita_cierres_historicos(cur, v_ids)
+                compromisos_sg = _visita_parse_compromisos(v_rows, cierres_hist=cierres_sg)
+                comp_vencidos = sum(1 for c in compromisos_sg if c['estado'] == 'vencido')
+                for c in compromisos_sg:
+                    if c['estado'] == 'pendiente':
+                        fc_iso = (c.get('fecha_cumplimiento_sort') or c.get('fecha_cumplimiento') or '').strip()
+                        if not fc_iso or fc_iso == '—':
+                            continue
+                        try:
+                            dias_restantes = (date.fromisoformat(fc_iso[:10]) - today).days
+                        except ValueError:
+                            continue
+                        if 0 <= dias_restantes <= dias_compromiso_vencer:
+                            comp_por_vencer += 1
+
+                visita_periodo_inicio = _periodo_inicio_actual(visita_periodicidad)
+                v_period_conds_full = v_conds + [f"{v_date_expr}::date >= %s"]
+                cur.execute(f"""
+                    SELECT COUNT(DISTINCT id_visita) AS total
+                    FROM registro_y_acta_de_visita
+                    {_visita_where(v_period_conds_full)}
+                """, v_params + [visita_periodo_inicio])
+                visita_completadas = int((cur.fetchone() or {}).get("total") or 0)
+                ayer_visita = today - timedelta(days=1)
+                visita_ini_ef = max(visita_periodo_inicio, fecha_inicio) if fecha_inicio else visita_periodo_inicio
+                if visita_meta > 0 and ayer_visita >= visita_ini_ef:
+                    visita_esperadas_hoy, _ = _programadas_en_lapso(
+                        visita_meta, visita_periodicidad, visita_ini_ef, ayer_visita
+                    )
+                if visita_meta <= 0:
+                    visita_pct = None
+                elif visita_completadas >= visita_meta:
+                    visita_pct = 100.0
+                elif visita_esperadas_hoy <= 0:
+                    visita_pct = 100.0 if visita_completadas > 0 else None
+                else:
+                    visita_pct = round(min(100.0, visita_completadas / visita_esperadas_hoy * 100), 1)
         except Exception:
             pass
 

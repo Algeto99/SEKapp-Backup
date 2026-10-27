@@ -543,7 +543,7 @@ body:not(.light-mode) .alerta-estado-badge{background:#334155;color:#cbd5e1;bord
                 <button class="tab-btn active" id="tabBtnEjec" onclick="switchTab('ejecutivo')">Informe Ejecutivo</button>
                 <button class="tab-btn" id="tabBtnOper" onclick="switchTab('operativo')">Resumen Operativo</button>
             </div>
-            <div id="statusBanner" class="status-banner status-estable">
+            <div id="statusBanner" class="status-banner status-estable" onclick="abrirDetalleSemaforo()" style="cursor:pointer" title="Ver diagnóstico detallado de operación">
                 <span id="statusDot" style="width:10px;height:10px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
                 <span id="statusText">Cargando...</span>
             </div>
@@ -1921,6 +1921,10 @@ function _escHtml(s) {
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function _quote(s) {
+    return encodeURIComponent(String(s == null ? '' : s).trim());
+}
+
 function renderAlertasList(alertas) {
     const lista = document.getElementById('alertasList');
     const verMas = document.getElementById('alertasVerMas');
@@ -2201,6 +2205,24 @@ function abrirAlertaSemaforo(a, event) {
     }
 }
 
+function abrirAlertaSemaforoPorId(alertaId, event) {
+    if (event) event.stopPropagation();
+    const a = (_alertasData || []).find(x => String(x.id) === String(alertaId));
+    if (a) abrirAlertaSemaforo(a, event);
+}
+
+function abrirReparacionEquipoPorId(eqId, event) {
+    if (event) event.stopPropagation();
+    const eq = (_sgKpis?.eq_detalles || []).find(x => String(x.id) === String(eqId));
+    if (!eq) return;
+    const viewer = _getAlertViewer('confiabilidad_equipos');
+    if (viewer) {
+        viewer.openRecord(eq.id, {
+            motivo: `Reparación de equipo: ${eq.etiqueta || 'Equipo'} en ${eq.instalacion || 'Instalación'}`
+        });
+    }
+}
+
 function _csrfToken() {
     const row = document.cookie.split(';').map(c => c.trim())
         .find(c => c.startsWith('csrf_access_token='));
@@ -2231,117 +2253,124 @@ async function gestionarAsignacion(asignacionId, btn) {
     }
 }
 
-function abrirDetalleSemaforo() {
-    if (!_sgKpis) return;
-    const { nivel, condiciones } = computeSemaforo(_alertasData, _sgKpis);
+async function abrirDetalleSemaforo() {
+    try {
+        if (!_sgKpis) {
+            await fetchSemaforoKpis();
+        }
+        const kpis = _sgKpis || { thresholds: {}, sup_por_cliente: [], eq_detalles: [] };
+        const { nivel, condiciones } = computeSemaforo(_alertasData, kpis);
 
-    const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
-    const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
-    const colores = { rojo: '#ef4444', amarillo: '#f59e0b', verde: '#22c55e' };
+        const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
+        const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+        const colores = { rojo: '#ef4444', amarillo: '#f59e0b', verde: '#22c55e' };
 
-    // 1. Resumen de condiciones
-    const condHtml = condiciones.length
-        ? condiciones.map(c =>
-            `<div class="sg-cond-item">
-                <div class="sg-cond-dot" style="background:${colores[c.nivel]}"></div>
-                <span class="sg-cond-text">${_escHtml(c.texto)}</span>
-            </div>`).join('')
-        : `<div class="sg-cond-item"><div class="sg-cond-dot" style="background:#22c55e"></div><span class="sg-cond-text sg-cond-ok">Ninguna condición de alerta activa — operación en orden</span></div>`;
+        // 1. Resumen de condiciones
+        const condHtml = condiciones.length
+            ? condiciones.map(c =>
+                `<div class="sg-cond-item">
+                    <div class="sg-cond-dot" style="background:${colores[c.nivel] || '#94a3b8'}"></div>
+                    <span class="sg-cond-text">${_escHtml(c.texto)}</span>
+                </div>`).join('')
+            : `<div class="sg-cond-item"><div class="sg-cond-dot" style="background:#22c55e"></div><span class="sg-cond-text sg-cond-ok">Ninguna condición de alerta activa — operación en orden</span></div>`;
 
-    // 2. Hallazgos Asignados
-    const asignados = (_alertasData || []).filter(a => a.asignacion);
-    const asignadosHtml = asignados.length ? `
-        <div class="sg-asignados">
-            <div class="sg-detail-heading">📌 HALLAZGOS ASIGNADOS (${asignados.length} pendientes)</div>
-            <div class="sg-detail-list">
-                ${asignados.map(a => `
-                    <div class="sg-asig-row" data-asignacion="${a.asignacion_id}">
-                        <div class="alerta-item" style="flex:1;cursor:pointer" onclick="abrirAlertaSemaforo(${JSON.stringify(a).replace(/"/g, '&quot;')}, event)">
-                            <div class="alerta-dot alerta-dot-${a.color_semaforo || 'amarillo'}"></div>
-                            <span class="alerta-texto">${_escHtml(a.texto)}</span>
-                            <span class="alerta-btn alerta-btn-${a.color_semaforo || 'amarillo'}">Ver detalle →</span>
-                        </div>
-                        <button class="btn-gestionar" onclick="gestionarAsignacion(${a.asignacion_id}, this)">✓ Gestionar</button>
-                    </div>`).join('')}
-            </div>
-        </div>` : '';
+        // 2. Hallazgos Asignados
+        const asignados = (_alertasData || []).filter(a => a.asignacion);
+        const asignadosHtml = asignados.length ? `
+            <div class="sg-asignados">
+                <div class="sg-detail-heading">📌 HALLAZGOS ASIGNADOS (${asignados.length} pendientes)</div>
+                <div class="sg-detail-list">
+                    ${asignados.map(a => `
+                        <div class="sg-asig-row" data-asignacion="${a.asignacion_id}">
+                            <div class="alerta-item" style="flex:1;cursor:pointer" onclick="abrirAlertaSemaforoPorId('${_escHtml(a.id)}', event)">
+                                <div class="alerta-dot alerta-dot-${a.color_semaforo || 'amarillo'}"></div>
+                                <span class="alerta-texto">${_escHtml(a.texto)}</span>
+                                <span class="alerta-btn alerta-btn-${a.color_semaforo || 'amarillo'}">Ver detalle →</span>
+                            </div>
+                            <button class="btn-gestionar" onclick="gestionarAsignacion(${a.asignacion_id}, this)">✓ Gestionar</button>
+                        </div>`).join('')}
+                </div>
+            </div>` : '';
 
-    // 3. Equipos con novedad o fuera de servicio
-    const eqDetalles = _sgKpis.eq_detalles || [];
-    const eqSectionHtml = eqDetalles.length ? `
-        <div class="sg-detail-section">
-            <div class="sg-detail-heading">🧰 EQUIPOS CON FALLA O FUERA DE SERVICIO (${eqDetalles.length})</div>
-            <div class="sg-detail-list">
-                ${eqDetalles.map(eq => `
-                    <div class="alerta-item" style="padding:.65rem .875rem">
-                        <div class="alerta-dot alerta-dot-naranja"></div>
-                        <span style="font-size:.875rem">📻</span>
-                        <div style="flex:1;min-width:0">
-                            <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
-                            <div style="font-size:.72rem;color:#64748b">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
-                        </div>
-                        ${PUBLIC_MODE ? '' : `<button onclick="_getAlertViewer('confiabilidad_equipos')?.openRecord(${eq.id}, { motivo: 'Reparación de equipo: ${_escHtml(eq.etiqueta)} en ${_escHtml(eq.instalacion)}' })" class="alerta-btn alerta-btn-naranja">Asignar reparación →</button>`}
-                    </div>`).join('')}
-            </div>
-        </div>` : '';
+        // 3. Equipos con novedad o fuera de servicio
+        const eqDetalles = kpis.eq_detalles || [];
+        const eqSectionHtml = eqDetalles.length ? `
+            <div class="sg-detail-section">
+                <div class="sg-detail-heading">🧰 EQUIPOS CON FALLA O FUERA DE SERVICIO (${eqDetalles.length})</div>
+                <div class="sg-detail-list">
+                    ${eqDetalles.map(eq => `
+                        <div class="alerta-item" style="padding:.65rem .875rem">
+                            <div class="alerta-dot alerta-dot-naranja"></div>
+                            <span style="font-size:.875rem">📻</span>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
+                                <div style="font-size:.72rem;color:#64748b">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
+                            </div>
+                            ${PUBLIC_MODE ? '' : `<button onclick="abrirReparacionEquipoPorId(${eq.id}, event)" class="alerta-btn alerta-btn-naranja">Asignar reparación →</button>`}
+                        </div>`).join('')}
+                </div>
+            </div>` : '';
 
-    // 4. Clientes con déficit de supervisiones
-    const supClientes = (_sgKpis.sup_por_cliente || []).filter(c => (c.programadas || 0) > (c.contadas || 0));
-    const supSectionHtml = (supClientes.length && (_sgKpis.sup_programadas || 0) > 0) ? `
-        <div class="sg-detail-section">
-            <div class="sg-detail-heading">👁️ CLIENTES CON MAYOR DÉFICIT DE SUPERVISIONES (${supClientes.length})</div>
-            <div class="sg-detail-list">
-                ${supClientes.slice(0, 4).map(c => {
-                    const deficit = (c.programadas || 0) - (c.contadas || 0);
-                    return `
-                    <div class="alerta-item" style="padding:.65rem .875rem">
-                        <div class="alerta-dot alerta-dot-rojo"></div>
-                        <div style="flex:1;min-width:0">
-                            <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(c.cliente)}</div>
-                            <div style="font-size:.72rem;color:#64748b">${c.contadas || 0} de ${c.programadas || 0} completadas (${c.pct || 0}%) · Déficit: ${deficit} supervisión${deficit !== 1 ? 'es' : ''}</div>
-                        </div>
-                        ${PUBLIC_MODE ? '' : `<a href="/dashboard/supervision/?cliente=${_quote(c.cliente)}" class="alerta-btn alerta-btn-rojo">Ver supervisiones →</a>`}
-                    </div>`;
-                }).join('')}
-            </div>
-        </div>` : '';
+        // 4. Clientes con déficit de supervisiones
+        const supClientes = (kpis.sup_por_cliente || []).filter(c => (c.programadas || 0) > (c.contadas || 0));
+        const supSectionHtml = (supClientes.length && (kpis.sup_programadas || 0) > 0) ? `
+            <div class="sg-detail-section">
+                <div class="sg-detail-heading">👁️ CLIENTES CON MAYOR DÉFICIT DE SUPERVISIONES (${supClientes.length})</div>
+                <div class="sg-detail-list">
+                    ${supClientes.slice(0, 4).map(c => {
+                        const deficit = (c.programadas || 0) - (c.contadas || 0);
+                        return `
+                        <div class="alerta-item" style="padding:.65rem .875rem">
+                            <div class="alerta-dot alerta-dot-rojo"></div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(c.cliente)}</div>
+                                <div style="font-size:.72rem;color:#64748b">${c.contadas || 0} de ${c.programadas || 0} completadas (${c.pct || 0}%) · Déficit: ${deficit} supervisión${deficit !== 1 ? 'es' : ''}</div>
+                            </div>
+                            ${PUBLIC_MODE ? '' : `<a href="/dashboard/supervision/?cliente=${_quote(c.cliente)}" class="alerta-btn alerta-btn-rojo">Ver supervisiones →</a>`}
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>` : '';
 
-    // 5. Alertas Activas Accionables
-    const alertasActivas = (_alertasData || []).filter(a => !a.asignacion && a.color_semaforo !== 'verde');
-    const alertasSectionHtml = alertasActivas.length ? `
-        <div class="sg-detail-section">
-            <div class="sg-detail-heading">🚨 ALERTAS OPERACIONALES ACTIVAS (${alertasActivas.length}) — TOCA PARA ABRIR Y ASIGNAR</div>
-            <div class="sg-detail-list">
-                ${alertasActivas.slice(0, 8).map(a => `
-                    <div class="alerta-item" style="cursor:pointer" onclick="abrirAlertaSemaforo(${JSON.stringify(a).replace(/"/g, '&quot;')}, event)">
-                        <div class="alerta-dot alerta-dot-${a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo'}"></div>
-                        <span class="alerta-texto" style="font-size:.8125rem">${_escHtml(a.texto)}</span>
-                        ${a.estado && a.estado !== 'Abierto' ? `<span class="alerta-estado-badge">${_escHtml(a.estado)}</span>` : ''}
-                        ${PUBLIC_MODE ? '' : `<span class="alerta-btn alerta-btn-${a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo'}">${_escHtml(a.accion || 'Ver')} →</span>`}
-                    </div>`).join('')}
-            </div>
-        </div>` : '';
+        // 5. Alertas Activas Accionables
+        const alertasActivas = (_alertasData || []).filter(a => !a.asignacion && a.color_semaforo !== 'verde');
+        const alertasSectionHtml = alertasActivas.length ? `
+            <div class="sg-detail-section">
+                <div class="sg-detail-heading">🚨 ALERTAS OPERACIONALES ACTIVAS (${alertasActivas.length}) — TOCA PARA ABRIR Y ASIGNAR</div>
+                <div class="sg-detail-list">
+                    ${alertasActivas.slice(0, 8).map(a => `
+                        <div class="alerta-item" style="cursor:pointer" onclick="abrirAlertaSemaforoPorId('${_escHtml(a.id)}', event)">
+                            <div class="alerta-dot alerta-dot-${a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo'}"></div>
+                            <span class="alerta-texto" style="font-size:.8125rem">${_escHtml(a.texto)}</span>
+                            ${a.estado && a.estado !== 'Abierto' ? `<span class="alerta-estado-badge">${_escHtml(a.estado)}</span>` : ''}
+                            ${PUBLIC_MODE ? '' : `<span class="alerta-btn alerta-btn-${a.color_semaforo === 'rojo' ? 'rojo' : a.color_semaforo === 'naranja' ? 'naranja' : 'amarillo'}">${_escHtml(a.accion || 'Ver')} →</span>`}
+                        </div>`).join('')}
+                </div>
+            </div>` : '';
 
-    const modal = document.createElement('div');
-    modal.className = 'sg-modal-overlay';
-    modal.innerHTML = `
-        <div class="sg-modal sg-modal-wide">
-            <div class="sg-modal-title">Estado General: ${textos[nivel]}</div>
-            <div class="sg-modal-sub">Diagnóstico evaluado al ${ts} — Selecciona cualquier novedad para abrirla y asignarla</div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem">
-                ${condHtml}
-            </div>
-            ${asignadosHtml}
-            ${eqSectionHtml}
-            ${supSectionHtml}
-            ${alertasSectionHtml}
-            <button onclick="this.closest('.sg-modal-overlay').remove()"
-                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
-                Cerrar
-            </button>
-        </div>`;
-    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-    document.body.appendChild(modal);
+        const modal = document.createElement('div');
+        modal.className = 'sg-modal-overlay';
+        modal.innerHTML = `
+            <div class="sg-modal sg-modal-wide">
+                <div class="sg-modal-title">Estado General: ${textos[nivel] || 'OPERACIÓN'}</div>
+                <div class="sg-modal-sub">Diagnóstico evaluado al ${ts} — Selecciona cualquier novedad para abrirla y asignarla</div>
+                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem">
+                    ${condHtml}
+                </div>
+                ${asignadosHtml}
+                ${eqSectionHtml}
+                ${supSectionHtml}
+                ${alertasSectionHtml}
+                <button onclick="this.closest('.sg-modal-overlay').remove()"
+                    style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                    Cerrar
+                </button>
+            </div>`;
+        modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+        document.body.appendChild(modal);
+    } catch (err) {
+        console.error('abrirDetalleSemaforo error:', err);
+    }
 }
 
 async function fetchSemaforoKpis() {
