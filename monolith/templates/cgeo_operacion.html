@@ -244,6 +244,7 @@ canvas{outline:none}
 .sg-modal-wide{max-width:680px}
 .sg-modal-title{font-size:1.0625rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
 .sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
+.sg-cond-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem}
 .sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
 .sg-cond-item:last-child{border-bottom:none}
 .sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
@@ -254,6 +255,12 @@ canvas{outline:none}
 .sg-detail-heading{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
 .sg-detail-list{border:1px solid #f1f5f9;border-radius:.6rem;overflow:hidden}
 .sg-detail-empty{font-size:.78rem;color:#64748b;padding:.5rem 0}
+.sg-item-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .875rem;border-bottom:1px solid #f1f5f9}
+.sg-item-row:last-child{border-bottom:none}
+.sg-item-title{font-size:.875rem;font-weight:600;color:#0f172a;line-height:1.35}
+.sg-item-sub{font-size:.75rem;color:#64748b;margin-top:.15rem}
+.sg-modal-close-btn{margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem;transition:background .15s}
+.sg-modal-close-btn:hover{background:#1e293b}
 .sg-asignados{border:1px solid #fcd34d;background:rgba(251,191,36,.07);border-radius:.75rem;padding:.875rem;margin-bottom:1.25rem}
 .sg-asignados .sg-detail-heading{color:#b45309;margin-bottom:.55rem}
 .sg-asignados .sg-detail-list{border-color:#fde68a;background:#fff}
@@ -345,9 +352,12 @@ body:not(.light-mode) .semaforo-global.sg-rojo .sg-estado{color:#f87171}
 body:not(.light-mode) .semaforo-global.sg-verde .sg-meta{color:#86efac}
 body:not(.light-mode) .semaforo-global.sg-amarillo .sg-meta{color:#fde68a}
 body:not(.light-mode) .semaforo-global.sg-rojo .sg-meta{color:#fca5a5}
-body:not(.light-mode) .sg-modal{background:#1e293b;color:#e2e8f0}
-body:not(.light-mode) .sg-modal-title{color:#f1f5f9}
+body:not(.light-mode) .sg-modal{background:#1e293b;color:#e2e8f0;box-shadow:0 25px 60px rgba(0,0,0,.5)}
+body:not(.light-mode) .sg-modal-title{color:#f8fafc}
 body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
+body:not(.light-mode) .sg-item-title{color:#f1f5f9}
+body:not(.light-mode) .sg-item-sub{color:#94a3b8}
+body:not(.light-mode) .sg-cond-box{background:#0f172a;border-color:#334155}
 body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
 body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
 body:not(.light-mode) .sg-asignados{border-color:#78350f;background:rgba(120,53,15,.25)}
@@ -355,8 +365,14 @@ body:not(.light-mode) .sg-asignados .sg-detail-heading{color:#fcd34d}
 body:not(.light-mode) .sg-asignados .sg-detail-list{border-color:#78350f;background:#1e293b}
 body:not(.light-mode) .sg-asig-row{border-bottom-color:#334155}
 body:not(.light-mode) .btn-gestionar{border-left-color:#334155;color:#4ade80}
-body:not(.light-mode) .sg-detail-list{border-color:#334155}
+body:not(.light-mode) .sg-detail-list{border-color:#334155;background:#1e293b}
 body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
+body:not(.light-mode) .sg-item-row{border-bottom-color:#334155}
+body:not(.light-mode) .sg-modal-close-btn{background:#334155;color:#f8fafc}
+body:not(.light-mode) .sg-modal-close-btn:hover{background:#475569}
+body:not(.light-mode) .sg-modal [style*="color:#0f172a"],body:not(.light-mode) .sg-modal [style*="color: #0f172a"]{color:#f1f5f9!important}
+body:not(.light-mode) .sg-modal [style*="color:#64748b"],body:not(.light-mode) .sg-modal [style*="color: #64748b"]{color:#94a3b8!important}
+body:not(.light-mode) .sg-modal [style*="background:#f8fafc"],body:not(.light-mode) .sg-modal [style*="background: #f8fafc"]{background:#0f172a!important;border-color:#334155!important}
 
 /* ── User menu ───────────────────────────────────────────────────────────── */
 .user-menu-wrap{position:relative;flex-shrink:0}
@@ -1858,16 +1874,16 @@ async function openQRModal() {
     document.getElementById('qrModal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'qrModal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
+    modal.className = 'sg-modal-overlay';
     modal.innerHTML = `
-        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
-            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR — Acceso Directo</div>
-            <div style="font-size:.82rem;font-weight:600;color:#1d4ed8;margin-bottom:.2rem">Operación y Novedades${scopeStr}</div>
-            <div style="font-size:.75rem;color:#64748b;margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
+        <div class="sg-modal" style="max-width:400px;width:92%;text-align:center">
+            <div class="sg-modal-title" style="font-family:'Merriweather',serif;font-size:1.125rem;margin-bottom:.25rem">Código QR — Acceso Directo</div>
+            <div style="font-size:.82rem;font-weight:600;color:#3b82f6;margin-bottom:.2rem">Operación y Novedades${scopeStr}</div>
+            <div class="sg-item-sub" style="margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
             <div style="display:inline-block;font-size:.72rem;font-weight:600;margin-bottom:.875rem;border-radius:.4rem;padding:.15rem .5rem;${esPublico ? 'color:#0369a1;background:#e0f2fe' : 'color:#92400e;background:#fef3c7'}">${esPublico ? 'Sólo lectura · vence en 24 horas' : '🔒 Requiere sesión activa'}</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
-            <div style="font-size:.7rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
-            <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
+            <div class="sg-cond-box" style="font-size:.7rem;color:#94a3b8;word-break:break-all;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
+            <button onclick="document.getElementById('qrModal').remove()" class="sg-modal-close-btn" style="margin-top:0">Cerrar</button>
         </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
@@ -2305,8 +2321,8 @@ async function abrirDetalleSemaforo() {
                             <div class="alerta-dot alerta-dot-naranja"></div>
                             <span style="font-size:.875rem">📻</span>
                             <div style="flex:1;min-width:0">
-                                <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
-                                <div style="font-size:.72rem;color:#64748b">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
+                                <div class="sg-item-title" style="font-size:.8125rem">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
+                                <div class="sg-item-sub" style="font-size:.72rem">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
                             </div>
                             ${PUBLIC_MODE ? '' : `<button onclick="abrirReparacionEquipoPorId(${eq.id}, event)" class="alerta-btn alerta-btn-naranja">Ver detalle →</button>`}
                         </div>`).join('')}
@@ -2325,8 +2341,8 @@ async function abrirDetalleSemaforo() {
                         <div class="alerta-item" style="padding:.65rem .875rem">
                             <div class="alerta-dot alerta-dot-rojo"></div>
                             <div style="flex:1;min-width:0">
-                                <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(c.cliente)}</div>
-                                <div style="font-size:.72rem;color:#64748b">${c.contadas || 0} de ${c.programadas || 0} completadas (${c.pct || 0}%) · Déficit: ${deficit} supervisión${deficit !== 1 ? 'es' : ''}</div>
+                                <div class="sg-item-title" style="font-size:.8125rem">${_escHtml(c.cliente)}</div>
+                                <div class="sg-item-sub" style="font-size:.72rem">${c.contadas || 0} de ${c.programadas || 0} completadas (${c.pct || 0}%) · Déficit: ${deficit} supervisión${deficit !== 1 ? 'es' : ''}</div>
                             </div>
                             ${PUBLIC_MODE ? '' : `<a href="/dashboard/supervision/?cliente=${_quote(c.cliente)}" class="alerta-btn alerta-btn-rojo">Ver supervisiones →</a>`}
                         </div>`;
@@ -2356,15 +2372,14 @@ async function abrirDetalleSemaforo() {
             <div class="sg-modal sg-modal-wide">
                 <div class="sg-modal-title">Estado General: ${textos[nivel] || 'OPERACIÓN'}</div>
                 <div class="sg-modal-sub">Diagnóstico evaluado al ${ts} — Selecciona cualquier novedad para abrirla y asignarla</div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem">
+                <div class="sg-cond-box">
                     ${condHtml}
                 </div>
                 ${asignadosHtml}
                 ${eqSectionHtml}
                 ${supSectionHtml}
                 ${alertasSectionHtml}
-                <button onclick="this.closest('.sg-modal-overlay').remove()"
-                    style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                <button onclick="this.closest('.sg-modal-overlay').remove()" class="sg-modal-close-btn">
                     Cerrar
                 </button>
             </div>`;

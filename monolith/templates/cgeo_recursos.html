@@ -143,6 +143,7 @@ canvas{outline:none}
 .sg-modal-wide{max-width:680px}
 .sg-modal-title{font-size:1.0625rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
 .sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
+.sg-cond-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem}
 .sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
 .sg-cond-item:last-child{border-bottom:none}
 .sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
@@ -155,6 +156,11 @@ canvas{outline:none}
 .sg-detail-empty{font-size:.78rem;color:#64748b;padding:.5rem 0}
 .sg-item-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .875rem;border-bottom:1px solid #f1f5f9}
 .sg-item-row:last-child{border-bottom:none}
+.sg-item-title{font-size:.875rem;font-weight:600;color:#0f172a;line-height:1.35}
+.sg-item-sub{font-size:.75rem;color:#64748b;margin-top:.15rem}
+.sg-modal-close-btn{margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem;transition:background .15s}
+.sg-modal-close-btn:hover{background:#1e293b}
+.sg-empty-msg{text-align:center;padding:1.5rem;color:#64748b;font-size:.875rem}
 .sg-btn-accion{border:none;background:rgba(59,130,246,.1);color:#2563eb;font-family:inherit;font-size:.72rem;font-weight:700;padding:.3rem .6rem;border-radius:.375rem;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem}
 .sg-btn-accion:hover{background:rgba(59,130,246,.2)}
 .sg-btn-rojo{background:rgba(239,68,68,.1);color:#dc2626}
@@ -260,15 +266,24 @@ body:not(.light-mode) .alert-req.alert-req-ok .alert-req-text{color:#bbf7d0}
 body:not(.light-mode) .alert-req.alert-req-warn{background:rgba(120,53,15,.2);border-color:#78350f}
 body:not(.light-mode) .alert-req.alert-req-warn .alert-req-title{color:#fde68a}
 body:not(.light-mode) .alert-req.alert-req-warn .alert-req-text{color:#fef08a}
-body:not(.light-mode) .sg-modal{background:#1e293b;box-shadow:0 25px 60px rgba(0,0,0,.5)}
-body:not(.light-mode) .sg-modal-title{color:#f1f5f9}
+body:not(.light-mode) .sg-modal{background:#1e293b;color:#e2e8f0;box-shadow:0 25px 60px rgba(0,0,0,.5)}
+body:not(.light-mode) .sg-modal-title{color:#f8fafc}
 body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
+body:not(.light-mode) .sg-item-title{color:#f1f5f9}
+body:not(.light-mode) .sg-item-sub{color:#94a3b8}
+body:not(.light-mode) .sg-cond-box{background:#0f172a;border-color:#334155}
 body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
 body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
-body:not(.light-mode) .sg-detail-list{border-color:#334155}
+body:not(.light-mode) .sg-detail-list{border-color:#334155;background:#1e293b}
 body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
 body:not(.light-mode) .sg-item-row{border-bottom-color:#334155}
+body:not(.light-mode) .sg-empty-msg{color:#94a3b8}
+body:not(.light-mode) .sg-modal-close-btn{background:#334155;color:#f8fafc}
+body:not(.light-mode) .sg-modal-close-btn:hover{background:#475569}
 body:not(.light-mode) .sg-btn-accion{background:rgba(59,130,246,.2);color:#60a5fa}
+body:not(.light-mode) .sg-modal [style*="color:#0f172a"],body:not(.light-mode) .sg-modal [style*="color: #0f172a"]{color:#f1f5f9!important}
+body:not(.light-mode) .sg-modal [style*="color:#64748b"],body:not(.light-mode) .sg-modal [style*="color: #64748b"]{color:#94a3b8!important}
+body:not(.light-mode) .sg-modal [style*="background:#f8fafc"],body:not(.light-mode) .sg-modal [style*="background: #f8fafc"]{background:#0f172a!important;border-color:#334155!important}
 .legend-lbl{color:#475569}
 .legend-val{color:#0f172a}
 body:not(.light-mode) .legend-lbl{color:#94a3b8}
@@ -746,8 +761,8 @@ function abrirModalAlertasCategoria(categoria) {
             ${filtradas.map((a, idx) => `
                 <div class="sg-item-row">
                     <div style="flex:1;min-width:0">
-                        <div style="font-size:.875rem;font-weight:600;color:#0f172a">${_escHtml(a.elemento)}</div>
-                        <div style="font-size:.75rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
+                        <div class="sg-item-title">${_escHtml(a.elemento)}</div>
+                        <div class="sg-item-sub">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
                     </div>
                     ${a.record_id && a.form_type ? `
                         <button type="button" class="sg-btn-accion" onclick="abrirAlertaCatModalIdx(${idx}, event)">
@@ -755,7 +770,7 @@ function abrirModalAlertasCategoria(categoria) {
                         </button>` : (a.ruta_navegacion ? `<a href="${_escHtml(a.ruta_navegacion)}" class="sg-btn-accion">Ver detalle →</a>` : '')}
                 </div>`).join('')}
         </div>` : `
-        <div style="text-align:center;padding:1.5rem;color:#64748b;font-size:.875rem">
+        <div class="sg-empty-msg">
             No hay registros pendientes en esta categoría para el período seleccionado.
         </div>`;
 
@@ -766,8 +781,7 @@ function abrirModalAlertasCategoria(categoria) {
             <div class="sg-modal-title">${titulo}</div>
             <div class="sg-modal-sub">${subtitulo}</div>
             ${itemsHtml}
-            <button onclick="this.closest('.sg-modal-overlay').remove()"
-                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+            <button onclick="this.closest('.sg-modal-overlay').remove()" class="sg-modal-close-btn">
                 Cerrar
             </button>
         </div>`;
@@ -814,8 +828,8 @@ function abrirDetalleSemaforoRecursos() {
                 ${alertas.slice(0, 8).map((a, i) => `
                     <div class="sg-item-row">
                         <div style="flex:1;min-width:0">
-                            <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(a.tipo)}: ${_escHtml(a.elemento)}</div>
-                            <div style="font-size:.72rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
+                            <div class="sg-item-title" style="font-size:.8125rem">${_escHtml(a.tipo)}: ${_escHtml(a.elemento)}</div>
+                            <div class="sg-item-sub" style="font-size:.72rem">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
                         </div>
                         ${a.record_id && a.form_type
                             ? `<button type="button" class="sg-btn-accion" onclick="abrirAlertaSemaforoRecursosIdx(${i}, event)">Ver detalle →</button>`
@@ -830,12 +844,11 @@ function abrirDetalleSemaforoRecursos() {
         <div class="sg-modal sg-modal-wide">
             <div class="sg-modal-title">Diagnóstico Consolidado: ${textos[nivel]}</div>
             <div class="sg-modal-sub">Evaluación técnica y documental al ${ts} — Recursos y Confiabilidad</div>
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem">
+            <div class="sg-cond-box">
                 ${condHtml}
             </div>
             ${alertSectionHtml}
-            <button onclick="this.closest('.sg-modal-overlay').remove()"
-                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+            <button onclick="this.closest('.sg-modal-overlay').remove()" class="sg-modal-close-btn">
                 Cerrar
             </button>
         </div>`;
@@ -1720,16 +1733,16 @@ function openQRModal() {
     document.getElementById('qrModal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'qrModal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:999;display:flex;align-items:center;justify-content:center';
+    modal.className = 'sg-modal-overlay';
     modal.innerHTML = `
-        <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:400px;width:92%;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3)">
-            <div style="font-family:'Merriweather',serif;font-size:1.125rem;font-weight:700;color:#0f172a;margin-bottom:.25rem">Código QR — Acceso Directo</div>
-            <div style="font-size:.82rem;font-weight:600;color:#1d4ed8;margin-bottom:.2rem">Recursos y Confiabilidad${clienteStr}</div>
-            <div style="font-size:.75rem;color:#64748b;margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
+        <div class="sg-modal" style="max-width:400px;width:92%;text-align:center">
+            <div class="sg-modal-title" style="font-family:'Merriweather',serif;font-size:1.125rem;margin-bottom:.25rem">Código QR — Acceso Directo</div>
+            <div style="font-size:.82rem;font-weight:600;color:#3b82f6;margin-bottom:.2rem">Recursos y Confiabilidad${clienteStr}</div>
+            <div class="sg-item-sub" style="margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
             <div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.875rem">🔒 Requiere sesión activa</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
-            <div style="font-size:.7rem;color:#94a3b8;word-break:break-all;background:#f8fafc;border-radius:.5rem;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
-            <button onclick="document.getElementById('qrModal').remove()" style="padding:.625rem 1.5rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;width:100%">Cerrar</button>
+            <div class="sg-cond-box" style="font-size:.7rem;color:#94a3b8;word-break:break-all;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
+            <button onclick="document.getElementById('qrModal').remove()" class="sg-modal-close-btn" style="margin-top:0">Cerrar</button>
         </div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
