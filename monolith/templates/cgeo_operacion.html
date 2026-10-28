@@ -2048,12 +2048,8 @@ function computeSemaforo(alertasData, kpis) {
     const incAb   = kpis?.inc_abiertos    ?? 0;
     const supComp = kpis?.sup_completadas ?? 0;
     const supProg = kpis?.sup_programadas ?? 0;
-    const tienePorTipo = kpis?.eq_por_tipo && typeof kpis.eq_por_tipo === 'object';
-    const radioSem = tienePorTipo ? _eqTipoSem(kpis.eq_por_tipo, 'radio', 'radios') : null;
-    const eqTotal = tienePorTipo ? (radioSem?.total ?? 0) : (kpis?.eq_total ?? 0);
-    const eqNoOp  = tienePorTipo
-        ? Math.max(0, eqTotal - (radioSem?.operativos ?? 0))
-        : (kpis?.eq_no_op ?? 0);
+    const eqTotal = kpis?.eq_total ?? 0;
+    const eqNoOp  = kpis?.eq_no_op ?? 0;
     const certProx      = kpis?.cert_proximas  ?? 0;
     const compVencidos  = kpis?.comp_vencidos   ?? 0;
     const compPorVencer = kpis?.comp_por_vencer ?? 0;
@@ -2207,18 +2203,23 @@ function abrirAlertaSemaforo(a, event) {
 
 function abrirAlertaSemaforoPorId(alertaId, event) {
     if (event) event.stopPropagation();
+    const modal = event?.target ? event.target.closest('.sg-modal-overlay') : null;
+    if (modal) modal.remove();
     const a = (_alertasData || []).find(x => String(x.id) === String(alertaId));
     if (a) abrirAlertaSemaforo(a, event);
 }
 
 function abrirReparacionEquipoPorId(eqId, event) {
     if (event) event.stopPropagation();
+    const modal = event?.target ? event.target.closest('.sg-modal-overlay') : null;
+    if (modal) modal.remove();
     const eq = (_sgKpis?.eq_detalles || []).find(x => String(x.id) === String(eqId));
     if (!eq) return;
     const viewer = _getAlertViewer('confiabilidad_equipos');
     if (viewer) {
         viewer.openRecord(eq.id, {
-            motivo: `Reparación de equipo: ${eq.etiqueta || 'Equipo'} en ${eq.instalacion || 'Instalación'}`
+            motivo: `Atención a equipo: ${eq.etiqueta || 'Equipo'} en ${eq.instalacion || 'Instalación'}`,
+            hallazgoTitulo: `${eq.etiqueta || 'Equipo'} (${eq.con_falla} fuera de servicio)`
         });
     }
 }
@@ -2294,9 +2295,10 @@ async function abrirDetalleSemaforo() {
 
         // 3. Equipos con novedad o fuera de servicio
         const eqDetalles = kpis.eq_detalles || [];
+        const totalEqFalla = eqDetalles.reduce((acc, eq) => acc + (eq.con_falla || 1), 0);
         const eqSectionHtml = eqDetalles.length ? `
             <div class="sg-detail-section">
-                <div class="sg-detail-heading">🧰 EQUIPOS CON FALLA O FUERA DE SERVICIO (${eqDetalles.length})</div>
+                <div class="sg-detail-heading">🧰 EQUIPOS CON FALLA O FUERA DE SERVICIO (${totalEqFalla} ${totalEqFalla === 1 ? 'UNIDAD' : 'UNIDADES'})</div>
                 <div class="sg-detail-list">
                     ${eqDetalles.map(eq => `
                         <div class="alerta-item" style="padding:.65rem .875rem">
@@ -2306,7 +2308,7 @@ async function abrirDetalleSemaforo() {
                                 <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
                                 <div style="font-size:.72rem;color:#64748b">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
                             </div>
-                            ${PUBLIC_MODE ? '' : `<button onclick="abrirReparacionEquipoPorId(${eq.id}, event)" class="alerta-btn alerta-btn-naranja">Asignar reparación →</button>`}
+                            ${PUBLIC_MODE ? '' : `<button onclick="abrirReparacionEquipoPorId(${eq.id}, event)" class="alerta-btn alerta-btn-naranja">Ver detalle →</button>`}
                         </div>`).join('')}
                 </div>
             </div>` : '';

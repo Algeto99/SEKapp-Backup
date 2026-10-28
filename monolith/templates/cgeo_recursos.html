@@ -660,6 +660,8 @@ function abrirAlertaRecursos(a, event) {
 
 function abrirAlertaSemaforoRecursosIdx(idx, event) {
     if (event) event.stopPropagation();
+    const modal = event?.target ? event.target.closest('.sg-modal-overlay') : null;
+    if (modal) modal.remove();
     const a = currentData?.alertas?.listado?.[idx];
     if (a) abrirAlertaRecursos(a, event);
 }
@@ -804,9 +806,10 @@ function abrirDetalleSemaforoRecursos() {
         : `<div class="sg-cond-item"><div class="sg-cond-dot" style="background:#22c55e"></div><span class="sg-cond-text sg-cond-ok">Todos los recursos monitoreados se encuentran en estado óptimo</span></div>`;
 
     const alertas = d.alertas?.listado || [];
+    const totalAlertasFallas = alertas.reduce((acc, x) => acc + (x.con_falla || 1), 0);
     const alertSectionHtml = alertas.length ? `
         <div class="sg-detail-section">
-            <div class="sg-detail-heading">🚨 NOVEDADES Y ELEMENTOS QUE REQUIEREN GESTIÓN (${alertas.length})</div>
+            <div class="sg-detail-heading">🚨 NOVEDADES Y ELEMENTOS QUE REQUIEREN GESTIÓN (${totalAlertasFallas} ${totalAlertasFallas === 1 ? 'ELEMENTO' : 'ELEMENTOS'})</div>
             <div class="sg-detail-list">
                 ${alertas.slice(0, 8).map((a, i) => `
                     <div class="sg-item-row">
@@ -815,7 +818,7 @@ function abrirDetalleSemaforoRecursos() {
                             <div style="font-size:.72rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
                         </div>
                         ${a.record_id && a.form_type
-                            ? `<button type="button" class="sg-btn-accion" onclick="abrirAlertaSemaforoRecursosIdx(${i}, event)">Ver y asignar →</button>`
+                            ? `<button type="button" class="sg-btn-accion" onclick="abrirAlertaSemaforoRecursosIdx(${i}, event)">Ver detalle →</button>`
                             : (a.ruta_navegacion ? `<a href="${_escHtml(a.ruta_navegacion)}" class="sg-btn-accion">Ver detalle →</a>` : '')}
                     </div>`).join('')}
             </div>
