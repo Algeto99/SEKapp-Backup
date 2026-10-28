@@ -737,9 +737,9 @@ function _kpiSupSub(k) {
     if (prog > 0) {
         if (pend > 0) {
             const clisTxt = clientesPend > 0 ? ` en ${clientesPend} cliente${clientesPend !== 1 ? 's' : ''}` : '';
-            return `<strong>${pend} pendiente${pend !== 1 ? 's' : ''}</strong>${clisTxt} (${Math.round(k.sup_pct ?? (comp/prog*100))}% de cuota alcanzada)<br>${linea2}`;
+            return `<strong>${pend} pendiente${pend !== 1 ? 's' : ''}</strong>${clisTxt} (${Math.round(k.sup_pct ?? (comp/prog*100))}% de meta semanal alcanzada)<br>${linea2}`;
         }
-        return `Meta al día: 100% alcanzada (${comp} de ${prog})<br>${linea2}`;
+        return `Meta semanal 100% alcanzada (${comp} de ${prog})<br>${linea2}`;
     }
     if (k.sup_sin_dia_cerrado) return `Sin días cerrados en la ventana<br>${linea2}`;
     return `0 programadas<br>${linea2}`;
@@ -1115,7 +1115,7 @@ function abrirModalKpiEquipos() {
 function abrirModalKpiSupervisiones() {
     const pendientes = (_kpis.sup_por_cliente || []).filter(c => (c.pendientes || 0) > 0);
     const titulo = `👁️ Cobertura de Supervisiones`;
-    const subtitulo = `${_kpis.sup_completadas} de ${_kpis.sup_programadas} completadas (${_kpis.sup_pct ?? 0}%) · ${_kpis.sup_pendientes} pendientes en el ciclo ${_kpis.sup_periodo_label || ''}`;
+    const subtitulo = `${_kpis.sup_completadas} de ${_kpis.sup_programadas} completadas (${_kpis.sup_pct ?? 0}%) · ${_kpis.sup_pendientes} pendientes en la semana (${_kpis.sup_periodo_label || 'últimos 7 días'})`;
 
     const contenido = pendientes.length
         ? `<div class="kpi-modal-subheading">Clientes con cuota de supervisión pendiente:</div>` +
