@@ -248,6 +248,28 @@ body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
 .sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
 .sg-cond-text{font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
 
+/* ── Modales Contextuales de KPIs ────────────────────────────────────────── */
+.kpi-modal-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem;border-radius:.5rem;border:1px solid #e2e8f0;margin-bottom:.5rem;background:#f8fafc;transition:background .15s}
+.kpi-modal-row:hover{background:#f1f5f9}
+.kpi-modal-row-main{display:flex;align-items:center;gap:.625rem;min-width:0;flex:1}
+.kpi-modal-badge{padding:.2rem .45rem;font-size:.6875rem;font-weight:800;border-radius:.375rem;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0}
+.kpi-badge-rojo,.kpi-badge-critico,.kpi-badge-crítico{background:#fee2e2;color:#b91c1c}
+.kpi-badge-amarillo,.kpi-badge-alto,.kpi-badge-medio{background:#fef3c7;color:#92400e}
+.kpi-badge-naranja{background:#ffedd5;color:#c2410c}
+.kpi-badge-verde{background:#dcfce7;color:#15803d}
+.kpi-modal-info{min-width:0;flex:1}
+.kpi-modal-tit{font-size:.8125rem;color:#0f172a;word-break:break-word}
+.kpi-modal-meta{font-size:.75rem;color:#64748b;margin-top:.15rem}
+.kpi-modal-btn{padding:.35rem .65rem;background:#0f172a;color:#fff;border:none;border-radius:.375rem;font-size:.75rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;text-decoration:none;transition:background .15s}
+.kpi-modal-btn:hover{background:#334155}
+.kpi-modal-subheading{font-size:.8rem;font-weight:700;color:#64748b;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.02em}
+body:not(.light-mode) .kpi-modal-row{background:#0f172a;border-color:#334155}
+body:not(.light-mode) .kpi-modal-row:hover{background:#1e293b}
+body:not(.light-mode) .kpi-modal-tit{color:#f1f5f9}
+body:not(.light-mode) .kpi-modal-meta{color:#94a3b8}
+body:not(.light-mode) .kpi-modal-btn{background:#3b82f6;color:#fff}
+body:not(.light-mode) .kpi-modal-btn:hover{background:#2563eb}
+
 /* ── Sidebar overlay / responsive ───────────────────────────────────────── */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
 .sidebar-overlay.active{display:block}
@@ -871,50 +893,42 @@ function renderKpis(k, thr) {
     const kpiDefs = [
         {
             id: 'kpiInc',
-            href: '/cgeo/operacion/',
             icon: '⚠️', iconBg: '#fef2f2',
             val: k.inc_abiertos ?? 0,
             lbl: 'Incidentes Abiertos',
             sub: (k.inc_mas_24h ?? 0) > 0
                 ? `${k.inc_mas_24h} llevan más de 24h sin gestión`
                 : 'Todos gestionados en las últimas 24h',
-            action: 'Ver incidentes →',
+            action: 'Gestionar incidentes →',
             color: _kpiIncColor(k.inc_abiertos ?? 0),
         },
         {
             id: 'kpiSup',
-            // Abre Operación con la ventana cerrada que mide la cifra; sin días
-            // cerrados, con hoy.
-            href: (k.sup_desde && k.sup_hasta_cerrado)
-                ? `/cgeo/operacion/?start_date=${k.sup_desde}&end_date=${k.sup_hasta_cerrado}`
-                : `/cgeo/operacion/?start_date=${today}&end_date=${today}`,
             icon: '👁️', iconBg: '#eff6ff',
             val: (k.sup_programadas ?? 0) > 0 ? (k.sup_completadas ?? 0) : (k.sup_en_curso ?? 0),
             lbl: 'Supervisiones',
             sub: _kpiSupSub(k),
             help: SUP_AYUDA,
-            action: 'Ver supervisiones →',
+            action: 'Ver cobertura y pendientes →',
             color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr, k.sup_pct ?? null),
         },
         {
             id: 'kpiEq',
-            href: '/cgeo/recursos/',
             icon: '🧰', iconBg: '#fff7ed',
-            // Antes se titulaba "Radios" y la cifra eran sólo radios, pero el
-            // detalle hablaba de radios, armas y motos: se leía como una cifra de
-            // radios que mezclaba todo. Ahora la cifra son unidades registradas
-            // (radios + armas) y cada valor del detalle lleva su nombre.
-            val: equiposTotal > 0 ? equiposTotal : '—',
-            lbl: 'Equipos',
-            sub: eqDetalle.join(' · '),
-            action: 'Ver equipos →',
-            // El semáforo sigue saliendo del estado de los radios cuando hay
-            // inventario; sin inventario queda gris, como antes.
+            val: (k.eq_no_op > 0)
+                ? `${k.eq_no_op} con falla`
+                : (radioTotal > 0 || armaTotal > 0 ? '100% operativos' : (equiposTotal > 0 ? equiposTotal : '—')),
+            lbl: 'Confiabilidad de Equipos',
+            sub: (k.eq_no_op > 0)
+                ? `${k.eq_no_op} equipo${k.eq_no_op !== 1 ? 's' : ''} inoperativo${k.eq_no_op !== 1 ? 's' : ''} en puestos · ${k.eq_pct ?? 0}% operatividad`
+                : (radioTotal > 0 || armaTotal > 0
+                    ? `Todos los equipos operando en puestos (${radioOp} radios · ${armaOp} armas)`
+                    : eqDetalle.join(' · ')),
+            action: (k.eq_no_op > 0) ? 'Resolver fallas de equipos →' : 'Ver estado de equipos →',
             color: _kpiEqColor(radioNoOp, radioTotal, thr),
         },
         {
             id: 'kpiCert',
-            href: '/cgeo/recursos/',
             icon: '📋', iconBg: '#f0fdf4',
             val: k.cert_proximas ?? 0,
             lbl: 'Cumplimiento Normativo',
@@ -924,7 +938,6 @@ function renderKpis(k, thr) {
         },
         {
             id: 'kpiComp',
-            href: '/dashboard/visitas/',
             icon: '🤝', iconBg: '#f5f3ff',
             val: k.comp_vencidos ?? 0,
             lbl: 'Compromisos de Visitas',
@@ -938,7 +951,6 @@ function renderKpis(k, thr) {
         },
         {
             id: 'kpiVisita',
-            href: '/dashboard/visitas/',
             icon: '🚗', iconBg: '#eff6ff',
             val: k.visita_completadas ?? 0,
             lbl: 'Visitas a Clientes',
@@ -956,7 +968,7 @@ function renderKpis(k, thr) {
 
     const grid = document.getElementById('kpiGrid');
     grid.innerHTML = kpiDefs.map(d => `
-        <a href="${d.href}" class="kpi-card" style="border-top-color:${d.color.border}"${d.help ? ` title="${d.help}"` : ''}>
+        <div class="kpi-card" onclick="abrirModalKpi('${d.id}')" role="button" tabindex="0" style="border-top-color:${d.color.border};cursor:pointer"${d.help ? ` title="${d.help}"` : ''}>
             <div class="kpi-card-header">
                 <div class="kpi-icon-wrap" style="background:${d.iconBg}">${d.icon}</div>
                 <div class="kpi-status-dot ${d.color.dot}"></div>
@@ -965,13 +977,229 @@ function renderKpis(k, thr) {
             <div class="kpi-lbl">${d.lbl}</div>
             <div class="kpi-sub">${d.sub}</div>
             <div class="kpi-action">${d.action}</div>
-        </a>
+        </div>
     `).join('');
 
     document.getElementById('supChipText').textContent = (k.sup_programadas ?? 0) > 0
         ? `${k.sup_programadas} supervisiones programadas · ${k.sup_periodo_label || 'últimos 7 días'} · ${k.sup_en_curso ?? 0} en curso hoy`
         : (k.sup_sin_dia_cerrado ? `Sin días cerrados en la ventana · ${k.sup_en_curso ?? 0} en curso hoy`
                                  : '0 supervisiones programadas');
+}
+
+// ── Modales Contextuales para Llamado a la Acción Directa de KPIs ─────────────
+
+function _abrirDetalleKpiItem(formType, recordId, motivo, titulo) {
+    document.querySelectorAll('.sg-modal-overlay').forEach(m => m.remove());
+    _getAlertViewer(formType).openRecord(recordId, {
+        motivo: motivo || '',
+        hallazgoRef: `kpi_${formType}_${recordId}`,
+        hallazgoTitulo: titulo || ''
+    });
+}
+
+function abrirModalKpi(id) {
+    if (!_kpis) return;
+    if (id === 'kpiInc') abrirModalKpiIncidentes();
+    else if (id === 'kpiSup') abrirModalKpiSupervisiones();
+    else if (id === 'kpiEq') abrirModalKpiEquipos();
+    else if (id === 'kpiCert') abrirModalKpiCertificaciones();
+    else if (id === 'kpiComp') abrirModalKpiCompromisos();
+    else if (id === 'kpiVisita') abrirModalKpiVisitas();
+}
+
+function abrirModalKpiIncidentes() {
+    const items = _kpis.inc_items || [];
+    const criticos = _kpis.inc_criticos || 0;
+    const mas24h = _kpis.inc_mas_24h || 0;
+    const titulo = `⚠️ Incidentes Abiertos (${_kpis.inc_abiertos ?? 0})`;
+    const subtitulo = items.length
+        ? `${items.length} incidente${items.length !== 1 ? 's' : ''} pendiente${items.length !== 1 ? 's' : ''} de resolución (${criticos} crítico${criticos !== 1 ? 's' : ''}, ${mas24h} con > 24h) — asigna o gestiona directamente:`
+        : 'Sin incidentes abiertos en este momento.';
+
+    const contenido = items.length
+        ? items.map(inc => {
+            const sev = (inc.severidad || 'Medio').toLowerCase();
+            const badgeCls = (sev.includes('crít') || sev.includes('crit')) ? 'kpi-badge-rojo' : (sev.includes('alto') ? 'kpi-badge-naranja' : 'kpi-badge-amarillo');
+            return `
+            <div class="kpi-modal-row">
+                <div class="kpi-modal-row-main">
+                    <span class="kpi-modal-badge ${badgeCls}">${_esc(inc.severidad || 'MEDIO')}</span>
+                    <div class="kpi-modal-info">
+                        <div class="kpi-modal-tit"><strong>${_esc(inc.cliente || 'Instalación')}</strong> — ${_esc(inc.tipo)}</div>
+                        <div class="kpi-modal-meta">Reportado: ${inc.fecha || 'Reciente'} (${inc.horas}h activo)${inc.responsable ? ` · Asignado a: ${_esc(inc.responsable)}` : ' · ⚠️ Sin responsable'}</div>
+                    </div>
+                </div>
+                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('reporte_incidente', ${inc.id}, 'Incidente abierto (${inc.horas}h)', '${_esc(inc.tipo)} en ${_esc(inc.cliente)}')">
+                    👤 Gestionar ↗
+                </button>
+            </div>`;
+        }).join('')
+        : `<div class="sg-detail-empty">✅ No hay incidentes abiertos pendientes en el sistema. Todos han sido resueltos.</div>`;
+
+    _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/operacion/', 'Ir al módulo completo de Operación e Incidentes →');
+}
+
+function abrirModalKpiEquipos() {
+    const items = _kpis.eq_fallas || [];
+    const totalFallados = _kpis.eq_no_op || 0;
+    const titulo = `🧰 Confiabilidad y Fallas de Equipos`;
+    const subtitulo = totalFallados > 0
+        ? `${totalFallados} equipo${totalFallados !== 1 ? 's' : ''} con novedad o falla operativa en puestos — asigna taller o reemplazo:`
+        : 'Todos los equipos reportados en puestos se encuentran 100% operativos.';
+
+    const contenido = items.length
+        ? items.map(eq => `
+            <div class="kpi-modal-row">
+                <div class="kpi-modal-row-main">
+                    <span class="kpi-modal-badge kpi-badge-rojo">${_esc(eq.tipo)}</span>
+                    <div class="kpi-modal-info">
+                        <div class="kpi-modal-tit"><strong>${_esc(eq.cliente || 'Instalación')}</strong>: ${eq.con_falla} con falla (${eq.operativos} de ${eq.total} operativos)</div>
+                        <div class="kpi-modal-meta">${_esc(eq.novedad)} · Reporte: ${eq.fecha}</div>
+                    </div>
+                </div>
+                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('confiabilidad_equipos', ${eq.id}, '${_esc(eq.novedad)}', 'Falla de ${eq.tipo} en ${_esc(eq.cliente)}')">
+                    👤 Asignar Taller / Reemplazo ↗
+                </button>
+            </div>
+        `).join('')
+        : `<div class="sg-detail-empty">✅ No se registran fallas de radios ni armas en las inspecciones de confiabilidad vigentes. La disponibilidad técnica en puestos es del 100%.</div>`;
+
+    _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/recursos/', 'Consultar inventario general en Recursos →');
+}
+
+function abrirModalKpiSupervisiones() {
+    const pendientes = (_kpis.sup_por_cliente || []).filter(c => (c.pendientes || 0) > 0);
+    const titulo = `👁️ Cobertura de Supervisiones`;
+    const subtitulo = `${_kpis.sup_completadas} de ${_kpis.sup_programadas} completadas (${_kpis.sup_pct ?? 0}%) · ${_kpis.sup_pendientes} pendientes en el ciclo ${_kpis.sup_periodo_label || ''}`;
+
+    const contenido = pendientes.length
+        ? `<div class="kpi-modal-subheading">Clientes con cuota de supervisión pendiente:</div>` +
+          pendientes.map(c => `
+            <div class="kpi-modal-row">
+                <div class="kpi-modal-row-main">
+                    <span class="kpi-modal-badge kpi-badge-amarillo">${c.pendientes} PENDIENTE${c.pendientes !== 1 ? 'S' : ''}</span>
+                    <div class="kpi-modal-info">
+                        <div class="kpi-modal-tit"><strong>${_esc(c.cliente)}</strong></div>
+                        <div class="kpi-modal-meta">${c.realizadas} realizadas de ${c.programadas} programadas</div>
+                    </div>
+                </div>
+                <a href="/cgeo/operacion/?cliente=${encodeURIComponent(c.cliente)}" class="kpi-modal-btn" target="_blank">
+                    📍 Ver en Operación ↗
+                </a>
+            </div>
+        `).join('')
+        : `<div class="sg-detail-empty">✅ Todas las supervisiones programadas para este ciclo han sido completadas satisfactoriamente.</div>`;
+
+    _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/operacion/', 'Ir a mapa y lista de supervisiones →');
+}
+
+function abrirModalKpiCompromisos() {
+    const items = _kpis.comp_items || [];
+    const vencidos = _kpis.comp_vencidos || 0;
+    const porVencer = _kpis.comp_por_vencer || 0;
+    const titulo = `🤝 Compromisos con Clientes (Actas de Visita)`;
+    const subtitulo = items.length
+        ? `${vencidos} vencido${vencidos !== 1 ? 's' : ''} · ${porVencer} por vencer — gestiona el cumplimiento de minutas:`
+        : 'Sin compromisos vencidos ni pendientes próximos a vencer con clientes.';
+
+    const contenido = items.length
+        ? items.map(c => {
+            const esVencido = c.estado === 'vencido';
+            return `
+            <div class="kpi-modal-row">
+                <div class="kpi-modal-row-main">
+                    <span class="kpi-modal-badge ${esVencido ? 'kpi-badge-rojo' : 'kpi-badge-amarillo'}">
+                        ${esVencido ? 'VENCIDO' : 'POR VENCER'}
+                    </span>
+                    <div class="kpi-modal-info">
+                        <div class="kpi-modal-tit"><strong>${_esc(c.cliente)}</strong>: ${_esc(c.acuerdo)}</div>
+                        <div class="kpi-modal-meta">Fecha límite: ${c.fecha_cumplimiento}${c.responsable ? ` · Responsable: ${_esc(c.responsable)}` : ''}</div>
+                    </div>
+                </div>
+                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('registro_y_acta_de_visita', ${c.id}, 'Compromiso ${c.estado}: ${_esc(c.acuerdo)}', 'Compromiso con ${_esc(c.cliente)}')">
+                    👤 Gestionar ↗
+                </button>
+            </div>`;
+        }).join('')
+        : `<div class="sg-detail-empty">✅ Todos los compromisos acordados con clientes en actas de reunión se encuentran al día y cumplidos.</div>`;
+
+    _crearModalKpi(titulo, subtitulo, contenido, '/dashboard/visitas/', 'Ir al módulo de Visitas y Compromisos →');
+}
+
+function abrirModalKpiCertificaciones() {
+    const items = _kpis.cert_items || [];
+    const proximas = _kpis.cert_proximas || 0;
+    const titulo = `📋 Cumplimiento Normativo y Certificaciones`;
+    const subtitulo = proximas > 0
+        ? `${proximas} certificación${proximas !== 1 ? 'es' : ''} por vencer en los próximos 30 días — programa capacitaciones o relevos:`
+        : 'Todas las certificaciones y checklists se encuentran plenamente vigentes.';
+
+    const contenido = items.length
+        ? items.map(c => {
+            const badgeCls = (c.dias_restantes <= 7) ? 'kpi-badge-rojo' : 'kpi-badge-amarillo';
+            return `
+            <div class="kpi-modal-row">
+                <div class="kpi-modal-row-main">
+                    <span class="kpi-modal-badge ${badgeCls}">${c.dias_restantes <= 0 ? 'VENCE HOY' : `${c.dias_restantes} DÍAS`}</span>
+                    <div class="kpi-modal-info">
+                        <div class="kpi-modal-tit"><strong>${_esc(c.cliente || 'Colaborador')}</strong>: ${_esc(c.cert)}</div>
+                        <div class="kpi-modal-meta">Vigencia hasta: ${c.vigencia_hasta} · Nivel: ${_esc(c.nivel)}</div>
+                    </div>
+                </div>
+                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('checklist_cumplimiento', ${c.id}, 'Certificación por vencer (${c.dias_restantes} días)', '${_esc(c.cert)} en ${_esc(c.cliente)}')">
+                    👤 Asignar Relevo ↗
+                </button>
+            </div>`;
+        }).join('')
+        : `<div class="sg-detail-empty">✅ No se registran certificaciones ni cursos con vencimiento próximo en los siguientes 30 días.</div>`;
+
+    _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/recursos/', 'Ir a Gestión de Recursos y Cumplimiento →');
+}
+
+function abrirModalKpiVisitas() {
+    const compl = _kpis.visita_completadas || 0;
+    const prog = _kpis.visita_programadas || 0;
+    const espHoy = _kpis.visita_esperadas_hoy || 0;
+    const titulo = `🚗 Visitas Gerenciales a Clientes`;
+    const subtitulo = `${compl} visita${compl !== 1 ? 's' : ''} completada${compl !== 1 ? 's' : ''} de ${prog} programada${prog !== 1 ? 's' : ''} en el período (${_kpis.visita_periodicidad || 'mensual'}) · Meta al día: ${espHoy}`;
+
+    const contenido = `
+        <div class="sg-cond-item">
+            <div class="sg-cond-dot" style="background:#3b82f6"></div>
+            <div class="sg-cond-text">
+                <strong>Visitas registradas:</strong> ${compl} completadas en el ciclo actual.
+            </div>
+        </div>
+        <div class="sg-cond-item">
+            <div class="sg-cond-dot" style="background:${compl >= espHoy ? '#22c55e' : '#f59e0b'}"></div>
+            <div class="sg-cond-text">
+                <strong>Cumplimiento de meta:</strong> ${_kpis.visita_pct ?? 0}% de avance respecto a la cuota periódica.
+            </div>
+        </div>`;
+
+    _crearModalKpi(titulo, subtitulo, contenido, '/dashboard/visitas/', 'Ir a Registro y Actas de Visita →');
+}
+
+function _crearModalKpi(titulo, subtitulo, contenidoHtml, linkModuloHref, linkModuloTexto) {
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal sg-modal-wide">
+            <div class="sg-modal-title">${titulo}</div>
+            <div class="sg-modal-sub">${subtitulo}</div>
+            <div class="kpi-modal-body" style="max-height:60vh;overflow-y:auto;margin-bottom:1rem">
+                ${contenidoHtml}
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-top:.75rem;border-top:1px solid rgba(148,163,184,.2)">
+                <a href="${linkModuloHref}" target="_blank" class="cr-all-link" style="margin:0">${linkModuloTexto}</a>
+                <button onclick="this.closest('.sg-modal-overlay').remove()"
+                    style="padding:.5rem 1.1rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.85rem">
+                    Cerrar
+                </button>
+            </div>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
 }
 
 // ── Render Clientes en riesgo ─────────────────────────────────────────────────

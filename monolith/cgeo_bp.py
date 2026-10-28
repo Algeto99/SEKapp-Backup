@@ -3201,6 +3201,41 @@ def cgeo_api_morning_briefing_data():
         inc_criticos  = int(inc_row.get("criticos") or 0)
         inc_mas_24h   = int(inc_row.get("mas_24h") or 0)
 
+        # Incidentes abiertos para el modal de acción directa (máximo 10)
+        inc_conds_items = [
+            "LOWER(TRIM(COALESCE(estado,''))) NOT IN ('cerrado','closed','resuelto','resolved')"
+        ]
+        inc_params_items = []
+        if fecha_inicio:
+            inc_conds_items.append("COALESCE(fecha_hora::date, creado_en::date) >= %s")
+            inc_params_items.append(fecha_inicio)
+        cur.execute(f"""
+            SELECT
+                id_reporte_incidente AS id,
+                cliente_instalacion AS cliente,
+                COALESCE(NULLIF(TRIM(nivel_severidad),''), 'Medio') AS severidad,
+                COALESCE(NULLIF(TRIM(tipo_incidente),''), 'Incidente') AS tipo,
+                COALESCE(fecha_hora, creado_en) AS fecha,
+                EXTRACT(EPOCH FROM ({sql_ahora()} - COALESCE(fecha_hora AT TIME ZONE 'UTC', creado_en))) / 3600 AS horas,
+                NULLIF(TRIM(COALESCE(responsable_asignado,'')), '') AS responsable_asignado
+            FROM reportes_incidentes
+            {_where(inc_conds_items)}
+            ORDER BY (CASE WHEN LOWER(TRIM(nivel_severidad)) IN ('crítico','critico') THEN 0 ELSE 1 END),
+                     COALESCE(fecha_hora, creado_en) DESC
+            LIMIT 10
+        """, tuple(inc_params_items))
+        inc_items = []
+        for r in cur.fetchall():
+            inc_items.append({
+                "id": r["id"],
+                "cliente": _cliente_real(r["cliente"]),
+                "severidad": r["severidad"],
+                "tipo": r["tipo"],
+                "fecha": r["fecha"].strftime('%d/%m/%Y %H:%M') if r["fecha"] else '',
+                "horas": int(r["horas"] or 0),
+                "responsable": r["responsable_asignado"],
+            })
+
         # ── Supervisiones: programación por cliente vs realizadas ────────────
         from admin_bp import calcular_supervisiones
         from dashboard_bp import programadas_del_dia
@@ -3248,6 +3283,46 @@ def cgeo_api_morning_briefing_data():
             for r in cur.fetchall() if r["tipo"]
         }
 
+        # Fallas de equipos para el modal de acción directa
+        eq_fallas_conds, eq_fallas_params = [], []
+        _add_scope(eq_fallas_conds, eq_fallas_params, cliente=cliente, propiedad=propiedad, alias='c.')
+        eq_fallas_conds.append("LOWER(TRIM(COALESCE(elem->>'tipo_equipo', ''))) IN ('radios', 'radio', 'armas', 'arma')")
+        cur.execute(f"""
+            SELECT * FROM (
+                SELECT DISTINCT ON (TRIM(COALESCE(c.cliente_instalacion, '')), LOWER(TRIM(elem->>'tipo_equipo')))
+                       c.id, c.cliente_instalacion, c.fecha,
+                       elem->>'tipo_equipo' AS tipo_equipo,
+                       {_EQ_TOTAL_SQL} AS total,
+                       {_EQ_FUNC_SQL} AS operativos,
+                       CASE WHEN elem->>'equipos_con_falla' ~ '^[0-9]+$'
+                            THEN (elem->>'equipos_con_falla')::int
+                            ELSE GREATEST(0, ({_EQ_TOTAL_SQL}) - ({_EQ_FUNC_SQL})) END AS con_falla,
+                       NULLIF(TRIM(COALESCE(elem->>'comentario', '')), '') AS novedad
+                FROM confiabilidad_equipos c,
+                     LATERAL jsonb_array_elements(
+                         CASE WHEN jsonb_typeof(c.inventario) = 'array' THEN c.inventario ELSE '[]'::jsonb END
+                     ) AS elem
+                {_where(eq_fallas_conds)}
+                ORDER BY TRIM(COALESCE(c.cliente_instalacion, '')), LOWER(TRIM(elem->>'tipo_equipo')),
+                         c.fecha DESC NULLS LAST, c.id DESC
+            ) ultimo
+            WHERE con_falla > 0
+            ORDER BY fecha DESC NULLS LAST, id DESC
+            LIMIT 10
+        """, tuple(eq_fallas_params))
+        eq_fallas = []
+        for r in cur.fetchall():
+            eq_fallas.append({
+                "id": r["id"],
+                "cliente": _cliente_real(r["cliente_instalacion"]),
+                "tipo": 'Radio' if (r["tipo_equipo"] or '').lower().startswith('radio') else 'Arma',
+                "total": int(r["total"] or 0),
+                "operativos": int(r["operativos"] or 0),
+                "con_falla": int(r["con_falla"] or 0),
+                "novedad": r["novedad"] or 'Equipo reportado con falla operativa',
+                "fecha": r["fecha"].strftime('%d/%m/%Y') if r["fecha"] else '',
+            })
+
         # ── Certificaciones próximas a vencer (≤ 30 días) por nivel ─────────
         cur.execute(f"""
             SELECT
@@ -3261,6 +3336,33 @@ def cgeo_api_morning_briefing_data():
         """)
         cert_por_nivel = {r["nivel"]: int(r["total"] or 0) for r in cur.fetchall()}
         cert_proximas = sum(cert_por_nivel.values())
+
+        # Certificaciones próximas a vencer para el modal de acción directa
+        cur.execute(f"""
+            SELECT
+                id,
+                cliente_instalacion AS cliente,
+                COALESCE(NULLIF(TRIM(curso_certificacion),''), 'Certificación #' || id::text) AS cert,
+                vigencia_hasta,
+                (vigencia_hasta - {sql_hoy()}) AS dias_restantes,
+                COALESCE(NULLIF(TRIM(nivel_cumplimiento),''), 'General') AS nivel
+            FROM checklist_cumplimiento
+            WHERE vigencia_hasta IS NOT NULL
+              AND vigencia_hasta >= {sql_hoy()}
+              AND vigencia_hasta <= {sql_hoy()} + INTERVAL '30 days'
+            ORDER BY vigencia_hasta ASC
+            LIMIT 10
+        """)
+        cert_items = []
+        for r in cur.fetchall():
+            cert_items.append({
+                "id": r["id"],
+                "cliente": _cliente_real(r["cliente"]),
+                "cert": r["cert"],
+                "vigencia_hasta": r["vigencia_hasta"].strftime('%d/%m/%Y') if r["vigencia_hasta"] else '',
+                "dias_restantes": int(r["dias_restantes"] or 0),
+                "nivel": r["nivel"],
+            })
 
         # ── Motocicletas ──────────────────────────────────────────────────────
         # Las motos NO viven en el inventario de confiabilidad_equipos: tienen su
@@ -3326,6 +3428,22 @@ def cgeo_api_morning_briefing_data():
                     continue
                 if 0 <= dias_restantes <= dias_compromiso_vencer:
                     comp_por_vencer += 1
+
+        # Compromisos para el modal de acción directa (máximo 10)
+        comp_items = []
+        for c in compromisos:
+            if c['estado'] in ('vencido', 'pendiente'):
+                comp_items.append({
+                    "id": c.get('id_visita'),
+                    "cliente": _cliente_real(c.get('cliente')),
+                    "acuerdo": c.get('acuerdo') or 'Sin acuerdo detallado',
+                    "tema": c.get('tema') or 'Visita de seguimiento',
+                    "fecha_cumplimiento": c.get('fecha_cumplimiento') or '—',
+                    "estado": c.get('estado'),
+                    "responsable": c.get('responsable') or '',
+                })
+                if len(comp_items) >= 10:
+                    break
 
         # ── Visitas a clientes: meta configurada vs completadas en el período ──
         from dashboard_bp import _programadas_en_lapso
@@ -3481,6 +3599,10 @@ def cgeo_api_morning_briefing_data():
                 "visita_esperadas_hoy": visita_esperadas_hoy,
                 "visita_pct": visita_pct,
                 "visita_periodicidad": visita_periodicidad,
+                "inc_items":       inc_items,
+                "eq_fallas":       eq_fallas,
+                "cert_items":      cert_items,
+                "comp_items":      comp_items,
             },
             "clientes_en_riesgo": {
                 "total": len(clientes_en_riesgo),
