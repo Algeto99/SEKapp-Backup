@@ -1044,6 +1044,7 @@ def cgeo_api_recursos_data():
         cert_conds2 = list(cum_conds) + ["vigencia_hasta IS NOT NULL", f"vigencia_hasta < {sql_hoy()}"]
         cur.execute(f"""
             SELECT
+                id,
                 'Certificación' AS tipo,
                 COALESCE(NULLIF(TRIM(curso_certificacion), ''), 'Certificación #' || id::text) AS elemento,
                 cliente_instalacion AS cliente,
@@ -1056,7 +1057,12 @@ def cgeo_api_recursos_data():
             LIMIT 10
         """, tuple(cum_params))
         for r in cur.fetchall():
+            rec_id = r.get("id")
             alertas_listado.append({
+                "id": rec_id,
+                "record_id": rec_id,
+                "form_type": "checklist_cumplimiento",
+                "ruta_navegacion": f"/dashboard/cumplimiento/?id={rec_id}" if rec_id else "/dashboard/cumplimiento/",
                 "tipo": r["tipo"],
                 "elemento": r["elemento"],
                 "cliente": r["cliente"],
@@ -1070,6 +1076,7 @@ def cgeo_api_recursos_data():
         # placa que falló y luego pasó no sale; sus planillas quedan como historial.
         cur.execute(f"""
             SELECT
+                id,
                 'Vehículo' AS tipo,
                 elemento,
                 cliente_instalacion AS cliente,
@@ -1082,7 +1089,42 @@ def cgeo_api_recursos_data():
             LIMIT 10
         """, tuple(veh_params))
         for r in cur.fetchall():
+            rec_id = r.get("id")
             alertas_listado.append({
+                "id": rec_id,
+                "record_id": rec_id,
+                "form_type": "planilla_vehicular",
+                "ruta_navegacion": f"/dashboard/vehiculos/?id={rec_id}" if rec_id else "/dashboard/vehiculos/",
+                "tipo": r["tipo"],
+                "elemento": r["elemento"],
+                "cliente": r["cliente"],
+                "estado": r["estado"],
+                "vencimiento": None,
+                "dias_restantes": None,
+            })
+
+        # Motocicletas no aptas
+        cur.execute(f"""
+            SELECT
+                id,
+                'Motocicleta' AS tipo,
+                elemento,
+                cliente_instalacion AS cliente,
+                'No apta' AS estado,
+                NULL::date AS vencimiento,
+                fecha_ref
+            {moto_flota}
+            WHERE no_apto
+            ORDER BY fecha_ref DESC NULLS LAST
+            LIMIT 10
+        """, tuple(moto_params))
+        for r in cur.fetchall():
+            rec_id = r.get("id")
+            alertas_listado.append({
+                "id": rec_id,
+                "record_id": rec_id,
+                "form_type": "planilla_motocicletas",
+                "ruta_navegacion": f"/dashboard/motocicletas/?id={rec_id}" if rec_id else "/dashboard/motocicletas/",
                 "tipo": r["tipo"],
                 "elemento": r["elemento"],
                 "cliente": r["cliente"],
@@ -1110,7 +1152,12 @@ def cgeo_api_recursos_data():
             LIMIT 10
         """, tuple(eq_params))
         for r in cur.fetchall():
+            rec_id = r.get("id_ref")
             alertas_listado.append({
+                "id": rec_id,
+                "record_id": rec_id,
+                "form_type": "confiabilidad_equipos",
+                "ruta_navegacion": f"/dashboard/equipos/?id={rec_id}" if rec_id else "/dashboard/equipos/",
                 "tipo": r["tipo"],
                 "elemento": r["elemento"],
                 "cliente": r["cliente"],
@@ -1127,10 +1174,17 @@ def cgeo_api_recursos_data():
             acciones.append(f"Renovar {cum_vencidas} certificaciones vencidas.")
         if veh_no_aptos:
             acciones.append(f"Revisar {veh_no_aptos} vehículos no aptos.")
+        if moto_no_aptas:
+            acciones.append(f"Reparar {moto_no_aptas} motocicletas con novedades.")
         if eq_no_op:
             acciones.append(f"Gestionar reparación de {eq_no_op} equipos fuera de servicio.")
         if cum_proximas:
             acciones.append(f"Renovar {cum_proximas} certificaciones que vencen en los próximos 30 días.")
+
+        eq_no_op_detalle = [
+            {"tipo": r["tipo"], "cantidad": r["total"] - r["operativos"]}
+            for r in eq_por_tipo if r["total"] > r["operativos"]
+        ]
 
         return jsonify({
             "confiabilidad_general": conf_general,
@@ -1139,6 +1193,7 @@ def cgeo_api_recursos_data():
                 "total": eq_total,
                 "operativos": eq_op,
                 "no_operativos": eq_no_op,
+                "no_op_detalle": eq_no_op_detalle,
             },
             "equipos_por_tipo": eq_por_tipo,
             # Radios y Armas salen del mismo inventario que el resto de equipos,
@@ -1159,6 +1214,7 @@ def cgeo_api_recursos_data():
             "vehiculos_carros": {
                 "pct": veh_pct, "total": veh_total,
                 "aptos": veh_aptos, "no_aptos": veh_no_aptos,
+                "mantenimiento": max(veh_mant, 0),
             },
             "vehiculos_motos": {
                 "pct": moto_pct, "total": moto_total,
@@ -1185,6 +1241,7 @@ def cgeo_api_recursos_data():
                 "certificaciones_vencidas": cum_vencidas,
                 "proximas_vencer": cum_proximas,
                 "vehiculos_no_aptos": veh_no_aptos,
+                "motos_no_aptas": moto_no_aptas,
                 "equipos_no_op": eq_no_op,
                 "listado": alertas_listado[:20],
             },

@@ -85,6 +85,10 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .kpi-border-sky{border-top:3px solid #0ea5e9}
 .kpi-border-purple{border-top:3px solid #8b5cf6}
 .kpi-border-red{border-top:3px solid #ef4444}
+.kpi-card[data-href],.kpi-card[onclick],.pend-cat-card[data-href]{cursor:pointer;transition:transform .15s,box-shadow .15s}
+.kpi-card[data-href]:hover,.kpi-card[onclick]:hover,.pend-cat-card[data-href]:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.08)}
+.tbl tbody tr[data-href]{cursor:pointer}
+.tbl tbody tr[data-href]:hover{background-color:rgba(59,130,246,.05)}
 
 /* ── Charts grid ── */
 .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
@@ -116,24 +120,47 @@ canvas{outline:none}
 .alert-req-dot{width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;margin-top:.25rem}
 .alert-req-title{font-size:.9375rem;font-weight:700;color:#b91c1c}
 .alert-req-text{font-size:.8125rem;color:#7f1d1d;margin-top:.125rem}
+.alert-req.alert-req-ok{background:#f0fdf4;border-color:#bbf7d0}
+.alert-req.alert-req-ok .alert-req-dot{background:#22c55e}
+.alert-req.alert-req-ok .alert-req-title{color:#15803d}
+.alert-req.alert-req-ok .alert-req-text{color:#166534}
+.alert-req.alert-req-warn{background:#fffbeb;border-color:#fde68a}
+.alert-req.alert-req-warn .alert-req-dot{background:#f59e0b}
+.alert-req.alert-req-warn .alert-req-title{color:#92400e}
+.alert-req.alert-req-warn .alert-req-text{color:#78350f}
 
-/* ── Alert KPI grid ── */
-.alert-kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.25rem}
-.alert-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1rem 1.125rem}
-.alert-kpi-icon{font-size:1.5rem;margin-bottom:.375rem;display:block}
-.alert-kpi-val{font-size:1.75rem;font-weight:800;line-height:1;font-family:'Merriweather',serif}
-.alert-kpi-lbl{font-size:.75rem;color:#64748b;margin-top:.25rem}
-.color-red{color:#dc2626}
-.color-orange{color:#f97316}
-.color-yellow{color:#d97706}
-.color-blue{color:#2563eb}
+/* ── Indicadores categoría Resumen Operativo ── */
+.pend-cat{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:.75rem;margin-bottom:1.25rem}
+.pend-cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:.875rem 1rem;text-align:center}
+.pend-cat-icon{font-size:1.5rem;display:block;margin-bottom:.25rem}
+.pend-cat-val{font-size:1.625rem;font-weight:800;font-family:'Merriweather',serif;line-height:1}
+.pend-cat-lbl{font-size:.72rem;color:#64748b;margin-top:.25rem;font-weight:600}
+.pend-cat-sub{font-size:.65rem;color:#94a3b8;margin-top:.125rem}
 
-/* ── Categorías alertas ── */
-.alertas-cat{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.25rem}
-.cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1rem;text-align:center}
-.cat-icon{font-size:2rem;display:block;margin-bottom:.5rem}
-.cat-val{font-size:2rem;font-weight:800;font-family:'Merriweather',serif;line-height:1}
-.cat-lbl{font-size:.75rem;color:#64748b;margin-top:.25rem}
+/* ── Modal Detalle Semáforo ── */
+.sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
+.sg-modal{background:#fff;border-radius:1rem;padding:1.75rem;max-width:480px;width:100%;box-shadow:0 25px 60px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.sg-modal-wide{max-width:680px}
+.sg-modal-title{font-size:1.0625rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
+.sg-modal-sub{font-size:.8rem;color:#64748b;margin-bottom:1.25rem}
+.sg-cond-item{display:flex;align-items:flex-start;gap:.75rem;padding:.625rem 0;border-bottom:1px solid #f1f5f9}
+.sg-cond-item:last-child{border-bottom:none}
+.sg-cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:.25rem}
+.sg-cond-text{font-size:.8125rem;color:#334155;font-weight:500;line-height:1.4}
+.sg-cond-ok{color:#64748b;font-weight:400}
+.sg-detail-section{margin-top:1.25rem}
+.sg-detail-section:first-of-type{margin-top:0}
+.sg-detail-heading{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:.4rem;display:flex;align-items:center;gap:.4rem}
+.sg-detail-list{border:1px solid #f1f5f9;border-radius:.6rem;overflow:hidden}
+.sg-detail-empty{font-size:.78rem;color:#64748b;padding:.5rem 0}
+.sg-item-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .875rem;border-bottom:1px solid #f1f5f9}
+.sg-item-row:last-child{border-bottom:none}
+.sg-btn-accion{border:none;background:rgba(59,130,246,.1);color:#2563eb;font-family:inherit;font-size:.72rem;font-weight:700;padding:.3rem .6rem;border-radius:.375rem;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;gap:.25rem}
+.sg-btn-accion:hover{background:rgba(59,130,246,.2)}
+.sg-btn-rojo{background:rgba(239,68,68,.1);color:#dc2626}
+.sg-btn-rojo:hover{background:rgba(239,68,68,.2)}
+.sg-btn-naranja{background:rgba(249,115,22,.1);color:#ea580c}
+.sg-btn-naranja:hover{background:rgba(249,115,22,.2)}
 
 /* ── Table ── */
 .table-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;margin-bottom:1.25rem}
@@ -177,12 +204,11 @@ canvas{outline:none}
 
 .kpi-subdetail{font-size:.7rem;color:#64748b;margin-top:.375rem;line-height:1.5}
 .kpi-subdetail span{display:block}
-@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.alert-kpi-grid{grid-template-columns:repeat(3,1fr)}.alertas-cat{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.pend-cat{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:900px){
   .charts-row,.charts-row-3{grid-template-columns:1fr}
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .alert-kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .alertas-cat{grid-template-columns:repeat(2,1fr)}
+  .pend-cat{grid-template-columns:repeat(2,1fr)}
   .sidebar{width:200px}.main{margin-left:200px}
 }
 @media(max-width:700px){
@@ -199,8 +225,7 @@ canvas{outline:none}
   .page-subtitle{display:none}
   .content{padding:1rem}
   .kpi-grid{grid-template-columns:1fr!important}
-  .alert-kpi-grid{grid-template-columns:1fr!important}
-  .alertas-cat{grid-template-columns:1fr!important}
+  .pend-cat{grid-template-columns:1fr!important}
   .charts-row,.charts-row-3{grid-template-columns:1fr!important}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
   .sidebar-overlay.active{display:block}
@@ -212,22 +237,38 @@ canvas{outline:none}
 body:not(.light-mode){background:#0f172a;color:#e2e8f0}
 body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
 body:not(.light-mode) .page-title{color:#f1f5f9}
-body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .table-card,body:not(.light-mode) .ranking-card,body:not(.light-mode) .alert-kpi,body:not(.light-mode) .cat-card,body:not(.light-mode) .acciones-card{background:#1e293b;border-color:#334155}
-body:not(.light-mode) .chart-title,body:not(.light-mode) .table-title,body:not(.light-mode) .kpi-val{color:#f1f5f9}
-body:not(.light-mode) .kpi-lbl{color:#94a3b8}
-body:not(.light-mode) .cat-lbl{color:#94a3b8}
-body:not(.light-mode) .cat-val{color:#f1f5f9}
+body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .table-card,body:not(.light-mode) .ranking-card,body:not(.light-mode) .pend-cat-card,body:not(.light-mode) .acciones-card{background:#1e293b;border-color:#334155}
+body:not(.light-mode) .chart-title,body:not(.light-mode) .table-title,body:not(.light-mode) .kpi-val,body:not(.light-mode) .pend-cat-val{color:#f1f5f9}
+body:not(.light-mode) .kpi-lbl,body:not(.light-mode) .pend-cat-lbl{color:#94a3b8}
 body:not(.light-mode) .accion-text{color:#cbd5e1}
 body:not(.light-mode) .accion-item{border-bottom-color:#334155}
-body:not(.light-mode) .alert-kpi-lbl{color:#94a3b8}
 body:not(.light-mode) .tabs{background:#1e293b}
 body:not(.light-mode) .tab-btn.active{background:#0f172a;color:#f1f5f9}
 body:not(.light-mode) .filter-select,body:not(.light-mode) .date-input{background:#1e293b;border-color:#334155;color:#e2e8f0}
 body:not(.light-mode) .tbl th{border-bottom-color:#334155;color:#94a3b8}
 body:not(.light-mode) .tbl td{color:#e2e8f0;border-bottom-color:#1e293b}
 body:not(.light-mode) .tbl tr:hover td{background:#334155}
+body:not(.light-mode) .tbl tbody tr[data-href]:hover td{background:#334155}
 body:not(.light-mode) .badge-gray{background:#334155;color:#94a3b8}
 body:not(.light-mode) .sem-label{color:#94a3b8}
+body:not(.light-mode) .alert-req{background:#450a0a;border-color:#7f1d1d}
+body:not(.light-mode) .alert-req-title{color:#fca5a5}
+body:not(.light-mode) .alert-req-text{color:#fecaca}
+body:not(.light-mode) .alert-req.alert-req-ok{background:rgba(20,83,45,.2);border-color:#166534}
+body:not(.light-mode) .alert-req.alert-req-ok .alert-req-title{color:#86efac}
+body:not(.light-mode) .alert-req.alert-req-ok .alert-req-text{color:#bbf7d0}
+body:not(.light-mode) .alert-req.alert-req-warn{background:rgba(120,53,15,.2);border-color:#78350f}
+body:not(.light-mode) .alert-req.alert-req-warn .alert-req-title{color:#fde68a}
+body:not(.light-mode) .alert-req.alert-req-warn .alert-req-text{color:#fef08a}
+body:not(.light-mode) .sg-modal{background:#1e293b;box-shadow:0 25px 60px rgba(0,0,0,.5)}
+body:not(.light-mode) .sg-modal-title{color:#f1f5f9}
+body:not(.light-mode) .sg-modal-sub{color:#94a3b8}
+body:not(.light-mode) .sg-cond-item{border-bottom-color:#334155}
+body:not(.light-mode) .sg-cond-text{color:#cbd5e1}
+body:not(.light-mode) .sg-detail-list{border-color:#334155}
+body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
+body:not(.light-mode) .sg-item-row{border-bottom-color:#334155}
+body:not(.light-mode) .sg-btn-accion{background:rgba(59,130,246,.2);color:#60a5fa}
 .legend-lbl{color:#475569}
 .legend-val{color:#0f172a}
 body:not(.light-mode) .legend-lbl{color:#94a3b8}
@@ -350,8 +391,8 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <button class="tab-btn active" id="tabBtnEjec" onclick="switchTab('ejecutivo')">Informe Ejecutivo</button>
                 <button class="tab-btn" id="tabBtnOper" onclick="switchTab('operativo')">Resumen Operativo</button>
             </div>
-            <div id="statusBanner" class="status-banner status-estable">
-                <span class="status-dot dot-verde"></span>
+            <div id="statusBanner" class="status-banner status-estable" onclick="abrirDetalleSemaforoRecursos()" style="cursor:pointer" title="Ver diagnóstico detallado de recursos">
+                <span class="status-dot dot-verde" id="statusDot"></span>
                 <span id="statusText">Cargando...</span>
             </div>
         </div>
@@ -360,45 +401,54 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         <div id="tab-ejecutivo">
             <!-- KPIs -->
             <div class="kpi-grid">
-                <div class="kpi-card kpi-border-blue">
+                <div class="kpi-card kpi-border-blue" id="kpiConfGeneralCard" onclick="abrirDetalleSemaforoRecursos()" style="cursor:pointer" title="Ver diagnóstico consolidado de recursos">
                     <span class="kpi-icon">🛡️</span>
                     <div class="kpi-val" id="kpiConfGeneral">—</div>
-                    <div class="kpi-lbl">Confiabilidad de Equipos de Seguridad</div>
+                    <div class="kpi-lbl">Confiabilidad General de Recursos</div>
+                    <div id="kpiConfGeneralDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
+                    <div id="kpiConfGeneralSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-green">
+                <div class="kpi-card kpi-border-green" id="kpiRadiosCard" data-href="/dashboard/equipos/?tipo=radio" onclick="navigateRecursos('/dashboard/equipos/?tipo=radio')" title="Abrir dashboard de Equipos (Radios)">
                     <span class="kpi-icon">📻</span>
                     <div class="kpi-val" id="kpiRadiosOp">—</div>
-                    <div class="kpi-lbl">Radios Operativos</div>
+                    <div class="kpi-lbl">Radios de Comunicación</div>
                     <div id="kpiRadiosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
+                    <div id="kpiRadiosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-green" style="border-top-color:#16a34a">
+                <div class="kpi-card kpi-border-green" id="kpiArmasCard" data-href="/dashboard/equipos/?tipo=arma" onclick="navigateRecursos('/dashboard/equipos/?tipo=arma')" title="Abrir dashboard de Equipos (Armamento)">
                     <span class="kpi-icon">🔫</span>
                     <div class="kpi-val" id="kpiArmasOp">—</div>
-                    <div class="kpi-lbl">Armas Óptimas</div>
+                    <div class="kpi-lbl">Armamento en Servicio</div>
                     <div id="kpiArmasDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
+                    <div id="kpiArmasSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-sky">
+                <div class="kpi-card kpi-border-sky" id="kpiCarrosCard" data-href="/dashboard/vehiculos/" onclick="navigateRecursos('/dashboard/vehiculos/')" title="Abrir dashboard de Vehículos (Carros)">
                     <span class="kpi-icon">🚓</span>
                     <div class="kpi-val" id="kpiCarrosAptos">—</div>
-                    <div class="kpi-lbl">Carros Aptos</div>
+                    <div class="kpi-lbl">Flota Vehicular (Carros)</div>
+                    <div id="kpiCarrosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
+                    <div id="kpiCarrosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-sky" style="border-top-color:#0284c7">
+                <div class="kpi-card kpi-border-sky" id="kpiMotosCard" data-href="/dashboard/motocicletas/" onclick="navigateRecursos('/dashboard/motocicletas/')" title="Abrir dashboard de Motocicletas">
                     <span class="kpi-icon">🏍️</span>
                     <div class="kpi-val" id="kpiMotosAptas">—</div>
-                    <div class="kpi-lbl">Motocicletas Aptas</div>
+                    <div class="kpi-lbl">Flota de Motocicletas</div>
+                    <div id="kpiMotosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
+                    <div id="kpiMotosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-purple" id="kpiCertCard">
+                <div class="kpi-card kpi-border-purple" id="kpiCertCard" data-href="/dashboard/cumplimiento/" onclick="navigateRecursos('/dashboard/cumplimiento/')" title="Abrir dashboard de Cumplimiento Normativo">
                     <span class="kpi-icon">📋</span>
                     <div class="kpi-val" id="kpiCertVig">—</div>
-                    <div class="kpi-lbl">Certificaciones por Vencer (30d)</div>
+                    <div class="kpi-lbl">Cumplimiento y Certificaciones</div>
                     <div id="kpiCertDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
+                    <div id="kpiCertSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-red" id="kpiEqNoOpCard">
-                    <span class="kpi-icon">🔒</span>
+                <div class="kpi-card kpi-border-red" id="kpiEqNoOpCard" data-href="/dashboard/equipos/" onclick="navigateRecursos('/dashboard/equipos/')" title="Abrir dashboard de Equipos (Fallas técnicas)">
+                    <span class="kpi-icon">🧰</span>
                     <div class="kpi-val" id="kpiEqNoOp" style="color:#dc2626">—</div>
-                    <div class="kpi-lbl">Equipos No Operativos</div>
+                    <div class="kpi-lbl">Equipos Fuera de Servicio</div>
                     <div id="kpiEqNoOpDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
-                    <div class="kpi-subdetail" id="kpiEqNoOpDetail"></div>
+                    <div id="kpiEqNoOpSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
             </div>
 
@@ -464,53 +514,16 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
         <div id="tab-operativo">
             <!-- Alert banner -->
             <div class="alert-req" id="alertBanner">
-                <div class="alert-req-dot"></div>
+                <div class="alert-req-dot" id="alertBannerDot"></div>
                 <div>
-                    <div class="alert-req-title">Atención Requerida</div>
+                    <div class="alert-req-title" id="alertBannerTitle">Atención Requerida</div>
                     <div class="alert-req-text" id="alertBannerText">Cargando elementos que requieren gestión inmediata...</div>
                 </div>
             </div>
 
-            <!-- Alert KPIs -->
-            <div class="alert-kpi-grid">
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">⚠️</span>
-                    <div class="alert-kpi-val color-red" id="opCertVenc">—</div>
-                    <div class="alert-kpi-lbl">Certificaciones Vencidas</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren renovación</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">🕐</span>
-                    <div class="alert-kpi-val color-yellow" id="opCertProx">—</div>
-                    <div class="alert-kpi-lbl">Próximas a Vencer</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">En los próximos 30 días</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">🚫</span>
-                    <div class="alert-kpi-val color-red" id="opVehNoApto">—</div>
-                    <div class="alert-kpi-lbl">Vehículos No Aptos</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren revisión</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">🔒</span>
-                    <div class="alert-kpi-val color-orange" id="opEqNoOp">—</div>
-                    <div class="alert-kpi-lbl">Equipos No Operativos</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Requieren reparación</div>
-                </div>
-                <div class="alert-kpi">
-                    <span class="alert-kpi-icon">📊</span>
-                    <div class="alert-kpi-val" style="color:#2563eb" id="opTotal">—</div>
-                    <div class="alert-kpi-lbl">Total Pendientes</div>
-                    <div style="font-size:.7rem;color:#94a3b8;margin-top:.2rem">Elementos por gestionar</div>
-                </div>
-            </div>
-
-            <!-- Alertas por categoría -->
-            <div class="table-card">
-                <div class="table-title">Alertas por Categoría</div>
-                <div class="alertas-cat" id="alertasCat" style="margin-bottom:0">
-                    <!-- filled by JS -->
-                </div>
+            <!-- Indicadores por categoría — fila unificada -->
+            <div class="pend-cat" id="pendCat">
+                <!-- filled by JS -->
             </div>
 
             <!-- Listado + Acciones -->
@@ -588,6 +601,82 @@ function semLabel(estado) {
     if (estado === 'amarillo') return '🟡 Atención';
     if (estado === 'rojo') return '🔴 Crítico';
     return '⚪ Sin datos';
+}
+
+function _escHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function navigateRecursos(url) {
+    if (!url) return;
+    window.location.href = url;
+}
+
+function abrirDetalleSemaforoRecursos() {
+    if (!currentData) return;
+    const d = currentData;
+    const conf = d.confiabilidad_general;
+    const nivel = conf == null ? 'amarillo' : conf >= 85 ? 'verde' : conf >= 70 ? 'amarillo' : 'rojo';
+    const textos = { rojo: 'ALERTA CRÍTICA', amarillo: 'ATENCIÓN REQUERIDA', verde: 'BAJO CONTROL' };
+    const ts = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    const colores = { rojo: '#ef4444', amarillo: '#f59e0b', verde: '#22c55e' };
+
+    const condiciones = [];
+    const eqNoOp = d.equipos?.no_operativos || 0;
+    const vehNoApto = d.vehiculos_carros?.no_aptos || 0;
+    const motoNoApta = d.vehiculos_motos?.no_aptas || 0;
+    const cumVenc = d.certificaciones?.vencidas || 0;
+    const cumProx = d.certificaciones?.proximas_vencer || 0;
+
+    if (eqNoOp > 0) condiciones.push({ nivel: eqNoOp > 3 ? 'rojo' : 'amarillo', texto: `${eqNoOp} equipo(s) fuera de servicio en inventario` });
+    if (vehNoApto > 0) condiciones.push({ nivel: 'rojo', texto: `${vehNoApto} vehículo(s) (carros) clasificados como no aptos para rodar` });
+    if (motoNoApta > 0) condiciones.push({ nivel: 'rojo', texto: `${motoNoApta} motocicleta(s) con fallas técnicas o no aptas` });
+    if (cumVenc > 0) condiciones.push({ nivel: 'rojo', texto: `${cumVenc} certificación(es) ya vencidas requieren renovación` });
+    if (cumProx > 0) condiciones.push({ nivel: 'amarillo', texto: `${cumProx} certificación(es) próximas a vencer en los próximos 30 días` });
+
+    const condHtml = condiciones.length
+        ? condiciones.map(c =>
+            `<div class="sg-cond-item">
+                <div class="sg-cond-dot" style="background:${colores[c.nivel]}"></div>
+                <span class="sg-cond-text">${_escHtml(c.texto)}</span>
+            </div>`).join('')
+        : `<div class="sg-cond-item"><div class="sg-cond-dot" style="background:#22c55e"></div><span class="sg-cond-text sg-cond-ok">Todos los recursos monitoreados se encuentran en estado óptimo</span></div>`;
+
+    const alertas = d.alertas?.listado || [];
+    const alertSectionHtml = alertas.length ? `
+        <div class="sg-detail-section">
+            <div class="sg-detail-heading">🚨 NOVEDADES Y ELEMENTOS QUE REQUIEREN GESTIÓN (${alertas.length})</div>
+            <div class="sg-detail-list">
+                ${alertas.slice(0, 8).map(a => `
+                    <div class="sg-item-row">
+                        <div style="flex:1;min-width:0">
+                            <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(a.tipo)}: ${_escHtml(a.elemento)}</div>
+                            <div style="font-size:.72rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
+                        </div>
+                        ${a.ruta_navegacion ? `<a href="${_escHtml(a.ruta_navegacion)}" class="sg-btn-accion">Ver detalle →</a>` : ''}
+                    </div>`).join('')}
+            </div>
+        </div>` : '';
+
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal sg-modal-wide">
+            <div class="sg-modal-title">Diagnóstico Consolidado: ${textos[nivel]}</div>
+            <div class="sg-modal-sub">Evaluación técnica y documental al ${ts} — Recursos y Confiabilidad</div>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:.6rem;padding:.75rem 1rem;margin-bottom:1rem">
+                ${condHtml}
+            </div>
+            ${alertSectionHtml}
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
 }
 
 // ── Chart helpers ─────────────────────────────────────────────────────────────
@@ -684,44 +773,54 @@ function renderData(d) {
     const conf = d.confiabilidad_general;
     const banner = document.getElementById('statusBanner');
     const statusTxt = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
     if (conf === null || conf === undefined) {
         banner.className = 'status-banner status-alerta';
-        statusTxt.textContent = 'Sin datos suficientes para el período';
+        if (statusDot) statusDot.className = 'status-dot dot-amarillo';
+        statusTxt.textContent = 'Sin datos suficientes para el período — Clic para diagnóstico';
     } else if (conf >= 85) {
         banner.className = 'status-banner status-estable';
-        statusTxt.textContent = `Estado General de los Recursos — Operación Estable`;
+        if (statusDot) statusDot.className = 'status-dot dot-verde';
+        statusTxt.textContent = `Estado General de los Recursos — Operación Estable (${conf}%) · Clic para diagnóstico`;
     } else if (conf >= 70) {
         banner.className = 'status-banner status-alerta';
-        statusTxt.textContent = `Estado General — En Seguimiento`;
+        if (statusDot) statusDot.className = 'status-dot dot-amarillo';
+        statusTxt.textContent = `Estado General — En Seguimiento (${conf}%) · Clic para diagnóstico`;
     } else {
         banner.className = 'status-banner status-critico';
-        statusTxt.textContent = `Estado General — Atención Requerida`;
+        if (statusDot) statusDot.className = 'status-dot dot-rojo';
+        statusTxt.textContent = `Estado General — Atención Requerida (${conf}%) · Clic para diagnóstico`;
     }
 
     // KPIs (Informe Ejecutivo)
     const fmt = v => v !== null && v !== undefined ? v + '%' : '—';
-    document.getElementById('kpiConfGeneral').textContent = fmt(conf);
+    const pctOrNoData = v => v != null ? v + '%' : 'Sin datos';
 
-    // Cada tarjeta lee su propia fuente. Antes, cuando la API no traía el campo,
-    // "Radios Operativos" caía en la confiabilidad general de equipos y "Carros
-    // Aptos" en el total de vehículos: números correctos bajo la etiqueta
-    // equivocada, que además no cuadraban con su propio dónut. Sin fuente ahora
-    // se dice "Sin datos", que es la verdad.
+    // 1. Confiabilidad General de Recursos
+    const confColor = conf == null ? '#94a3b8' : conf >= 85 ? '#22c55e' : conf >= 70 ? '#d97706' : '#dc2626';
+    const confEl = document.getElementById('kpiConfGeneral');
+    confEl.textContent = fmt(conf);
+    confEl.style.color = confColor;
+    document.getElementById('kpiConfGeneralCard').style.borderTopColor = confColor;
+    document.getElementById('kpiConfGeneralDenom').textContent = 'Promedio consolidado de 3 ejes operativos';
+    const eq_p = d.equipos?.pct;
+    const veh_p = d.vehiculos_carros?.pct;
+    const cum_p = d.certificaciones?.pct;
+    const bColor = p => (p == null ? '#64748b' : p >= 85 ? '#16a34a' : p >= 70 ? '#d97706' : '#dc2626');
+    document.getElementById('kpiConfGeneralSub').innerHTML = [
+        { label: '⚙️ Equipos', val: eq_p != null ? `${eq_p}%` : '—', color: bColor(eq_p) },
+        { label: '🚗 Carros',  val: veh_p != null ? `${veh_p}%` : '—', color: bColor(veh_p) },
+        { label: '📋 Normas',  val: cum_p != null ? `${cum_p}%` : '—', color: bColor(cum_p) },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+
+    // Cada tarjeta lee su propia fuente sin heredar totales ajenos.
     const radios = d.radios || {};
     const armas  = d.armas  || {};
     const vehicCarros = d.vehiculos_carros || {};
     const vehicMotos  = d.vehiculos_motos  || {};
-    const pctOrNoData = v => v != null ? v + '%' : 'Sin datos';
 
-    // Radios y armas tienen dos fuentes complementarias: confiabilidad_equipos
-    // sabe cuántos están operativos, supervision_puesto sabe cuántos hay (es lo
-    // que lista Bases de Datos). Sin inventario capturado se muestra el parque
-    // registrado en vez de "Sin datos", que ocultaba información existente.
     const inventarioKpi = (inv, unidad) => {
         if (inv.pct != null) {
-            // El % sale sólo de las unidades con estado capturado en el último
-            // reporte de Confiabilidad; se dice cuántas son frente al parque
-            // registrado en Bases de Datos para que no se lea como % de la flota.
             const reg = inv.registrados ?? 0;
             const captura = reg > 0 ? ` · estado capturado para ${inv.total} de ${reg} registradas` : '';
             return { val: inv.pct + '%', sub: `${inv.operativos} de ${inv.total} operativos${captura}` };
@@ -732,42 +831,116 @@ function renderData(d) {
         }
         return { val: 'Sin datos', sub: '' };
     };
-    const radiosKpi = inventarioKpi(radios, 'unidades');
-    const armasKpi  = inventarioKpi(armas,  'unidades');
-    document.getElementById('kpiRadiosOp').textContent    = radiosKpi.val;
-    document.getElementById('kpiRadiosDenom').textContent = radiosKpi.sub;
-    document.getElementById('kpiArmasOp').textContent     = armasKpi.val;
-    document.getElementById('kpiArmasDenom').textContent  = armasKpi.sub;
-    document.getElementById('kpiCarrosAptos').textContent = pctOrNoData(vehicCarros.pct);
-    document.getElementById('kpiMotosAptas').textContent  = pctOrNoData(vehicMotos.pct);
 
-    // KPI: Certificaciones por Vencer en 30 días
-    const certProx = d.certificaciones.proximas_vencer ?? 0;
-    const certTotal = d.certificaciones.total ?? 0;
-    document.getElementById('kpiCertVig').textContent = certProx;
-    const certKpiColor = certProx === 0 ? '#22c55e' : certProx <= 5 ? '#d97706' : '#dc2626';
-    document.getElementById('kpiCertCard').style.borderTopColor = certKpiColor;
-    document.getElementById('kpiCertVig').style.color = certKpiColor;
-    document.getElementById('kpiCertDenom').innerHTML =
-        `<span style="color:${d.certificaciones.vencidas > 0 ? '#dc2626' : '#64748b'}">${d.certificaciones.vencidas} ya vencidas · ${certTotal} totales</span>`;
+    // 2. Radios de Comunicación
+    const radOp = radios.operativos ?? 0;
+    const radNoOp = radios.no_operativos ?? 0;
+    const radReg = radios.registrados ?? 0;
+    const radTot = radios.total ?? 0;
+    const radKpi = inventarioKpi(radios, 'unidades');
+    const radColor = radNoOp > 0 ? (radNoOp >= 3 ? '#dc2626' : '#ea580c') : (radTot > 0 ? '#16a34a' : '#94a3b8');
+    const radEl = document.getElementById('kpiRadiosOp');
+    radEl.textContent = radKpi.val;
+    radEl.style.color = radColor;
+    document.getElementById('kpiRadiosCard').style.borderTopColor = radColor;
+    document.getElementById('kpiRadiosDenom').textContent = radKpi.sub;
+    document.getElementById('kpiRadiosSub').innerHTML = [
+        { label: 'Operativos', val: radOp, color: '#16a34a' },
+        { label: 'Con falla', val: radNoOp, color: radNoOp > 0 ? '#dc2626' : '#16a34a' },
+        ...(radReg > radTot ? [{ label: 'Sin captura', val: radReg - radTot, color: '#64748b' }] : []),
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
 
-    // KPI: Equipos No Operativos de Y total en flota
-    const eqNoOp = d.equipos.no_operativos ?? 0;
-    const eqTotal = d.equipos.total ?? 0;
-    const eqPct = eqTotal > 0 ? eqNoOp / eqTotal * 100 : 0;
-    const eqKpiColor = eqPct === 0 ? '#22c55e' : eqPct <= 15 ? '#d97706' : '#dc2626';
-    document.getElementById('kpiEqNoOp').textContent = eqNoOp;
-    document.getElementById('kpiEqNoOp').style.color = eqKpiColor;
+    // 3. Armamento en Servicio
+    const armasOpt = armas.optimas ?? 0;
+    const armasNoApt = armas.no_aptas ?? 0;
+    const armasReg = armas.registrados ?? 0;
+    const armasTot = armas.total ?? 0;
+    const armasKpi = inventarioKpi(armas, 'unidades');
+    const armasColor = armasNoApt > 0 ? '#dc2626' : (armasTot > 0 ? '#16a34a' : '#94a3b8');
+    const armasEl = document.getElementById('kpiArmasOp');
+    armasEl.textContent = armasKpi.val;
+    armasEl.style.color = armasColor;
+    document.getElementById('kpiArmasCard').style.borderTopColor = armasColor;
+    document.getElementById('kpiArmasDenom').textContent = armasKpi.sub;
+    document.getElementById('kpiArmasSub').innerHTML = [
+        { label: 'Óptimas', val: armasOpt, color: '#16a34a' },
+        { label: 'No aptas', val: armasNoApt, color: armasNoApt > 0 ? '#dc2626' : '#16a34a' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+
+    // 4. Flota Vehicular (Carros)
+    const carTot = vehicCarros.total ?? 0;
+    const carApt = vehicCarros.aptos ?? 0;
+    const carNoApt = vehicCarros.no_aptos ?? 0;
+    const carMant = vehicCarros.mantenimiento ?? 0;
+    const carColor = carTot === 0 ? '#94a3b8' : (carNoApt > 0 ? '#dc2626' : (carMant > 0 ? '#d97706' : '#16a34a'));
+    const carEl = document.getElementById('kpiCarrosAptos');
+    carEl.textContent = pctOrNoData(vehicCarros.pct);
+    carEl.style.color = carColor;
+    document.getElementById('kpiCarrosCard').style.borderTopColor = carColor;
+    document.getElementById('kpiCarrosDenom').textContent = carTot > 0
+        ? `${carApt} de ${carTot} vehículos aptos para servicio`
+        : 'Sin vehículos registrados en el período';
+    document.getElementById('kpiCarrosSub').innerHTML = [
+        { label: 'Aptos', val: carApt, color: '#16a34a' },
+        { label: 'No aptos', val: carNoApt, color: carNoApt > 0 ? '#dc2626' : '#16a34a' },
+        ...(carMant > 0 ? [{ label: 'Taller', val: carMant, color: '#ea580c' }] : []),
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+
+    // 5. Flota de Motocicletas
+    const motoTot = vehicMotos.total ?? 0;
+    const motoApt = vehicMotos.aptas ?? 0;
+    const motoNoApt = vehicMotos.no_aptas ?? 0;
+    const motoColor = motoTot === 0 ? '#94a3b8' : (motoNoApt > 0 ? '#dc2626' : '#16a34a');
+    const motoEl = document.getElementById('kpiMotosAptas');
+    motoEl.textContent = pctOrNoData(vehicMotos.pct);
+    motoEl.style.color = motoColor;
+    document.getElementById('kpiMotosCard').style.borderTopColor = motoColor;
+    document.getElementById('kpiMotosDenom').textContent = motoTot > 0
+        ? `${motoApt} de ${motoTot} motocicletas aptas`
+        : 'Sin motocicletas registradas en el período';
+    document.getElementById('kpiMotosSub').innerHTML = [
+        { label: 'Aptas', val: motoApt, color: '#16a34a' },
+        { label: 'Con fallas', val: motoNoApt, color: motoNoApt > 0 ? '#dc2626' : '#16a34a' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+
+    // 6. Cumplimiento y Certificaciones
+    const cum = d.certificaciones || {};
+    const certProx = cum.proximas_vencer ?? 0;
+    const certTotal = cum.total ?? 0;
+    const certVig = cum.vigentes ?? 0;
+    const certVenc = cum.vencidas ?? 0;
+    const cumPct = cum.pct;
+    const certColor = certVenc > 0 ? '#dc2626' : (certProx > 0 ? '#d97706' : '#16a34a');
+    const certEl = document.getElementById('kpiCertVig');
+    certEl.textContent = cumPct != null ? `${cumPct}%` : (certTotal > 0 ? `${certVig}` : '—');
+    certEl.style.color = certColor;
+    document.getElementById('kpiCertCard').style.borderTopColor = certColor;
+    document.getElementById('kpiCertDenom').textContent = certTotal > 0
+        ? `${certVig} de ${certTotal} certificaciones vigentes`
+        : 'Sin verificaciones en el período';
+    document.getElementById('kpiCertSub').innerHTML = [
+        { label: 'Vigentes', val: certVig, color: '#16a34a' },
+        { label: 'Próx. 30d', val: certProx, color: certProx > 0 ? '#d97706' : '#16a34a' },
+        { label: 'Vencidas', val: certVenc, color: certVenc > 0 ? '#dc2626' : '#16a34a' },
+    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+
+    // 7. Equipos Fuera de Servicio
+    const eqNoOp = d.equipos?.no_operativos ?? 0;
+    const eqTotal = d.equipos?.total ?? 0;
+    const eqKpiColor = eqNoOp === 0 ? '#16a34a' : (eqNoOp > 3 ? '#dc2626' : '#ea580c');
+    const eqNoOpEl = document.getElementById('kpiEqNoOp');
+    eqNoOpEl.textContent = eqNoOp;
+    eqNoOpEl.style.color = eqKpiColor;
     document.getElementById('kpiEqNoOpCard').style.borderTopColor = eqKpiColor;
-    document.getElementById('kpiEqNoOpDenom').textContent = `de ${eqTotal} total en flota`;
-
-    // Equipos No Operativos detail breakdown
-    const noOpDetail = document.getElementById('kpiEqNoOpDetail');
-    if (d.equipos.no_op_detalle && d.equipos.no_op_detalle.length) {
-        noOpDetail.innerHTML = d.equipos.no_op_detalle.map(item =>
-            `<span>${item.cantidad} ${item.tipo}</span>`).join('');
+    document.getElementById('kpiEqNoOpDenom').textContent = `de ${eqTotal} equipos monitoreados en flota`;
+    const noOpItems = d.equipos?.no_op_detalle || [];
+    if (noOpItems.length > 0) {
+        document.getElementById('kpiEqNoOpSub').innerHTML = noOpItems.slice(0, 4).map(item =>
+            `<span style="font-size:.7rem;font-weight:700;color:#dc2626;background:rgba(220,38,38,.1);padding:.1rem .4rem;border-radius:.3rem">${item.tipo}: ${item.cantidad}</span>`
+        ).join('');
     } else {
-        noOpDetail.innerHTML = '';
+        document.getElementById('kpiEqNoOpSub').innerHTML =
+            `<span style="font-size:.7rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:.1rem .4rem;border-radius:.3rem">✓ Flota técnica 100% operativa</span>`;
     }
 
     // Tendencia de equipos
@@ -780,19 +953,13 @@ function renderData(d) {
     }]);
 
     // Donut Radios por Estado.
-    // Antes, si la API no traía el campo, se pintaban 45 y 5: valores de
-    // demostración que en el informe se leían como inventario real.
-    const radOp   = radios.operativos    ?? 0;
-    const radNoOp = radios.no_operativos ?? 0;
     const radLabels = ['Operativos', 'No Operativos'];
     const radData   = [radOp, radNoOp];
     const radColors = ['#22c55e', '#ef4444'];
     buildDonutCenter('chartRadios', radLabels, radData, radColors, 'Total');
     document.getElementById('radiosLegend').innerHTML = legendHtml(radLabels, radData, radColors, radOp + radNoOp);
 
-    // Donut Armas por Estado. Mismo caso: antes 28 y 2 fijos.
-    const armasOpt   = armas.optimas  ?? 0;
-    const armasNoApt = armas.no_aptas ?? 0;
+    // Donut Armas por Estado.
     const armasLabels = ['Óptimas', 'No Aptas'];
     const armasData   = [armasOpt, armasNoApt];
     const armasColors = ['#22c55e', '#ef4444'];
@@ -833,34 +1000,52 @@ function renderData(d) {
     ).join('');
 
     // ── Resumen Operativo ────────────────────────────────────────────────────
-    const a = d.alertas;
-    const totalPend = (a.certificaciones_vencidas || 0) + (a.proximas_vencer || 0) + (a.vehiculos_no_aptos || 0) + (a.equipos_no_op || 0);
-    document.getElementById('alertBannerText').textContent =
-        `Existen ${totalPend} elementos que requieren gestión inmediata.`;
-    document.getElementById('opCertVenc').textContent = a.certificaciones_vencidas ?? '—';
-    document.getElementById('opCertProx').textContent = a.proximas_vencer ?? '—';
-    document.getElementById('opVehNoApto').textContent = a.vehiculos_no_aptos ?? '—';
-    document.getElementById('opEqNoOp').textContent = a.equipos_no_op ?? '—';
-    document.getElementById('opTotal').textContent = totalPend;
+    const a = d.alertas || {};
+    const cumVencVal = a.certificaciones_vencidas || 0;
+    const cumProxVal = a.proximas_vencer || 0;
+    const vehNoAptoVal = a.vehiculos_no_aptos || 0;
+    const motoNoAptaVal = a.motos_no_aptas || 0;
+    const eqNoOpVal = a.equipos_no_op || 0;
+    const urgentPend = cumVencVal + vehNoAptoVal + motoNoAptaVal + eqNoOpVal;
+    const totalPend = urgentPend + cumProxVal;
 
-    // Alertas por categoría
-    const cats = [
-        { icon: '⚙️', label: 'Equipos', val: a.equipos_no_op || 0, sub: 'No operativos', color: '#ef4444' },
-        { icon: '📻', label: 'Radios', val: radios.no_operativos || 0,
-          sub: radios.pct != null ? 'No operativos' : 'Sin inventario', color: '#f97316' },
-        { icon: '🔫', label: 'Armas', val: armas.no_aptas || 0,
-          sub: armas.pct != null ? 'No óptimas' : 'Sin inventario', color: '#eab308' },
-        { icon: '🚗', label: 'Vehículos', val: a.vehiculos_no_aptos || 0, sub: 'No aptos', color: '#ef4444' },
-        { icon: '📋', label: 'Cumplimiento', val: (a.certificaciones_vencidas || 0) + (a.proximas_vencer || 0), sub: 'Vencidas/Próx.', color: '#f97316' },
+    const alertBox = document.getElementById('alertBanner');
+    const alertTitle = document.getElementById('alertBannerTitle');
+    const alertText = document.getElementById('alertBannerText');
+    const alertDot = document.getElementById('alertBannerDot');
+
+    if (urgentPend > 0) {
+        if (alertBox) alertBox.className = 'alert-req';
+        if (alertTitle) alertTitle.textContent = 'Atención Requerida';
+        if (alertText) alertText.textContent = `Existen ${urgentPend} recurso(s) crítico(s) que requieren gestión técnica o documental inmediata (${totalPend} en total pendientes).`;
+    } else if (totalPend > 0) {
+        if (alertBox) alertBox.className = 'alert-req alert-req-warn';
+        if (alertTitle) alertTitle.textContent = 'Seguimiento Preventivo';
+        if (alertText) alertText.textContent = `Sin equipos con falla ni vencimientos. Hay ${totalPend} certificación(es) por vencer en los próximos 30 días.`;
+    } else {
+        if (alertBox) alertBox.className = 'alert-req alert-req-ok';
+        if (alertTitle) alertTitle.textContent = 'Recursos al Día';
+        if (alertText) alertText.textContent = 'Todos los equipos, flota vehicular y certificaciones se encuentran operativos y vigentes.';
+    }
+
+    // Indicadores por categoría — fila unificada
+    const pendItems = [
+        { icon: '🧰', label: 'Equipos con Falla', val: eqNoOpVal, sub: 'Fuera de servicio', color: eqNoOpVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/equipos/' },
+        { icon: '📻', label: 'Radios con Falla', val: (radios.no_operativos || 0), sub: 'No operativos', color: (radios.no_operativos || 0) > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/equipos/?tipo=radio' },
+        { icon: '🔫', label: 'Armas con Falla', val: (armas.no_aptas || 0), sub: 'No óptimas', color: (armas.no_aptas || 0) > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/equipos/?tipo=arma' },
+        { icon: '🚗', label: 'Carros No Aptos', val: vehNoAptoVal, sub: 'Requieren taller', color: vehNoAptoVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/vehiculos/' },
+        { icon: '🏍️', label: 'Motos con Falla', val: motoNoAptaVal, sub: 'No aptas', color: motoNoAptaVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/motocicletas/' },
+        { icon: '⚠️', label: 'Certificaciones Vencidas', val: cumVencVal, sub: 'Requieren renovación', color: cumVencVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/cumplimiento/' },
+        { icon: '🕐', label: 'Próximas a Vencer', val: cumProxVal, sub: 'En próximos 30 días', color: cumProxVal > 0 ? '#d97706' : '#16a34a', href: '/dashboard/cumplimiento/' },
+        { icon: '📊', label: 'Total Pendientes', val: totalPend, sub: 'Elementos por gestionar', color: '#2563eb', href: '/dashboard/equipos/' },
     ];
-    document.getElementById('alertasCat').innerHTML = cats.map(c =>
-        `<div class="cat-card">
-            <span class="cat-icon">${c.icon}</span>
-            <div class="cat-val" style="color:${c.color}">${c.val}</div>
-            <div class="cat-lbl">${c.label}</div>
-            <div style="font-size:.7rem;color:#94a3b8;margin-top:.125rem">${c.sub}</div>
-        </div>`
-    ).join('');
+    document.getElementById('pendCat').innerHTML = pendItems.map(p => `
+        <div class="pend-cat-card" data-href="${p.href}" onclick="navigateRecursos('${p.href}')" title="Abrir dashboard de ${p.label}">
+            <span class="pend-cat-icon">${p.icon}</span>
+            <div class="pend-cat-val" style="color:${p.color}">${p.val}</div>
+            <div class="pend-cat-lbl">${p.label}</div>
+            <div class="pend-cat-sub">${p.sub}</div>
+        </div>`).join('');
 
     // Listado alertas
     const tbody = document.getElementById('alertasTable');
@@ -868,16 +1053,17 @@ function renderData(d) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem">No hay alertas activas para el período seleccionado.</td></tr>';
     } else {
         tbody.innerHTML = a.listado.map(item => {
-            const estClass = item.estado === 'Vencida' ? 'badge-red' : item.estado === 'No apto' ? 'badge-orange' : 'badge-gray';
+            const estClass = (item.estado === 'Vencida' || item.estado === 'Fuera de servicio') ? 'badge-red' : (item.estado === 'No apto' || item.estado === 'No apta') ? 'badge-orange' : 'badge-gray';
             const diasTxt = item.dias_restantes !== null
                 ? `<span class="${item.dias_restantes < 0 ? 'dias-neg' : 'dias-pos'}">${item.dias_restantes}</span>`
                 : '—';
-            return `<tr>
+            const href = item.ruta_navegacion || '';
+            return `<tr${href ? ` data-href="${href}" onclick="navigateRecursos('${href}')" title="Ver ${item.tipo} en dashboard especialista"` : ''}>
                 <td>${item.tipo}</td>
-                <td>${item.elemento || '—'}</td>
+                <td style="font-weight:600">${item.elemento || '—'}</td>
                 <td>${item.cliente || '—'}</td>
                 <td><span class="badge ${estClass}">${item.estado}</span></td>
-                <td>${item.vencimiento || '—'}</td>
+                <td>${item.vencimiento ? (window.FormatoFecha ? window.FormatoFecha.fecha(item.vencimiento) : item.vencimiento) : '—'}</td>
                 <td>${diasTxt}</td>
             </tr>`;
         }).join('');
@@ -1216,13 +1402,13 @@ async function exportPDF() {
         .pill-rojo     { background:#fee2e2 !important; color:#dc2626 !important; }
         .pill-gris     { background:#f1f5f9 !important; color:#64748b !important; }
         /* Alerts */
-        .alert-kpi-grid { display:grid !important; grid-template-columns:repeat(4,1fr) !important; gap:10px !important; margin-bottom:14px !important; }
-        .alert-kpi { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
-                     padding:12px 10px !important; text-align:center !important; box-shadow:none !important; }
-        .alert-kpi-val { font-size:1.35rem !important; font-weight:800 !important; }
-        .alert-kpi-lbl { font-size:.65rem !important; color:#64748b !important; text-transform:uppercase !important; margin-top:3px !important; }
-        .alertas-cat   { display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:10px !important; margin-bottom:14px !important; }
-        .alertas-cat-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important; padding:12px !important; box-shadow:none !important; }
+        .pend-cat { display:grid !important; grid-template-columns:repeat(4,1fr) !important; gap:8px !important; margin-bottom:14px !important; }
+        .pend-cat-card { background:#fff !important; border:1px solid #e2e8f0 !important; border-radius:8px !important;
+                         padding:10px 8px !important; text-align:center !important; box-shadow:none !important; }
+        .pend-cat-icon { font-size:1.2rem !important; margin-bottom:2px !important; display:block !important; }
+        .pend-cat-val { font-size:1.3rem !important; font-weight:800 !important; line-height:1 !important; }
+        .pend-cat-lbl { font-size:.65rem !important; color:#64748b !important; margin-top:2px !important; font-weight:600 !important; }
+        .pend-cat-sub { font-size:.58rem !important; color:#94a3b8 !important; margin-top:1px !important; }
         .alert-req { background:#fef2f2 !important; border:1px solid #fecaca !important; border-radius:8px !important;
                      padding:12px !important; margin-bottom:14px !important; display:flex !important; align-items:flex-start !important; gap:10px !important; }
         .alert-req-dot { width:8px !important; height:8px !important; background:#ef4444 !important; border-radius:50% !important; flex-shrink:0 !important; margin-top:4px !important; }
@@ -1245,8 +1431,7 @@ async function exportPDF() {
         /* Note: .charts-row columns are set by inline style in the clone based on child count */
         .kpi-grid         { grid-template-columns:repeat(4,1fr) !important; }
         .charts-row-3     { grid-template-columns:1fr 1fr 1fr !important; }
-        .alert-kpi-grid   { grid-template-columns:repeat(4,1fr) !important; }
-        .alertas-cat      { grid-template-columns:repeat(3,1fr) !important; }
+        .pend-cat         { grid-template-columns:repeat(4,1fr) !important; }
         .tables-row       { grid-template-columns:1fr !important; }
     `;
     wrap.id = 'pdfwrap';
