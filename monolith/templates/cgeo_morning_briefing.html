@@ -267,8 +267,15 @@ body:not(.light-mode) .sg-detail-heading{color:#94a3b8}
 .kpi-modal-info{min-width:0;flex:1}
 .kpi-modal-tit{font-size:.8125rem;color:#0f172a;word-break:break-word}
 .kpi-modal-meta{font-size:.75rem;color:#64748b;margin-top:.15rem}
-.kpi-modal-btn{padding:.35rem .65rem;background:#0f172a;color:#fff;border:none;border-radius:.375rem;font-size:.75rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;text-decoration:none;transition:background .15s}
+.kpi-modal-btn{padding:.35rem .65rem;background:#0f172a;color:#fff;border:none;border-radius:.375rem;font-size:.75rem;font-weight:600;cursor:pointer;flex-shrink:0;white-space:nowrap;text-decoration:none;transition:background .15s;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
 .kpi-modal-btn:hover{background:#334155}
+.kpi-modal-actions{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;flex-shrink:0}
+.kpi-modal-sub-link{font-size:.72rem;color:#64748b;text-decoration:none;padding:.25rem .45rem;border-radius:.375rem;transition:all .15s;display:inline-flex;align-items:center;white-space:nowrap}
+.kpi-modal-sub-link:hover{background:rgba(148,163,184,.15);color:#0f172a}
+.kpi-modal-footer{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-top:.75rem;border-top:1px solid rgba(148,163,184,.2)}
+.kpi-modal-close-btn{padding:.5rem 1.1rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.85rem;transition:background .15s;display:inline-flex;align-items:center;justify-content:center}
+.kpi-modal-close-btn:hover{background:#334155}
+.cr-item-actions{display:flex;align-items:center;gap:.4rem;flex-shrink:0}
 .kpi-modal-subheading{font-size:.8rem;font-weight:700;color:#64748b;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.02em}
 body:not(.light-mode) .kpi-modal-row{background:#0f172a;border-color:#334155}
 body:not(.light-mode) .kpi-modal-row:hover{background:#1e293b}
@@ -276,6 +283,10 @@ body:not(.light-mode) .kpi-modal-tit{color:#f1f5f9}
 body:not(.light-mode) .kpi-modal-meta{color:#94a3b8}
 body:not(.light-mode) .kpi-modal-btn{background:#3b82f6;color:#fff}
 body:not(.light-mode) .kpi-modal-btn:hover{background:#2563eb}
+body:not(.light-mode) .kpi-modal-sub-link{color:#94a3b8}
+body:not(.light-mode) .kpi-modal-sub-link:hover{color:#e2e8f0;background:rgba(148,163,184,.2)}
+body:not(.light-mode) .kpi-modal-close-btn{background:#334155;color:#fff}
+body:not(.light-mode) .kpi-modal-close-btn:hover{background:#475569}
 
 /* ── Sidebar overlay / responsive ───────────────────────────────────────── */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39}
@@ -391,6 +402,12 @@ body:not(.light-mode) .cr-ejes-cero{color:#64748b}
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
+/* ── Responsive por tipo de pantalla (Desktop, Tablet, Mobile) ────────── */
+
+@media(min-width:1100px){
+  .kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sg-modal-wide{max-width:700px}
+}
 @media(max-width:900px){.main{margin-left:200px}.sidebar{width:200px}}
 @media(max-width:700px){
   .sidebar{transform:translateX(-100%);width:240px}
@@ -400,7 +417,7 @@ body:not(.light-mode) .cr-ejes-cero{color:#64748b}
   .page-title{font-size:.875rem}
   .page-subtitle{display:none}
   .content{padding:.875rem 1rem}
-  .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem}
   .greeting-title{font-size:1.2rem}
   .btn-ver-operacion span{display:none}
   .btn-ver-operacion{padding:0 .625rem}
@@ -416,16 +433,9 @@ body:not(.light-mode) .cr-ejes-cero{color:#64748b}
   .cr-title-box{font-size:.875rem}
   .cr-resumen{order:3;width:100%;font-size:.78rem;gap:.375rem}
   .cr-chip-name{max-width:9rem}
-  /* Detalle del semáforo (la ventana "Detalle de novedades") en celular. Cada
-     fila es un flex de una sola línea donde todo tiene ancho fijo menos el texto
-     del hallazgo: en pantalla angosta el texto queda con cero de ancho y, como
-     puede partir líneas, se rompe letra por letra — la "línea punteada" vertical
-     que se veía en el teléfono, con filas altísimas y sin nada legible.
-     La fila pasa a apilar: el texto arriba a todo el ancho (la base de
-     100% − 3.5rem deja sitio sólo para el punto y el ícono, así ningún otro
-     elemento cabe a su lado sin importar el ancho), debajo el estado, la
-     antigüedad y la acción, y "Gestionar" como barra propia al pie. */
-  .sg-modal{padding:1.125rem 1rem}
+  /* Detalle del semáforo y modales de KPIs adaptados a pantalla táctil/celular */
+  .sg-modal{padding:1.125rem 1rem;border-radius:14px;max-height:92vh}
+  .sg-modal-wide{max-width:100%}
   .sg-asignados{padding:.625rem}
   .sg-modal .sg-detail-heading{flex-wrap:wrap;row-gap:.1rem}
   .sg-modal .alerta-item{flex-wrap:wrap;row-gap:.45rem;padding:.7rem .75rem}
@@ -436,6 +446,29 @@ body:not(.light-mode) .cr-ejes-cero{color:#64748b}
   .sg-asig-row > .alerta-item{flex:1 1 100%}
   .btn-gestionar{flex:1 1 100%;border-left:none;border-top:1px solid #f1f5f9;padding:.55rem .7rem}
   body:not(.light-mode) .btn-gestionar{border-top-color:#334155}
+  /* Adaptación de filas y botones de acción en modales contextuales */
+  .kpi-modal-row{flex-direction:column;align-items:stretch;gap:.625rem;padding:.75rem}
+  .kpi-modal-row-main{width:100%;align-items:flex-start}
+  .kpi-modal-actions{width:100%;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;justify-content:flex-start}
+  .kpi-modal-actions .kpi-modal-btn{flex:1 1 auto;min-height:38px;padding:.45rem .75rem;font-size:.8rem;text-align:center;justify-content:center}
+  .kpi-modal-actions .kpi-modal-sub-link{min-height:38px;padding:.45rem .65rem;display:inline-flex;align-items:center}
+  /* Clientes en riesgo apilados con botón cómodo para pulgar */
+  .cr-item{flex-direction:column;align-items:stretch;gap:.5rem;padding:.65rem .75rem}
+  .cr-item-left{width:100%;justify-content:space-between;flex-wrap:wrap;gap:.35rem}
+  .cr-item-actions{width:100%;display:flex;align-items:center;gap:.4rem}
+  .cr-item-actions .kpi-modal-btn{flex:1;min-height:36px;font-size:.8rem;text-align:center;justify-content:center}
+  .cr-item-actions .kpi-modal-sub-link{min-height:36px;padding:0 .5rem;display:inline-flex;align-items:center}
+  /* Pie de modales apilado y táctil */
+  .kpi-modal-footer{flex-direction:column-reverse;align-items:stretch;gap:.625rem}
+  .kpi-modal-footer .cr-all-link{text-align:center;justify-content:center;margin:0 auto;padding:.25rem 0}
+  .kpi-modal-footer .kpi-modal-close-btn{width:100%;min-height:40px;font-size:.9rem}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr;gap:.75rem}
+  .kpi-card{padding:1rem 1.125rem}
+  .kpi-val{font-size:2.2rem}
+  .kpi-modal-actions .kpi-modal-btn{width:100%;flex:1 1 100%}
+  .cr-item-actions .kpi-modal-btn{width:100%}
 }
 @media(max-width:420px){
   .content{padding:.75rem}
@@ -1100,9 +1133,11 @@ function abrirModalKpiIncidentes() {
                         <div class="kpi-modal-meta">Reportado: ${inc.fecha || 'Reciente'} (${inc.horas}h activo)${inc.responsable ? ` · Asignado a: ${_esc(inc.responsable)}` : ' · ⚠️ Sin responsable'}</div>
                     </div>
                 </div>
-                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('reporte_incidente', ${inc.id}, 'Incidente abierto (${inc.horas}h)', '${_esc(inc.tipo)} en ${_esc(inc.cliente)}')">
-                    👤 Asignar Responsable ↗
-                </button>
+                <div class="kpi-modal-actions">
+                    <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('reporte_incidente', ${inc.id}, 'Incidente abierto (${inc.horas}h)', '${_esc(inc.tipo)} en ${_esc(inc.cliente)}')">
+                        👤 Asignar Responsable ↗
+                    </button>
+                </div>
             </div>`;
         }).join('')
         : `<div class="sg-detail-empty">✅ No hay incidentes abiertos pendientes en el sistema. Todos han sido resueltos.</div>`;
@@ -1128,9 +1163,11 @@ function abrirModalKpiEquipos() {
                         <div class="kpi-modal-meta">${_esc(eq.novedad)} · Reporte: ${eq.fecha}</div>
                     </div>
                 </div>
-                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('confiabilidad_equipos', ${eq.id}, '${_esc(eq.novedad)}', 'Falla de ${eq.tipo} en ${_esc(eq.cliente)}')">
-                    👤 Asignar Responsable ↗
-                </button>
+                <div class="kpi-modal-actions">
+                    <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('confiabilidad_equipos', ${eq.id}, '${_esc(eq.novedad)}', 'Falla de ${eq.tipo} en ${_esc(eq.cliente)}')">
+                        👤 Asignar Responsable ↗
+                    </button>
+                </div>
             </div>
         `).join('')
         : `<div class="sg-detail-empty">✅ No se registran fallas de radios ni armas en las inspecciones de confiabilidad vigentes. La disponibilidad técnica en puestos es del 100%.</div>`;
@@ -1158,7 +1195,7 @@ function abrirModalKpiSupervisiones() {
                         <div class="kpi-modal-meta">${c.realizadas} realizadas de ${c.programadas} programadas (${_esc(c.periodicidad || 'semanal')}) · ${ultimaTxt}</div>
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+                <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" style="background:#7c3aed;color:#fff" onclick="agendarRondaSupervision('${_esc(c.cliente)}', ${c.pendientes})">
                         📅 Agendar Ronda ↗
                     </button>
@@ -1167,7 +1204,7 @@ function abrirModalKpiSupervisiones() {
                         👁️ Ver Reporte ↗
                     </button>
                     ` : ''}
-                    <a href="/cgeo/operacion/?cliente=${encodeURIComponent(c.cliente)}" target="_blank" style="font-size:.72rem;color:#64748b;text-decoration:none;padding:.2rem .35rem" title="Consultar mapa y bitácora en Operación">
+                    <a href="/cgeo/operacion/?cliente=${encodeURIComponent(c.cliente)}" target="_blank" class="kpi-modal-sub-link" title="Consultar mapa y bitácora en Operación">
                         Mapa ↗
                     </a>
                 </div>
@@ -1201,9 +1238,11 @@ function abrirModalKpiCompromisos() {
                         <div class="kpi-modal-meta">Fecha límite: ${c.fecha_cumplimiento}${c.responsable ? ` · Responsable: ${_esc(c.responsable)}` : ''}</div>
                     </div>
                 </div>
-                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('registro_y_acta_de_visita', ${c.id}, 'Compromiso ${c.estado}: ${_esc(c.acuerdo)}', 'Compromiso con ${_esc(c.cliente)}')">
-                    👤 Asignar Responsable ↗
-                </button>
+                <div class="kpi-modal-actions">
+                    <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('registro_y_acta_de_visita', ${c.id}, 'Compromiso ${c.estado}: ${_esc(c.acuerdo)}', 'Compromiso con ${_esc(c.cliente)}')">
+                        👤 Asignar Responsable ↗
+                    </button>
+                </div>
             </div>`;
         }).join('')
         : `<div class="sg-detail-empty">✅ Todos los compromisos acordados con clientes en actas de reunión se encuentran al día y cumplidos.</div>`;
@@ -1231,9 +1270,11 @@ function abrirModalKpiCertificaciones() {
                         <div class="kpi-modal-meta">Vigencia hasta: ${c.vigencia_hasta} · Nivel: ${_esc(c.nivel)}</div>
                     </div>
                 </div>
-                <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('checklist_cumplimiento', ${c.id}, 'Certificación por vencer (${c.dias_restantes} días)', '${_esc(c.cert)} en ${_esc(c.cliente)}')">
-                    👤 Asignar Responsable ↗
-                </button>
+                <div class="kpi-modal-actions">
+                    <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('checklist_cumplimiento', ${c.id}, 'Certificación por vencer (${c.dias_restantes} días)', '${_esc(c.cert)} en ${_esc(c.cliente)}')">
+                        👤 Asignar Responsable ↗
+                    </button>
+                </div>
             </div>`;
         }).join('')
         : `<div class="sg-detail-empty">✅ No se registran certificaciones ni cursos con vencimiento próximo en los siguientes 30 días.</div>`;
@@ -1260,9 +1301,11 @@ function abrirModalKpiVisitas() {
                         <div class="kpi-modal-meta">Prioridad alta por riesgo de servicio y fidelización</div>
                     </div>
                 </div>
-                <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita gerencial prioritaria de retención: cliente en ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
-                    📅 Agendar Visita ↗
-                </button>
+                <div class="kpi-modal-actions">
+                    <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita gerencial prioritaria de retención: cliente en ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
+                        📅 Agendar Visita ↗
+                    </button>
+                </div>
             </div>
           `).join('')
         : '';
@@ -1304,10 +1347,9 @@ function _crearModalKpi(titulo, subtitulo, contenidoHtml, linkModuloHref, linkMo
             <div class="kpi-modal-body" style="max-height:60vh;overflow-y:auto;margin-bottom:1rem">
                 ${contenidoHtml}
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-top:.75rem;border-top:1px solid rgba(148,163,184,.2)">
+            <div class="kpi-modal-footer">
                 <a href="${linkModuloHref}" target="_blank" class="cr-all-link" style="margin:0">${linkModuloTexto}</a>
-                <button onclick="this.closest('.sg-modal-overlay').remove()"
-                    style="padding:.5rem 1.1rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.85rem">
+                <button onclick="this.closest('.sg-modal-overlay').remove()" class="kpi-modal-close-btn">
                     Cerrar
                 </button>
             </div>
@@ -1342,12 +1384,12 @@ function _crItemHtml(c) {
                 <span class="cr-item-score ${scoreCls}">${_crNota(c)}</span>
                 <span class="cr-item-badge ${badgeCls}">${_esc(c.banda)}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+            <div class="cr-item-actions">
                 <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff;padding:.3rem .6rem;font-size:.75rem" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita urgente de retención: cliente en banda ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
                     📅 Agendar Visita ↗
                 </button>
                 <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
-                   target="_blank" style="font-size:.72rem;color:#64748b;text-decoration:none;padding:.2rem .35rem" title="Ver ficha analítica en Gestión">
+                   target="_blank" class="kpi-modal-sub-link" title="Ver ficha analítica en Gestión">
                     Ficha ↗
                 </a>
             </div>
@@ -1370,12 +1412,12 @@ function _crSinItemHtml(c) {
                 <span class="cr-item-name">${_esc(c.nombre)}</span>
                 <span class="${ejesCls}">${etiqueta}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+            <div class="cr-item-actions">
                 <button type="button" class="kpi-modal-btn" style="padding:.3rem .6rem;font-size:.75rem" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Seguimiento de servicio', 'Visita de diagnóstico y cobertura operativa: cliente con ${ejes} de 4 ejes evaluados.')">
                     📅 Agendar Visita ↗
                 </button>
                 <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
-                   target="_blank" style="font-size:.72rem;color:#64748b;text-decoration:none;padding:.2rem .35rem" title="Ver ficha en Gestión">
+                   target="_blank" class="kpi-modal-sub-link" title="Ver ficha en Gestión">
                     Ficha ↗
                 </a>
             </div>
@@ -1493,12 +1535,13 @@ function abrirClientesEnRiesgo() {
         <div class="sg-modal sg-modal-wide">
             <div class="sg-modal-title">${titulo}</div>
             <div class="sg-modal-sub">${subtitulo}</div>
-            <div class="cr-items">${filas}</div>
-            <a href="/dashboard/gestion/" class="cr-all-link" style="margin:1rem 0 0">Consultar listado en Gestión →</a>
-            <button onclick="this.closest('.sg-modal-overlay').remove()"
-                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
-                Cerrar
-            </button>
+            <div class="cr-items" style="max-height:60vh;overflow-y:auto;margin-bottom:1rem">${filas}</div>
+            <div class="kpi-modal-footer">
+                <a href="/dashboard/gestion/" class="cr-all-link" style="margin:0">Consultar listado en Gestión →</a>
+                <button onclick="this.closest('.sg-modal-overlay').remove()" class="kpi-modal-close-btn">
+                    Cerrar
+                </button>
+            </div>
         </div>`;
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
