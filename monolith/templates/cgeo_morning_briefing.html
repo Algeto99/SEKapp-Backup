@@ -102,7 +102,14 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .kpi-val{font-size:2.5rem;font-weight:700;font-family:'Merriweather',serif;line-height:1;margin-bottom:.375rem}
 .kpi-lbl{font-size:.8125rem;font-weight:600;color:#64748b;margin-bottom:.25rem}
 .kpi-sub{font-size:.75rem;color:#94a3b8}
-.kpi-action{font-size:.75rem;font-weight:600;color:#3b82f6;margin-top:.75rem;display:flex;align-items:center;gap:.25rem}
+.kpi-action{display:flex;align-items:center;justify-content:space-between;width:100%;padding:.45rem .75rem;margin-top:.875rem;background:rgba(59,130,246,.08);color:#2563eb;border:1px solid rgba(59,130,246,.22);border-radius:.5rem;font-size:.78rem;font-weight:700;transition:all .15s;box-sizing:border-box}
+.kpi-card:hover .kpi-action{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.25)}
+.kpi-val-denom{font-size:1.25rem;font-weight:600;color:#94a3b8;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.kpi-header-pill{font-size:.6875rem;font-weight:800;padding:.2rem .5rem;border-radius:1rem;letter-spacing:.02em;text-transform:uppercase}
+.kpi-pill-warning{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+.kpi-pill-danger{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+.kpi-pill-success{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0}
+.kpi-pill-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
 
 .kpi-border-red{border-top-color:#ef4444}
 .kpi-border-orange{border-top-color:#f59e0b}
@@ -284,6 +291,13 @@ body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.ligh
 body:not(.light-mode) .kpi-val,body:not(.light-mode) .section-title{color:#f1f5f9}
 body:not(.light-mode) .kpi-lbl{color:#94a3b8}
 body:not(.light-mode) .kpi-sub{color:#64748b}
+body:not(.light-mode) .kpi-action{background:rgba(59,130,246,.15);color:#60a5fa;border-color:rgba(59,130,246,.3)}
+body:not(.light-mode) .kpi-card:hover .kpi-action{background:#3b82f6;color:#fff;border-color:#3b82f6}
+body:not(.light-mode) .kpi-val-denom{color:#64748b}
+body:not(.light-mode) .kpi-pill-warning{background:rgba(245,158,11,.2);color:#fbbf24;border-color:rgba(245,158,11,.35)}
+body:not(.light-mode) .kpi-pill-danger{background:rgba(239,68,68,.2);color:#f87171;border-color:rgba(239,68,68,.35)}
+body:not(.light-mode) .kpi-pill-success{background:rgba(34,197,94,.2);color:#4ade80;border-color:rgba(34,197,94,.35)}
+body:not(.light-mode) .kpi-pill-info{background:rgba(59,130,246,.2);color:#93c5fd;border-color:rgba(59,130,246,.35)}
 body:not(.light-mode) .alerta-item:hover{background:#334155}
 body:not(.light-mode) .alerta-texto{color:#cbd5e1}
 body:not(.light-mode) .alerta-item{border-bottom-color:#334155}
@@ -715,15 +729,17 @@ const SUP_AYUDA = 'Últimos 7 días cerrados, sin hoy. Cada formulario cuenta co
 function _kpiSupSub(k) {
     const prog = k.sup_programadas ?? 0;
     const comp = k.sup_completadas ?? 0;
-    const real = k.sup_realizadas ?? comp;
+    const pend = k.sup_pendientes ?? Math.max(0, prog - comp);
+    const clientesPend = (k.sup_por_cliente || []).filter(c => (c.pendientes || 0) > 0).length;
     const enCurso = k.sup_en_curso ?? 0;
     const ayer = k.sup_ayer ?? 0;
-    const lbl = k.sup_periodo_label ? ` · ${k.sup_periodo_label}` : '';
-    const linea2 = `Ayer: ${ayer} realizadas · Hoy: ${enCurso} (En curso)`;
-    if (prog > 0 && k.sup_pct !== null && k.sup_pct !== undefined) {
-        let l1 = `de ${prog} programadas${lbl} · ${Math.round(k.sup_pct)}%`;
-        if (real > comp) l1 += ` · ${real} realizadas, tope por cliente`;
-        return `${l1}<br>${linea2}`;
+    const linea2 = `Ayer: ${ayer} realizadas · Hoy: ${enCurso} en curso`;
+    if (prog > 0) {
+        if (pend > 0) {
+            const clisTxt = clientesPend > 0 ? ` en ${clientesPend} cliente${clientesPend !== 1 ? 's' : ''}` : '';
+            return `<strong>${pend} pendiente${pend !== 1 ? 's' : ''}</strong>${clisTxt} (${Math.round(k.sup_pct ?? (comp/prog*100))}% de cuota alcanzada)<br>${linea2}`;
+        }
+        return `Meta al día: 100% alcanzada (${comp} de ${prog})<br>${linea2}`;
     }
     if (k.sup_sin_dia_cerrado) return `Sin días cerrados en la ventana<br>${linea2}`;
     return `0 programadas<br>${linea2}`;
@@ -890,26 +906,41 @@ function renderKpis(k, thr) {
         ? Object.entries(certNivel).map(([n, v]) => `${n}: ${v}`).join(' · ')
         : 'en los próximos 30 días';
 
+    const progSup = k.sup_programadas ?? 0;
+    const compSup = k.sup_completadas ?? 0;
+    const pendSup = k.sup_pendientes ?? Math.max(0, progSup - compSup);
+    const clisPendSup = (k.sup_por_cliente || []).filter(c => (c.pendientes || 0) > 0).length;
+
     const kpiDefs = [
         {
             id: 'kpiInc',
             icon: '⚠️', iconBg: '#fef2f2',
             val: k.inc_abiertos ?? 0,
             lbl: 'Incidentes Abiertos',
+            pill: (k.inc_abiertos > 0)
+                ? { cls: ((k.inc_criticos ?? 0) > 0 ? 'kpi-pill-danger' : 'kpi-pill-warning'), text: `${k.inc_abiertos} ABIERTO${k.inc_abiertos !== 1 ? 'S' : ''}` }
+                : { cls: 'kpi-pill-success', text: 'AL DÍA' },
             sub: (k.inc_mas_24h ?? 0) > 0
                 ? `${k.inc_mas_24h} llevan más de 24h sin gestión`
                 : 'Todos gestionados en las últimas 24h',
-            action: 'Gestionar incidentes →',
+            action: '<span>👉 Gestionar incidentes</span><span>→</span>',
             color: _kpiIncColor(k.inc_abiertos ?? 0),
         },
         {
             id: 'kpiSup',
             icon: '👁️', iconBg: '#eff6ff',
-            val: (k.sup_programadas ?? 0) > 0 ? (k.sup_completadas ?? 0) : (k.sup_en_curso ?? 0),
+            val: (progSup > 0)
+                ? `${compSup} <span class="kpi-val-denom">/ ${progSup}</span>`
+                : (k.sup_en_curso ?? 0),
             lbl: 'Supervisiones',
+            pill: (pendSup > 0)
+                ? { cls: 'kpi-pill-warning', text: `⚠️ ${pendSup} PENDIENTES` }
+                : (progSup > 0 ? { cls: 'kpi-pill-success', text: '100% AL DÍA' } : null),
             sub: _kpiSupSub(k),
             help: SUP_AYUDA,
-            action: 'Ver cobertura y pendientes →',
+            action: (pendSup > 0)
+                ? `<span>👉 Ver ${clisPendSup > 0 ? `${clisPendSup} clientes con pendientes` : `${pendSup} pendientes`}</span><span>→</span>`
+                : '<span>👉 Ver cobertura de clientes</span><span>→</span>',
             color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr, k.sup_pct ?? null),
         },
         {
@@ -919,12 +950,17 @@ function renderKpis(k, thr) {
                 ? `${k.eq_no_op} con falla`
                 : (radioTotal > 0 || armaTotal > 0 ? '100% operativos' : (equiposTotal > 0 ? equiposTotal : '—')),
             lbl: 'Confiabilidad de Equipos',
+            pill: (k.eq_no_op > 0)
+                ? { cls: 'kpi-pill-danger', text: `${k.eq_no_op} INOPERATIVO${k.eq_no_op !== 1 ? 'S' : ''}` }
+                : { cls: 'kpi-pill-success', text: '100% OPERATIVO' },
             sub: (k.eq_no_op > 0)
                 ? `${k.eq_no_op} equipo${k.eq_no_op !== 1 ? 's' : ''} inoperativo${k.eq_no_op !== 1 ? 's' : ''} en puestos · ${k.eq_pct ?? 0}% operatividad`
                 : (radioTotal > 0 || armaTotal > 0
                     ? `Todos los equipos operando en puestos (${radioOp} radios · ${armaOp} armas)`
                     : eqDetalle.join(' · ')),
-            action: (k.eq_no_op > 0) ? 'Resolver fallas de equipos →' : 'Ver estado de equipos →',
+            action: (k.eq_no_op > 0)
+                ? '<span>👉 Resolver fallas de equipos</span><span>→</span>'
+                : '<span>👉 Ver estado de equipos</span><span>→</span>',
             color: _kpiEqColor(radioNoOp, radioTotal, thr),
         },
         {
@@ -932,8 +968,11 @@ function renderKpis(k, thr) {
             icon: '📋', iconBg: '#f0fdf4',
             val: k.cert_proximas ?? 0,
             lbl: 'Cumplimiento Normativo',
+            pill: (k.cert_proximas > 0)
+                ? { cls: 'kpi-pill-warning', text: `${k.cert_proximas} POR VENCER` }
+                : { cls: 'kpi-pill-success', text: 'AL DÍA' },
             sub: certSubLines,
-            action: 'Ver certificaciones →',
+            action: '<span>👉 Revisar vencimientos</span><span>→</span>',
             color: _kpiCertColor(k.cert_proximas ?? 0),
         },
         {
@@ -941,12 +980,15 @@ function renderKpis(k, thr) {
             icon: '🤝', iconBg: '#f5f3ff',
             val: k.comp_vencidos ?? 0,
             lbl: 'Compromisos de Visitas',
+            pill: (k.comp_vencidos > 0)
+                ? { cls: 'kpi-pill-danger', text: `${k.comp_vencidos} VENCIDO${k.comp_vencidos !== 1 ? 'S' : ''}` }
+                : ((k.comp_por_vencer > 0) ? { cls: 'kpi-pill-warning', text: `${k.comp_por_vencer} POR VENCER` } : null),
             sub: (k.comp_vencidos ?? 0) > 0
                 ? `${k.comp_vencidos} vencido${k.comp_vencidos !== 1 ? 's' : ''} · ${k.comp_por_vencer ?? 0} por vencer`
                 : (k.comp_por_vencer ?? 0) > 0
                     ? `${k.comp_por_vencer} por vencer próximamente`
                     : 'Sin compromisos vencidos',
-            action: 'Ver compromisos →',
+            action: '<span>👉 Gestionar compromisos</span><span>→</span>',
             color: _kpiCompColor(k.comp_vencidos ?? 0, k.comp_por_vencer ?? 0),
         },
         {
@@ -955,7 +997,7 @@ function renderKpis(k, thr) {
             val: k.visita_completadas ?? 0,
             lbl: 'Visitas a Clientes',
             sub: _kpiVisitaSub(k),
-            action: 'Ver visitas →',
+            action: '<span>👉 Ver agenda y avance</span><span>→</span>',
             color: _kpiVisitaColor(
                 k.visita_completadas ?? 0,
                 k.visita_programadas ?? 0,
@@ -968,10 +1010,13 @@ function renderKpis(k, thr) {
 
     const grid = document.getElementById('kpiGrid');
     grid.innerHTML = kpiDefs.map(d => `
-        <div class="kpi-card" onclick="abrirModalKpi('${d.id}')" role="button" tabindex="0" style="border-top-color:${d.color.border};cursor:pointer"${d.help ? ` title="${d.help}"` : ''}>
+        <div class="kpi-card" onclick="abrirModalKpi('${d.id}')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirModalKpi('${d.id}')}" style="border-top-color:${d.color.border};cursor:pointer"${d.help ? ` title="${d.help}"` : ''}>
             <div class="kpi-card-header">
                 <div class="kpi-icon-wrap" style="background:${d.iconBg}">${d.icon}</div>
-                <div class="kpi-status-dot ${d.color.dot}"></div>
+                <div style="display:flex;align-items:center;gap:.5rem">
+                    ${d.pill ? `<span class="kpi-header-pill ${d.pill.cls}">${d.pill.text}</span>` : ''}
+                    <div class="kpi-status-dot ${d.color.dot}"></div>
+                </div>
             </div>
             <div class="kpi-val">${d.val}</div>
             <div class="kpi-lbl">${d.lbl}</div>
