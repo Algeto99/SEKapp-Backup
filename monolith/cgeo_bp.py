@@ -1067,6 +1067,7 @@ def cgeo_api_recursos_data():
                 "elemento": r["elemento"],
                 "cliente": r["cliente"],
                 "estado": r["estado"],
+                "con_falla": 1,
                 "vencimiento": r["vencimiento"].isoformat() if r["vencimiento"] else None,
                 "dias_restantes": -int(r["dias_restantes"]) if r["dias_restantes"] is not None else None,
             })
@@ -1099,6 +1100,7 @@ def cgeo_api_recursos_data():
                 "elemento": r["elemento"],
                 "cliente": r["cliente"],
                 "estado": r["estado"],
+                "con_falla": 1,
                 "vencimiento": None,
                 "dias_restantes": None,
             })
@@ -1129,6 +1131,7 @@ def cgeo_api_recursos_data():
                 "elemento": r["elemento"],
                 "cliente": r["cliente"],
                 "estado": r["estado"],
+                "con_falla": 1,
                 "vencimiento": None,
                 "dias_restantes": None,
             })
@@ -1143,6 +1146,9 @@ def cgeo_api_recursos_data():
                 etiqueta AS elemento,
                 cliente_instalacion AS cliente,
                 'Fuera de servicio' AS estado,
+                SUM(total) AS total_unidades,
+                SUM(operativos) AS unidades_operativas,
+                SUM(total - operativos) AS con_falla,
                 MAX(fecha) AS fecha_ref,
                 MAX(id) AS id_ref
             {eq_inv}
@@ -1153,15 +1159,30 @@ def cgeo_api_recursos_data():
         """, tuple(eq_params))
         for r in cur.fetchall():
             rec_id = r.get("id_ref")
+            tot_unid = int(r.get("total_unidades") or 0)
+            op_unid = int(r.get("unidades_operativas") or 0)
+            con_falla = int(r.get("con_falla") or (tot_unid - op_unid))
+            elem_base = r["elemento"] or "Equipo"
+            if con_falla > 1 or (tot_unid > 0 and op_unid > 0):
+                elemento = f"{elem_base} ({con_falla} unid. fuera de servicio · {op_unid} de {tot_unid} operativas)"
+            elif con_falla == 1 and tot_unid > 1:
+                elemento = f"{elem_base} (1 unid. fuera de servicio · {op_unid} de {tot_unid} operativas)"
+            else:
+                elemento = elem_base
+
             alertas_listado.append({
                 "id": rec_id,
                 "record_id": rec_id,
                 "form_type": "confiabilidad_equipos",
                 "ruta_navegacion": f"/dashboard/equipos/?id={rec_id}" if rec_id else "/dashboard/equipos/",
                 "tipo": r["tipo"],
-                "elemento": r["elemento"],
+                "elemento": elemento,
+                "elemento_base": elem_base,
                 "cliente": r["cliente"],
                 "estado": r["estado"],
+                "con_falla": con_falla,
+                "total_unidades": tot_unid,
+                "operativos": op_unid,
                 "vencimiento": None,
                 "dias_restantes": None,
             })

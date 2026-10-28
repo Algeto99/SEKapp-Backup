@@ -684,6 +684,14 @@ function abrirAlertaRecursosDirecto(recordId, formType, elemento, idRef, event) 
     }
 }
 
+function abrirAlertaCatModalIdx(idx, event) {
+    if (event) event.preventDefault();
+    const modal = event.target ? event.target.closest('.sg-modal-overlay') : null;
+    if (modal) modal.remove();
+    const item = window._modalCatItems?.[idx];
+    if (item) abrirAlertaRecursos(item, event);
+}
+
 function abrirModalAlertasCategoria(categoria) {
     if (!currentData) return;
     const allAlerts = currentData.alertas?.listado || [];
@@ -693,50 +701,56 @@ function abrirModalAlertasCategoria(categoria) {
 
     if (categoria === 'Equipo') {
         filtradas = allAlerts.filter(a => a.tipo === 'Equipo' || a.estado === 'Fuera de servicio');
-        titulo = `Equipos Fuera de Servicio (${filtradas.length})`;
+        const totalFallas = filtradas.reduce((acc, x) => acc + (x.con_falla || 1), 0);
+        titulo = `Equipos Fuera de Servicio (${totalFallas} ${totalFallas === 1 ? 'unidad' : 'unidades'})`;
         subtitulo = 'Equipos con fallas técnicas identificadas en la última inspección';
     } else if (categoria === 'Radio') {
-        filtradas = allAlerts.filter(a => (a.tipo === 'Equipo' || a.estado === 'Fuera de servicio') && (a.elemento || '').toLowerCase().includes('radio'));
-        titulo = `Radios con Falla (${filtradas.length})`;
+        filtradas = allAlerts.filter(a => (a.tipo === 'Equipo' || a.estado === 'Fuera de servicio') && ((a.elemento || '') + ' ' + (a.elemento_base || '')).toLowerCase().includes('radio'));
+        const totalFallas = filtradas.reduce((acc, x) => acc + (x.con_falla || 1), 0);
+        titulo = `Radios con Falla (${totalFallas} ${totalFallas === 1 ? 'unidad' : 'unidades'})`;
         subtitulo = 'Radios de comunicación con novedades operativas';
     } else if (categoria === 'Arma') {
-        filtradas = allAlerts.filter(a => (a.tipo === 'Equipo' || a.estado === 'Fuera de servicio') && (a.elemento || '').toLowerCase().includes('arma'));
-        titulo = `Armamento con Novedad (${filtradas.length})`;
+        filtradas = allAlerts.filter(a => (a.tipo === 'Equipo' || a.estado === 'Fuera de servicio') && ((a.elemento || '') + ' ' + (a.elemento_base || '')).toLowerCase().includes('arma'));
+        const totalFallas = filtradas.reduce((acc, x) => acc + (x.con_falla || 1), 0);
+        titulo = `Armamento con Novedad (${totalFallas} ${totalFallas === 1 ? 'unidad' : 'unidades'})`;
         subtitulo = 'Armas no óptimas o fuera de servicio';
     } else if (categoria === 'Vehículo') {
         filtradas = allAlerts.filter(a => a.tipo === 'Vehículo');
-        titulo = `Flota Vehicular No Apta (${filtradas.length})`;
+        titulo = `Flota Vehicular No Apta (${filtradas.length} ${filtradas.length === 1 ? 'unidad' : 'unidades'})`;
         subtitulo = 'Vehículos que no aprobaron el chequeo pre-operacional';
     } else if (categoria === 'Motocicleta') {
         filtradas = allAlerts.filter(a => a.tipo === 'Motocicleta');
-        titulo = `Motocicletas con Falla (${filtradas.length})`;
+        titulo = `Motocicletas con Falla (${filtradas.length} ${filtradas.length === 1 ? 'unidad' : 'unidades'})`;
         subtitulo = 'Motocicletas no aptas según su última planilla pre-operacional';
     } else if (categoria === 'Certificación') {
         filtradas = allAlerts.filter(a => a.tipo === 'Certificación' && a.estado === 'Vencida');
-        titulo = `Certificaciones Vencidas (${filtradas.length})`;
+        titulo = `Certificaciones Vencidas (${filtradas.length} ${filtradas.length === 1 ? 'registro' : 'registros'})`;
         subtitulo = 'Personal con cursos o certificaciones que requieren renovación';
     } else if (categoria === 'Próxima') {
         filtradas = allAlerts.filter(a => a.tipo === 'Certificación' && a.estado !== 'Vencida');
-        titulo = `Certificaciones Próximas a Vencer (${filtradas.length})`;
+        titulo = `Certificaciones Próximas a Vencer (${filtradas.length} ${filtradas.length === 1 ? 'registro' : 'registros'})`;
         subtitulo = 'Personal con vigencias por expirar en los próximos 30 días';
     } else {
         filtradas = allAlerts;
-        titulo = `Novedades Operativas (${filtradas.length})`;
+        const totalFallas = filtradas.reduce((acc, x) => acc + (x.con_falla || 1), 0);
+        titulo = `Novedades Operativas (${totalFallas} ${totalFallas === 1 ? 'elemento' : 'elementos'})`;
         subtitulo = 'Listado general de recursos que requieren atención';
     }
 
+    window._modalCatItems = filtradas;
+
     const itemsHtml = filtradas.length ? `
         <div class="sg-detail-list" style="margin-top:1rem">
-            ${filtradas.map(a => `
+            ${filtradas.map((a, idx) => `
                 <div class="sg-item-row">
                     <div style="flex:1;min-width:0">
                         <div style="font-size:.875rem;font-weight:600;color:#0f172a">${_escHtml(a.elemento)}</div>
                         <div style="font-size:.75rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
                     </div>
                     ${a.record_id && a.form_type ? `
-                        <button type="button" class="sg-btn-accion" onclick="this.closest('.sg-modal-overlay').remove(); abrirAlertaRecursosDirecto(${a.record_id}, '${a.form_type}', '${_escHtml(a.elemento)}', '${_escHtml(a.id || a.record_id || '')}', event)">
+                        <button type="button" class="sg-btn-accion" onclick="abrirAlertaCatModalIdx(${idx}, event)">
                             Ver detalle →
-                        </button>` : ''}
+                        </button>` : (a.ruta_navegacion ? `<a href="${_escHtml(a.ruta_navegacion)}" class="sg-btn-accion">Ver detalle →</a>` : '')}
                 </div>`).join('')}
         </div>` : `
         <div style="text-align:center;padding:1.5rem;color:#64748b;font-size:.875rem">
