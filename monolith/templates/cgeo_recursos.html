@@ -443,7 +443,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                     <div id="kpiCertDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiCertSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-red" id="kpiEqNoOpCard" data-href="/dashboard/equipos/" onclick="navigateRecursos('/dashboard/equipos/')" title="Abrir dashboard de Equipos (Fallas técnicas)">
+                <div class="kpi-card kpi-border-red" id="kpiEqNoOpCard" onclick="abrirModalAlertasCategoria('Equipo')" style="cursor:pointer" title="Ver equipos fuera de servicio y asignar seguimiento">
                     <span class="kpi-icon">🧰</span>
                     <div class="kpi-val" id="kpiEqNoOp" style="color:#dc2626">—</div>
                     <div class="kpi-lbl">Equipos Fuera de Servicio</div>
@@ -669,6 +669,94 @@ function abrirAlertaFilaRecursos(idx, event) {
     if (event) event.preventDefault();
     const a = currentData?.alertas?.listado?.[idx];
     if (a) abrirAlertaRecursos(a, event);
+}
+
+function abrirAlertaRecursosDirecto(recordId, formType, elemento, idRef, event) {
+    if (event) event.preventDefault();
+    if (!recordId || !formType) return;
+    const viewer = _getRecursosViewer(formType);
+    if (viewer) {
+        viewer.openRecord(recordId, {
+            motivo: `Atención a ${elemento}`,
+            hallazgoRef: idRef || recordId || '',
+            hallazgoTitulo: elemento || ''
+        });
+    }
+}
+
+function abrirModalAlertasCategoria(categoria) {
+    if (!currentData) return;
+    const allAlerts = currentData.alertas?.listado || [];
+    let filtradas = [];
+    let titulo = '';
+    let subtitulo = '';
+
+    if (categoria === 'Equipo') {
+        filtradas = allAlerts.filter(a => a.tipo === 'Equipo' || a.estado === 'Fuera de servicio');
+        titulo = `Equipos Fuera de Servicio (${filtradas.length})`;
+        subtitulo = 'Equipos con fallas técnicas identificadas en la última inspección';
+    } else if (categoria === 'Radio') {
+        filtradas = allAlerts.filter(a => (a.tipo === 'Equipo' || a.estado === 'Fuera de servicio') && (a.elemento || '').toLowerCase().includes('radio'));
+        titulo = `Radios con Falla (${filtradas.length})`;
+        subtitulo = 'Radios de comunicación con novedades operativas';
+    } else if (categoria === 'Arma') {
+        filtradas = allAlerts.filter(a => (a.tipo === 'Equipo' || a.estado === 'Fuera de servicio') && (a.elemento || '').toLowerCase().includes('arma'));
+        titulo = `Armamento con Novedad (${filtradas.length})`;
+        subtitulo = 'Armas no óptimas o fuera de servicio';
+    } else if (categoria === 'Vehículo') {
+        filtradas = allAlerts.filter(a => a.tipo === 'Vehículo');
+        titulo = `Flota Vehicular No Apta (${filtradas.length})`;
+        subtitulo = 'Vehículos que no aprobaron el chequeo pre-operacional';
+    } else if (categoria === 'Motocicleta') {
+        filtradas = allAlerts.filter(a => a.tipo === 'Motocicleta');
+        titulo = `Motocicletas con Falla (${filtradas.length})`;
+        subtitulo = 'Motocicletas no aptas según su última planilla pre-operacional';
+    } else if (categoria === 'Certificación') {
+        filtradas = allAlerts.filter(a => a.tipo === 'Certificación' && a.estado === 'Vencida');
+        titulo = `Certificaciones Vencidas (${filtradas.length})`;
+        subtitulo = 'Personal con cursos o certificaciones que requieren renovación';
+    } else if (categoria === 'Próxima') {
+        filtradas = allAlerts.filter(a => a.tipo === 'Certificación' && a.estado !== 'Vencida');
+        titulo = `Certificaciones Próximas a Vencer (${filtradas.length})`;
+        subtitulo = 'Personal con vigencias por expirar en los próximos 30 días';
+    } else {
+        filtradas = allAlerts;
+        titulo = `Novedades Operativas (${filtradas.length})`;
+        subtitulo = 'Listado general de recursos que requieren atención';
+    }
+
+    const itemsHtml = filtradas.length ? `
+        <div class="sg-detail-list" style="margin-top:1rem">
+            ${filtradas.map(a => `
+                <div class="sg-item-row">
+                    <div style="flex:1;min-width:0">
+                        <div style="font-size:.875rem;font-weight:600;color:#0f172a">${_escHtml(a.elemento)}</div>
+                        <div style="font-size:.75rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
+                    </div>
+                    ${a.record_id && a.form_type ? `
+                        <button type="button" class="sg-btn-accion" onclick="this.closest('.sg-modal-overlay').remove(); abrirAlertaRecursosDirecto(${a.record_id}, '${a.form_type}', '${_escHtml(a.elemento)}', '${_escHtml(a.id || a.record_id || '')}', event)">
+                            Ver detalle →
+                        </button>` : ''}
+                </div>`).join('')}
+        </div>` : `
+        <div style="text-align:center;padding:1.5rem;color:#64748b;font-size:.875rem">
+            No hay registros pendientes en esta categoría para el período seleccionado.
+        </div>`;
+
+    const modal = document.createElement('div');
+    modal.className = 'sg-modal-overlay';
+    modal.innerHTML = `
+        <div class="sg-modal sg-modal-wide">
+            <div class="sg-modal-title">${titulo}</div>
+            <div class="sg-modal-sub">${subtitulo}</div>
+            ${itemsHtml}
+            <button onclick="this.closest('.sg-modal-overlay').remove()"
+                style="margin-top:1.25rem;width:100%;padding:.625rem;background:#0f172a;color:#fff;border:none;border-radius:.5rem;font-weight:600;cursor:pointer;font-size:.875rem">
+                Cerrar
+            </button>
+        </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
 }
 
 function abrirDetalleSemaforoRecursos() {
@@ -1089,17 +1177,17 @@ function renderData(d) {
 
     // Indicadores por categoría — fila unificada
     const pendItems = [
-        { icon: '🧰', label: 'Equipos con Falla', val: eqNoOpVal, sub: 'Fuera de servicio', color: eqNoOpVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/equipos/' },
-        { icon: '📻', label: 'Radios con Falla', val: (radios.no_operativos || 0), sub: 'No operativos', color: (radios.no_operativos || 0) > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/equipos/?tipo=radio' },
-        { icon: '🔫', label: 'Armas con Falla', val: (armas.no_aptas || 0), sub: 'No óptimas', color: (armas.no_aptas || 0) > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/equipos/?tipo=arma' },
-        { icon: '🚗', label: 'Carros No Aptos', val: vehNoAptoVal, sub: 'Requieren taller', color: vehNoAptoVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/vehiculos/' },
-        { icon: '🏍️', label: 'Motos con Falla', val: motoNoAptaVal, sub: 'No aptas', color: motoNoAptaVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/motocicletas/' },
-        { icon: '⚠️', label: 'Certificaciones Vencidas', val: cumVencVal, sub: 'Requieren renovación', color: cumVencVal > 0 ? '#ef4444' : '#16a34a', href: '/dashboard/cumplimiento/' },
-        { icon: '🕐', label: 'Próximas a Vencer', val: cumProxVal, sub: 'En próximos 30 días', color: cumProxVal > 0 ? '#d97706' : '#16a34a', href: '/dashboard/cumplimiento/' },
-        { icon: '📊', label: 'Total Pendientes', val: totalPend, sub: 'Elementos por gestionar', color: '#2563eb', href: '/dashboard/equipos/' },
+        { icon: '🧰', label: 'Equipos con Falla', val: eqNoOpVal, sub: 'Fuera de servicio', color: eqNoOpVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Equipo')" },
+        { icon: '📻', label: 'Radios con Falla', val: (radios.no_operativos || 0), sub: 'No operativos', color: (radios.no_operativos || 0) > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Radio')" },
+        { icon: '🔫', label: 'Armas con Falla', val: (armas.no_aptas || 0), sub: 'No óptimas', color: (armas.no_aptas || 0) > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Arma')" },
+        { icon: '🚗', label: 'Carros No Aptos', val: vehNoAptoVal, sub: 'Requieren taller', color: vehNoAptoVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Vehículo')" },
+        { icon: '🏍️', label: 'Motos con Falla', val: motoNoAptaVal, sub: 'No aptas', color: motoNoAptaVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Motocicleta')" },
+        { icon: '⚠️', label: 'Certificaciones Vencidas', val: cumVencVal, sub: 'Requieren renovación', color: cumVencVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Certificación')" },
+        { icon: '🕐', label: 'Próximas a Vencer', val: cumProxVal, sub: 'En próximos 30 días', color: cumProxVal > 0 ? '#d97706' : '#16a34a', fn: "abrirModalAlertasCategoria('Próxima')" },
+        { icon: '📊', label: 'Total Pendientes', val: totalPend, sub: 'Elementos por gestionar', color: '#2563eb', fn: "abrirDetalleSemaforoRecursos()" },
     ];
     document.getElementById('pendCat').innerHTML = pendItems.map(p => `
-        <div class="pend-cat-card" data-href="${p.href}" onclick="navigateRecursos('${p.href}')" title="Abrir dashboard de ${p.label}">
+        <div class="pend-cat-card" onclick="${p.fn}" style="cursor:pointer" title="Ver ${p.label} y asignar">
             <span class="pend-cat-icon">${p.icon}</span>
             <div class="pend-cat-val" style="color:${p.color}">${p.val}</div>
             <div class="pend-cat-lbl">${p.label}</div>
