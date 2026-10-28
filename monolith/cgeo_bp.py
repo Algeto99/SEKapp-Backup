@@ -2310,100 +2310,82 @@ def cgeo_api_alertas():
                 "horas": d * 24,
             })
 
-        # ── REGLA 6: Vehículo sin pre-operacional > 24 h ─────────────────────
+        # ── REGLA 6: Vehículo reportado NO APTO / con fallas mecánicas ────────
+        from dashboard_bp import _veh_date_expr
         r6_conds, r6_params = _cp()
         r6_conds += ["placa_vehiculo IS NOT NULL", "TRIM(placa_vehiculo) != ''"]
+        r6_flota = _flota_vigente('planilla_vehicular', 'id_planilla_vehicular', 'placa_vehiculo',
+                                  _veh_date_expr(), _VEH_FAULT_EXPR, _where(r6_conds), etiqueta='Vehículo')
         cur.execute(f"""
-            SELECT id_planilla_vehicular AS id, placa, cliente, ultimo_preop,
-                   EXTRACT(EPOCH FROM ({sql_ahora()} - ultimo_preop)) / 3600 AS horas
-            FROM (
-                -- Por placa, no por placa+cliente: el pre-operacional es del
-                -- vehículo. Agrupando también por cliente, una unidad chequeada
-                -- hoy en una sede seguía alertando por su último registro en
-                -- otra, y las dos filas colisionaban en el mismo id de alerta.
-                SELECT DISTINCT ON (TRIM(placa_vehiculo))
-                    id_planilla_vehicular,
-                    TRIM(placa_vehiculo) AS placa,
-                    cliente_instalacion AS cliente,
-                    COALESCE(fecha_hora, creado_en) AS ultimo_preop
-                FROM planilla_vehicular
-                {_where(r6_conds)}
-                ORDER BY TRIM(placa_vehiculo), COALESCE(fecha_hora, creado_en) DESC
-            ) ultimo
-            WHERE ultimo_preop < {sql_ahora()} - INTERVAL '24 hours'
-            ORDER BY ultimo_preop ASC
+            SELECT id, elemento AS placa, cliente_instalacion AS cliente, fecha_ref AS ultimo_preop
+            {r6_flota}
+            WHERE no_apto
+            ORDER BY fecha_ref DESC NULLS LAST, id DESC
             LIMIT 5
         """, tuple(r6_params))
         for r in cur.fetchall():
-            h = float(r["horas"] or 0)
-            # La planilla guarda 'NO APLICA' cuando el chequeo no se hizo para un
-            # cliente. La placa sigue siendo real, así que la alerta se mantiene
-            # y lo que se omite es la atribución que no existe.
             cli = _cliente_real(r["cliente"])
-            de_cliente = f' de {cli}' if cli else ''
+            de_cliente = f' en "{cli}"' if cli else ''
             en_cliente = f' ({cli})' if cli else ''
-            ruta = f"/dashboard/vehiculos/?placa={_quote(r['placa'])}"
-            if cli:
-                ruta += f"&cliente={_quote(cli)}"
+            fecha_txt = r["ultimo_preop"].strftime('%d/%m/%Y %H:%M') if r["ultimo_preop"] else 'sin fecha'
+            texto = f"Vehículo {r['placa']}{en_cliente}: reportado NO APTO en pre-operacional"
+            motivo = (f'Condición mecánica no apta. El vehículo {r["placa"]}{de_cliente} fue '
+                      f'clasificado como NO APTO en su última inspección pre-operacional ({fecha_txt}). '
+                      f'Requiere asignación a taller o vehículo de reemplazo antes de operar en ruta.')
             alertas.append({
                 "id": f"r6_{r['placa']}",
                 "regla": 6,
-                "motivo": (f'Pre-operacional vencido. El vehículo {r["placa"]}{de_cliente} lleva '
-                           f'{int(h)} h sin chequeo pre-operacional (umbral: 24 h). '
-                           f'El último se registró el {r["ultimo_preop"]:%d/%m/%Y %H:%M}.'),
-                "texto": f"Vehículo {r['placa']}{en_cliente} sin pre-operacional hace {int(h)}h",
-                "accion": "Ver último pre-operacional",
-                "ruta_navegacion": ruta,
+                "texto": texto,
+                "motivo": motivo,
+                "hallazgo_titulo": texto,
+                "accion": "Ver inspección",
+                "ruta_navegacion": f"/dashboard/vehiculos/?id={r['id']}",
                 "record_id": r["id"],
                 "form_type": "planilla_vehicular",
-                "color_semaforo": "amarillo",
+                "color_semaforo": "naranja",
                 "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
-                "horas": round(h, 1),
+                "horas": None,
+                "placa": r['placa'],
+                "no_apto": True,
             })
 
-        # ── REGLA 12: Motocicleta sin pre-operacional > 24 h ─────────────────
+        # ── REGLA 12: Motocicleta reportada NO APTA / con fallas mecánicas ───
+        from dashboard_bp import _moto_date_expr, _MOTO_FAULT_EXPR
         r12_conds, r12_params = _cp()
         r12_conds += ["placa_motocicleta IS NOT NULL", "TRIM(placa_motocicleta) != ''"]
+        r12_flota = _flota_vigente('planilla_motocicletas', 'id', 'placa_motocicleta',
+                                   _moto_date_expr(), _MOTO_FAULT_EXPR, _where(r12_conds), etiqueta='Moto')
         cur.execute(f"""
-            SELECT id AS id, placa, cliente, ultimo_preop,
-                   EXTRACT(EPOCH FROM ({sql_ahora()} - ultimo_preop)) / 3600 AS horas
-            FROM (
-                -- Por placa, por la misma razón que la regla 6.
-                SELECT DISTINCT ON (TRIM(placa_motocicleta))
-                    id,
-                    TRIM(placa_motocicleta) AS placa,
-                    cliente_instalacion AS cliente,
-                    COALESCE(fecha_hora, creado_en) AS ultimo_preop
-                FROM planilla_motocicletas
-                {_where(r12_conds)}
-                ORDER BY TRIM(placa_motocicleta), COALESCE(fecha_hora, creado_en) DESC
-            ) ultimo
-            WHERE ultimo_preop < {sql_ahora()} - INTERVAL '24 hours'
-            ORDER BY ultimo_preop ASC
+            SELECT id, elemento AS placa, cliente_instalacion AS cliente, fecha_ref AS ultimo_preop
+            {r12_flota}
+            WHERE no_apto
+            ORDER BY fecha_ref DESC NULLS LAST, id DESC
             LIMIT 5
         """, tuple(r12_params))
         for r in cur.fetchall():
-            h = float(r["horas"] or 0)
             cli = _cliente_real(r["cliente"])
-            de_cliente = f' de {cli}' if cli else ''
+            de_cliente = f' en "{cli}"' if cli else ''
             en_cliente = f' ({cli})' if cli else ''
-            ruta = f"/dashboard/motocicletas/?placa={_quote(r['placa'])}"
-            if cli:
-                ruta += f"&cliente={_quote(cli)}"
+            fecha_txt = r["ultimo_preop"].strftime('%d/%m/%Y %H:%M') if r["ultimo_preop"] else 'sin fecha'
+            texto = f"Motocicleta {r['placa']}{en_cliente}: reportada NO APTA en pre-operacional"
+            motivo = (f'Condición mecánica no apta. La motocicleta {r["placa"]}{de_cliente} fue '
+                      f'clasificada como NO APTA en su última inspección pre-operacional ({fecha_txt}). '
+                      f'Requiere asignación a taller o unidad de reemplazo antes de operar en ruta.')
             alertas.append({
                 "id": f"r12_{r['placa']}",
                 "regla": 12,
-                "motivo": (f'Pre-operacional vencido. La motocicleta {r["placa"]}{de_cliente} lleva '
-                           f'{int(h)} h sin chequeo pre-operacional (umbral: 24 h). '
-                           f'El último se registró el {r["ultimo_preop"]:%d/%m/%Y %H:%M}.'),
-                "texto": f"Motocicleta {r['placa']}{en_cliente} sin pre-operacional hace {int(h)}h",
-                "accion": "Ver último pre-operacional",
-                "ruta_navegacion": ruta,
+                "texto": texto,
+                "motivo": motivo,
+                "hallazgo_titulo": texto,
+                "accion": "Ver inspección",
+                "ruta_navegacion": f"/dashboard/motocicletas/?id={r['id']}",
                 "record_id": r["id"],
                 "form_type": "planilla_motocicletas",
-                "color_semaforo": "amarillo",
+                "color_semaforo": "naranja",
                 "timestamp": r["ultimo_preop"].isoformat() if r["ultimo_preop"] else None,
-                "horas": round(h, 1),
+                "horas": None,
+                "placa": r['placa'],
+                "no_apto": True,
             })
 
         # ── REGLA 7: Checklist SST / cumplimiento vencido ─────────────────────
@@ -2837,7 +2819,7 @@ def cgeo_api_alertas():
             regla = a.get("regla")
             if color == "rojo" or regla == 19:
                 return 1
-            if regla in (5, 6, 7, 11, 12, 13, 16) or a.get("backup"):
+            if regla in (5, 7, 11, 13, 16) or a.get("backup"):
                 return 3
             return 2
 
@@ -2854,7 +2836,7 @@ def cgeo_api_alertas():
                 return 0
             if regla in (19, 17, 14):
                 return 1
-            if regla in (1, 3, 5, 18, 8):
+            if regla in (1, 3, 5, 6, 12, 18, 8):
                 return 2
             return 3
 

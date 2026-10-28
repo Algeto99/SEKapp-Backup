@@ -536,7 +536,21 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             </svg>
         </div>
 
-        <!-- ══ ELEMENTO: CLIENTES EN RIESGO ══ -->
+        <!-- ══ SECCIÓN 3: ATENCIÓN Y RADAR OPERATIVO (ACCIÓN PRIMERO) ══ -->
+        <div class="section-title-row">
+            <div class="section-title">Atención y Radar Operativo Hoy</div>
+            <button id="btnBriefingPdf" onclick="downloadBriefingPdf()" class="section-link" style="background:none;border:none;cursor:pointer;padding:0">Descargar PDF ejecutivo ↓</button>
+        </div>
+        <div id="alertasContainer">
+            <!-- skeleton -->
+            <div class="alertas-list" id="alertasSkeleton">
+                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
+                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
+                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
+            </div>
+        </div>
+
+        <!-- ══ SECCIÓN 4: DIAGNÓSTICO Y SALUD DEL SERVICIO ══ -->
         <!-- Un solo renglón: el conteo y los tres de menor calificación. La lista
              completa se abre al tocarlo, para que el briefing siga siendo un
              resumen y no una copia del listado de Gestión. -->
@@ -552,7 +566,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             </button>
         </div>
 
-        <!-- ══ SECCIÓN 3: KPIs 2×2 ══ -->
+        <!-- ══ KPIs DE OPERACIÓN (2×2) ══ -->
         <div class="kpi-grid" id="kpiGrid">
             <!-- Skeleton cards -->
             <div class="kpi-card kpi-border-gray" id="skKpi0">
@@ -584,20 +598,6 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <div class="kpi-card-header"><div class="skeleton" style="width:40px;height:40px;border-radius:.625rem"></div><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div></div>
                 <div class="skeleton sk-val"></div>
                 <div class="skeleton sk-line" style="width:60%;margin-top:.5rem"></div>
-            </div>
-        </div>
-
-        <!-- ══ SECCIÓN 4: ALERTAS ══ -->
-        <div class="section-title-row">
-            <div class="section-title">Atención y Radar Operativo Hoy</div>
-            <button id="btnBriefingPdf" onclick="downloadBriefingPdf()" class="section-link" style="background:none;border:none;cursor:pointer;padding:0">Descargar PDF ejecutivo ↓</button>
-        </div>
-        <div id="alertasContainer">
-            <!-- skeleton -->
-            <div class="alertas-list" id="alertasSkeleton">
-                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
-                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
-                <div class="alerta-item"><div class="skeleton" style="width:10px;height:10px;border-radius:50%"></div><div class="skeleton sk-full" style="flex:1"></div></div>
             </div>
         </div>
 
@@ -1268,8 +1268,8 @@ const _SG_GRUPOS = [
     { key: 'checklist_cumplimiento',        titulo: 'Certificaciones vencidas o próximas a vencer' },
     { key: 'registro_y_acta_de_visita',    titulo: 'Compromisos de visitas a clientes' },
     { key: 'confiabilidad_equipos',        titulo: 'Equipos pendientes de inspección' },
-    { key: 'planilla_vehicular',           titulo: 'Vehículos sin pre-operacional' },
-    { key: 'planilla_motocicletas',        titulo: 'Motocicletas sin pre-operacional' },
+    { key: 'planilla_vehicular',           titulo: 'Vehículos no aptos / con falla mecánica' },
+    { key: 'planilla_motocicletas',        titulo: 'Motocicletas no aptas / con falla mecánica' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
     { key: '__backup__',                   titulo: '💾 Backup de información' },
     { key: '__otros__',                    titulo: 'Otras alertas operativas' },
@@ -1668,7 +1668,7 @@ function renderAlertas(alertas) {
 
     // Clasificación en los 3 Niveles Operativos
     const crisis = alertas.filter(a => a.nivel === 1 || a.color_semaforo === 'rojo' || a.regla === 19);
-    const rutina = alertas.filter(a => a.nivel === 3 || [5, 6, 7, 11, 12, 13, 16].includes(a.regla) || a.backup);
+    const rutina = alertas.filter(a => a.nivel === 3 || [5, 7, 11, 13, 16].includes(a.regla) || a.backup);
     const preventivas = alertas.filter(a => !crisis.includes(a) && !rutina.includes(a));
 
     let html = '';
@@ -1733,7 +1733,7 @@ function renderAlertas(alertas) {
         <div class="mb-tier-card mb-tier-rutina">
             <button type="button" class="mb-rutina-btn-toggle" onclick="toggleRutinaExpanded()">
                 <span class="mb-rutina-title">
-                    <span>📋</span> SEGUIMIENTO DE TURNO — ${rutina.length} tarea${rutina.length !== 1 ? 's' : ''} cíclica${rutina.length !== 1 ? 's' : ''} (motos, pre-operacionales, checklists)
+                    <span>📋</span> SEGUIMIENTO DE TURNO — ${rutina.length} tarea${rutina.length !== 1 ? 's' : ''} cíclica${rutina.length !== 1 ? 's' : ''} (checklists SST, revisiones periódicas)
                 </span>
                 <span class="mb-rutina-arrow" id="mbRutinaArrow">${_rutinaExpanded ? '▲ Ocultar tareas' : '▼ Ver tareas'}</span>
             </button>
