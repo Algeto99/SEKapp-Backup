@@ -815,10 +815,30 @@
             loadData(buildQS(e.detail));
         });
 
-        loadData(buildQS(filters.getState()));
+        await loadData(buildQS(filters.getState()));
 
-        const _deepId = new URLSearchParams(window.location.search).get('id');
-        if (_deepId) recordViewer.openRecord(_deepId);
+        const urlParams = new URLSearchParams(window.location.search);
+        const _deepId = urlParams.get('id');
+        const _urlTipo = urlParams.get('tipo');
+        const _urlEstado = urlParams.get('estado');
+
+        if (_deepId) {
+            recordViewer.openRecord(_deepId);
+        } else if (_urlEstado) {
+            openRecordsModal(allRecordRows.filter(r => r.pct_general !== null && r.pct_general < 85), 'Equipos Fuera de Servicio / Con Falla');
+        } else if (_urlTipo) {
+            const cTable = document.getElementById('consolidadoBody');
+            if (cTable) {
+                const targetRow = Array.from(cTable.querySelectorAll('tr')).find(tr =>
+                    tr.children[0]?.textContent.toLowerCase().includes(_urlTipo.toLowerCase())
+                );
+                if (targetRow) {
+                    targetRow.style.transition = 'background-color 0.4s ease';
+                    targetRow.style.backgroundColor = 'rgba(59, 130, 246, 0.25)';
+                    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

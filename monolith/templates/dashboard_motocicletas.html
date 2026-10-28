@@ -758,7 +758,17 @@
             loadData(buildQS(e.detail));
         });
 
-        loadData(buildQS(filters.getState()));
+        const urlParams = new URLSearchParams(window.location.search);
+        const _deepId = urlParams.get('id');
+        const urlPlaca = urlParams.get('placa');
+
+        await loadData(buildQS(filters.getState()));
+
+        if (_deepId) {
+            recordViewer.openRecord(_deepId);
+        } else if (urlPlaca) {
+            showPlacaInspecciones(urlPlaca);
+        }
     });
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>

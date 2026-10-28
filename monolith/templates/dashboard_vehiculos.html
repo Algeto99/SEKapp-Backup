@@ -781,10 +781,13 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const urlPlaca = urlParams.get('placa');
+        const _deepId = urlParams.get('id');
 
         await loadData(buildQS(filters.getState()));
 
-        if (urlPlaca) {
+        if (_deepId) {
+            recordViewer.openRecord(_deepId);
+        } else if (urlPlaca) {
             showPlacaInspecciones(urlPlaca);
         }
     });

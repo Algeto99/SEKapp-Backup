@@ -572,6 +572,10 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
     <div class="spinner"></div>
 </div>
 
+{# Visor de registros y asignación de hallazgos compartidos #}
+<script src="{{ url_for('static', filename='js/dashboard-record-viewer.js') }}"></script>
+<script src="{{ url_for('static', filename='js/agendar-visita.js') }}"></script>
+
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
 let charts = {};
@@ -614,6 +618,59 @@ function navigateRecursos(url) {
     window.location.href = url;
 }
 
+// ── Visor de registros y asignaciones in situ ───────────────────────────────
+const _recursosViewers = {};
+function _getRecursosViewer(formType) {
+    if (typeof createDashboardRecordViewer === 'undefined') return null;
+    if (!_recursosViewers[formType]) {
+        const titles = {
+            'checklist_cumplimiento':     'Detalle de Cumplimiento',
+            'confiabilidad_equipos':       'Detalle de Confiabilidad de Equipos',
+            'planilla_vehicular':          'Detalle de Pre-operacional de Vehículo',
+            'planilla_motocicletas':       'Detalle de Pre-operacional de Motocicleta',
+            'reporte_incidente':          'Reporte de Incidente',
+            'registro_y_acta_de_visita':   'Detalle de Visita y Compromisos',
+        };
+        _recursosViewers[formType] = createDashboardRecordViewer({
+            formType,
+            recordTitle: titles[formType] || 'Detalle del Registro',
+        });
+    }
+    return _recursosViewers[formType];
+}
+
+function abrirAlertaRecursos(a, event) {
+    if (event) event.preventDefault();
+    if (!a) return;
+    if (a.record_id && a.form_type) {
+        const viewer = _getRecursosViewer(a.form_type);
+        if (viewer) {
+            viewer.openRecord(a.record_id, {
+                motivo: a.motivo || a.texto || `${a.tipo || 'Recurso'}: ${a.elemento || ''}`,
+                hallazgoRef: a.id || a.record_id || '',
+                hallazgoTitulo: a.hallazgo_titulo || `${a.tipo || 'Recurso'}: ${a.elemento || ''}`
+            });
+            return;
+        }
+    }
+    if (a.ruta_navegacion) {
+        window.location.href = a.ruta_navegacion;
+    }
+}
+
+function abrirAlertaSemaforoRecursosIdx(idx, event) {
+    if (event) event.stopPropagation();
+    const a = currentData?.alertas?.listado?.[idx];
+    if (a) abrirAlertaRecursos(a, event);
+}
+
+function abrirAlertaFilaRecursos(idx, event) {
+    if (event && (event.metaKey || event.ctrlKey || event.button === 1)) return;
+    if (event) event.preventDefault();
+    const a = currentData?.alertas?.listado?.[idx];
+    if (a) abrirAlertaRecursos(a, event);
+}
+
 function abrirDetalleSemaforoRecursos() {
     if (!currentData) return;
     const d = currentData;
@@ -649,13 +706,15 @@ function abrirDetalleSemaforoRecursos() {
         <div class="sg-detail-section">
             <div class="sg-detail-heading">🚨 NOVEDADES Y ELEMENTOS QUE REQUIEREN GESTIÓN (${alertas.length})</div>
             <div class="sg-detail-list">
-                ${alertas.slice(0, 8).map(a => `
+                ${alertas.slice(0, 8).map((a, i) => `
                     <div class="sg-item-row">
                         <div style="flex:1;min-width:0">
                             <div style="font-size:.8125rem;font-weight:600;color:#0f172a">${_escHtml(a.tipo)}: ${_escHtml(a.elemento)}</div>
                             <div style="font-size:.72rem;color:#64748b">${_escHtml(a.cliente || '—')} · Estado: ${_escHtml(a.estado)} ${a.vencimiento ? `· Vence: ${a.vencimiento}` : ''}</div>
                         </div>
-                        ${a.ruta_navegacion ? `<a href="${_escHtml(a.ruta_navegacion)}" class="sg-btn-accion">Ver detalle →</a>` : ''}
+                        ${a.record_id && a.form_type
+                            ? `<button type="button" class="sg-btn-accion" onclick="abrirAlertaSemaforoRecursosIdx(${i}, event)">Ver y asignar →</button>`
+                            : (a.ruta_navegacion ? `<a href="${_escHtml(a.ruta_navegacion)}" class="sg-btn-accion">Ver detalle →</a>` : '')}
                     </div>`).join('')}
             </div>
         </div>` : '';
@@ -1052,13 +1111,13 @@ function renderData(d) {
     if (!a.listado || a.listado.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem">No hay alertas activas para el período seleccionado.</td></tr>';
     } else {
-        tbody.innerHTML = a.listado.map(item => {
+        tbody.innerHTML = a.listado.map((item, idx) => {
             const estClass = (item.estado === 'Vencida' || item.estado === 'Fuera de servicio') ? 'badge-red' : (item.estado === 'No apto' || item.estado === 'No apta') ? 'badge-orange' : 'badge-gray';
             const diasTxt = item.dias_restantes !== null
                 ? `<span class="${item.dias_restantes < 0 ? 'dias-neg' : 'dias-pos'}">${item.dias_restantes}</span>`
                 : '—';
             const href = item.ruta_navegacion || '';
-            return `<tr${href ? ` data-href="${href}" onclick="navigateRecursos('${href}')" title="Ver ${item.tipo} en dashboard especialista"` : ''}>
+            return `<tr${href ? ` data-href="${href}" onclick="abrirAlertaFilaRecursos(${idx}, event)" title="Ver ${item.tipo} y asignar hallazgo"` : ''}>
                 <td>${item.tipo}</td>
                 <td style="font-weight:600">${item.elemento || '—'}</td>
                 <td>${item.cliente || '—'}</td>
