@@ -1030,7 +1030,7 @@ function abrirModalKpiIncidentes() {
                     </div>
                 </div>
                 <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('reporte_incidente', ${inc.id}, 'Incidente abierto (${inc.horas}h)', '${_esc(inc.tipo)} en ${_esc(inc.cliente)}')">
-                    👤 Gestionar ↗
+                    👤 Asignar Responsable ↗
                 </button>
             </div>`;
         }).join('')
@@ -1042,9 +1042,9 @@ function abrirModalKpiIncidentes() {
 function abrirModalKpiEquipos() {
     const items = _kpis.eq_fallas || [];
     const totalFallados = _kpis.eq_no_op || 0;
-    const titulo = `🧰 Confiabilidad y Fallas de Equipos`;
+    const titulo = `🧰 Confiabilidad de Equipos`;
     const subtitulo = totalFallados > 0
-        ? `${totalFallados} equipo${totalFallados !== 1 ? 's' : ''} con novedad o falla operativa en puestos — asigna taller o reemplazo:`
+        ? `${totalFallados} equipo${totalFallados !== 1 ? 's' : ''} con novedad o falla operativa en puestos — asigna un responsable para su gestión:`
         : 'Todos los equipos reportados en puestos se encuentran 100% operativos.';
 
     const contenido = items.length
@@ -1058,7 +1058,7 @@ function abrirModalKpiEquipos() {
                     </div>
                 </div>
                 <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('confiabilidad_equipos', ${eq.id}, '${_esc(eq.novedad)}', 'Falla de ${eq.tipo} en ${_esc(eq.cliente)}')">
-                    👤 Asignar Taller / Reemplazo ↗
+                    👤 Asignar Responsable ↗
                 </button>
             </div>
         `).join('')
@@ -1099,7 +1099,7 @@ function abrirModalKpiCompromisos() {
     const porVencer = _kpis.comp_por_vencer || 0;
     const titulo = `🤝 Compromisos con Clientes (Actas de Visita)`;
     const subtitulo = items.length
-        ? `${vencidos} vencido${vencidos !== 1 ? 's' : ''} · ${porVencer} por vencer — gestiona el cumplimiento de minutas:`
+        ? `${vencidos} vencido${vencidos !== 1 ? 's' : ''} · ${porVencer} por vencer — asigna un responsable para su gestión:`
         : 'Sin compromisos vencidos ni pendientes próximos a vencer con clientes.';
 
     const contenido = items.length
@@ -1117,7 +1117,7 @@ function abrirModalKpiCompromisos() {
                     </div>
                 </div>
                 <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('registro_y_acta_de_visita', ${c.id}, 'Compromiso ${c.estado}: ${_esc(c.acuerdo)}', 'Compromiso con ${_esc(c.cliente)}')">
-                    👤 Gestionar ↗
+                    👤 Asignar Responsable ↗
                 </button>
             </div>`;
         }).join('')
@@ -1131,7 +1131,7 @@ function abrirModalKpiCertificaciones() {
     const proximas = _kpis.cert_proximas || 0;
     const titulo = `📋 Cumplimiento Normativo y Certificaciones`;
     const subtitulo = proximas > 0
-        ? `${proximas} certificación${proximas !== 1 ? 'es' : ''} por vencer en los próximos 30 días — programa capacitaciones o relevos:`
+        ? `${proximas} certificación${proximas !== 1 ? 'es' : ''} por vencer en los próximos 30 días — asigna un responsable para su gestión:`
         : 'Todas las certificaciones y checklists se encuentran plenamente vigentes.';
 
     const contenido = items.length
@@ -1147,7 +1147,7 @@ function abrirModalKpiCertificaciones() {
                     </div>
                 </div>
                 <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('checklist_cumplimiento', ${c.id}, 'Certificación por vencer (${c.dias_restantes} días)', '${_esc(c.cert)} en ${_esc(c.cliente)}')">
-                    👤 Asignar Relevo ↗
+                    👤 Asignar Responsable ↗
                 </button>
             </div>`;
         }).join('')

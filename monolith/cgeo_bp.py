@@ -2331,7 +2331,7 @@ def cgeo_api_alertas():
             texto = f"Vehículo {r['placa']}{en_cliente}: reportado NO APTO en pre-operacional"
             motivo = (f'Condición mecánica no apta. El vehículo {r["placa"]}{de_cliente} fue '
                       f'clasificado como NO APTO en su última inspección pre-operacional ({fecha_txt}). '
-                      f'Requiere asignación a taller o vehículo de reemplazo antes de operar en ruta.')
+                      f'Requiere asignación a un responsable para gestionar la contingencia antes de operar en ruta.')
             alertas.append({
                 "id": f"r6_{r['placa']}",
                 "regla": 6,
@@ -2370,7 +2370,7 @@ def cgeo_api_alertas():
             texto = f"Motocicleta {r['placa']}{en_cliente}: reportada NO APTA en pre-operacional"
             motivo = (f'Condición mecánica no apta. La motocicleta {r["placa"]}{de_cliente} fue '
                       f'clasificada como NO APTA en su última inspección pre-operacional ({fecha_txt}). '
-                      f'Requiere asignación a taller o unidad de reemplazo antes de operar en ruta.')
+                      f'Requiere asignación a un responsable para gestionar la contingencia antes de operar en ruta.')
             alertas.append({
                 "id": f"r12_{r['placa']}",
                 "regla": 12,
