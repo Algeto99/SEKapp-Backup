@@ -2096,13 +2096,11 @@ function computeSemaforo(alertasData, kpis) {
         const r9 = (alertasData || []).filter(a => a.regla === 9 && a.color_semaforo === 'rojo').length;
         const asig = (alertasData || []).filter(a => a.asignacion && a.color_semaforo === 'rojo').length;
         const r17 = (alertasData || []).filter(a => a.regla === 17 && a.color_semaforo === 'rojo').length;
-        const r15 = (alertasData || []).filter(a => a.regla === 15 && a.color_semaforo === 'rojo').length;
         if (r2) causas.push(`${r2} incidente${r2 > 1 ? 's' : ''} sin atención >24h`);
         if (r1) causas.push(`${r1} puesto${r1 > 1 ? 's' : ''} sin supervisión >48h`);
         if (r9) causas.push(`${r9} compromiso${r9 > 1 ? 's' : ''} vencido${r9 > 1 ? 's' : ''}`);
         if (asig) causas.push(`${asig} asignación${asig > 1 ? 'es' : ''} vencida${asig > 1 ? 's' : ''}`);
         if (r17) causas.push(`${r17} permiso de porte vencido`);
-        if (r15) causas.push(`${r15} sesión simultánea`);
         const detalleCausa = causas.length ? ` (${causas.slice(0, 3).join(', ')})` : '';
         condiciones.push({ nivel: 'rojo', texto: `${rojas} alerta${rojas !== 1 ? 's' : ''} crítica${rojas !== 1 ? 's' : ''} activa${rojas !== 1 ? 's' : ''}${detalleCausa}` });
     }

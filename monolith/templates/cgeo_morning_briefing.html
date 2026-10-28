@@ -157,6 +157,54 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .btn-ver-todas a{font-size:.8125rem;font-weight:600;color:#3b82f6;text-decoration:none}
 .btn-ver-todas a:hover{text-decoration:underline}
 
+/* ── Estructura de 3 Niveles en Alertas ──────────────────────────────────── */
+.mb-tier-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;overflow:hidden;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+body:not(.light-mode) .mb-tier-card{background:#1e293b;border-color:#334155}
+
+/* Tier 1: Crisis */
+.mb-tier-crisis{border-left:4px solid #ef4444}
+.mb-tier-header{display:flex;align-items:center;justify-content:space-between;padding:.875rem 1.25rem;border-bottom:1px solid #f1f5f9;gap:.75rem}
+body:not(.light-mode) .mb-tier-header{border-bottom-color:#334155}
+.mb-tier-header-crisis{background:#fef2f2}
+body:not(.light-mode) .mb-tier-header-crisis{background:rgba(239,68,68,.12)}
+.mb-tier-title{font-size:.875rem;font-weight:700;display:flex;align-items:center;gap:.5rem;color:#0f172a}
+body:not(.light-mode) .mb-tier-title{color:#f1f5f9}
+.mb-tier-title-crisis{color:#991b1b}
+body:not(.light-mode) .mb-tier-title-crisis{color:#fca5a5}
+.mb-tier-badge{display:inline-flex;align-items:center;padding:.2rem .6rem;border-radius:999px;font-size:.72rem;font-weight:700}
+.mb-tier-badge-crisis{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+body:not(.light-mode) .mb-tier-badge-crisis{background:rgba(239,68,68,.25);color:#fca5a5;border-color:rgba(239,68,68,.4)}
+
+/* Crisis en Cero (Banner Verde Reasegurador) */
+.mb-crisis-cero-card{display:flex;align-items:center;gap:1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #22c55e;border-radius:.875rem;padding:.875rem 1.25rem;margin-bottom:1rem}
+body:not(.light-mode) .mb-crisis-cero-card{background:rgba(34,197,94,.08);border-color:#166534;border-left-color:#22c55e}
+.mb-crisis-cero-icon{font-size:1.4rem;line-height:1;flex-shrink:0}
+.mb-crisis-cero-body{flex:1;min-width:0}
+.mb-crisis-cero-tit{font-size:.875rem;font-weight:700;color:#15803d}
+body:not(.light-mode) .mb-crisis-cero-tit{color:#4ade80}
+.mb-crisis-cero-sub{font-size:.78rem;color:#166534;margin-top:.15rem}
+body:not(.light-mode) .mb-crisis-cero-sub{color:#86efac}
+
+/* Tier 2: Radar Preventivo */
+.mb-tier-preventivo{border-left:4px solid #f59e0b}
+.mb-tier-header-preventivo{background:#fffbeb}
+body:not(.light-mode) .mb-tier-header-preventivo{background:rgba(245,158,11,.1)}
+.mb-tier-title-preventivo{color:#92400e}
+body:not(.light-mode) .mb-tier-title-preventivo{color:#fcd34d}
+.mb-tier-badge-preventivo{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+body:not(.light-mode) .mb-tier-badge-preventivo{background:rgba(245,158,11,.2);color:#fde68a;border-color:rgba(245,158,11,.35)}
+
+/* Tier 3: Seguimiento de Turno (Colapsable y compacto) */
+.mb-tier-rutina{border-left:4px solid #94a3b8}
+.mb-rutina-btn-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:.8rem 1.25rem;background:#f8fafc;border:none;cursor:pointer;font-family:inherit;text-align:left;transition:background .15s}
+body:not(.light-mode) .mb-rutina-btn-toggle{background:#1e293b}
+.mb-rutina-btn-toggle:hover{background:#f1f5f9}
+body:not(.light-mode) .mb-rutina-btn-toggle:hover{background:#334155}
+.mb-rutina-title{font-size:.8125rem;font-weight:600;color:#475569;display:flex;align-items:center;gap:.5rem}
+body:not(.light-mode) .mb-rutina-title{color:#94a3b8}
+.mb-rutina-arrow{font-size:.75rem;font-weight:700;color:#64748b}
+body:not(.light-mode) .mb-rutina-arrow{color:#94a3b8}
+
 /* ── Sección 5 — Tendencia ───────────────────────────────────────────────── */
 .chart-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1.25rem;margin-bottom:1.5rem}
 .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
@@ -541,7 +589,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
 
         <!-- ══ SECCIÓN 4: ALERTAS ══ -->
         <div class="section-title-row">
-            <div class="section-title">Requiere atención hoy</div>
+            <div class="section-title">Atención y Radar Operativo Hoy</div>
             <button id="btnBriefingPdf" onclick="downloadBriefingPdf()" class="section-link" style="background:none;border:none;cursor:pointer;padding:0">Descargar PDF ejecutivo ↓</button>
         </div>
         <div id="alertasContainer">
@@ -1223,7 +1271,6 @@ const _SG_GRUPOS = [
     { key: 'planilla_vehicular',           titulo: 'Vehículos sin pre-operacional' },
     { key: 'planilla_motocicletas',        titulo: 'Motocicletas sin pre-operacional' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
-    { key: 'alerta_seguridad',             titulo: '🔐 Seguridad de acceso' },
     { key: '__backup__',                   titulo: '💾 Backup de información' },
     { key: '__otros__',                    titulo: 'Otras alertas operativas' },
 ];
@@ -1251,13 +1298,12 @@ function _asignadoRowHtml(a) {
     return `<div class="sg-asig-row" data-asignacion="${a.asignacion_id}">
         ${_alertaItemHtml(a)}
         <button class="btn-gestionar" onclick="gestionarAsignacion(${a.asignacion_id}, this)"
-                title="Marcar como gestionado y quitarlo de pendientes">✓ Gestionar</button>
+                title="Marcar como gestionado y archivar en historial">✓ Gestionar</button>
     </div>`;
 }
 
 async function gestionarAsignacion(asignacionId, btn) {
-    if (!confirm('¿Marcar este hallazgo como gestionado? Dejará de aparecer como pendiente, ' +
-                 'pero queda registrado en su trazabilidad.')) return;
+    if (!confirm('¿Marcar este hallazgo como gestionado? Se guardará en su historial y saldrá de la lista de pendientes.')) return;
     btn.disabled = true;
     btn.textContent = 'Guardando…';
     try {
@@ -1272,10 +1318,41 @@ async function gestionarAsignacion(asignacionId, btn) {
 
         // Fuera de la lista local para que el semáforo se recalcule sin recargar.
         _alertasData = _alertasData.filter(a => a.asignacion_id !== asignacionId);
-        const fila = document.querySelector(`.sg-asig-row[data-asignacion="${asignacionId}"]`);
-        if (fila) fila.remove();
         renderSemaforo(_alertasData, _kpis);
         renderAlertas(_alertasData);
+
+        // Feedback visual inmediato: el ítem no desaparece bruscamente, sino que
+        // se transforma en estado gestionado confirmado para dar certeza de dónde quedó.
+        const fila = document.querySelector(`.sg-asig-row[data-asignacion="${asignacionId}"]`);
+        if (fila) {
+            fila.style.transition = 'all 0.3s ease';
+            fila.style.background = 'rgba(34, 197, 94, 0.12)';
+            fila.style.borderLeft = '3px solid #22c55e';
+            const alertaLink = fila.querySelector('.alerta-item');
+            if (alertaLink) {
+                alertaLink.style.opacity = '0.85';
+            }
+            btn.outerHTML = `<div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:center;padding:0 .75rem;flex-shrink:0;">
+                <span style="display:inline-flex;align-items:center;gap:.25rem;padding:.2rem .55rem;background:#15803d;color:#fff;border-radius:999px;font-size:.72rem;font-weight:700;">
+                    ✓ Gestionado
+                </span>
+                <span style="font-size:.68rem;color:#16a34a;margin-top:.2rem;font-weight:600;">
+                    Archivado en historial
+                </span>
+            </div>`;
+
+            // Actualizar contador del encabezado
+            const heading = document.getElementById('sgAsigHeading');
+            if (heading) {
+                const restAsig = _alertasData.filter(a => a.asignacion);
+                const venc = restAsig.filter(a => a.vencida).length;
+                heading.innerHTML = `📌 HALLAZGOS ASIGNADOS${
+                    restAsig.length
+                        ? ` <span style="font-weight:600;text-transform:none;letter-spacing:0">— ${restAsig.length} pendiente${restAsig.length !== 1 ? 's' : ''}${venc ? `, ${venc} vencido${venc !== 1 ? 's' : ''}` : ''}</span>`
+                        : ' <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#16a34a;">— Todos gestionados ✓</span>'
+                }`;
+            }
+        }
     } catch (err) {
         btn.disabled = false;
         btn.textContent = '✓ Gestionar';
@@ -1306,12 +1383,17 @@ async function abrirDetalleSemaforo() {
 
     const vencidos = asignados.filter(a => a.vencida).length;
     const asignadosHtml = `<div class="sg-asignados">
-        <div class="sg-detail-heading">📌 HALLAZGOS ASIGNADOS${
+        <div class="sg-detail-heading" id="sgAsigHeading">📌 HALLAZGOS ASIGNADOS${
             asignados.length ? ` <span style="font-weight:600;text-transform:none;letter-spacing:0">— ${asignados.length} pendiente${asignados.length !== 1 ? 's' : ''}${vencidos ? `, ${vencidos} vencido${vencidos !== 1 ? 's' : ''}` : ''}</span>` : ''
         }</div>
         ${asignados.length
             ? `<div class="sg-detail-list">${asignados.map(_asignadoRowHtml).join('')}</div>`
             : `<div class="sg-detail-empty">Sin hallazgos asignados pendientes de gestión.</div>`}
+        <div style="padding:.4rem 0 .2rem;text-align:right;">
+            <a href="/cgeo/hallazgos" target="_blank" style="font-size:.75rem;font-weight:600;color:#38bdf8;text-decoration:none;">
+                📁 Consultar historial de hallazgos gestionados →
+            </a>
+        </div>
     </div>`;
 
     const gruposHtml = asignadosHtml + _SG_GRUPOS.map(g => _sgGrupoHtml(g.titulo, porTipo[g.key])).join('');
@@ -1560,52 +1642,108 @@ function _alertaItemHtml(a) {
     </a>`;
 }
 
-function toggleAlertasExpanded() {
-    _alertasExpanded = !_alertasExpanded;
-    renderAlertas(_alertasData);
+let _rutinaExpanded = false;
+
+function toggleRutinaExpanded() {
+    _rutinaExpanded = !_rutinaExpanded;
+    const el = document.getElementById('mbRutinaList');
+    const arrow = document.getElementById('mbRutinaArrow');
+    if (el) el.style.display = _rutinaExpanded ? 'block' : 'none';
+    if (arrow) arrow.textContent = _rutinaExpanded ? '▲ Ocultar tareas' : '▼ Ver tareas';
 }
 
 function renderAlertas(alertas) {
     _alertaRegistry.length = 0;
     const cont = document.getElementById('alertasContainer');
 
-    if (!alertas.length) {
+    if (!alertas || !alertas.length) {
         cont.innerHTML = `
             <div class="alertas-empty">
                 <div class="alertas-empty-icon">✅</div>
                 <div class="alertas-empty-text">Operación sin pendientes críticos</div>
-                <div class="alertas-empty-sub">Ninguna alerta activa en este momento</div>
+                <div class="alertas-empty-sub">Ninguna alerta activa en este momento · Operación bajo control</div>
             </div>`;
         return;
     }
 
-    const visibles = _alertasExpanded ? alertas : alertas.slice(0, MAX_ALERTAS);
-    const ocultas  = alertas.length - MAX_ALERTAS;
+    // Clasificación en los 3 Niveles Operativos
+    const crisis = alertas.filter(a => a.nivel === 1 || a.color_semaforo === 'rojo' || a.regla === 19);
+    const rutina = alertas.filter(a => a.nivel === 3 || [5, 6, 7, 11, 12, 13, 16].includes(a.regla) || a.backup);
+    const preventivas = alertas.filter(a => !crisis.includes(a) && !rutina.includes(a));
 
-    const itemsHtml = visibles.map(_alertaItemHtml).join('');
+    let html = '';
 
-    let footerHtml = '';
-    if (ocultas > 0 && !_alertasExpanded) {
-        footerHtml = `<button onclick="toggleAlertasExpanded()"
-            style="width:100%;padding:.625rem 1rem;font-size:.8rem;font-weight:600;
-                   color:#3b82f6;background:none;border:none;border-top:1px solid #f1f5f9;
-                   cursor:pointer;text-align:center;transition:background .15s;"
-            onmouseover="this.style.background='#eff6ff'"
-            onmouseout="this.style.background='none'">
-            Ver ${ocultas} alerta${ocultas !== 1 ? 's' : ''} más ↓
-        </button>`;
-    } else if (_alertasExpanded && alertas.length > MAX_ALERTAS) {
-        footerHtml = `<button onclick="toggleAlertasExpanded()"
-            style="width:100%;padding:.625rem 1rem;font-size:.8rem;font-weight:600;
-                   color:#64748b;background:none;border:none;border-top:1px solid #f1f5f9;
-                   cursor:pointer;text-align:center;transition:background .15s;"
-            onmouseover="this.style.background='#f8fafc'"
-            onmouseout="this.style.background='none'">
-            Ver menos ↑
-        </button>`;
+    // ── NIVEL 1: SALA DE CRISIS (Acción Inmediata) ───────────────────────────
+    if (crisis.length > 0) {
+        html += `
+        <div class="mb-tier-card mb-tier-crisis">
+            <div class="mb-tier-header mb-tier-header-crisis">
+                <div class="mb-tier-title mb-tier-title-crisis">
+                    <span>🚨</span> SALA DE CRISIS — Acción Inmediata
+                </div>
+                <span class="mb-tier-badge mb-tier-badge-crisis">${crisis.length} crítica${crisis.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="alertas-list">
+                ${crisis.map(_alertaItemHtml).join('')}
+            </div>
+        </div>`;
+    } else {
+        html += `
+        <div class="mb-crisis-cero-card">
+            <div class="mb-crisis-cero-icon">🟢</div>
+            <div class="mb-crisis-cero-body">
+                <div class="mb-crisis-cero-tit">Sala de Crisis: 0 emergencias activas</div>
+                <div class="mb-crisis-cero-sub">Sin puestos caídos, armas vencidas ni incidentes desatendidos · Operación bajo control.</div>
+            </div>
+        </div>`;
     }
 
-    cont.innerHTML = `<div class="alertas-list">${itemsHtml}${footerHtml}</div>`;
+    // ── NIVEL 2: RADAR PREVENTIVO (Gestión para hoy) ─────────────────────────
+    if (preventivas.length > 0) {
+        html += `
+        <div class="mb-tier-card mb-tier-preventivo">
+            <div class="mb-tier-header mb-tier-header-preventivo">
+                <div class="mb-tier-title mb-tier-title-preventivo">
+                    <span>🛡️</span> RADAR PREVENTIVO — Gestión para hoy
+                </div>
+                <span class="mb-tier-badge mb-tier-badge-preventivo">${preventivas.length} por atender</span>
+            </div>
+            <div class="alertas-list">
+                ${preventivas.map(_alertaItemHtml).join('')}
+            </div>
+        </div>`;
+    } else {
+        html += `
+        <div class="mb-tier-card mb-tier-preventivo">
+            <div class="mb-tier-header mb-tier-header-preventivo">
+                <div class="mb-tier-title mb-tier-title-preventivo">
+                    <span>🛡️</span> RADAR PREVENTIVO — Gestión para hoy
+                </div>
+                <span class="mb-tier-badge mb-tier-badge-preventivo">0 pendientes</span>
+            </div>
+            <div style="padding:.875rem 1.25rem;font-size:.8rem;color:#64748b;">
+                Sin alertas preventivas pendientes de gestión hoy.
+            </div>
+        </div>`;
+    }
+
+    // ── NIVEL 3: SEGUIMIENTO DE TURNO (Rutina cíclica) ────────────────────────
+    if (rutina.length > 0) {
+        html += `
+        <div class="mb-tier-card mb-tier-rutina">
+            <button type="button" class="mb-rutina-btn-toggle" onclick="toggleRutinaExpanded()">
+                <span class="mb-rutina-title">
+                    <span>📋</span> SEGUIMIENTO DE TURNO — ${rutina.length} tarea${rutina.length !== 1 ? 's' : ''} cíclica${rutina.length !== 1 ? 's' : ''} (motos, pre-operacionales, checklists)
+                </span>
+                <span class="mb-rutina-arrow" id="mbRutinaArrow">${_rutinaExpanded ? '▲ Ocultar tareas' : '▼ Ver tareas'}</span>
+            </button>
+            <div class="alertas-list" id="mbRutinaList" style="${_rutinaExpanded ? '' : 'display:none;'}">
+                ${rutina.map(_alertaItemHtml).join('')}
+            </div>
+        </div>`;
+    }
+
+    cont.innerHTML = html;
 }
 
 // ── Tendencia chart ───────────────────────────────────────────────────────────

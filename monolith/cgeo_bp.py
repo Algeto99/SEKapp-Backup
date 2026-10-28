@@ -2828,28 +2828,29 @@ def cgeo_api_alertas():
             # Una asignación ilegible no puede dejar sin alertas al briefing.
             app_logger.warning(f"cgeo_api_alertas: asignaciones pendientes omitidas: {asig_err}")
 
-        # ── REGLA 15: Sesiones simultáneas (seguridad de acceso) ─────────────
-        # No nace de un registro operativo sino del login: login_bp deja una
-        # fila en alertas_seguridad cuando dos sesiones usan el mismo usuario.
-        # Se omite en modo público: quien mira Operación por QR no debe ver
-        # correos de usuarios de la empresa.
-        if _alcance_publico() is None:
-            try:
-                with _Savepoint(cur, 'alertas_seguridad'):
-                    alertas.extend(_alertas_seguridad_pendientes(cur))
-            except Exception as seg_err:
-                app_logger.warning(f"cgeo_api_alertas: alertas de seguridad omitidas: {seg_err}")
+        # ── Clasificar en 3 Niveles Operativos ────────────────────────────────
+        # Nivel 1: Sala de Crisis (Acción inmediata / Impacto crítico)
+        # Nivel 2: Radar Preventivo (Gestión anticipada para hoy)
+        # Nivel 3: Seguimiento de Turno (Rutina de supervisión / tareas cíclicas)
+        def _clasificar_nivel(a):
+            color = a.get("color_semaforo")
+            regla = a.get("regla")
+            if color == "rojo" or regla == 19:
+                return 1
+            if regla in (5, 6, 7, 11, 12, 13, 16) or a.get("backup"):
+                return 3
+            return 2
 
-        # ── Ordenar: ROJO, luego NARANJA (Prioritaria), luego AMARILLO; ──────
-        # dentro de cada color se prioriza primero por criticidad operativa de la
-        # regla (para que incidentes abiertos, seguridad, faltas graves o clientes
-        # en riesgo no queden ocultos detrás de alertas rutinarias antiguas en el
-        # Top 5 del Morning Briefing) y luego por timestamp ascendente.
+        for a in alertas:
+            a["nivel"] = _clasificar_nivel(a)
+
+        # ── Ordenar: Nivel (Crisis -> Preventivo -> Rutina), luego Color, ─────
+        # luego criticidad operativa y timestamp ascendente.
         prioridad = {"rojo": 0, "naranja": 1, "amarillo": 2, "verde": 3}
 
         def _prioridad_operativa(a):
             regla = a.get("regla")
-            if regla in (2, 15) or a.get("seguridad") or a.get("asignacion"):
+            if regla == 2 or a.get("asignacion"):
                 return 0
             if regla in (19, 17, 14):
                 return 1
@@ -2857,12 +2858,13 @@ def cgeo_api_alertas():
                 return 2
             return 3
 
-        # Coordinador: el backup y la seguridad de acceso no son de su ámbito.
+        # Coordinador: el backup no es de su ámbito.
         if ambito is not None:
             alertas = [a for a in alertas
-                       if a.get("regla") not in (13, 15) and not a.get("backup") and not a.get("seguridad")]
+                       if a.get("regla") != 13 and not a.get("backup")]
 
         alertas.sort(key=lambda a: (
+            a.get("nivel", 2),
             prioridad.get(a["color_semaforo"], 9),
             _prioridad_operativa(a),
             a["timestamp"] or "9999",
@@ -2875,6 +2877,9 @@ def cgeo_api_alertas():
             "naranjas": sum(1 for a in alertas if a["color_semaforo"] == "naranja"),
             "amarillas": sum(1 for a in alertas if a["color_semaforo"] == "amarillo"),
             "asignaciones": sum(1 for a in alertas if a.get("asignacion")),
+            "crisis": sum(1 for a in alertas if a.get("nivel") == 1),
+            "preventivas": sum(1 for a in alertas if a.get("nivel") == 2),
+            "rutina": sum(1 for a in alertas if a.get("nivel") == 3),
             "timestamp": hoy_operacion().isoformat(),
         })
 
