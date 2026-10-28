@@ -1042,6 +1042,32 @@ function _abrirDetalleKpiItem(formType, recordId, motivo, titulo) {
     });
 }
 
+function agendarRondaSupervision(clienteNombre, pendientes) {
+    document.querySelectorAll('.sg-modal-overlay').forEach(m => m.remove());
+    if (window.AgendarVisita) {
+        window.AgendarVisita.abrir({
+            clienteNombre: clienteNombre || '',
+            motivo: 'Auditoría de seguridad',
+            contexto: `Ronda de supervisión requerida para ${clienteNombre || 'instalación'}: cuenta con ${pendientes} visita${pendientes !== 1 ? 's' : ''} pendiente${pendientes !== 1 ? 's' : ''} para cumplir la cuota del período.`,
+        });
+    } else {
+        alert('El módulo de agendamiento no está disponible en este momento.');
+    }
+}
+
+function agendarVisitaGerencial(clienteNombre, motivo, contexto) {
+    document.querySelectorAll('.sg-modal-overlay').forEach(m => m.remove());
+    if (window.AgendarVisita) {
+        window.AgendarVisita.abrir({
+            clienteNombre: clienteNombre || '',
+            motivo: motivo || 'Seguimiento de servicio',
+            contexto: contexto || `Visita gerencial de fidelización y seguimiento. Cuota del período: ${_kpis?.visita_completadas ?? 0} de ${_kpis?.visita_programadas ?? 0} completadas.`,
+        });
+    } else {
+        alert('El módulo de agendamiento no está disponible en este momento.');
+    }
+}
+
 function abrirModalKpi(id) {
     if (!_kpis) return;
     if (id === 'kpiInc') abrirModalKpiIncidentes();
@@ -1118,24 +1144,38 @@ function abrirModalKpiSupervisiones() {
     const subtitulo = `${_kpis.sup_completadas} de ${_kpis.sup_programadas} completadas (${_kpis.sup_pct ?? 0}%) · ${_kpis.sup_pendientes} pendientes en la semana (${_kpis.sup_periodo_label || 'últimos 7 días'})`;
 
     const contenido = pendientes.length
-        ? `<div class="kpi-modal-subheading">Clientes con cuota de supervisión pendiente:</div>` +
-          pendientes.map(c => `
+        ? `<div class="kpi-modal-subheading">Clientes con cuota de supervisión pendiente — agenda una ronda o inspecciona el último reporte para asignar un responsable:</div>` +
+          pendientes.map(c => {
+            const ultimaTxt = c.last_sup_fecha
+                ? `Última ronda: <strong>${c.last_sup_fecha}</strong>${c.last_sup_supervisor ? ` · por ${_esc(c.last_sup_supervisor)}` : ''}`
+                : `<span style="color:#ef4444;font-weight:600">⚠️ Sin rondas registradas en la ventana</span>`;
+            return `
             <div class="kpi-modal-row">
                 <div class="kpi-modal-row-main">
                     <span class="kpi-modal-badge kpi-badge-amarillo">${c.pendientes} PENDIENTE${c.pendientes !== 1 ? 'S' : ''}</span>
                     <div class="kpi-modal-info">
                         <div class="kpi-modal-tit"><strong>${_esc(c.cliente)}</strong></div>
-                        <div class="kpi-modal-meta">${c.realizadas} realizadas de ${c.programadas} programadas</div>
+                        <div class="kpi-modal-meta">${c.realizadas} realizadas de ${c.programadas} programadas (${_esc(c.periodicidad || 'semanal')}) · ${ultimaTxt}</div>
                     </div>
                 </div>
-                <a href="/cgeo/operacion/?cliente=${encodeURIComponent(c.cliente)}" class="kpi-modal-btn" target="_blank">
-                    📍 Ver en Operación ↗
-                </a>
-            </div>
-        `).join('')
+                <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+                    <button type="button" class="kpi-modal-btn" style="background:#7c3aed;color:#fff" onclick="agendarRondaSupervision('${_esc(c.cliente)}', ${c.pendientes})">
+                        📅 Agendar Ronda ↗
+                    </button>
+                    ${c.last_sup_id ? `
+                    <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('supervision_puesto', ${c.last_sup_id}, 'Supervisión de puesto en ${_esc(c.cliente)}', 'Última supervisión en ${_esc(c.cliente)}')">
+                        👁️ Ver Reporte ↗
+                    </button>
+                    ` : ''}
+                    <a href="/cgeo/operacion/?cliente=${encodeURIComponent(c.cliente)}" target="_blank" style="font-size:.72rem;color:#64748b;text-decoration:none;padding:.2rem .35rem" title="Consultar mapa y bitácora en Operación">
+                        Mapa ↗
+                    </a>
+                </div>
+            </div>`;
+          }).join('')
         : `<div class="sg-detail-empty">✅ Todas las supervisiones programadas para este ciclo han sido completadas satisfactoriamente.</div>`;
 
-    _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/operacion/', 'Ir a mapa y lista de supervisiones →');
+    _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/operacion/', 'Ir a mapa general de operaciones →');
 }
 
 function abrirModalKpiCompromisos() {
@@ -1208,21 +1248,50 @@ function abrirModalKpiVisitas() {
     const titulo = `🚗 Visitas Gerenciales a Clientes`;
     const subtitulo = `${compl} visita${compl !== 1 ? 's' : ''} completada${compl !== 1 ? 's' : ''} de ${prog} programada${prog !== 1 ? 's' : ''} en el período (${_kpis.visita_periodicidad || 'mensual'}) · Meta al día: ${espHoy}`;
 
+    const clientesPrioritarios = _crClientes || [];
+    const listaPrioritarios = clientesPrioritarios.length
+        ? `<div class="kpi-modal-subheading" style="margin-top:1rem">Clientes en riesgo recomendados para visita de retención:</div>` +
+          clientesPrioritarios.slice(0, 5).map(c => `
+            <div class="kpi-modal-row">
+                <div class="kpi-modal-row-main">
+                    <span class="kpi-modal-badge ${c.color === 'rojo' ? 'kpi-badge-rojo' : 'kpi-badge-amarillo'}">${_esc(c.banda)} (${_crNota(c)})</span>
+                    <div class="kpi-modal-info">
+                        <div class="kpi-modal-tit"><strong>${_esc(c.nombre)}</strong></div>
+                        <div class="kpi-modal-meta">Prioridad alta por riesgo de servicio y fidelización</div>
+                    </div>
+                </div>
+                <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita gerencial prioritaria de retención: cliente en ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
+                    📅 Agendar Visita ↗
+                </button>
+            </div>
+          `).join('')
+        : '';
+
     const contenido = `
         <div class="sg-cond-item">
             <div class="sg-cond-dot" style="background:#3b82f6"></div>
             <div class="sg-cond-text">
-                <strong>Visitas registradas:</strong> ${compl} completadas en el ciclo actual.
+                <strong>Visitas registradas:</strong> ${compl} completadas en el ciclo actual de ${prog} programadas.
             </div>
         </div>
         <div class="sg-cond-item">
             <div class="sg-cond-dot" style="background:${compl >= espHoy ? '#22c55e' : '#f59e0b'}"></div>
             <div class="sg-cond-text">
-                <strong>Cumplimiento de meta:</strong> ${_kpis.visita_pct ?? 0}% de avance respecto a la cuota periódica.
+                <strong>Cumplimiento de meta:</strong> ${_kpis.visita_pct ?? 0}% de avance (${compl >= espHoy ? 'Al día con la meta periódica' : 'Por debajo de la cuota esperada'}).
             </div>
-        </div>`;
+        </div>
+        <div style="margin:1rem 0;padding:.85rem 1rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:.6rem;display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-wrap:wrap">
+            <div>
+                <div style="font-weight:700;font-size:.85rem;color:#1e3a8a">Agendar Visita Gerencial</div>
+                <div style="font-size:.75rem;color:#475569">Programa una visita de fidelización o seguimiento con el cliente que elijas.</div>
+            </div>
+            <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff" onclick="agendarVisitaGerencial()">
+                📅 Agendar Nueva Visita ↗
+            </button>
+        </div>
+        ${listaPrioritarios}`;
 
-    _crearModalKpi(titulo, subtitulo, contenido, '/dashboard/visitas/', 'Ir a Registro y Actas de Visita →');
+    _crearModalKpi(titulo, subtitulo, contenido, '/dashboard/visitas/', 'Consultar archivo de visitas y actas →');
 }
 
 function _crearModalKpi(titulo, subtitulo, contenidoHtml, linkModuloHref, linkModuloTexto) {
@@ -1265,19 +1334,24 @@ function _crItemHtml(c) {
     const scoreCls = c.color === 'rojo' ? 'cr-score-rojo' : 'cr-score-amarillo';
     const badgeCls = c.color === 'rojo' ? 'cr-badge-rojo' : 'cr-badge-amarillo';
     return `
-        <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
-           class="cr-item" title="Ver Estatus de ${_esc(c.nombre)}">
+        <div class="cr-item" style="cursor:default">
             <div class="cr-item-left">
                 <span class="cr-bullet">•</span>
                 <span class="cr-item-name">${_esc(c.nombre)}</span>
                 <span style="color:#94a3b8;font-weight:400">—</span>
                 <span class="cr-item-score ${scoreCls}">${_crNota(c)}</span>
-            </div>
-            <div class="cr-item-score-wrap">
                 <span class="cr-item-badge ${badgeCls}">${_esc(c.banda)}</span>
-                <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
             </div>
-        </a>
+            <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+                <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff;padding:.3rem .6rem;font-size:.75rem" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita urgente de retención: cliente en banda ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
+                    📅 Agendar Visita ↗
+                </button>
+                <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
+                   target="_blank" style="font-size:.72rem;color:#64748b;text-decoration:none;padding:.2rem .35rem" title="Ver ficha analítica en Gestión">
+                    Ficha ↗
+                </a>
+            </div>
+        </div>
     `;
 }
 
@@ -1290,17 +1364,22 @@ function _crSinItemHtml(c) {
         ? `Preliminar (${Math.round(c.nota)}) · ${ejes} de 4 ejes`
         : `${ejes} de 4 ejes`;
     return `
-        <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
-           class="cr-item cr-item-sin" title="Ver Estatus de ${_esc(c.nombre)}">
+        <div class="cr-item cr-item-sin" style="cursor:default">
             <div class="cr-item-left">
                 <span class="cr-bullet">•</span>
                 <span class="cr-item-name">${_esc(c.nombre)}</span>
-            </div>
-            <div class="cr-item-score-wrap">
                 <span class="${ejesCls}">${etiqueta}</span>
-                <span style="font-size:.72rem;color:#3b82f6;font-weight:600">Ver →</span>
             </div>
-        </a>
+            <div style="display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+                <button type="button" class="kpi-modal-btn" style="padding:.3rem .6rem;font-size:.75rem" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Seguimiento de servicio', 'Visita de diagnóstico y cobertura operativa: cliente con ${ejes} de 4 ejes evaluados.')">
+                    📅 Agendar Visita ↗
+                </button>
+                <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
+                   target="_blank" style="font-size:.72rem;color:#64748b;text-decoration:none;padding:.2rem .35rem" title="Ver ficha en Gestión">
+                    Ficha ↗
+                </a>
+            </div>
+        </div>
     `;
 }
 

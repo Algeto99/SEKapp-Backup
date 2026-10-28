@@ -3554,6 +3554,35 @@ def cgeo_api_morning_briefing_data():
         except Exception as cr_err:
             app_logger.warning(f"cgeo_api_morning_briefing_data: error calculando clientes en riesgo: {cr_err}")
 
+        # ── Enriquecer sup_por_cliente con última supervisión para acción directa ──
+        sup_por_cliente = _sup.get('por_cliente') or []
+        try:
+            with _Savepoint(cur, 'sup_por_cliente_enrich'):
+                for sc in sup_por_cliente:
+                    cid = sc.get('cliente_id')
+                    cname = sc.get('cliente')
+                    c_conds, c_params = [], []
+                    _add_scope(c_conds, c_params, cliente=str(cid) if cid is not None else cname, col_inst='cliente_instalacion')
+                    cur.execute(f"""
+                        SELECT id_supervision, fecha_hora, supervisor
+                        FROM supervision_puesto
+                        {_where(c_conds)}
+                        ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
+                        LIMIT 1
+                    """, tuple(c_params))
+                    last_row = cur.fetchone()
+                    if last_row:
+                        sc['last_sup_id'] = last_row.get('id_supervision')
+                        fh = last_row.get('fecha_hora')
+                        sc['last_sup_fecha'] = fh.strftime('%d/%m/%Y %H:%M') if hasattr(fh, 'strftime') else (str(fh)[:16] if fh else None)
+                        sc['last_sup_supervisor'] = last_row.get('supervisor') or None
+                    else:
+                        sc['last_sup_id'] = None
+                        sc['last_sup_fecha'] = None
+                        sc['last_sup_supervisor'] = None
+        except Exception as sup_enrich_err:
+            app_logger.warning(f"cgeo_api_morning_briefing_data: error enriqueciendo sup_por_cliente: {sup_enrich_err}")
+
         return jsonify({
             "kpis": {
                 "inc_abiertos":    inc_abiertos,
