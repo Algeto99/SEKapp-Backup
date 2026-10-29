@@ -343,16 +343,31 @@
         </div>
 
         <!-- Featured: Estatus de Cliente -->
-        <a href="/dashboard/gestion/" class="featured-card">
+        <a href="/dashboard/gestion/" class="featured-card" id="featuredEstatusCard">
             <div class="featured-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
             </div>
-            <div class="featured-text">
-                <h2>Estatus de Cliente</h2>
-                <p>Valoración general de la operación de un cliente — consolida los once módulos en un solo indicador con semáforo.</p>
+            <div class="featured-text" style="flex:1;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.375rem;">
+                    <h2 style="margin:0;">Estatus de Cliente</h2>
+                    <span id="featuredLiveBadge" style="display:none;font-size:0.75rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:9999px;background:rgba(255,255,255,0.2);color:#fff;letter-spacing:0.5px;">EN VIVO</span>
+                </div>
+                <p id="featuredDesc">Valoración general de la operación de un cliente — consolida los once módulos en un solo indicador con semáforo.</p>
+                <div id="featuredLiveStats" style="display:none;margin-top:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:0.875rem;flex-wrap:wrap;font-size:0.8rem;font-weight:600;color:#fff;margin-bottom:0.5rem;">
+                        <span id="statEstables" style="display:inline-flex;align-items:center;gap:0.35rem;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span> — Estables</span>
+                        <span id="statObservacion" style="display:inline-flex;align-items:center;gap:0.35rem;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> — En Seguimiento</span>
+                        <span id="statCriticos" style="display:inline-flex;align-items:center;gap:0.35rem;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span> — Críticos</span>
+                    </div>
+                    <div style="width:100%;height:6px;background:rgba(255,255,255,0.2);border-radius:9999px;overflow:hidden;display:flex;">
+                        <div id="barVerde" style="height:100%;background:#22c55e;transition:width 0.4s ease;width:0%;"></div>
+                        <div id="barAmarillo" style="height:100%;background:#f59e0b;transition:width 0.4s ease;width:0%;"></div>
+                        <div id="barRojo" style="height:100%;background:#ef4444;transition:width 0.4s ease;width:0%;"></div>
+                    </div>
+                </div>
             </div>
             <div class="featured-arrow">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:24px;height:24px;">
@@ -580,6 +595,67 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
+    <script>
+    (async function() {
+        try {
+            const resp = await fetch('/cgeo/api/morning-briefing-data', { headers: { 'Accept': 'application/json' } });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const cr = data.clientes_en_riesgo;
+            if (!cr || !cr.evaluado) return;
+
+            const totalCalificados = cr.calificados || 0;
+            if (!totalCalificados) return;
+
+            const enRiesgo = cr.clientes || [];
+            const criticos = enRiesgo.filter(c => c.color === 'rojo').length;
+            const seguimiento = enRiesgo.filter(c => c.color === 'amarillo').length;
+            const estables = Math.max(0, totalCalificados - criticos - seguimiento);
+
+            const pctVerde = Math.round((estables / totalCalificados) * 100);
+            const pctAmarillo = Math.round((seguimiento / totalCalificados) * 100);
+            const pctRojo = Math.max(0, 100 - pctVerde - pctAmarillo);
+
+            const elEstables = document.getElementById('statEstables');
+            const elObservacion = document.getElementById('statObservacion');
+            const elCriticos = document.getElementById('statCriticos');
+            const elBarV = document.getElementById('barVerde');
+            const elBarA = document.getElementById('barAmarillo');
+            const elBarR = document.getElementById('barRojo');
+            const elDesc = document.getElementById('featuredDesc');
+            const elLive = document.getElementById('featuredLiveStats');
+            const elBadge = document.getElementById('featuredLiveBadge');
+
+            if (elEstables) elEstables.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;"></span> ${estables} Estable${estables !== 1 ? 's' : ''}`;
+            if (elObservacion) elObservacion.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span> ${seguimiento} en Seguimiento`;
+            if (elCriticos) elCriticos.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span> ${criticos} Crítico${criticos !== 1 ? 's' : ''}`;
+
+            if (elBarV) elBarV.style.width = pctVerde + '%';
+            if (elBarA) elBarA.style.width = pctAmarillo + '%';
+            if (elBarR) elBarR.style.width = pctRojo + '%';
+
+            if (elDesc) elDesc.textContent = `${totalCalificados} clientes evaluados en tiempo real · ${pctVerde}% de la cartera en zona de seguridad operativa. Toca para ver el diagnóstico 360° por cliente →`;
+
+            if (elBadge) {
+                elBadge.style.display = 'inline-block';
+                if (criticos > 0) {
+                    elBadge.style.background = '#ef4444';
+                    elBadge.textContent = `⚠️ ${criticos} EN RIESGO`;
+                } else if (seguimiento > 0) {
+                    elBadge.style.background = '#f59e0b';
+                    elBadge.textContent = `⚠️ ${seguimiento} EN SEGUIMIENTO`;
+                } else {
+                    elBadge.style.background = '#22c55e';
+                    elBadge.textContent = `✓ CARTERA SALUDABLE`;
+                }
+            }
+
+            if (elLive) elLive.style.display = 'block';
+        } catch (e) {
+            // Mantiene el texto por defecto en caso de error
+        }
+    })();
+    </script>
     </div><!-- /sidebar-main-content -->
 </body>
 
