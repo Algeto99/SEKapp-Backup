@@ -580,9 +580,21 @@
             });
         });
 
-        // Auto-load the default (armas) tab after filters are ready
-        _tabLoaded.armas = true;
-        loadArmas();
+        // Auto-load tab from URL query param (e.g. ?tab=radios) or default to armas
+        const urlParams = new URLSearchParams(window.location.search);
+        const reqTab = urlParams.get('tab');
+        if (reqTab && ['armas', 'radios', 'personal'].includes(reqTab)) {
+            const targetBtn = document.querySelector(`.tab-btn[data-tab="${reqTab}"]`);
+            if (targetBtn) {
+                targetBtn.click();
+            } else {
+                _tabLoaded.armas = true;
+                loadArmas();
+            }
+        } else {
+            _tabLoaded.armas = true;
+            loadArmas();
+        }
     });
 
     // ── Helpers ──────────────────────────────────────────────────────

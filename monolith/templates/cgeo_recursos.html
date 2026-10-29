@@ -423,14 +423,14 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                     <div id="kpiConfGeneralDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiConfGeneralSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-green" id="kpiRadiosCard" data-href="/dashboard/equipos/?tipo=radio" onclick="navigateRecursos('/dashboard/equipos/?tipo=radio')" title="Abrir dashboard de Equipos (Radios)">
+                <div class="kpi-card kpi-border-green" id="kpiRadiosCard" onclick="irARadios()" style="cursor:pointer" title="Ver parque de Radios de Comunicación">
                     <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2"><rect x="5" y="8" width="14" height="13" rx="2"/><path stroke-linecap="round" d="M12 2v6"/><circle cx="12" cy="14" r="2.5"/><path stroke-linecap="round" d="M9 18h6"/></svg></span>
                     <div class="kpi-val" id="kpiRadiosOp">—</div>
                     <div class="kpi-lbl">Radios de Comunicación</div>
                     <div id="kpiRadiosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiRadiosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
-                <div class="kpi-card kpi-border-green" id="kpiArmasCard" data-href="/dashboard/equipos/?tipo=arma" onclick="navigateRecursos('/dashboard/equipos/?tipo=arma')" title="Abrir dashboard de Equipos (Armamento)">
+                <div class="kpi-card kpi-border-green" id="kpiArmasCard" onclick="irAArmas()" style="cursor:pointer" title="Ver parque de Armamento en Servicio">
                     <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg></span>
                     <div class="kpi-val" id="kpiArmasOp">—</div>
                     <div class="kpi-lbl">Armamento en Servicio</div>
@@ -474,7 +474,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                     <div class="chart-box"><canvas id="chartTendencia"></canvas></div>
                 </div>
                 <div class="chart-card">
-                    <div class="chart-title">Distribución de Radios por Estado</div>
+                    <div class="chart-title" id="titleChartRadios">Distribución de Radios</div>
                     <div style="display:flex;flex-direction:column;align-items:center;gap:.75rem;height:240px;justify-content:center">
                         <div style="position:relative;height:150px;width:150px">
                             <canvas id="chartRadios"></canvas>
@@ -483,7 +483,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                     </div>
                 </div>
                 <div class="chart-card">
-                    <div class="chart-title">Distribución de Armas por Estado</div>
+                    <div class="chart-title" id="titleChartArmas">Distribución de Armas</div>
                     <div style="display:flex;flex-direction:column;align-items:center;gap:.75rem;height:240px;justify-content:center">
                         <div style="position:relative;height:150px;width:150px">
                             <canvas id="chartArmas"></canvas>
@@ -631,6 +631,22 @@ function _escHtml(s) {
 function navigateRecursos(url) {
     if (!url) return;
     window.location.href = url;
+}
+
+function irARadios() {
+    if (window._ultimoRecursosData && window._ultimoRecursosData.radios && window._ultimoRecursosData.radios.pct != null) {
+        navigateRecursos('/dashboard/equipos/?tipo=radio');
+    } else {
+        navigateRecursos('/dashboard/bases_de_datos/?tab=radios');
+    }
+}
+
+function irAArmas() {
+    if (window._ultimoRecursosData && window._ultimoRecursosData.armas && window._ultimoRecursosData.armas.pct != null) {
+        navigateRecursos('/dashboard/equipos/?tipo=arma');
+    } else {
+        navigateRecursos('/dashboard/bases_de_datos/?tab=armas');
+    }
 }
 
 // ── Visor de registros y asignaciones in situ ───────────────────────────────
@@ -991,6 +1007,7 @@ function renderData(d) {
     ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
 
     // Cada tarjeta lee su propia fuente sin heredar totales ajenos.
+    window._ultimoRecursosData = d;
     const radios = d.radios || {};
     const armas  = d.armas  || {};
     const vehicCarros = d.vehiculos_carros || {};
@@ -999,14 +1016,16 @@ function renderData(d) {
     const inventarioKpi = (inv, unidad) => {
         if (inv.pct != null) {
             const reg = inv.registrados ?? 0;
-            const captura = reg > 0 ? ` · estado capturado para ${inv.total} de ${reg} registradas` : '';
+            const captura = reg > 0 ? ` · ${inv.total} evaluados de ${reg} registrados` : '';
             return { val: inv.pct + '%', sub: `${inv.operativos} de ${inv.total} operativos${captura}` };
         }
         if ((inv.registrados ?? 0) > 0) {
+            const conSerial = inv.registrados_con_serial;
+            const serialInfo = (conSerial !== null && conSerial !== undefined) ? ` (${conSerial} con serial)` : '';
             return { val: inv.registrados,
-                     sub: `${unidad} registradas · estado sin capturar en Confiabilidad de Equipos` };
+                     sub: `${unidad} en servicio${serialInfo} · asignadas en puesto (Supervisión)` };
         }
-        return { val: 'Sin datos', sub: '' };
+        return { val: 'Sin datos', sub: 'Sin registros en el período' };
     };
 
     // 2. Radios de Comunicación
@@ -1015,17 +1034,29 @@ function renderData(d) {
     const radReg = radios.registrados ?? 0;
     const radTot = radios.total ?? 0;
     const radKpi = inventarioKpi(radios, 'unidades');
-    const radColor = radNoOp > 0 ? (radNoOp >= 3 ? '#dc2626' : '#ea580c') : (radTot > 0 ? '#16a34a' : '#94a3b8');
+    const radColor = radNoOp > 0 ? (radNoOp >= 3 ? '#dc2626' : '#ea580c') : (radReg > 0 || radTot > 0 ? '#16a34a' : '#94a3b8');
     const radEl = document.getElementById('kpiRadiosOp');
     radEl.textContent = radKpi.val;
     radEl.style.color = radColor;
     document.getElementById('kpiRadiosCard').style.borderTopColor = radColor;
     document.getElementById('kpiRadiosDenom').textContent = radKpi.sub;
-    document.getElementById('kpiRadiosSub').innerHTML = [
-        { label: 'Operativos', val: radOp, color: '#16a34a' },
-        { label: 'Con falla', val: radNoOp, color: radNoOp > 0 ? '#dc2626' : '#16a34a' },
-        ...(radReg > radTot ? [{ label: 'Sin captura', val: radReg - radTot, color: '#64748b' }] : []),
-    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+    if (radios.pct != null) {
+        document.getElementById('kpiRadiosSub').innerHTML = [
+            { label: 'Operativos', val: radOp, color: '#16a34a' },
+            { label: 'Con falla', val: radNoOp, color: radNoOp > 0 ? '#dc2626' : '#16a34a' },
+            ...(radReg > radTot ? [{ label: 'En puesto', val: radReg, color: '#2563eb' }] : []),
+        ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+    } else if (radReg > 0) {
+        const radCon = radios.registrados_con_serial ?? radReg;
+        const radSin = radios.registrados_sin_serial ?? 0;
+        document.getElementById('kpiRadiosSub').innerHTML = [
+            { label: 'Total', val: radReg, color: '#2563eb' },
+            { label: 'Con serial', val: radCon, color: '#16a34a' },
+            ...(radSin > 0 ? [{ label: 'Sin serial', val: radSin, color: '#d97706' }] : []),
+        ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+    } else {
+        document.getElementById('kpiRadiosSub').innerHTML = '';
+    }
 
     // 3. Armamento en Servicio
     const armasOpt = armas.optimas ?? 0;
@@ -1033,16 +1064,29 @@ function renderData(d) {
     const armasReg = armas.registrados ?? 0;
     const armasTot = armas.total ?? 0;
     const armasKpi = inventarioKpi(armas, 'unidades');
-    const armasColor = armasNoApt > 0 ? '#dc2626' : (armasTot > 0 ? '#16a34a' : '#94a3b8');
+    const armasColor = armasNoApt > 0 ? '#dc2626' : (armasReg > 0 || armasTot > 0 ? '#16a34a' : '#94a3b8');
     const armasEl = document.getElementById('kpiArmasOp');
     armasEl.textContent = armasKpi.val;
     armasEl.style.color = armasColor;
     document.getElementById('kpiArmasCard').style.borderTopColor = armasColor;
     document.getElementById('kpiArmasDenom').textContent = armasKpi.sub;
-    document.getElementById('kpiArmasSub').innerHTML = [
-        { label: 'Óptimas', val: armasOpt, color: '#16a34a' },
-        { label: 'No aptas', val: armasNoApt, color: armasNoApt > 0 ? '#dc2626' : '#16a34a' },
-    ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+    if (armas.pct != null) {
+        document.getElementById('kpiArmasSub').innerHTML = [
+            { label: 'Óptimas', val: armasOpt, color: '#16a34a' },
+            { label: 'No aptas', val: armasNoApt, color: armasNoApt > 0 ? '#dc2626' : '#16a34a' },
+            ...(armasReg > armasTot ? [{ label: 'En puesto', val: armasReg, color: '#2563eb' }] : []),
+        ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+    } else if (armasReg > 0) {
+        const armasCon = armas.registrados_con_serial ?? armasReg;
+        const armasSin = armas.registrados_sin_serial ?? 0;
+        document.getElementById('kpiArmasSub').innerHTML = [
+            { label: 'Total', val: armasReg, color: '#2563eb' },
+            { label: 'Con serial', val: armasCon, color: '#16a34a' },
+            ...(armasSin > 0 ? [{ label: 'Sin serial', val: armasSin, color: '#d97706' }] : []),
+        ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
+    } else {
+        document.getElementById('kpiArmasSub').innerHTML = '';
+    }
 
     // 4. Flota Vehicular (Carros)
     const carTot = vehicCarros.total ?? 0;
@@ -1129,19 +1173,53 @@ function renderData(d) {
         tension: .4, fill: true, pointRadius: 4, pointBackgroundColor: '#3b82f6',
     }]);
 
-    // Donut Radios por Estado.
-    const radLabels = ['Operativos', 'No Operativos'];
-    const radData   = [radOp, radNoOp];
-    const radColors = ['#22c55e', '#ef4444'];
-    buildDonutCenter('chartRadios', radLabels, radData, radColors, 'Total');
-    document.getElementById('radiosLegend').innerHTML = legendHtml(radLabels, radData, radColors, radOp + radNoOp);
+    // Donut Radios por Estado / Registro en Puesto
+    const titleRadEl = document.getElementById('titleChartRadios');
+    if (radOp + radNoOp > 0) {
+        if (titleRadEl) titleRadEl.textContent = 'Distribución de Radios por Estado';
+        const radLabels = ['Operativos', 'No Operativos'];
+        const radData   = [radOp, radNoOp];
+        const radColors = ['#22c55e', '#ef4444'];
+        buildDonutCenter('chartRadios', radLabels, radData, radColors, 'Total');
+        document.getElementById('radiosLegend').innerHTML = legendHtml(radLabels, radData, radColors, radOp + radNoOp);
+    } else if (radReg > 0) {
+        if (titleRadEl) titleRadEl.textContent = 'Parque de Radios en Puesto';
+        const radCon = radios.registrados_con_serial ?? radReg;
+        const radSin = radios.registrados_sin_serial ?? 0;
+        const radLabels = radSin > 0 ? ['Con serial', 'Sin serial'] : ['Con serial'];
+        const radData   = radSin > 0 ? [radCon, radSin] : [radCon];
+        const radColors = radSin > 0 ? ['#22c55e', '#f97316'] : ['#22c55e'];
+        buildDonutCenter('chartRadios', radLabels, radData, radColors, 'Total');
+        document.getElementById('radiosLegend').innerHTML = legendHtml(radLabels, radData, radColors, radReg);
+    } else {
+        if (titleRadEl) titleRadEl.textContent = 'Radios de Comunicación';
+        buildDonutCenter('chartRadios', ['Sin datos'], [1], ['#475569'], 'Total');
+        document.getElementById('radiosLegend').innerHTML = '<div style="text-align:center;color:#64748b;padding:.5rem">Sin radios registrados</div>';
+    }
 
-    // Donut Armas por Estado.
-    const armasLabels = ['Óptimas', 'No Aptas'];
-    const armasData   = [armasOpt, armasNoApt];
-    const armasColors = ['#22c55e', '#ef4444'];
-    buildDonutCenter('chartArmas', armasLabels, armasData, armasColors, 'Total');
-    document.getElementById('armasLegend').innerHTML = legendHtml(armasLabels, armasData, armasColors, armasOpt + armasNoApt);
+    // Donut Armas por Estado / Registro en Puesto
+    const titleArmasEl = document.getElementById('titleChartArmas');
+    if (armasOpt + armasNoApt > 0) {
+        if (titleArmasEl) titleArmasEl.textContent = 'Distribución de Armas por Estado';
+        const armasLabels = ['Óptimas', 'No Aptas'];
+        const armasData   = [armasOpt, armasNoApt];
+        const armasColors = ['#22c55e', '#ef4444'];
+        buildDonutCenter('chartArmas', armasLabels, armasData, armasColors, 'Total');
+        document.getElementById('armasLegend').innerHTML = legendHtml(armasLabels, armasData, armasColors, armasOpt + armasNoApt);
+    } else if (armasReg > 0) {
+        if (titleArmasEl) titleArmasEl.textContent = 'Parque de Armas en Puesto';
+        const armasCon = armas.registrados_con_serial ?? armasReg;
+        const armasSin = armas.registrados_sin_serial ?? 0;
+        const armasLabels = armasSin > 0 ? ['Con serial', 'Sin serial'] : ['Con serial'];
+        const armasData   = armasSin > 0 ? [armasCon, armasSin] : [armasCon];
+        const armasColors = armasSin > 0 ? ['#22c55e', '#f97316'] : ['#22c55e'];
+        buildDonutCenter('chartArmas', armasLabels, armasData, armasColors, 'Total');
+        document.getElementById('armasLegend').innerHTML = legendHtml(armasLabels, armasData, armasColors, armasReg);
+    } else {
+        if (titleArmasEl) titleArmasEl.textContent = 'Armamento en Servicio';
+        buildDonutCenter('chartArmas', ['Sin datos'], [1], ['#475569'], 'Total');
+        document.getElementById('armasLegend').innerHTML = '<div style="text-align:center;color:#64748b;padding:.5rem">Sin armas registradas</div>';
+    }
 
     // Donut vehículos
     const vehLabels = ['Aptos', 'No Aptos', 'Mantenimiento'];

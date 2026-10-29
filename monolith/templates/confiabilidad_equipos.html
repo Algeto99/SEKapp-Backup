@@ -388,20 +388,6 @@
                                 <td class="cell-pct">—</td>
                                 <td class="cell-status">—</td>
                             </tr>
-                            <tr data-tipo="Radios">
-                                <td>Radios</td>
-                                <td class="cell-total">—</td>
-                                <td class="cell-func">—</td>
-                                <td class="cell-pct">—</td>
-                                <td class="cell-status">—</td>
-                            </tr>
-                            <tr data-tipo="Armas">
-                                <td>Armas</td>
-                                <td class="cell-total">—</td>
-                                <td class="cell-func">—</td>
-                                <td class="cell-pct">—</td>
-                                <td class="cell-status">—</td>
-                            </tr>
                             <tr class="average-row" id="averageRow">
                                 <td>Promedio General</td>
                                 <td class="cell-total" id="avg-total">—</td>
@@ -527,20 +513,28 @@
         syncFechaHora();
         fechaHoraDisplay.addEventListener('change', syncFechaHora);
 
-        /* ─── Equipment types (order matches table rows) ─── */
+        /* ─── Equipment types (Sistemas Electrónicos de Seguridad) ─── */
         const TIPOS = [
             'Camaras',
             'Monitores',
             'Grabadores',
             'Alarmas',
             'Boton de Panico',
-            'Control de Acceso',
-            // Radios y Armas alimentan las tarjetas "Radios Operativos" y "Armas
-            // Óptimas" del Informe Ejecutivo de Recursos, que hasta ahora no
-            // tenían dónde capturarse.
-            'Radios',
-            'Armas'
+            'Control de Acceso'
         ];
+
+        /* Helper to ensure legacy types (e.g. Radios, Armas) can still be selected and viewed in historical records */
+        function ensureTipoEquipoOption(selectEl, value) {
+            if (!selectEl || !value) return;
+            const normalized = String(value).trim().toLowerCase();
+            const exists = Array.from(selectEl.options).some(opt => opt.value.trim().toLowerCase() === normalized);
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = `${value} (Histórico)`;
+                selectEl.appendChild(opt);
+            }
+        }
 
         const MSG_OPERATIVOS_INVALID = 'El número de equipos operativos no puede ser mayor al total de equipos registrados. Verifique la información ingresada.';
 
@@ -585,6 +579,7 @@
             const data = {}; // tipo → { total, func }
             TIPOS.forEach(t => { data[t] = { total: null, func: null }; });
 
+            const activeTipos = new Set(TIPOS);
             const blocks = document.querySelectorAll('.inventory-block');
             blocks.forEach(block => {
                 const tipoSel = block.querySelector('.inv-tipo');
@@ -596,7 +591,11 @@
                 const total = totalIn.value.trim() !== '' ? parseInt(totalIn.value, 10) : null;
                 const func  = funcIn.value.trim()  !== '' ? parseInt(funcIn.value,  10) : null;
 
-                if (!tipo || !TIPOS.includes(tipo)) return;
+                if (!tipo) return;
+                activeTipos.add(tipo);
+                if (!data[tipo]) {
+                    data[tipo] = { total: null, func: null };
+                }
 
                 if (total !== null && !isNaN(total) && total >= 0) {
                     data[tipo].total = (data[tipo].total || 0) + total;
@@ -609,10 +608,25 @@
             // Update rows
             let sumTotal = 0, sumFunc = 0, countValid = 0;
             const tbody = document.querySelector('#confiabilidadTable tbody');
-            TIPOS.forEach(tipo => {
-                const row = tbody.querySelector(`tr[data-tipo="${tipo}"]`);
+            const avgRow = document.getElementById('averageRow');
+
+            activeTipos.forEach(tipo => {
+                let row = tbody.querySelector(`tr[data-tipo="${tipo}"]`);
+                if (!row && avgRow) {
+                    row = document.createElement('tr');
+                    row.setAttribute('data-tipo', tipo);
+                    row.innerHTML = `
+                        <td>${tipo} <span class="text-xs text-gray-400 font-normal">(Histórico)</span></td>
+                        <td class="cell-total">—</td>
+                        <td class="cell-func">—</td>
+                        <td class="cell-pct">—</td>
+                        <td class="cell-status">—</td>
+                    `;
+                    tbody.insertBefore(row, avgRow);
+                }
                 if (!row) return;
-                const { total, func } = data[tipo];
+
+                const { total, func } = data[tipo] || { total: null, func: null };
                 const hasData = (total !== null);
 
                 const totalVal = hasData ? total : null;
@@ -671,8 +685,6 @@
                             <option value="Alarmas">Alarmas</option>
                             <option value="Boton de Panico">Botón de Pánico</option>
                             <option value="Control de Acceso">Control de Acceso</option>
-                            <option value="Radios">Radios</option>
-                            <option value="Armas">Armas</option>
                         </select>
                     </div>
 
@@ -1163,6 +1175,9 @@
                                 const tipoSel = block.querySelector('.inv-tipo');
                                 const totalIn = block.querySelector('.inv-total');
                                 if (tipoSel && item.tipo_equipo) {
+                                    if (typeof ensureTipoEquipoOption === 'function') {
+                                        ensureTipoEquipoOption(tipoSel, item.tipo_equipo);
+                                    }
                                     tipoSel.value = item.tipo_equipo;
                                     tipoSel.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
@@ -1309,6 +1324,9 @@
                         Object.keys(item).forEach(function(field) {
                             var el = block.querySelector('[name$="[' + field + ']"]');
                             if (el && item[field] !== undefined) {
+                                if (field === 'tipo_equipo' && typeof ensureTipoEquipoOption === 'function') {
+                                    ensureTipoEquipoOption(el, item[field]);
+                                }
                                 el.value = item[field];
                                 el.dispatchEvent(new Event('input', { bubbles: true }));
                                 el.dispatchEvent(new Event('change', { bubbles: true }));

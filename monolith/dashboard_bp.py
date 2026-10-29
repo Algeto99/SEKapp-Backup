@@ -9297,13 +9297,13 @@ def api_equipos_data():
         # ── Confiabilidad por tipo (bar chart, sorted asc) ─────────────────
         cur.execute(f"""
             SELECT
-                COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
+                COALESCE(NULLIF(TRIM(elem->>'tipo_equipo'), ''), NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
                 SUM({_EQ_TOTAL_SQL})  AS sum_total,
                 SUM({_EQ_FUNC_SQL})   AS sum_func,
                 ROUND(SUM({_EQ_FUNC_SQL})::numeric
                     / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
             {lateral}
-            GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
+            GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo_equipo'), ''), NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
             HAVING SUM({_EQ_TOTAL_SQL}) > 0
             ORDER BY pct ASC NULLS LAST
         """, base_params)
@@ -9402,13 +9402,13 @@ def api_equipos_detalles():
         # ── Consolidated matrix (by tipo, over filter period) ─────────────
         cur.execute(f"""
             SELECT
-                COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
+                COALESCE(NULLIF(TRIM(elem->>'tipo_equipo'), ''), NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo') AS tipo,
                 SUM({_EQ_TOTAL_SQL})  AS sum_total,
                 SUM({_EQ_FUNC_SQL})   AS sum_func,
                 ROUND(SUM({_EQ_FUNC_SQL})::numeric
                     / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct
             {lateral}
-            GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
+            GROUP BY COALESCE(NULLIF(TRIM(elem->>'tipo_equipo'), ''), NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')
             HAVING SUM({_EQ_TOTAL_SQL}) > 0
             ORDER BY pct ASC NULLS LAST
         """, base_params)
@@ -9435,7 +9435,7 @@ def api_equipos_detalles():
                 COALESCE(NULLIF(TRIM(c.sitio),''),'—')               AS sitio,
                 c.fecha,
                 COALESCE(NULLIF(TRIM(c.tecnico_mantenimiento),''),'—') AS tecnico,
-                ARRAY_AGG(DISTINCT COALESCE(NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')) AS tipos,
+                ARRAY_AGG(DISTINCT COALESCE(NULLIF(TRIM(elem->>'tipo_equipo'), ''), NULLIF(TRIM(elem->>'tipo'), ''), 'Sin tipo')) AS tipos,
                 ROUND(SUM({_EQ_FUNC_SQL})::numeric
                     / NULLIF(SUM({_EQ_TOTAL_SQL}), 0) * 100, 1) AS pct_general
             {lateral}

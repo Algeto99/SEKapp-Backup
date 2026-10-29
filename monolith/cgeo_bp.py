@@ -1787,19 +1787,20 @@ def _alertas_permiso_porte(cur, thresholds, cliente=None, propiedad=None):
 
 
 def _alertas_equipos_con_falla(cur, thresholds, cliente=None, propiedad=None):
-    """Regla 18: radios o armas reportados con falla o pendientes.
+    """Regla 18: equipos de seguridad reportados con falla o pendientes.
 
     Lee el último reporte de Confiabilidad de Equipos por instalación y tipo
-    (Radios / Armas). Ese formulario cuenta unidades por tipo, no seriales, así
-    que la alerta identifica "N de M radios en la instalación" y trae como
-    novedad el comentario del técnico. Se apaga cuando un reporte posterior ya
-    no registra fallas ni pendientes. Roja si la proporción con falla alcanza
-    `equipos_rojo_min` (el mismo umbral del KPI de equipos); amarilla si no.
+    (Cámaras, Monitores, Grabadores, Alarmas, Botón de Pánico, Control de Acceso, etc.).
+    Ese formulario cuenta unidades por tipo, no seriales, así que la alerta identifica
+    "N de M equipos en la instalación" y trae como novedad el comentario del técnico.
+    Se apaga cuando un reporte posterior ya no registra fallas ni pendientes. Roja si la
+    proporción con falla alcanza `equipos_rojo_min` (el mismo umbral del KPI de equipos);
+    naranja si hay falla; amarilla si sólo hay pendientes.
     """
     rojo_min = float(thresholds.get('equipos_rojo_min') or 15)
     conds, params = [], []
     _add_scope(conds, params, cliente=cliente, propiedad=propiedad, alias='c.')
-    conds.append("LOWER(TRIM(COALESCE(elem->>'tipo_equipo', ''))) IN ('radios', 'radio', 'armas', 'arma')")
+    conds.append("NULLIF(TRIM(COALESCE(elem->>'tipo_equipo', '')), '') IS NOT NULL")
     cur.execute(f"""
         SELECT * FROM (
             SELECT DISTINCT ON (TRIM(COALESCE(c.cliente_instalacion, '')), LOWER(TRIM(elem->>'tipo_equipo')))
@@ -1823,16 +1824,42 @@ def _alertas_equipos_con_falla(cur, thresholds, cliente=None, propiedad=None):
         ) ultimo
         WHERE con_falla > 0 OR pendiente_reparacion OR pendiente_compra
         ORDER BY fecha DESC NULLS LAST, id DESC
-        LIMIT 5
+        LIMIT 10
     """, tuple(params))
     out = []
     for r in cur.fetchall():
         total = int(r['total'] or 0)
         operativos = int(r['operativos'] or 0)
         con_falla = int(r['con_falla'] or 0)
-        tipo_norm = (r['tipo_equipo'] or '').strip().lower()
-        etiqueta = 'Radios' if tipo_norm.startswith('radio') else 'Armas'
-        unidad = 'radios' if etiqueta == 'Radios' else 'armas'
+        raw_tipo = (r['tipo_equipo'] or '').strip()
+        tipo_norm = raw_tipo.lower()
+        if tipo_norm.startswith('radio'):
+            etiqueta = 'Radios'
+            unidad = 'radios'
+        elif tipo_norm.startswith('arma'):
+            etiqueta = 'Armas'
+            unidad = 'armas'
+        elif 'camara' in tipo_norm:
+            etiqueta = 'Cámaras'
+            unidad = 'cámaras'
+        elif 'monitor' in tipo_norm:
+            etiqueta = 'Monitores'
+            unidad = 'monitores'
+        elif 'grabador' in tipo_norm:
+            etiqueta = 'Grabadores'
+            unidad = 'grabadores'
+        elif 'alarma' in tipo_norm:
+            etiqueta = 'Alarmas'
+            unidad = 'alarmas'
+        elif 'panico' in tipo_norm:
+            etiqueta = 'Botón de Pánico'
+            unidad = 'botones de pánico'
+        elif 'acceso' in tipo_norm:
+            etiqueta = 'Control de Acceso'
+            unidad = 'controles de acceso'
+        else:
+            etiqueta = raw_tipo if raw_tipo else 'Equipo'
+            unidad = etiqueta.lower()
         pct_op = round(operativos / total * 100) if total else None
         if pct_op is None:
             estado = 'Sin inventario'
@@ -1862,8 +1889,10 @@ def _alertas_equipos_con_falla(cur, thresholds, cliente=None, propiedad=None):
                   + novedad + tecnico)
         pct_falla = (con_falla / total * 100) if total else 0
         color = 'rojo' if (total and con_falla > 3 and pct_falla >= rojo_min) else ('naranja' if con_falla > 0 else 'amarillo')
+        import re as _re
+        slug_tipo = _re.sub(r'[^a-zA-Z0-9_]', '_', tipo_norm or 'eq')
         out.append({
-            "id": f"r18_{unidad}_{cli or 'sin_instalacion'}",
+            "id": f"r18_{slug_tipo}_{cli or 'sin_instalacion'}",
             "regla": 18,
             "texto": texto,
             "motivo": motivo,
@@ -3286,7 +3315,7 @@ def cgeo_api_morning_briefing_data():
         # Fallas de equipos para el modal de acción directa
         eq_fallas_conds, eq_fallas_params = [], []
         _add_scope(eq_fallas_conds, eq_fallas_params, cliente=cliente, propiedad=propiedad, alias='c.')
-        eq_fallas_conds.append("LOWER(TRIM(COALESCE(elem->>'tipo_equipo', ''))) IN ('radios', 'radio', 'armas', 'arma')")
+        eq_fallas_conds.append("NULLIF(TRIM(COALESCE(elem->>'tipo_equipo', '')), '') IS NOT NULL")
         cur.execute(f"""
             SELECT * FROM (
                 SELECT DISTINCT ON (TRIM(COALESCE(c.cliente_instalacion, '')), LOWER(TRIM(elem->>'tipo_equipo')))
@@ -3312,14 +3341,35 @@ def cgeo_api_morning_briefing_data():
         """, tuple(eq_fallas_params))
         eq_fallas = []
         for r in cur.fetchall():
+            raw_t = (r["tipo_equipo"] or '').strip()
+            tnorm = raw_t.lower()
+            if tnorm.startswith('radio'):
+                tipo_display = 'Radio'
+            elif tnorm.startswith('arma'):
+                tipo_display = 'Arma'
+            elif 'camara' in tnorm:
+                tipo_display = 'Cámaras'
+            elif 'monitor' in tnorm:
+                tipo_display = 'Monitores'
+            elif 'grabador' in tnorm:
+                tipo_display = 'Grabadores'
+            elif 'alarma' in tnorm:
+                tipo_display = 'Alarmas'
+            elif 'panico' in tnorm:
+                tipo_display = 'Botón de Pánico'
+            elif 'acceso' in tnorm:
+                tipo_display = 'Control de Acceso'
+            else:
+                tipo_display = raw_t if raw_t else 'Equipo'
+
             eq_fallas.append({
                 "id": r["id"],
                 "cliente": _cliente_real(r["cliente_instalacion"]),
-                "tipo": 'Radio' if (r["tipo_equipo"] or '').lower().startswith('radio') else 'Arma',
+                "tipo": tipo_display,
                 "total": int(r["total"] or 0),
                 "operativos": int(r["operativos"] or 0),
                 "con_falla": int(r["con_falla"] or 0),
-                "novedad": r["novedad"] or 'Equipo reportado con falla operativa',
+                "novedad": r["novedad"] or f'{tipo_display} con novedad operativa',
                 "fecha": r["fecha"].strftime('%d/%m/%Y') if r["fecha"] else '',
             })
 
