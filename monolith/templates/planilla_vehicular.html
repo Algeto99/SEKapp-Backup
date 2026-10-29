@@ -915,7 +915,7 @@
                         {% if edit_mode %}
                         <!-- En edición el Administrador corrige a mano un error de digitación del
                              pre-operacional anterior. El valor se guarda en esta planilla. -->
-                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
+                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" step="1" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
                         {% else %}
                         <input type="text" id="km_anterior_display" class="form-input" readonly tabindex="-1"
                             value="—" style="opacity:.75;cursor:default;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
@@ -929,7 +929,7 @@
                         <label for="kilometraje_vehiculo" class="form-label">Kilometraje actual <span
                                 class="text-red-400">*</span></label>
                         <input type="number" name="kilometraje_vehiculo" id="kilometraje_vehiculo" class="form-input"
-                            min="0" required max="9999999" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="0">
+                            min="0" required max="9999999" step="1" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="0">
                         <p class="text-xs text-red-400 mt-1 hidden" id="km_error"></p>
                     </div>
                     <div>
@@ -1613,12 +1613,52 @@
                 const HINT_GUARDADO = 'Valor guardado en esta planilla. Corríjalo si el registro anterior tenía un error.';
 
                 let ultimoKm = null;   // null = sin registro anterior
-                const fmt = n => Number(n).toLocaleString('es');
+                // Se presenta sin separadores de miles (puntos/comas) para evitar confusión
+                // con el formato esperado al digitar odómetros.
+                const fmt = n => (n === null || n === undefined || Number.isNaN(Number(n))) ? '' : String(Math.round(Number(n)));
                 const mostrar = texto => { if (antDisplay) antDisplay.value = texto; };
 
+                // Restricción de caracteres: prohíbe puntos, comas, signos y notación exponencial ('e')
+                function bloquearPuntuacionKm(e) {
+                    if (['.', ',', '-', '+', 'e', 'E'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                }
+
+                function bloquearBeforeInputKm(e) {
+                    if (e.data && /[.,\-+eE\s]/.test(e.data)) {
+                        e.preventDefault();
+                    }
+                }
+
+                function sanitizarPegadoKm(e) {
+                    e.preventDefault();
+                    const texto = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+                    const soloDigitos = texto.replace(/\D/g, '').slice(0, 7);
+                    if (!soloDigitos) return;
+                    this.value = soloDigitos;
+                    this.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                [actual, antHidden].forEach(el => {
+                    if (!el || el.type === 'hidden') return;
+                    el.addEventListener('keydown', bloquearPuntuacionKm);
+                    el.addEventListener('beforeinput', bloquearBeforeInputKm);
+                    el.addEventListener('paste', sanitizarPegadoKm);
+                });
+
                 function recalcular() {
-                    const v = actual.value.trim();
+                    const v = (actual.value || '').trim();
                     const km = v === '' ? null : Number(v);
+
+                    if (actual.validity && actual.validity.badInput) {
+                        actual.setCustomValidity(KM_MSG);
+                        error.textContent = KM_MSG;
+                        error.classList.remove('hidden');
+                        recDisplay.value = '—';
+                        recHidden.value  = '';
+                        return;
+                    }
 
                     if (v !== '' && !KM_RE.test(v)) {
                         actual.setCustomValidity(KM_MSG);
@@ -1711,14 +1751,22 @@
                 }
 
                 placa.addEventListener('change', cargarUltimo);
-                actual.addEventListener('input', recalcular);
+                actual.addEventListener('input', () => {
+                    if (actual.value && /[.,\-+eE\s]/.test(actual.value)) {
+                        actual.value = actual.value.replace(/\D/g, '').slice(0, 7);
+                    }
+                    recalcular();
+                });
                 // Corrección manual del antecedente (sólo posible en edición, donde el
                 // campo es visible): el recorrido se recalcula al instante.
                 let hintValido = null;
                 antHidden.addEventListener('input', () => {
+                    if (antHidden.value && /[.,\-+eE\s]/.test(antHidden.value)) {
+                        antHidden.value = antHidden.value.replace(/\D/g, '').slice(0, 7);
+                    }
                     const v = antHidden.value.trim();
                     // Misma regla de dígitos que el kilometraje actual.
-                    const malo = v !== '' && !KM_RE.test(v);
+                    const malo = (antHidden.validity && antHidden.validity.badInput) || (v !== '' && !KM_RE.test(v));
                     antHidden.setCustomValidity(malo ? KM_MSG : '');
                     if (antHint) {
                         if (malo && hintValido === null) hintValido = antHint.textContent;

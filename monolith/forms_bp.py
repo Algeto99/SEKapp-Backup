@@ -772,14 +772,34 @@ KM_MENSAJE_INVALIDO = 'El kilometraje no es válido. Revise el número.'
 _KM_RE = re.compile(r'^\d{1,%d}$' % KM_MAX_DIGITOS)
 
 
+def _clean_kilometraje(val):
+    """Normaliza un kilometraje removiendo puntos, comas o espacios de formato miles.
+    Retorna cadena limpia o None si val es None o vacío."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    return re.sub(r'[.,\s]', '', s)
+
+
 def _validate_kilometraje(*valores):
     """None si todos los kilometrajes son válidos (vacío cuenta como válido);
     si no, el mensaje para el usuario."""
     for v in valores:
-        s = '' if v is None else str(v).strip()
+        s = _clean_kilometraje(v)
         if s and not _KM_RE.match(s):
             return KM_MENSAJE_INVALIDO
     return None
+
+
+def _clean_form_kilometrajes(form_data):
+    """Limpia los campos de kilometraje en form_data para asegurar que viajen
+    como enteros puros a PostgreSQL."""
+    for col in ('kilometraje_vehiculo', 'kilometraje_anterior', 'kilometraje_recorrido', 'kilometraje_motocicleta'):
+        if col in form_data and form_data[col] is not None:
+            form_data[col] = _clean_kilometraje(form_data[col])
+    return form_data
 
 
 def _error_planilla(exc, mensaje):
@@ -3531,6 +3551,7 @@ def submit_planilla_vehicular():
                     and key not in _SCOPE_OWNED_FIELDS):
                 form_data[key] = request.form.get(key)
         _subir_fotos_flota(form_data)
+        _clean_form_kilometrajes(form_data)
         form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
         columns = ', '.join(form_data.keys())
         placeholders = ', '.join(['%s'] * len(form_data))
@@ -3689,6 +3710,7 @@ def submit_planilla_vehicular_editar(id):
 
         form_data = _preservar_firmas_existentes(form_data)
         _subir_fotos_flota(form_data, old_record)
+        _clean_form_kilometrajes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'planilla_vehicular', form_data)
 
         _record_edicion_historial(
@@ -3798,6 +3820,7 @@ def submit_planilla_motocicletas():
 
         app_logger.info(f"Submitting motorcycle form for {user_email}")
         _subir_fotos_flota(form_data)
+        _clean_form_kilometrajes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         columns = ', '.join(valid_form_data.keys())
@@ -3935,6 +3958,7 @@ def submit_planilla_motocicletas_editar(id):
 
         form_data = _preservar_firmas_existentes(form_data)
         _subir_fotos_flota(form_data, old_record)
+        _clean_form_kilometrajes(form_data)
         valid_form_data = _filter_existing_columns(cur, 'planilla_motocicletas', form_data)
 
         _record_edicion_historial(
