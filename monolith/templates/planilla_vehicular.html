@@ -858,11 +858,12 @@
                     <div>
                         <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
                         <input type="text" name="nombre_responsable" id="nombre_responsable" value="{{ name }}"
-                            class="form-input" required>
+                            class="form-input" required autocapitalize="words" autocorrect="off" spellcheck="false">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                        <label class="form-label select-none pointer-events-none">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="turno" class="form-label">Turno</label>
@@ -888,7 +889,7 @@
                     </div>
                     <div>
                         <label for="numero_empleado" class="form-label">Número de Empleado</label>
-                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input" required>
+                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input" required inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                     </div>
                     <div>
                         <label for="vehiculo_tipo" class="form-label">Vehículo</label>
@@ -914,10 +915,10 @@
                         {% if edit_mode %}
                         <!-- En edición el Administrador corrige a mano un error de digitación del
                              pre-operacional anterior. El valor se guarda en esta planilla. -->
-                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" inputmode="numeric">
+                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
                         {% else %}
                         <input type="text" id="km_anterior_display" class="form-input" readonly tabindex="-1"
-                            value="—" style="opacity:.75;cursor:default;">
+                            value="—" style="opacity:.75;cursor:default;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
                         <!-- Viaja al registro para que el histórico no dependa de que
                              el pre-operacional anterior siga existiendo sin cambios. -->
                         <input type="hidden" name="kilometraje_anterior" id="kilometraje_anterior">
@@ -928,7 +929,7 @@
                         <label for="kilometraje_vehiculo" class="form-label">Kilometraje actual <span
                                 class="text-red-400">*</span></label>
                         <input type="number" name="kilometraje_vehiculo" id="kilometraje_vehiculo" class="form-input"
-                            min="0" required max="9999999" inputmode="numeric">
+                            min="0" required max="9999999" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="0">
                         <p class="text-xs text-red-400 mt-1 hidden" id="km_error"></p>
                     </div>
                     <div>
@@ -1384,26 +1385,26 @@
                     <div>
                         <label for="novedades_criticas" class="form-label">Novedades Críticas Detectadas</label>
                         <textarea name="novedades_criticas" id="novedades_criticas" rows="4" class="form-textarea"
-                            placeholder="Describa cualquier novedad crítica encontrada..."></textarea>
+                            placeholder="Describa cualquier novedad crítica encontrada..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
                     <div>
                         <label for="accion_inmediata" class="form-label">Acción Inmediata Tomada</label>
                         <textarea name="accion_inmediata" id="accion_inmediata" rows="3" class="form-textarea"
-                            placeholder="Describa las acciones tomadas..."></textarea>
+                            placeholder="Describa las acciones tomadas..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="form-label">Firma de Entrega</label>
                             <canvas id="firma-entrega-pad" class="signature-pad"></canvas>
                             <button type="button" onclick="entregaPad.clear()"
-                                class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                                class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                             <input type="hidden" name="firma_entrega" id="firma_entrega">
                         </div>
                         <div>
                             <label class="form-label">Firma de Recibe</label>
                             <canvas id="firma-recibe-pad" class="signature-pad"></canvas>
                             <button type="button" onclick="recibePad.clear()"
-                                class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                                class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                             <input type="hidden" name="firma_recibe" id="firma_recibe">
                         </div>
                     </div>
@@ -1418,13 +1419,13 @@
                         <label for="oficial_operaciones_nombre" class="form-label">Nombre del Oficial de
                             Operaciones</label>
                         <input type="text" name="oficial_operaciones_nombre" id="oficial_operaciones_nombre"
-                            class="form-input">
+                            class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del oficial de operaciones">
                     </div>
                     <div class="md:col-span-2">
                         <label class="form-label">Firma del Oficial de Operaciones</label>
                         <canvas id="firma-oficial-pad" class="signature-pad"></canvas>
                         <button type="button" onclick="oficialPad.clear()"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="oficial_operaciones_firma" id="oficial_operaciones_firma">
                     </div>
                 </div>

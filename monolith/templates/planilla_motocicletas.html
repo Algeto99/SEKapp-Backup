@@ -854,11 +854,12 @@
                     <div>
                         <label for="nombre_responsable" class="form-label">Nombre del Responsable</label>
                         <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input"
-                            value="{{ name }}" required>
+                            value="{{ name }}" required autocapitalize="words" autocorrect="off" spellcheck="false">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="form-label">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                        <label class="form-label select-none pointer-events-none">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="turno" class="form-label">Turno</label>
@@ -884,7 +885,7 @@
                     </div>
                     <div>
                         <label for="numero_empleado" class="form-label">Número de Empleado</label>
-                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input">
+                        <input type="text" name="numero_empleado" id="numero_empleado" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                     </div>
                     <div>
                         <label for="motocicleta_tipo" class="form-label">Motocicleta</label>
@@ -910,10 +911,10 @@
                         {% if edit_mode %}
                         <!-- En edición el Administrador corrige a mano un error de digitación del
                              pre-operacional anterior. El valor se guarda en esta planilla. -->
-                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" inputmode="numeric">
+                        <input type="number" name="kilometraje_anterior" id="kilometraje_anterior" class="form-input" min="0" max="9999999" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
                         {% else %}
                         <input type="text" id="km_anterior_display" class="form-input" readonly tabindex="-1"
-                            value="—" style="opacity:.75;cursor:default;">
+                            value="—" style="opacity:.75;cursor:default;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;">
                         <!-- Viaja al registro para que el histórico no dependa de que
                              el pre-operacional anterior siga existiendo sin cambios. -->
                         <input type="hidden" name="kilometraje_anterior" id="kilometraje_anterior">
@@ -924,7 +925,7 @@
                         <label for="kilometraje_motocicleta" class="form-label">Kilometraje actual <span
                                 class="text-red-400">*</span></label>
                         <input type="number" name="kilometraje_motocicleta" id="kilometraje_motocicleta"
-                            class="form-input" min="0" required max="9999999" inputmode="numeric">
+                            class="form-input" min="0" required max="9999999" inputmode="numeric" pattern="[0-9]*" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="0">
                         <p class="text-xs text-red-400 mt-1 hidden" id="km_error"></p>
                     </div>
                     <div>
@@ -1156,12 +1157,12 @@
                             Detectadas</label>
                         <textarea name="novedades_criticas_detectadas" id="novedades_criticas_detectadas" rows="4"
                             class="form-textarea"
-                            placeholder="Describa cualquier novedad crítica encontrada..."></textarea>
+                            placeholder="Describa cualquier novedad crítica encontrada..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
                     <div>
                         <label for="accion_inmediata_tomada" class="form-label">Acción Inmediata Tomada</label>
                         <textarea name="accion_inmediata_tomada" id="accion_inmediata_tomada" rows="3"
-                            class="form-textarea" placeholder="Describa las acciones tomadas..."></textarea>
+                            class="form-textarea" placeholder="Describa las acciones tomadas..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
                 </div>
 
@@ -1170,14 +1171,14 @@
                         <label class="form-label">Firma de Entrega</label>
                         <canvas id="firma_entrega_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="firma_entrega_pad"
-                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_entrega" id="firma_entrega">
                     </div>
                     <div>
                         <label class="form-label">Firma de Recibe</label>
                         <canvas id="firma_recibe_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="firma_recibe_pad"
-                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_recibe" id="firma_recibe">
                     </div>
                 </div>
@@ -1191,13 +1192,13 @@
                         <label for="oficial_operaciones_nombre" class="form-label">Nombre del Oficial de
                             Operaciones</label>
                         <input type="text" name="oficial_operaciones_nombre" id="oficial_operaciones_nombre"
-                            class="form-input">
+                            class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del oficial de operaciones">
                     </div>
                     <div>
                         <label class="form-label">Firma del Oficial de Operaciones</label>
                         <canvas id="oficial_firma_pad" class="signature-pad"></canvas>
                         <button type="button" data-pad="oficial_firma_pad"
-                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="oficial_operaciones_firma" id="oficial_operaciones_firma">
                     </div>
                 </div>

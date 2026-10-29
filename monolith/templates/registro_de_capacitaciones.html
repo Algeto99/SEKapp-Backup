@@ -230,30 +230,31 @@
                         <input type="hidden" id="cliente_instalacion" name="cliente_instalacion">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora de Inicio</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                        <label class="block text-sm font-medium mb-1 select-none pointer-events-none">Fecha y Hora de Inicio</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div class="md:col-span-2">
                         <label for="tema_capacitacion" class="block text-sm font-medium mb-1">Tema de la
                             Capacitación</label>
-                        <input type="text" name="tema_capacitacion" id="tema_capacitacion" class="form-input" required>
+                        <input type="text" name="tema_capacitacion" id="tema_capacitacion" class="form-input" required autocapitalize="sentences" spellcheck="true" placeholder="Ej. Procedimientos de control de acceso, Primeros auxilios">
                     </div>
                     <div>
                         <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del
                             Responsable/Capacitador</label>
                         <input type="text" name="nombre_responsable" id="nombre_responsable" value="{{ name }}"
-                            class="form-input" required>
+                            class="form-input" required autocapitalize="words" autocorrect="off" spellcheck="false">
                     </div>
                     <div>
                         <label for="cargo_responsable" class="block text-sm font-medium mb-1">Cargo</label>
-                        <input type="text" name="cargo_responsable" id="cargo_responsable" class="form-input">
+                        <input type="text" name="cargo_responsable" id="cargo_responsable" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Instructor / Coordinador de Operaciones">
                     </div>
                     <div class="md:col-span-2">
                         <label for="firma_responsable" class="block text-sm font-medium mb-2">Firma del
                             Responsable</label>
                         <canvas id="firma-responsable-pad" class="signature-pad w-full h-48"></canvas>
                         <button type="button" id="clear-responsable"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                     <div class="md:col-span-2">
@@ -262,13 +263,15 @@
                             <input type="file" id="capacitacion_files" name="capacitacion_files"
                                 accept="image/*,application/pdf" multiple class="hidden" onchange="updateFileList()">
                             <button type="button" onclick="document.getElementById('capacitacion_files').click()"
-                                class="form-input text-left cursor-pointer hover:bg-opacity-80">
+                                class="form-input text-left cursor-pointer hover:bg-opacity-80 min-h-[44px] inline-flex items-center">
                                 📎 Seleccionar o Tomar Foto/Documento
                             </button>
                             <div id="fileList" class="mt-2 text-sm text-gray-400"></div>
-                            <div class="mt-2">
-                                <input type="checkbox" name="capacitacion_files_na" id="capacitacion_files_na">
-                                <label for="capacitacion_files_na" class="text-sm ml-2">No Aplica</label>
+                            <div class="mt-3">
+                                <label for="capacitacion_files_na" class="inline-flex items-center gap-2 cursor-pointer min-h-[44px] py-1 text-sm text-gray-300">
+                                    <input type="checkbox" name="capacitacion_files_na" id="capacitacion_files_na" class="w-5 h-5 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
+                                    <span>No Aplica</span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -284,7 +287,7 @@
                     <div id="qrAttendeesStatus" class="w-full max-w-md bg-gray-800/80 border border-gray-600 rounded-lg p-3 text-left">
                         <div class="flex items-center justify-between border-b border-gray-700 pb-2 mb-2">
                             <span class="text-xs font-semibold text-gray-300">Asistentes registrados por QR: <span id="qrAttendeesCount" class="text-emerald-400 font-bold">0</span></span>
-                            <button type="button" id="refreshQrAttendeesBtn" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                            <button type="button" id="refreshQrAttendeesBtn" class="text-xs text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center gap-1">
                                 🔄 Actualizar
                             </button>
                         </div>
@@ -299,7 +302,7 @@
                 <h2 class="text-xl font-bold mb-4">2. Lista de Asistencia</h2>
                 <div id="attendees-container"></div>
                 <button type="button" id="add-attendee"
-                    class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                    class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded min-h-[44px] inline-flex items-center">
                     + Agregar Asistente
                 </button>
                 <input type="hidden" name="lista_asistencia" id="lista_asistencia">
@@ -511,24 +514,24 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
-                            <input type="text" data-field="nombre" class="form-input">
+                            <input type="text" data-field="nombre" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Cargo</label>
-                            <input type="text" data-field="cargo" class="form-input">
+                            <input type="text" data-field="cargo" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Cargo o función">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                            <input type="text" data-field="numero_empleado" class="form-input">
+                            <input type="text" data-field="numero_empleado" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
-                            <input type="text" data-field="documento" class="form-input">
+                            <input type="text" data-field="documento" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Firma</label>
                             <canvas class="signature-pad w-full h-48"></canvas>
-                            <button type="button" onclick="clearAttendeePad(${index})" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            <button type="button" onclick="clearAttendeePad(${index})" class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         </div>
                     </div>
                 `;
