@@ -2072,7 +2072,6 @@ function _alertaItemHtml(a) {
                   : a.color_semaforo === 'verde' ? 'verde' : 'amarillo';
     const dotCls  = `alerta-dot-${color}`;
     const btnCls  = `alerta-btn-${color}`;
-    const icon    = color === 'rojo' ? '🔴' : color === 'verde' ? '🟢' : color === 'naranja' ? '🟠' : '🟡';
     const ts      = _relTime(a.timestamp);
 
     const prioridadBadge = color === 'naranja'
@@ -2084,8 +2083,7 @@ function _alertaItemHtml(a) {
     return `<a href="${_esc(a.ruta_navegacion)}" class="alerta-item"
                title="${_esc(a.motivo || a.texto)}"
                onclick="abrirAlerta(${_alertaRef(a)},event)">
-        <div class="alerta-dot ${dotCls}"></div>
-        <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
+        <div class="alerta-dot ${dotCls}" aria-hidden="true"></div>
         <span class="alerta-texto">${_esc(a.texto)}</span>
         ${prioridadBadge}
         ${estadoBadge}
