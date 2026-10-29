@@ -1229,6 +1229,83 @@ def api_fleet_ultimo_kilometraje():
             conn.close()
 
 
+@forms_bp.route('/api/supervision/ultima-dotacion')
+@jwt_required()
+def api_supervision_ultima_dotacion():
+    """
+    Recupera los datos de dotación e inventario de la última supervisión en una propiedad
+    para agilizar el llenado recurrente sin duplicar esfuerzo en campo.
+    No incluye datos de evaluación ni firmas (siempre se evalúan en vivo).
+    """
+    id_propiedad = request.args.get('id_propiedad', type=int)
+    if not id_propiedad:
+        return jsonify({'disponible': False, 'dotacion': None})
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'disponible': False, 'dotacion': None})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+
+        conds = ["id_propiedad = %s"]
+        params = [id_propiedad]
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
+
+        cur.execute(f"""
+            SELECT id_supervision, fecha_hora, detalles_puestos,
+                   tipo_servicio, modalidad_servicio, horario_servicio,
+                   nombre_guardia, numero_empleado, documento_guardia,
+                   tiempo_en_puesto, licencia_portar_arma,
+                   porta_arma, tipo_arma, serie_arma, matricula_arma, cantidad_municion,
+                   radio_asignado_serial, marca_radio, tipo_radio
+            FROM supervision_puesto
+            WHERE {' AND '.join(conds)}
+            ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
+            LIMIT 1
+        """, tuple(params))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'disponible': False, 'dotacion': None})
+
+        fh = row['fecha_hora']
+        fecha_str = fh.strftime('%d/%m/%Y %H:%M') if hasattr(fh, 'strftime') else (str(fh)[:16] if fh else '')
+
+        dotacion = {
+            'id_supervision': row['id_supervision'],
+            'fecha': fecha_str,
+            'detalles_puestos': row.get('detalles_puestos') or '',
+            'tipo_servicio': row.get('tipo_servicio') or '',
+            'modalidad_servicio': row.get('modalidad_servicio') or '',
+            'horario_servicio': row.get('horario_servicio') or '',
+            'nombre_guardia': row.get('nombre_guardia') or '',
+            'numero_empleado': row.get('numero_empleado') or '',
+            'documento_guardia': row.get('documento_guardia') or '',
+            'tiempo_en_puesto': row.get('tiempo_en_puesto') or '',
+            'licencia_portar_arma': row.get('licencia_portar_arma') or '',
+            'porta_arma': row.get('porta_arma') or '',
+            'tipo_arma': row.get('tipo_arma') or '',
+            'serie_arma': row.get('serie_arma') or '',
+            'matricula_arma': row.get('matricula_arma') or '',
+            'cantidad_municion': row.get('cantidad_municion') or '',
+            'radio_asignado_serial': row.get('radio_asignado_serial') or '',
+            'marca_radio': row.get('marca_radio') or '',
+            'tipo_radio': row.get('tipo_radio') or '',
+        }
+        return jsonify({'disponible': True, 'dotacion': dotacion})
+    except Exception as e:
+        app_logger.error(f"api_supervision_ultima_dotacion error: {e}", exc_info=True)
+        return jsonify({'disponible': False, 'dotacion': None}), 200
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
 @forms_bp.route('/api/customer-hierarchy')
 @jwt_required()
 def customer_hierarchy():

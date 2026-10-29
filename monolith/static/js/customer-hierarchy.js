@@ -272,6 +272,9 @@
                 const row = event.target.closest('.ss-opt');
                 if (!row) return;
 
+                try { event.preventDefault(); } catch (e) {}
+                this._absorbGhostClick();
+
                 if (press.pointerType === 'mouse') {
                     // Follow the native select: release decides.
                     this._commit(Number(row.dataset.pos));
@@ -281,6 +284,11 @@
                 const moved = Math.abs(event.clientX - press.x) + Math.abs(event.clientY - press.y);
                 if (Number(row.dataset.pos) !== press.pos || moved > 12) return;
                 this._commit(press.pos);
+            });
+
+            // Prevent synthesized click events from leaking through to elements under the panel
+            this.panel.addEventListener('click', (event) => {
+                event.stopPropagation();
             });
 
             // Scrolling the list takes the gesture away from us.
@@ -534,6 +542,15 @@
             this._justCommitted = true;
             this.input.focus();
             this._justCommitted = false;
+        }
+
+        _absorbGhostClick() {
+            const absorb = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            };
+            document.addEventListener('click', absorb, true);
+            setTimeout(() => document.removeEventListener('click', absorb, true), 350);
         }
 
         _updateValidity() {

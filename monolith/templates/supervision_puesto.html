@@ -199,12 +199,13 @@
                         <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                        <label class="block text-sm font-medium mb-1 select-none pointer-events-none">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="supervisor" class="block text-sm font-medium mb-1">Nombre Supervisor</label>
-                        <input type="text" name="supervisor" id="supervisor" class="form-input" value="{{ name }}" required>
+                        <input type="text" name="supervisor" id="supervisor" class="form-input" value="{{ name }}" required autocapitalize="words">
                     </div>
                     <div>
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
@@ -219,6 +220,9 @@
                 </div>
             </div>
 
+            <!-- Banner inteligente: Cargar dotación anterior (voluntario) -->
+            <div id="bannerUltimaDotacionWrap" class="mt-4"></div>
+
             {% if edit_mode %}
             <!-- Edit mode: a single flat block for the one record being edited (no supervisions[N][...] indexing). -->
             <div class="form-section border-l-4 border-blue-500 pl-4 bg-gray-800 bg-opacity-50 mt-8">
@@ -228,7 +232,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" name="detalles_puestos" class="form-input">
+                        <input type="text" name="detalles_puestos" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
@@ -283,23 +287,23 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium mb-1">Nombre y Apellido *</label>
-                        <input type="text" name="nombre_guardia" class="form-input" required>
+                        <input type="text" name="nombre_guardia" class="form-input" required autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                        <input type="text" name="numero_empleado" class="form-input">
+                        <input type="text" name="numero_empleado" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Documento</label>
-                        <input type="text" name="documento_guardia" class="form-input">
+                        <input type="text" name="documento_guardia" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
-                        <input type="text" name="tiempo_en_puesto" class="form-input">
+                        <input type="text" name="tiempo_en_puesto" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" placeholder="Meses en el puesto">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
-                        <input type="text" name="licencia_portar_arma" class="form-input">
+                        <input type="text" name="licencia_portar_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Número de licencia">
                     </div>
                 </div>
 
@@ -351,15 +355,15 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Serie del Arma</label>
-                            <input type="text" name="serie_arma" class="form-input">
+                            <input type="text" name="serie_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial alfanumérico">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Matrícula / Permiso</label>
-                            <input type="text" name="matricula_arma" class="form-input">
+                            <input type="text" name="matricula_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Permiso o matrícula">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                            <input type="text" name="cantidad_municion" class="form-input">
+                            <input type="text" name="cantidad_municion" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" placeholder="Cantidad de cartuchos">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
@@ -372,15 +376,15 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
-                        <input type="text" name="radio_asignado_serial" class="form-input">
+                        <input type="text" name="radio_asignado_serial" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Marca radio</label>
-                        <input type="text" name="marca_radio" class="form-input">
+                        <input type="text" name="marca_radio" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Motorola, Hytera">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Tipo de radio</label>
-                        <input type="text" name="tipo_radio" class="form-input">
+                        <input type="text" name="tipo_radio" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Portátil, Base">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
@@ -416,22 +420,22 @@
                         </select>
                         <div class="mt-3 p-3 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
                             <label class="block text-sm font-medium mb-2">Prendas con problemas</label>
-                            <div class="flex flex-wrap gap-4">
-                                <label class="inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="problemas_uniforme[]" value="Gorra" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                    <span class="ml-2 text-sm">Gorra</span>
+                            <div class="flex flex-wrap gap-3">
+                                <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                    <input type="checkbox" name="problemas_uniforme[]" value="Gorra" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                    <span class="ml-2.5 text-sm font-medium">Gorra</span>
                                 </label>
-                                <label class="inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="problemas_uniforme[]" value="Camisa" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                    <span class="ml-2 text-sm">Camisa</span>
+                                <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                    <input type="checkbox" name="problemas_uniforme[]" value="Camisa" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                    <span class="ml-2.5 text-sm font-medium">Camisa</span>
                                 </label>
-                                <label class="inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" name="problemas_uniforme[]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                    <span class="ml-2 text-sm">Pantalón</span>
+                                <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                    <input type="checkbox" name="problemas_uniforme[]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                    <span class="ml-2.5 text-sm font-medium">Pantalón</span>
                                 </label>
-                                <label class="inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="problemasUniformeOtroCheck" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                    <span class="ml-2 text-sm">Otra</span>
+                                <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                    <input type="checkbox" id="problemasUniformeOtroCheck" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                    <span class="ml-2.5 text-sm font-medium">Otra</span>
                                 </label>
                             </div>
                             <input type="text" id="problemasUniformeOtroInput" name="problemas_uniforme[]"
@@ -724,7 +728,7 @@
                                  no such column, so the insert in forms_bp dropped the old name and the
                                  puesto was never stored. This is the column the Expediente already
                                  reads as the "lugar" of the supervision. -->
-                            <input type="text" name="supervisions[${index}][detalles_puestos]" class="form-input" required>
+                            <input type="text" name="supervisions[${index}][detalles_puestos]" class="form-input" required autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
@@ -780,15 +784,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label class="block text-sm font-medium mb-1">Nombre y Apellido *</label>
-                            <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" required>
+                            <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" required autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                            <input type="text" name="supervisions[${index}][numero_empleado]" class="form-input">
+                            <input type="text" name="supervisions[${index}][numero_empleado]" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
-                            <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input">
+                            <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
@@ -809,13 +813,13 @@
                                 <option value="Otro">Otro</option>
                             </select>
                             <div id="tiempoPuestoOtro_${index}" class="hidden mt-2">
-                                <input type="number" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses" min="1" step="1" pattern="[0-9]*">
+                                <input type="number" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses" min="1" step="1" pattern="[0-9]*" inputmode="numeric">
                                 <p class="text-xs text-gray-400 mt-1">Solo números enteros.</p>
                             </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
-                            <input type="text" name="supervisions[${index}][licencia_portar_arma]" class="form-input">
+                            <input type="text" name="supervisions[${index}][licencia_portar_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Número de licencia">
                         </div>
                     </div>
 
@@ -867,15 +871,15 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Serie del Arma</label>
-                                <input type="text" name="supervisions[${index}][serie_arma]" class="form-input">
+                                <input type="text" name="supervisions[${index}][serie_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial alfanumérico">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Matrícula / Permiso</label>
-                                <input type="text" name="supervisions[${index}][matricula_arma]" class="form-input">
+                                <input type="text" name="supervisions[${index}][matricula_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Permiso o matrícula">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                                <input type="text" name="supervisions[${index}][cantidad_municion]" class="form-input">
+                                <input type="text" name="supervisions[${index}][cantidad_municion]" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" placeholder="Cantidad de cartuchos">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
@@ -888,15 +892,15 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
-                            <input type="text" name="supervisions[${index}][radio_asignado_serial]" class="form-input">
+                            <input type="text" name="supervisions[${index}][radio_asignado_serial]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Marca radio</label>
-                            <input type="text" name="supervisions[${index}][marca_radio]" class="form-input">
+                            <input type="text" name="supervisions[${index}][marca_radio]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Motorola, Hytera">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tipo de radio</label>
-                            <input type="text" name="supervisions[${index}][tipo_radio]" class="form-input">
+                            <input type="text" name="supervisions[${index}][tipo_radio]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Portátil, Base">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
@@ -923,22 +927,22 @@
                             <!-- Detalles de Uniforme -->
                             <div id="uniformeFields_${index}" class="hidden mt-3 p-3 bg-gray-700 bg-opacity-50 rounded-lg border border-gray-600">
                                 <label class="block text-sm font-medium mb-2">Prendas con problemas</label>
-                                <div class="flex flex-wrap gap-4">
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Gorra" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                        <span class="ml-2 text-sm">Gorra</span>
+                                <div class="flex flex-wrap gap-3">
+                                    <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                        <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Gorra" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                        <span class="ml-2.5 text-sm font-medium">Gorra</span>
                                     </label>
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Camisa" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                        <span class="ml-2 text-sm">Camisa</span>
+                                    <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                        <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Camisa" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                        <span class="ml-2.5 text-sm font-medium">Camisa</span>
                                     </label>
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600">
-                                        <span class="ml-2 text-sm">Pantalón</span>
+                                    <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                        <input type="checkbox" name="supervisions[${index}][problemas_uniforme][]" value="Pantalon" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500">
+                                        <span class="ml-2.5 text-sm font-medium">Pantalón</span>
                                     </label>
-                                    <label class="inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-800 border-gray-600 problemas-uniforme-otro-check" data-index="${index}">
-                                        <span class="ml-2 text-sm">Otra</span>
+                                    <label class="inline-flex items-center min-h-[44px] p-2.5 px-3.5 rounded-lg bg-gray-800 border border-gray-600 cursor-pointer active:bg-blue-900 transition-colors">
+                                        <input type="checkbox" class="form-checkbox h-5 w-5 text-blue-600 rounded bg-gray-900 border-gray-500 problemas-uniforme-otro-check" data-index="${index}">
+                                        <span class="ml-2.5 text-sm font-medium">Otra</span>
                                     </label>
                                 </div>
                                 <input type="text" id="problemasUniformeOtroInput_${index}" name="supervisions[${index}][problemas_uniforme][]"
@@ -1346,6 +1350,178 @@
                 },
             };
         })();
+    </script>
+    <!-- Pre-llenado voluntario e inteligente de última dotación registrada -->
+    <script>
+    (function () {
+        const propSelect = document.getElementById('id_propiedad');
+        const wrap = document.getElementById('bannerUltimaDotacionWrap');
+        if (!propSelect || !wrap) return;
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        let currentAbort = null;
+
+        function consultarUltimaDotacion(propId) {
+            if (!propId || isNaN(Number(propId))) {
+                wrap.innerHTML = '';
+                return;
+            }
+
+            if (currentAbort) {
+                currentAbort.abort();
+            }
+            currentAbort = new AbortController();
+
+            fetch(`/forms/api/supervision/ultima-dotacion?id_propiedad=${encodeURIComponent(propId)}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                signal: currentAbort.signal
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data || !data.disponible || !data.dotacion) {
+                    wrap.innerHTML = '';
+                    return;
+                }
+                const dot = data.dotacion;
+                wrap.innerHTML = `
+                    <div class="p-4 bg-gradient-to-r from-blue-950/90 via-blue-900/60 to-gray-800 border border-blue-500/50 rounded-xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
+                        <div class="flex items-start md:items-center gap-3">
+                            <div class="p-2.5 bg-blue-600/30 text-blue-300 rounded-lg shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
+                                    <span>Dotación del turno anterior disponible</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(dot.fecha)}</span>
+                                </div>
+                                <div class="text-xs text-gray-300 mt-0.5">
+                                    Oficial: <strong class="text-white">${escapeHtml(dot.nombre_guardia || 'No registrado')}</strong>
+                                    ${dot.documento_guardia ? ` | Doc: <span class="font-mono text-gray-200">${escapeHtml(dot.documento_guardia)}</span>` : ''}
+                                    ${dot.serie_arma ? ` | Serie arma: <span class="font-mono text-gray-200">${escapeHtml(dot.serie_arma)}</span>` : ''}
+                                    ${dot.radio_asignado_serial ? ` | Radio: <span class="font-mono text-gray-200">${escapeHtml(dot.radio_asignado_serial)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                            <button type="button" id="btnCargarDotacion" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
+                                ⚡ Cargar en formulario
+                            </button>
+                            <button type="button" id="btnDescartarDotacion" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+                const btnCargar = document.getElementById('btnCargarDotacion');
+                const btnDescartar = document.getElementById('btnDescartarDotacion');
+                if (btnCargar) {
+                    btnCargar.addEventListener('click', () => aplicarUltimaDotacion(dot));
+                }
+                if (btnDescartar) {
+                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
+                }
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') console.warn('Error consultando última dotación:', err);
+            });
+        }
+
+        function aplicarUltimaDotacion(dot) {
+            if (!dot) return;
+            const isEdit = !!window.EDIT_MODE;
+            const prefix = isEdit ? '' : 'supervisions[0]';
+
+            function setFieldValue(name, value) {
+                if (value === undefined || value === null || value === '') return;
+                const selector = isEdit ? `[name="${name}"]` : `[name="${prefix}[${name}]"]`;
+                const el = document.querySelector(selector);
+                if (el) {
+                    el.value = value;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // Datos del Puesto
+            setFieldValue('detalles_puestos', dot.detalles_puestos);
+            setFieldValue('horario_servicio', dot.horario_servicio);
+            setFieldValue('tipo_servicio', dot.tipo_servicio);
+            setFieldValue('modalidad_servicio', dot.modalidad_servicio);
+
+            // Datos del Guardia
+            setFieldValue('nombre_guardia', dot.nombre_guardia);
+            setFieldValue('numero_empleado', dot.numero_empleado);
+            setFieldValue('documento_guardia', dot.documento_guardia);
+
+            // Tiempo en el puesto
+            if (isEdit) {
+                setFieldValue('tiempo_en_puesto', dot.tiempo_en_puesto);
+            } else {
+                const selTiempo = document.querySelector(`[name="supervisions[0][tiempo_en_puesto]"]`);
+                if (selTiempo && dot.tiempo_en_puesto) {
+                    const val = String(dot.tiempo_en_puesto);
+                    const exists = Array.from(selTiempo.options).some(o => o.value === val);
+                    if (exists) {
+                        selTiempo.value = val;
+                        selTiempo.dispatchEvent(new Event('change', { bubbles: true }));
+                    } else {
+                        selTiempo.value = 'Otro';
+                        selTiempo.dispatchEvent(new Event('change', { bubbles: true }));
+                        const otroInput = document.getElementById('tiempoPuestoOtroInput_0');
+                        if (otroInput) {
+                            otroInput.value = val;
+                            otroInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    }
+                }
+            }
+
+            setFieldValue('licencia_portar_arma', dot.licencia_portar_arma);
+
+            // Porta arma y sus campos condicionales
+            if (dot.porta_arma) {
+                setFieldValue('porta_arma', dot.porta_arma);
+                if (dot.porta_arma === 'Si') {
+                    setFieldValue('tipo_arma', dot.tipo_arma);
+                    setFieldValue('serie_arma', dot.serie_arma);
+                    setFieldValue('matricula_arma', dot.matricula_arma);
+                    setFieldValue('cantidad_municion', dot.cantidad_municion);
+                }
+            }
+
+            // Radio
+            setFieldValue('radio_asignado_serial', dot.radio_asignado_serial);
+            setFieldValue('marca_radio', dot.marca_radio);
+            setFieldValue('tipo_radio', dot.tipo_radio);
+
+            // Confirmación visual
+            wrap.innerHTML = `
+                <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
+                    <span class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <span>Dotación y equipamiento del turno anterior aplicados exitosamente. <strong>Las evaluaciones y firmas permanecen 100% en blanco para su inspección en vivo.</strong></span>
+                    </span>
+                    <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
+                </div>
+            `;
+        }
+
+        propSelect.addEventListener('change', function () {
+            consultarUltimaDotacion(this.value);
+        });
+
+        // Verificación inicial si ya viene preseleccionada por deep-link
+        if (propSelect.value) {
+            consultarUltimaDotacion(propSelect.value);
+        }
+    })();
     </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     <script>
