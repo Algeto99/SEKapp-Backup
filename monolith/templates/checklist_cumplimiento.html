@@ -268,13 +268,14 @@
                         <label for="puesto_area_especifica" class="form-label">Puesto o Área Específica <span
                                 class="text-red-400">*</span></label>
                         <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input"
-                            required>
+                            required autocapitalize="sentences" placeholder="Puesto o área específica">
                     </div>
                     <div>
                         <div>
-                            <label for="fecha_hora" class="form-label">Fecha y Hora <span
+                            <label class="form-label select-none pointer-events-none">Fecha y Hora <span
                                     class="text-red-400">*</span></label>
-                            <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                            <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                            <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                         </div>
                         <div>
                             <label for="rol_aplicador" class="form-label">Rol del Aplicador/Responsable <span
@@ -290,10 +291,13 @@
                             <label for="nombre_auditor" class="form-label">Nombre <span
                                     class="text-red-400">*</span></label>
                             <input type="text" name="nombre_auditor" id="nombre_auditor" class="form-input"
-                                value="{{ name }}" required>
+                                value="{{ name }}" required autocapitalize="words" autocorrect="off" spellcheck="false">
                         </div>
                     </div>
                 </div>
+
+                <!-- Banner voluntario de contexto / oficial en turno -->
+                <div id="bannerChecklistContextoWrap" class="mt-4 mb-6"></div>
 
                 <div id="checklist-container">
                     <div class="checklist-block relative rounded-lg mb-8">
@@ -315,7 +319,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label class="form-label">Nombre Completo</label>
-                                    <input type="text" name="agente_nombre_completo{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="text" name="agente_nombre_completo{{ '' if edit_mode else '[]' }}" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del oficial">
                                 </div>
                                 <div>
                                     <label class="form-label">Tipo de Documento</label>
@@ -329,15 +333,15 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Documento</label>
-                                    <input type="text" name="agente_numero_documento{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="text" name="agente_numero_documento{{ '' if edit_mode else '[]' }}" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
                                 </div>
                                 <div>
                                     <label class="form-label">Cargo/Rol</label>
-                                    <input type="text" name="agente_cargo_rol{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="text" name="agente_cargo_rol{{ '' if edit_mode else '[]' }}" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Oficial de Seguridad, Custodio">
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Empleado</label>
-                                    <input type="text" name="agente_numero_empleado{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="text" name="agente_numero_empleado{{ '' if edit_mode else '[]' }}" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                                 </div>
                             </div>
                         </div>
@@ -364,14 +368,14 @@
                                 </div>
                                 <div class="md:col-span-2">
                                     <label class="form-label">Academia o Escuela que Certifica</label>
-                                    <input type="text" name="academia_certifica{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="text" name="academia_certifica{{ '' if edit_mode else '[]' }}" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre de la academia o escuela">
                                 </div>
 
                                 <h3 class="subsection-title md:col-span-2">Resolucion de Aprobacion de la Academia</h3>
 
                                 <div>
                                     <label class="form-label">Nro. Resolucion</label>
-                                    <input type="text" name="nro_resolucion{{ '' if edit_mode else '[]' }}" class="form-input">
+                                    <input type="text" name="nro_resolucion{{ '' if edit_mode else '[]' }}" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" placeholder="Nro. de resolución">
                                 </div>
                                 <div>
                                     <label class="form-label">Fecha de Resolucion</label>
@@ -454,7 +458,7 @@
                                             class="signature-pad supervisor-sig-canvas"></canvas>
                                     </div>
                                     <button type="button" data-pad="firma_auditor_pad_0"
-                                        class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
+                                        class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar
                                         Firma</button>
                                     <input type="hidden" name="firma_auditor{{ '' if edit_mode else '[]' }}" class="hidden-supervisor-sig-input">
                                 </div>
@@ -465,7 +469,7 @@
                                             class="signature-pad guarda-sig-canvas"></canvas>
                                     </div>
                                     <button type="button" data-pad="firma_guarda_supervisado_pad_0"
-                                        class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar
+                                        class="clear-sig-btn mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar
                                         Firma</button>
                                     <input type="hidden" name="firma_guarda_supervisado{{ '' if edit_mode else '[]' }}" class="hidden-sig-input">
                                 </div>
@@ -477,7 +481,7 @@
                 {% if not edit_mode %}
                 <div class="mt-4 mb-8 text-center">
                     <button type="button" onclick="addChecklistBlock()"
-                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-lg flex items-center justify-center mx-auto gap-2">
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg text-lg flex items-center justify-center mx-auto gap-2 min-h-[44px]">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
                             stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -871,6 +875,150 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    <!-- Script de Precarga Contextual Voluntaria (Supervisión Anterior) -->
+    <script>
+    (function initChecklistContexto() {
+        const propSelect = document.getElementById('id_propiedad');
+        const wrap = document.getElementById('bannerChecklistContextoWrap');
+        if (!propSelect || !wrap) return;
+
+        let lastController = null;
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/[&<>"']/g, function (m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function consultarContexto(propId) {
+            if (!propId) {
+                wrap.innerHTML = '';
+                return;
+            }
+            if (window.EDIT_MODE) return;
+
+            if (lastController) lastController.abort();
+            lastController = new AbortController();
+
+            fetch(`/forms/api/supervision/ultima-dotacion?id_propiedad=${encodeURIComponent(propId)}`, {
+                signal: lastController.signal
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Status ' + res.status);
+                return res.json();
+            })
+            .then(dot => {
+                if (!dot || (!dot.nombre_guardia && !dot.documento_guardia)) {
+                    wrap.innerHTML = '';
+                    return;
+                }
+
+                wrap.innerHTML = `
+                    <div class="p-4 bg-blue-950/70 border border-blue-500/50 rounded-xl text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-blue-600/30 text-blue-300 rounded-lg shrink-0 mt-0.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
+                                    <span>Oficial asignado en última supervisión</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(dot.nombre_guardia || 'Sin nombre')}</span>
+                                </div>
+                                <div class="text-xs text-gray-300 mt-0.5">
+                                    ${dot.documento_guardia ? `Cédula: <strong class="text-white">${escapeHtml(dot.documento_guardia)}</strong> | ` : ''}
+                                    ${dot.numero_empleado ? `Carnet: <strong class="text-white">${escapeHtml(dot.numero_empleado)}</strong> | ` : ''}
+                                    ${dot.detalles_puestos ? `Puesto habitual: <span class="text-gray-200">${escapeHtml(dot.detalles_puestos)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                            <button type="button" id="btnCargarEmpleadoChecklist" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
+                                ⚡ Cargar oficial en este checklist
+                            </button>
+                            <button type="button" id="btnDescartarEmpleadoChecklist" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const btnCargar = document.getElementById('btnCargarEmpleadoChecklist');
+                const btnDescartar = document.getElementById('btnDescartarEmpleadoChecklist');
+
+                if (btnCargar) {
+                    btnCargar.addEventListener('click', () => {
+                        const firstBlock = document.querySelector('.checklist-block');
+                        if (firstBlock) {
+                            const nombreInput = firstBlock.querySelector('input[name^="agente_nombre_completo"]');
+                            const docInput = firstBlock.querySelector('input[name^="agente_numero_documento"]');
+                            const numInput = firstBlock.querySelector('input[name^="agente_numero_empleado"]');
+                            const tipoDocSel = firstBlock.querySelector('select[name^="agente_tipo_documento"]');
+                            const cargoInput = firstBlock.querySelector('input[name^="agente_cargo_rol"]');
+
+                            if (nombreInput && dot.nombre_guardia) {
+                                nombreInput.value = dot.nombre_guardia;
+                                nombreInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                nombreInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            if (docInput && dot.documento_guardia) {
+                                docInput.value = dot.documento_guardia;
+                                docInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                docInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            if (numInput && dot.numero_empleado) {
+                                numInput.value = dot.numero_empleado;
+                                numInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                numInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            if (tipoDocSel && !tipoDocSel.value) {
+                                tipoDocSel.value = 'CC';
+                                tipoDocSel.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            if (cargoInput && !cargoInput.value) {
+                                cargoInput.value = 'Oficial de Seguridad';
+                                cargoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                cargoInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+
+                        const puestoInput = document.getElementById('puesto_area_especifica');
+                        if (puestoInput && !puestoInput.value && dot.detalles_puestos) {
+                            puestoInput.value = dot.detalles_puestos;
+                            puestoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            puestoInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        wrap.innerHTML = `
+                            <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
+                                <span class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span>Oficial cargado en Checklist #1. <strong>Los cursos, resoluciones, nivel de cumplimiento y firmas quedan 100% listos para su evaluación en vivo.</strong></span>
+                                </span>
+                                <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (btnDescartar) {
+                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
+                }
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') console.warn('Error consultando oficial en turno:', err);
+            });
+        }
+
+        propSelect.addEventListener('change', function () {
+            consultarContexto(this.value);
+        });
+
+        if (propSelect.value) {
+            consultarContexto(propSelect.value);
+        }
+    })();
+    </script>
     <script src="{{ url_for('static', filename='js/theme-toggle.js') }}"></script>
     </div><!-- /sidebar-main-content -->
 </body>

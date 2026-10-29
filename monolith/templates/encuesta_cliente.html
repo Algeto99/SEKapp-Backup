@@ -366,8 +366,9 @@
                         <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                        <label class="block text-sm font-medium mb-1 select-none pointer-events-none">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
@@ -383,10 +384,13 @@
                     <div>
                         <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del
                             Responsable</label>
-                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}">
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}" autocapitalize="words" autocorrect="off" spellcheck="false">
                     </div>
                 </div>
             </div>
+
+            <!-- Banner voluntario de contacto del cliente -->
+            <div id="bannerEncuestaContextoWrap" class="mt-4"></div>
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-2">2. Evaluación de la Seguridad</h2>
@@ -567,20 +571,20 @@
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">4. Observaciones del Cliente</h2>
                 <textarea name="observaciones_cliente" id="observaciones_cliente" rows="4"
-                    class="form-input"></textarea>
+                    class="form-input" autocapitalize="sentences" spellcheck="true" placeholder="Observaciones o comentarios adicionales del cliente..."></textarea>
             </div>
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">5. Validación</h2>
                 <div>
                     <label for="encuestado">Encuestado</label>
-                    <input type="text" name="encuestado" id="encuestado" class="form-input">
+                    <input type="text" name="encuestado" id="encuestado" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del encuestado (Cliente)">
                 </div>
                 <div class="mt-4">
                     <label class="block text-sm font-medium mb-2">Firma</label>
                     <canvas id="signaturePadEncuestado" class="signature-pad w-full h-48"></canvas>
                     <button type="button" id="clearSignatureEncuestado"
-                        class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                     <input type="hidden" name="firma_encuestado" id="firma_encuestado">
                 </div>
             </div>
@@ -590,7 +594,7 @@
                     <label class="block text-sm font-medium mb-2">Firma de Coordinador/Supervisor</label>
                     <canvas id="signaturePadResponsable" class="signature-pad w-full h-48"></canvas>
                     <button type="button" id="clearSignatureResponsable"
-                        class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                     <input type="hidden" name="firma_responsable" id="firma_responsable">
                 </div>
             </div>
@@ -859,6 +863,116 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    <!-- Script de Precarga Contextual Voluntaria (Contacto Cliente para Encuesta) -->
+    <script>
+    (function initEncuestaContexto() {
+        const propSelect = document.getElementById('id_propiedad');
+        const wrap = document.getElementById('bannerEncuestaContextoWrap');
+        if (!propSelect || !wrap) return;
+
+        let lastController = null;
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/[&<>"']/g, function (m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function consultarContexto(propId) {
+            if (!propId) {
+                wrap.innerHTML = '';
+                return;
+            }
+            if (window.EDIT_MODE) return;
+
+            if (lastController) lastController.abort();
+            lastController = new AbortController();
+
+            fetch(`/forms/api/visita/ultimo-contacto?id_propiedad=${encodeURIComponent(propId)}`, {
+                signal: lastController.signal
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Status ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                const c = data && data.contacto;
+                if (!c || !c.nombre_cliente) {
+                    wrap.innerHTML = '';
+                    return;
+                }
+
+                wrap.innerHTML = `
+                    <div class="p-4 bg-blue-950/70 border border-blue-500/50 rounded-xl text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-blue-600/30 text-blue-300 rounded-lg shrink-0 mt-0.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
+                                    <span>Contacto habitual del cliente en esta sede</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(c.nombre_cliente)}</span>
+                                </div>
+                                <div class="text-xs text-gray-300 mt-0.5">
+                                    ${c.cargo_cliente ? `Cargo: <strong class="text-white">${escapeHtml(c.cargo_cliente)}</strong> | ` : ''}
+                                    ${c.fecha_anterior ? `Última visita: <span class="text-gray-200">${escapeHtml(c.fecha_anterior)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                            <button type="button" id="btnCargarContactoEncuesta" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
+                                ⚡ Cargar encuestado
+                            </button>
+                            <button type="button" id="btnDescartarContactoEncuesta" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const btnCargar = document.getElementById('btnCargarContactoEncuesta');
+                const btnDescartar = document.getElementById('btnDescartarContactoEncuesta');
+
+                if (btnCargar) {
+                    btnCargar.addEventListener('click', () => {
+                        const encuestadoInput = document.getElementById('encuestado');
+                        if (encuestadoInput && c.nombre_cliente) {
+                            encuestadoInput.value = c.nombre_cliente;
+                            encuestadoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            encuestadoInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        wrap.innerHTML = `
+                            <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
+                                <span class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span>Encuestado aplicado. <strong>Las calificaciones, comentarios y firmas quedan 100% listas para su evaluación presencial.</strong></span>
+                                </span>
+                                <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (btnDescartar) {
+                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
+                }
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') console.warn('Error consultando contacto anterior:', err);
+            });
+        }
+
+        propSelect.addEventListener('change', function () {
+            consultarContexto(this.value);
+        });
+
+        if (propSelect.value) {
+            consultarContexto(propSelect.value);
+        }
+    })();
+    </script>
     <script>
         // --- GEOLOCATION ---
         (function captureLocation() {

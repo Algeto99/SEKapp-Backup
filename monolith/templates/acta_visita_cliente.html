@@ -185,8 +185,9 @@
                         <input type="hidden" name="cliente_visitado" id="cliente_visitado">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required>
+                        <label class="block text-sm font-medium mb-1 select-none pointer-events-none">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="motivo_visita" class="block text-sm font-medium mb-1">Motivo de la Visita</label>
@@ -202,6 +203,9 @@
                 </div>
             </div>
 
+            <!-- Banner voluntario de contacto del cliente -->
+            <div id="bannerVisitaContextoWrap" class="mt-4"></div>
+
             <!-- REPEATABLE BLOCKS CONTAINER -->
             <div id="blocksContainer">
                 <!-- Block 0 (default) -->
@@ -209,13 +213,13 @@
                     <div class="form-section">
                         <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
                         <textarea name="temas_tratados_0" rows="5" class="form-textarea"
-                            placeholder="Liste los puntos principales discutidos...">{{ pre_temas | default('') }}</textarea>
+                            placeholder="Liste los puntos principales discutidos..." autocapitalize="sentences" spellcheck="true">{{ pre_temas | default('') }}</textarea>
                     </div>
 
                     <div class="form-section">
                         <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
                         <textarea name="acuerdos_compromisos_0" rows="5" class="form-textarea"
-                            placeholder="Detalle los acuerdos alcanzados..."></textarea>
+                            placeholder="Detalle los acuerdos alcanzados..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
 
                     <div class="form-section">
@@ -223,19 +227,19 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-sm font-medium mb-1">Nombre del Responsable</label>
-                                <input type="text" name="nombre_responsable_0" class="form-input">
+                                <input type="text" name="nombre_responsable_0" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre de quien asume el compromiso">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de Cumplimiento</label>
-                                <input type="date" name="fecha_cumplimiento_0" class="form-input" tabindex="-1" readonly>
+                                <input type="date" name="fecha_cumplimiento_0" class="form-input allow-future" data-allow-future="true" tabindex="-1" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Estado/Seguimiento</label>
                                 <select name="estado_seguimiento_0" class="form-input">
                                     <option value="">-- Seleccionar --</option>
-                                    <option value="Cerrado">Cerrado (Si ya se ejecuto)</option>
-                                    <option value="Pendiente">Pendiente (Si esta dentro del plazo)</option>
-                                    <option value="Vencido">Vencido (si la fecha ya paso)</option>
+                                    <option value="Cerrado">Cerrado (Si ya se ejecutó)</option>
+                                    <option value="Pendiente">Pendiente (Si está dentro del plazo)</option>
+                                    <option value="Vencido">Vencido (Si la fecha ya pasó)</option>
                                 </select>
                             </div>
                         </div>
@@ -246,8 +250,8 @@
             <!-- Agregar Button -->
             <div class="flex justify-start mb-6">
                 <button type="button" id="addBlockBtn"
-                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg focus:outline-none transition duration-300 flex items-center gap-2">
-                    <span class="text-lg">+</span> Agregar
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-lg focus:outline-none transition duration-300 flex items-center gap-2 min-h-[44px]">
+                    <span class="text-lg">+</span> Agregar Bloque
                 </button>
             </div>
 
@@ -260,17 +264,17 @@
                         <label for="nombre_visitante" class="block text-sm font-medium mb-1">Nombre del
                             Visitante</label>
                         <input type="text" name="nombre_visitante" id="nombre_visitante" class="form-input"
-                            value="{{ name }}" required>
+                            value="{{ name }}" required autocapitalize="words" autocorrect="off" spellcheck="false">
                     </div>
                     <div>
                         <label for="cargo_visitante" class="block text-sm font-medium mb-1">Cargo</label>
-                        <input type="text" name="cargo_visitante" id="cargo_visitante" class="form-input">
+                        <input type="text" name="cargo_visitante" id="cargo_visitante" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Supervisor de Operaciones">
                     </div>
                     <div class="md:col-span-2">
                         <label for="firma_visitante" class="block text-sm font-medium mb-2">Firma del Visitante</label>
                         <canvas id="firma-visitante-pad" class="signature-pad w-full h-48"></canvas>
                         <button type="button" id="clear-visitante"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_visitante" id="firma_visitante">
                     </div>
                 </div>
@@ -280,25 +284,25 @@
                     <div class="asistente-item grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pt-6">
                         <div>
                             <label class="block text-sm font-medium mb-1">Nombre del Participante (Cliente)</label>
-                            <input type="text" name="nombre_participante_cliente_0" class="form-input">
+                            <input type="text" name="nombre_participante_cliente_0" id="nombre_participante_cliente_0" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del representante del cliente">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Cargo</label>
-                            <input type="text" name="cargo_participante_cliente_0" class="form-input">
+                            <input type="text" name="cargo_participante_cliente_0" id="cargo_participante_cliente_0" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Gerente de Operaciones, Administrador">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Firma del Participante por el Cliente</label>
                             <canvas id="canvas-asistente-0" class="signature-pad w-full h-48"></canvas>
                             <button type="button" id="clear-asistente-0"
-                                class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                                class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                             <input type="hidden" name="firma_participante_cliente_0" id="input-asistente-0">
                         </div>
                     </div>
                 </div>
 
                 <button type="button" id="addAsistenteBtn"
-                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300 mt-4">
-                    +Agregar Asistente
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300 mt-4 min-h-[44px] inline-flex items-center">
+                    + Agregar Asistente
                 </button>
             </div>
 
@@ -446,31 +450,31 @@
                     <div class="form-section">
                         <h2 class="text-xl font-bold mb-4">2. Agenda y Temas Tratados</h2>
                         <textarea name="temas_tratados_${idx}" rows="5" class="form-textarea"
-                            placeholder="Liste los puntos principales discutidos..."></textarea>
+                            placeholder="Liste los puntos principales discutidos..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
                     <div class="form-section">
                         <h2 class="text-xl font-bold mb-4">3. Acuerdos y Compromisos</h2>
                         <textarea name="acuerdos_compromisos_${idx}" rows="5" class="form-textarea"
-                            placeholder="Detalle los acuerdos alcanzados..."></textarea>
+                            placeholder="Detalle los acuerdos alcanzados..." autocapitalize="sentences" spellcheck="true"></textarea>
                     </div>
                     <div class="form-section">
                         <h2 class="text-xl font-bold mb-4">4. Responsables</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-sm font-medium mb-1">Nombre del Responsable</label>
-                                <input type="text" name="nombre_responsable_${idx}" class="form-input">
+                                <input type="text" name="nombre_responsable_${idx}" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre de quien asume el compromiso">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de Cumplimiento</label>
-                                <input type="date" name="fecha_cumplimiento_${idx}" class="form-input" tabindex="-1" readonly>
+                                <input type="date" name="fecha_cumplimiento_${idx}" class="form-input allow-future" data-allow-future="true" tabindex="-1" readonly>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Estado/Seguimiento</label>
                                 <select name="estado_seguimiento_${idx}" class="form-input">
                                     <option value="">-- Seleccionar --</option>
-                                    <option value="Cerrado">Cerrado (Si ya se ejecuto)</option>
-                                    <option value="Pendiente">Pendiente (Si esta dentro del plazo)</option>
-                                    <option value="Vencido">Vencido (si la fecha ya paso)</option>
+                                    <option value="Cerrado">Cerrado (Si ya se ejecutó)</option>
+                                    <option value="Pendiente">Pendiente (Si está dentro del plazo)</option>
+                                    <option value="Vencido">Vencido (Si la fecha ya pasó)</option>
                                 </select>
                             </div>
                         </div>
@@ -495,19 +499,19 @@
                 newAsistente.innerHTML = `
                     <div>
                         <label class="block text-sm font-medium mb-1">Nombre del Participante (Cliente)</label>
-                        <input type="text" name="nombre_participante_cliente_${asistenteCount}" class="form-input">
+                        <input type="text" name="nombre_participante_cliente_${asistenteCount}" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del representante del cliente">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Cargo</label>
-                        <input type="text" name="cargo_participante_cliente_${asistenteCount}" class="form-input">
+                        <input type="text" name="cargo_participante_cliente_${asistenteCount}" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Administrador, Gerente">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Firma del Participante por el Cliente</label>
                         <canvas id="canvas-${asistenteId}" class="signature-pad w-full h-48"></canvas>
-                        <button type="button" id="clear-${asistenteId}" class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                        <button type="button" id="clear-${asistenteId}" class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_participante_cliente_${asistenteCount}" id="input-${asistenteId}">
                     </div>
-                    <button type="button" class="remove-asistente text-red-400 hover:text-red-300 text-sm md:col-span-2 text-right">Eliminar Asistente</button>
+                    <button type="button" class="remove-asistente text-red-400 hover:text-red-300 text-sm md:col-span-2 text-right min-h-[44px] inline-flex items-center justify-end">✕ Eliminar Asistente</button>
                 `;
                 asistentesContainer.appendChild(newAsistente);
 
@@ -547,6 +551,129 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    <!-- Script de Precarga Contextual Voluntaria (Último Contacto Registrado) -->
+    <script>
+    (function initVisitaContexto() {
+        const propSelect = document.getElementById('id_propiedad');
+        const wrap = document.getElementById('bannerVisitaContextoWrap');
+        if (!propSelect || !wrap) return;
+
+        let lastController = null;
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/[&<>"']/g, function (m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function consultarContexto(propId) {
+            if (!propId) {
+                wrap.innerHTML = '';
+                return;
+            }
+            if (window.EDIT_MODE) return;
+
+            if (lastController) lastController.abort();
+            lastController = new AbortController();
+
+            fetch(`/forms/api/visita/ultimo-contacto?id_propiedad=${encodeURIComponent(propId)}`, {
+                signal: lastController.signal
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Status ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                const c = data && data.contacto;
+                if (!c || (!c.nombre_cliente && !c.cargo_visitante)) {
+                    wrap.innerHTML = '';
+                    return;
+                }
+
+                wrap.innerHTML = `
+                    <div class="p-4 bg-blue-950/70 border border-blue-500/50 rounded-xl text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-blue-600/30 text-blue-300 rounded-lg shrink-0 mt-0.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
+                                    <span>Contacto habitual del cliente en esta sede</span>
+                                    ${c.nombre_cliente ? `<span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(c.nombre_cliente)}</span>` : ''}
+                                </div>
+                                <div class="text-xs text-gray-300 mt-0.5">
+                                    ${c.cargo_cliente ? `Cargo: <strong class="text-white">${escapeHtml(c.cargo_cliente)}</strong> | ` : ''}
+                                    ${c.fecha_anterior ? `Última visita: <span class="text-gray-200">${escapeHtml(c.fecha_anterior)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                            <button type="button" id="btnCargarContactoVisita" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
+                                ⚡ Cargar contacto del cliente
+                            </button>
+                            <button type="button" id="btnDescartarContactoVisita" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const btnCargar = document.getElementById('btnCargarContactoVisita');
+                const btnDescartar = document.getElementById('btnDescartarContactoVisita');
+
+                if (btnCargar) {
+                    btnCargar.addEventListener('click', () => {
+                        const nombrePart = document.getElementById('nombre_participante_cliente_0') || document.querySelector('input[name="nombre_participante_cliente_0"]');
+                        const cargoPart = document.getElementById('cargo_participante_cliente_0') || document.querySelector('input[name="cargo_participante_cliente_0"]');
+                        const cargoVis = document.getElementById('cargo_visitante');
+
+                        if (nombrePart && c.nombre_cliente) {
+                            nombrePart.value = c.nombre_cliente;
+                            nombrePart.dispatchEvent(new Event('input', { bubbles: true }));
+                            nombrePart.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (cargoPart && c.cargo_cliente) {
+                            cargoPart.value = c.cargo_cliente;
+                            cargoPart.dispatchEvent(new Event('input', { bubbles: true }));
+                            cargoPart.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (cargoVis && !cargoVis.value && c.cargo_visitante) {
+                            cargoVis.value = c.cargo_visitante;
+                            cargoVis.dispatchEvent(new Event('input', { bubbles: true }));
+                            cargoVis.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        wrap.innerHTML = `
+                            <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
+                                <span class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span>Contacto aplicado. <strong>Los temas, acuerdos, fechas de cumplimiento y firmas quedan 100% listos para su registro presencial.</strong></span>
+                                </span>
+                                <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (btnDescartar) {
+                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
+                }
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') console.warn('Error consultando contacto anterior:', err);
+            });
+        }
+
+        propSelect.addEventListener('change', function () {
+            consultarContexto(this.value);
+        });
+
+        if (propSelect.value) {
+            consultarContexto(propSelect.value);
+        }
+    })();
+    </script>
     {% if pre_motivo %}
     <script>
         document.addEventListener('DOMContentLoaded', function () {

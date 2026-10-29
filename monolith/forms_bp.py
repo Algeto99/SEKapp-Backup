@@ -1306,6 +1306,147 @@ def api_supervision_ultima_dotacion():
             conn.close()
 
 
+@forms_bp.route('/api/visita/ultimo-contacto')
+@jwt_required()
+def api_visita_ultimo_contacto():
+    """
+    Recupera el último contacto/participante del cliente y cargo del visitante
+    en una propiedad para agilizar el llenado del acta de visita sin duplicar esfuerzo.
+    No incluye acuerdos, compromisos, temas tratados ni firmas (siempre se registran en vivo).
+    """
+    id_propiedad = request.args.get('id_propiedad', type=int)
+    if not id_propiedad:
+        return jsonify({'disponible': False, 'contacto': None})
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'disponible': False, 'contacto': None})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+
+        conds = ["id_propiedad = %s"]
+        params = [id_propiedad]
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
+
+        cur.execute(f"""
+            SELECT id_visita, fecha_hora, cargo_visitante, detalles_participantes
+            FROM registro_y_acta_de_visita
+            WHERE {' AND '.join(conds)}
+            ORDER BY fecha_hora DESC, id_visita DESC
+            LIMIT 1
+        """, params)
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'disponible': False, 'contacto': None})
+
+        import json
+        nombre_cliente = None
+        cargo_cliente = None
+        raw_part = row['detalles_participantes']
+        if raw_part:
+            try:
+                parsed = json.loads(raw_part)
+                if isinstance(parsed, list) and len(parsed) > 0:
+                    nombre_cliente = (parsed[0].get('nombre') or '').strip()
+                    cargo_cliente = (parsed[0].get('cargo') or '').strip()
+                elif isinstance(parsed, dict):
+                    nombre_cliente = (parsed.get('nombre') or '').strip()
+                    cargo_cliente = (parsed.get('cargo') or '').strip()
+            except Exception:
+                pass
+
+        if not nombre_cliente and not cargo_cliente and not row['cargo_visitante']:
+            return jsonify({'disponible': False, 'contacto': None})
+
+        return jsonify({
+            'disponible': True,
+            'contacto': {
+                'id_visita_anterior': row['id_visita'],
+                'fecha_anterior': row['fecha_hora'].strftime('%d/%m/%Y') if row['fecha_hora'] else None,
+                'cargo_visitante': (row['cargo_visitante'] or '').strip(),
+                'nombre_cliente': nombre_cliente or '',
+                'cargo_cliente': cargo_cliente or ''
+            }
+        })
+    except Exception as e:
+        app_logger.warning(f"api_visita_ultimo_contacto error: {e}")
+        return jsonify({'disponible': False, 'contacto': None}), 200
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+@forms_bp.route('/api/confiabilidad/ultimo-inventario')
+@jwt_required()
+def api_confiabilidad_ultimo_inventario():
+    """
+    Recupera el último inventario base de equipos y el sitio habitual
+    de una propiedad para agilizar la auditoría recurrente de confiabilidad.
+    No incluye firmas de conformidad ni evaluaciones de falla definitivas.
+    """
+    id_propiedad = request.args.get('id_propiedad', type=int)
+    if not id_propiedad:
+        return jsonify({'disponible': False, 'inventario': None})
+
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'disponible': False, 'inventario': None})
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        company_id = _get_user_company_id(cur, get_jwt_identity())
+
+        conds = ["id_propiedad = %s"]
+        params = [id_propiedad]
+        if company_id is not None:
+            conds.append("company_id = %s")
+            params.append(company_id)
+
+        cur.execute(f"""
+            SELECT id, fecha, sitio, inventario, supervisor_seguridad
+            FROM confiabilidad_equipos
+            WHERE {' AND '.join(conds)}
+            ORDER BY fecha DESC, id DESC
+            LIMIT 1
+        """, params)
+        row = cur.fetchone()
+        if not row:
+            return jsonify({'disponible': False, 'inventario': None})
+
+        inv_data = row['inventario']
+        if isinstance(inv_data, str):
+            import json
+            try:
+                inv_data = json.loads(inv_data)
+            except Exception:
+                inv_data = []
+
+        if not inv_data or not isinstance(inv_data, list):
+            return jsonify({'disponible': False, 'inventario': None})
+
+        return jsonify({
+            'disponible': True,
+            'inventario': inv_data,
+            'sitio': (row['sitio'] or '').strip(),
+            'fecha_anterior': row['fecha'].strftime('%d/%m/%Y') if row['fecha'] else None,
+            'supervisor_anterior': (row['supervisor_seguridad'] or '').strip()
+        })
+    except Exception as e:
+        app_logger.warning(f"Error consultando último inventario de equipos: {e}")
+        return jsonify({'disponible': False, 'inventario': None}), 200
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
 @forms_bp.route('/api/customer-hierarchy')
 @jwt_required()
 def customer_hierarchy():
