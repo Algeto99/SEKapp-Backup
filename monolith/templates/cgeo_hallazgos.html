@@ -23,11 +23,20 @@
 
 {% include '_sidebar.html' %}
 
-<div class="sidebar-main-content">
-<div class="max-w-3xl mx-auto px-4 py-8">
+<div class="sidebar-main-content" id="mainContent">
+    <div class="snw-topbar">
+        <div class="snw-topbar-left">
+            <button class="snw-page-icon" id="snwPageIcon" style="background:linear-gradient(135deg,#ef4444,#dc2626)" title="Mostrar/Ocultar menú">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-6 0h.01M12 16h3m-6 0h.01"/></svg>
+            </button>
+            <div>
+                <div class="snw-page-title">Hallazgos Asignados</div>
+                <div class="snw-page-subtitle">Hallazgos y compromisos que le fueron asignados para gestionar</div>
+            </div>
+        </div>
+    </div>
 
-    <h1 class="text-2xl font-bold text-white mb-1">Hallazgos Asignados</h1>
-    <p class="text-sm text-slate-400 mb-6">Hallazgos que le fueron asignados para gestionar.</p>
+    <div class="max-w-3xl mx-auto px-4 py-8">
 
     {# ── Pendientes ────────────────────────────────────────────────────────── #}
     <div class="hz-heading mb-2">
