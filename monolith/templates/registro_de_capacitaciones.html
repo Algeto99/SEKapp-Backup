@@ -345,6 +345,8 @@
             </div>
             {% endif %}
 
+            {% include '_legal_disclaimer.html' %}
+
             <div class="flex justify-end pt-4">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
                     {{ 'Guardar Cambios' if edit_mode else 'Enviar Registro' }}

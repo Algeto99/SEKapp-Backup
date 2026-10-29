@@ -538,6 +538,8 @@
                 </div>
             </div>
 
+            {% include '_legal_disclaimer.html' %}
+
             <div class="flex justify-end pt-4">
                 <button type="submit"
                     class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline transition duration-300">
@@ -547,6 +549,8 @@
             {% else %}
             <!-- Container for Dynamic Supervision Blocks -->
             <div id="supervisionsContainer"></div>
+
+            {% include '_legal_disclaimer.html' %}
 
             <div class="flex justify-between pt-4">
                 <button type="button" id="addSupervisionBtn"
