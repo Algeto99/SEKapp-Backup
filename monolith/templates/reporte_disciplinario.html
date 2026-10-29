@@ -244,11 +244,12 @@
                     </div>
                     <div>
                         <label for="puesto_area_especifica" class="block text-sm font-medium mb-1">Puesto</label>
-                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input">
+                        <input type="text" name="puesto_area_especifica" id="puesto_area_especifica" class="form-input" autocapitalize="sentences" placeholder="Puesto o área específica">
                     </div>
                     <div>
-                        <label for="fecha_hora" class="block text-sm font-medium mb-1">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly>
+                        <label class="block text-sm font-medium mb-1 select-none pointer-events-none">Fecha y Hora</label>
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
@@ -286,31 +287,32 @@
                     <div>
                         <label for="nombre_responsable" class="block text-sm font-medium mb-1">Nombre del
                             Responsable</label>
-                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}">
+                        <input type="text" name="nombre_responsable" id="nombre_responsable" class="form-input" value="{{ name }}" autocapitalize="words" autocorrect="off" spellcheck="false">
                     </div>
                 </div>
             </div>
+
+            <!-- Banner voluntario de contexto / oficial en turno -->
+            <div id="bannerDisciplinarioContextoWrap" class="mt-4"></div>
 
             <div class="form-section">
                 <h2 class="text-xl font-bold mb-4">2. Datos del Empleado Involucrado</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="empleado_nombre" class="block text-sm font-medium mb-1">Nombre y Apellido</label>
-                        <input type="text" name="empleado_nombre" id="empleado_nombre" class="form-input">
+                        <input type="text" name="empleado_nombre" id="empleado_nombre" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                     </div>
                     <div>
                         <label for="empleado_numero" class="block text-sm font-medium mb-1">Número de Empleado</label>
-                        <input type="text" name="empleado_numero" id="empleado_numero" class="form-input">
+                        <input type="text" name="empleado_numero" id="empleado_numero" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
                     </div>
                     <div>
-
-                        <label for="empleado_documento" class="block text-sm font-medium mb-1">Número de
-                            documento</label>
-                        <input type="text" name="empleado_documento" id="empleado_documento" class="form-input">
+                        <label for="empleado_documento" class="block text-sm font-medium mb-1">Número de documento</label>
+                        <input type="text" name="empleado_documento" id="empleado_documento" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
                     </div>
                     <div>
                         <label for="empleado_cargo" class="block text-sm font-medium mb-1">Cargo</label>
-                        <input type="text" name="empleado_cargo" id="empleado_cargo" class="form-input">
+                        <input type="text" name="empleado_cargo" id="empleado_cargo" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Oficial de Seguridad">
                     </div>
                 </div>
             </div>
@@ -346,19 +348,19 @@
                 <div class="space-y-4">
                     <div>
                         <label for="sitio_ocurrencia" class="block text-sm font-medium mb-1">Sitio donde ocurrió</label>
-                        <input type="text" name="sitio_ocurrencia" id="sitio_ocurrencia" class="form-input">
+                        <input type="text" name="sitio_ocurrencia" id="sitio_ocurrencia" class="form-input" autocapitalize="sentences" placeholder="Punto o área específica del hecho">
                     </div>
                     <div>
                         <label for="descripcion_novedad" class="block text-sm font-medium mb-1">Describa la
                             novedad</label>
                         <textarea name="descripcion_novedad" id="descripcion_novedad" rows="4"
-                            class="form-input"></textarea>
+                            class="form-input" autocapitalize="sentences" spellcheck="true" placeholder="Describa objetivamente los hechos de la falta..."></textarea>
                     </div>
                     <div>
                         <label for="otras_personas_involucradas" class="block text-sm font-medium mb-1">Otras personas
                             involucradas</label>
                         <input type="text" name="otras_personas_involucradas" id="otras_personas_involucradas"
-                            class="form-input">
+                            class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombres de otros oficiales o personas involucradas">
                     </div>
                 </div>
             </div>
@@ -369,13 +371,15 @@
                     <input type="file" id="anexos_files" name="anexos_files" accept="image/*,application/pdf" multiple
                         class="hidden" onchange="updateFileList()">
                     <button type="button" onclick="document.getElementById('anexos_files').click()"
-                        class="form-input text-left">
+                        class="form-input text-left min-h-[44px]">
                         📎 Seleccionar o Tomar Foto/Video
                     </button>
                     <div id="fileList" class="mt-2 text-sm text-gray-400"></div>
-                    <div class="mt-2">
-                        <input type="checkbox" name="anexos_na" id="anexos_na">
-                        <label for="anexos_na" class="text-sm">No Aplica</label>
+                    <div class="mt-3">
+                        <label for="anexos_na" class="inline-flex items-center gap-2 cursor-pointer min-h-[44px] py-1 text-sm text-gray-300">
+                            <input type="checkbox" name="anexos_na" id="anexos_na" class="w-5 h-5 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
+                            <span>No Aplica</span>
+                        </label>
                     </div>
                 </div>
             </div>
@@ -389,7 +393,7 @@
                             <canvas id="signaturePadResponsable" class="signature-pad"></canvas>
                         </div>
                         <button type="button" id="clearSignatureResponsable"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_responsable" id="firma_responsable">
                     </div>
                     <div>
@@ -398,11 +402,13 @@
                             <canvas id="signaturePadRevisado" class="signature-pad"></canvas>
                         </div>
                         <button type="button" id="clearSignatureRevisado"
-                            class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                            class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                         <input type="hidden" name="firma_recibido_revisado" id="firma_recibido_revisado">
                         <div class="mt-3">
-                            <input type="checkbox" name="empleado_niega_firmar" id="empleado_niega_firmar">
-                            <label for="empleado_niega_firmar" class="text-sm ml-2">Empleado se niega a firmar</label>
+                            <label for="empleado_niega_firmar" class="inline-flex items-center gap-2 cursor-pointer min-h-[44px] py-1 text-sm text-gray-300">
+                                <input type="checkbox" name="empleado_niega_firmar" id="empleado_niega_firmar" class="w-5 h-5 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-400">
+                                <span class="font-medium text-yellow-300">Empleado se niega a firmar</span>
+                            </label>
                         </div>
                     </div>
 
@@ -412,7 +418,7 @@
                             <p class="text-yellow-400 text-sm font-semibold">⚠️ El empleado se negó a firmar — registre los datos del testigo.</p>
                             <div>
                                 <label for="nombre_testigo" class="block text-sm font-medium mb-1">Nombre del Testigo</label>
-                                <input type="text" name="nombre_testigo" id="nombre_testigo" class="form-input" placeholder="Nombre completo del testigo">
+                                <input type="text" name="nombre_testigo" id="nombre_testigo" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre completo del testigo">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-2">Firma del Testigo</label>
@@ -420,7 +426,7 @@
                                     <canvas id="signaturePadTestigo" class="signature-pad"></canvas>
                                 </div>
                                 <button type="button" id="clearSignatureTestigo"
-                                    class="mt-2 text-sm text-blue-400 hover:text-blue-300">Limpiar Firma</button>
+                                    class="mt-2 text-sm text-blue-400 hover:text-blue-300 min-h-[44px] inline-flex items-center">Limpiar Firma</button>
                                 <input type="hidden" name="firma_testigo" id="firma_testigo">
                             </div>
                         </div>
@@ -559,6 +565,14 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+            // Set current date and time if empty
+            const fechaEl = document.getElementById('fecha_hora');
+            if (fechaEl && !fechaEl.value) {
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                fechaEl.value = now.toISOString().slice(0, 16);
+            }
 
             // FIXED SIGNATURE PAD IMPLEMENTATION
             let signaturePads = {};
@@ -840,6 +854,143 @@
         }
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
+    <!-- Script de Precarga Contextual Voluntaria (Supervisión Anterior) -->
+    <script>
+    (function initDisciplinarioContexto() {
+        const propSelect = document.getElementById('id_propiedad');
+        const wrap = document.getElementById('bannerDisciplinarioContextoWrap');
+        if (!propSelect || !wrap) return;
+
+        let lastController = null;
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/[&<>"']/g, function (m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function consultarContexto(propId) {
+            if (!propId) {
+                wrap.innerHTML = '';
+                return;
+            }
+            if (window.EDIT_MODE) return; // En modo edición no sobreescribir datos existentes
+
+            if (lastController) lastController.abort();
+            lastController = new AbortController();
+
+            fetch(`/forms/api/supervision/ultima-dotacion?id_propiedad=${encodeURIComponent(propId)}`, {
+                signal: lastController.signal
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Status ' + res.status);
+                return res.json();
+            })
+            .then(dot => {
+                if (!dot || (!dot.nombre_guardia && !dot.documento_guardia)) {
+                    wrap.innerHTML = '';
+                    return;
+                }
+
+                wrap.innerHTML = `
+                    <div class="p-4 bg-blue-950/70 border border-blue-500/50 rounded-xl text-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-lg">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-blue-600/30 text-blue-300 rounded-lg shrink-0 mt-0.5">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            </div>
+                            <div>
+                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
+                                    <span>Oficial asignado en última supervisión</span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(dot.nombre_guardia || 'Sin nombre')}</span>
+                                </div>
+                                <div class="text-xs text-gray-300 mt-0.5">
+                                    ${dot.documento_guardia ? `Cédula: <strong class="text-white">${escapeHtml(dot.documento_guardia)}</strong> | ` : ''}
+                                    ${dot.numero_empleado ? `Carnet: <strong class="text-white">${escapeHtml(dot.numero_empleado)}</strong> | ` : ''}
+                                    ${dot.detalles_puestos ? `Puesto habitual: <span class="text-gray-200">${escapeHtml(dot.detalles_puestos)}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
+                            <button type="button" id="btnCargarEmpleadoDisciplinario" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
+                                ⚡ Cargar oficial señalado
+                            </button>
+                            <button type="button" id="btnDescartarEmpleadoDisciplinario" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const btnCargar = document.getElementById('btnCargarEmpleadoDisciplinario');
+                const btnDescartar = document.getElementById('btnDescartarEmpleadoDisciplinario');
+
+                if (btnCargar) {
+                    btnCargar.addEventListener('click', () => {
+                        const nombreInput = document.getElementById('empleado_nombre');
+                        const docInput = document.getElementById('empleado_documento');
+                        const numInput = document.getElementById('empleado_numero');
+                        const puestoInput = document.getElementById('puesto_area_especifica');
+                        const turnoSel = document.getElementById('turno');
+
+                        if (nombreInput && dot.nombre_guardia) {
+                            nombreInput.value = dot.nombre_guardia;
+                            nombreInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            nombreInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (docInput && dot.documento_guardia) {
+                            docInput.value = dot.documento_guardia;
+                            docInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            docInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (numInput && dot.numero_empleado) {
+                            numInput.value = dot.numero_empleado;
+                            numInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            numInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (puestoInput && !puestoInput.value && dot.detalles_puestos) {
+                            puestoInput.value = dot.detalles_puestos;
+                            puestoInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            puestoInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (turnoSel && !turnoSel.value && dot.horario_servicio) {
+                            const exists = Array.from(turnoSel.options).some(o => o.value === dot.horario_servicio);
+                            if (exists) {
+                                turnoSel.value = dot.horario_servicio;
+                                turnoSel.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+
+                        wrap.innerHTML = `
+                            <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
+                                <span class="flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span>Datos del colaborador aplicados. <strong>La falta disciplinaria, descripción de hechos y firmas quedan 100% listas para su evaluación en vivo.</strong></span>
+                                </span>
+                                <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (btnDescartar) {
+                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
+                }
+            })
+            .catch(err => {
+                if (err.name !== 'AbortError') console.warn('Error consultando oficial en turno:', err);
+            });
+        }
+
+        propSelect.addEventListener('change', function () {
+            consultarContexto(this.value);
+        });
+
+        if (propSelect.value) {
+            consultarContexto(propSelect.value);
+        }
+    })();
+    </script>
     <script>
         // --- GEOLOCATION ---
         (function captureLocation() {
