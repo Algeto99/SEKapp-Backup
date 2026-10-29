@@ -33,26 +33,19 @@ body{font-family:'Inter',sans-serif;background:#f1f5f9;color:#1e293b;min-height:
 .btn-logout{display:block;margin-top:.75rem;padding:.5rem .75rem;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25);border-radius:.5rem;font-size:.75rem;text-align:center;text-decoration:none;font-weight:600;transition:all .15s}
 .btn-logout:hover{background:rgba(239,68,68,0.2)}
 
-/* ── Main content ── */
+/* ── Main content & Filter bar ── */
 .main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh;transition:margin-left 0.3s ease}
 .main.expanded{margin-left:0}
-.topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:1rem 1.75rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;position:sticky;top:0;z-index:30}
-.topbar-left{display:flex;align-items:center;gap:.875rem}
-.page-icon{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:transform 0.2s ease, opacity 0.2s ease}
-.page-icon:hover{opacity:0.9;transform:scale(1.05)}
-.page-icon svg{width:22px;height:22px;color:#fff}
-.page-title{font-size:1.125rem;font-weight:700;color:#0f172a;line-height:1.2}
-.page-subtitle{font-size:.8rem;color:#64748b;font-weight:400}
-.topbar-right{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
-.filter-group{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
-.filter-label{font-size:.75rem;font-weight:600;color:#64748b;white-space:nowrap}
-.filter-select{height:36px;padding:0 .75rem;border:1px solid #e2e8f0;border-radius:.5rem;font-size:.8125rem;color:#334155;background:#fff;cursor:pointer;min-width:130px}
+.filter-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:.875rem 1.25rem;margin-bottom:1.25rem;min-width:0;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.filter-group{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;min-width:0}
+.filter-label{font-size:.78rem;font-weight:600;color:#64748b;white-space:nowrap}
+.filter-select{height:38px;padding:0 .875rem;border:1px solid #cbd5e1;border-radius:.5rem;font-size:.8125rem;color:#1e293b;background:#fff;cursor:pointer;min-width:200px;max-width:320px;text-overflow:ellipsis;transition:border-color .15s}
 .filter-select:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
-.date-input{height:36px;padding:0 .75rem;border:1px solid #e2e8f0;border-radius:.5rem;font-size:.8125rem;color:#334155;background:#fff;cursor:pointer}
+.date-input{height:38px;padding:0 .75rem;border:1px solid #cbd5e1;border-radius:.5rem;font-size:.8125rem;color:#1e293b;background:#fff;cursor:pointer;transition:border-color .15s}
 .date-input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
-.btn-apply{height:36px;padding:0 1rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;font-size:.8125rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-apply{height:38px;padding:0 1.1rem;background:#3b82f6;color:#fff;border:none;border-radius:.5rem;font-size:.8125rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
 .btn-apply:hover{background:#2563eb}
-.btn-pdf{height:36px;padding:0 1rem;background:#fff;color:#ef4444;border:1.5px solid #ef4444;border-radius:.5rem;font-size:.8125rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.375rem;white-space:nowrap;transition:all .15s}
+.btn-pdf{height:38px;padding:0 1rem;background:#fff;color:#ef4444;border:1.5px solid #ef4444;border-radius:.5rem;font-size:.8125rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:.375rem;white-space:nowrap;transition:all .15s}
 .btn-pdf:hover{background:#fef2f2}
 
 .content{padding:1.5rem 1.75rem;flex:1}
@@ -129,13 +122,13 @@ canvas{outline:none}
 .alert-req.alert-req-warn .alert-req-title{color:#92400e}
 .alert-req.alert-req-warn .alert-req-text{color:#78350f}
 
-/* ── Indicadores categoría Resumen Operativo ── */
-.pend-cat{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:.75rem;margin-bottom:1.25rem}
-.pend-cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:.875rem 1rem;text-align:center}
-.pend-cat-icon{font-size:1.5rem;display:block;margin-bottom:.25rem}
-.pend-cat-val{font-size:1.625rem;font-weight:800;font-family:'Merriweather',serif;line-height:1}
-.pend-cat-lbl{font-size:.72rem;color:#64748b;margin-top:.25rem;font-weight:600}
-.pend-cat-sub{font-size:.65rem;color:#94a3b8;margin-top:.125rem}
+/* ── Indicadores categoría Resumen Operativo (Matriz 4x2 ergonómica) ── */
+.pend-cat{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.875rem;margin-bottom:1.25rem}
+.pend-cat-card{background:#fff;border:1px solid #e2e8f0;border-radius:.875rem;padding:1rem 1.15rem;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:120px;box-shadow:0 1px 3px rgba(0,0,0,.03);transition:transform .15s,box-shadow .15s}
+.pend-cat-icon{font-size:1.5rem;display:inline-flex;align-items:center;justify-content:center;margin-bottom:.35rem}
+.pend-cat-val{font-size:1.75rem;font-weight:800;font-family:'Merriweather',serif;line-height:1.1}
+.pend-cat-lbl{font-size:.8rem;color:#475569;margin-top:.35rem;font-weight:600;line-height:1.25;white-space:normal}
+.pend-cat-sub{font-size:.72rem;color:#94a3b8;margin-top:.2rem}
 
 /* ── Modal Detalle Semáforo ── */
 .sg-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem}
@@ -210,22 +203,23 @@ canvas{outline:none}
 
 .kpi-subdetail{font-size:.7rem;color:#64748b;margin-top:.375rem;line-height:1.5}
 .kpi-subdetail span{display:block}
-@media(max-width:1200px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.pend-cat{grid-template-columns:repeat(4,1fr)}}
-@media(max-width:900px){
+@media(max-width:1200px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .pend-cat{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:992px){
   .charts-row,.charts-row-3{grid-template-columns:1fr}
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
-  .pend-cat{grid-template-columns:repeat(2,1fr)}
+  .pend-cat{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sidebar{width:200px}.main{margin-left:200px}
 }
 @media(max-width:700px){
   .sidebar{transform:translateX(-100%);width:240px}
   .sidebar.mobile-open{transform:translateX(0)}
   .main{margin-left:0}
-  .topbar{padding:.75rem 1rem;gap:.5rem;flex-direction:column;align-items:stretch}
-  .topbar-left{gap:.5rem}
-  .topbar-right{width:100%;flex-direction:column;gap:.5rem}
+  .filter-bar{flex-direction:column;align-items:stretch;gap:.75rem;padding:.875rem 1rem}
   .filter-group{flex-wrap:wrap;width:100%}
-  .filter-select,.date-input{min-width:0;width:100%}
+  .filter-select,.date-input{min-width:0;width:100%;max-width:100%}
   .btn-apply,.btn-pdf{width:100%;justify-content:center}
   .page-title{font-size:.9rem}
   .page-subtitle{display:none}
@@ -242,10 +236,13 @@ canvas{outline:none}
 /* Dark mode defaults */
 body:not(.light-mode){background:#0f172a;color:#e2e8f0}
 body:not(.light-mode) .topbar{background:#1e293b;border-bottom-color:#334155}
+body:not(.light-mode) .filter-bar{background:#1e293b;border-color:#334155}
 body:not(.light-mode) .page-title{color:#f1f5f9}
 body:not(.light-mode) .kpi-card,body:not(.light-mode) .chart-card,body:not(.light-mode) .table-card,body:not(.light-mode) .ranking-card,body:not(.light-mode) .pend-cat-card,body:not(.light-mode) .acciones-card{background:#1e293b;border-color:#334155}
 body:not(.light-mode) .chart-title,body:not(.light-mode) .table-title,body:not(.light-mode) .kpi-val,body:not(.light-mode) .pend-cat-val{color:#f1f5f9}
 body:not(.light-mode) .kpi-lbl,body:not(.light-mode) .pend-cat-lbl{color:#94a3b8}
+body:not(.light-mode) .filter-label{color:#94a3b8}
+body:not(.light-mode) .filter-select,body:not(.light-mode) .date-input{background:#0f172a;border-color:#334155;color:#e2e8f0}
 body:not(.light-mode) .accion-text{color:#cbd5e1}
 body:not(.light-mode) .accion-item{border-bottom-color:#334155}
 body:not(.light-mode) .tabs{background:#1e293b}
@@ -348,7 +345,30 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <div class="snw-page-subtitle">Estado de equipos, vehículos y certificaciones</div>
             </div>
         </div>
-        <div class="snw-topbar-right">
+    </div>
+
+    <div class="content">
+        <!-- Print header — hidden on screen, visible on print only -->
+        <div id="print-header" style="display:none; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:2px solid #e2e8f0;">
+            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem;">
+                <img src="{{ url_for('static', filename='logo_full.png') }}" alt="Kanan Sentinel" style="height:48px; width:auto;">
+                <div>
+                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b;">Kanan Sentinel — SekApp</div>
+                    <div style="font-size:1.3rem; font-weight:800; color:#0f172a; line-height:1.2;" id="print-report-title">GESTIÓN DE RECURSOS Y CONFIABILIDAD</div>
+                    <div style="font-size:1rem; font-weight:700; color:#1d4ed8;" id="print-report-type">INFORME EJECUTIVO</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-top:0.2rem;" id="print-report-subtitle">Resumen estratégico de indicadores, tendencias y estado general de la operación.</div>
+                </div>
+            </div>
+            <div style="display:flex; gap:2rem; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.6rem 1rem; font-size:0.8rem;">
+                <div><strong style="color:#475569;">Cliente:</strong> <span id="print-cliente">—</span></div>
+                <div><strong style="color:#475569;">Período:</strong> <span id="print-periodo">—</span></div>
+                <div><strong style="color:#475569;">Generado:</strong> <span id="print-fecha">—</span></div>
+                <div><strong style="color:#475569;">Usuario:</strong> <span id="print-usuario">{{ user_name or current_user }}</span></div>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
             <div class="filter-group">
                 <span class="filter-label">Cliente / Empresa</span>
                 <select id="filtCliente" class="filter-select" onchange="onClienteChange()">
@@ -377,27 +397,6 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12v.01M4 4h4v4H4V4zm12 0h4v4h-4V4zM4 16h4v4H4v-4z"/></svg>
                 Generar QR
             </button>
-        </div>
-    </div>
-
-    <div class="content">
-        <!-- Print header — hidden on screen, visible on print only -->
-        <div id="print-header" style="display:none; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:2px solid #e2e8f0;">
-            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem;">
-                <img src="{{ url_for('static', filename='logo_full.png') }}" alt="Kanan Sentinel" style="height:48px; width:auto;">
-                <div>
-                    <div style="font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748b;">Kanan Sentinel — SekApp</div>
-                    <div style="font-size:1.3rem; font-weight:800; color:#0f172a; line-height:1.2;" id="print-report-title">GESTIÓN DE RECURSOS Y CONFIABILIDAD</div>
-                    <div style="font-size:1rem; font-weight:700; color:#1d4ed8;" id="print-report-type">INFORME EJECUTIVO</div>
-                    <div style="font-size:0.8rem; color:#64748b; margin-top:0.2rem;" id="print-report-subtitle">Resumen estratégico de indicadores, tendencias y estado general de la operación.</div>
-                </div>
-            </div>
-            <div style="display:flex; gap:2rem; flex-wrap:wrap; background:#f8fafc; border:1px solid #e2e8f0; border-radius:0.5rem; padding:0.6rem 1rem; font-size:0.8rem;">
-                <div><strong style="color:#475569;">Cliente:</strong> <span id="print-cliente">—</span></div>
-                <div><strong style="color:#475569;">Período:</strong> <span id="print-periodo">—</span></div>
-                <div><strong style="color:#475569;">Generado:</strong> <span id="print-fecha">—</span></div>
-                <div><strong style="color:#475569;">Usuario:</strong> <span id="print-usuario">{{ user_name or current_user }}</span></div>
-            </div>
         </div>
 
         <!-- Tabs + status -->
