@@ -417,49 +417,49 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             <!-- KPIs -->
             <div class="kpi-grid">
                 <div class="kpi-card kpi-border-blue" id="kpiConfGeneralCard" onclick="abrirDetalleSemaforoRecursos()" style="cursor:pointer" title="Ver diagnóstico consolidado de recursos">
-                    <span class="kpi-icon">🛡️</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></span>
                     <div class="kpi-val" id="kpiConfGeneral">—</div>
                     <div class="kpi-lbl">Confiabilidad General de Recursos</div>
                     <div id="kpiConfGeneralDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiConfGeneralSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-green" id="kpiRadiosCard" data-href="/dashboard/equipos/?tipo=radio" onclick="navigateRecursos('/dashboard/equipos/?tipo=radio')" title="Abrir dashboard de Equipos (Radios)">
-                    <span class="kpi-icon">📻</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2"><rect x="5" y="8" width="14" height="13" rx="2"/><path stroke-linecap="round" d="M12 2v6"/><circle cx="12" cy="14" r="2.5"/><path stroke-linecap="round" d="M9 18h6"/></svg></span>
                     <div class="kpi-val" id="kpiRadiosOp">—</div>
                     <div class="kpi-lbl">Radios de Comunicación</div>
                     <div id="kpiRadiosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiRadiosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-green" id="kpiArmasCard" data-href="/dashboard/equipos/?tipo=arma" onclick="navigateRecursos('/dashboard/equipos/?tipo=arma')" title="Abrir dashboard de Equipos (Armamento)">
-                    <span class="kpi-icon">🔫</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg></span>
                     <div class="kpi-val" id="kpiArmasOp">—</div>
                     <div class="kpi-lbl">Armamento en Servicio</div>
                     <div id="kpiArmasDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiArmasSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-sky" id="kpiCarrosCard" data-href="/dashboard/vehiculos/" onclick="navigateRecursos('/dashboard/vehiculos/')" title="Abrir dashboard de Vehículos (Carros)">
-                    <span class="kpi-icon">🚓</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#0284c7" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9L2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg></span>
                     <div class="kpi-val" id="kpiCarrosAptos">—</div>
                     <div class="kpi-lbl">Flota Vehicular (Carros)</div>
                     <div id="kpiCarrosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiCarrosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-sky" id="kpiMotosCard" data-href="/dashboard/motocicletas/" onclick="navigateRecursos('/dashboard/motocicletas/')" title="Abrir dashboard de Motocicletas">
-                    <span class="kpi-icon">🏍️</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#0284c7" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 6h-3l-3 7h6.5l2-4H15m0 0l-3 5"/></svg></span>
                     <div class="kpi-val" id="kpiMotosAptas">—</div>
                     <div class="kpi-lbl">Flota de Motocicletas</div>
                     <div id="kpiMotosDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiMotosSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-purple" id="kpiCertCard" data-href="/dashboard/cumplimiento/" onclick="navigateRecursos('/dashboard/cumplimiento/')" title="Abrir dashboard de Cumplimiento Normativo">
-                    <span class="kpi-icon">📋</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#9333ea" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></span>
                     <div class="kpi-val" id="kpiCertVig">—</div>
                     <div class="kpi-lbl">Cumplimiento y Certificaciones</div>
                     <div id="kpiCertDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiCertSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-red" id="kpiEqNoOpCard" onclick="abrirModalAlertasCategoria('Equipo')" style="cursor:pointer" title="Ver equipos fuera de servicio y asignar seguimiento">
-                    <span class="kpi-icon">🧰</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
                     <div class="kpi-val" id="kpiEqNoOp" style="color:#dc2626">—</div>
                     <div class="kpi-lbl">Equipos Fuera de Servicio</div>
                     <div id="kpiEqNoOpDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
@@ -516,10 +516,10 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
                 <div class="chart-card">
                     <div class="chart-title">Semáforo de Recursos</div>
                     <div class="semaforo-grid" id="semaforo">
-                        <div class="sem-row"><span class="sem-label">⚙️ Equipos</span><span class="sem-pill pill-gris">—</span></div>
-                        <div class="sem-row"><span class="sem-label">🚗 Vehículos</span><span class="sem-pill pill-gris">—</span></div>
-                        <div class="sem-row"><span class="sem-label">📋 Cumplimiento</span><span class="sem-pill pill-gris">—</span></div>
-                        <div class="sem-row"><span class="sem-label">🛡️ General</span><span class="sem-pill pill-gris">—</span></div>
+                        <div class="sem-row"><span class="sem-label">Equipos</span><span class="sem-pill pill-gris">—</span></div>
+                        <div class="sem-row"><span class="sem-label">Vehículos</span><span class="sem-pill pill-gris">—</span></div>
+                        <div class="sem-row"><span class="sem-label">Cumplimiento</span><span class="sem-pill pill-gris">—</span></div>
+                        <div class="sem-row"><span class="sem-label">General</span><span class="sem-pill pill-gris">—</span></div>
                     </div>
                 </div>
             </div>
@@ -616,10 +616,10 @@ function semClass(estado) {
     return 'pill-gris';
 }
 function semLabel(estado) {
-    if (estado === 'verde') return '🟢 Operativo';
-    if (estado === 'amarillo') return '🟡 Atención';
-    if (estado === 'rojo') return '🔴 Crítico';
-    return '⚪ Sin datos';
+    if (estado === 'verde') return 'Operativo';
+    if (estado === 'amarillo') return 'Atención';
+    if (estado === 'rojo') return 'Crítico';
+    return 'Sin datos';
 }
 
 function _escHtml(s) {
@@ -823,7 +823,7 @@ function abrirDetalleSemaforoRecursos() {
     const totalAlertasFallas = alertas.reduce((acc, x) => acc + (x.con_falla || 1), 0);
     const alertSectionHtml = alertas.length ? `
         <div class="sg-detail-section">
-            <div class="sg-detail-heading">🚨 NOVEDADES Y ELEMENTOS QUE REQUIEREN GESTIÓN (${totalAlertasFallas} ${totalAlertasFallas === 1 ? 'ELEMENTO' : 'ELEMENTOS'})</div>
+            <div class="sg-detail-heading"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>NOVEDADES Y ELEMENTOS QUE REQUIEREN GESTIÓN (${totalAlertasFallas} ${totalAlertasFallas === 1 ? 'ELEMENTO' : 'ELEMENTOS'})</div>
             <div class="sg-detail-list">
                 ${alertas.slice(0, 8).map((a, i) => `
                     <div class="sg-item-row">
@@ -985,9 +985,9 @@ function renderData(d) {
     const cum_p = d.certificaciones?.pct;
     const bColor = p => (p == null ? '#64748b' : p >= 85 ? '#16a34a' : p >= 70 ? '#d97706' : '#dc2626');
     document.getElementById('kpiConfGeneralSub').innerHTML = [
-        { label: '⚙️ Equipos', val: eq_p != null ? `${eq_p}%` : '—', color: bColor(eq_p) },
-        { label: '🚗 Carros',  val: veh_p != null ? `${veh_p}%` : '—', color: bColor(veh_p) },
-        { label: '📋 Normas',  val: cum_p != null ? `${cum_p}%` : '—', color: bColor(cum_p) },
+        { label: 'Equipos', val: eq_p != null ? `${eq_p}%` : '—', color: bColor(eq_p) },
+        { label: 'Carros',  val: veh_p != null ? `${veh_p}%` : '—', color: bColor(veh_p) },
+        { label: 'Normas',  val: cum_p != null ? `${cum_p}%` : '—', color: bColor(cum_p) },
     ].map(s => `<span style="font-size:.7rem;font-weight:700;color:${s.color};background:${s.color}18;padding:.1rem .4rem;border-radius:.3rem">${s.label}: ${s.val}</span>`).join('');
 
     // Cada tarjeta lee su propia fuente sin heredar totales ajenos.
@@ -1164,14 +1164,14 @@ function renderData(d) {
     // Semáforo
     const sem = d.semaforo;
     const semRows = [
-        { icon: '⚙️', label: 'Equipos', key: 'equipos' },
-        { icon: '🚗', label: 'Vehículos', key: 'vehiculos' },
-        { icon: '📋', label: 'Cumplimiento', key: 'cumplimiento' },
-        { icon: '🛡️', label: 'General', key: 'general' },
+        { label: 'Equipos', key: 'equipos' },
+        { label: 'Vehículos', key: 'vehiculos' },
+        { label: 'Cumplimiento', key: 'cumplimiento' },
+        { label: 'General', key: 'general' },
     ];
     document.getElementById('semaforo').innerHTML = semRows.map(r =>
         `<div class="sem-row">
-            <span class="sem-label">${r.icon} ${r.label}</span>
+            <span class="sem-label">${r.label}</span>
             <span class="sem-pill ${semClass(sem[r.key])}">${semLabel(sem[r.key])}</span>
         </div>`
     ).join('');
@@ -1207,14 +1207,14 @@ function renderData(d) {
 
     // Indicadores por categoría — fila unificada
     const pendItems = [
-        { icon: '🧰', label: 'Equipos con Falla', val: eqNoOpVal, sub: 'Fuera de servicio', color: eqNoOpVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Equipo')" },
-        { icon: '📻', label: 'Radios con Falla', val: (radios.no_operativos || 0), sub: 'No operativos', color: (radios.no_operativos || 0) > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Radio')" },
-        { icon: '🔫', label: 'Armas con Falla', val: (armas.no_aptas || 0), sub: 'No óptimas', color: (armas.no_aptas || 0) > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Arma')" },
-        { icon: '🚗', label: 'Carros No Aptos', val: vehNoAptoVal, sub: 'Requieren taller', color: vehNoAptoVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Vehículo')" },
-        { icon: '🏍️', label: 'Motos con Falla', val: motoNoAptaVal, sub: 'No aptas', color: motoNoAptaVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Motocicleta')" },
-        { icon: '⚠️', label: 'Certificaciones Vencidas', val: cumVencVal, sub: 'Requieren renovación', color: cumVencVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Certificación')" },
-        { icon: '🕐', label: 'Próximas a Vencer', val: cumProxVal, sub: 'En próximos 30 días', color: cumProxVal > 0 ? '#d97706' : '#16a34a', fn: "abrirModalAlertasCategoria('Próxima')" },
-        { icon: '📊', label: 'Total Pendientes', val: totalPend, sub: 'Elementos por gestionar', color: '#2563eb', fn: "abrirDetalleSemaforoRecursos()" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>', label: 'Equipos con Falla', val: eqNoOpVal, sub: 'Fuera de servicio', color: eqNoOpVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Equipo')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="5" y="8" width="14" height="13" rx="2"/><path stroke-linecap="round" d="M12 2v6"/><circle cx="12" cy="14" r="2.5"/><path stroke-linecap="round" d="M9 18h6"/></svg>', label: 'Radios con Falla', val: (radios.no_operativos || 0), sub: 'No operativos', color: (radios.no_operativos || 0) > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Radio')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>', label: 'Armas con Falla', val: (armas.no_aptas || 0), sub: 'No óptimas', color: (armas.no_aptas || 0) > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Arma')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9L2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>', label: 'Carros No Aptos', val: vehNoAptoVal, sub: 'Requieren taller', color: vehNoAptoVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Vehículo')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 6h-3l-3 7h6.5l2-4H15m0 0l-3 5"/></svg>', label: 'Motos con Falla', val: motoNoAptaVal, sub: 'No aptas', color: motoNoAptaVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Motocicleta')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>', label: 'Certificaciones Vencidas', val: cumVencVal, sub: 'Requieren renovación', color: cumVencVal > 0 ? '#ef4444' : '#16a34a', fn: "abrirModalAlertasCategoria('Certificación')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', label: 'Próximas a Vencer', val: cumProxVal, sub: 'En próximos 30 días', color: cumProxVal > 0 ? '#d97706' : '#16a34a', fn: "abrirModalAlertasCategoria('Próxima')" },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>', label: 'Total Pendientes', val: totalPend, sub: 'Elementos por gestionar', color: '#2563eb', fn: "abrirDetalleSemaforoRecursos()" },
     ];
     document.getElementById('pendCat').innerHTML = pendItems.map(p => `
         <div class="pend-cat-card" onclick="${p.fn}" style="cursor:pointer" title="Ver ${p.label} y asignar">
@@ -1739,7 +1739,7 @@ function openQRModal() {
             <div class="sg-modal-title" style="font-family:'Merriweather',serif;font-size:1.125rem;margin-bottom:.25rem">Código QR — Acceso Directo</div>
             <div style="font-size:.82rem;font-weight:600;color:#3b82f6;margin-bottom:.2rem">Recursos y Confiabilidad${clienteStr}</div>
             <div class="sg-item-sub" style="margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
-            <div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.875rem">🔒 Requiere sesión activa</div>
+            <div style="display:inline-block;font-size:.72rem;font-weight:600;color:#92400e;background:#fef3c7;border-radius:.4rem;padding:.15rem .5rem;margin-bottom:.875rem">Acceso protegido · Requiere sesión activa</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
             <div class="sg-cond-box" style="font-size:.7rem;color:#94a3b8;word-break:break-all;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
             <button onclick="document.getElementById('qrModal').remove()" class="sg-modal-close-btn" style="margin-top:0">Cerrar</button>

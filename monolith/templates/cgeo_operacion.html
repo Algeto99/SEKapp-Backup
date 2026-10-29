@@ -569,33 +569,33 @@ body:not(.light-mode) .alerta-estado-badge{background:#334155;color:#cbd5e1;bord
         <div id="tab-ejecutivo">
             <div class="kpi-grid">
                 <div class="kpi-card kpi-border-green" id="kpiSatCard"{% if not public_mode %} data-href="/dashboard/satisfaccion/" onclick="navigateOperacion('/dashboard/satisfaccion/')" title="Abrir dashboard de Satisfacción"{% endif %}>
-                    <span class="kpi-icon">⭐</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#22c55e" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></span>
                     <div class="kpi-val" id="kpiSat">—</div>
                     <div class="kpi-lbl">Satisfacción del Cliente</div>
                     <div class="kpi-sub" id="kpiSatSub" style="color:#64748b;font-weight:400;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-red" id="kpiIncCard"{% if not public_mode %} data-href="/dashboard/incidentes/" onclick="navigateOperacion('/dashboard/incidentes/')" title="Abrir dashboard de Incidentes"{% endif %}>
-                    <span class="kpi-icon">⚠️</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></span>
                     <div class="kpi-val" id="kpiInc">—</div>
                     <div class="kpi-lbl">Incidentes Abiertos</div>
                     <div id="kpiIncMas24h" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiIncSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-blue" id="kpiSupCard"{% if not public_mode %} data-href="/dashboard/supervision/" onclick="navigateOperacion('/dashboard/supervision/')" title="Abrir dashboard de Supervisión"{% endif %}>
-                    <span class="kpi-icon">👁️</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></span>
                     <div class="kpi-val" id="kpiSup">—</div>
                     <div class="kpi-lbl">Supervisiones Completadas Hoy</div>
                     <div id="kpiSupDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
                     <div id="kpiSupSub" style="margin-top:.375rem;display:flex;flex-wrap:wrap;gap:.25rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-indigo" id="kpiCapCard"{% if not public_mode %} data-href="/dashboard/capacitacion/" onclick="navigateOperacion('/dashboard/capacitacion/')" title="Abrir dashboard de Capacitación"{% endif %}>
-                    <span class="kpi-icon">🎓</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#6366f1" stroke-width="2"><path d="M12 14l9-5-9-5-9 5 9 5z"/><path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14v7"/></svg></span>
                     <div class="kpi-val" id="kpiCap">—</div>
                     <div class="kpi-lbl">Capacitaciones Realizadas</div>
                     <div class="kpi-sub" id="kpiCapSub" style="color:#6366f1;margin-top:.375rem;font-size:.75rem"></div>
                 </div>
                 <div class="kpi-card kpi-border-orange" id="kpiVisCard"{% if not public_mode %} data-href="/dashboard/visitas/" onclick="navigateOperacion('/dashboard/visitas/')" title="Abrir dashboard de Visitas a Clientes"{% endif %}>
-                    <span class="kpi-icon">🏢</span>
+                    <span class="kpi-icon" style="display:inline-flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ea580c" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></span>
                     <div class="kpi-val" id="kpiVis">—</div>
                     <div class="kpi-lbl">Visitas a Clientes</div>
                     <div id="kpiVisDenom" style="font-size:.78rem;color:#64748b;margin-top:.2rem"></div>
@@ -610,8 +610,9 @@ body:not(.light-mode) .alerta-estado-badge{background:#334155;color:#cbd5e1;bord
                     <div class="chart-box"><canvas id="chartTendencia"></canvas></div>
                     <div id="tendenciaAgendarWrap" style="display:none;margin-top:.75rem;text-align:right;">
                         <button id="btnAgendarVisita" class="btn-apply" onclick="agendarVisitaDesdeInstalacion()"
-                            style="background:#7c3aed;">
-                            📅 Agendar visita
+                            style="background:#7c3aed;display:inline-flex;align-items:center;gap:.4rem;">
+                            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Agendar visita
                         </button>
                     </div>
                 </div>
@@ -1460,14 +1461,14 @@ function renderData(d) {
 
     // Indicadores por categoría — fila única con 8 ítems
     const pendItems = [
-        { icon: '⚠️', label: 'Incidentes Críticos',    val: inc_d.criticos_abiertos || 0, sub: 'Abiertos',               color: '#ef4444', href: '/dashboard/incidentes/' },
-        { icon: '⏳', label: 'Sin Atención >24h',      val: sinAtencion24,                sub: 'Incidentes abiertos',    color: '#ef4444', href: '/dashboard/incidentes/' },
-        { icon: '👁️', label: 'Supervisiones Críticas', val: supCrit,                      sub: 'En el período',          color: '#ef4444', href: '/dashboard/supervision/' },
-        { icon: '📅', label: 'Compromisos Vencidos',    val: compVenc,                     sub: 'Con retraso',            color: '#ef4444', href: '/dashboard/visitas/' },
-        { icon: '🏢', label: 'Compromisos en Plazo',    val: visPend,                      sub: 'Abiertos en plazo',      color: '#f97316', href: '/dashboard/visitas/' },
-        { icon: '😞', label: 'Clientes Insatisfechos',  val: insatCount,                   sub: 'Nota < 3.0 / 5',         color: '#d97706', href: '/dashboard/satisfaccion/' },
-        { icon: '📝', label: 'Reportes Disciplinarios', val: discTotal,                    sub: 'Registrados en período', color: '#6366f1', href: '/dashboard/disciplina/' },
-        { icon: '📊', label: 'Total por Gestionar',     val: totalPend,                    sub: 'Elementos pendientes',   color: '#2563eb', href: '/dashboard/incidentes/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>', label: 'Incidentes Críticos', val: inc_d.criticos_abiertos || 0, sub: 'Abiertos', color: '#ef4444', href: '/dashboard/incidentes/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', label: 'Sin Atención >24h', val: sinAtencion24, sub: 'Incidentes abiertos', color: '#ef4444', href: '/dashboard/incidentes/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>', label: 'Supervisiones Críticas', val: supCrit, sub: 'En el período', color: '#ef4444', href: '/dashboard/supervision/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>', label: 'Compromisos Vencidos', val: compVenc, sub: 'Con retraso', color: '#ef4444', href: '/dashboard/visitas/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>', label: 'Compromisos en Plazo', val: visPend, sub: 'Abiertos en plazo', color: '#f97316', href: '/dashboard/visitas/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', label: 'Clientes Insatisfechos', val: insatCount, sub: 'Nota < 3.0 / 5', color: '#d97706', href: '/dashboard/satisfaccion/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>', label: 'Reportes Disciplinarios', val: discTotal, sub: 'Registrados en período', color: '#6366f1', href: '/dashboard/disciplina/' },
+        { icon: '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>', label: 'Total por Gestionar', val: totalPend, sub: 'Elementos pendientes', color: '#2563eb', href: '/dashboard/incidentes/' },
     ];
     document.getElementById('pendCat').innerHTML = pendItems.map(p => `
         <div class="pend-cat-card"${!PUBLIC_MODE && p.href ? ` data-href="${p.href}" onclick="navigateOperacion('${p.href}')"` : ''}>
@@ -1880,7 +1881,7 @@ async function openQRModal() {
             <div class="sg-modal-title" style="font-family:'Merriweather',serif;font-size:1.125rem;margin-bottom:.25rem">Código QR — Acceso Directo</div>
             <div style="font-size:.82rem;font-weight:600;color:#3b82f6;margin-bottom:.2rem">Operación y Novedades${scopeStr}</div>
             <div class="sg-item-sub" style="margin-bottom:.5rem">${tabLabel} · ${periodoStr}</div>
-            <div style="display:inline-block;font-size:.72rem;font-weight:600;margin-bottom:.875rem;border-radius:.4rem;padding:.15rem .5rem;${esPublico ? 'color:#0369a1;background:#e0f2fe' : 'color:#92400e;background:#fef3c7'}">${esPublico ? 'Sólo lectura · vence en 24 horas' : '🔒 Requiere sesión activa'}</div>
+            <div style="display:inline-block;font-size:.72rem;font-weight:600;margin-bottom:.875rem;border-radius:.4rem;padding:.15rem .5rem;${esPublico ? 'color:#0369a1;background:#e0f2fe' : 'color:#92400e;background:#fef3c7'}">${esPublico ? 'Sólo lectura · vence en 24 horas' : 'Acceso protegido · Requiere sesión activa'}</div>
             <div id="qrContainer" style="display:flex;justify-content:center;margin-bottom:1rem"></div>
             <div class="sg-cond-box" style="font-size:.7rem;color:#94a3b8;word-break:break-all;padding:.5rem .75rem;margin-bottom:1.25rem;text-align:left" id="qrUrlLabel"></div>
             <button onclick="document.getElementById('qrModal').remove()" class="sg-modal-close-btn" style="margin-top:0">Cerrar</button>
@@ -1965,7 +1966,6 @@ function renderAlertasList(alertas) {
                          : a.color_semaforo === 'verde' ? 'verde' : 'amarillo';
         const dotClass   = `alerta-dot-${color}`;
         const btnClass   = `alerta-btn-${color}`;
-        const icon       = color === 'rojo' ? '🔴' : color === 'verde' ? '🟢' : color === 'naranja' ? '🟠' : '🟡';
         const titulo     = color === 'rojo' ? 'Crítico' : color === 'verde' ? 'Al día' : color === 'naranja' ? 'Prioritaria' : 'Atención';
         const prioridad  = color === 'naranja' ? '<span class="alerta-prioridad-badge">Prioritaria</span>' : '';
         const estadoBadge = (a.estado && a.estado !== 'Abierto')
@@ -1973,7 +1973,6 @@ function renderAlertasList(alertas) {
             : '';
         return `<div class="alerta-item" data-id="${_escHtml(a.id)}" title="${_escHtml(a.motivo || a.texto)}">
             <span class="alerta-dot ${dotClass}" title="${titulo}"></span>
-            <span style="font-size:.875rem;flex-shrink:0">${icon}</span>
             <span class="alerta-texto">${_escHtml(a.texto)}</span>
             ${prioridad}
             ${estadoBadge}
@@ -2002,9 +2001,9 @@ function _updateBadges(data) {
         return;
     }
     let html = '';
-    if (data.rojas)    html += `<span class="badge-count-rojo">🔴 ${data.rojas} crítica${data.rojas !== 1 ? 's' : ''}</span>`;
-    if (data.naranjas) html += `<span class="badge-count-naranja">🟠 ${data.naranjas} prioritaria${data.naranjas !== 1 ? 's' : ''}</span>`;
-    if (data.amarillas) html += `<span class="badge-count-amarillo">🟡 ${data.amarillas} en seguimiento</span>`;
+    if (data.rojas)    html += `<span class="badge-count-rojo">${data.rojas} crítica${data.rojas !== 1 ? 's' : ''}</span>`;
+    if (data.naranjas) html += `<span class="badge-count-naranja">${data.naranjas} prioritaria${data.naranjas !== 1 ? 's' : ''}</span>`;
+    if (data.amarillas) html += `<span class="badge-count-amarillo">${data.amarillas} en seguimiento</span>`;
     badges.innerHTML = html;
 }
 
@@ -2293,7 +2292,7 @@ async function abrirDetalleSemaforo() {
         const asignados = (_alertasData || []).filter(a => a.asignacion);
         const asignadosHtml = asignados.length ? `
             <div class="sg-asignados">
-                <div class="sg-detail-heading">📌 HALLAZGOS ASIGNADOS (${asignados.length} pendientes)</div>
+                <div class="sg-detail-heading"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>HALLAZGOS ASIGNADOS (${asignados.length} pendientes)</div>
                 <div class="sg-detail-list">
                     ${asignados.map(a => `
                         <div class="sg-asig-row" data-asignacion="${a.asignacion_id}">
@@ -2312,12 +2311,12 @@ async function abrirDetalleSemaforo() {
         const totalEqFalla = eqDetalles.reduce((acc, eq) => acc + (eq.con_falla || 1), 0);
         const eqSectionHtml = eqDetalles.length ? `
             <div class="sg-detail-section">
-                <div class="sg-detail-heading">🧰 EQUIPOS CON FALLA O FUERA DE SERVICIO (${totalEqFalla} ${totalEqFalla === 1 ? 'UNIDAD' : 'UNIDADES'})</div>
+                <div class="sg-detail-heading"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>EQUIPOS CON FALLA O FUERA DE SERVICIO (${totalEqFalla} ${totalEqFalla === 1 ? 'UNIDAD' : 'UNIDADES'})</div>
                 <div class="sg-detail-list">
                     ${eqDetalles.map(eq => `
                         <div class="alerta-item" style="padding:.65rem .875rem">
                             <div class="alerta-dot alerta-dot-naranja"></div>
-                            <span style="font-size:.875rem">📻</span>
+                            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><rect x="5" y="8" width="14" height="13" rx="2"/><path d="M12 2v6"/><circle cx="12" cy="14" r="2"/></svg>
                             <div style="flex:1;min-width:0">
                                 <div class="sg-item-title" style="font-size:.8125rem">${_escHtml(eq.etiqueta)} — ${_escHtml(eq.instalacion)}</div>
                                 <div class="sg-item-sub" style="font-size:.72rem">${eq.con_falla} fuera de servicio (${eq.operativos} de ${eq.total} operativos) · ${_escHtml(eq.novedad || 'Sin comentario')}</div>
@@ -2331,7 +2330,7 @@ async function abrirDetalleSemaforo() {
         const supClientes = (kpis.sup_por_cliente || []).filter(c => (c.programadas || 0) > (c.contadas || 0));
         const supSectionHtml = (supClientes.length && (kpis.sup_programadas || 0) > 0) ? `
             <div class="sg-detail-section">
-                <div class="sg-detail-heading">👁️ CLIENTES CON MAYOR DÉFICIT DE SUPERVISIONES (${supClientes.length})</div>
+                <div class="sg-detail-heading"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>CLIENTES CON MAYOR DÉFICIT DE SUPERVISIONES (${supClientes.length})</div>
                 <div class="sg-detail-list">
                     ${supClientes.slice(0, 4).map(c => {
                         const deficit = (c.programadas || 0) - (c.contadas || 0);
@@ -2352,7 +2351,7 @@ async function abrirDetalleSemaforo() {
         const alertasActivas = (_alertasData || []).filter(a => !a.asignacion && a.color_semaforo !== 'verde');
         const alertasSectionHtml = alertasActivas.length ? `
             <div class="sg-detail-section">
-                <div class="sg-detail-heading">🚨 ALERTAS OPERACIONALES ACTIVAS (${alertasActivas.length}) — TOCA PARA ABRIR Y ASIGNAR</div>
+                <div class="sg-detail-heading"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>ALERTAS OPERACIONALES ACTIVAS (${alertasActivas.length}) — TOCA PARA ABRIR Y ASIGNAR</div>
                 <div class="sg-detail-list">
                     ${alertasActivas.slice(0, 8).map(a => `
                         <div class="alerta-item" style="cursor:pointer" onclick="abrirAlertaSemaforoPorId('${_escHtml(a.id)}', event)">

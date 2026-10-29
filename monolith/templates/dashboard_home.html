@@ -640,13 +640,13 @@
                 elBadge.style.display = 'inline-block';
                 if (criticos > 0) {
                     elBadge.style.background = '#ef4444';
-                    elBadge.textContent = `⚠️ ${criticos} EN RIESGO`;
+                    elBadge.textContent = `${criticos} EN RIESGO`;
                 } else if (seguimiento > 0) {
                     elBadge.style.background = '#f59e0b';
-                    elBadge.textContent = `⚠️ ${seguimiento} EN SEGUIMIENTO`;
+                    elBadge.textContent = `${seguimiento} EN SEGUIMIENTO`;
                 } else {
                     elBadge.style.background = '#22c55e';
-                    elBadge.textContent = `✓ CARTERA SALUDABLE`;
+                    elBadge.textContent = `CARTERA SALUDABLE`;
                 }
             }
 

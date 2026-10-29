@@ -693,7 +693,7 @@
           <p class="tl-summary">${escHtml(summary)}</p>
           <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:.5rem;flex-wrap:wrap;">
             <div class="tl-meta">
-              ${lugar ? `<span style="color:#a0aec0;">📍 ${escHtml(lugar)}</span> · ` : ''}
+              ${lugar ? `<span style="color:#a0aec0;"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-1px;margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>${escHtml(lugar)}</span> · ` : ''}
               ${actor ? `<span style="color:#a0aec0;">${escHtml(actor)}</span>` : ''}
               ${estado ? ` · <span style="color:#cbd5e1;">${escHtml(estado)}</span>` : ''}
               ${metaHtml ? ` · ${metaHtml}` : ''}

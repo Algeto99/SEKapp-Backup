@@ -284,7 +284,7 @@ body.light-mode .theme-toggle:hover{background-color:rgba(0,0,0,0.2)}
                         <div class="matrix-card-title">Alertas / Novedades</div>
                         <div class="matrix-card-desc">Hallazgos, incidentes, supervisiones y compromisos que requieren gestión{% if is_coordinador %} en su ámbito{% endif %}.</div>
                     </div>
-                    <div class="matrix-card-icon icon-amber">🔔</div>
+                    <div class="matrix-card-icon icon-amber" style="display:flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></div>
                 </div>
                 <div class="matrix-stats">
                     <div class="stat-pill">
@@ -314,7 +314,7 @@ body.light-mode .theme-toggle:hover{background-color:rgba(0,0,0,0.2)}
                         <div class="matrix-card-title">Matriz de Incidentes</div>
                         <div class="matrix-card-desc">Incidentes de seguridad registrados. Filtrado por severidad, estado y cliente.</div>
                     </div>
-                    <div class="matrix-card-icon icon-orange">🚨</div>
+                    <div class="matrix-card-icon icon-orange" style="display:flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>
                 </div>
                 <div class="matrix-stats">
                     <div class="stat-pill">
@@ -343,7 +343,7 @@ body.light-mode .theme-toggle:hover{background-color:rgba(0,0,0,0.2)}
                         <div class="matrix-card-title">Matriz de Visitas a Clientes</div>
                         <div class="matrix-card-desc">Actas de visita, compromisos adquiridos y seguimiento de pendientes por cliente.</div>
                     </div>
-                    <div class="matrix-card-icon icon-blue">🤝</div>
+                    <div class="matrix-card-icon icon-blue" style="display:flex;align-items:center;justify-content:center"><svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg></div>
                 </div>
                 <div class="matrix-stats">
                     <div class="stat-pill">
@@ -421,7 +421,7 @@ async function loadStats() {
         if (d.visitas?.pendientes > 0)
             alerts.push(`${d.visitas.pendientes} compromiso(s) pendiente(s)`);
         if (alerts.length) {
-            document.getElementById('alertBarText').textContent = '⚠️ Atención: ' + alerts.join(' · ');
+            document.getElementById('alertBarText').textContent = 'Atención: ' + alerts.join(' · ');
             document.getElementById('alertBar').classList.remove('hidden');
         } else {
             document.getElementById('alertBar').classList.add('hidden');

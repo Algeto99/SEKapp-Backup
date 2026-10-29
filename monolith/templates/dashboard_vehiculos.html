@@ -344,7 +344,8 @@
                 const url = `/forms/planilla_vehicular?placa=${encodeURIComponent(placa)}${cliente ? '&cliente=' + encodeURIComponent(cliente) : ''}`;
                 actionsEl.innerHTML = `
                     <a href="${url}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded-lg text-xs transition duration-150 inline-flex items-center gap-1.5" style="text-decoration:none;">
-                        <span>📝 Registrar pre-op</span>
+                        <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        <span>Registrar pre-op</span>
                     </a>
                 `;
             } else {

@@ -627,7 +627,7 @@ body:not(.light-mode) .user-dropdown-item.danger:hover{background:rgba(239,68,68
             <button type="button" class="cr-card" id="crCard" onclick="abrirClientesEnRiesgo()"
                     title="Ver el listado completo de clientes en riesgo">
                 <span class="cr-title-box">
-                    <span class="cr-icon" id="crIcon">⚠️</span>
+                    <span class="cr-icon" id="crIcon" style="display:inline-flex;align-items:center"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></span>
                     <span class="cr-title" id="crTitle">Clientes en riesgo: <strong>0</strong></span>
                 </span>
                 <span class="cr-resumen" id="crResumen"></span>
@@ -947,7 +947,8 @@ function renderKpis(k, thr) {
     const kpiDefs = [
         {
             id: 'kpiInc',
-            icon: '⚠️', iconBg: '#fef2f2',
+            icon: '<svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+            iconBg: 'rgba(239,68,68,.12)',
             val: k.inc_abiertos ?? 0,
             lbl: 'Incidentes Abiertos',
             pill: (k.inc_abiertos > 0)
@@ -956,29 +957,31 @@ function renderKpis(k, thr) {
             sub: (k.inc_mas_24h ?? 0) > 0
                 ? `${k.inc_mas_24h} llevan más de 24h sin gestión`
                 : 'Todos gestionados en las últimas 24h',
-            action: '<span>👉 Gestionar incidentes</span><span>→</span>',
+            action: '<span>Gestionar incidentes</span><span class="kpi-action-arr">→</span>',
             color: _kpiIncColor(k.inc_abiertos ?? 0),
         },
         {
             id: 'kpiSup',
-            icon: '👁️', iconBg: '#eff6ff',
+            icon: '<svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#2563eb" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>',
+            iconBg: 'rgba(37,99,235,.12)',
             val: (progSup > 0)
                 ? `${compSup} <span class="kpi-val-denom">/ ${progSup}</span>`
                 : (k.sup_en_curso ?? 0),
             lbl: 'Supervisiones',
             pill: (pendSup > 0)
-                ? { cls: 'kpi-pill-warning', text: `⚠️ ${pendSup} PENDIENTES` }
+                ? { cls: 'kpi-pill-warning', text: `${pendSup} PENDIENTES` }
                 : (progSup > 0 ? { cls: 'kpi-pill-success', text: '100% AL DÍA' } : null),
             sub: _kpiSupSub(k),
             help: SUP_AYUDA,
             action: (pendSup > 0)
-                ? `<span>👉 Ver ${clisPendSup > 0 ? `${clisPendSup} clientes con pendientes` : `${pendSup} pendientes`}</span><span>→</span>`
-                : '<span>👉 Ver cobertura de clientes</span><span>→</span>',
+                ? `<span>Ver ${clisPendSup > 0 ? `${clisPendSup} clientes con pendientes` : `${pendSup} pendientes`}</span><span class="kpi-action-arr">→</span>`
+                : '<span>Ver cobertura de clientes</span><span class="kpi-action-arr">→</span>',
             color: _kpiSupColor(k.sup_completadas ?? 0, k.sup_programadas ?? 0, thr, k.sup_pct ?? null),
         },
         {
             id: 'kpiEq',
-            icon: '🧰', iconBg: '#fff7ed',
+            icon: '<svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#ea580c" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
+            iconBg: 'rgba(234,88,12,.12)',
             val: (k.eq_no_op > 0)
                 ? `${k.eq_no_op} con falla`
                 : (radioTotal > 0 || armaTotal > 0 ? '100% operativos' : (equiposTotal > 0 ? equiposTotal : '—')),
@@ -992,25 +995,27 @@ function renderKpis(k, thr) {
                     ? `Todos los equipos operando en puestos (${radioOp} radios · ${armaOp} armas)`
                     : eqDetalle.join(' · ')),
             action: (k.eq_no_op > 0)
-                ? '<span>👉 Resolver fallas de equipos</span><span>→</span>'
-                : '<span>👉 Ver estado de equipos</span><span>→</span>',
+                ? '<span>Resolver fallas de equipos</span><span class="kpi-action-arr">→</span>'
+                : '<span>Ver estado de equipos</span><span class="kpi-action-arr">→</span>',
             color: _kpiEqColor(radioNoOp, radioTotal, thr),
         },
         {
             id: 'kpiCert',
-            icon: '📋', iconBg: '#f0fdf4',
+            icon: '<svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>',
+            iconBg: 'rgba(22,163,74,.12)',
             val: k.cert_proximas ?? 0,
             lbl: 'Cumplimiento Normativo',
             pill: (k.cert_proximas > 0)
                 ? { cls: 'kpi-pill-warning', text: `${k.cert_proximas} POR VENCER` }
                 : { cls: 'kpi-pill-success', text: 'AL DÍA' },
             sub: certSubLines,
-            action: '<span>👉 Revisar vencimientos</span><span>→</span>',
+            action: '<span>Revisar vencimientos</span><span class="kpi-action-arr">→</span>',
             color: _kpiCertColor(k.cert_proximas ?? 0),
         },
         {
             id: 'kpiComp',
-            icon: '🤝', iconBg: '#f5f3ff',
+            icon: '<svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#7c3aed" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>',
+            iconBg: 'rgba(124,58,237,.12)',
             val: k.comp_vencidos ?? 0,
             lbl: 'Compromisos de Visitas',
             pill: (k.comp_vencidos > 0)
@@ -1021,16 +1026,17 @@ function renderKpis(k, thr) {
                 : (k.comp_por_vencer ?? 0) > 0
                     ? `${k.comp_por_vencer} por vencer próximamente`
                     : 'Sin compromisos vencidos',
-            action: '<span>👉 Gestionar compromisos</span><span>→</span>',
+            action: '<span>Gestionar compromisos</span><span class="kpi-action-arr">→</span>',
             color: _kpiCompColor(k.comp_vencidos ?? 0, k.comp_por_vencer ?? 0),
         },
         {
             id: 'kpiVisita',
-            icon: '🚗', iconBg: '#eff6ff',
+            icon: '<svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#0284c7" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>',
+            iconBg: 'rgba(2,132,199,.12)',
             val: k.visita_completadas ?? 0,
             lbl: 'Visitas a Clientes',
             sub: _kpiVisitaSub(k),
-            action: '<span>👉 Ver agenda y avance</span><span>→</span>',
+            action: '<span>Ver agenda y avance</span><span class="kpi-action-arr">→</span>',
             color: _kpiVisitaColor(
                 k.visita_completadas ?? 0,
                 k.visita_programadas ?? 0,
@@ -1131,7 +1137,7 @@ function abrirModalKpiIncidentes() {
     });
     const criticos = _kpis.inc_criticos || 0;
     const mas24h = _kpis.inc_mas_24h || 0;
-    const titulo = `⚠️ Incidentes Abiertos (${_kpis.inc_abiertos ?? 0})`;
+    const titulo = `Incidentes Abiertos (${_kpis.inc_abiertos ?? 0})`;
     const subtitulo = items.length
         ? `${items.length} incidente${items.length !== 1 ? 's' : ''} pendiente${items.length !== 1 ? 's' : ''} de resolución (${criticos} crítico${criticos !== 1 ? 's' : ''}, ${mas24h} con > 24h) — ordenados por severidad y tiempo:`
         : 'Sin incidentes abiertos en este momento.';
@@ -1142,11 +1148,11 @@ function abrirModalKpiIncidentes() {
             const badgeCls = (sev.includes('crít') || sev.includes('crit')) ? 'kpi-badge-rojo' : (sev.includes('alto') ? 'kpi-badge-naranja' : 'kpi-badge-amarillo');
             const esMas24 = (inc.horas || 0) >= 24;
             const tiempoTxt = esMas24
-                ? `<span style="color:#ef4444;font-weight:700">⚠️ ${inc.horas}h activo</span>`
+                ? `<span style="color:#ef4444;font-weight:700">${inc.horas}h activo</span>`
                 : `${inc.horas}h activo`;
             const respTxt = inc.responsable
                 ? ` · Asignado a: <strong>${_esc(inc.responsable)}</strong>`
-                : ' · <span style="color:#ef4444;font-weight:600">⚠️ Sin responsable</span>';
+                : ' · <span style="color:#ef4444;font-weight:600">Sin responsable</span>';
             return `
             <div class="kpi-modal-row">
                 <div class="kpi-modal-row-main">
@@ -1158,12 +1164,12 @@ function abrirModalKpiIncidentes() {
                 </div>
                 <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('reporte_incidente', ${inc.id}, 'Incidente abierto (${inc.horas}h)', '${_esc(inc.tipo)} en ${_esc(inc.cliente)}')">
-                        👤 Asignar Responsable ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Asignar Responsable ↗
                     </button>
                 </div>
             </div>`;
         }).join('')
-        : `<div class="sg-detail-empty">✅ No hay incidentes abiertos pendientes en el sistema. Todos han sido resueltos.</div>`;
+        : `<div class="sg-detail-empty"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5" style="display:inline-block;vertical-align:-3px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>No hay incidentes abiertos pendientes en el sistema. Todos han sido resueltos.</div>`;
 
     _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/operacion/', 'Ir al módulo completo de Operación e Incidentes →');
 }
@@ -1171,7 +1177,7 @@ function abrirModalKpiIncidentes() {
 function abrirModalKpiEquipos() {
     const items = _kpis.eq_fallas || [];
     const totalFallados = _kpis.eq_no_op || 0;
-    const titulo = `🧰 Confiabilidad de Equipos`;
+    const titulo = `Confiabilidad de Equipos`;
     const subtitulo = totalFallados > 0
         ? `${totalFallados} equipo${totalFallados !== 1 ? 's' : ''} con novedad o falla operativa en puestos — asigna un responsable para su gestión:`
         : 'Todos los equipos reportados en puestos se encuentran 100% operativos.';
@@ -1188,19 +1194,19 @@ function abrirModalKpiEquipos() {
                 </div>
                 <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('confiabilidad_equipos', ${eq.id}, '${_esc(eq.novedad)}', 'Falla de ${eq.tipo} en ${_esc(eq.cliente)}')">
-                        👤 Asignar Responsable ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Asignar Responsable ↗
                     </button>
                 </div>
             </div>
         `).join('')
-        : `<div class="sg-detail-empty">✅ No se registran fallas de radios ni armas en las inspecciones de confiabilidad vigentes. La disponibilidad técnica en puestos es del 100%.</div>`;
+        : `<div class="sg-detail-empty"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5" style="display:inline-block;vertical-align:-3px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>No se registran fallas de radios ni armas en las inspecciones de confiabilidad vigentes. La disponibilidad técnica en puestos es del 100%.</div>`;
 
     _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/recursos/', 'Consultar inventario general en Recursos →');
 }
 
 function abrirModalKpiSupervisiones() {
     const pendientes = (_kpis.sup_por_cliente || []).filter(c => (c.pendientes || 0) > 0);
-    const titulo = `👁️ Cobertura de Supervisiones`;
+    const titulo = `Cobertura de Supervisiones`;
     const subtitulo = `${_kpis.sup_completadas} de ${_kpis.sup_programadas} completadas (${_kpis.sup_pct ?? 0}%) · ${_kpis.sup_pendientes} pendientes en la semana (${_kpis.sup_periodo_label || 'últimos 7 días'})`;
 
     const contenido = pendientes.length
@@ -1208,7 +1214,7 @@ function abrirModalKpiSupervisiones() {
           pendientes.map(c => {
             const ultimaTxt = c.last_sup_fecha
                 ? `Última ronda: <strong>${c.last_sup_fecha}</strong>${c.last_sup_supervisor ? ` · por ${_esc(c.last_sup_supervisor)}` : ''}`
-                : `<span style="color:#ef4444;font-weight:600">⚠️ Sin rondas registradas en la ventana</span>`;
+                : `<span style="color:#ef4444;font-weight:600">Sin rondas registradas en la ventana</span>`;
             return `
             <div class="kpi-modal-row">
                 <div class="kpi-modal-row-main">
@@ -1220,11 +1226,11 @@ function abrirModalKpiSupervisiones() {
                 </div>
                 <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" style="background:#7c3aed;color:#fff" onclick="agendarRondaSupervision('${_esc(c.cliente)}', ${c.pendientes})">
-                        📅 Agendar Ronda ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Agendar Ronda ↗
                     </button>
                     ${c.last_sup_id ? `
                     <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('supervision_puesto', ${c.last_sup_id}, 'Supervisión de puesto en ${_esc(c.cliente)}', 'Última supervisión en ${_esc(c.cliente)}')">
-                        👁️ Ver Reporte ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>Ver Reporte ↗
                     </button>
                     ` : ''}
                     <a href="/cgeo/operacion/?cliente=${encodeURIComponent(c.cliente)}" target="_blank" class="kpi-modal-sub-link" title="Consultar mapa y bitácora en Operación">
@@ -1233,13 +1239,13 @@ function abrirModalKpiSupervisiones() {
                 </div>
             </div>`;
           }).join('')
-        : `<div class="sg-detail-empty">✅ Todas las supervisiones programadas para este ciclo han sido completadas satisfactoriamente.</div>`;
+        : `<div class="sg-detail-empty"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5" style="display:inline-block;vertical-align:-3px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Todas las supervisiones programadas para este ciclo han sido completadas satisfactoriamente.</div>`;
 
     _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/operacion/', 'Ir a mapa general de operaciones →');
 }
 
 function _diasRelativosCompromiso(fechaStr, estado) {
-    if (!fechaStr || fechaStr === '—') return estado === 'vencido' ? '<span style="color:#ef4444;font-weight:700">⚠️ Vencido</span>' : '';
+    if (!fechaStr || fechaStr === '—') return estado === 'vencido' ? '<span style="color:#ef4444;font-weight:700">Vencido</span>' : '';
     let d = null;
     if (fechaStr.includes('-')) {
         d = new Date(fechaStr + 'T00:00:00');
@@ -1249,15 +1255,15 @@ function _diasRelativosCompromiso(fechaStr, estado) {
             d = new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}T00:00:00`);
         }
     }
-    if (!d || isNaN(d.getTime())) return estado === 'vencido' ? '<span style="color:#ef4444;font-weight:700">⚠️ Vencido</span>' : '';
+    if (!d || isNaN(d.getTime())) return estado === 'vencido' ? '<span style="color:#ef4444;font-weight:700">Vencido</span>' : '';
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const diffDias = Math.round((d.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDias < 0) {
         const dPasados = Math.abs(diffDias);
-        return `<span style="color:#ef4444;font-weight:700">⚠️ Vencido hace ${dPasados} día${dPasados !== 1 ? 's' : ''}</span>`;
+        return `<span style="color:#ef4444;font-weight:700">Vencido hace ${dPasados} día${dPasados !== 1 ? 's' : ''}</span>`;
     } else if (diffDias === 0) {
-        return `<span style="color:#f59e0b;font-weight:700">⚠️ Vence hoy</span>`;
+        return `<span style="color:#f59e0b;font-weight:700">Vence hoy</span>`;
     } else if (diffDias === 1) {
         return `<span style="color:#f59e0b;font-weight:600">Vence mañana</span>`;
     } else {
@@ -1275,7 +1281,7 @@ function abrirModalKpiCompromisos() {
     });
     const vencidos = _kpis.comp_vencidos || 0;
     const porVencer = _kpis.comp_por_vencer || 0;
-    const titulo = `🤝 Compromisos con Clientes (Actas de Visita)`;
+    const titulo = `Compromisos con Clientes (Actas de Visita)`;
     const subtitulo = items.length
         ? `${vencidos} vencido${vencidos !== 1 ? 's' : ''} · ${porVencer} por vencer — asigna un responsable para su gestión:`
         : 'Sin compromisos vencidos ni pendientes próximos a vencer con clientes.';
@@ -1292,17 +1298,17 @@ function abrirModalKpiCompromisos() {
                     </span>
                     <div class="kpi-modal-info">
                         <div class="kpi-modal-tit"><strong>${_esc(c.cliente)}</strong>: ${_esc(c.acuerdo)}</div>
-                        <div class="kpi-modal-meta">Fecha límite: <strong>${c.fecha_cumplimiento}</strong>${relativoTxt ? ` (${relativoTxt})` : ''}${c.responsable ? ` · Responsable: <strong>${_esc(c.responsable)}</strong>` : ' · <span style="color:#ef4444;font-weight:600">⚠️ Sin responsable</span>'}</div>
+                        <div class="kpi-modal-meta">Fecha límite: <strong>${c.fecha_cumplimiento}</strong>${relativoTxt ? ` (${relativoTxt})` : ''}${c.responsable ? ` · Responsable: <strong>${_esc(c.responsable)}</strong>` : ' · <span style="color:#ef4444;font-weight:600">Sin responsable</span>'}</div>
                     </div>
                 </div>
                 <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('registro_y_acta_de_visita', ${c.id}, 'Compromiso ${c.estado}: ${_esc(c.acuerdo)}', 'Compromiso con ${_esc(c.cliente)}')">
-                        👤 Asignar Responsable ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Asignar Responsable ↗
                     </button>
                 </div>
             </div>`;
         }).join('')
-        : `<div class="sg-detail-empty">✅ Todos los compromisos acordados con clientes en actas de reunión se encuentran al día y cumplidos.</div>`;
+        : `<div class="sg-detail-empty"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5" style="display:inline-block;vertical-align:-3px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>Todos los compromisos acordados con clientes en actas de reunión se encuentran al día y cumplidos.</div>`;
 
     _crearModalKpi(titulo, subtitulo, contenido, '/dashboard/visitas/', 'Ir al módulo de Visitas y Compromisos →');
 }
@@ -1310,7 +1316,7 @@ function abrirModalKpiCompromisos() {
 function abrirModalKpiCertificaciones() {
     const items = _kpis.cert_items || [];
     const proximas = _kpis.cert_proximas || 0;
-    const titulo = `📋 Cumplimiento Normativo y Certificaciones`;
+    const titulo = `Cumplimiento Normativo y Certificaciones`;
     const subtitulo = proximas > 0
         ? `${proximas} certificación${proximas !== 1 ? 'es' : ''} por vencer en los próximos 30 días — asigna un responsable para su gestión:`
         : 'Todas las certificaciones y checklists se encuentran plenamente vigentes.';
@@ -1329,12 +1335,12 @@ function abrirModalKpiCertificaciones() {
                 </div>
                 <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" onclick="_abrirDetalleKpiItem('checklist_cumplimiento', ${c.id}, 'Certificación por vencer (${c.dias_restantes} días)', '${_esc(c.cert)} en ${_esc(c.cliente)}')">
-                        👤 Asignar Responsable ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>Asignar Responsable ↗
                     </button>
                 </div>
             </div>`;
         }).join('')
-        : `<div class="sg-detail-empty">✅ No se registran certificaciones ni cursos con vencimiento próximo en los siguientes 30 días.</div>`;
+        : `<div class="sg-detail-empty"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5" style="display:inline-block;vertical-align:-3px;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>No se registran certificaciones ni cursos con vencimiento próximo en los siguientes 30 días.</div>`;
 
     _crearModalKpi(titulo, subtitulo, contenido, '/cgeo/recursos/', 'Ir a Gestión de Recursos y Cumplimiento →');
 }
@@ -1343,7 +1349,7 @@ function abrirModalKpiVisitas() {
     const compl = _kpis.visita_completadas || 0;
     const prog = _kpis.visita_programadas || 0;
     const espHoy = _kpis.visita_esperadas_hoy || 0;
-    const titulo = `🚗 Visitas Gerenciales a Clientes`;
+    const titulo = `Visitas Gerenciales a Clientes`;
     const subtitulo = `${compl} visita${compl !== 1 ? 's' : ''} completada${compl !== 1 ? 's' : ''} de ${prog} programada${prog !== 1 ? 's' : ''} en el período (${_kpis.visita_periodicidad || 'mensual'}) · Meta al día: ${espHoy}`;
 
     const clientesPrioritarios = _crClientes || [];
@@ -1360,7 +1366,7 @@ function abrirModalKpiVisitas() {
                 </div>
                 <div class="kpi-modal-actions">
                     <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita gerencial prioritaria de retención: cliente en ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
-                        📅 Agendar Visita ↗
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Agendar Visita ↗
                     </button>
                 </div>
             </div>
@@ -1386,7 +1392,7 @@ function abrirModalKpiVisitas() {
                 <div style="font-size:.75rem;color:#475569">Programa una visita de fidelización o seguimiento con el cliente que elijas.</div>
             </div>
             <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff" onclick="agendarVisitaGerencial()">
-                📅 Agendar Nueva Visita ↗
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:4px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Agendar Nueva Visita ↗
             </button>
         </div>
         ${listaPrioritarios}`;
@@ -1443,7 +1449,7 @@ function _crItemHtml(c) {
             </div>
             <div class="cr-item-actions">
                 <button type="button" class="kpi-modal-btn" style="background:#2563eb;color:#fff;padding:.3rem .6rem;font-size:.75rem" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Atención de quejas o reclamos', 'Visita urgente de retención: cliente en banda ${_esc(c.banda)} (Nota: ${_crNota(c)}/100).')">
-                    📅 Agendar Visita ↗
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Agendar Visita ↗
                 </button>
                 <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
                    target="_blank" class="kpi-modal-sub-link" title="Ver ficha analítica en Gestión">
@@ -1471,7 +1477,7 @@ function _crSinItemHtml(c) {
             </div>
             <div class="cr-item-actions">
                 <button type="button" class="kpi-modal-btn" style="padding:.3rem .6rem;font-size:.75rem" onclick="agendarVisitaGerencial('${_esc(c.nombre)}', 'Seguimiento de servicio', 'Visita de diagnóstico y cobertura operativa: cliente con ${ejes} de 4 ejes evaluados.')">
-                    📅 Agendar Visita ↗
+                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Agendar Visita ↗
                 </button>
                 <a href="/dashboard/gestion/?cliente=${encodeURIComponent(c.id != null ? c.id : c.nombre)}"
                    target="_blank" class="kpi-modal-sub-link" title="Ver ficha en Gestión">
@@ -1509,7 +1515,7 @@ function renderClientesEnRiesgo(data) {
     // clientes y ninguno está mal; aquí lo único cierto es que no se sabe.
     if (!evaluado || calificados === 0) {
         card.classList.add('cr-card-neutro');
-        icono.textContent = '⚪';
+        icono.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>';
         if (!evaluado) {
             titulo.innerHTML = 'Estatus de cliente: no evaluado';
             resumen.innerHTML = '<span class="cr-sin-nota">No se pudo calcular en el período</span>';
@@ -1545,7 +1551,7 @@ function renderClientesEnRiesgo(data) {
         card.title = hayDetalle
             ? `Ver clientes en estado Preliminar o sin calificar · ${coberturaTxt}`
             : `Ningún cliente por debajo del umbral de Estatus de Cliente · ${coberturaTxt}`;
-        icono.textContent = '✅';
+        icono.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#16a34a" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
         titulo.innerHTML = 'Clientes en riesgo: <strong>0</strong>';
         verTodos.hidden = !hayDetalle;
         verTodos.textContent = 'Ver detalle →';
@@ -1559,7 +1565,7 @@ function renderClientesEnRiesgo(data) {
     // ESTADO 3 — Hay clientes en riesgo.
     card.disabled = false;
     card.title = `Ver el listado completo de clientes en riesgo · ${coberturaTxt}`;
-    icono.textContent = '⚠️';
+    icono.innerHTML = '<svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ea580c" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
     titulo.innerHTML = `Clientes en riesgo: <strong>${total}</strong>`;
     verTodos.hidden = false;
     verTodos.textContent = 'Ver todos →';
@@ -1578,8 +1584,8 @@ function abrirClientesEnRiesgo() {
     const sinRiesgo = !_crClientes.length;
     if (sinRiesgo && !_crSinCalificar.length) return;
     const titulo = sinRiesgo
-        ? `⚪ Clientes sin calificar: ${_crSinCalificar.length}`
-        : `⚠️ Clientes en riesgo: ${_crClientes.length}`;
+        ? `Clientes sin calificar (${_crSinCalificar.length})`
+        : `Clientes en riesgo (${_crClientes.length})`;
     const subtitulo = sinRiesgo
         ? 'Sin información suficiente para calificar en el período — de mayor a menor cobertura de ejes. Se califica con 3 de 4 ejes con datos (con 2 ejes el estado es Preliminar)'
         : 'Por debajo del umbral de Estatus de Cliente, de menor a mayor calificación — toca uno para ver su detalle';
@@ -1723,7 +1729,7 @@ const _SG_GRUPOS = [
     { key: 'planilla_vehicular',           titulo: 'Vehículos no aptos / con falla mecánica' },
     { key: 'planilla_motocicletas',        titulo: 'Motocicletas no aptas / con falla mecánica' },
     { key: 'medicion_experiencia_cliente', titulo: 'Encuestas de satisfacción con novedades' },
-    { key: '__backup__',                   titulo: '💾 Backup de información' },
+    { key: '__backup__',                   titulo: 'Backup de información' },
     { key: '__otros__',                    titulo: 'Otras alertas operativas' },
 ];
 
@@ -1798,7 +1804,7 @@ async function gestionarAsignacion(asignacionId, btn) {
             if (heading) {
                 const restAsig = _alertasData.filter(a => a.asignacion);
                 const venc = restAsig.filter(a => a.vencida).length;
-                heading.innerHTML = `📌 HALLAZGOS ASIGNADOS${
+                heading.innerHTML = `<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>HALLAZGOS ASIGNADOS${
                     restAsig.length
                         ? ` <span style="font-weight:600;text-transform:none;letter-spacing:0">— ${restAsig.length} pendiente${restAsig.length !== 1 ? 's' : ''}${venc ? `, ${venc} vencido${venc !== 1 ? 's' : ''}` : ''}</span>`
                         : ' <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#16a34a;">— Todos gestionados ✓</span>'
@@ -1835,7 +1841,7 @@ async function abrirDetalleSemaforo() {
 
     const vencidos = asignados.filter(a => a.vencida).length;
     const asignadosHtml = `<div class="sg-asignados">
-        <div class="sg-detail-heading" id="sgAsigHeading">📌 HALLAZGOS ASIGNADOS${
+        <div class="sg-detail-heading" id="sgAsigHeading"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:5px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>HALLAZGOS ASIGNADOS${
             asignados.length ? ` <span style="font-weight:600;text-transform:none;letter-spacing:0">— ${asignados.length} pendiente${asignados.length !== 1 ? 's' : ''}${vencidos ? `, ${vencidos} vencido${vencidos !== 1 ? 's' : ''}` : ''}</span>` : ''
         }</div>
         ${asignados.length
@@ -1843,7 +1849,7 @@ async function abrirDetalleSemaforo() {
             : `<div class="sg-detail-empty">Sin hallazgos asignados pendientes de gestión.</div>`}
         <div style="padding:.4rem 0 .2rem;text-align:right;">
             <a href="/cgeo/hallazgos" target="_blank" style="font-size:.75rem;font-weight:600;color:#38bdf8;text-decoration:none;">
-                📁 Consultar historial de hallazgos gestionados →
+                Consultar historial de hallazgos gestionados →
             </a>
         </div>
     </div>`;
@@ -1906,7 +1912,7 @@ function abrirAlertaSeguridad(a) {
     const dispositivos = (a.dispositivos || []).map((d, i) => fila(`Dispositivo ${i + 1}:`, d)).join('');
     modal.innerHTML = `
         <div class="sg-modal">
-            <div class="sg-modal-title">🔴 USUARIO CON SESIONES SIMULTÁNEAS</div>
+            <div class="sg-modal-title"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;margin-right:8px;vertical-align:1px"></span>USUARIO CON SESIONES SIMULTÁNEAS</div>
             <div class="sg-modal-sub">Dos o más sesiones iniciaron con las mismas credenciales.</div>
             <div class="drv-5q-card" style="border-radius:.6rem;padding:.75rem;margin-bottom:.5rem;font-size:.85rem">
                 ${fila('Usuario:', a.usuario || '')}
@@ -1963,7 +1969,7 @@ function abrirAlertaSinRegistro(a) {
             <div class="sg-modal-title">Aún no hay registro que abrir</div>
             <div class="sg-modal-sub">${_esc(a.texto)}</div>
             <div class="drv-5q-card" style="border-radius:.6rem;padding:.75rem;margin-bottom:.5rem">
-                <div class="drv-5q-label" style="font-size:.7rem;font-weight:800;letter-spacing:.06em;color:#94a3b8">📋 QUÉ</div>
+                <div class="drv-5q-label" style="font-size:.7rem;font-weight:800;letter-spacing:.06em;color:#94a3b8">CONDICIÓN REGISTRADA</div>
                 <div style="font-size:.85rem;margin-top:.25rem">${_esc(a.motivo || a.texto)}</div>
             </div>
             <div class="sg-detail-empty">La condición se detectó por ausencia de registro: no hay nada capturado
@@ -2109,7 +2115,9 @@ function renderAlertas(alertas) {
     if (!alertas || !alertas.length) {
         cont.innerHTML = `
             <div class="alertas-empty">
-                <div class="alertas-empty-icon">✅</div>
+                <div class="alertas-empty-icon" style="color:#22c55e">
+                    <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
                 <div class="alertas-empty-text">Operación sin pendientes críticos</div>
                 <div class="alertas-empty-sub">Ninguna alerta activa en este momento · Operación bajo control</div>
             </div>`;
@@ -2129,7 +2137,7 @@ function renderAlertas(alertas) {
         <div class="mb-tier-card mb-tier-crisis">
             <div class="mb-tier-header mb-tier-header-crisis">
                 <div class="mb-tier-title mb-tier-title-crisis">
-                    <span>🚨</span> SALA DE CRISIS — Acción Inmediata
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg> SALA DE CRISIS — Acción Inmediata
                 </div>
                 <span class="mb-tier-badge mb-tier-badge-crisis">${crisis.length} crítica${crisis.length !== 1 ? 's' : ''}</span>
             </div>
@@ -2140,7 +2148,9 @@ function renderAlertas(alertas) {
     } else {
         html += `
         <div class="mb-crisis-cero-card">
-            <div class="mb-crisis-cero-icon">🟢</div>
+            <div class="mb-crisis-cero-icon" style="color:#22c55e">
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
             <div class="mb-crisis-cero-body">
                 <div class="mb-crisis-cero-tit">Sala de Crisis: 0 emergencias activas</div>
                 <div class="mb-crisis-cero-sub">Sin puestos caídos, armas vencidas ni incidentes desatendidos · Operación bajo control.</div>
@@ -2154,7 +2164,7 @@ function renderAlertas(alertas) {
         <div class="mb-tier-card mb-tier-preventivo">
             <div class="mb-tier-header mb-tier-header-preventivo">
                 <div class="mb-tier-title mb-tier-title-preventivo">
-                    <span>🛡️</span> RADAR PREVENTIVO — Gestión para hoy
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> RADAR PREVENTIVO — Gestión para hoy
                 </div>
                 <span class="mb-tier-badge mb-tier-badge-preventivo">${preventivas.length} por atender</span>
             </div>
@@ -2167,7 +2177,7 @@ function renderAlertas(alertas) {
         <div class="mb-tier-card mb-tier-preventivo">
             <div class="mb-tier-header mb-tier-header-preventivo">
                 <div class="mb-tier-title mb-tier-title-preventivo">
-                    <span>🛡️</span> RADAR PREVENTIVO — Gestión para hoy
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> RADAR PREVENTIVO — Gestión para hoy
                 </div>
                 <span class="mb-tier-badge mb-tier-badge-preventivo">0 pendientes</span>
             </div>
@@ -2183,7 +2193,7 @@ function renderAlertas(alertas) {
         <div class="mb-tier-card mb-tier-rutina">
             <button type="button" class="mb-rutina-btn-toggle" onclick="toggleRutinaExpanded()">
                 <span class="mb-rutina-title">
-                    <span>📋</span> SEGUIMIENTO DE TURNO — ${rutina.length} tarea${rutina.length !== 1 ? 's' : ''} cíclica${rutina.length !== 1 ? 's' : ''} (checklists SST, revisiones periódicas)
+                    <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg> SEGUIMIENTO DE TURNO — ${rutina.length} tarea${rutina.length !== 1 ? 's' : ''} cíclica${rutina.length !== 1 ? 's' : ''} (checklists SST, revisiones periódicas)
                 </span>
                 <span class="mb-rutina-arrow" id="mbRutinaArrow">${_rutinaExpanded ? '▲ Ocultar tareas' : '▼ Ver tareas'}</span>
             </button>

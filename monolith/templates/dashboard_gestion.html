@@ -1928,10 +1928,10 @@
             const inc = alertIncidentes(results);
 
             const alertCards = [
-                { title: 'Alertas Supervisión', icon: '🛡️', key: 'supervision', alert: sup },
-                { title: 'Alertas Confiabilidad', icon: '⚙️', key: 'equipos', alert: eq },
-                { title: 'Alertas Satisfacción', icon: '⭐', key: 'satisfaccion', alert: sat },
-                { title: 'Alertas Incidentes', icon: '⚠️', key: 'incidentes', alert: inc }
+                { title: 'Alertas Supervisión', key: 'supervision', alert: sup },
+                { title: 'Alertas Confiabilidad', key: 'equipos', alert: eq },
+                { title: 'Alertas Satisfacción', key: 'satisfaccion', alert: sat },
+                { title: 'Alertas Incidentes', key: 'incidentes', alert: inc }
             ];
 
             kpiGrid.innerHTML = alertCards.map(item => `

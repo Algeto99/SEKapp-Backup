@@ -287,7 +287,7 @@
             alertas = Array.isArray(d.alertas) ? d.alertas : [];
             render();
         } catch (e) {
-            listas.innerHTML = `<div class="vacio"><div class="vacio-icon">⚠️</div><div class="muted">${esc(e.message)}</div></div>`;
+            listas.innerHTML = `<div class="vacio"><div class="vacio-icon"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div><div class="muted">${esc(e.message)}</div></div>`;
         } finally {
             listas.classList.remove('cargando');
         }
@@ -305,10 +305,10 @@
         set('numTotal', visibles.length);
         registro.length = 0;
         if (!visibles.length) {
-            listas.innerHTML = `<div class="vacio"><div class="vacio-icon">✅</div><div class="vacio-txt">Sin novedades pendientes</div><div class="vacio-sub">${ES_COORDINADOR ? 'No hay alertas en su ámbito para los filtros indicados.' : 'No hay alertas para los filtros indicados.'}</div></div>`;
+            listas.innerHTML = `<div class="vacio"><div class="vacio-icon" style="color:#22c55e"><svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div class="vacio-txt">Sin novedades pendientes</div><div class="vacio-sub">${ES_COORDINADOR ? 'No hay alertas en su ámbito para los filtros indicados.' : 'No hay alertas para los filtros indicados.'}</div></div>`;
             return;
         }
-        const grupos = [['rojo', '🔴 Críticas'], ['naranja', '🟠 Prioritarias'], ['amarillo', '🟡 Atención'], ['verde', '🟢 Informativas']];
+        const grupos = [['rojo', 'Críticas'], ['naranja', 'Prioritarias'], ['amarillo', 'Atención'], ['verde', 'Informativas']];
         listas.innerHTML = grupos.map(([c, titulo]) => {
             const items = visibles.filter(a => color(a) === c);
             if (!items.length) return '';
@@ -391,14 +391,14 @@
         if (fTipo.value !== 'supervision') { supervisiones.innerHTML = ''; return; }
         const rango = rangoPeriodo();
         if (!rango) {
-            supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', '<div class="vacio"><div class="muted">Indique las fechas Desde y Hasta del período.</div></div>');
+            supervisiones.innerHTML = bloqueSup('Supervisiones registradas', '<div class="vacio"><div class="muted">Indique las fechas Desde y Hasta del período.</div></div>');
             return;
         }
         if (rango.desde > rango.hasta) {
-            supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', '<div class="vacio"><div class="muted">La fecha Desde no puede ser posterior a Hasta.</div></div>');
+            supervisiones.innerHTML = bloqueSup('Supervisiones registradas', '<div class="vacio"><div class="muted">La fecha Desde no puede ser posterior a Hasta.</div></div>');
             return;
         }
-        supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', '<div class="vacio"><div class="muted">Cargando supervisiones…</div></div>');
+        supervisiones.innerHTML = bloqueSup('Supervisiones registradas', '<div class="vacio"><div class="muted">Cargando supervisiones…</div></div>');
         const params = new URLSearchParams({ desde: rango.desde, hasta: rango.hasta });
         if (fCliente.value) params.set('cliente', fCliente.value);
         if (fPropiedad.value) params.set('propiedad', fPropiedad.value);
@@ -408,11 +408,11 @@
             if (!res.ok) throw new Error(d.error || 'No se pudieron cargar las supervisiones.');
             renderSupervisiones(Array.isArray(d.detalles) ? d.detalles : [], rango);
         } catch (e) {
-            supervisiones.innerHTML = bloqueSup('📋 Supervisiones registradas', `<div class="vacio"><div class="vacio-icon">⚠️</div><div class="muted">${esc(e.message)}</div></div>`);
+            supervisiones.innerHTML = bloqueSup('Supervisiones registradas', `<div class="vacio"><div class="vacio-icon"><svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div><div class="muted">${esc(e.message)}</div></div>`);
         }
     }
     function renderSupervisiones(filas, rango) {
-        const titulo = `📋 Supervisiones registradas · ${filas.length} · ${fmtCorta(rango.desde)} – ${fmtCorta(rango.hasta)}`;
+        const titulo = `Supervisiones registradas · ${filas.length} · ${fmtCorta(rango.desde)} – ${fmtCorta(rango.hasta)}`;
         if (!filas.length) {
             const sub = ES_COORDINADOR ? 'No hay supervisiones de su ámbito en este período para los filtros indicados.'
                                        : 'No hay supervisiones en este período para los filtros indicados.';

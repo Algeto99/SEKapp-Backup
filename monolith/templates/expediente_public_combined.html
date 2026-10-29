@@ -427,7 +427,7 @@
           {% if e.foto_list %}
             <div style="display:inline-flex;align-items:center;gap:6px;margin-top:.35rem;">
               <img src="{{ e.foto_list[0] }}{{ '?w=160' if e.foto_list[0].startswith('/expediente/media/') else '' }}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid rgba(0,0,0,.1);" alt="Foto" loading="lazy">
-              <span style="color:#64748b;font-size:.75rem;">📷 {{ e.foto_list | length }} foto{{ 's' if e.foto_list | length > 1 else '' }}</span>
+              <span style="color:#64748b;font-size:.75rem;"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px;margin-right:3px"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="4"/></svg>{{ e.foto_list | length }} foto{{ 's' if e.foto_list | length > 1 else '' }}</span>
             </div>
           {% endif %}
         </div>
