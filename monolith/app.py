@@ -341,12 +341,16 @@ def inject_super_admin():
         verify_jwt_in_request(optional=True)
         claims = get_jwt()
         is_sa = bool(claims.get('is_super_admin', False))
-        is_coord = bool(claims.get('is_coordinador', False)) and not bool(claims.get('is_admin', False))
+        is_adm = bool(claims.get('is_admin', False)) or is_sa
+        is_coord = bool(claims.get('is_coordinador', False)) and not is_adm
         email = get_jwt_identity()
+        user_name = claims.get('name') or email or ''
     except Exception:
         is_sa = False
+        is_adm = False
         is_coord = False
         email = None
+        user_name = ''
 
     enabled_modules = set()
     company_name = ''
@@ -391,8 +395,15 @@ def inject_super_admin():
             company_name = ''
 
     jwt_csrf = request.cookies.get('csrf_access_token', '')
-    return {'is_super_admin': is_sa, 'is_coordinador': is_coord, 'jwt_csrf_token': jwt_csrf,
-            'enabled_modules': enabled_modules, 'company_name': company_name}
+    return {
+        'is_super_admin': is_sa,
+        'is_admin': is_adm,
+        'is_coordinador': is_coord,
+        'user_name': user_name,
+        'jwt_csrf_token': jwt_csrf,
+        'enabled_modules': enabled_modules,
+        'company_name': company_name,
+    }
 
 @app.route('/health')
 def health_check():

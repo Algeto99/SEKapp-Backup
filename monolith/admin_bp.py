@@ -111,7 +111,8 @@ def panel():
         cur.close()
         claims = get_jwt()
         return render_template('admin_panel.html', users=users, companies=companies,
-                               user_name=claims.get('name', get_jwt_identity()))
+                               user_name=claims.get('name', get_jwt_identity()),
+                               is_admin=True)
     except Exception as e:
         return _error_page(e, 'Cargar panel de administración')
     finally:
