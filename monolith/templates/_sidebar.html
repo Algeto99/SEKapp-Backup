@@ -6,11 +6,15 @@
 /* ── Sidebar layout ── */
 body{display:flex!important;min-height:100vh}
 .sidebar-nav-wrap{width:220px;min-height:100vh;background:#0f172a;display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto;transition:transform 0.3s ease}
+.sidebar-nav-wrap::-webkit-scrollbar{width:5px}
+.sidebar-nav-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:4px}
+.sidebar-nav-wrap::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25)}
 .sidebar-nav-wrap.collapsed{transform:translateX(-100%)}
 .snw-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,0.07)}
 .snw-logo img{width:160px;display:block;margin:0 auto}
 .snw-nav{padding:1rem 0;flex:1}
-.snw-section{padding:.5rem 1.25rem .25rem;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#475569}
+.snw-section{padding:.85rem 1.25rem .35rem;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#64748b}
+.snw-section:not(:first-child){margin-top:.35rem}
 .snw-item{display:flex;align-items:center;gap:.625rem;padding:.625rem 1.25rem;color:#94a3b8;text-decoration:none;font-size:.8125rem;font-weight:500;transition:all .15s;border-left:3px solid transparent}
 .snw-item:hover{color:#e2e8f0;background:rgba(255,255,255,0.05)}
 .snw-item.active{color:#38bdf8;background:rgba(56,189,248,0.08);border-left-color:#38bdf8}
@@ -101,6 +105,83 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
             Inicio
         </a>
+
+        <!-- 1. Centro de Control (CGEO) -->
+        {% if is_admin %}
+        <div class="snw-section">Centro de Control</div>
+        <a href="/cgeo/morning-briefing/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/morning-briefing') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Morning Briefing
+        </a>
+        <a href="/cgeo/operacion/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/operacion') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Operación e Incidentes
+        </a>
+        <a href="/cgeo/recursos/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/recursos') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Recursos y Confiabilidad
+        </a>
+        {% endif %}
+
+        {# Bandeja del usuario. Cualquier rol puede recibir un hallazgo, y aquí sólo ve los suyos. El distintivo lo rellena snwCargarHallazgos(). #}
+        {% if not is_admin %}
+        <div class="snw-section">Mis Asignaciones</div>
+        {% endif %}
+        <a href="/cgeo/hallazgos" class="snw-item {{ 'active' if request.path.startswith('/cgeo/hallazgo') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-6 0h.01M12 16h3m-6 0h.01"/></svg>
+            Hallazgos Asignados
+            <span id="snwHallazgosBadge" class="snw-badge" hidden></span>
+        </a>
+
+        <!-- 2. Análisis e Inteligencia -->
+        {% if is_admin or is_coordinador %}
+        <div class="snw-section">Análisis e Inteligencia</div>
+        {% if is_admin %}
+        <button id="snwDashGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }} {{ 'open' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }}" onclick="snwToggleDash()">
+            <svg class="snw-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Dashboards
+            <svg class="snw-group-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
+        <div id="snwDashMenu" class="snw-submenu {{ 'open' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }}">
+            <a href="/dashboard/" class="snw-subitem {{ 'active' if request.path == '/dashboard/' else '' }}">Inicio Dashboards</a>
+            <a href="/dashboard/incidentes/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/incidentes') else '' }}">Incidentes</a>
+            <a href="/dashboard/supervision/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/supervision') else '' }}">Supervisión</a>
+            <a href="/dashboard/satisfaccion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/satisfaccion') else '' }}">Satisfacción</a>
+            <a href="/dashboard/cumplimiento/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/cumplimiento') else '' }}">Cumplimiento</a>
+            <a href="/dashboard/capacitacion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/capacitacion') else '' }}">Capacitación</a>
+            <a href="/dashboard/disciplina/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/disciplina') else '' }}">Disciplina</a>
+            <a href="/dashboard/visitas/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/visitas') else '' }}">Visitas</a>
+            <a href="/dashboard/vehiculos/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/vehiculos') else '' }}">Vehículos</a>
+            <a href="/dashboard/motocicletas/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/motocicletas') else '' }}">Motocicletas</a>
+            <a href="/dashboard/equipos/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/equipos') else '' }}">Equipos</a>
+            <a href="/dashboard/gestion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/gestion') else '' }}">Estatus de Cliente</a>
+        </div>
+        <a href="/viewer/" class="snw-item {{ 'active' if request.path.startswith('/viewer') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Reportes
+        </a>
+        <a href="/expediente/" class="snw-item {{ 'active' if request.path.startswith('/expediente') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+            Expediente
+        </a>
+        {% endif %}
+        <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') and not request.path.startswith('/matrices/alertas') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            Consultar Matrices
+        </a>
+        <a href="/matrices/alertas" class="snw-item {{ 'active' if request.path.startswith('/matrices/alertas') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            Alertas / Novedades
+        </a>
+        {% else %}
+        <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            Consultar Matrices
+        </a>
+        {% endif %}
+
+        <!-- 3. Operación y Activos -->
+        <div class="snw-section">Operación y Activos</div>
         <button id="snwFormsGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/forms') else '' }} {{ 'open' if request.path.startswith('/forms') else '' }}" onclick="snwToggleForms()">
             <svg class="snw-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             Formularios
@@ -131,81 +212,35 @@ body:not(.light-mode) .snw-page-subtitle{color:#94a3b8}
             <a href="/forms/medicion_experiencia_cliente" class="snw-subitem {{ 'active' if request.path.startswith('/forms/medicion_experiencia_cliente') else '' }}">Encuesta de Cliente</a>
         </div>
         {% if is_admin %}
-        <a href="/viewer/" class="snw-item {{ 'active' if request.path.startswith('/viewer') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Reportes
+        <a href="/dashboard/bases_de_datos/" class="snw-item {{ 'active' if request.path.startswith('/dashboard/bases_de_datos') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+            Bases de Datos
         </a>
-        <button id="snwDashGroup" class="snw-group-toggle {{ 'active' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }} {{ 'open' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }}" onclick="snwToggleDash()">
-            <svg class="snw-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            Dashboards
-            <svg class="snw-group-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-        </button>
-        <div id="snwDashMenu" class="snw-submenu {{ 'open' if request.path.startswith('/dashboard') and not request.path.startswith('/dashboard/bases_de_datos') else '' }}">
-            <a href="/dashboard/" class="snw-subitem {{ 'active' if request.path == '/dashboard/' else '' }}">Inicio Dashboards</a>
-            <a href="/dashboard/incidentes/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/incidentes') else '' }}">Incidentes</a>
-            <a href="/dashboard/supervision/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/supervision') else '' }}">Supervisión</a>
-            <a href="/dashboard/satisfaccion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/satisfaccion') else '' }}">Satisfacción</a>
-            <a href="/dashboard/cumplimiento/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/cumplimiento') else '' }}">Cumplimiento</a>
-            <a href="/dashboard/capacitacion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/capacitacion') else '' }}">Capacitación</a>
-            <a href="/dashboard/disciplina/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/disciplina') else '' }}">Disciplina</a>
-            <a href="/dashboard/visitas/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/visitas') else '' }}">Visitas</a>
-            <a href="/dashboard/vehiculos/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/vehiculos') else '' }}">Vehículos</a>
-            <a href="/dashboard/motocicletas/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/motocicletas') else '' }}">Motocicletas</a>
-            <a href="/dashboard/equipos/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/equipos') else '' }}">Equipos</a>
-            <a href="/dashboard/gestion/" class="snw-subitem {{ 'active' if request.path.startswith('/dashboard/gestion') else '' }}">Estatus de Cliente</a>
-        </div>
         {% endif %}
-        <a href="/matrices/" class="snw-item {{ 'active' if request.path.startswith('/matrices') and not request.path.startswith('/matrices/alertas') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-            Consultar Matrices
-        </a>
-        {# Alertas / Novedades: el Coordinador gestiona aquí lo de su ámbito; el
-           Administrador también la ve, además del Morning Briefing. #}
-        {% if is_admin or is_coordinador %}
-        <a href="/matrices/alertas" class="snw-subitem {{ 'active' if request.path.startswith('/matrices/alertas') else '' }}">Alertas / Novedades</a>
-        {% endif %}
-        {# Bandeja del usuario. Va fuera del bloque de administrador: cualquier rol
-           puede recibir un hallazgo, y aquí sólo ve los suyos. El distintivo lo
-           rellena snwCargarHallazgos() al cargar la página. #}
-        <a href="/cgeo/hallazgos" class="snw-item {{ 'active' if request.path.startswith('/cgeo/hallazgo') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-6 0h.01M12 16h3m-6 0h.01"/></svg>
-            Hallazgos Asignados
-            <span id="snwHallazgosBadge" class="snw-badge" hidden></span>
-        </a>
+
+        <!-- 4. Administración y Control -->
         {% if is_admin %}
-        <a href="/admin/thresholds" class="snw-item {{ 'active' if request.path.startswith('/admin/thresholds') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-            Umbrales KPI
+        <div class="snw-section">Administración</div>
+        {% if is_super_admin %}
+        <a href="/admin/" class="snw-item {{ 'active' if request.path == '/admin/' else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Panel General
         </a>
+        {% endif %}
         <a href="/admin/clientes" class="snw-item {{ 'active' if request.path.startswith('/admin/clientes') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
             Clientes
+        </a>
+        <a href="/admin/thresholds" class="snw-item {{ 'active' if request.path.startswith('/admin/thresholds') else '' }}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            Umbrales KPI
         </a>
         <a href="/admin/auditoria" class="snw-item {{ 'active' if request.path.startswith('/admin/auditoria') else '' }}">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
             Auditoría
         </a>
-        <a href="/dashboard/bases_de_datos/" class="snw-item {{ 'active' if request.path.startswith('/dashboard/bases_de_datos') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
-            Bases de Datos
-        </a>
-        <a href="/cgeo/morning-briefing/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/morning-briefing') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            Morning Briefing
-        </a>
-        <a href="/cgeo/recursos/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/recursos') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-            Recursos y Confiabilidad
-        </a>
-        <a href="/cgeo/operacion/" class="snw-item {{ 'active' if request.path.startswith('/cgeo/operacion') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            Operación e Incidentes
-        </a>
-        <a href="/expediente/" class="snw-item {{ 'active' if request.path.startswith('/expediente') else '' }}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18"/></svg>
-            Expediente
-        </a>
         {% endif %}
+
         <hr class="snw-divider">
         <a href="/logout" class="snw-item snw-item-logout">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>

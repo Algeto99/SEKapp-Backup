@@ -129,35 +129,28 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
 
         <div class="nav-cards">
 
-            <!-- NOTA: el orden de estas tarjetas sigue el mismo criterio del menú lateral
-                 (_sidebar.html): Formularios → Reportes → Dashboards → Consultar Matrices →
-                 Umbrales KPI → Bases de Datos → Morning Briefing. Mantener ambos en sincronía. -->
+            <!-- NOTA: el orden de estas tarjetas sigue la arquitectura ejecutiva de 4 bloques del menú lateral
+                 (_sidebar.html):
+                 1. Centro de Control: Morning Briefing (CGEO)
+                 2. Análisis e Inteligencia: Dashboards → Reportes → Consultar Matrices
+                 3. Operación y Activos: Formularios → Bases de Datos
+                 4. Administración: Umbrales KPI
+                 Mantener ambos en sincronía. -->
 
-            <!-- Formularios — all users -->
-            <a id="forms-button" class="nav-card" href="#">
-                <div class="card-icon" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <!-- 1. Morning Briefing (CGEO) — admin -->
+            <a id="cgeo-button" class="nav-card hidden" href="/cgeo/morning-briefing/" style="position:relative">
+                <span class="card-badge">CGEO</span>
+                <div class="card-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                 </div>
                 <div class="card-body">
-                    <div class="card-title">Formularios</div>
-                    <div class="card-desc">Registro de novedades, inspecciones e incidentes</div>
+                    <div class="card-title">Morning Briefing</div>
+                    <div class="card-desc">Estado general de la operación en tiempo real</div>
                 </div>
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <!-- Reportes — admin -->
-            <a id="reports-button" class="nav-card hidden" href="#">
-                <div class="card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                </div>
-                <div class="card-body">
-                    <div class="card-title">Reportes</div>
-                    <div class="card-desc">Consulta, filtrado y exportación de registros</div>
-                </div>
-                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-            </a>
-
-            <!-- Dashboards — admin -->
+            <!-- 2. Dashboards — admin -->
             <a id="dashboard-button" class="nav-card hidden" href="#">
                 <div class="card-icon" style="background:linear-gradient(135deg,#6366f1,#4f46e5)">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -169,7 +162,19 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <!-- Consultar Matrices — all users -->
+            <!-- 2. Reportes — admin -->
+            <a id="reports-button" class="nav-card hidden" href="#">
+                <div class="card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <div class="card-body">
+                    <div class="card-title">Reportes</div>
+                    <div class="card-desc">Consulta, filtrado y exportación de registros</div>
+                </div>
+                <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </a>
+
+            <!-- 2. Consultar Matrices — all users -->
             <a id="matrices-button" class="nav-card hidden" href="/matrices/">
                 <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -181,19 +186,19 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <!-- Umbrales KPI — admin -->
-            <a id="thresholds-button" class="nav-card hidden" href="/admin/thresholds">
-                <div class="card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            <!-- 3. Formularios — all users -->
+            <a id="forms-button" class="nav-card" href="#">
+                <div class="card-icon" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 </div>
                 <div class="card-body">
-                    <div class="card-title">Umbrales KPI</div>
-                    <div class="card-desc">Configura indicadores y rangos de semáforo</div>
+                    <div class="card-title">Formularios</div>
+                    <div class="card-desc">Registro de novedades, inspecciones e incidentes</div>
                 </div>
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <!-- Bases de Datos — admin -->
+            <!-- 3. Bases de Datos — admin -->
             <a id="databases-button" class="nav-card hidden" href="#">
                 <div class="card-icon" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
@@ -205,15 +210,14 @@ body.light-mode .theme-toggle:hover{background:rgba(0,0,0,.1)}
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
 
-            <!-- Morning Briefing — admin -->
-            <a id="cgeo-button" class="nav-card hidden" href="/cgeo/morning-briefing/" style="position:relative">
-                <span class="card-badge">CGEO</span>
-                <div class="card-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            <!-- 4. Umbrales KPI — admin -->
+            <a id="thresholds-button" class="nav-card hidden" href="/admin/thresholds">
+                <div class="card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
                 </div>
                 <div class="card-body">
-                    <div class="card-title">Morning Briefing</div>
-                    <div class="card-desc">Estado general de la operación en tiempo real</div>
+                    <div class="card-title">Umbrales KPI</div>
+                    <div class="card-desc">Configura indicadores y rangos de semáforo</div>
                 </div>
                 <svg class="card-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </a>
