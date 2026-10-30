@@ -1355,7 +1355,7 @@
             };
         })();
     </script>
-    <!-- Pre-llenado voluntario e inteligente de última dotación registrada -->
+    <!-- Pre-llenado automático e inteligente de equipamiento recurrente del puesto (Arma y Radio) -->
     <script>
     (function () {
         const propSelect = document.getElementById('id_propiedad');
@@ -1394,57 +1394,20 @@
                     return;
                 }
                 const dot = data.dotacion;
-                wrap.innerHTML = `
-                    <div class="p-4 bg-gradient-to-r from-blue-950/90 via-blue-900/60 to-gray-800 border border-blue-500/50 rounded-xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
-                        <div class="flex items-start md:items-center gap-3">
-                            <div class="p-2.5 bg-blue-600/30 text-blue-300 rounded-lg shrink-0">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                            </div>
-                            <div>
-                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
-                                    <span>Dotación del turno anterior disponible</span>
-                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(dot.fecha)}</span>
-                                </div>
-                                <div class="text-xs text-gray-300 mt-0.5">
-                                    Oficial: <strong class="text-white">${escapeHtml(dot.nombre_guardia || 'No registrado')}</strong>
-                                    ${dot.documento_guardia ? ` | Doc: <span class="font-mono text-gray-200">${escapeHtml(dot.documento_guardia)}</span>` : ''}
-                                    ${dot.serie_arma ? ` | Serie arma: <span class="font-mono text-gray-200">${escapeHtml(dot.serie_arma)}</span>` : ''}
-                                    ${dot.radio_asignado_serial ? ` | Radio: <span class="font-mono text-gray-200">${escapeHtml(dot.radio_asignado_serial)}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
-                            <button type="button" id="btnCargarDotacion" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
-                                ⚡ Cargar en formulario
-                            </button>
-                            <button type="button" id="btnDescartarDotacion" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
-                                ✕
-                            </button>
-                        </div>
-                    </div>
-                `;
-                const btnCargar = document.getElementById('btnCargarDotacion');
-                const btnDescartar = document.getElementById('btnDescartarDotacion');
-                if (btnCargar) {
-                    btnCargar.addEventListener('click', () => aplicarUltimaDotacion(dot));
-                }
-                if (btnDescartar) {
-                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
-                }
+                aplicarEquipamientoPuestoAutomatico(dot);
             })
             .catch(err => {
-                if (err.name !== 'AbortError') console.warn('Error consultando última dotación:', err);
+                if (err.name !== 'AbortError') console.warn('Error consultando equipamiento previo del puesto:', err);
             });
         }
 
-        function aplicarUltimaDotacion(dot) {
-            if (!dot) return;
-            const isEdit = !!window.EDIT_MODE;
-            const prefix = isEdit ? '' : 'supervisions[0]';
+        function aplicarEquipamientoPuestoAutomatico(dot) {
+            if (!dot || window.EDIT_MODE) return;
+            const prefix = 'supervisions[0]';
 
             function setFieldValue(name, value) {
                 if (value === undefined || value === null || value === '') return;
-                const selector = isEdit ? `[name="${name}"]` : `[name="${prefix}[${name}]"]`;
+                const selector = `[name="${prefix}[${name}]"]`;
                 const el = document.querySelector(selector);
                 if (el) {
                     el.value = value;
@@ -1453,43 +1416,23 @@
                 }
             }
 
-            // Datos del Puesto
+            function clearFieldValue(name) {
+                const selector = `[name="${prefix}[${name}]"]`;
+                const el = document.querySelector(selector);
+                if (el) {
+                    el.value = '';
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // 1. Datos Operativos del Puesto
             setFieldValue('detalles_puestos', dot.detalles_puestos);
             setFieldValue('horario_servicio', dot.horario_servicio);
             setFieldValue('tipo_servicio', dot.tipo_servicio);
             setFieldValue('modalidad_servicio', dot.modalidad_servicio);
 
-            // Datos del Guardia
-            setFieldValue('nombre_guardia', dot.nombre_guardia);
-            setFieldValue('numero_empleado', dot.numero_empleado);
-            setFieldValue('documento_guardia', dot.documento_guardia);
-
-            // Tiempo en el puesto
-            if (isEdit) {
-                setFieldValue('tiempo_en_puesto', dot.tiempo_en_puesto);
-            } else {
-                const selTiempo = document.querySelector(`[name="supervisions[0][tiempo_en_puesto]"]`);
-                if (selTiempo && dot.tiempo_en_puesto) {
-                    const val = String(dot.tiempo_en_puesto);
-                    const exists = Array.from(selTiempo.options).some(o => o.value === val);
-                    if (exists) {
-                        selTiempo.value = val;
-                        selTiempo.dispatchEvent(new Event('change', { bubbles: true }));
-                    } else {
-                        selTiempo.value = 'Otro';
-                        selTiempo.dispatchEvent(new Event('change', { bubbles: true }));
-                        const otroInput = document.getElementById('tiempoPuestoOtroInput_0');
-                        if (otroInput) {
-                            otroInput.value = val;
-                            otroInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    }
-                }
-            }
-
-            setFieldValue('licencia_portar_arma', dot.licencia_portar_arma);
-
-            // Porta arma y sus campos condicionales
+            // 2. Equipamiento persistente: Arma y permisos del puesto
             if (dot.porta_arma) {
                 setFieldValue('porta_arma', dot.porta_arma);
                 if (dot.porta_arma === 'Si') {
@@ -1500,21 +1443,68 @@
                 }
             }
 
-            // Radio
-            setFieldValue('radio_asignado_serial', dot.radio_asignado_serial);
-            setFieldValue('marca_radio', dot.marca_radio);
-            setFieldValue('tipo_radio', dot.tipo_radio);
+            // 3. Equipamiento persistente: Radio del puesto
+            if (dot.radio_asignado_serial) {
+                setFieldValue('radio_asignado_serial', dot.radio_asignado_serial);
+                setFieldValue('marca_radio', dot.marca_radio);
+                setFieldValue('tipo_radio', dot.tipo_radio);
+            }
 
-            // Confirmación visual
+            // 4. GARANTÍA: Los datos del Oficial en turno NUNCA se pre-llenan
+            // (nombre, carnet, cédula, tiempo y licencia propia cambian con cada turno)
+
+            const tieneArma = dot.porta_arma === 'Si' && (dot.serie_arma || dot.tipo_arma);
+            const tieneRadio = !!dot.radio_asignado_serial;
+
+            if (!tieneArma && !tieneRadio && !dot.detalles_puestos) {
+                wrap.innerHTML = '';
+                return;
+            }
+
+            const armaTxt = tieneArma
+                ? `Arma: <strong class="text-white">${escapeHtml(dot.tipo_arma || 'Arma')} ${escapeHtml(dot.serie_arma || '')}</strong>${dot.matricula_arma ? ` (Permiso/Matrícula: <span class="font-mono text-gray-200">${escapeHtml(dot.matricula_arma)}</span>)` : ''}`
+                : '<span class="text-gray-400">Puesto sin arma</span>';
+
+            const radioTxt = tieneRadio
+                ? ` · Radio: <strong class="text-white">${escapeHtml(dot.radio_asignado_serial)}</strong>`
+                : '';
+
             wrap.innerHTML = `
-                <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
-                    <span class="flex items-center gap-2">
-                        <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span>Dotación y equipamiento del turno anterior aplicados exitosamente. <strong>Las evaluaciones y firmas permanecen 100% en blanco para su inspección en vivo.</strong></span>
-                    </span>
-                    <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
+                <div id="badgeEquipamientoPrecargado" class="p-3 bg-gradient-to-r from-emerald-950/80 via-gray-900 to-gray-800 border border-emerald-500/50 rounded-xl text-xs text-emerald-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 shadow">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                        <span><strong>Equipamiento del puesto precargado:</strong> ${armaTxt}${radioTxt}</span>
+                        <span class="text-[11px] text-gray-400">· Oficial listo para captura en vivo</span>
+                    </div>
+                    <div class="flex items-center gap-3 self-end md:self-auto shrink-0">
+                        <button type="button" id="btnLimpiarEquipamiento" class="text-xs text-gray-400 hover:text-white underline" title="Limpiar equipamiento si este turno no tiene o cambió">
+                            Limpiar equipos
+                        </button>
+                        <button type="button" onclick="this.closest('#badgeEquipamientoPrecargado').remove()" class="text-gray-400 hover:text-white px-1">✕</button>
+                    </div>
                 </div>
             `;
+
+            const btnLimpiar = document.getElementById('btnLimpiarEquipamiento');
+            if (btnLimpiar) {
+                btnLimpiar.addEventListener('click', () => {
+                    clearFieldValue('porta_arma');
+                    clearFieldValue('tipo_arma');
+                    clearFieldValue('serie_arma');
+                    clearFieldValue('matricula_arma');
+                    clearFieldValue('cantidad_municion');
+                    clearFieldValue('radio_asignado_serial');
+                    clearFieldValue('marca_radio');
+                    clearFieldValue('tipo_radio');
+                    wrap.innerHTML = '';
+                });
+            }
+
+            // Foco automático en el primer campo del oficial
+            const nombreInput = document.querySelector(`[name="${prefix}[nombre_guardia]"]`);
+            if (nombreInput && !nombreInput.value) {
+                nombreInput.focus();
+            }
         }
 
         propSelect.addEventListener('change', function () {

@@ -272,9 +272,6 @@
                 </div>
             </div>
 
-            <!-- Banner voluntario de contexto de la propiedad -->
-            <div id="bannerIncidenteContextoWrap" class="mt-4"></div>
-
             <div class="form-section">
                 <h2 class="text-2xl font-bold mb-6 border-b border-gray-600 pb-3">2. Detalle del Incidente</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -853,125 +850,6 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/customer-hierarchy.js') }}"></script>
-    <!-- Contexto inteligente de puesto/área en la instalación -->
-    <script>
-    (function () {
-        const propSelect = document.getElementById('id_propiedad');
-        const wrap = document.getElementById('bannerIncidenteContextoWrap');
-        if (!propSelect || !wrap) return;
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/[&<>"']/g, function(m) {
-                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
-            });
-        }
-
-        let currentAbort = null;
-
-        function consultarContexto(propId) {
-            if (!propId || isNaN(Number(propId))) {
-                wrap.innerHTML = '';
-                return;
-            }
-
-            if (currentAbort) {
-                currentAbort.abort();
-            }
-            currentAbort = new AbortController();
-
-            fetch(`/forms/api/supervision/ultima-dotacion?id_propiedad=${encodeURIComponent(propId)}`, {
-                headers: { 'Accept': 'application/json' },
-                credentials: 'same-origin',
-                signal: currentAbort.signal
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (!data || !data.disponible || !data.dotacion) {
-                    wrap.innerHTML = '';
-                    return;
-                }
-                const dot = data.dotacion;
-                if (!dot.detalles_puestos) {
-                    wrap.innerHTML = '';
-                    return;
-                }
-                wrap.innerHTML = `
-                    <div class="p-3.5 bg-gradient-to-r from-blue-950/80 via-blue-900/50 to-gray-800 border border-blue-500/40 rounded-xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
-                        <div class="flex items-start md:items-center gap-3">
-                            <div class="p-2 bg-blue-600/30 text-blue-300 rounded-lg shrink-0">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            </div>
-                            <div>
-                                <div class="font-semibold text-blue-200 flex items-center gap-2 flex-wrap">
-                                    <span>Puesto habitual en esta instalación</span>
-                                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-800/80 text-blue-200 border border-blue-500/40">${escapeHtml(dot.detalles_puestos)}</span>
-                                </div>
-                                <div class="text-xs text-gray-300 mt-0.5">
-                                    ${dot.horario_servicio ? `Turno de referencia: <strong class="text-white">${escapeHtml(dot.horario_servicio)}</strong> | ` : ''}
-                                    ${dot.nombre_guardia ? `Oficial en turno: <span class="text-gray-200">${escapeHtml(dot.nombre_guardia)}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
-                            <button type="button" id="btnCargarContextoIncidente" class="w-full md:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg text-xs transition-colors shadow-md active:scale-95">
-                                ⚡ Usar este puesto
-                            </button>
-                            <button type="button" id="btnDescartarContextoIncidente" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition-colors" title="Descartar">
-                                ✕
-                            </button>
-                        </div>
-                    </div>
-                `;
-                const btnCargar = document.getElementById('btnCargarContextoIncidente');
-                const btnDescartar = document.getElementById('btnDescartarContextoIncidente');
-                if (btnCargar) {
-                    btnCargar.addEventListener('click', () => {
-                        const puestoInput = document.getElementById('puesto_area_especifica');
-                        if (puestoInput && dot.detalles_puestos) {
-                            puestoInput.value = dot.detalles_puestos;
-                            puestoInput.dispatchEvent(new Event('input', { bubbles: true }));
-                            puestoInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        if (dot.horario_servicio) {
-                            const turnoSel = document.getElementById('turno');
-                            if (turnoSel) {
-                                const exists = Array.from(turnoSel.options).some(o => o.value === dot.horario_servicio);
-                                if (exists) {
-                                    turnoSel.value = dot.horario_servicio;
-                                    turnoSel.dispatchEvent(new Event('change', { bubbles: true }));
-                                }
-                            }
-                        }
-                        wrap.innerHTML = `
-                            <div class="p-3 bg-green-950/70 border border-green-500/50 rounded-xl text-xs text-green-300 flex items-center justify-between shadow">
-                                <span class="flex items-center gap-2">
-                                    <svg class="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                    <span>Puesto y turno aplicados. <strong>El detalle, clasificación y evidencias del incidente quedan listos para su redacción en vivo.</strong></span>
-                                </span>
-                                <button type="button" onclick="this.parentElement.remove()" class="text-green-400 hover:text-white px-2 py-1 ml-2">✕</button>
-                            </div>
-                        `;
-                    });
-                }
-                if (btnDescartar) {
-                    btnDescartar.addEventListener('click', () => { wrap.innerHTML = ''; });
-                }
-            })
-            .catch(err => {
-                if (err.name !== 'AbortError') console.warn('Error consultando contexto:', err);
-            });
-        }
-
-        propSelect.addEventListener('change', function () {
-            consultarContexto(this.value);
-        });
-
-        if (propSelect.value) {
-            consultarContexto(propSelect.value);
-        }
-    })();
-    </script>
     <script>
         // --- GEOLOCATION ---
         (function captureLocation() {
