@@ -9145,14 +9145,15 @@ _EQ_BASE = [
 ]
 
 
-def _eq_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None):
+def _eq_conds(cliente, year, month, day, responsable=None, company_id=None, propiedad=None, desde=None, hasta=None):
     conds, params = [], []
     _add_scope_filters(conds, params, cliente=cliente, propiedad=propiedad, prefix="c.")
     _gestion_add_multi_date_filter(conds, params, "c.fecha::TEXT", year, month, day)
     _gestion_add_desde(conds, params, "c.fecha", desde)
+    _gestion_add_hasta(conds, params, "c.fecha", hasta)
     if responsable:
-        conds.append("TRIM(c.rol_aplicador) = %s")
-        params.append(responsable)
+        conds.append("(TRIM(COALESCE(c.tecnico_mantenimiento, '')) = %s OR TRIM(COALESCE(c.supervisor_seguridad, '')) = %s)")
+        params.extend([responsable, responsable])
     if company_id is not None:
         conds.append("c.company_id = %s")
         params.append(company_id)
@@ -9186,11 +9187,17 @@ def api_equipos_filtros():
         cid_cond = "AND company_id = %s" if company_id is not None else ""
         cid_params = [company_id] if company_id is not None else []
         cur.execute(f"""
-            SELECT DISTINCT TRIM(rol_aplicador) AS responsable
-            FROM confiabilidad_equipos
-            WHERE rol_aplicador IS NOT NULL AND TRIM(rol_aplicador) <> '' {cid_cond}
-            ORDER BY responsable
-        """, cid_params)
+            SELECT DISTINCT resp FROM (
+                SELECT TRIM(tecnico_mantenimiento) AS resp
+                FROM confiabilidad_equipos
+                WHERE tecnico_mantenimiento IS NOT NULL AND TRIM(tecnico_mantenimiento) <> '' {cid_cond}
+                UNION
+                SELECT TRIM(supervisor_seguridad) AS resp
+                FROM confiabilidad_equipos
+                WHERE supervisor_seguridad IS NOT NULL AND TRIM(supervisor_seguridad) <> '' {cid_cond}
+            ) t
+            ORDER BY resp
+        """, cid_params * 2 if company_id is not None else [])
         return jsonify({'responsables': [r[0] for r in cur.fetchall()]})
     except Exception as e:
         app_logger.error(f"api_equipos_filtros error: {e}", exc_info=True)
@@ -9245,7 +9252,8 @@ def api_equipos_data():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         desde = _gestion_desde_arg()
-        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad, desde=desde)
+        hasta = _gestion_hasta_arg()
+        base_conds, base_params = _eq_conds(cliente, year, month, day, responsable=responsable, company_id=company_id, propiedad=propiedad, desde=desde, hasta=hasta)
         where = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,
@@ -9391,7 +9399,8 @@ def api_equipos_detalles():
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         company_id = _get_user_company_id(cur, get_jwt_identity())
         desde = _gestion_desde_arg()
-        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde)
+        hasta = _gestion_hasta_arg()
+        base_conds, base_params = _eq_conds(cliente, year, month, day, company_id=company_id, propiedad=propiedad, desde=desde, hasta=hasta)
         where  = _eq_where(base_conds)
         lateral = f"""
             FROM confiabilidad_equipos c,

@@ -886,16 +886,31 @@
 
         const buildQS = (state) => {
             const p = new URLSearchParams();
-            const { cliente, propertyId, years, months, day, responsable } = state;
+            const { cliente, propertyId, years, months, day, responsable, periodo, desde, hasta } = state;
             if (cliente)     p.set('cliente',     cliente);
             if (propertyId) {
                 p.set('propiedad',   propertyId);
                 p.set('property_id', propertyId);
             }
-            if (years && years.length) p.set('year', years.join(','));
-            if (months && months.length) p.set('month', months.join(','));
+            if (years && years.length) {
+                p.set('year', years.join(','));
+            } else if (state.year) {
+                p.set('year', state.year);
+            }
+            if (months && months.length) {
+                p.set('month', months.join(','));
+            } else if (state.month) {
+                p.set('month', state.month);
+            }
             if (day)         p.set('day',          day);
             if (responsable) p.set('responsable',  responsable);
+            if (periodo) {
+                p.set('periodo', periodo);
+                if (periodo === 'personalizado' && desde && hasta) {
+                    p.set('desde', desde);
+                    p.set('hasta', hasta);
+                }
+            }
             return p.toString();
         };
 
