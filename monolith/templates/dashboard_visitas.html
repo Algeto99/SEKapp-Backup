@@ -51,6 +51,65 @@
         .status-pendiente::before { background:#f59e0b; }
         .status-vencido { background:rgba(239,68,68,.12); color:#fca5a5; }
         .status-vencido::before { background:#ef4444; }
+
+        /* ── Pie explicativo institucional para gráficos ─────────────────── */
+        .chart-footer {
+            margin-top: 0.875rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+            font-size: 0.75rem;
+            line-height: 1.45;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .chart-footer-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .chart-footer-badge {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.12rem 0.45rem;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            flex-shrink: 0;
+            margin-top: 0.05rem;
+            line-height: 1.2;
+        }
+        .chart-footer-badge.decision-badge {
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.25);
+        }
+        .chart-footer-desc {
+            color: #cbd5e1;
+            flex: 1;
+        }
+        body.light-mode .chart-footer {
+            border-top-color: rgba(0, 0, 0, 0.08);
+            color: #64748b;
+        }
+        body.light-mode .chart-footer-badge {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284c7;
+            border-color: rgba(2, 132, 199, 0.2);
+        }
+        body.light-mode .chart-footer-badge.decision-badge {
+            background: rgba(5, 150, 105, 0.08);
+            color: #059669;
+            border-color: rgba(5, 150, 105, 0.2);
+        }
+        body.light-mode .chart-footer-desc {
+            color: #334155;
+        }
+
         body.light-mode { background:#f1f5f9; color:#0f172a; }
         body.light-mode h1,body.light-mode h2,body.light-mode h3,body.light-mode h4,body.light-mode h5,body.light-mode h6 { color:#0f172a; }
 
@@ -192,25 +251,65 @@
                 <div class="card-title">Frecuencia de Visitas por Cliente</div>
                 <div id="clienteEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg><p>Sin datos de visitas por cliente</p></div>
                 <div class="chart-box"><canvas id="clienteChart"></canvas></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Volumen de visitas presenciales de coordinación realizadas a cada cliente corporativo frente al estándar mínimo.</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Permite balancear la carga de los coordinadores y evitar que cuentas grandes monopolicen la atención desatendiendo clientes medianos.</span>
+                    </div>
+                </div>
             </div>
             <div class="card">
                 <div class="card-title">Motivos de la Visita</div>
                 <div id="motivoEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-6m3 6V7m3 10v-3M5 21h14"/></svg><p>Sin datos de motivos</p></div>
                 <div class="chart-box"><canvas id="motivoChart"></canvas></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Distribución porcentual del propósito de los encuentros (Ronda de rutina, Atención a quejas, Revisión operativa, Requerimientos).</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Distingue una relación proactiva (mayoría rutina y valor) de una reactiva (picos en quejas que exigen intervención gerencial inmediata).</span>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="card chart-full">
-            <div class="card-title">Tendencia de Visitas</div>
+            <div class="card-title">Tendencia de Visitas en el Tiempo</div>
             <div id="trendEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg><p>Sin datos de tendencia</p></div>
             <div class="chart-box" style="min-height:340px;"><canvas id="trendChart"></canvas></div>
+            <div class="chart-footer">
+                <div class="chart-footer-row">
+                    <span class="chart-footer-badge">¿Qué analiza?</span>
+                    <span class="chart-footer-desc">Evolución temporal del ritmo de visitas semana a semana para evaluar la constancia del contacto institucional.</span>
+                </div>
+                <div class="chart-footer-row">
+                    <span class="chart-footer-badge decision-badge">Decisión</span>
+                    <span class="chart-footer-desc">Garantiza el cumplimiento de las metas contractuales de supervisión antes del cierre mensual de facturación.</span>
+                </div>
+            </div>
         </div>
 
         <div class="charts-row">
             <div class="card">
-                <div class="card-title">Estado de Compromisos</div>
+                <div class="card-title">Estado de Acuerdos y Compromisos</div>
                 <div id="estadoEmpty" class="empty-state"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 17a1 1 0 102 0m-1-2V9m0 12a9 9 0 100-18 9 9 0 000 18z"/></svg><p>Sin compromisos para el período</p></div>
                 <div class="chart-box" style="min-height:300px;"><canvas id="estadoChart"></canvas></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Proporción de compromisos firmados en actas que se encuentran Abiertos, En Tratamiento, Cerrados en Plazo o Vencidos.</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Termómetro de credibilidad: compromisos vencidos generan insatisfacción inmediata en comités de seguridad con el cliente.</span>
+                    </div>
+                </div>
             </div>
             <div class="card">
                 <div class="card-title">Resumen de Compromisos</div>

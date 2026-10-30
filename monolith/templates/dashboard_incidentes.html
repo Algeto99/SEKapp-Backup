@@ -381,6 +381,64 @@
         }
         body.light-mode .email-input { background:#f8fafc; border-color:#cbd5e1; color:#1e293b; }
         .email-input:focus { outline:none; border-color:#60a5fa; }
+
+        /* Chart footers */
+        .chart-footer {
+            margin-top: 0.875rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+            font-size: 0.75rem;
+            line-height: 1.45;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .chart-footer-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .chart-footer-badge {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.12rem 0.45rem;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            flex-shrink: 0;
+            margin-top: 0.05rem;
+            line-height: 1.2;
+        }
+        .chart-footer-badge.decision-badge {
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.25);
+        }
+        .chart-footer-desc {
+            color: #cbd5e1;
+            flex: 1;
+        }
+        body.light-mode .chart-footer {
+            border-top-color: rgba(0, 0, 0, 0.08);
+            color: #64748b;
+        }
+        body.light-mode .chart-footer-badge {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284c7;
+            border-color: rgba(2, 132, 199, 0.2);
+        }
+        body.light-mode .chart-footer-badge.decision-badge {
+            background: rgba(5, 150, 105, 0.08);
+            color: #059669;
+            border-color: rgba(5, 150, 105, 0.2);
+        }
+        body.light-mode .chart-footer-desc {
+            color: #334155;
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -513,6 +571,16 @@
                     </div>
                 </div>
                 <div class="loading-overlay" id="catLoading"><div class="spinner"></div></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Distribución cuantitativa de novedades según su naturaleza operativa, disciplinaria, patrimonial o de seguridad.</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Determinar las tipologías más recurrentes para ajustar protocolos, consignas de puesto y capacitación preventiva.</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Severidad distribution bar chart -->
@@ -531,6 +599,16 @@
                     </div>
                 </div>
                 <div class="loading-overlay" id="sevLoading"><div class="spinner"></div></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Proporción de eventos clasificados por su impacto o gravedad (Bajo, Medio o Alto).</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Monitorear la criticidad del servicio y activar escalamientos inmediatos si suben los incidentes de impacto alto.</span>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -547,6 +625,16 @@
                     </div>
                 </div>
                 <div class="loading-overlay" id="trendLoading"><div class="spinner"></div></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Comportamiento cronológico del volumen de novedades en el período seleccionado.</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Detectar picos atípicos en fechas específicas y comprobar si las acciones correctivas logran reducir las incidencias.</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -564,6 +652,16 @@
                     </div>
                 </div>
                 <div class="loading-overlay" id="turnoLoading"><div class="spinner"></div></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Comparativa del volumen de novedades registradas entre la jornada diurna y nocturna.</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Reforzar supervisión, control de rondas y relevos tácticos en el turno con mayor vulnerabilidad operativa.</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Severity reference table -->

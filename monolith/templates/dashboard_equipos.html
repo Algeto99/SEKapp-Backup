@@ -128,6 +128,64 @@
             .charts-row { grid-template-columns:1fr !important; }
             .card { padding:1rem 0.75rem !important; width:100% !important; box-sizing:border-box !important; }
         }
+
+        /* Chart footers */
+        .chart-footer {
+            margin-top: 0.875rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+            font-size: 0.75rem;
+            line-height: 1.45;
+            color: #94a3b8;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .chart-footer-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .chart-footer-badge {
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.12rem 0.45rem;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            flex-shrink: 0;
+            margin-top: 0.05rem;
+            line-height: 1.2;
+        }
+        .chart-footer-badge.decision-badge {
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.25);
+        }
+        .chart-footer-desc {
+            color: #cbd5e1;
+            flex: 1;
+        }
+        body.light-mode .chart-footer {
+            border-top-color: rgba(0, 0, 0, 0.08);
+            color: #64748b;
+        }
+        body.light-mode .chart-footer-badge {
+            background: rgba(2, 132, 199, 0.08);
+            color: #0284c7;
+            border-color: rgba(2, 132, 199, 0.2);
+        }
+        body.light-mode .chart-footer-badge.decision-badge {
+            background: rgba(5, 150, 105, 0.08);
+            color: #059669;
+            border-color: rgba(5, 150, 105, 0.2);
+        }
+        body.light-mode .chart-footer-desc {
+            color: #334155;
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/header.css') }}">
 </head>
@@ -212,6 +270,16 @@
                 </div>
                 <div class="chart-box" style="min-height:300px;"><canvas id="donutChart"></canvas></div>
                 <div id="donutLeyenda" style="display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-top:.75rem;"></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Proporción general de evaluaciones clasificadas en Confiable (≥85%), Aceptable (70-84%) o No Confiable (&lt;70%).</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Identificar el volumen de riesgo técnico global para programar reemplazos prioritarios o auditorías operativas.</span>
+                    </div>
+                </div>
             </div>
             <!-- Bar: confiabilidad por tipo, sorted asc -->
             <div class="card">
@@ -221,6 +289,16 @@
                     <p>Sin datos de equipos</p>
                 </div>
                 <div class="chart-box" id="tipoBox"><canvas id="tipoChart"></canvas></div>
+                <div class="chart-footer">
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge">¿Qué analiza?</span>
+                        <span class="chart-footer-desc">Tasa de operatividad desglosada por familia de equipo (radios, armas, detectores, etc.), ordenada desde la más crítica.</span>
+                    </div>
+                    <div class="chart-footer-row">
+                        <span class="chart-footer-badge decision-badge">Decisión</span>
+                        <span class="chart-footer-desc">Focalizar garantías de proveedores, mantenimiento preventivo o reposición en los activos con menor rendimiento.</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -232,6 +310,16 @@
                 <p>Sin datos de tendencia</p>
             </div>
             <div class="chart-box" style="min-height:340px;"><canvas id="trendChart"></canvas></div>
+            <div class="chart-footer">
+                <div class="chart-footer-row">
+                    <span class="chart-footer-badge">¿Qué analiza?</span>
+                    <span class="chart-footer-desc">Evolución temporal del porcentaje de operatividad de los equipos a lo largo de las semanas y meses.</span>
+                </div>
+                <div class="chart-footer-row">
+                    <span class="chart-footer-badge decision-badge">Decisión</span>
+                    <span class="chart-footer-desc">Comprobar si las reparaciones y sustituciones están mejorando de forma sostenida la disponibilidad de los puestos.</span>
+                </div>
+            </div>
         </div>
 
         <!-- Consolidated matrix by tipo -->
