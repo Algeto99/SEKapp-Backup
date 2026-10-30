@@ -2072,17 +2072,16 @@ def submit_supervision_puesto():
                         combined = f"{existing}\n" + "\n".join(uploaded_urls) if existing else "\n".join(uploaded_urls)
                         supervisions_map[index]['foto_evidencia_url'] = combined
 
-        # Inspección de Puesto completa en cada bloque, antes de insertar nada:
-        # o entran todos los puestos del envío o ninguno. Un bloque vacío también
-        # se rechaza: el bucle de abajo le mezcla los datos globales y lo guardaba
-        # como una fila sin inspección.
+        # Filtrar bloques con datos para descartar bloques vacíos sin bloquear campos opcionales:
+        bloques_con_datos = []
         for index in sorted(supervisions_map):
             sup_data = supervisions_map[index]
-            faltantes = _faltantes_inspeccion(sup_data)
-            if faltantes:
-                puesto = (sup_data.get('detalles_puestos') or sup_data.get('puesto_area_especifica')
-                          or f'#{index + 1}')
-                return _error_inspeccion(faltantes, puesto)
+            tiene_datos = any(v for k, v in sup_data.items() if v and str(v).strip())
+            if tiene_datos:
+                bloques_con_datos.append((index, sup_data))
+
+        if not bloques_con_datos:
+            return _return_form_error('Debe completar al menos una supervisión de puesto.', 400)
 
         # 4. Process and Insert Each Supervision
         # La geocerca se evalúa una sola vez: todas las filas del envío comparten
@@ -2091,7 +2090,7 @@ def submit_supervision_puesto():
         _marcar_geocerca(cur, 'supervision_puesto', global_data)
         column_cache = None # Optimization to fetch columns once if needed, but simple query is fine
 
-        for index, sup_data in supervisions_map.items():
+        for index, sup_data in bloques_con_datos:
             # Merge Global
             row_data = {**global_data, **sup_data}
             if _sin_arma(row_data):
@@ -2260,9 +2259,6 @@ def submit_supervision_puesto_editar(id):
             'firma_supervisor': request.form.get('firma_supervisor'),
             'firma_guardia': request.form.get('firma_guardia'),
         }
-        faltantes = _faltantes_inspeccion(form_data)
-        if faltantes:
-            return _error_inspeccion(faltantes)
         foto_urls = []
         for file in request.files.getlist('foto_evidencia'):
             if file and file.filename:

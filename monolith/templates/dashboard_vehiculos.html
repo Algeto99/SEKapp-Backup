@@ -757,6 +757,13 @@
             p.set('month', state.month);
         }
         if (state.day) p.set('day', state.day);
+        if (state.periodo) {
+            p.set('periodo', state.periodo);
+            if (state.periodo === 'personalizado' && state.desde && state.hasta) {
+                p.set('desde', state.desde);
+                p.set('hasta', state.hasta);
+            }
+        }
         return p.toString();
     }
 

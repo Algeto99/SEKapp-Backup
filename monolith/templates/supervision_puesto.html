@@ -180,7 +180,7 @@
         <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-        <form id="supervisionForm" action="{{ url_for('forms_bp.submit_supervision_puesto_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_supervision_puesto') }}" method="POST"
+        <form id="supervisionForm" novalidate action="{{ url_for('forms_bp.submit_supervision_puesto_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_supervision_puesto') }}" method="POST"
             enctype="multipart/form-data" class="space-y-6">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">
@@ -193,24 +193,24 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label for="id_propiedad" class="block text-sm font-medium mb-1">Propiedad / Instalación</label>
-                        <select name="id_propiedad" id="id_propiedad" class="form-input form-select" required>
+                        <select name="id_propiedad" id="id_propiedad" class="form-input form-select">
                             <option value="" disabled selected>Cargando propiedades...</option>
                         </select>
                         <input type="hidden" name="cliente_instalacion" id="cliente_instalacion">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1 select-none pointer-events-none">Fecha y Hora</label>
-                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly required style="pointer-events: none; opacity: 0.95;">
+                        <input type="datetime-local" name="fecha_hora" id="fecha_hora" class="form-input" tabindex="-1" readonly style="pointer-events: none; opacity: 0.95;">
                         <span class="text-xs text-gray-400 mt-1 block select-none pointer-events-none">Captura automática de auditoría</span>
                     </div>
                     <div>
                         <label for="supervisor" class="block text-sm font-medium mb-1">Nombre Supervisor</label>
-                        <input type="text" name="supervisor" id="supervisor" class="form-input" value="{{ name }}" required autocapitalize="words">
+                        <input type="text" name="supervisor" id="supervisor" class="form-input" value="{{ name }}" autocapitalize="words">
                     </div>
                     <div>
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
                             Aplicador/Responsable</label>
-                        <select name="rol_aplicador" id="rol_aplicador" class="form-select" required>
+                        <select name="rol_aplicador" id="rol_aplicador" class="form-select">
                             <option value="" disabled>Seleccione...</option>
                             <option selected>Supervisor</option>
                             <option>Coordinador</option>
@@ -272,8 +272,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Modalidad de Servicio *</label>
-                        <select name="modalidad_servicio" id="modalidadServicio" class="form-select modalidad-servicio-select" required>
+                        <label class="block text-sm font-medium mb-1">Modalidad de Servicio</label>
+                        <select name="modalidad_servicio" id="modalidadServicio" class="form-select modalidad-servicio-select">
                             <option value="">Seleccione...</option>
                             <option value="Puesto Fijo" data-sublabel="Oficial de Seguridad asignado a un punto determinado durante todo su turno.">Puesto Fijo</option>
                             <option value="Rondín" data-sublabel="Oficial de Seguridad que recorre un circuito de puntos dentro de la misma instalación.">Rondín</option>
@@ -286,8 +286,8 @@
                 <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Guardia de Seguridad</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
-                        <label class="block text-sm font-medium mb-1">Nombre y Apellido *</label>
-                        <input type="text" name="nombre_guardia" class="form-input" required autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
+                        <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
+                        <input type="text" name="nombre_guardia" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Número de Empleado</label>
@@ -399,7 +399,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium mb-1">Asistencia y puntualidad</label>
-                        <select name="asistencia_puntualidad" class="form-select" required>
+                        <select name="asistencia_puntualidad" class="form-select">
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -410,7 +410,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
-                        <select name="presentacion_uniforme" class="form-select" required>
+                        <select name="presentacion_uniforme" class="form-select">
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -444,7 +444,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Estado y limpieza del puesto</label>
-                        <select name="estado_limpieza_puesto" class="form-select" required>
+                        <select name="estado_limpieza_puesto" class="form-select">
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -455,7 +455,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Equipamiento (radio, etc.)</label>
-                        <select name="equipamiento_completo" class="form-select" required>
+                        <select name="equipamiento_completo" class="form-select">
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -466,7 +466,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Estado de bitácora y registros</label>
-                        <select name="estado_bitacora" class="form-select" required>
+                        <select name="estado_bitacora" class="form-select">
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente</option>
                             <option value="2">2 — Deficiente</option>
@@ -523,8 +523,8 @@
                     })();
                 </script>
                 <div>
-                    <label for="motivo" class="form-label">Motivo *</label>
-                    <select id="motivo" name="motivo" class="form-select" required onchange="toggleMotivoDetalle()">
+                    <label for="motivo" class="form-label">Motivo</label>
+                    <select id="motivo" name="motivo" class="form-select" onchange="toggleMotivoDetalle()">
                         <option value="" disabled selected>Seleccione un motivo...</option>
                         {% for m in motivos_edicion %}
                         <option value="{{ m }}">{{ m }}</option>
@@ -579,7 +579,7 @@
             var detalle = document.getElementById('motivo_detalle');
             var isOtro = sel && sel.value === 'Otro';
             if (wrap) wrap.style.display = isOtro ? 'block' : 'none';
-            if (detalle) detalle.required = isOtro;
+            if (detalle) detalle.required = false;
         }
         document.addEventListener('DOMContentLoaded', function() {
             var supervisorPad = new SignaturePad(document.getElementById('signaturePadSupervisorEdit'));
@@ -727,12 +727,12 @@
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Puesto</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
-                            <label class="block text-sm font-medium mb-1">Puesto o Área Específica *</label>
+                            <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
                             <!-- detalles_puestos, not puesto_area_especifica: supervision_puesto has
                                  no such column, so the insert in forms_bp dropped the old name and the
                                  puesto was never stored. This is the column the Expediente already
                                  reads as the "lugar" of the supervision. -->
-                            <input type="text" name="supervisions[${index}][detalles_puestos]" class="form-input" required autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
+                            <input type="text" name="supervisions[${index}][detalles_puestos]" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
@@ -772,8 +772,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium mb-1">Modalidad de Servicio *</label>
-                            <select name="supervisions[${index}][modalidad_servicio]" class="form-select modalidad-servicio-select" required>
+                            <label class="block text-sm font-medium mb-1">Modalidad de Servicio</label>
+                            <select name="supervisions[${index}][modalidad_servicio]" class="form-select modalidad-servicio-select">
                                 <option value="">Seleccione...</option>
                                 <option value="Puesto Fijo" data-sublabel="Oficial de Seguridad asignado a un punto determinado durante todo su turno.">Puesto Fijo</option>
                                 <option value="Rondín" data-sublabel="Oficial de Seguridad que recorre un circuito de puntos dentro de la misma instalación.">Rondín</option>
@@ -787,8 +787,8 @@
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Guardia de Seguridad</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
-                            <label class="block text-sm font-medium mb-1">Nombre y Apellido *</label>
-                            <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" required autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
+                            <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
+                            <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Número de Empleado</label>
@@ -919,7 +919,7 @@
                         
                         <div>
                             <label class="block text-sm font-medium mb-1">Presentación y Uniforme</label>
-                            <select name="supervisions[${index}][presentacion_uniforme]" class="form-select presentacion_uniforme-select" data-index="${index}" required>
+                            <select name="supervisions[${index}][presentacion_uniforme]" class="form-select presentacion_uniforme-select" data-index="${index}">
                                 <option value="">Seleccione...</option>
                                 <option value="1">1 — Muy deficiente (incumplimiento grave)</option>
                                 <option value="2">2 — Deficiente (requiere corrección)</option>
@@ -996,7 +996,7 @@
                 return `
                     <div>
                         <label class="block text-sm font-medium mb-1">${label}</label>
-                        <select name="supervisions[${index}][${name}]" class="form-select ${name}-select" data-index="${index}" required>
+                        <select name="supervisions[${index}][${name}]" class="form-select ${name}-select" data-index="${index}">
                             <option value="">Seleccione...</option>
                             <option value="1">1 — Muy deficiente (incumplimiento grave)</option>
                             <option value="2">2 — Deficiente (requiere corrección)</option>
@@ -1092,10 +1092,8 @@
                     selTiempo.addEventListener('change', function () {
                         if (this.value === 'Otro') {
                             tiempoOtroDiv.classList.remove('hidden');
-                            tiempoOtroInput.required = true;
                         } else {
                             tiempoOtroDiv.classList.add('hidden');
-                            tiempoOtroInput.required = false;
                             tiempoOtroInput.value = '';
                         }
                     });
@@ -1186,6 +1184,9 @@
                         const otroInput = document.getElementById(`tiempoPuestoOtroInput_${idx}`);
                         const val = otroInput ? otroInput.value.trim() : '';
                         if (!val || !/^\d+$/.test(val)) {
+                            if (this.dataset.bypassIncomplete === 'true') {
+                                continue;
+                            }
                             e.preventDefault();
                             otroInput.focus();
                             otroInput.setCustomValidity('Ingrese un número entero válido.');
@@ -1314,6 +1315,7 @@
                 const form = select.closest('form');
                 if (form) {
                     form.addEventListener('submit', function (e) {
+                        if (form.dataset.bypassIncomplete === 'true') return;
                         if (checkManual()) return;
                         e.preventDefault();
                         box.focus();
@@ -1583,6 +1585,434 @@
         }, true);
     })();
     </script>
+    <!-- Modal Institucional: Advertencia de Campos No Completados -->
+    <style>
+        #secappIncompleteModal {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background-color: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        #secappIncompleteModal.hidden {
+            display: none !important;
+        }
+        .secapp-inc-card {
+            background-color: #111827;
+            border: 1px solid rgba(75, 85, 99, 0.7);
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+            max-width: 32rem;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+            animation: secappIncFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes secappIncFadeIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .secapp-inc-header {
+            padding: 1rem 1.25rem;
+            background: rgba(31, 41, 55, 0.85);
+            border-bottom: 1px solid rgba(75, 85, 99, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .secapp-inc-badge {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.75rem;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            flex-shrink: 0;
+        }
+        .secapp-inc-body {
+            padding: 1.25rem;
+            overflow-y: auto;
+            color: #d1d5db;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+        .secapp-inc-list-box {
+            background: rgba(17, 24, 39, 0.75);
+            border: 1px solid rgba(55, 65, 81, 0.8);
+            border-radius: 0.75rem;
+            padding: 0.875rem;
+            max-height: 42vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .secapp-inc-group {
+            border-left: 3px solid #f59e0b;
+            padding-left: 0.625rem;
+        }
+        .secapp-inc-group-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #fbbf24;
+            margin-bottom: 0.25rem;
+        }
+        .secapp-inc-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.8rem;
+            color: #e5e7eb;
+            padding: 0.15rem 0;
+            cursor: pointer;
+            transition: color 0.15s ease;
+        }
+        .secapp-inc-item:hover {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+        .secapp-inc-bullet {
+            color: #f59e0b;
+            font-weight: bold;
+        }
+        .secapp-inc-tip {
+            padding: 0.625rem 0.875rem;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 0.625rem;
+            font-size: 0.75rem;
+            color: #fde68a;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .secapp-inc-footer {
+            padding: 0.875rem 1.25rem;
+            background: rgba(31, 41, 55, 0.95);
+            border-top: 1px solid rgba(75, 85, 99, 0.6);
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+        .secapp-btn-secondary {
+            padding: 0.625rem 1.125rem;
+            background: #374151;
+            color: #f9fafb;
+            border-radius: 0.625rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid rgba(107, 114, 128, 0.5);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .secapp-btn-secondary:hover {
+            background: #4b5563;
+        }
+        .secapp-btn-primary {
+            padding: 0.625rem 1.25rem;
+            background: #2563eb;
+            color: #ffffff;
+            border-radius: 0.625rem;
+            font-size: 0.875rem;
+            font-weight: 700;
+            border: 1px solid rgba(37, 99, 235, 0.8);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+            transition: all 0.15s ease;
+        }
+        .secapp-btn-primary:hover {
+            background: #1d4ed8;
+        }
+    </style>
+
+    <div id="secappIncompleteModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="incompleteModalTitle">
+        <div class="secapp-inc-card">
+            <!-- Encabezado -->
+            <div class="secapp-inc-header">
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                    <div class="secapp-inc-badge">⚠️</div>
+                    <div>
+                        <h3 id="incompleteModalTitle" style="margin:0;font-size:1.05rem;font-weight:700;color:#ffffff;">Campos pendientes de completar</h3>
+                        <p style="margin:0;font-size:0.75rem;color:#9ca3af;">Verifique antes de enviar el informe</p>
+                    </div>
+                </div>
+                <button type="button" id="incompleteCloseBtn" style="background:none;border:none;color:#9ca3af;font-size:1.5rem;line-height:1;cursor:pointer;padding:0.25rem;" aria-label="Cerrar">&times;</button>
+            </div>
+
+            <!-- Contenido -->
+            <div class="secapp-inc-body">
+                <p style="margin:0;color:#e5e7eb;font-weight:500;">
+                    Los siguientes datos no han sido completados en este informe:
+                </p>
+                <div id="incompleteListContainer" class="secapp-inc-list-box">
+                    <!-- Dinámico -->
+                </div>
+                <div class="secapp-inc-tip">
+                    <span>💡</span>
+                    <span>Puede regresar a completar los datos o enviar la supervisión tal como está.</span>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="secapp-inc-footer">
+                <button type="button" id="incompleteReturnBtn" class="secapp-btn-secondary">
+                    ← Regresar a llenar
+                </button>
+                <button type="button" id="incompleteSubmitAnywayBtn" class="secapp-btn-primary">
+                    <span>Enviar así</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width:1rem;height:1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        const form = document.getElementById('supervisionForm');
+        const modal = document.getElementById('secappIncompleteModal');
+        const listContainer = document.getElementById('incompleteListContainer');
+        const closeBtn = document.getElementById('incompleteCloseBtn');
+        const returnBtn = document.getElementById('incompleteReturnBtn');
+        const submitAnywayBtn = document.getElementById('incompleteSubmitAnywayBtn');
+
+        if (!form || !modal) return;
+
+        let firstPendingElement = null;
+
+        function getMissingFields() {
+            const missing = [];
+            const isEdit = !!window.EDIT_MODE;
+
+            // 1. Datos Generales (Globales)
+            const propSelect = document.getElementById('id_propiedad');
+            if (propSelect && (!propSelect.value || propSelect.value.trim() === '')) {
+                missing.push({ group: '1. Datos Generales', label: 'Propiedad / Instalación', element: propSelect });
+            }
+
+            const supervisorInput = document.getElementById('supervisor');
+            if (supervisorInput && !supervisorInput.value.trim()) {
+                missing.push({ group: '1. Datos Generales', label: 'Nombre del Supervisor', element: supervisorInput });
+            }
+
+            const rolSelect = document.getElementById('rol_aplicador');
+            if (rolSelect && (!rolSelect.value || rolSelect.value.trim() === '')) {
+                missing.push({ group: '1. Datos Generales', label: 'Rol del Supervisor', element: rolSelect });
+            }
+
+            if (isEdit) {
+                // Modo Edición: verificar campos del registro único
+                const puestoEl = form.querySelector('[name="detalles_puestos"]') || form.querySelector('#detalles_puestos');
+                if (puestoEl && !puestoEl.value.trim()) missing.push({ group: 'Datos de la Supervisión', label: 'Puesto o Área Específica', element: puestoEl });
+
+                const modEl = document.getElementById('modalidadServicio');
+                if (modEl && !modEl.value.trim()) missing.push({ group: 'Datos de la Supervisión', label: 'Modalidad de Servicio', element: modEl });
+
+                const guardEl = form.querySelector('[name="nombre_guardia"]');
+                if (guardEl && !guardEl.value.trim()) missing.push({ group: 'Datos de la Supervisión', label: 'Nombre del Guardia de Seguridad', element: guardEl });
+
+                const criteria = [
+                    { name: 'asistencia_puntualidad', label: 'Asistencia y puntualidad' },
+                    { name: 'presentacion_uniforme', label: 'Presentación y uniforme' },
+                    { name: 'estado_limpieza_puesto', label: 'Estado y limpieza del puesto' },
+                    { name: 'equipamiento_completo', label: 'Equipamiento' },
+                    { name: 'estado_bitacora', label: 'Estado de bitácora y registros' }
+                ];
+                criteria.forEach(c => {
+                    const sel = form.querySelector(`[name="${c.name}"]`);
+                    if (sel && !sel.value.trim()) {
+                        missing.push({ group: 'Inspección de Puesto', label: c.label, element: sel });
+                    }
+                });
+
+                const motivoEl = document.getElementById('motivo');
+                if (motivoEl && !motivoEl.value.trim()) {
+                    missing.push({ group: 'Auditoría de Edición', label: 'Motivo de modificación', element: motivoEl });
+                }
+            } else {
+                // Modo Creación: verificar cada bloque de supervisión
+                const blocks = form.querySelectorAll('.supervision-block');
+                blocks.forEach(block => {
+                    const idx = block.dataset.index;
+                    const puestoInput = block.querySelector(`[name="supervisions[${idx}][detalles_puestos]"]`);
+                    const puestoNombre = (puestoInput && puestoInput.value.trim()) ? puestoInput.value.trim() : null;
+                    const groupTitle = puestoNombre ? `Supervisión #${parseInt(idx) + 1} (${puestoNombre})` : `Supervisión #${parseInt(idx) + 1}`;
+
+                    if (!puestoNombre) {
+                        missing.push({ group: groupTitle, label: 'Puesto o Área Específica', element: puestoInput });
+                    }
+
+                    const modSelect = block.querySelector(`[name="supervisions[${idx}][modalidad_servicio]"]`);
+                    if (modSelect && !modSelect.value.trim()) {
+                        missing.push({ group: groupTitle, label: 'Modalidad de Servicio', element: modSelect });
+                    }
+
+                    const guardiaInput = block.querySelector(`[name="supervisions[${idx}][nombre_guardia]"]`);
+                    if (guardiaInput && !guardiaInput.value.trim()) {
+                        missing.push({ group: groupTitle, label: 'Nombre del Guardia de Seguridad', element: guardiaInput });
+                    }
+
+                    const criteria = [
+                        { name: 'asistencia_puntualidad', label: 'Asistencia y puntualidad' },
+                        { name: 'presentacion_uniforme', label: 'Presentación y uniforme' },
+                        { name: 'estado_limpieza_puesto', label: 'Estado y limpieza del puesto' },
+                        { name: 'equipamiento_completo', label: 'Equipamiento' },
+                        { name: 'estado_bitacora', label: 'Estado de bitácora y registros' }
+                    ];
+                    criteria.forEach(c => {
+                        const sel = block.querySelector(`[name="supervisions[${idx}][${c.name}]"]`);
+                        if (sel && !sel.value.trim()) {
+                            missing.push({ group: groupTitle, label: `Inspección: ${c.label}`, element: sel });
+                        }
+                    });
+
+                    // Armamento
+                    const selArma = block.querySelector('.porta-arma-select');
+                    if (selArma && selArma.value === 'Si') {
+                        const tipoArma = block.querySelector(`[name="supervisions[${idx}][tipo_arma]"]`);
+                        if (tipoArma && !tipoArma.value.trim()) missing.push({ group: groupTitle, label: 'Armamento: Tipo de arma', element: tipoArma });
+
+                        const serieArma = block.querySelector(`[name="supervisions[${idx}][serie_arma]"]`);
+                        if (serieArma && !serieArma.value.trim()) missing.push({ group: groupTitle, label: 'Armamento: Número de serie del arma', element: serieArma });
+                    }
+
+                    // Firmas
+                    if (window.signaturePads) {
+                        const padG = window.signaturePads[`guardia_${idx}`];
+                        if (padG && padG.isEmpty()) {
+                            const canvasG = document.getElementById(`signaturePadGuardia_${idx}`);
+                            missing.push({ group: groupTitle, label: 'Firma del Guardia', element: canvasG });
+                        }
+                        const padS = window.signaturePads[`supervisor_${idx}`];
+                        if (padS && padS.isEmpty()) {
+                            const canvasS = document.getElementById(`signaturePadSupervisor_${idx}`);
+                            missing.push({ group: groupTitle, label: 'Firma del Supervisor', element: canvasS });
+                        }
+                    }
+                });
+            }
+
+            return missing;
+        }
+
+        function showModal(missing) {
+            listContainer.innerHTML = '';
+            firstPendingElement = missing[0]?.element || null;
+
+            // Agrupar faltantes por grupo
+            const grouped = {};
+            missing.forEach(item => {
+                if (!grouped[item.group]) grouped[item.group] = [];
+                grouped[item.group].push(item);
+            });
+
+            Object.keys(grouped).forEach(grp => {
+                const grpDiv = document.createElement('div');
+                grpDiv.className = 'secapp-inc-group';
+
+                const grpHeader = document.createElement('div');
+                grpHeader.className = 'secapp-inc-group-title';
+                grpHeader.textContent = grp;
+                grpDiv.appendChild(grpHeader);
+
+                const ul = document.createElement('div');
+                ul.style.display = 'flex';
+                ul.style.flexDirection = 'column';
+                ul.style.gap = '0.2rem';
+
+                grouped[grp].forEach(item => {
+                    const li = document.createElement('div');
+                    li.className = 'secapp-inc-item';
+                    li.innerHTML = `<span class="secapp-inc-bullet">•</span> <span>${item.label}</span>`;
+                    li.addEventListener('click', () => {
+                        hideModal();
+                        if (item.element) {
+                            item.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            try { item.element.focus(); } catch (err) {}
+                        }
+                    });
+                    ul.appendChild(li);
+                });
+
+                grpDiv.appendChild(ul);
+                listContainer.appendChild(grpDiv);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function hideModal() {
+            modal.classList.add('hidden');
+        }
+
+        // Intercepción del submit
+        form.addEventListener('submit', function (e) {
+            if (form.dataset.bypassIncomplete === 'true') {
+                return; // Ya confirmado por el usuario, permitir envío
+            }
+
+            const missing = getMissingFields();
+            if (missing.length > 0) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                showModal(missing);
+                return false;
+            }
+        }, true); // Captura para correr antes de bloqueos de envío
+
+        closeBtn.addEventListener('click', hideModal);
+
+        returnBtn.addEventListener('click', function () {
+            hideModal();
+            if (firstPendingElement) {
+                firstPendingElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                try { firstPendingElement.focus(); } catch (err) {}
+            }
+        });
+
+        submitAnywayBtn.addEventListener('click', function () {
+            form.dataset.bypassIncomplete = 'true';
+            hideModal();
+            const btn = form.querySelector('button[type="submit"]:not(#incompleteSubmitAnywayBtn)');
+            if (btn) btn.click();
+            else form.submit();
+        });
+
+        // Cerrar modal al presionar Escape o clic fuera
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) hideModal();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                hideModal();
+            }
+        });
+    })();
+    </script>
+
     </div><!-- /sidebar-main-content -->
 </body>
 
