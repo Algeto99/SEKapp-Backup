@@ -2072,16 +2072,25 @@ def submit_supervision_puesto():
                         combined = f"{existing}\n" + "\n".join(uploaded_urls) if existing else "\n".join(uploaded_urls)
                         supervisions_map[index]['foto_evidencia_url'] = combined
 
-        # Filtrar bloques con datos para descartar bloques vacíos sin bloquear campos opcionales:
-        bloques_con_datos = []
+        if not global_data.get('id_propiedad') and not global_data.get('cliente_instalacion'):
+            return _return_form_error('Debe seleccionar la propiedad o instalación.', 400)
+        if not global_data.get('fecha_hora'):
+            return _return_form_error('Debe especificar la fecha y hora de la supervisión.', 400)
+
+        if not supervisions_map:
+            return _return_form_error('Debe completar al menos una supervisión de puesto.', 400)
+
+        # Inspección de Puesto completa en cada bloque, antes de insertar nada:
+        # o entran todos los puestos del envío o ninguno. Un bloque vacío también
+        # se rechaza: el bucle de abajo le mezcla los datos globales y lo guardaba
+        # como una fila sin inspección.
         for index in sorted(supervisions_map):
             sup_data = supervisions_map[index]
-            tiene_datos = any(v for k, v in sup_data.items() if v and str(v).strip())
-            if tiene_datos:
-                bloques_con_datos.append((index, sup_data))
-
-        if not bloques_con_datos:
-            return _return_form_error('Debe completar al menos una supervisión de puesto.', 400)
+            faltantes = _faltantes_inspeccion(sup_data)
+            if faltantes:
+                puesto = (sup_data.get('detalles_puestos') or sup_data.get('puesto_area_especifica')
+                          or f'#{index + 1}')
+                return _error_inspeccion(faltantes, puesto)
 
         # 4. Process and Insert Each Supervision
         # La geocerca se evalúa una sola vez: todas las filas del envío comparten
@@ -2090,7 +2099,7 @@ def submit_supervision_puesto():
         _marcar_geocerca(cur, 'supervision_puesto', global_data)
         column_cache = None # Optimization to fetch columns once if needed, but simple query is fine
 
-        for index, sup_data in bloques_con_datos:
+        for index, sup_data in supervisions_map.items():
             # Merge Global
             row_data = {**global_data, **sup_data}
             if _sin_arma(row_data):
@@ -2259,6 +2268,9 @@ def submit_supervision_puesto_editar(id):
             'firma_supervisor': request.form.get('firma_supervisor'),
             'firma_guardia': request.form.get('firma_guardia'),
         }
+        faltantes = _faltantes_inspeccion(form_data)
+        if faltantes:
+            return _error_inspeccion(faltantes)
         foto_urls = []
         for file in request.files.getlist('foto_evidencia'):
             if file and file.filename:
@@ -4270,21 +4282,26 @@ def submit_checklist_cumplimiento_editar(id):
 
 # --- CONFIABILIDAD DE EQUIPOS ---
 def _validate_inventario_confiabilidad(inventario_list):
-    """Valida que en cada fila de inventario el número de equipos operativos no sea mayor al total."""
+    """Valida que en cada fila de inventario el número de equipos operativos no sea mayor al total y que existan campos clave."""
+    if not inventario_list:
+        return 'Debe registrar al menos un equipo en el inventario de confiabilidad.'
     msg = 'El número de equipos operativos no puede ser mayor al total de equipos registrados. Verifique la información ingresada.'
     for row in inventario_list:
+        if not row.get('tipo_equipo') or str(row.get('tipo_equipo')).strip() in ('', 'Seleccione...'):
+            return 'Cada registro del inventario debe tener un tipo de equipo seleccionado.'
         total_raw = row.get('total_equipos')
         func_raw = row.get('equipos_operativos')
         t_val = None
         f_val = None
 
-        if total_raw is not None and str(total_raw).strip() != '':
-            try:
-                t_val = int(total_raw)
-                if t_val < 0:
-                    return 'El total de equipos no puede ser un número negativo.'
-            except (ValueError, TypeError):
-                return 'El total de equipos debe ser un número entero válido.'
+        if total_raw is None or str(total_raw).strip() == '':
+            return 'Debe ingresar el total de equipos para cada tipo registrado en el inventario.'
+        try:
+            t_val = int(total_raw)
+            if t_val < 0:
+                return 'El total de equipos no puede ser un número negativo.'
+        except (ValueError, TypeError):
+            return 'El total de equipos debe ser un número entero válido.'
 
         if func_raw is not None and str(func_raw).strip() != '':
             try:

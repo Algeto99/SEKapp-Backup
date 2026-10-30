@@ -225,7 +225,7 @@
                 <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-<form id="novedadesForm" action="{{ url_for('forms_bp.submit_informe_novedades_disciplinario_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_informe_novedades_disciplinario') }}" method="POST"
+<form id="novedadesForm" novalidate action="{{ url_for('forms_bp.submit_informe_novedades_disciplinario_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_informe_novedades_disciplinario') }}" method="POST"
             class="space-y-6" enctype="multipart/form-data">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">

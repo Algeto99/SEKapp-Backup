@@ -249,7 +249,7 @@
         </div>
         <div id="errorBanner" style="display:none;" class="error-banner mb-6 p-4 rounded-lg bg-red-900 bg-opacity-80 border border-red-500 text-red-100 flex items-center justify-between"></div>
 
-        <form id="checklistForm" action="{{ url_for('forms_bp.submit_checklist_cumplimiento_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_checklist_cumplimiento') }}" method="POST"
+        <form id="checklistForm" novalidate action="{{ url_for('forms_bp.submit_checklist_cumplimiento_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_checklist_cumplimiento') }}" method="POST"
             enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" id="_jwt_csrf_form" value="{{ jwt_csrf_token }}">
             <input type="hidden" name="submitter_timezone" id="submitter_timezone">
@@ -772,9 +772,11 @@
                 const banner = document.getElementById('errorBanner');
                 if (banner) banner.style.display = 'none';
 
-                if (!form.checkValidity()) {
-                    form.reportValidity();
-                    return;
+                if (form.dataset.bypassIncomplete !== 'true') {
+                    if (!form.checkValidity()) {
+                        form.reportValidity();
+                        return;
+                    }
                 }
 
                 // Loop through all dynamic blocks and capture both signatures per block
@@ -802,7 +804,7 @@
                     }
                 });
 
-                if (!supervisorSigned) {
+                if (!supervisorSigned && form.dataset.bypassIncomplete !== 'true') {
                     showErrorBanner('Por favor incluya la firma del supervisor en la sección 5 antes de enviar.', false);
                     if (window.SecAppSubmitLock) window.SecAppSubmitLock.abort(form);
                     return;

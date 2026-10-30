@@ -348,7 +348,7 @@
                 <!-- Geolocation status banner -->
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
-<form id="experienciaForm" action="{{ url_for('forms_bp.submit_medicion_experiencia_cliente_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_medicion_experiencia_cliente') }}" method="POST"
+<form id="experienciaForm" novalidate action="{{ url_for('forms_bp.submit_medicion_experiencia_cliente_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_medicion_experiencia_cliente') }}" method="POST"
             class="space-y-6">
             <input type="hidden" name="latitude" id="latitude">
             <input type="hidden" name="longitude" id="longitude">

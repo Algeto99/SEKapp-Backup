@@ -259,6 +259,7 @@
         <div id="geoStatus" class="mb-4 px-4 py-2 rounded-lg text-sm text-center hidden"></div>
 
 <form id="confiabilidadForm"
+              novalidate
               action="{{ url_for('forms_bp.submit_confiabilidad_equipos_editar', id=record_id) if edit_mode else url_for('forms_bp.submit_confiabilidad_equipos') }}"
               method="POST"
               class="space-y-6">
