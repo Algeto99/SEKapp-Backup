@@ -523,7 +523,7 @@
         const ref = Number(btn.dataset.ref);
         switch (btn.dataset.accion) {
             case 'detalle':
-                visor(a.form_type).openRecord(a.record_id, { motivo: a.motivo || a.texto, hallazgoRef: a.id || '', hallazgoTitulo: a.hallazgo_titulo || a.texto || '' });
+                visor(a.form_type).openRecord(a.record_id, { motivo: a.motivo || a.texto, hallazgoRef: a.id || '', hallazgoTitulo: a.hallazgo_titulo || a.texto || '', esAusencia: !!a.es_ausencia, alertaFecha: a.alerta_fecha_local || '' });
                 break;
             case 'gestionar': gestionar(a, btn); break;
             case 'estado': panelEstado(ref, a); break;

@@ -438,7 +438,7 @@ def _serialize_event(row, prop_lat, prop_lng, tz=None, proxy=False):
     # su cuenta: el expediente en el navegador convertía a la zona del
     # dispositivo y la vista del QR cortaba la cadena ISO en crudo, o sea UTC.
     # El mismo evento salía con cinco horas de diferencia según dónde se mirara.
-    e['timestamp_local'] = format_local_datetime(ts, tz=tz, time_sep=" ") if ts else ''
+    e['timestamp_local'] = format_local_datetime(ts, tz=tz, time_sep=" ", wall_clock=True) if ts else ''
 
     for k in ('compromisos_fecha_limite',):
         v = e.get(k)
@@ -1529,7 +1529,7 @@ def public_evidence_viewer(hash_token):
         ts = record.get('fecha_hora') or record.get('creado_en')
         # strftime sobre el datetime crudo imprimía UTC. Mismo formateador que
         # el resto de las vistas, para que el registro tenga una sola hora.
-        timestamp_str = format_local_datetime(ts, time_sep=" ") if ts else 'N/D'
+        timestamp_str = format_local_datetime(ts, time_sep=" ", wall_clock=True) if ts else 'N/D'
 
         foto_urls = _parse_and_sign_foto_urls(record.get('foto_evidencia_url'), proxy=True)
 

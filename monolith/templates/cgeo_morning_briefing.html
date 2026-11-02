@@ -2064,7 +2064,9 @@ function abrirAlerta(ref, event) {
         _getAlertViewer(a.form_type).openRecord(a.record_id, {
             motivo: a.motivo || a.texto,
             hallazgoRef: a.id || '',
-            hallazgoTitulo: a.hallazgo_titulo || a.texto || ''
+            hallazgoTitulo: a.hallazgo_titulo || a.texto || '',
+            esAusencia: !!a.es_ausencia,
+            alertaFecha: a.alerta_fecha_local || ''
         });
     } else {
         abrirAlertaSinRegistro(a);

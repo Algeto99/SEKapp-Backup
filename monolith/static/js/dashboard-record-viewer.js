@@ -1369,7 +1369,7 @@
         return renderPrimitive(key, value);
     }
 
-    function render5Questions(d, raw, qmap, formType, motivo) {
+    function render5Questions(d, raw, qmap, formType, motivo, ctx) {
         const cards = Object.entries(FIVE_Q_LABELS).map(([key, meta]) => {
             const labels = qmap[key] || [];
             const parts = [];
@@ -1389,10 +1389,20 @@
                 else if (resumen) parts.push(escapeHtml(resumen));
             }
 
-            for (const lbl of labels) {
-                const val = raw[lbl];
-                if (!isBlankValue(val)) {
-                    parts.push(renderValue(lbl, val, 0));
+            // En alertas de ausencia (ej. supervisión no realizada), CUÁNDO representa el
+            // momento de generación de la alerta; la fecha de la última supervisión
+            // previa queda descrita dentro del texto explicativo del QUÉ.
+            if (key === 'CUANDO' && ctx && (ctx.esAusencia || ctx.alertaFecha)) {
+                const fechaAlerta = ctx.alertaFecha || (ctx.alertaTimestamp && window.FormatoFecha ? window.FormatoFecha.fechaHora(ctx.alertaTimestamp) : ctx.alertaTimestamp);
+                if (fechaAlerta) {
+                    parts.push(escapeHtml(fechaAlerta));
+                }
+            } else {
+                for (const lbl of labels) {
+                    const val = raw[lbl];
+                    if (!isBlankValue(val)) {
+                        parts.push(renderValue(lbl, val, 0));
+                    }
                 }
             }
             // CUÁNDO falls back to dateSubmitted; QUIÉN falls back to submittedBy
@@ -1418,12 +1428,12 @@
         return `<div class="drv-5q-grid">${cards}</div>`;
     }
 
-    function renderRecordDetail(d, currentRecordId, formType, motivo) {
+    function renderRecordDetail(d, currentRecordId, formType, motivo, ctx) {
         const raw = d.data || d;
         const qmap = FIVE_Q_MAP[formType] || null;
 
         // ── ZONA 1: las 5 preguntas (destacada, sin scroll) ──
-        const zona1 = qmap ? render5Questions(d, raw, qmap, formType, motivo) : '';
+        const zona1 = qmap ? render5Questions(d, raw, qmap, formType, motivo, ctx) : '';
 
         // ── ZONA 2: detalle técnico completo, COLAPSADO ──
         const usadas = qmap ? new Set(Object.values(qmap).flat()) : new Set();
@@ -1536,7 +1546,7 @@
                         };
                     }
                 }
-                contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType, motivo);
+                contentEl.innerHTML = renderRecordDetail(data, currentRecordId, cfg.formType, motivo, ctx);
                 contentEl.style.display = 'block';
                 actionBar.style.display = 'flex';
             } catch (err) {

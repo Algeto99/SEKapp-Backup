@@ -31,7 +31,7 @@ except OSError:
 
 from db import get_db_connection
 from auditoria import anotar
-from admin_bp import hoy_operacion, sql_hoy, sql_ahora, tz_operacion, format_local_datetime
+from admin_bp import hoy_operacion, ahora_operacion, sql_hoy, sql_ahora, tz_operacion, format_local_datetime
 from coordinador import (ambito_activo, condicion_ambito, registro_en_ambito, es_coordinador,
                          coordinador_o_admin, acotar_filtros, fuera_de_ambito,
                          excluir_clientes_inactivos, clientes_inactivos, condicion_cliente_inactivo)
@@ -2062,9 +2062,14 @@ def cgeo_api_alertas():
         _sup_meta_global = int(alertas_thresholds.get('supervision_meta') or 0)
         _sup_per_global = alertas_thresholds.get('supervision_periodicidad') or 'diario'
 
-        def _periodicidad_puesto(puesto_nombre, prop_id=None):
+        def _periodicidad_puesto(puesto_nombre, prop_id=None, cust_id=None):
             cid = None
-            if prop_id is not None:
+            if cust_id is not None:
+                try:
+                    cid = int(cust_id)
+                except (ValueError, TypeError):
+                    cid = None
+            if cid is None and prop_id is not None:
                 try:
                     cid = _prop_a_cliente.get(int(prop_id))
                 except (ValueError, TypeError):
@@ -2093,6 +2098,7 @@ def cgeo_api_alertas():
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
                 MAX(id_propiedad) AS prop_id,
+                MAX(customer_company_id) AS cust_id,
                 MAX(fecha_hora) AS ultima_sup,
                 EXTRACT(EPOCH FROM ({sql_ahora()} - MAX(fecha_hora))) / 3600 AS horas,
                 MAX(id_supervision) AS last_id
@@ -2107,7 +2113,7 @@ def cgeo_api_alertas():
         r1_count = 0
         for r in cur.fetchall():
             puesto = r.get("puesto") or ""
-            per_puesto = _periodicidad_puesto(puesto, r.get("prop_id"))
+            per_puesto = _periodicidad_puesto(puesto, r.get("prop_id"), r.get("cust_id"))
             if per_puesto == 'sin_programacion':
                 continue
             umbral_h, umbral_label = _UMBRAL_R1_HORAS.get(per_puesto, (48.0, '48 h'))
@@ -2123,6 +2129,7 @@ def cgeo_api_alertas():
                      if h < 48 else
                      f'"{puesto}" sin supervisión hace {dias} días')
             ultima_txt = r["ultima_sup"].strftime('%d/%m/%Y %H:%M') if r["ultima_sup"] else 'sin registro previo'
+            ahora_gen = ahora_operacion()
             alertas.append({
                 "id": f"r1_{puesto}",
                 "regla": 1,
@@ -2135,7 +2142,9 @@ def cgeo_api_alertas():
                 "record_id": r["last_id"],
                 "form_type": "supervision_puesto",
                 "color_semaforo": "rojo",
-                "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
+                "timestamp": ahora_gen.isoformat(),
+                "alerta_fecha_local": format_local_datetime(ahora_gen, tz=tz_operacion(), time_sep=" "),
+                "es_ausencia": True,
                 "horas": round(h, 1),
             })
 
@@ -2216,19 +2225,20 @@ def cgeo_api_alertas():
         r3_conds, r3_params = _cp("id_propiedad")
         r3_conds.append(_cliente_real_sql())
         r3_conds_hist = r3_conds + [f"fecha_hora >= {sql_ahora()} - INTERVAL '7 days'"]
-        r3_conds_reciente = r3_conds + [f"fecha_hora::date >= {sql_hoy()} - INTERVAL '1 day'"]
+        r3_conds_reciente = r3_conds + [f"fecha_hora::date >= ({sql_hoy()} - 1)"]
         cur.execute(f"""
             SELECT
                 TRIM(cliente_instalacion) AS puesto,
                 MAX(id_propiedad) AS prop_id,
+                MAX(customer_company_id) AS cust_id,
                 MAX(fecha_hora) AS ultima_sup,
                 EXTRACT(EPOCH FROM ({sql_ahora()} - MAX(fecha_hora))) / 3600 AS horas,
                 MAX(id_supervision) AS last_id
             FROM supervision_puesto
             {_where(r3_conds_hist)}
             GROUP BY TRIM(cliente_instalacion)
-            HAVING TRIM(cliente_instalacion) NOT IN (
-                SELECT TRIM(cliente_instalacion)
+            HAVING LOWER(TRIM(cliente_instalacion)) NOT IN (
+                SELECT LOWER(TRIM(cliente_instalacion))
                 FROM supervision_puesto
                 {_where(r3_conds_reciente)}
             )
@@ -2240,7 +2250,7 @@ def cgeo_api_alertas():
             puesto = r['puesto'] or ''
             if puesto in puestos_r1:
                 continue
-            if _periodicidad_puesto(puesto, r.get('prop_id')) != 'diario':
+            if _periodicidad_puesto(puesto, r.get('prop_id'), r.get('cust_id')) != 'diario':
                 continue
             h_r3 = float(r.get("horas") or 0)
             if h_r3 >= 48.0:
@@ -2249,6 +2259,7 @@ def cgeo_api_alertas():
                 break
             r3_count += 1
             ultima_txt = r["ultima_sup"].strftime('%d/%m/%Y %H:%M') if r["ultima_sup"] else '—'
+            ahora_gen = ahora_operacion()
             alertas.append({
                 "id": f"r3_{puesto}",
                 "regla": 3,
@@ -2261,7 +2272,9 @@ def cgeo_api_alertas():
                 "record_id": r["last_id"],
                 "form_type": "supervision_puesto",
                 "color_semaforo": "amarillo",
-                "timestamp": r["ultima_sup"].isoformat() if r["ultima_sup"] else None,
+                "timestamp": ahora_gen.isoformat(),
+                "alerta_fecha_local": format_local_datetime(ahora_gen, tz=tz_operacion(), time_sep=" "),
+                "es_ausencia": True,
                 "horas": round(h_r3, 1) if h_r3 else None,
             })
 
