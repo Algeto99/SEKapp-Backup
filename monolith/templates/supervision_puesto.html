@@ -205,7 +205,7 @@
                     </div>
                     <div>
                         <label for="supervisor" class="block text-sm font-medium mb-1">Nombre Supervisor</label>
-                        <input type="text" name="supervisor" id="supervisor" class="form-input" value="{{ name }}" autocapitalize="words">
+                        <input type="text" inputmode="text" name="supervisor" id="supervisor" class="form-input" value="{{ name }}" autocapitalize="words">
                     </div>
                     <div>
                         <label for="rol_aplicador" class="block text-sm font-medium mb-1">Rol del
@@ -232,7 +232,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium mb-1">Puesto o Área Específica</label>
-                        <input type="text" name="detalles_puestos" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
+                        <input type="text" inputmode="text" name="detalles_puestos" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
@@ -287,23 +287,23 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
-                        <input type="text" name="nombre_guardia" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
+                        <input type="text" inputmode="text" name="nombre_guardia" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                        <input type="text" name="numero_empleado" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
+                        <input type="text" inputmode="text" name="numero_empleado" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Documento</label>
-                        <input type="text" name="documento_guardia" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
+                        <input type="text" inputmode="text" name="documento_guardia" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
-                        <input type="text" name="tiempo_en_puesto" class="form-input" autocorrect="off" placeholder="Meses en el puesto">
+                        <input type="text" inputmode="text" name="tiempo_en_puesto" class="form-input" autocorrect="off" placeholder="Meses en el puesto">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
-                        <input type="text" name="licencia_portar_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Número de licencia">
+                        <input type="text" inputmode="text" name="licencia_portar_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Número de licencia">
                     </div>
                 </div>
 
@@ -355,15 +355,15 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Serie del Arma</label>
-                            <input type="text" name="serie_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial alfanumérico">
+                            <input type="text" inputmode="text" name="serie_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial alfanumérico">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Matrícula / Permiso</label>
-                            <input type="text" name="matricula_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Permiso o matrícula">
+                            <input type="text" inputmode="text" name="matricula_arma" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Permiso o matrícula">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                            <input type="text" name="cantidad_municion" class="form-input" autocorrect="off" placeholder="Cantidad de cartuchos">
+                            <input type="text" inputmode="text" name="cantidad_municion" class="form-input" autocorrect="off" placeholder="Cantidad de cartuchos">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
@@ -376,15 +376,15 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
-                        <input type="text" name="radio_asignado_serial" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
+                        <input type="text" inputmode="text" name="radio_asignado_serial" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Marca radio</label>
-                        <input type="text" name="marca_radio" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Motorola, Hytera">
+                        <input type="text" inputmode="text" name="marca_radio" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Motorola, Hytera">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Tipo de radio</label>
-                        <input type="text" name="tipo_radio" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Portátil, Base">
+                        <input type="text" inputmode="text" name="tipo_radio" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Portátil, Base">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
@@ -438,7 +438,7 @@
                                     <span class="ml-2.5 text-sm font-medium">Otra</span>
                                 </label>
                             </div>
-                            <input type="text" id="problemasUniformeOtroInput" name="problemas_uniforme[]"
+                            <input type="text" inputmode="text" id="problemasUniformeOtroInput" name="problemas_uniforme[]"
                                 placeholder="Especifique la prenda" class="hidden mt-3 form-input" disabled>
                         </div>
                     </div>
@@ -479,7 +479,7 @@
 
                 <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Observaciones</h3>
                 <div class="mb-6">
-                    <textarea name="observaciones_novedades" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
+                    <textarea inputmode="text" name="observaciones_novedades" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
                 </div>
 
                 <div class="mb-6">
@@ -732,7 +732,7 @@
                                  no such column, so the insert in forms_bp dropped the old name and the
                                  puesto was never stored. This is the column the Expediente already
                                  reads as the "lugar" of the supervision. -->
-                            <input type="text" name="supervisions[${index}][detalles_puestos]" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
+                            <input type="text" inputmode="text" name="supervisions[${index}][detalles_puestos]" class="form-input" autocapitalize="sentences" placeholder="Ej. Garita principal, Control de acceso">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium mb-2">Horario del Servicio</label>
@@ -788,15 +788,15 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
-                            <input type="text" name="supervisions[${index}][nombre_guardia]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
+                            <input type="text" inputmode="text" name="supervisions[${index}][nombre_guardia]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Nombre y Apellido del oficial">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                            <input type="text" name="supervisions[${index}][numero_empleado]" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
+                            <input type="text" inputmode="text" name="supervisions[${index}][numero_empleado]" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
-                            <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
+                            <input type="text" inputmode="text" name="supervisions[${index}][documento_guardia]" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
@@ -817,13 +817,13 @@
                                 <option value="Otro">Otro</option>
                             </select>
                             <div id="tiempoPuestoOtro_${index}" class="hidden mt-2">
-                                <input type="text" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses">
+                                <input type="text" inputmode="text" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses">
 
                             </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
-                            <input type="text" name="supervisions[${index}][licencia_portar_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Número de licencia">
+                            <input type="text" inputmode="text" name="supervisions[${index}][licencia_portar_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Número de licencia">
                         </div>
                     </div>
 
@@ -875,15 +875,15 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Serie del Arma</label>
-                                <input type="text" name="supervisions[${index}][serie_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial alfanumérico">
+                                <input type="text" inputmode="text" name="supervisions[${index}][serie_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial alfanumérico">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Matrícula / Permiso</label>
-                                <input type="text" name="supervisions[${index}][matricula_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Permiso o matrícula">
+                                <input type="text" inputmode="text" name="supervisions[${index}][matricula_arma]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform: uppercase;" placeholder="Permiso o matrícula">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                                <input type="text" name="supervisions[${index}][cantidad_municion]" class="form-input" autocorrect="off" placeholder="Cantidad de cartuchos">
+                                <input type="text" inputmode="text" name="supervisions[${index}][cantidad_municion]" class="form-input" autocorrect="off" placeholder="Cantidad de cartuchos">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
@@ -896,15 +896,15 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Radio asignado (serial)</label>
-                            <input type="text" name="supervisions[${index}][radio_asignado_serial]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
+                            <input type="text" inputmode="text" name="supervisions[${index}][radio_asignado_serial]" class="form-input" autocapitalize="characters" autocorrect="off" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em; text-transform: uppercase;" placeholder="Serial o código de inventario">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Marca radio</label>
-                            <input type="text" name="supervisions[${index}][marca_radio]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Motorola, Hytera">
+                            <input type="text" inputmode="text" name="supervisions[${index}][marca_radio]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Motorola, Hytera">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tipo de radio</label>
-                            <input type="text" name="supervisions[${index}][tipo_radio]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Portátil, Base">
+                            <input type="text" inputmode="text" name="supervisions[${index}][tipo_radio]" class="form-input" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Ej. Portátil, Base">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha último mtto (radio)</label>
@@ -949,7 +949,7 @@
                                         <span class="ml-2.5 text-sm font-medium">Otra</span>
                                     </label>
                                 </div>
-                                <input type="text" id="problemasUniformeOtroInput_${index}" name="supervisions[${index}][problemas_uniforme][]"
+                                <input type="text" inputmode="text" id="problemasUniformeOtroInput_${index}" name="supervisions[${index}][problemas_uniforme][]"
                                     placeholder="Especifique la prenda" class="hidden mt-3 form-input" disabled>
                             </div>
                         </div>
@@ -962,7 +962,7 @@
                     <!-- Observaciones -->
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Observaciones</h3>
                     <div class="mb-6">
-                        <textarea name="supervisions[${index}][observaciones_novedades]" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
+                        <textarea inputmode="text" name="supervisions[${index}][observaciones_novedades]" rows="3" class="form-input" placeholder="Detalle cualquier punto relevante..."></textarea>
                     </div>
 
                     <!-- Foto -->

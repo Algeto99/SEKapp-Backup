@@ -1,6 +1,6 @@
 // Bumped to v13: Ignore AbortError in handleFormPost + Confiabilidad Equipos deduplication
 // OJO: SECAPP_CACHE_NAME en templates/select_form.html debe coincidir con este valor.
-const CACHE_VERSION = 'secapp-v13';
+const CACHE_VERSION = 'secapp-v14';
 const DB_NAME = 'secapp-offline';
 const DB_VERSION = 1;
 const STORE_NAME = 'pending_submissions';

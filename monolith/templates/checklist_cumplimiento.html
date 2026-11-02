@@ -330,7 +330,7 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Documento</label>
-                                    <input type="text" name="agente_numero_documento{{ '' if edit_mode else '[]' }}" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
+                                    <input type="text" inputmode="text" name="agente_numero_documento{{ '' if edit_mode else '[]' }}" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
                                 </div>
                                 <div>
                                     <label class="form-label">Cargo/Rol</label>
@@ -338,7 +338,7 @@
                                 </div>
                                 <div>
                                     <label class="form-label">Numero de Empleado</label>
-                                    <input type="text" name="agente_numero_empleado{{ '' if edit_mode else '[]' }}" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
+                                    <input type="text" inputmode="text" name="agente_numero_empleado{{ '' if edit_mode else '[]' }}" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
                                 </div>
                             </div>
                         </div>

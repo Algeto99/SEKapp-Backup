@@ -602,7 +602,7 @@
         manual.className = 'ss-manual';
 
         const box = document.createElement('input');
-        box.type = 'text';
+        box.type = 'text'; box.setAttribute('inputmode', 'text');
         box.className = select.className.replace('ss-native', '').trim();
         box.placeholder = opts.placeholder || 'Escriba el valor';
         box.autocomplete = 'off';
