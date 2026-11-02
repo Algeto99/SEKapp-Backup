@@ -291,15 +291,15 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                        <input type="text" name="numero_empleado" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
+                        <input type="text" name="numero_empleado" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Documento</label>
-                        <input type="text" name="documento_guardia" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
+                        <input type="text" name="documento_guardia" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
-                        <input type="text" name="tiempo_en_puesto" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" placeholder="Meses en el puesto">
+                        <input type="text" name="tiempo_en_puesto" class="form-input" autocorrect="off" placeholder="Meses en el puesto">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">No. de licencia para portar arma</label>
@@ -363,7 +363,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                            <input type="text" name="cantidad_municion" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" placeholder="Cantidad de cartuchos">
+                            <input type="text" name="cantidad_municion" class="form-input" autocorrect="off" placeholder="Cantidad de cartuchos">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
@@ -792,11 +792,11 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Número de Empleado</label>
-                            <input type="text" name="supervisions[${index}][numero_empleado]" class="form-input" inputmode="numeric" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="Número de empleado o carnet">
+                            <input type="text" name="supervisions[${index}][numero_empleado]" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="Número de empleado o carnet">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Documento</label>
-                            <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" autocapitalize="none" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Solo números sin puntos ni guiones">
+                            <input type="text" name="supervisions[${index}][documento_guardia]" class="form-input" autocorrect="off" autocapitalize="characters" spellcheck="false" style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: 0.05em;" placeholder="Documento de identidad o cédula">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Tiempo en el puesto (meses)</label>
@@ -817,8 +817,8 @@
                                 <option value="Otro">Otro</option>
                             </select>
                             <div id="tiempoPuestoOtro_${index}" class="hidden mt-2">
-                                <input type="number" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses" min="1" step="1" pattern="[0-9]*" inputmode="numeric">
-                                <p class="text-xs text-gray-400 mt-1">Solo números enteros.</p>
+                                <input type="text" id="tiempoPuestoOtroInput_${index}" class="form-input" placeholder="Ingrese cantidad de meses">
+
                             </div>
                         </div>
                         <div>
@@ -883,7 +883,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Cantidad de munición</label>
-                                <input type="text" name="supervisions[${index}][cantidad_municion]" class="form-input" inputmode="numeric" pattern="[0-9]*" autocorrect="off" placeholder="Cantidad de cartuchos">
+                                <input type="text" name="supervisions[${index}][cantidad_municion]" class="form-input" autocorrect="off" placeholder="Cantidad de cartuchos">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium mb-1">Fecha de vencimiento permiso de porte</label>
@@ -1183,13 +1183,13 @@
                         const idx = sel.dataset.index;
                         const otroInput = document.getElementById(`tiempoPuestoOtroInput_${idx}`);
                         const val = otroInput ? otroInput.value.trim() : '';
-                        if (!val || !/^\d+$/.test(val)) {
+                        if (!val) {
                             if (this.dataset.bypassIncomplete === 'true') {
                                 continue;
                             }
                             e.preventDefault();
                             otroInput.focus();
-                            otroInput.setCustomValidity('Ingrese un número entero válido.');
+                            otroInput.setCustomValidity('Especifique el tiempo en el puesto.');
                             otroInput.reportValidity();
                             return;
                         }
