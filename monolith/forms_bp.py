@@ -1275,13 +1275,31 @@ def api_supervision_ultima_dotacion():
             conds.append("company_id = %s")
             params.append(company_id)
 
+        def _fmt_time(val):
+            if val is None:
+                return ''
+            s = str(val).strip()
+            if len(s) >= 5 and s[2] == ':':
+                return s[:5]
+            return s
+
+        def _fmt_date(val):
+            if not val:
+                return ''
+            if hasattr(val, 'strftime'):
+                return val.strftime('%Y-%m-%d')
+            s = str(val).strip()
+            return s[:10] if len(s) >= 10 else s
+
         cur.execute(f"""
             SELECT id_supervision, fecha_hora, detalles_puestos,
                    tipo_servicio, modalidad_servicio, horario_servicio,
                    nombre_guardia, numero_empleado, documento_guardia,
                    tiempo_en_puesto, licencia_portar_arma,
                    porta_arma, tipo_arma, serie_arma, matricula_arma, cantidad_municion,
-                   radio_asignado_serial, marca_radio, tipo_radio
+                   fecha_vencimiento_permiso_porte, fecha_ultimo_mtto_arma,
+                   radio_asignado_serial, marca_radio, tipo_radio, fecha_ultimo_mtto_radio,
+                   hora_entrada, hora_salida
             FROM supervision_puesto
             WHERE {' AND '.join(conds)}
             ORDER BY fecha_hora DESC NULLS LAST, id_supervision DESC
@@ -1301,6 +1319,8 @@ def api_supervision_ultima_dotacion():
             'tipo_servicio': row.get('tipo_servicio') or '',
             'modalidad_servicio': row.get('modalidad_servicio') or '',
             'horario_servicio': row.get('horario_servicio') or '',
+            'hora_entrada': _fmt_time(row.get('hora_entrada')),
+            'hora_salida': _fmt_time(row.get('hora_salida')),
             'nombre_guardia': row.get('nombre_guardia') or '',
             'numero_empleado': row.get('numero_empleado') or '',
             'documento_guardia': row.get('documento_guardia') or '',
@@ -1311,11 +1331,42 @@ def api_supervision_ultima_dotacion():
             'serie_arma': row.get('serie_arma') or '',
             'matricula_arma': row.get('matricula_arma') or '',
             'cantidad_municion': row.get('cantidad_municion') or '',
+            'fecha_vencimiento_permiso_porte': _fmt_date(row.get('fecha_vencimiento_permiso_porte')),
+            'fecha_ultimo_mtto_arma': _fmt_date(row.get('fecha_ultimo_mtto_arma')),
             'radio_asignado_serial': row.get('radio_asignado_serial') or '',
             'marca_radio': row.get('marca_radio') or '',
             'tipo_radio': row.get('tipo_radio') or '',
+            'fecha_ultimo_mtto_radio': _fmt_date(row.get('fecha_ultimo_mtto_radio')),
         }
-        return jsonify({'disponible': True, 'dotacion': dotacion})
+
+        # Último registro por tipo de turno (diurno, nocturno, mixto) para aprendizaje de horarios y guardias
+        cur.execute(f"""
+            SELECT DISTINCT ON (LOWER(TRIM(COALESCE(horario_servicio, ''))))
+                   horario_servicio, hora_entrada, hora_salida,
+                   nombre_guardia, numero_empleado, documento_guardia,
+                   tiempo_en_puesto, licencia_portar_arma, detalles_puestos
+            FROM supervision_puesto
+            WHERE {' AND '.join(conds)}
+              AND LOWER(TRIM(COALESCE(horario_servicio, ''))) IN ('diurno', 'nocturno', 'mixto')
+            ORDER BY LOWER(TRIM(COALESCE(horario_servicio, ''))), fecha_hora DESC NULLS LAST, id_supervision DESC
+        """, tuple(params))
+        turnos = {}
+        for tr in cur.fetchall():
+            t_key = (tr.get('horario_servicio') or '').strip().lower()
+            if t_key:
+                turnos[t_key] = {
+                    'horario_servicio': tr.get('horario_servicio') or '',
+                    'hora_entrada': _fmt_time(tr.get('hora_entrada')),
+                    'hora_salida': _fmt_time(tr.get('hora_salida')),
+                    'nombre_guardia': tr.get('nombre_guardia') or '',
+                    'numero_empleado': tr.get('numero_empleado') or '',
+                    'documento_guardia': tr.get('documento_guardia') or '',
+                    'tiempo_en_puesto': tr.get('tiempo_en_puesto') or '',
+                    'licencia_portar_arma': tr.get('licencia_portar_arma') or '',
+                    'detalles_puestos': tr.get('detalles_puestos') or '',
+                }
+
+        return jsonify({'disponible': True, 'dotacion': dotacion, 'turnos': turnos})
     except Exception as e:
         app_logger.error(f"api_supervision_ultima_dotacion error: {e}", exc_info=True)
         return jsonify({'disponible': False, 'dotacion': None}), 200

@@ -692,6 +692,364 @@
     {% endif %}
     <script src="{{ url_for('static', filename='js/multi-photo-uploader.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+    <!-- Asistente de Turnos y Guardias Recurrentes (Caché local, no invasivo y reversible) -->
+    <script>
+    window.secappTurnosHelper = (function () {
+        const TURNOS_KEY = 'secapp:supervision:turnos';
+        const DOTACION_PREFIX = 'secapp:supervision:dotacion:';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, function (m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function getTurnosCache() {
+            try {
+                return JSON.parse(localStorage.getItem(TURNOS_KEY) || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveTurnosCache(data) {
+            try {
+                localStorage.setItem(TURNOS_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.warn('[secappTurnosHelper] Error guardando turnos:', e);
+            }
+        }
+
+        function normalizeKey(str) {
+            return String(str || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        // Horarios habituales predeterminados si aún no se ha registrado historial previo
+        const DEFAULT_HOURS = {
+            'diurno': { hora_entrada: '06:00', hora_salida: '18:00' },
+            'nocturno': { hora_entrada: '18:00', hora_salida: '06:00' },
+            'mixto': { hora_entrada: '08:00', hora_salida: '17:00' }
+        };
+
+        return {
+            escapeHtml,
+            learnFromResponse(propId, turnosServer, dotacionServer) {
+                if (!propId) return;
+                const cache = getTurnosCache();
+                const pId = String(propId);
+
+                if (dotacionServer) {
+                    try {
+                        localStorage.setItem(DOTACION_PREFIX + pId, JSON.stringify(dotacionServer));
+                    } catch (e) {}
+                }
+
+                if (turnosServer && typeof turnosServer === 'object') {
+                    Object.keys(turnosServer).forEach(tKey => {
+                        const tData = turnosServer[tKey];
+                        if (!tData) return;
+                        const normTurno = normalizeKey(tKey);
+                        const puestoNorm = normalizeKey(tData.detalles_puestos || '');
+
+                        const item = {
+                            hora_entrada: tData.hora_entrada || '',
+                            hora_salida: tData.hora_salida || '',
+                            nombre_guardia: tData.nombre_guardia || '',
+                            numero_empleado: tData.numero_empleado || '',
+                            documento_guardia: tData.documento_guardia || '',
+                            tiempo_en_puesto: tData.tiempo_en_puesto || '',
+                            licencia_portar_arma: tData.licencia_portar_arma || '',
+                            detalles_puestos: tData.detalles_puestos || '',
+                            updated_at: Date.now()
+                        };
+
+                        if (puestoNorm) {
+                            cache[`${pId}_${puestoNorm}_${normTurno}`] = item;
+                        }
+                        cache[`${pId}_${normTurno}`] = item;
+                    });
+                    saveTurnosCache(cache);
+                }
+            },
+
+            saveLearnedTurno(info) {
+                if (!info || !info.propId || !info.turno) return;
+                const cache = getTurnosCache();
+                const pId = String(info.propId);
+                const normTurno = normalizeKey(info.turno);
+                const puestoNorm = normalizeKey(info.puesto || '');
+
+                const item = {
+                    hora_entrada: info.hora_entrada || '',
+                    hora_salida: info.hora_salida || '',
+                    nombre_guardia: info.nombre_guardia || '',
+                    numero_empleado: info.numero_empleado || '',
+                    documento_guardia: info.documento_guardia || '',
+                    tiempo_en_puesto: info.tiempo_en_puesto || '',
+                    licencia_portar_arma: info.licencia_portar_arma || '',
+                    detalles_puestos: info.puesto || '',
+                    updated_at: Date.now()
+                };
+
+                if (puestoNorm) {
+                    cache[`${pId}_${puestoNorm}_${normTurno}`] = item;
+                }
+                cache[`${pId}_${normTurno}`] = item;
+                saveTurnosCache(cache);
+            },
+
+            getTurnoData(propId, puesto, turno) {
+                const normTurno = normalizeKey(turno);
+                if (!normTurno) return null;
+
+                const cache = getTurnosCache();
+                const pId = String(propId || '');
+                const puestoNorm = normalizeKey(puesto || '');
+
+                let item = null;
+                if (pId && puestoNorm && cache[`${pId}_${puestoNorm}_${normTurno}`]) {
+                    item = cache[`${pId}_${puestoNorm}_${normTurno}`];
+                } else if (pId && cache[`${pId}_${normTurno}`]) {
+                    item = cache[`${pId}_${normTurno}`];
+                }
+
+                const defaultH = DEFAULT_HOURS[normTurno] || null;
+                const hora_entrada = (item && item.hora_entrada) ? item.hora_entrada : (defaultH ? defaultH.hora_entrada : '');
+                const hora_salida = (item && item.hora_salida) ? item.hora_salida : (defaultH ? defaultH.hora_salida : '');
+
+                return {
+                    hora_entrada: hora_entrada,
+                    hora_salida: hora_salida,
+                    nombre_guardia: (item && item.nombre_guardia) ? item.nombre_guardia : '',
+                    numero_empleado: (item && item.numero_empleado) ? item.numero_empleado : '',
+                    documento_guardia: (item && item.documento_guardia) ? item.documento_guardia : '',
+                    tiempo_en_puesto: (item && item.tiempo_en_puesto) ? item.tiempo_en_puesto : '',
+                    licencia_portar_arma: (item && item.licencia_portar_arma) ? item.licencia_portar_arma : '',
+                };
+            },
+
+            applyOfflineDotacion(propId, wrap, aplicarFn) {
+                if (!propId) return;
+                try {
+                    const raw = localStorage.getItem(DOTACION_PREFIX + String(propId));
+                    if (raw) {
+                        const dot = JSON.parse(raw);
+                        if (dot && typeof aplicarFn === 'function') {
+                            aplicarFn(dot);
+                            if (wrap) {
+                                const badge = wrap.querySelector('#badgeEquipamientoPrecargado');
+                                if (badge) {
+                                    const note = document.createElement('span');
+                                    note.className = 'text-[11px] text-amber-300 ml-1 font-medium';
+                                    note.textContent = '(Caché local - offline)';
+                                    badge.querySelector('div')?.appendChild(note);
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[secappTurnosHelper] Error cargando dotación offline:', e);
+                }
+            },
+
+            onShiftChanged(block, index) {
+                if (!block) return;
+                const propSelect = document.getElementById('id_propiedad');
+                const propId = propSelect ? propSelect.value : '';
+                const horarioSel = block.querySelector('[name$="[horario_servicio]"]');
+                const turno = horarioSel ? horarioSel.value.trim() : '';
+
+                const entradaInput = block.querySelector('[name$="[hora_entrada]"]');
+                const salidaInput = block.querySelector('[name$="[hora_salida]"]');
+                const puestoInput = block.querySelector('[name$="[detalles_puestos]"]');
+                const puesto = puestoInput ? puestoInput.value.trim() : '';
+                const sugWrap = document.getElementById(`sugerenciaGuardiaWrap_${index}`);
+
+                if (!turno) {
+                    if (entradaInput && entradaInput.dataset.autoFilled === '1') {
+                        entradaInput.value = '';
+                        delete entradaInput.dataset.autoFilled;
+                    }
+                    if (salidaInput && salidaInput.dataset.autoFilled === '1') {
+                        salidaInput.value = '';
+                        delete salidaInput.dataset.autoFilled;
+                    }
+                    if (sugWrap) sugWrap.innerHTML = '';
+                    return;
+                }
+
+                const data = this.getTurnoData(propId, puesto, turno);
+                if (!data) return;
+
+                // 1. Manejo dinámico y reversible de Horas de Entrada y Salida
+                if (entradaInput) {
+                    if (!entradaInput.value || entradaInput.dataset.autoFilled === '1') {
+                        if (data.hora_entrada) {
+                            entradaInput.value = data.hora_entrada;
+                            entradaInput.dataset.autoFilled = '1';
+                            entradaInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            entradaInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }
+
+                if (salidaInput) {
+                    if (!salidaInput.value || salidaInput.dataset.autoFilled === '1') {
+                        if (data.hora_salida) {
+                            salidaInput.value = data.hora_salida;
+                            salidaInput.dataset.autoFilled = '1';
+                            salidaInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            salidaInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }
+
+                // 2. Manejo de Sugerencia Inteligente de Guardia
+                if (!sugWrap) return;
+
+                const nombreInput = block.querySelector('[name$="[nombre_guardia]"]');
+                const numEmpInput = block.querySelector('[name$="[numero_empleado]"]');
+                const docInput = block.querySelector('[name$="[documento_guardia]"]');
+                const tiempoSelect = block.querySelector('[name$="[tiempo_en_puesto]"]');
+                const licArmaInput = block.querySelector('[name$="[licencia_portar_arma]"]');
+
+                // Si ya había un guardia auto-cargado por sugerencia previa y cambió de turno,
+                // limpiar para que no queden datos cruzados de turnos distintos
+                if (nombreInput && nombreInput.dataset.autoFilledGuardia === '1') {
+                    nombreInput.value = '';
+                    delete nombreInput.dataset.autoFilledGuardia;
+                    if (numEmpInput) { numEmpInput.value = ''; delete numEmpInput.dataset.autoFilledGuardia; }
+                    if (docInput) { docInput.value = ''; delete docInput.dataset.autoFilledGuardia; }
+                    if (tiempoSelect) { tiempoSelect.value = ''; delete tiempoSelect.dataset.autoFilledGuardia; }
+                    if (licArmaInput) { licArmaInput.value = ''; delete licArmaInput.dataset.autoFilledGuardia; }
+                }
+
+                // Si el usuario ya escribió manualmente el nombre de otro guardia, respetarlo y no sugerir
+                if (nombreInput && nombreInput.value && !nombreInput.dataset.autoFilledGuardia) {
+                    sugWrap.innerHTML = '';
+                    return;
+                }
+
+                if (!data.nombre_guardia) {
+                    sugWrap.innerHTML = '';
+                    return;
+                }
+
+                const nombreCompleto = data.nombre_guardia;
+                const primerNombre = nombreCompleto.split(' ')[0] || 'oficial';
+                const infoExtra = [
+                    data.documento_guardia ? `Cédula: <strong>${escapeHtml(data.documento_guardia)}</strong>` : '',
+                    data.numero_empleado ? `Carnet: <strong>${escapeHtml(data.numero_empleado)}</strong>` : '',
+                    data.tiempo_en_puesto ? `Antigüedad: <strong>${escapeHtml(data.tiempo_en_puesto)} meses</strong>` : ''
+                ].filter(Boolean).join(' · ');
+
+                sugWrap.innerHTML = `
+                    <div class="sugerencia-guardia-card p-3 rounded-xl bg-gradient-to-r from-blue-950/70 via-gray-900 to-gray-800 border border-blue-500/40 text-xs text-blue-200 shadow-md">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex items-start gap-2.5">
+                                <span class="text-base select-none">💡</span>
+                                <div>
+                                    <div class="font-semibold text-blue-100 text-sm">
+                                        ¿Deseas usar los datos habituales de este turno?
+                                    </div>
+                                    <div class="text-gray-300 mt-1 leading-relaxed">
+                                        Último registrado en turno <span class="capitalize font-semibold text-blue-300">${escapeHtml(turno)}</span>:
+                                        <strong class="text-white text-sm tracking-wide ml-1">${escapeHtml(nombreCompleto)}</strong>
+                                        ${infoExtra ? `<div class="text-gray-400 text-[11px] mt-0.5">${infoExtra}</div>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-dismiss-sug text-gray-400 hover:text-white p-1 text-sm leading-none" title="Descartar sugerencia">✕</button>
+                        </div>
+                        <div class="mt-3 pt-2 border-t border-gray-700/60 flex items-center gap-2 flex-wrap">
+                            <button type="button" class="btn-aplicar-guardia px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                                <span>✓</span> Usar datos de ${escapeHtml(primerNombre)}
+                            </button>
+                            <button type="button" class="btn-otro-guardia px-3 py-1.5 rounded-lg bg-gray-700/90 hover:bg-gray-700 text-gray-300 hover:text-white text-xs border border-gray-600 transition active:scale-95">
+                                ✕ No, es otro oficial
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                const btnAplicar = sugWrap.querySelector('.btn-aplicar-guardia');
+                if (btnAplicar) {
+                    btnAplicar.addEventListener('click', () => {
+                        if (nombreInput) {
+                            nombreInput.value = data.nombre_guardia;
+                            nombreInput.dataset.autoFilledGuardia = '1';
+                            nombreInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            nombreInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (numEmpInput && data.numero_empleado) {
+                            numEmpInput.value = data.numero_empleado;
+                            numEmpInput.dataset.autoFilledGuardia = '1';
+                            numEmpInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            numEmpInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (docInput && data.documento_guardia) {
+                            docInput.value = data.documento_guardia;
+                            docInput.dataset.autoFilledGuardia = '1';
+                            docInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            docInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (tiempoSelect && data.tiempo_en_puesto) {
+                            tiempoSelect.value = data.tiempo_en_puesto;
+                            tiempoSelect.dataset.autoFilledGuardia = '1';
+                            tiempoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        if (licArmaInput && data.licencia_portar_arma) {
+                            licArmaInput.value = data.licencia_portar_arma;
+                            licArmaInput.dataset.autoFilledGuardia = '1';
+                            licArmaInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            licArmaInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        sugWrap.innerHTML = `
+                            <div class="p-2.5 px-3 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-xs text-emerald-300 flex items-center justify-between shadow-sm">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-emerald-400 font-bold">✓</span>
+                                    <span>Datos aplicados: <strong class="text-white">${escapeHtml(data.nombre_guardia)}</strong></span>
+                                </div>
+                                <button type="button" class="btn-deshacer-guardia text-xs text-gray-300 hover:text-white underline hover:no-underline ml-2 transition">
+                                    ↺ Deshacer / Limpiar
+                                </button>
+                            </div>
+                        `;
+
+                        const btnDeshacer = sugWrap.querySelector('.btn-deshacer-guardia');
+                        if (btnDeshacer) {
+                            btnDeshacer.addEventListener('click', () => {
+                                if (nombreInput) { nombreInput.value = ''; delete nombreInput.dataset.autoFilledGuardia; nombreInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                                if (numEmpInput) { numEmpInput.value = ''; delete numEmpInput.dataset.autoFilledGuardia; numEmpInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                                if (docInput) { docInput.value = ''; delete docInput.dataset.autoFilledGuardia; docInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                                if (tiempoSelect) { tiempoSelect.value = ''; delete tiempoSelect.dataset.autoFilledGuardia; tiempoSelect.dispatchEvent(new Event('change', { bubbles: true })); }
+                                if (licArmaInput) { licArmaInput.value = ''; delete licArmaInput.dataset.autoFilledGuardia; licArmaInput.dispatchEvent(new Event('input', { bubbles: true })); }
+                                sugWrap.innerHTML = '';
+                                if (nombreInput) nombreInput.focus();
+                            });
+                        }
+                    });
+                }
+
+                const dismissAction = () => {
+                    sugWrap.innerHTML = '';
+                    if (nombreInput) nombreInput.focus();
+                };
+                const btnOtro = sugWrap.querySelector('.btn-otro-guardia');
+                if (btnOtro) btnOtro.addEventListener('click', dismissAction);
+                const btnDismiss = sugWrap.querySelector('.btn-dismiss-sug');
+                if (btnDismiss) btnDismiss.addEventListener('click', dismissAction);
+            }
+        };
+    })();
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('submitter_timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -711,6 +1069,7 @@
             const container = document.getElementById('supervisionsContainer');
             const addBtn = document.getElementById('addSupervisionBtn');
             const signaturePads = {}; // Store references to signature pads by index
+            window.signaturePads = signaturePads;
 
             function createSupervisionBlock(index) {
                 const div = document.createElement('div');
@@ -719,7 +1078,12 @@
 
                 div.innerHTML = `
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-blue-400">Supervisión #${index + 1}</h2>
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-2xl font-bold text-blue-400">Supervisión #${index + 1}</h2>
+                            <button type="button" class="text-xs text-gray-400 hover:text-gray-200 px-2.5 py-1 rounded-lg bg-gray-700/60 hover:bg-gray-700 border border-gray-600 transition" onclick="resetSupervisionBlock(${index})" title="Limpiar todos los campos de este puesto y empezar de nuevo">
+                                ↺ Limpiar puesto
+                            </button>
+                        </div>
                         ${index > 0 ? `<button type="button" class="text-red-400 hover:text-red-300 remove-supervision" onclick="removeSupervision(${index})">Eliminar</button>` : ''}
                     </div>
 
@@ -785,6 +1149,7 @@
 
                     <!-- Datos del Guardia -->
                     <h3 class="text-lg font-bold mb-4 border-b border-gray-600 pb-2">Datos del Guardia de Seguridad</h3>
+                    <div id="sugerenciaGuardiaWrap_${index}" class="mb-4"></div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label class="block text-sm font-medium mb-1">Nombre y Apellido</label>
@@ -1060,6 +1425,28 @@
                 const block = createSupervisionBlock(index);
                 container.appendChild(block);
 
+                // Heredar contexto operativo general si se añaden puestos adicionales (#2, #3...)
+                if (index > 0) {
+                    const prevBlock = container.querySelector(`[data-index="${index - 1}"]`);
+                    if (prevBlock) {
+                        const prevTipo = prevBlock.querySelector('[name$="[tipo_servicio]"]')?.value;
+                        const prevMod = prevBlock.querySelector('[name$="[modalidad_servicio]"]')?.value;
+                        const prevHorario = prevBlock.querySelector('[name$="[horario_servicio]"]')?.value;
+                        if (prevTipo) {
+                            const tipoSel = block.querySelector('[name$="[tipo_servicio]"]');
+                            if (tipoSel) tipoSel.value = prevTipo;
+                        }
+                        if (prevMod) {
+                            const modSel = block.querySelector('[name$="[modalidad_servicio]"]');
+                            if (modSel) modSel.value = prevMod;
+                        }
+                        if (prevHorario) {
+                            const horSel = block.querySelector('[name$="[horario_servicio]"]');
+                            if (horSel) horSel.value = prevHorario;
+                        }
+                    }
+                }
+
                 window.secappSupervisionSelects.initScope(block);
 
                 initSignaturePad(index);
@@ -1134,6 +1521,55 @@
                         }
                     });
                 }
+
+                // Listeners de turno, horas y sugerencia inteligente de guardia
+                const horarioSel = block.querySelector('[name$="[horario_servicio]"]');
+                const horaEntrada = block.querySelector('[name$="[hora_entrada]"]');
+                const horaSalida = block.querySelector('[name$="[hora_salida]"]');
+                const puestoInput = block.querySelector('[name$="[detalles_puestos]"]');
+                const nombreGuardia = block.querySelector('[name$="[nombre_guardia]"]');
+
+                if (horarioSel) {
+                    horarioSel.addEventListener('change', function () {
+                        if (window.secappTurnosHelper) {
+                            window.secappTurnosHelper.onShiftChanged(block, index);
+                        }
+                    });
+                }
+
+                if (puestoInput) {
+                    puestoInput.addEventListener('change', function () {
+                        if (horarioSel && horarioSel.value && window.secappTurnosHelper) {
+                            window.secappTurnosHelper.onShiftChanged(block, index);
+                        }
+                    });
+                }
+
+                if (horaEntrada) {
+                    horaEntrada.addEventListener('input', function () {
+                        delete this.dataset.autoFilled;
+                    });
+                }
+                if (horaSalida) {
+                    horaSalida.addEventListener('input', function () {
+                        delete this.dataset.autoFilled;
+                    });
+                }
+
+                if (nombreGuardia) {
+                    nombreGuardia.addEventListener('input', function () {
+                        delete this.dataset.autoFilledGuardia;
+                        const wrap = document.getElementById(`sugerenciaGuardiaWrap_${index}`);
+                        if (wrap && wrap.querySelector('.sugerencia-guardia-card')) {
+                            wrap.innerHTML = '';
+                        }
+                    });
+                }
+
+                // Si el horario ya vino heredado, procesar turno de inmediato
+                if (horarioSel && horarioSel.value && window.secappTurnosHelper) {
+                    window.secappTurnosHelper.onShiftChanged(block, index);
+                }
             }
 
             // Define removeSupervision as a global function so onclick can access it
@@ -1157,6 +1593,71 @@
                 }
             };
 
+            // Limpieza completa y amigable de un puesto individual
+            window.resetSupervisionBlock = function (index) {
+                const block = container.querySelector(`[data-index="${index}"]`);
+                if (!block) return;
+
+                const hasValues = Array.from(block.querySelectorAll('input:not([type="hidden"]), select, textarea')).some(el => {
+                    if (el.type === 'checkbox' || el.type === 'radio') return el.checked;
+                    return el.value && el.value.trim() !== '';
+                });
+
+                if (hasValues) {
+                    if (!confirm('¿Desea limpiar todos los campos de este puesto para empezar de nuevo?')) {
+                        return;
+                    }
+                }
+
+                // 1. Limpiar inputs y textareas
+                block.querySelectorAll('input:not([type="hidden"]), textarea').forEach(el => {
+                    if (el.type === 'checkbox' || el.type === 'radio') {
+                        el.checked = false;
+                    } else {
+                        el.value = '';
+                        delete el.dataset.autoFilled;
+                        delete el.dataset.autoFilledGuardia;
+                    }
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                // 2. Resetear selects
+                block.querySelectorAll('select').forEach(sel => {
+                    sel.value = '';
+                    delete sel.dataset.autoFilled;
+                    delete sel.dataset.autoFilledGuardia;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+
+                // 3. Limpiar firmas
+                const pads = window.signaturePads || signaturePads;
+                if (pads[`guardia_${index}`]) pads[`guardia_${index}`].clear();
+                if (pads[`supervisor_${index}`]) pads[`supervisor_${index}`].clear();
+                const fg = document.getElementById(`firma_guardia_${index}`);
+                if (fg) fg.value = '';
+                const fs = document.getElementById(`firma_supervisor_${index}`);
+                if (fs) fs.value = '';
+
+                // 4. Ocultar y limpiar secciones condicionales
+                const armaFields = document.getElementById(`armaFields_${index}`);
+                if (armaFields) {
+                    armaFields.classList.add('hidden');
+                    armaFields.querySelectorAll('input, select').forEach(el => el.value = '');
+                }
+                const uniformeFields = document.getElementById(`uniformeFields_${index}`);
+                if (uniformeFields) {
+                    uniformeFields.classList.add('hidden');
+                    uniformeFields.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+                }
+                const tiempoOtro = document.getElementById(`tiempoPuestoOtro_${index}`);
+                if (tiempoOtro) tiempoOtro.classList.add('hidden');
+
+                // 5. Limpiar sugerencia de guardia
+                const sugWrap = document.getElementById(`sugerenciaGuardiaWrap_${index}`);
+                if (sugWrap) sugWrap.innerHTML = '';
+            };
+
             addBtn.addEventListener('click', addSupervision);
 
             // Before submit: serialize signature pads to hidden inputs
@@ -1173,6 +1674,41 @@
                         document.getElementById(`firma_supervisor_${idx}`).value = padSupervisor.toDataURL();
                     }
                 });
+
+                // Record learned turnos and guards into local cache
+                const propSelect = document.getElementById('id_propiedad');
+                const propId = propSelect ? propSelect.value : '';
+                if (propId && window.secappTurnosHelper) {
+                    blocks.forEach(block => {
+                        const turnoEl = block.querySelector('[name$="[horario_servicio]"]');
+                        const turno = turnoEl ? turnoEl.value.trim().toLowerCase() : '';
+                        if (!turno || !['diurno', 'nocturno', 'mixto'].includes(turno)) return;
+
+                        const puesto = (block.querySelector('[name$="[detalles_puestos]"]')?.value || '').trim();
+                        const entrada = (block.querySelector('[name$="[hora_entrada]"]')?.value || '').trim();
+                        const salida = (block.querySelector('[name$="[hora_salida]"]')?.value || '').trim();
+                        const nombreGuardia = (block.querySelector('[name$="[nombre_guardia]"]')?.value || '').trim();
+                        const numEmpleado = (block.querySelector('[name$="[numero_empleado]"]')?.value || '').trim();
+                        const docGuardia = (block.querySelector('[name$="[documento_guardia]"]')?.value || '').trim();
+                        const tiempoPuesto = (block.querySelector('[name$="[tiempo_en_puesto]"]')?.value || '').trim();
+                        const licArma = (block.querySelector('[name$="[licencia_portar_arma]"]')?.value || '').trim();
+
+                        if (entrada || salida || nombreGuardia) {
+                            window.secappTurnosHelper.saveLearnedTurno({
+                                propId: propId,
+                                puesto: puesto,
+                                turno: turno,
+                                hora_entrada: entrada,
+                                hora_salida: salida,
+                                nombre_guardia: nombreGuardia,
+                                numero_empleado: numEmpleado,
+                                documento_guardia: docGuardia,
+                                tiempo_en_puesto: tiempoPuesto,
+                                licencia_portar_arma: licArma,
+                            });
+                        }
+                    });
+                }
             });
 
             // Before submit: copy "Otro" numeric values into the select value
@@ -1391,15 +1927,26 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (!data || !data.disponible || !data.dotacion) {
+                if (!data || !data.disponible) {
                     wrap.innerHTML = '';
                     return;
                 }
-                const dot = data.dotacion;
-                aplicarEquipamientoPuestoAutomatico(dot);
+                if (window.secappTurnosHelper) {
+                    window.secappTurnosHelper.learnFromResponse(propId, data.turnos, data.dotacion);
+                }
+                if (data.dotacion) {
+                    aplicarEquipamientoPuestoAutomatico(data.dotacion);
+                } else {
+                    wrap.innerHTML = '';
+                }
             })
             .catch(err => {
-                if (err.name !== 'AbortError') console.warn('Error consultando equipamiento previo del puesto:', err);
+                if (err.name !== 'AbortError') {
+                    console.warn('Error consultando equipamiento previo del puesto:', err);
+                    if (window.secappTurnosHelper) {
+                        window.secappTurnosHelper.applyOfflineDotacion(propId, wrap, aplicarEquipamientoPuestoAutomatico);
+                    }
+                }
             });
         }
 
@@ -1442,6 +1989,8 @@
                     setFieldValue('serie_arma', dot.serie_arma);
                     setFieldValue('matricula_arma', dot.matricula_arma);
                     setFieldValue('cantidad_municion', dot.cantidad_municion);
+                    setFieldValue('fecha_vencimiento_permiso_porte', dot.fecha_vencimiento_permiso_porte);
+                    setFieldValue('fecha_ultimo_mtto_arma', dot.fecha_ultimo_mtto_arma);
                 }
             }
 
@@ -1450,6 +1999,7 @@
                 setFieldValue('radio_asignado_serial', dot.radio_asignado_serial);
                 setFieldValue('marca_radio', dot.marca_radio);
                 setFieldValue('tipo_radio', dot.tipo_radio);
+                setFieldValue('fecha_ultimo_mtto_radio', dot.fecha_ultimo_mtto_radio);
             }
 
             // 4. GARANTÍA: Los datos del Oficial en turno NUNCA se pre-llenan
@@ -1463,12 +2013,21 @@
                 return;
             }
 
+            const venceTxt = dot.fecha_vencimiento_permiso_porte
+                ? ` · Vence permiso: <span class="font-mono text-amber-300 font-semibold">${escapeHtml(dot.fecha_vencimiento_permiso_porte)}</span>`
+                : '';
+            const mttoArmaTxt = dot.fecha_ultimo_mtto_arma
+                ? ` [Mtto: <span class="text-gray-300 font-mono">${escapeHtml(dot.fecha_ultimo_mtto_arma)}</span>]`
+                : '';
             const armaTxt = tieneArma
-                ? `Arma: <strong class="text-white">${escapeHtml(dot.tipo_arma || 'Arma')} ${escapeHtml(dot.serie_arma || '')}</strong>${dot.matricula_arma ? ` (Permiso/Matrícula: <span class="font-mono text-gray-200">${escapeHtml(dot.matricula_arma)}</span>)` : ''}`
+                ? `Arma: <strong class="text-white">${escapeHtml(dot.tipo_arma || 'Arma')} ${escapeHtml(dot.serie_arma || '')}</strong>${dot.matricula_arma ? ` (Permiso/Matrícula: <span class="font-mono text-gray-200">${escapeHtml(dot.matricula_arma)}</span>)` : ''}${venceTxt}${mttoArmaTxt}`
                 : '<span class="text-gray-400">Puesto sin arma</span>';
 
+            const mttoRadioTxt = dot.fecha_ultimo_mtto_radio
+                ? ` [Mtto: <span class="text-gray-300 font-mono">${escapeHtml(dot.fecha_ultimo_mtto_radio)}</span>]`
+                : '';
             const radioTxt = tieneRadio
-                ? ` · Radio: <strong class="text-white">${escapeHtml(dot.radio_asignado_serial)}</strong>`
+                ? ` · Radio: <strong class="text-white">${escapeHtml(dot.radio_asignado_serial)}</strong>${mttoRadioTxt}`
                 : '';
 
             wrap.innerHTML = `
@@ -1495,9 +2054,12 @@
                     clearFieldValue('serie_arma');
                     clearFieldValue('matricula_arma');
                     clearFieldValue('cantidad_municion');
+                    clearFieldValue('fecha_vencimiento_permiso_porte');
+                    clearFieldValue('fecha_ultimo_mtto_arma');
                     clearFieldValue('radio_asignado_serial');
                     clearFieldValue('marca_radio');
                     clearFieldValue('tipo_radio');
+                    clearFieldValue('fecha_ultimo_mtto_radio');
                     wrap.innerHTML = '';
                 });
             }
